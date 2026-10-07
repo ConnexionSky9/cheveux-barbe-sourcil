@@ -85,6 +85,7 @@ server_scripts {
 ui_page 'html/index.html'
 
 files {
+    'minimap/radarmask.png',
     'html/index.html',
     'html/style.css',
     'html/script.js',

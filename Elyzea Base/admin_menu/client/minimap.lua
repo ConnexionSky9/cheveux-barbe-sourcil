@@ -15,6 +15,23 @@ local ALIGN = {
 
 local function current() return preview or saved end
 
+-- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
+-- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
+local maskTxd, maskOn = nil, false
+local function SharpMask(on)
+    if on == maskOn then return end
+    if on then
+        if not maskTxd then
+            maskTxd = CreateRuntimeTxd('elyzea_minimap')
+            CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
+        end
+        AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
+    else
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+    end
+    maskOn = on
+end
+
 -- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le HUD
 MinimapRect = nil
 function RectOf(a, x, y, w, h, aspect, round)
@@ -53,11 +70,13 @@ local function apply()
     local y = (a[2] == 'T') and my or -my
 
     SetMinimapClipType(s.shape == 'round' and 1 or 0)
+    SharpMask(s.shape ~= 'round')
     MinimapRect = RectOf(a, x, y, w, h, aspect, s.shape == 'round')
     TriggerEvent('elyzea:minimapRect', MinimapRect)
     SetMinimapComponentPosition('minimap', a[1], a[2], x, y, w, h)
     SetMinimapComponentPosition('minimap_mask', a[1], a[2], x, y, w, h)
-    SetMinimapComponentPosition('minimap_blur', a[1], a[2], x - (a[1] == 'R' and 0.004 or -0.004), y, w + 0.008, h + 0.012)
+    -- Flou de fond : même rectangle (sinon un halo sombre déborde autour de la carte)
+    SetMinimapComponentPosition('minimap_blur', a[1], a[2], x, y, w, h)
 
     -- La position ne se met à jour qu'après un passage en grande carte
     SetBigmapActive(true, false)
@@ -189,4 +208,9 @@ RegisterNUICallback('minimap_preview_end', function(_, cb)
     cb('ok')
     preview = nil
     CreateThread(apply)
+end)
+
+-- Ressource arrêtée : on rend à GTA son masque d'origine
+AddEventHandler('onResourceStop', function(res)
+    if res == GetCurrentResourceName() and maskOn then RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm') end
 end)

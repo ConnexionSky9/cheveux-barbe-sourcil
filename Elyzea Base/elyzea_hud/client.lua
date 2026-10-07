@@ -13,6 +13,23 @@ local ownsMinimap = false     -- true si admin_menu n'est pas là
 ------------------------------------------------------------
 local function adminMap() return GetResourceState('admin_menu') == 'started' end
 
+-- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
+-- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
+local maskTxd, maskOn = nil, false
+local function SharpMask(on)
+    if on == maskOn then return end
+    if on then
+        if not maskTxd then
+            maskTxd = CreateRuntimeTxd('elyzea_minimap')
+            CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
+        end
+        AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
+    else
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+    end
+    maskOn = on
+end
+
 local function sendRect()
     SendNUIMessage({ action = 'rect', rect = rect })
 end
@@ -27,9 +44,10 @@ local function setupMinimap()
     local extra = aspect > 16 / 9 + 0.01 and ((16 / 9) - aspect) / 3.6 or 0.0
     local x, y = m.marginX + extra, -m.marginY
     SetMinimapClipType(0)
+    SharpMask(true)
     SetMinimapComponentPosition('minimap', 'L', 'B', x, y, w, h)
     SetMinimapComponentPosition('minimap_mask', 'L', 'B', x, y, w, h)
-    SetMinimapComponentPosition('minimap_blur', 'L', 'B', x + 0.004, y, w + 0.008, h + 0.012)
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', x, y, w, h)
     SetBigmapActive(true, false)
     Wait(0)
     SetBigmapActive(false, false)
@@ -169,4 +187,9 @@ AddEventHandler('onClientResourceStart', function(res)
 end)
 AddEventHandler('onClientResourceStop', function(res)
     if res == 'admin_menu' then ownsMinimap = true SetTimeout(500, setupMinimap) end
+end)
+
+-- Ressource arrêtée : on rend à GTA son masque d'origine
+AddEventHandler('onResourceStop', function(res)
+    if res == GetCurrentResourceName() and maskOn then RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm') end
 end)
