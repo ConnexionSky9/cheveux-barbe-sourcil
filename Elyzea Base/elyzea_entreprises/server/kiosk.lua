@@ -394,7 +394,8 @@ local function LoadOrders()
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `company` VARCHAR(40) NOT NULL, `cid` VARCHAR(50) NOT NULL,
         `name` VARCHAR(100) NOT NULL, `items` LONGTEXT NOT NULL, `total` INT NOT NULL, `method` VARCHAR(10) NOT NULL,
         `status` VARCHAR(20) NOT NULL, `employee` VARCHAR(100) NULL, `created` INT NOT NULL,
-        INDEX (`company`), INDEX (`cid`), INDEX (`status`))]])
+        INDEX (`company`), INDEX (`cid`), INDEX (`status`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'elyzea_entreprises_orders' }) end)   -- emojis acceptés
     for _, r in ipairs(MySQL.query.await("SELECT * FROM elyzea_entreprises_orders WHERE status IN ('pending', 'preparing', 'ready')") or {}) do
         if E.S[r.company] then
             local o = { id = r.id, company = r.company, cid = r.cid, name = r.name, lines = json.decode(r.items or '[]') or {}, total = r.total,

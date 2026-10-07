@@ -27,9 +27,10 @@ end
 CreateThread(function()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_permis` (
         `citizenid` VARCHAR(50) NOT NULL PRIMARY KEY,
-        `theory` LONGTEXT NULL, `licenses` LONGTEXT NULL, `number` VARCHAR(20) NULL)]])
+        `theory` LONGTEXT NULL, `licenses` LONGTEXT NULL, `number` VARCHAR(20) NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_permis_settings` (
-        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'elyzea_permis', 'elyzea_permis_settings' }) end)   -- emojis acceptés
     local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_permis_settings WHERE `key` = ?', { 'config' })
     local saved = raw and json.decode(raw) or {}
     Settings.questions = type(saved.questions) == 'table' and saved.questions or Copy(Config.Questions)

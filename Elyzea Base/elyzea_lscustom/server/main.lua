@@ -127,14 +127,15 @@ end
 
 local function Load()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `lscustom_settings` (
-        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `lscustom_invoices` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `mechanic` VARCHAR(100) NOT NULL, `mechanic_cid` VARCHAR(50) NULL,
         `client` VARCHAR(100) NOT NULL, `client_cid` VARCHAR(50) NULL,
         `label` VARCHAR(255) NOT NULL, `amount` INT NOT NULL, `plate` VARCHAR(16) NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'lscustom_settings', 'lscustom_invoices' }) end)   -- emojis acceptés
     local raw = MySQL.scalar.await('SELECT `value` FROM lscustom_settings WHERE `key` = ?', { 'config' })
     L.S = L.Build(raw and json.decode(raw) or {})
     if not raw then L.Save() end

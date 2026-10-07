@@ -70,7 +70,8 @@ for farm, cfg in pairs(Config.Farms) do S[farm] = Build(cfg, nil) end
 CreateThread(function()
     local ok, err = pcall(function()
         MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_farm_settings` (
-            `farm` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+            `farm` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+        pcall(function() exports.elyzea_core:ToUtf8mb4({ 'elyzea_farm_settings' }) end)   -- emojis acceptés
         for farm, cfg in pairs(Config.Farms) do
             local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_farm_settings WHERE `farm` = ?', { farm })
             S[farm] = Build(cfg, raw and json.decode(raw) or nil)

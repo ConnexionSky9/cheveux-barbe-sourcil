@@ -191,7 +191,7 @@ if UseDatabase() then
                 `missions` INT NOT NULL DEFAULT 0,
                 `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (`identifier`)
-            )
+            ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ]], {}, function()
             print('^2[gofast] Table gofast_players prête^0')
         end)

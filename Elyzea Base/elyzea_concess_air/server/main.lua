@@ -181,20 +181,21 @@ end
 
 local function Load()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `concessair_settings` (
-        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `concessair_vehicles` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `model` VARCHAR(60) NOT NULL, `label` VARCHAR(100) NOT NULL, `price` INT NOT NULL DEFAULT 0,
         `category` VARCHAR(40) NOT NULL DEFAULT 'autres', `image` VARCHAR(500) NULL, `description` TEXT NULL,
-        `hidden` TINYINT(1) NOT NULL DEFAULT 0, `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)]])
+        `hidden` TINYINT(1) NOT NULL DEFAULT 0, `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `concessair_sales` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `vehicle_id` INT NULL, `model` VARCHAR(60) NOT NULL, `label` VARCHAR(100) NOT NULL,
         `price` INT NOT NULL, `base_price` INT NOT NULL, `discount` INT NOT NULL DEFAULT 0,
         `seller` VARCHAR(100) NOT NULL, `seller_cid` VARCHAR(50) NULL,
         `buyer` VARCHAR(100) NOT NULL, `buyer_cid` VARCHAR(50) NULL, `plate` VARCHAR(16) NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`seller_cid`), INDEX (`created_at`))]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`seller_cid`), INDEX (`created_at`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'concessair_settings', 'concessair_vehicles', 'concessair_sales' }) end)   -- emojis acceptés
     local raw = MySQL.scalar.await('SELECT `value` FROM concessair_settings WHERE `key` = ?', { 'config' })
     C.S = C.Build(raw and json.decode(raw) or {})
     if not raw then C.Save() end

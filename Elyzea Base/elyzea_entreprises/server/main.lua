@@ -165,13 +165,14 @@ end
 
 local function Load()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_entreprises` (
-        `company` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        `company` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_entreprises_invoices` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `company` VARCHAR(40) NOT NULL,
         `employee` VARCHAR(100) NOT NULL, `employee_cid` VARCHAR(50) NULL,
         `client` VARCHAR(100) NOT NULL, `client_cid` VARCHAR(50) NULL,
         `label` VARCHAR(255) NOT NULL, `amount` INT NOT NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`company`))]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`company`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'elyzea_entreprises', 'elyzea_entreprises_invoices' }) end)   -- emojis acceptés
     for c, cfg in pairs(Config.Companies) do
         local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_entreprises WHERE `company` = ?', { c })
         local s = E.Copy(cfg.defaults)

@@ -114,29 +114,29 @@ end
 -- ---------------------------------------------------------------------
 local function InitDatabase()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `police_settings` (
-        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        `key` VARCHAR(64) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `police_records` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `citizenid` VARCHAR(50) NOT NULL, `name` VARCHAR(100) NOT NULL,
         `title` VARCHAR(150) NOT NULL, `content` LONGTEXT NOT NULL,
         `charges` LONGTEXT NULL, `fine` INT NOT NULL DEFAULT 0, `jail` INT NOT NULL DEFAULT 0,
         `officer` VARCHAR(100) NOT NULL, `officer_cid` VARCHAR(50) NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`citizenid`))]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`citizenid`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `police_fines` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `citizenid` VARCHAR(50) NOT NULL, `name` VARCHAR(100) NOT NULL,
         `label` VARCHAR(255) NOT NULL, `amount` INT NOT NULL,
         `officer` VARCHAR(100) NOT NULL, `paid` TINYINT(1) NOT NULL DEFAULT 0,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`citizenid`))]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`citizenid`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `police_warrants` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `citizenid` VARCHAR(50) NULL, `name` VARCHAR(100) NOT NULL,
         `reason` LONGTEXT NOT NULL, `danger` TINYINT NOT NULL DEFAULT 1,
         `officer` VARCHAR(100) NOT NULL, `active` TINYINT(1) NOT NULL DEFAULT 1,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)]])
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `police_jail` (
         `citizenid` VARCHAR(50) NOT NULL PRIMARY KEY, `name` VARCHAR(100) NOT NULL,
-        `remaining` INT NOT NULL, `reason` VARCHAR(255) NULL, `officer` VARCHAR(100) NULL)]])
+        `remaining` INT NOT NULL, `reason` VARCHAR(255) NULL, `officer` VARCHAR(100) NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 end
 
 function P.SaveSettings()
@@ -145,6 +145,7 @@ function P.SaveSettings()
 end
 
 local function LoadSettings()
+    pcall(function() exports.elyzea_core:ToUtf8mb4({ 'police_settings', 'police_records', 'police_fines', 'police_warrants', 'police_jail' }) end)   -- emojis acceptés
     local raw = MySQL.scalar.await('SELECT `value` FROM police_settings WHERE `key` = ?', { 'config' })
     local loaded = raw and json.decode(raw) or {}
     local s = P.Copy(Config.Defaults)

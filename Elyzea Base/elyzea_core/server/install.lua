@@ -89,6 +89,49 @@ local TABLES = {
 
 DatabaseReady = false
 
+-- ---------------------------------------------------------------------
+-- Emojis (🍔, 🚕, 🪓…) : une table en utf8 « 3 octets » ou latin1 les refuse
+-- (« Incorrect string value: '\xF0\x9F…' »). On convertit les tables Elyzea en utf8mb4.
+-- ---------------------------------------------------------------------
+local UTF8MB4_TABLES = {
+    'concess_settings', 'concess_vehicles', 'concess_sales', 'concessair_settings', 'concessair_vehicles', 'concessair_sales',
+    'elyzea_entreprises', 'elyzea_entreprises_invoices', 'elyzea_entreprises_orders', 'elyzea_farm_settings',
+    'elyzea_permis', 'elyzea_permis_settings', 'elyzea_society', 'elyzea_society_logs', 'elyzea_bank_logs',
+    'elyzea_stashes', 'elyzea_ems_logs', 'gofast_players', 'lscustom_settings', 'lscustom_invoices',
+    'police_settings', 'police_records', 'police_fines', 'police_warrants', 'police_jail', 'ely_characters', 'player_groups',
+}
+
+function ToUtf8mb4(names)
+    local list = {}
+    for _, n in ipairs(type(names) == 'table' and names or {}) do
+        n = tostring(n):gsub('[^%w_]', '')
+        if n ~= '' then list[#list + 1] = n end
+    end
+    if #list == 0 then return 0 end
+    local rows = MySQL.query.await([[SELECT TABLE_NAME AS t FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (?) AND (TABLE_COLLATION IS NULL OR TABLE_COLLATION NOT LIKE 'utf8mb4%')]], { list }) or {}
+    local done = 0
+    for _, r in ipairs(rows) do
+        local name = tostring(r.t or r.TABLE_NAME or ''):gsub('[^%w_]', '')
+        if name ~= '' then
+            local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'):format(name))
+            if ok then
+                done = done + 1
+                print(('^2[elyzea_core] Table « %s » passée en utf8mb4 (emojis acceptés).^0'):format(name))
+            else
+                print(('^1[elyzea_core] Conversion utf8mb4 impossible pour « %s » : %s^0'):format(name, tostring(err)))
+            end
+        end
+    end
+    return done
+end
+
+-- Appelé par les ressources Elyzea juste après la création de leurs tables
+exports('ToUtf8mb4', function(names)
+    local ok, n = pcall(ToUtf8mb4, names)
+    return ok and n or 0
+end)
+
 CreateThread(function()
     MySQL.ready.await()
     for _, sql in ipairs(TABLES) do
@@ -99,6 +142,11 @@ CreateThread(function()
     pcall(MySQL.query.await, 'ALTER TABLE `players` ADD COLUMN IF NOT EXISTS `last_logged_out` timestamp NULL DEFAULT NULL')
     DatabaseReady = true
     TriggerEvent('elyzea:server:databaseReady')
+    -- Tables créées avant cette correction : vérifiées maintenant, puis après le démarrage des autres ressources
+    for _, delay in ipairs({ 0, 30000, 90000 }) do
+        Wait(delay)
+        pcall(ToUtf8mb4, UTF8MB4_TABLES)
+    end
 end)
 
 function AwaitDatabase()
