@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>ELYZEA FA — Inventaire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app" class="hidden" aria-hidden="true">
+    <div class="vignette"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><i></i></div>
+        <h1>ELYZEA FA</h1>
+      </div>
+
+      <div class="weight" id="weight">
+        <div class="weight-head">
+          <span class="weight-label">POIDS</span>
+          <span class="weight-value"><b id="w-cur">0.0</b><span class="sep">/</span><span id="w-max">18</span> KG</span>
+        </div>
+        <div class="bar" id="w-bar">
+          <div class="bar-fill" id="w-fill"></div>
+          <div class="bar-preview" id="w-preview"></div>
+        </div>
+        <div class="weight-foot">
+          <span>CAPACITÉ : <b id="w-cap">18 KG</b></span>
+          <span class="bag-badge" id="bag-badge">🎒 SAC ÉQUIPÉ <em id="bag-bonus">+10 KG</em></span>
+          <span class="free" id="w-free">18.0 KG libres</span>
+        </div>
+      </div>
+
+      <button class="close-btn" id="close" type="button" title="Fermer">
+        <kbd>Échap</kbd>
+      </button>
+    </header>
+
+    <main class="layout">
+      <section class="panel inv-panel">
+        <div class="panel-head">
+          <h2>Inventaire</h2>
+          <span class="muted" id="slot-count">0 / 30</span>
+        </div>
+        <div class="hotbar-head">
+          <h3>Raccourcis rapides</h3>
+          <span class="muted">Touches 1 à 5</span>
+        </div>
+        <div class="hotbar" id="hotbar"></div>
+        <div class="grid" id="grid"></div>
+      </section>
+
+      <section class="stage">
+        <div class="equip-col left" id="equip-left"></div>
+        <div class="character" id="character" data-drop="character">
+          <div class="drop-hint">Relâcher pour équiper</div>
+          <div class="preview-figure" aria-hidden="true"></div>
+          <div class="platform" aria-hidden="true"><span></span></div>
+          <div class="rotate-hint">Maintenir et glisser pour tourner · molette pour zoomer</div>
+        </div>
+        <div class="equip-col right" id="equip-right"></div>
+      </section>
+
+      <section class="side">
+        <div class="panel container-panel" id="container-zone" data-drop="container">
+          <div class="panel-head">
+            <h2 id="container-title">Coffre</h2>
+            <span class="muted" id="container-count"></span>
+          </div>
+          <div class="container-weight" id="container-weight">
+            <div class="bar"><div class="bar-fill" id="c-fill"></div></div>
+            <span id="c-text"></span>
+          </div>
+          <div class="grid container-grid" id="container-grid"></div>
+        </div>
+
+        <div class="panel drop-panel" id="drop-zone" data-drop="ground">
+          <div class="panel-head">
+            <h2>Au sol</h2>
+            <span class="muted" id="ground-count"></span>
+          </div>
+          <div class="grid ground-grid" id="ground-grid"></div>
+          <p class="ground-empty">Glissez un objet ici pour le déposer au sol.</p>
+        </div>
+
+        <div class="panel qty-panel">
+          <label for="qty">Quantité à déplacer</label>
+          <div class="qty-row">
+            <button type="button" data-qty="-1">−</button>
+            <input id="qty" type="number" min="0" value="0" inputmode="numeric">
+            <button type="button" data-qty="1">+</button>
+          </div>
+          <small>0 déplace toute la pile. Maj : moitié. Ctrl : une unité.</small>
+        </div>
+
+        <div class="panel help-panel">
+          <p><kbd>Glisser</kbd> déplacer, équiper ou déposer</p>
+          <p><kbd>Double-clic</kbd> équiper ou retirer</p>
+          <p><kbd>Clic droit</kbd> menu (porter, renommer, utiliser, jeter)</p>
+          <p><kbd>1</kbd>…<kbd>5</kbd> utiliser un raccourci rapide</p>
+          <p><kbd>R</kbd> recharger l'arme en main</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+ <div id="hud-hotbar" class="hud-hotbar" aria-hidden="true"></div>
+  <div id="tooltip" class="tooltip" role="tooltip"></div>
+  <div id="ghost" class="ghost"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

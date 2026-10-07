@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elyzea FA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#03050b; --ink:#070b16; --legal:#2f7bff; --legal-soft:#8fb6ff;
+  --crime:#ff2b4a; --crime-soft:#ff8a9a; --gold:#e8d3a6; --gold-deep:#b8955a;
+  --steel:#8c97b0; --text:#eef1f8;
+  --display:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --ui:'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="light"]{} /* l'écran reste volontairement sombre (écran de jeu) */
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--void);color:var(--text);font-family:var(--ui);overflow:hidden;user-select:none;-webkit-tap-highlight-color:transparent}
+
+#bg{position:fixed;inset:0;width:100%;height:100%;display:block}
+.scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.85) 100%)}
+
+.stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s .8s}
+.stage.on{opacity:1;visibility:visible;transition:opacity .8s ease}
+
+/* ---------- 1. BOOT ---------- */
+#boot{flex-direction:column;gap:28px;padding:24px}
+.boot-logo{width:min(140px,30vw);aspect-ratio:1;border-radius:50%;
+  -webkit-mask:radial-gradient(circle,#000 58%,transparent 71%);mask:radial-gradient(circle,#000 58%,transparent 71%);
+  animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{50%{filter:brightness(1.25) drop-shadow(0 0 20px rgba(232,211,166,.4))}}
+.term{width:min(440px,88vw);font-size:15px;letter-spacing:.04em;color:var(--steel);min-height:96px}
+.term p{margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.term p b{color:var(--legal-soft);font-weight:600}
+.term p.ok b{color:#6dffb0}
+.bar{width:min(440px,88vw);height:3px;background:rgba(255,255,255,.08);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--legal),var(--gold) 50%,var(--crime));box-shadow:0 0 12px var(--gold);transition:width .25s ease}
+.pct{font-family:var(--display);font-size:13px;color:var(--gold);letter-spacing:.3em}
+
+/* ---------- 2. INTRO ---------- */
+#intro{flex-direction:column;padding:24px}
+.core{position:relative;width:min(440px,72vw,58vh);aspect-ratio:1;border:0;background:none;padding:0;border-radius:50%;outline:none}
+.core:focus-visible{box-shadow:0 0 0 2px var(--gold),0 0 0 6px rgba(232,211,166,.2)}
+.core img{position:absolute;inset:8%;width:84%;height:84%;border-radius:50%;
+  -webkit-mask:radial-gradient(circle,#000 60%,transparent 71%);mask:radial-gradient(circle,#000 60%,transparent 71%);
+  transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .5s}
+.core:hover img{transform:scale(1.04);filter:brightness(1.15) saturate(1.1)}
+.ring{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+.r1{border:1px solid rgba(143,182,255,.35);border-right-color:rgba(255,138,154,.6);border-left-color:rgba(143,182,255,.7);animation:spin 18s linear infinite}
+.r2{inset:-5%;border:1px dashed rgba(232,211,166,.22);animation:spin 40s linear infinite reverse}
+.r3{inset:-10%;background:conic-gradient(from 0deg,transparent 0 80%,rgba(47,123,255,.5) 88%,transparent 90%,transparent 30%);
+  -webkit-mask:radial-gradient(circle,transparent 69%,#000 70%,#000 71%,transparent 72%);mask:radial-gradient(circle,transparent 69%,#000 70%,#000 71%,transparent 72%);animation:spin 6s linear infinite}
+.r4{inset:-10%;background:conic-gradient(from 180deg,transparent 0 80%,rgba(255,43,74,.55) 88%,transparent 90%);
+  -webkit-mask:radial-gradient(circle,transparent 69%,#000 70%,#000 71%,transparent 72%);mask:radial-gradient(circle,transparent 69%,#000 70%,#000 71%,transparent 72%);animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ticks{position:absolute;inset:-14%;pointer-events:none}
+.enter{margin-top:clamp(28px,6vh,56px);text-align:center}
+.enter h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,4.2vw,40px);letter-spacing:.14em;margin:0;
+  background:linear-gradient(180deg,#fff7e6,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;color:transparent;
+  position:relative;filter:drop-shadow(0 0 18px rgba(232,211,166,.25))}
+.enter h1.glitch{animation:glitch .35s steps(2) 1}
+@keyframes glitch{0%{transform:translate(0)}25%{transform:translate(-3px,1px);filter:drop-shadow(3px 0 var(--crime)) drop-shadow(-3px 0 var(--legal))}50%{transform:translate(2px,-1px)}75%{transform:translate(-1px,0);filter:drop-shadow(-2px 0 var(--crime)) drop-shadow(2px 0 var(--legal))}100%{transform:translate(0)}}
+.enter p{margin:12px 0 0;font-size:clamp(14px,1.6vw,16px);color:var(--steel);letter-spacing:.08em;animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+
+/* transition flash */
+.flash{position:fixed;inset:0;pointer-events:none;opacity:0;background:linear-gradient(90deg,rgba(47,123,255,.6),rgba(255,255,255,.9) 50%,rgba(255,43,74,.6))}
+.flash.go{animation:flash .9s ease-out}
+@keyframes flash{0%{opacity:0;clip-path:inset(49.5% 0 49.5% 0)}20%{opacity:1;clip-path:inset(49% 0 49% 0)}45%{opacity:.9;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
+
+/* ---------- 3. SELECT ---------- */
+#select{flex-direction:column;padding:clamp(16px,4vh,40px) 20px;gap:clamp(18px,4vh,40px);overflow-y:auto;justify-content:flex-start}
+#select.on{justify-content:center}
+.sel-head{display:flex;align-items:center;gap:16px}
+.sel-head img{width:64px;height:64px;border-radius:50%;-webkit-mask:radial-gradient(circle,#000 58%,transparent 71%);mask:radial-gradient(circle,#000 58%,transparent 71%)}
+.sel-head h2{font-family:var(--display);font-weight:700;font-size:clamp(20px,3vw,30px);letter-spacing:.1em;margin:0;color:var(--gold)}
+.sel-head span{display:block;font-size:15px;color:var(--steel);letter-spacing:.04em;margin-top:2px}
+
+.slots{display:grid;grid-template-columns:minmax(0,320px) minmax(220px,1fr) minmax(0,320px);gap:clamp(14px,2.5vw,32px);align-items:center;width:min(1200px,100%)}
+@media (max-width:900px){.slots{grid-template-columns:minmax(0,380px);justify-content:center}.preview{order:-1;height:340px!important}}
+.slot{}
+.slot.active{transform:translateY(-6px)}
+.slot.active::after{height:3px;box-shadow:0 0 26px var(--c),0 0 8px var(--c)}
+.slot.dim{opacity:.55!important}
+.slot.dim:hover{opacity:.85!important}
+
+/* aperçu du personnage */
+.preview{--c:var(--legal);--cs:var(--legal-soft);position:relative;height:min(64vh,580px);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:10px}
+.preview.crime{--c:var(--crime);--cs:var(--crime-soft)}
+.ped{position:relative;height:84%;aspect-ratio:200/460;animation:float 4s ease-in-out infinite;transition:opacity .35s, filter .35s}
+.ped svg{width:100%;height:100%;overflow:visible}
+.ped.swap{opacity:0;filter:blur(6px)}
+@keyframes float{50%{transform:translateY(-8px)}}
+.ped .q{position:absolute;inset:0;display:grid;place-items:center;padding-bottom:40%;font-family:var(--display);font-size:64px;color:var(--cs);opacity:.8}
+.pedestal{position:relative;width:min(260px,80%);aspect-ratio:4/1;margin-top:-18px}
+.pedestal i{position:absolute;inset:0;border-radius:50%;border:1px solid var(--c);box-shadow:0 0 24px var(--c),inset 0 0 18px color-mix(in srgb,var(--c) 50%,transparent)}
+.pedestal i:nth-child(2){inset:18% 14%;opacity:.6;animation:spin 8s linear infinite;border-style:dashed}
+.pedestal i:nth-child(3){inset:-30% -12%;opacity:.25;border-color:var(--gold)}
+.beam{position:absolute;left:50%;bottom:22px;width:min(220px,70%);height:80%;transform:translateX(-50%);pointer-events:none;
+  background:linear-gradient(0deg,color-mix(in srgb,var(--c) 30%,transparent),transparent 85%);clip-path:polygon(10% 100%,90% 100%,70% 0,30% 0);opacity:.5}
+.tag{margin-top:14px;text-align:center;min-height:52px}
+.tag b{display:block;font-family:var(--display);font-size:clamp(18px,2.2vw,24px);letter-spacing:.06em;color:var(--gold)}
+.tag span{color:var(--cs);font-weight:600;font-size:15px}
+.rotate{display:flex;gap:10px;margin-top:8px}
+.rotate button{width:38px;height:38px;border:1px solid rgba(255,255,255,.2);background:rgba(10,14,28,.6);color:var(--text);font-size:18px;cursor:pointer}
+.rotate button:hover,.rotate button:focus-visible{border-color:var(--c);outline:none}
+/* En jeu : le vrai ped GTA apparaît derrière l'interface */
+body.in-game.selecting #bg, body.in-game.selecting .scan, body.in-game.selecting .vignette{opacity:0;transition:opacity .6s}
+body.in-game.selecting #select{background:linear-gradient(90deg,rgba(3,5,11,.9),rgba(3,5,11,.2) 32%,transparent 45% 55%,rgba(3,5,11,.2) 68%,rgba(3,5,11,.9))}
+body.in-game .ped, body.in-game .beam{visibility:hidden}
+
+.slot{--c:var(--legal);--cs:var(--legal-soft);position:relative;min-height:380px;padding:26px 24px 24px;display:flex;flex-direction:column;
+  background:linear-gradient(170deg,rgba(14,22,44,.82),rgba(5,8,18,.92));
+  clip-path:polygon(0 18px,18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+  border:0;color:var(--text);text-align:left;font:inherit;
+  opacity:0;transform:translateY(24px);transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s}
+.slot.crime{--c:var(--crime);--cs:var(--crime-soft);background:linear-gradient(170deg,rgba(44,12,20,.82),rgba(14,5,9,.92))}
+.slot.in{opacity:1;transform:none}
+.slot::before{content:"";position:absolute;inset:0;pointer-events:none;
+  clip-path:polygon(0 18px,18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px,1px 18.4px,1px calc(100% - 1px),calc(100% - 18.4px) calc(100% - 1px),calc(100% - 1px) calc(100% - 18.4px),calc(100% - 1px) 1px,18.4px 1px,1px 18.4px);
+  background:linear-gradient(180deg,var(--c),rgba(255,255,255,.08) 60%,var(--c))}
+.slot::after{content:"";position:absolute;left:24px;right:24px;top:0;height:2px;background:var(--c);box-shadow:0 0 16px var(--c)}
+.slot:hover{transform:translateY(-3px)}
+.slot-id{font-size:14px;color:var(--cs);letter-spacing:.12em;font-weight:600}
+.avatar{margin:22px auto 18px;width:120px;height:120px;position:relative;display:grid;place-items:center}
+.avatar svg{width:100%;height:100%}
+.avatar .ini{position:absolute;font-family:var(--display);font-size:38px;font-weight:700;color:var(--gold)}
+.name{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.04em;text-align:center;margin:0}
+.job{text-align:center;color:var(--cs);font-size:16px;font-weight:600;margin:4px 0 18px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:0 0 auto;font-size:15px}
+.stats dt{color:var(--steel);font-size:13px}
+.stats dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.empty-txt{text-align:center;color:var(--steel);font-size:16px;line-height:1.45;margin:0 auto auto;max-width:24ch}
+.btn{margin-top:22px;width:100%;padding:14px 16px;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--text);
+  font:700 17px/1 var(--ui);letter-spacing:.08em;position:relative;overflow:hidden;transition:background .25s,box-shadow .25s}
+.btn:hover,.btn:focus-visible{background:color-mix(in srgb,var(--c) 45%,transparent);box-shadow:0 0 22px color-mix(in srgb,var(--c) 60%,transparent);outline:none}
+.btn::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-20deg)}
+.btn:hover::after{animation:sweep .7s ease}
+@keyframes sweep{to{left:120%}}
+.btn.ghost{border-style:dashed}
+.plus{width:120px;height:120px;margin:22px auto 18px;display:grid;place-items:center;border:1px dashed var(--c);border-radius:50%;font-size:46px;color:var(--cs);font-weight:300;animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px color-mix(in srgb,var(--c) 12%,transparent),0 0 30px color-mix(in srgb,var(--c) 30%,transparent)}}
+
+/* loader overlay after choice */
+#launch{flex-direction:column;gap:18px;background:rgba(3,5,11,.9);z-index:5}
+#launch h3{font-family:var(--display);color:var(--gold);letter-spacing:.12em;font-size:clamp(18px,3vw,26px);margin:0;text-align:center;padding:0 20px}
+.spinner{width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.08);border-top-color:var(--legal);border-bottom-color:var(--crime);animation:spin 1s linear infinite}
+
+/* ---------- Création (identité) ---------- */
+#create{padding:20px;overflow-y:auto}
+.cform{--c:var(--gold);width:min(480px,94vw);padding:28px 26px;display:grid;gap:16px;position:relative;
+  background:linear-gradient(170deg,rgba(14,18,34,.92),rgba(5,7,14,.96));
+  clip-path:polygon(0 18px,18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%)}
+.cform::after{content:"";position:absolute;left:24px;right:24px;top:0;height:2px;background:linear-gradient(90deg,var(--legal),var(--gold),var(--crime));box-shadow:0 0 16px var(--gold)}
+.cform h2{font-family:var(--display);color:var(--gold);letter-spacing:.08em;margin:0;font-size:clamp(20px,3vw,26px)}
+.cform .sub{color:var(--steel);font-size:15px;margin:-10px 0 4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row2{grid-template-columns:1fr}}
+.field{display:grid;gap:6px}
+.field span{font-size:13px;color:var(--steel);letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.field input{width:100%;padding:12px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);color:var(--text);
+  font:600 17px var(--ui);outline:none;transition:border-color .2s,box-shadow .2s;color-scheme:dark}
+.field input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,211,166,.12)}
+.gender{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gender button{padding:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:var(--text);font:700 16px var(--ui);letter-spacing:.05em}
+.gender button[aria-pressed="true"]{border-color:var(--legal);background:rgba(47,123,255,.2);box-shadow:0 0 18px rgba(47,123,255,.35)}
+.gender button.f[aria-pressed="true"]{border-color:var(--crime);background:rgba(255,43,74,.18);box-shadow:0 0 18px rgba(255,43,74,.35)}
+.cerr{min-height:20px;color:var(--crime-soft);font-size:15px;margin:0}
+.cbtns{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.cbtns .btn{margin:0}
+.btn.gold{--c:var(--gold)}
+.btn.back{--c:var(--steel)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);transform:translate(-50%,20px);opacity:0;z-index:20;
+  padding:12px 18px;background:rgba(10,14,28,.92);border:1px solid var(--crime);color:var(--text);font-weight:600;transition:.3s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+
+/* Curseur cyber Elyzea : dessiné en HTML (toujours visible dans FiveM) */
+html,body,*{cursor:none!important}
+#cursor{position:fixed;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;pointer-events:none;z-index:9999;
+  transform:translate3d(50vw,50vh,0);will-change:transform;opacity:1;transition:opacity .2s}
+#cursor svg{width:100%;height:100%;overflow:visible;transition:transform .15s ease}
+#cursor .dot{fill:#fff}
+#cursor.hit svg{transform:scale(1.35) rotate(45deg)}
+#cursor.down svg{transform:scale(.8)}
+body[style*="display: none"] #cursor{opacity:0}
+
+/* HUD */
+.hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;display:flex;gap:8px;z-index:10}
+.hud button{background:rgba(10,14,28,.7);border:1px solid rgba(255,255,255,.15);color:var(--text);font:600 14px var(--ui);padding:8px 12px;letter-spacing:.04em}
+.hud button:hover,.hud button:focus-visible{border-color:var(--gold);outline:none}
+.demo{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+  background:rgba(10,14,28,.8);border:1px solid rgba(255,255,255,.12);padding:8px 10px;font-size:14px;color:var(--steel)}
+.demo button{background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--text);font:600 13px var(--ui);padding:5px 9px;cursor:pointer}
+.demo button.act{border-color:var(--gold);color:var(--gold)}
+.in-game .demo{display:none}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="scan"></div>
+<div class="vignette"></div>
+
+<!-- 2. Intro -->
+<section class="stage on" id="intro" aria-label="Accueil">
+  <button class="core" id="core" aria-label="Entrer sur Elyzea FA">
+    <svg class="ticks" viewBox="0 0 200 200" aria-hidden="true"><g id="tickG"></g></svg>
+    <span class="ring r4"></span><span class="ring r3"></span>
+    <span class="ring r2"></span><span class="ring r1"></span>
+    <img src="logo.webp" alt="Logo Elyzea">
+  </button>
+  <div class="enter">
+    <h1 id="enterTxt">Entrer sur Elyzea FA</h1>
+    <p>Cliquez sur le logo</p>
+  </div>
+</section>
+
+<!-- 3. Sélection -->
+<section class="stage" id="select" aria-label="Choix du personnage">
+  <div class="sel-head">
+    <img src="logo.webp" alt="">
+    <div><h2>Choisissez votre personnage</h2><span>Sélectionnez un emplacement pour voir votre personnage</span></div>
+  </div>
+  <div class="slots" id="slots"></div>
+</section>
+
+<section class="stage" id="launch" aria-live="polite">
+  <div class="spinner"></div>
+  <h3 id="launchTxt">Connexion…</h3>
+</section>
+
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast" role="status"></div>
+<div id="cursor" aria-hidden="true"><svg viewBox="0 0 34 34">
+  <circle cx="17" cy="17" r="11" fill="rgba(5,8,18,.35)" stroke="#e8d3a6" stroke-width="1.6"/>
+  <path d="M17 6a11 11 0 0 0 0 22" fill="none" stroke="#2f7bff" stroke-width="2.6"/>
+  <path d="M17 6a11 11 0 0 1 0 22" fill="none" stroke="#ff2b4a" stroke-width="2.6"/>
+  <path d="M17 1v6M17 27v6M1 17h6M27 17h6" stroke="#e8d3a6" stroke-width="1.6"/>
+  <circle class="dot" cx="17" cy="17" r="2.4"/></svg></div>
+
+<div class="hud"><button id="mute" aria-pressed="false">🔊 Son</button></div>
+<div class="demo" id="demo">Aperçu :
+  <button data-n="0">0 perso</button><button data-n="1" class="act">1 perso</button><button data-n="2">2 persos</button>
+  <button id="replay">↺ Rejouer</button>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG FiveM
+   - Dans FiveM, GetParentResourceName() existe : les clics
+     envoient des callbacks NUI (selectCharacter / createCharacter).
+   - Le client Lua envoie les persos via SendNUIMessage :
+     { action:'openSelect', characters:[{id, slot, firstname, lastname, job, cash, bank, lastPlayed}] }
+   ========================================================= */
+const RES = typeof GetParentResourceName === 'function' ? GetParentResourceName() : null;
+// Cette page s'affiche JUSTE APRÈS ton loading screen (ui_page)
+const IN_GAME = !!RES || !!window.invokeNative;
+if (IN_GAME) { document.body.classList.add('in-game'); document.body.style.display = 'none'; } // attend l'ordre du client Lua
+const isHidden = () => document.body.style.display === 'none';
+let busy = false; // anti double-clic
+
+function nui(event, data = {}) {
+  if (!RES) return Promise.resolve(null);
+  return fetch(`https://${RES}/${event}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json; charset=UTF-8'}, body: JSON.stringify(data)
+  }).then(r => r.json()).catch(() => null);
+}
+
+const DEMO = [
+  {id: 1, slot: 1, firstname: 'Lucas', lastname: 'Moreau', job: 'LSPD · Sergent', cash: 2450, bank: 38900, lastPlayed: 'Hier, 23:14'},
+  {id: 2, slot: 2, firstname: 'Enzo', lastname: 'Vargas', job: 'Les Vipères', cash: 18200, bank: 4100, lastPlayed: 'Il y a 3 jours'}
+];
+let characters = [DEMO[0]];
+
+/* ================= SON (Web Audio, aucun fichier) ================= */
+let AC = null, master = null, drone = null, muted = false;
+function audio() {
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+    master = AC.createGain(); master.gain.value = .55; master.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, d = .08, type = 'square', v = .06, slide = 0, delay = 0) {
+  const ac = audio(); if (!ac || muted) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + d + .02);
+}
+function noise(d = .4, v = .12, from = 400, to = 4000, delay = 0) {
+  const ac = audio(); if (!ac || muted) return;
+  const t = ac.currentTime + delay, len = ac.sampleRate * d, buf = ac.createBuffer(1, len, ac.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = buf; f.type = 'bandpass'; f.Q.value = 2;
+  f.frequency.setValueAtTime(from, t); f.frequency.exponentialRampToValueAtTime(to, t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+const SFX = {
+  blip: () => tone(1400 + Math.random() * 600, .04, 'square', .025),
+  hover: () => tone(2200, .03, 'sine', .04),
+  ok: () => { tone(880, .07, 'triangle', .07); tone(1320, .12, 'triangle', .07, 0, .07); },
+  enter: () => { noise(.9, .22, 200, 6000); tone(110, 1.1, 'sawtooth', .09, -60); tone(660, .5, 'triangle', .06, 600, .15); tone(990, .6, 'sine', .05, 0, .35); },
+  select: () => { tone(520, .08, 'square', .05); tone(780, .08, 'square', .05, 0, .08); tone(1170, .25, 'triangle', .07, 0, .16); noise(.5, .08, 3000, 300, .1); },
+  glitch: () => { for (let i = 0; i < 4; i++) tone(200 + Math.random() * 1800, .025, 'square', .03, 0, i * .03); }
+};
+function startDrone() {
+  const ac = audio(); if (!ac || drone) return;
+  const g = ac.createGain(); g.gain.value = 0; g.connect(master);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.connect(g);
+  [55, 82.4, 110.5].forEach((f, i) => { const o = ac.createOscillator(); o.type = i ? 'sawtooth' : 'sine'; o.frequency.value = f; o.detune.value = i * 7; o.connect(lp); o.start(); });
+  const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = .08; lg.gain.value = 220; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+  g.gain.linearRampToValueAtTime(muted ? 0 : .07, ac.currentTime + 3);
+  drone = g;
+}
+document.getElementById('mute').onclick = e => {
+  muted = !muted; e.currentTarget.textContent = muted ? '🔇 Muet' : '🔊 Son'; e.currentTarget.setAttribute('aria-pressed', muted);
+  if (drone && AC) drone.gain.linearRampToValueAtTime(muted ? 0 : .07, AC.currentTime + .4);
+};
+['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => { audio(); startDrone(); }, {once: true}));
+
+/* ================= FOND CYBER (canvas) ================= */
+const cv = document.getElementById('bg'), cx = cv.getContext('2d');
+let W, H, DPR, parts = [], t0 = performance.now();
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function resize() {
+  DPR = IN_GAME ? 1 : Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  parts = Array.from({length: Math.min(IN_GAME ? 70 : 120, Math.round(W * H / 14000))}, () => ({x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.6 + .3, v: Math.random() * .35 + .08}));
+}
+addEventListener('resize', resize); resize();
+function draw(now) {
+  // Pause totale quand l'UI est cachée ou que le vrai ped GTA est affiché : zéro coût CPU/GPU
+  if (isHidden() || (IN_GAME && document.body.classList.contains('selecting'))) { setTimeout(() => requestAnimationFrame(draw), 300); return; }
+  const t = (now - t0) / 1000;
+  cx.fillStyle = '#03050b'; cx.fillRect(0, 0, W, H);
+  // halo bleu (légal) / rouge (illégal)
+  let g = cx.createRadialGradient(W * .12, H * .45, 0, W * .12, H * .45, W * .6);
+  g.addColorStop(0, 'rgba(47,123,255,.22)'); g.addColorStop(1, 'rgba(47,123,255,0)'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  g = cx.createRadialGradient(W * .88, H * .45, 0, W * .88, H * .45, W * .6);
+  g.addColorStop(0, 'rgba(255,43,74,.2)'); g.addColorStop(1, 'rgba(255,43,74,0)'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  // sol en perspective
+  const hz = H * .62, sp = reduce ? 0 : (t * 40) % 40;
+  cx.lineWidth = 1;
+  for (let i = 0; i < 22; i++) {
+    const p = (i * 40 + sp) / 880, y = hz + (H - hz) * p * p;
+    cx.strokeStyle = `rgba(232,211,166,${.02 + p * .12})`; cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke();
+  }
+  for (let i = -16; i <= 16; i++) {
+    const x = W / 2 + i * W * .05;
+    cx.strokeStyle = i < 0 ? 'rgba(47,123,255,.16)' : i > 0 ? 'rgba(255,43,74,.16)' : 'rgba(232,211,166,.25)';
+    cx.beginPath(); cx.moveTo(W / 2 + i * 6, hz); cx.lineTo(W / 2 + (x - W / 2) * 4, H); cx.stroke();
+  }
+  // ligne d'horizon
+  g = cx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, 'rgba(47,123,255,0)'); g.addColorStop(.3, 'rgba(47,123,255,.7)'); g.addColorStop(.5, 'rgba(232,211,166,.9)'); g.addColorStop(.7, 'rgba(255,43,74,.7)'); g.addColorStop(1, 'rgba(255,43,74,0)');
+  cx.fillStyle = g; cx.fillRect(0, hz - 1, W, 2);
+  // particules
+  for (const p of parts) {
+    if (!reduce) { p.y -= p.v; if (p.y < 0) { p.y = H; p.x = Math.random() * W; } }
+    cx.fillStyle = p.x < W / 2 ? `rgba(143,182,255,${.25 + p.s * .2})` : `rgba(255,138,154,${.25 + p.s * .2})`;
+    cx.fillRect(p.x, p.y, p.s, p.s);
+  }
+  // ligne de balayage
+  if (!reduce) { const sy = (t * 90) % (H + 200) - 100; g = cx.createLinearGradient(0, sy - 60, 0, sy); g.addColorStop(0, 'rgba(143,182,255,0)'); g.addColorStop(1, 'rgba(143,182,255,.05)'); cx.fillStyle = g; cx.fillRect(0, sy - 60, W, 60); }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// graduations autour du logo
+(() => { const gEl = document.getElementById('tickG'); let s = '';
+  for (let i = 0; i < 72; i++) { const a = i * 5 * Math.PI / 180, r1 = 97, r2 = i % 6 ? 94 : 90;
+    s += `<line x1="${100 + Math.cos(a) * r1}" y1="${100 + Math.sin(a) * r1}" x2="${100 + Math.cos(a) * r2}" y2="${100 + Math.sin(a) * r2}" stroke="${Math.cos(a) < 0 ? '#8fb6ff' : '#ff8a9a'}" stroke-opacity="${i % 6 ? .3 : .7}" stroke-width=".6"/>`; }
+  gEl.innerHTML = s; })();
+
+/* ================= ÉTAPES ================= */
+const $ = id => document.getElementById(id);
+function show(id) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('on', s.id === id)); }
+
+// Ordres envoyés par le client Lua
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if (d.action === 'openSelect') {
+    characters = d.characters || []; busy = false;
+    document.body.style.display = '';
+    if (AC && AC.state === 'suspended') AC.resume();
+    if ($('select').classList.contains('on')) { renderSlots(); }
+    else if (d.skipIntro) { show('select'); renderSlots(); }
+    else goIntro();
+  }
+  if (d.action === 'notify') toast(d.message);
+  if (d.action === 'close') {
+    document.body.style.display = 'none'; document.body.classList.remove('selecting');
+    if (AC && AC.state === 'running') AC.suspend(); // coupe le son de fond, libère le CPU
+    show('intro');
+  }
+});
+
+// 2. Intro
+function goIntro() { busy = false; show('intro'); setTimeout(() => { $('enterTxt').classList.add('glitch'); SFX.glitch(); }, 600); }
+$('enterTxt').addEventListener('animationend', () => $('enterTxt').classList.remove('glitch'));
+setInterval(() => { if (!isHidden() && $('intro').classList.contains('on') && !reduce) { $('enterTxt').classList.add('glitch'); SFX.glitch(); } }, 6000);
+$('core').addEventListener('mouseenter', SFX.hover);
+$('core').addEventListener('click', () => {
+  if (busy || !$('intro').classList.contains('on')) return;
+  audio(); startDrone(); SFX.enter();
+  const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  nui('enter');
+  setTimeout(() => { show('select'); renderSlots(); }, 380);
+});
+
+// 3. Sélection
+const fmt = n => new Intl.NumberFormat('fr-FR').format(n) + ' $';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+function avatarSVG(color) {
+  return `<svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" fill="none" stroke="${color}" stroke-opacity=".5"/>
+    <circle cx="60" cy="60" r="48" fill="${color}" fill-opacity=".08" stroke="${color}" stroke-opacity=".25" stroke-dasharray="3 5"/>
+    <path d="M60 4 A56 56 0 0 1 116 60" fill="none" stroke="${color}" stroke-width="2"/></svg>`;
+}
+const PED = (col) => `<svg viewBox="0 0 200 460" aria-hidden="true"><defs>
+  <linearGradient id="holo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".75"/><stop offset="1" stop-color="${col}" stop-opacity=".15"/></linearGradient>
+  <pattern id="lines" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.4" fill="#fff" fill-opacity=".18"/></pattern>
+  <filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs>
+  <g id="body">
+   <ellipse cx="100" cy="50" rx="27" ry="32"/>
+   <path d="M90 78 h20 v18 h-20z"/>
+   <path d="M60 104 Q100 90 140 104 L150 196 Q148 248 138 262 L62 262 Q52 248 50 196 Z"/>
+   <path d="M60 106 Q38 116 34 168 L28 256 Q26 274 38 276 L44 276 Q50 268 50 256 L58 178 Z"/>
+   <path d="M140 106 Q162 116 166 168 L172 256 Q174 274 162 276 L156 276 Q150 268 150 256 L142 178 Z"/>
+   <path d="M64 256 L136 256 L132 300 L124 438 Q122 452 108 452 L104 452 L102 306 L98 306 L96 452 L92 452 Q78 452 76 438 L68 300 Z"/>
+  </g>
+  <use href="#body" fill="${col}" opacity=".35" filter="url(#glow)"/>
+  <use href="#body" fill="url(#holo)" stroke="${col}" stroke-width="1.2"/>
+  <use href="#body" fill="url(#lines)"/>
+</svg>`;
+let activeSlot = 1;
+function renderSlots() {
+  const box = $('slots'); box.innerHTML = '';
+  const filled = n => characters.find(x => (x.slot ?? characters.indexOf(x) + 1) === n);
+  if (!filled(activeSlot)) activeSlot = filled(1) ? 1 : filled(2) ? 2 : 1;
+  [1, 2].forEach((n, i) => {
+    const c = filled(n);
+    const el = document.createElement('article');
+    el.className = 'slot' + (n === 2 ? ' crime' : ''); el.dataset.slot = n; el.tabIndex = 0;
+    const col = n === 2 ? '#ff2b4a' : '#2f7bff';
+    if (c) {
+      const ini = (c.firstname?.[0] || '') + (c.lastname?.[0] || '');
+      el.innerHTML = `<div class="slot-id">Emplacement ${n}</div>
+        <div class="avatar">${avatarSVG(col)}<span class="ini">${esc(ini)}</span></div>
+        <h3 class="name">${esc(c.firstname)} ${esc(c.lastname)}</h3>
+        <div class="job">${esc(c.job || 'Sans emploi')}</div>
+        <dl class="stats"><div><dt>Liquide</dt><dd>${fmt(c.cash || 0)}</dd></div><div><dt>Banque</dt><dd>${fmt(c.bank || 0)}</dd></div>
+        <div style="grid-column:1/-1"><dt>Dernière connexion</dt><dd>${esc(c.lastPlayed || '—')}</dd></div></dl>
+        <button class="btn">Se connecter</button>`;
+      el.querySelector('.btn').onclick = e => { e.stopPropagation(); launch(`Connexion de ${c.firstname} ${c.lastname}…`, 'selectCharacter', {id: c.id, slot: n}); };
+    } else {
+      el.innerHTML = `<div class="slot-id">Emplacement ${n}</div>
+        <div class="plus">+</div>
+        <h3 class="name">Emplacement libre</h3>
+        <p class="empty-txt" style="margin-top:12px">Aucun personnage ici. Créez-en un pour commencer votre histoire.</p>
+        <button class="btn ghost">Créer votre personnage</button>`;
+      el.querySelector('.btn').onclick = e => { e.stopPropagation(); launch('Ouverture de la création de personnage…', 'createCharacter', {slot: n}); };
+    }
+    el.addEventListener('click', () => selectSlot(n));
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === el) selectSlot(n); });
+    el.querySelector('.btn').addEventListener('mouseenter', SFX.hover);
+    setTimeout(() => { el.classList.add('in'); SFX.blip(); }, 150 + i * 160);
+    if (n === 1) { box.appendChild(el); box.appendChild(buildPreview()); } else box.appendChild(el);
+  });
+  document.body.classList.add('selecting');
+  selectSlot(activeSlot, true);
+}
+function buildPreview() {
+  const p = document.createElement('div'); p.className = 'preview'; p.id = 'preview';
+  p.innerHTML = `<div class="beam"></div><div class="ped" id="ped"></div>
+    <div class="pedestal"><i></i><i></i><i></i></div>
+    <div class="tag" id="pedTag"></div>
+    <div class="rotate"><button aria-label="Tourner à gauche" data-r="-1">⟲</button><button aria-label="Tourner à droite" data-r="1">⟳</button></div>`;
+  p.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { SFX.blip(); nui('rotateCharacter', {dir: +b.dataset.r}); });
+  return p;
+}
+function selectSlot(n, silent) {
+  const changed = activeSlot !== n || silent;
+  activeSlot = n;
+  const c = characters.find(x => (x.slot ?? characters.indexOf(x) + 1) === n);
+  document.querySelectorAll('.slot').forEach(s => { s.classList.toggle('active', +s.dataset.slot === n); s.classList.toggle('dim', +s.dataset.slot !== n); });
+  const pv = $('preview'), ped = $('ped'), col = n === 2 ? '#ff2b4a' : '#2f7bff';
+  pv.classList.toggle('crime', n === 2);
+  ped.classList.add('swap');
+  setTimeout(() => {
+    ped.innerHTML = c ? PED(col) : `<div style="opacity:.25;height:100%">${PED(col)}</div><div class="q">?</div>`;
+    $('pedTag').innerHTML = c ? `<b>${esc(c.firstname)} ${esc(c.lastname)}</b><span>${esc(c.job || 'Sans emploi')}</span>`
+                              : `<b>Emplacement libre</b><span>Votre futur personnage apparaîtra ici</span>`;
+    ped.classList.remove('swap');
+  }, silent ? 0 : 220);
+  if (!silent) SFX.hover();
+  if (changed) nui('previewCharacter', c ? {id: c.id, slot: n} : {slot: n, empty: true});
+}
+let toastT;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 4000); }
+
+function launch(txt, event, data) {
+  if (busy) return; busy = true;
+  SFX.select(); $('launchTxt').textContent = txt; show('launch'); document.body.classList.remove('selecting');
+  nui(event, data);
+  if (!IN_GAME) setTimeout(() => { busy = false; show('select'); document.body.classList.add('selecting'); }, 2200); // aperçu : retour à la sélection
+}
+
+/* ================= Curseur ================= */
+(() => {
+  const cur = $('cursor'); let x = innerWidth / 2, y = innerHeight / 2, raf = 0;
+  const paint = () => { raf = 0; cur.style.transform = `translate3d(${x}px,${y}px,0)`; };
+  addEventListener('mousemove', e => {
+    x = e.clientX; y = e.clientY; if (!raf) raf = requestAnimationFrame(paint);
+    cur.classList.toggle('hit', !!e.target.closest('button,.core,.slot,a,input,[role="slider"]'));
+  }, {passive: true});
+  addEventListener('mousedown', () => cur.classList.add('down'));
+  addEventListener('mouseup', () => cur.classList.remove('down'));
+})();
+
+/* ================= Panneau d'aperçu (masqué en jeu) ================= */
+document.querySelectorAll('#demo [data-n]').forEach(b => b.onclick = () => {
+  const n = +b.dataset.n; characters = DEMO.slice(0, n);
+  document.querySelectorAll('#demo [data-n]').forEach(x => x.classList.toggle('act', x === b));
+  SFX.ok(); if ($('select').classList.contains('on')) renderSlots();
+});
+$('replay').onclick = () => { document.body.classList.remove('selecting'); goIntro(); };
+</script>
+</body>
+</html>

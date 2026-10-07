@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Police</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Appels du dispatch -->
+    <div id="alerts"></div>
+
+    <!-- Prison -->
+    <div id="jailhud" class="hidden">
+        <span class="jh-label">Détenu</span>
+        <span class="jh-time" id="jailTime">00:00</span>
+        <span class="jh-reason" id="jailReason"></span>
+    </div>
+
+    <!-- Menu d'interaction (F7) -->
+    <div id="actions" class="hidden">
+        <div class="panel">
+            <header>
+                <div>
+                    <div class="eyebrow">Interaction</div>
+                    <div class="target" id="actTarget">Personne à proximité</div>
+                    <div class="target-sub" id="actTargetSub"></div>
+                </div>
+                <button class="icon-btn" data-close="actions" title="Fermer (Échap)">✕</button>
+            </header>
+            <div id="actBody"></div>
+        </div>
+    </div>
+
+    <!-- Amendes du citoyen (/amendes) -->
+    <div id="myfines" class="hidden">
+        <div class="panel">
+            <header>
+                <div><div class="eyebrow">Trésor public</div><div class="target">Mes amendes</div></div>
+                <button class="icon-btn" data-close="myfines">✕</button>
+            </header>
+            <div id="myFinesBody"></div>
+        </div>
+    </div>
+
+    <!-- Tablette de l'agent -->
+    <div id="mdt" class="hidden">
+        <div class="device">
+            <span class="guard tl"></span><span class="guard tr"></span>
+            <span class="guard bl"></span><span class="guard br"></span>
+            <div class="screen">
+                <header class="statusbar">
+                    <div class="brand"><span class="badge-shield">★</span><span id="mdtTitle">Police</span></div>
+                    <div class="status-right">
+                        <span id="dutyPill" class="pill"></span>
+                        <span id="clock"></span>
+                        <button class="close" data-close="mdt">Fermer</button>
+                    </div>
+                </header>
+                <div class="layout">
+                    <nav id="nav">
+                        <button data-page="home" class="active">Accueil</button>
+                        <button data-page="calls">Appels <span class="nav-count" id="callCount"></span></button>
+                        <button data-page="citizens">Citoyens</button>
+                        <button data-page="vehicles">Véhicules</button>
+                        <button data-page="records">Rapports</button>
+                        <button data-page="warrants">Avis de recherche</button>
+                        <button data-page="jail">Prison</button>
+                        <button data-page="roster" id="navRoster">Effectif</button>
+                    </nav>
+                    <main id="page"></main>
+                </div>
+                <div id="toast" class="toast hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

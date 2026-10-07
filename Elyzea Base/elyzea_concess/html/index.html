@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Concession · Elyzea</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Tablette -->
+    <div id="tablet" class="layer hidden">
+        <div class="device">
+            <aside class="side">
+                <div class="side-brand">
+                    <img src="logo.png" class="crest" alt="">
+                    <div><div class="eyebrow">Elyzea</div><div class="company" id="company">Concession</div></div>
+                </div>
+                <nav id="nav"></nav>
+                <div class="side-me" id="sideMe"></div>
+            </aside>
+            <main class="main">
+                <header class="topbar">
+                    <div><div class="eyebrow" id="pageEyebrow">Tableau de bord</div><h1 id="pageTitle">Bienvenue</h1></div>
+                    <div class="top-right">
+                        <span id="staffBadge" class="badge gold hidden">Mode staff</span>
+                        <span id="dutyPill" class="pill"></span>
+                        <span class="clock" id="clock"></span>
+                        <button class="icon-btn" id="closeBtn" title="Fermer (Échap)">✕</button>
+                    </div>
+                </header>
+                <section id="page" class="page"></section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Fenêtre (détail véhicule, formulaires) -->
+    <div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
+
+    <!-- Confirmation -->
+    <div id="confirm" class="modal hidden">
+        <div class="modal-card small">
+            <h2 id="confirmTitle">Confirmer ?</h2>
+            <p class="muted" id="confirmText"></p>
+            <div class="row-end"><button class="btn" data-confirm="no">Annuler</button><button class="btn primary" data-confirm="yes" id="confirmYes">Confirmer</button></div>
+        </div>
+    </div>
+
+    <!-- Proposition reçue par le client -->
+    <div id="offer" class="layer center hidden">
+        <div class="offer-card">
+            <div class="offer-img"><img id="offerImg" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"><span class="offer-badge" id="offerType">Proposition</span></div>
+            <div class="offer-body">
+                <div class="eyebrow" id="offerCompany">Concession</div>
+                <h2 id="offerVehicle">Véhicule</h2>
+                <p class="muted" id="offerMeta"></p>
+                <div class="offer-price"><span class="old" id="offerOld"></span><span class="price" id="offerPrice"></span></div>
+                <p class="muted small" id="offerInfo"></p>
+                <div class="timer"><span id="offerTimer"></span></div>
+                <div class="row-end">
+                    <button class="btn" data-offer="refuse">Refuser</button>
+                    <button class="btn primary" data-offer="accept" id="offerAccept">Accepter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Garage -->
+    <div id="garage" class="layer center hidden">
+        <div class="garage-card">
+            <header class="g-head">
+                <img src="logo.png" class="crest" alt="">
+                <div><div class="eyebrow">Elyzea · Garage</div><h2>Mes véhicules</h2></div>
+                <button class="icon-btn" data-garage="close">✕</button>
+            </header>
+            <div class="g-list" id="garageList"></div>
+        </div>
+    </div>
+
+    <!-- Essai routier -->
+    <div id="testHud" class="test-hud hidden"><span class="eyebrow">Essai routier</span><b id="testLabel"></b><span class="t" id="testTime">00:00</span></div>
+
+    <!-- Notifications -->
+    <div id="toasts"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

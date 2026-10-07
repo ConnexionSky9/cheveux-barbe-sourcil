@@ -1,0 +1,47 @@
+==============================================================
+  ELYZEA CLOTHING PHOTOS - Studio photo des vêtements
+==============================================================
+Crée les VRAIES images des vêtements depuis votre jeu (vêtements GTA de base ET vos
+vêtements addons), directement au format attendu par la boutique :
+    elyzea_clothing/html/images/<sexe>/<rayon>/<drawable>_<texture>.webp
+Fond transparent, 256 × 256 px.
+
+INSTALLATION
+1. screenshot-basic doit être installé (ressource officielle citizenfx/screenshot-basic).
+2. Copiez elyzea_clothing_photos dans resources/.
+3. server.cfg, APRÈS elyzea_clothing :
+       ensure screenshot-basic
+       ensure elyzea_clothing_photos
+4. Permission (remplacez par votre identifiant) :
+       add_ace identifier.license:VOTRE_LICENCE elyzea.photos allow
+   ou  add_ace group.admin elyzea.photos allow
+
+UTILISATION (en jeu, sur un serveur de développement de préférence)
+  /elyzea_photos                     tous les rayons, coloris 1 de chaque modèle
+  /elyzea_photos tops                un seul rayon
+  /elyzea_photos all all             tous les rayons, TOUS les coloris (très long)
+  /elyzea_photos shoes first overwrite   refait aussi les images déjà présentes
+  /elyzea_photos_stop                arrête après l'image en cours
+
+- Le personnage est emmené dans un studio isolé, devant un fond vert, puis ramené
+  à sa place avec sa tenue d'origine à la fin.
+- Les images déjà présentes sont sautées : vous pouvez arrêter et reprendre.
+- Les photos sont faites pour le SEXE du personnage utilisé : faites une séance avec
+  un personnage homme, puis une avec un personnage femme.
+- Ne touchez à rien pendant la séance (le jeu doit rester au premier plan).
+- À la fin : restart elyzea_clothing  (FiveM ne sert les nouveaux fichiers qu'après un redémarrage).
+
+DURÉE INDICATIVE
+Environ 0,5 seconde par image. Coloris 1 seulement : quelques milliers d'images par sexe,
+soit 20 à 40 minutes. Tous les coloris : plusieurs heures. Commencer par « first » suffit :
+la boutique affiche l'image du coloris 1 quand un autre coloris n'a pas d'image.
+
+RÉGLAGES (config.lua)
+- PhotoConfig.Views   : cadrage de chaque rayon (os visé, distance, angle).
+- PhotoConfig.Isolate : rayons retirés pendant la photo d'un autre (ex. la veste pour le t-shirt).
+- PhotoConfig.Delay   : augmentez-le si des photos sortent vides (vêtements addons lourds).
+
+LIMITES
+- Les hauts sont photographiés avec les bras actuels du personnage : certains hauts
+  peuvent montrer des bras mal raccordés, comme dans le jeu sans réglage des bras.
+- Après la séance, supprimez ou désactivez cette ressource sur le serveur de production.

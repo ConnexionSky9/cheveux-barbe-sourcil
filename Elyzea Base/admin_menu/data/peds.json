@@ -1,0 +1,1866 @@
+[
+    {
+        "x": -1271.371,
+        "npc": {
+            "hours": {
+                "to": 20,
+                "from": 14
+            },
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "buyer": {
+                "maxPerSale": 10,
+                "items": [
+                    {
+                        "max": 60,
+                        "min": 25,
+                        "item": "dried_mushroom"
+                    },
+                    {
+                        "max": 50,
+                        "min": 10,
+                        "item": "weed_pouch"
+                    }
+                ],
+                "minPolice": 0,
+                "cooldown": 60,
+                "policeChance": 25
+            }
+        },
+        "scenario": "WORLD_HUMAN_LEANING",
+        "name": "",
+        "id": 1,
+        "model": "g_f_y_families_01",
+        "h": 28.601,
+        "y": -1514.805,
+        "z": 4.322
+    },
+    {
+        "x": -1174.774,
+        "npc": {
+            "hours": {
+                "to": 5,
+                "from": 20
+            },
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "buyer": {
+                "maxPerSale": 10,
+                "items": [
+                    {
+                        "max": 50,
+                        "min": 10,
+                        "item": "weed_pouch"
+                    },
+                    {
+                        "max": 60,
+                        "min": 25,
+                        "item": "dried_mushroom"
+                    }
+                ],
+                "minPolice": 0,
+                "cooldown": 60,
+                "policeChance": 25
+            }
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "",
+        "id": 2,
+        "model": "a_f_y_soucent_01",
+        "h": 156.251,
+        "y": -1570.87,
+        "z": 4.366
+    },
+    {
+        "id": 3,
+        "h": 114.093,
+        "name": "",
+        "x": -1108.059,
+        "model": "a_c_rottweiler",
+        "scenario": "",
+        "y": -1609.882,
+        "z": 4.154
+    },
+    {
+        "h": 91.214,
+        "npc": {
+            "garage": {
+                "spots": [
+                    {
+                        "h": 2.277,
+                        "x": 1176.495,
+                        "y": -1545.788,
+                        "z": 34.297
+                    },
+                    {
+                        "h": 2.277,
+                        "x": 1180.324,
+                        "y": -1545.477,
+                        "z": 34.297
+                    },
+                    {
+                        "h": 2.277,
+                        "x": 1183.801,
+                        "y": -1545.583,
+                        "z": 34.297
+                    },
+                    {
+                        "h": 182.928,
+                        "x": 1176.899,
+                        "y": -1554.078,
+                        "z": 34.513
+                    },
+                    {
+                        "h": 182.928,
+                        "x": 1180.113,
+                        "y": -1554.216,
+                        "z": 34.513
+                    },
+                    {
+                        "h": 182.928,
+                        "x": 1183.418,
+                        "y": -1554.143,
+                        "z": 34.513
+                    }
+                ],
+                "onePerPlayer": false,
+                "fuel": 100,
+                "blipColor": 3,
+                "blip": false,
+                "plate": "EMS",
+                "warp": true,
+                "vehicles": [
+                    {
+                        "model": "gayaems",
+                        "label": "Gaya4P",
+                        "price": 0
+                    },
+                    {
+                        "model": "ambulance",
+                        "label": "Camion Ambulance",
+                        "price": 0
+                    }
+                ],
+                "blipSprite": 357
+            },
+            "payment": "cash",
+            "jobs": [
+                {
+                    "grade": 0,
+                    "job": "ambulance"
+                }
+            ],
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Garage de service",
+        "id": 6,
+        "model": "s_m_m_scientist_01",
+        "x": 1174.476,
+        "y": -1550.021,
+        "z": 34.782
+    },
+    {
+        "x": 1148.067,
+        "npc": {
+            "payment": "cash",
+            "shop": {
+                "items": [
+                    {
+                        "price": 0,
+                        "item": "Medical_kit"
+                    },
+                    {
+                        "price": 0,
+                        "item": "Bandage"
+                    }
+                ]
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_LEANING",
+        "name": "Medical Center",
+        "id": 7,
+        "model": "s_m_m_scientist_01",
+        "h": 40.244,
+        "y": -1552.408,
+        "z": 35.369
+    },
+    {
+        "h": 47.357,
+        "npc": {
+            "area": {
+                "minZ": 46.7,
+                "points": [
+                    {
+                        "y": -236.73,
+                        "x": -1448.4
+                    },
+                    {
+                        "y": -231.24,
+                        "x": -1444.01
+                    },
+                    {
+                        "y": -225.44,
+                        "x": -1447.94
+                    },
+                    {
+                        "y": -230.86,
+                        "x": -1453.43
+                    },
+                    {
+                        "y": -240.5,
+                        "x": -1461.3
+                    },
+                    {
+                        "y": -244.08,
+                        "x": -1457.81
+                    },
+                    {
+                        "y": -243.62,
+                        "x": -1454.5
+                    },
+                    {
+                        "y": -236.71,
+                        "x": -1448.18
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 54.2
+            },
+            "clothing": {
+                "name": "Ponsonbys",
+                "categories": [
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets",
+                    "tops"
+                ],
+                "multiplier": 250
+            },
+            "payment": "bank",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeur",
+        "id": 8,
+        "model": "a_m_y_business_01",
+        "x": -1449.414,
+        "y": -238.048,
+        "z": 49.802
+    },
+    {
+        "h": 119.58,
+        "npc": {
+            "area": {
+                "minZ": 34.4,
+                "points": [
+                    {
+                        "y": -151.44,
+                        "x": -709.25
+                    },
+                    {
+                        "y": -150.56,
+                        "x": -712.59
+                    },
+                    {
+                        "y": -147.71,
+                        "x": -712.01
+                    },
+                    {
+                        "y": -145.56,
+                        "x": -713.4
+                    },
+                    {
+                        "y": -144.57,
+                        "x": -715.96
+                    },
+                    {
+                        "y": -146.15,
+                        "x": -717.24
+                    },
+                    {
+                        "y": -147.73,
+                        "x": -719.75
+                    },
+                    {
+                        "y": -151.13,
+                        "x": -718.54
+                    },
+                    {
+                        "y": -153.75,
+                        "x": -717.07
+                    },
+                    {
+                        "y": -153.12,
+                        "x": -715.41
+                    },
+                    {
+                        "y": -156.91,
+                        "x": -713.69
+                    },
+                    {
+                        "y": -162.09,
+                        "x": -712.1
+                    },
+                    {
+                        "y": -164.91,
+                        "x": -710.31
+                    },
+                    {
+                        "y": -162.44,
+                        "x": -706.18
+                    },
+                    {
+                        "y": -159.67,
+                        "x": -705.17
+                    },
+                    {
+                        "y": -156.83,
+                        "x": -706.71
+                    },
+                    {
+                        "y": -156.03,
+                        "x": -709.3
+                    },
+                    {
+                        "y": -153.33,
+                        "x": -708.3
+                    },
+                    {
+                        "y": -151.32,
+                        "x": -709.21
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 41.7
+            },
+            "clothing": {
+                "name": "Ponsonbys",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 250
+            },
+            "payment": "bank",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeur",
+        "id": 9,
+        "model": "a_m_y_business_01",
+        "x": -708.986,
+        "y": -152.173,
+        "z": 37.403
+    },
+    {
+        "h": 251.61,
+        "npc": {
+            "area": {
+                "minZ": 36.7,
+                "points": [
+                    {
+                        "y": -303.94,
+                        "x": -165.09
+                    },
+                    {
+                        "y": -309.51,
+                        "x": -166.5
+                    },
+                    {
+                        "y": -313.78,
+                        "x": -164.73
+                    },
+                    {
+                        "y": -314.61,
+                        "x": -160.25
+                    },
+                    {
+                        "y": -308.05,
+                        "x": -159.78
+                    },
+                    {
+                        "y": -302.24,
+                        "x": -157.7
+                    },
+                    {
+                        "y": -300.51,
+                        "x": -155.38
+                    },
+                    {
+                        "y": -295.46,
+                        "x": -154.3
+                    },
+                    {
+                        "y": -293.92,
+                        "x": -158.55
+                    },
+                    {
+                        "y": -294.9,
+                        "x": -161.39
+                    },
+                    {
+                        "y": -298.5,
+                        "x": -162.54
+                    },
+                    {
+                        "y": -300.45,
+                        "x": -161.52
+                    },
+                    {
+                        "y": -301.18,
+                        "x": -163.45
+                    },
+                    {
+                        "y": -304.1,
+                        "x": -165.18
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 44.8
+            },
+            "clothing": {
+                "name": "Ponsonbys",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 250
+            },
+            "payment": "bank",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeur",
+        "id": 10,
+        "model": "a_m_y_business_01",
+        "x": -164.678,
+        "y": -302.755,
+        "z": 39.722
+    },
+    {
+        "x": -815.98,
+        "npc": {
+            "area": {
+                "minZ": 8.3,
+                "points": [
+                    {
+                        "y": -1077.52,
+                        "x": -815.8
+                    },
+                    {
+                        "y": -1069.33,
+                        "x": -820.6
+                    },
+                    {
+                        "y": -1072.66,
+                        "x": -825.44
+                    },
+                    {
+                        "y": -1069.22,
+                        "x": -827.47
+                    },
+                    {
+                        "y": -1072.34,
+                        "x": -832.11
+                    },
+                    {
+                        "y": -1083.59,
+                        "x": -825.89
+                    },
+                    {
+                        "y": -1077.67,
+                        "x": -815.63
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 15.5
+            },
+            "clothing": {
+                "name": "Binco",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 100
+            },
+            "payment": "cash",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Vendeuse",
+        "id": 11,
+        "model": "s_f_y_shop_mid",
+        "h": 135.352,
+        "y": -1073.736,
+        "z": 11.336
+    },
+    {
+        "x": 422.104,
+        "npc": {
+            "area": {
+                "minZ": 26.4,
+                "points": [
+                    {
+                        "y": -810.13,
+                        "x": 418.62
+                    },
+                    {
+                        "y": -810.04,
+                        "x": 428.08
+                    },
+                    {
+                        "y": -804.24,
+                        "x": 428.17
+                    },
+                    {
+                        "y": -803.92,
+                        "x": 431.97
+                    },
+                    {
+                        "y": -798.44,
+                        "x": 431.53
+                    },
+                    {
+                        "y": -798.44,
+                        "x": 419.83
+                    },
+                    {
+                        "y": -810.08,
+                        "x": 418.62
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 33.9
+            },
+            "clothing": {
+                "name": "Binco",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 100
+            },
+            "payment": "cash",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Vendeuse",
+        "id": 12,
+        "model": "s_f_y_shop_mid",
+        "h": 12.184,
+        "y": -811.681,
+        "z": 29.499
+    },
+    {
+        "x": -1252.786,
+        "npc": {
+            "catalog": {
+                "name": "Catalogue des véhicules"
+            },
+            "payment": "cash",
+            "paymentItem": "black_money"
+        },
+        "scenario": "",
+        "name": "",
+        "id": 13,
+        "model": "a_m_y_business_01",
+        "h": 117.161,
+        "y": -348.715,
+        "z": 36.896
+    },
+    {
+        "h": 130.55,
+        "npc": {
+            "area": {
+                "minZ": 14.3,
+                "points": [
+                    {
+                        "y": -767.78,
+                        "x": -1189.73
+                    },
+                    {
+                        "y": -764.81,
+                        "x": -1193.18
+                    },
+                    {
+                        "y": -773.02,
+                        "x": -1203.83
+                    },
+                    {
+                        "y": -781.08,
+                        "x": -1197.36
+                    },
+                    {
+                        "y": -772.6,
+                        "x": -1186.99
+                    },
+                    {
+                        "y": -767.79,
+                        "x": -1189.57
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 21.6
+            },
+            "clothing": {
+                "name": "SubUrban",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 250
+            },
+            "payment": "bank",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeur",
+        "id": 14,
+        "model": "a_m_y_business_01",
+        "x": -1187.813,
+        "y": -771.056,
+        "z": 17.317
+    },
+    {
+        "h": 251.391,
+        "npc": {
+            "payment": "cash",
+            "pubgarage": {
+                "stores": [
+                    {
+                        "x": 296.456,
+                        "h": 69.195,
+                        "y": -340.135,
+                        "z": 44.74
+                    }
+                ],
+                "name": "Garage public",
+                "spots": [
+                    {
+                        "h": 249.409,
+                        "x": 284.041,
+                        "y": -339.42,
+                        "z": 44.74
+                    },
+                    {
+                        "h": 69.409,
+                        "x": 279.025,
+                        "y": -337.491,
+                        "z": 44.74
+                    },
+                    {
+                        "h": 61.909,
+                        "x": 279.84,
+                        "y": -334.216,
+                        "z": 44.74
+                    },
+                    {
+                        "h": 69.409,
+                        "x": 277.842,
+                        "y": -340.192,
+                        "z": 44.74
+                    }
+                ],
+                "blipColor": 3,
+                "storeRadius": 4.0,
+                "blip": true,
+                "blipSprite": 357
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Garage Public",
+        "id": 16,
+        "model": "s_m_m_security_01",
+        "x": 276.435,
+        "y": -346.762,
+        "z": 44.908
+    },
+    {
+        "h": 87.62,
+        "npc": {
+            "payment": "cash",
+            "garage": {
+                "spots": [
+                    {
+                        "x": 444.661,
+                        "h": 268.515,
+                        "y": -960.672,
+                        "z": 21.055
+                    },
+                    {
+                        "x": 444.562,
+                        "h": 268.515,
+                        "y": -963.794,
+                        "z": 21.055
+                    },
+                    {
+                        "x": 444.367,
+                        "h": 268.515,
+                        "y": -968.558,
+                        "z": 21.055
+                    },
+                    {
+                        "x": 444.2,
+                        "h": 268.515,
+                        "y": -971.505,
+                        "z": 21.055
+                    }
+                ],
+                "onePerPlayer": true,
+                "fuel": 100,
+                "blipColor": 3,
+                "blip": false,
+                "plate": "MRPD",
+                "warp": true,
+                "vehicles": [
+                    {
+                        "model": "police",
+                        "label": "Cruiser",
+                        "price": 0
+                    },
+                    {
+                        "model": "police2",
+                        "label": "Buffalo",
+                        "price": 0
+                    },
+                    {
+                        "model": "elusnon",
+                        "label": "RapidMRPD",
+                        "price": 0
+                    },
+                    {
+                        "model": "umbuf4bb",
+                        "label": "Banalisé",
+                        "price": 0
+                    }
+                ],
+                "blipSprite": 357
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Garage de service Police",
+        "id": 17,
+        "model": "s_f_y_cop_01",
+        "x": 452.714,
+        "y": -955.876,
+        "z": 21.443
+    },
+    {
+        "h": 141.738,
+        "npc": {
+            "payment": "cash",
+            "pubgarage": {
+                "stores": [
+                    {
+                        "x": 315.86,
+                        "h": 321.6,
+                        "y": -2031.026,
+                        "z": 20.398
+                    }
+                ],
+                "name": "Garage Latino",
+                "spots": [
+                    {
+                        "x": 321.236,
+                        "h": 141.738,
+                        "y": -2021.658,
+                        "z": 20.64
+                    },
+                    {
+                        "x": 323.564,
+                        "h": 141.738,
+                        "y": -2023.584,
+                        "z": 20.737
+                    },
+                    {
+                        "x": 325.972,
+                        "h": 141.738,
+                        "y": -2025.698,
+                        "z": 20.836
+                    },
+                    {
+                        "x": 328.013,
+                        "h": 141.738,
+                        "y": -2027.52,
+                        "z": 20.904
+                    }
+                ],
+                "blipColor": 3,
+                "storeRadius": 15.0,
+                "blip": false,
+                "blipSprite": 357
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_SMOKING",
+        "name": "Garage Latino",
+        "id": 18,
+        "model": "s_m_y_dealer_01",
+        "x": 330.665,
+        "y": -2024.401,
+        "z": 21.529
+    },
+    {
+        "x": -813.165,
+        "npc": {
+            "barber": {
+                "prices": {
+                    "makeup_highlight": 20,
+                    "brows": 120,
+                    "blush": 40,
+                    "beard": 180,
+                    "blemishes": 60,
+                    "lipstick_color": 25,
+                    "hair": 450,
+                    "makeup_color": 30,
+                    "bodyblemishes": 60,
+                    "brows_color": 80,
+                    "ageing": 80,
+                    "eyes": 600,
+                    "moles": 40,
+                    "chest": 90,
+                    "beard_highlight": 90,
+                    "complexion": 60,
+                    "chest_color": 60,
+                    "hair_highlight": 180,
+                    "hair_color": 250,
+                    "lipstick": 50,
+                    "beard_color": 120,
+                    "makeup": 70,
+                    "blush_color": 20,
+                    "sundamage": 50
+                },
+                "specialEyes": true,
+                "name": "Salon Prestige",
+                "blip": true,
+                "blipColor": 4,
+                "payChoice": true,
+                "services": [],
+                "blipSprite": 71
+            },
+            "payment": "bank",
+            "area": {
+                "minZ": 34.5,
+                "points": [
+                    {
+                        "y": -178.75,
+                        "x": -808.64
+                    },
+                    {
+                        "y": -184.73,
+                        "x": -819.11
+                    },
+                    {
+                        "y": -188.89,
+                        "x": -815.96
+                    },
+                    {
+                        "y": -184.94,
+                        "x": -808.52
+                    },
+                    {
+                        "y": -182.53,
+                        "x": -809.53
+                    },
+                    {
+                        "y": -181.46,
+                        "x": -807.74
+                    },
+                    {
+                        "y": -178.74,
+                        "x": -808.64
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 41.8
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Coiffeur",
+        "id": 19,
+        "model": "s_f_y_shop_low",
+        "h": 136.144,
+        "y": -182.991,
+        "z": 37.577
+    },
+    {
+        "x": 320.267,
+        "npc": {
+            "tattoo": {
+                "prices": {
+                    "left_arm": 250,
+                    "right_leg": 250,
+                    "remove": 200,
+                    "head": 300,
+                    "right_arm": 250,
+                    "torso": 450,
+                    "left_leg": 250
+                },
+                "name": "Salon de tatouage",
+                "removal": true,
+                "blipColor": 1,
+                "payChoice": true,
+                "blip": true,
+                "blipSprite": 75
+            },
+            "payment": "cash",
+            "area": {
+                "minZ": 100.5,
+                "points": [
+                    {
+                        "y": 184.35,
+                        "x": 320.24
+                    },
+                    {
+                        "y": 181.82,
+                        "x": 327.59
+                    },
+                    {
+                        "y": 178.36,
+                        "x": 326.27
+                    },
+                    {
+                        "y": 178.91,
+                        "x": 324.8
+                    },
+                    {
+                        "y": 177.68,
+                        "x": 324.26
+                    },
+                    {
+                        "y": 179.65,
+                        "x": 318.86
+                    },
+                    {
+                        "y": 184.35,
+                        "x": 320.2
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 107.7
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_SMOKING",
+        "name": "Tatoueur",
+        "h": 269.731,
+        "model": "g_f_y_lost_01",
+        "id": 20,
+        "y": 183.196,
+        "z": 103.596
+    },
+    {
+        "h": 171.457,
+        "npc": {
+            "payment": "bank",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "Supérette 24/7",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": true,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeur",
+        "id": 21,
+        "model": "a_f_m_prolhost_01",
+        "x": 379.349,
+        "y": 331.802,
+        "z": 103.577
+    },
+    {
+        "x": -2966.421,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "Supérette 24/7",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": false,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Vendeur",
+        "h": 100.852,
+        "model": "a_f_m_bevhills_01",
+        "id": 22,
+        "y": 391.403,
+        "z": 15.053
+    },
+    {
+        "x": -1486.543,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "Supérette 24/7",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": false,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Vendeur",
+        "h": 153.221,
+        "model": "g_f_y_vagos_01",
+        "id": 23,
+        "y": -377.825,
+        "z": 40.172
+    },
+    {
+        "x": -1221.293,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "Supérette 24/7",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": false,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_SMOKING",
+        "name": "Vendeur",
+        "h": 39.121,
+        "model": "a_m_m_beach_01",
+        "id": 24,
+        "y": -907.894,
+        "z": 12.315
+    },
+    {
+        "x": 1391.94,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "LiquorAce",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": false,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_SMOKING",
+        "name": "Vendeur",
+        "h": 189.494,
+        "model": "s_m_y_dealer_01",
+        "id": 25,
+        "y": 3606.2,
+        "z": 34.97
+    },
+    {
+        "x": 1202.079,
+        "npc": {
+            "area": {
+                "minZ": 35.2,
+                "points": [
+                    {
+                        "y": 2712.66,
+                        "x": 1200.41
+                    },
+                    {
+                        "y": 2712.72,
+                        "x": 1194.61
+                    },
+                    {
+                        "y": 2716.03,
+                        "x": 1194.34
+                    },
+                    {
+                        "y": 2716.12,
+                        "x": 1188.87
+                    },
+                    {
+                        "y": 2703.51,
+                        "x": 1188.7
+                    },
+                    {
+                        "y": 2703.4,
+                        "x": 1200.38
+                    },
+                    {
+                        "y": 2712.76,
+                        "x": 1200.52
+                    }
+                ],
+                "shape": "poly",
+                "maxZ": 42.4
+            },
+            "clothing": {
+                "name": "Binco",
+                "categories": [
+                    "tops",
+                    "undershirts",
+                    "pants",
+                    "shoes",
+                    "bags",
+                    "arms",
+                    "chains",
+                    "masks",
+                    "decals",
+                    "hats",
+                    "glasses",
+                    "ears",
+                    "watches",
+                    "bracelets"
+                ],
+                "multiplier": 100
+            },
+            "payment": "cash",
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Vendeuse",
+        "h": 124.408,
+        "model": "s_f_y_shop_mid",
+        "id": 26,
+        "y": 2707.149,
+        "z": 38.231
+    },
+    {
+        "x": 1165.646,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "market": {
+                "name": "Supérette 24/7",
+                "items": [
+                    {
+                        "label": "",
+                        "price": 5,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "water"
+                    },
+                    {
+                        "label": "",
+                        "price": 7,
+                        "cat": "Boissons",
+                        "max": 50,
+                        "item": "cola"
+                    },
+                    {
+                        "label": "",
+                        "price": 12,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "burger"
+                    },
+                    {
+                        "label": "",
+                        "price": 10,
+                        "cat": "Nourriture",
+                        "max": 50,
+                        "item": "sandwich"
+                    },
+                    {
+                        "label": "",
+                        "price": 50,
+                        "cat": "Hygiène",
+                        "max": 50,
+                        "item": "bandage"
+                    },
+                    {
+                        "label": "",
+                        "price": 450,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "phone"
+                    },
+                    {
+                        "label": "",
+                        "price": 250,
+                        "cat": "Utilitaires",
+                        "max": 50,
+                        "item": "radio"
+                    }
+                ],
+                "blipColor": 2,
+                "payChoice": true,
+                "blip": false,
+                "blipSprite": 52
+            }
+        },
+        "scenario": "WORLD_HUMAN_STAND_IMPATIENT",
+        "name": "Vendeur",
+        "h": 205.048,
+        "model": "s_f_y_shop_mid",
+        "id": 27,
+        "y": 2710.731,
+        "z": 38.166
+    },
+    {
+        "x": -331.282,
+        "npc": {
+            "payment": "cash",
+            "paymentItem": "black_money",
+            "gunshop": {
+                "spot": {
+                    "x": 13.04,
+                    "h": 325.9,
+                    "y": -1098.24,
+                    "z": 29.78
+                },
+                "items": [
+                    {
+                        "type": "weapon",
+                        "price": 2500,
+                        "cat": "Pistolets",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_PISTOL",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 3500,
+                        "cat": "Pistolets",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_COMBATPISTOL",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 4500,
+                        "cat": "Pistolets",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_HEAVYPISTOL",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 6000,
+                        "cat": "Pistolets",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_REVOLVER",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 9000,
+                        "cat": "Mitraillettes",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_MICROSMG",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 12000,
+                        "cat": "Mitraillettes",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_SMG",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 10000,
+                        "cat": "Fusils à pompe",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_PUMPSHOTGUN",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 22000,
+                        "cat": "Fusils d'assaut",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_CARBINERIFLE",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 35000,
+                        "cat": "Fusils de précision",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_SNIPERRIFLE",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 400,
+                        "cat": "Corps à corps",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_KNIFE",
+                        "amount": 1
+                    },
+                    {
+                        "type": "weapon",
+                        "price": 250,
+                        "cat": "Corps à corps",
+                        "label": "",
+                        "max": 1,
+                        "item": "WEAPON_BAT",
+                        "amount": 1
+                    },
+                    {
+                        "type": "ammo",
+                        "price": 150,
+                        "cat": "Munitions",
+                        "label": "",
+                        "max": 20,
+                        "item": "ammo-9",
+                        "amount": 30
+                    },
+                    {
+                        "type": "ammo",
+                        "price": 180,
+                        "cat": "Munitions",
+                        "label": "",
+                        "max": 20,
+                        "item": "ammo-45",
+                        "amount": 30
+                    },
+                    {
+                        "type": "ammo",
+                        "price": 200,
+                        "cat": "Munitions",
+                        "label": "",
+                        "max": 20,
+                        "item": "ammo-shotgun",
+                        "amount": 12
+                    },
+                    {
+                        "type": "ammo",
+                        "price": 300,
+                        "cat": "Munitions",
+                        "label": "",
+                        "max": 20,
+                        "item": "ammo-rifle",
+                        "amount": 30
+                    },
+                    {
+                        "type": "ammo",
+                        "price": 400,
+                        "cat": "Munitions",
+                        "label": "",
+                        "max": 20,
+                        "item": "ammo-sniper",
+                        "amount": 10
+                    },
+                    {
+                        "type": "item",
+                        "price": 350,
+                        "cat": "Accessoires",
+                        "label": "",
+                        "max": 5,
+                        "item": "at_flashlight",
+                        "amount": 1
+                    },
+                    {
+                        "type": "item",
+                        "price": 1500,
+                        "cat": "Accessoires",
+                        "label": "",
+                        "max": 5,
+                        "item": "at_suppressor_light",
+                        "amount": 1
+                    }
+                ],
+                "blipColor": 1,
+                "trial": true,
+                "blip": false,
+                "trialRadius": 60,
+                "trialDuration": 60,
+                "name": "Ammu-Nation",
+                "licence": true,
+                "payChoice": true,
+                "isolate": true,
+                "blipSprite": 110
+            }
+        },
+        "scenario": "WORLD_HUMAN_GUARD_STAND",
+        "name": "Armurier",
+        "h": 214.488,
+        "model": "s_m_m_security_01",
+        "id": 28,
+        "y": 6085.468,
+        "z": 31.443
+    },
+    {
+        "x": 226.266,
+        "npc": {
+            "payment": "cash",
+            "dmv": {
+                "spot": {
+                    "h": 252.953,
+                    "x": 237.525,
+                    "y": -858.379,
+                    "z": 29.246
+                },
+                "categories": {
+                    "moto": true,
+                    "car": true,
+                    "truck": true
+                },
+                "passScore": 8,
+                "drivePrice": 500,
+                "speedTolerance": 8,
+                "models": [],
+                "name": "Auto-école Elyzea",
+                "codePrice": 250,
+                "route": {
+                    "duration": 52,
+                    "points": [
+                        {
+                            "limit": 50,
+                            "x": 237.62107849121095,
+                            "y": -857.6151733398438,
+                            "z": 29.27047348022461
+                        },
+                        {
+                            "limit": 50,
+                            "x": 256.7585754394531,
+                            "y": -914.5194091796875,
+                            "z": 28.57423591613769
+                        },
+                        {
+                            "limit": 50,
+                            "x": 236.42901611328126,
+                            "y": -971.5059204101563,
+                            "z": 28.92662620544433
+                        },
+                        {
+                            "limit": 50,
+                            "x": 217.34307861328126,
+                            "y": -1028.93017578125,
+                            "z": 28.93846893310547
+                        },
+                        {
+                            "limit": 50,
+                            "x": 204.51217651367188,
+                            "y": -1087.927001953125,
+                            "z": 28.90950584411621
+                        },
+                        {
+                            "limit": 50,
+                            "x": 157.593994140625,
+                            "y": -1125.70947265625,
+                            "z": 28.78797721862793
+                        },
+                        {
+                            "limit": 50,
+                            "x": 97.47815704345703,
+                            "y": -1126.641357421875,
+                            "z": 28.85691452026367
+                        },
+                        {
+                            "limit": 50,
+                            "x": 86.4596176147461,
+                            "y": -1067.5068359375,
+                            "z": 28.95483207702636
+                        },
+                        {
+                            "limit": 50,
+                            "x": 100.43743896484375,
+                            "y": -1009.1043090820313,
+                            "z": 28.96960258483886
+                        },
+                        {
+                            "limit": 50,
+                            "x": 51.16828536987305,
+                            "y": -974.5078735351563,
+                            "z": 28.97121429443359
+                        },
+                        {
+                            "limit": 50,
+                            "x": -3.46338868141174,
+                            "y": -949.668701171875,
+                            "z": 28.94028091430664
+                        },
+                        {
+                            "limit": 50,
+                            "x": -4.81995677947998,
+                            "y": -889.6182861328125,
+                            "z": 29.5369644165039
+                        },
+                        {
+                            "limit": 50,
+                            "x": 14.55331039428711,
+                            "y": -832.5177001953125,
+                            "z": 30.53504371643066
+                        },
+                        {
+                            "limit": 50,
+                            "x": 52.31959915161133,
+                            "y": -785.8938598632813,
+                            "z": 31.32387351989746
+                        },
+                        {
+                            "limit": 50,
+                            "x": 110.23165130615235,
+                            "y": -804.4241943359375,
+                            "z": 30.98282432556152
+                        },
+                        {
+                            "limit": 50,
+                            "x": 166.83883666992188,
+                            "y": -825.8721923828125,
+                            "z": 30.73308753967285
+                        },
+                        {
+                            "limit": 50,
+                            "x": 237.62107849121095,
+                            "y": -857.6151733398438,
+                            "z": 29.27047348022461
+                        }
+                    ]
+                },
+                "maxFaults": 5,
+                "questions": 10
+            },
+            "paymentItem": "black_money"
+        },
+        "scenario": "WORLD_HUMAN_CLIPBOARD",
+        "name": "Auto-Ecole",
+        "id": 29,
+        "model": "a_m_y_business_01",
+        "h": 345.782,
+        "y": -870.604,
+        "z": 30.48
+    }
+]

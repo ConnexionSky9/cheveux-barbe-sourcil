@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>LsCustom · Elyzea</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Menu de l'atelier (F6) -->
+    <div id="menu" class="layer hidden">
+        <div class="panel">
+            <header class="brandbar">
+                <img src="logo.png" class="crest" alt="">
+                <div class="brand-txt"><div class="eyebrow">Elyzea · Atelier</div><div class="title" id="menuTitle">LsCustom</div><div class="sub" id="menuSub"></div></div>
+                <button class="icon-btn" data-close="menu" title="Fermer (Échap)">✕</button>
+            </header>
+            <div class="tabs" id="menuTabs">
+                <button data-mtab="work" class="active">Atelier</button>
+                <button data-mtab="invoice">Facture</button>
+                <button data-mtab="prices">Tarifs</button>
+            </div>
+            <div class="body" id="menuBody"></div>
+        </div>
+    </div>
+
+    <!-- Personnalisation -->
+    <div id="mods" class="layer hidden">
+        <div class="panel wide">
+            <header class="brandbar">
+                <img src="logo.png" class="crest" alt="">
+                <div class="brand-txt"><div class="eyebrow">Elyzea · Personnalisation</div><div class="title" id="modsVehicle">Véhicule</div><div class="sub plate" id="modsPlate"></div></div>
+                <button class="icon-btn" data-mods="cancel" title="Tout annuler">✕</button>
+            </header>
+            <div class="services" id="modsServices"></div>
+            <div class="mods-grid">
+                <nav id="modsCats"></nav>
+                <section id="modsOptions"><p class="muted pad">Choisis une catégorie à gauche. Les changements s'affichent directement sur le véhicule.</p></section>
+            </div>
+            <footer id="modsFooter"></footer>
+        </div>
+        <div class="cam-hint"><kbd>Clic droit</kbd> maintenu : caméra libre · <kbd>Molette</kbd> : zoom</div>
+    </div>
+
+    <!-- Garage de service -->
+    <div id="garage" class="layer center hidden">
+        <div class="panel">
+            <header class="brandbar">
+                <img src="logo.png" class="crest" alt="">
+                <div class="brand-txt"><div class="eyebrow">Elyzea · Garage</div><div class="title">Véhicules de service</div></div>
+                <button class="icon-btn" data-close="garage">✕</button>
+            </header>
+            <div class="body" id="garageBody"></div>
+        </div>
+    </div>
+
+    <!-- Facture reçue (client) -->
+    <div id="invoice" class="layer center hidden">
+        <div class="panel invoice">
+            <div class="inv-crest"><img src="logo.png" alt=""></div>
+            <div class="body">
+                <div class="eyebrow" id="invCompany">LsCustom</div>
+                <div class="inv-title">Facture</div>
+                <div class="inv-amount" id="invAmount">$0</div>
+                <div class="ornament"><span></span>◆<span></span></div>
+                <p id="invLabel"></p>
+                <p class="muted" id="invMechanic"></p>
+                <div class="inv-time"><span id="invTime"></span></div>
+                <div class="row-btns">
+                    <button class="btn" data-inv="refuse">Refuser</button>
+                    <button class="btn primary" data-inv="accept">Payer par banque</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

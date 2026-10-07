@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Elyzea Public Garage</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="layer hidden">
+        <div class="garage">
+            <header class="head">
+                <img src="logo.png" class="crest" alt="">
+                <div class="titles">
+                    <div class="eyebrow">Elyzea · Public Garage</div>
+                    <h1 id="garageName">Garage public</h1>
+                    <div class="sub">Garages connectés : range ici, ressors où tu veux.</div>
+                </div>
+                <div class="counters" id="counters"></div>
+                <button class="icon-btn" id="closeBtn" title="Fermer (Échap)">✕</button>
+            </header>
+            <section class="store" id="store"></section>
+            <div class="bar">
+                <div class="tabs" id="tabs"></div>
+                <div class="search"><input type="search" id="q" placeholder="Rechercher (nom ou plaque)"></div>
+            </div>
+            <main class="grid" id="grid"></main>
+        </div>
+    </div>
+    <div id="toasts"></div>
+    <script src="app.js"></script>
+</body>
+</html>

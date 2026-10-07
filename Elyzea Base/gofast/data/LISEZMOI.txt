@@ -1,0 +1,3 @@
+Ce dossier contient la sauvegarde du Go Fast (contacts, emplacements, dialogues,
+réglages, paliers et destinations modifiés depuis le menu staff).
+Ne le remplace jamais lors d'une mise à jour, sinon tout sera perdu.

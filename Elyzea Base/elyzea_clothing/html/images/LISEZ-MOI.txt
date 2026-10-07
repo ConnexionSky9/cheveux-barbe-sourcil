@@ -1,0 +1,18 @@
+IMAGES RÉELLES DES VÊTEMENTS
+============================
+Une image par modèle (drawable) ET par coloris (texture), rangée par sexe puis par rayon :
+
+  male/tops/12_0.webp        haut homme n°12, coloris 1  (texture 0)
+  male/tops/12_1.webp        haut homme n°12, coloris 2  (texture 1)
+  female/pants/25_0.webp     pantalon femme n°25, coloris 1
+
+Format exact : <sexe>/<rayon>/<drawable>_<texture>.webp
+  sexe   : male ou female
+  rayon  : tops, undershirts, pants, shoes, bags, vests, arms, chains, masks, decals,
+           hats, glasses, ears, watches, bracelets
+  numéros: ceux de GTA, commençant à 0 (le numéro affiché sur la carte : #12 → 12)
+  .png est aussi accepté (Config.Images.fallbackExt).
+
+Si une image manque : coloris 0 du même modèle, sinon icône générique.
+Le nommage peut être changé dans config.lua (Config.Images.pattern).
+Les fichiers .gitkeep servent seulement à garder les dossiers : vous pouvez les supprimer.

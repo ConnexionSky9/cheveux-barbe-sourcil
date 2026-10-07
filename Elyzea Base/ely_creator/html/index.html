@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Création de personnage</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" class="hidden">
+    <div class="shade"></div>
+    <div id="stage" title="Glissez pour tourner le personnage"></div>
+
+    <aside class="sidebar">
+        <nav class="rail" id="rail" aria-label="Étapes"></nav>
+
+        <section class="panel">
+            <header class="panel-head">
+                <div class="brand">
+                    <img class="brand-logo" src="logo.jpg" alt="">
+                    <div>
+                        <div class="brand-name" id="brandName">Elyzea</div>
+                        <div class="brand-sub">Création de personnage</div>
+                    </div>
+                </div>
+                <div class="tab-head">
+                    <div>
+                        <h2 id="tabTitle"></h2>
+                        <p id="tabDesc"></p>
+                    </div>
+                    <button id="randomBtn" class="icon-btn" title="Générer au hasard">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="panel-body" id="panelBody"></div>
+
+            <footer class="panel-foot">
+                <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+                <div class="foot-row">
+                    <button id="prevBtn" class="btn ghost">Précédent</button>
+                    <span id="stepLabel" class="step-label"></span>
+                    <button id="nextBtn" class="btn primary">Suivant</button>
+                </div>
+            </footer>
+        </section>
+    </aside>
+
+    <div class="cam-dock">
+        <div class="cam-buttons" id="camButtons">
+            <button data-cam="face">Visage</button>
+            <button data-cam="torso">Buste</button>
+            <button data-cam="legs">Jambes</button>
+            <button data-cam="full" class="active">Entier</button>
+        </div>
+        <div class="rotate">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4h-4"/></svg>
+            <input type="range" id="rotateRange" class="range" min="-180" max="180" step="1" value="0">
+        </div>
+        <p class="hint">Glissez pour tourner, molette pour zoomer</p>
+    </div>
+
+    <div id="modal" class="modal hidden">
+        <div class="modal-box">
+            <h3>Vérifiez votre identité</h3>
+            <p class="modal-text">Ces informations seront enregistrées sur votre carte d'identité. Seul un membre du staff pourra les modifier ensuite.</p>
+            <div id="modalCard"></div>
+            <div class="modal-actions">
+                <button id="modalCancel" class="btn ghost">Modifier</button>
+                <button id="modalConfirm" class="btn primary">Créer mon personnage</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loader" class="loader hidden"><div class="spinner"><img src="logo.jpg" alt=""></div></div>
+    <div id="toasts" class="toasts"></div>
+</div>
+<div id="select" class="hidden">
+    <div class="shade"></div>
+    <aside class="sidebar">
+        <section class="panel select-panel">
+            <header class="panel-head">
+                <div class="brand">
+                    <img class="brand-logo" src="logo.jpg" alt="">
+                    <div>
+                        <div class="brand-name" id="selectBrand">Elyzea</div>
+                        <div class="brand-sub">Sélection du personnage</div>
+                    </div>
+                </div>
+                <div class="tab-head">
+                    <div>
+                        <h2>Vos personnages</h2>
+                        <p id="selectCount"></p>
+                    </div>
+                </div>
+            </header>
+            <div class="panel-body" id="selectList"></div>
+            <footer class="panel-foot">
+                <div class="foot-row">
+                    <button id="newCharBtn" class="btn ghost">Nouveau personnage</button>
+                    <button id="playBtn" class="btn primary">Jouer</button>
+                </div>
+            </footer>
+        </section>
+    </aside>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

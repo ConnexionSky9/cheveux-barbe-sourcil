@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Go Fast</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ================= HUD DE MISSION ================= -->
+    <section id="hud" class="hud hidden" aria-live="polite">
+        <header class="hud-head">
+            <div class="hud-title">
+                <span id="hud-mission" class="hud-mission">Go Fast</span>
+                <span id="hud-rare" class="badge-rare hidden">Rare</span>
+            </div>
+            <span id="hud-phase" class="hud-phase">Récupération</span>
+        </header>
+
+        <div class="lane" aria-hidden="true">
+            <div class="lane-dash"></div>
+            <div id="lane-nodes" class="lane-nodes"></div>
+            <div id="lane-car" class="lane-car"></div>
+        </div>
+
+        <div class="hud-destination">
+            <span class="label">Destination</span>
+            <div class="destination-row">
+                <span id="hud-destination" class="value destination">-</span>
+                <span id="hud-distance" class="distance">-</span>
+            </div>
+            <span id="hud-step" class="sub">-</span>
+        </div>
+
+        <div class="hud-timer">
+            <div class="timer-row">
+                <span class="label">Temps restant</span>
+                <span id="hud-time" class="timer">00:00</span>
+            </div>
+            <div class="bar"><div id="hud-time-bar" class="bar-fill time"></div></div>
+        </div>
+
+        <div class="hud-grid">
+            <div class="cell">
+                <span class="label">Récompense estimée</span>
+                <span id="hud-reward" class="value money">0 $</span>
+            </div>
+            <div class="cell">
+                <span class="label">Niveau de risque</span>
+                <div class="risk-row">
+                    <span id="hud-risk" class="chevrons"></span>
+                    <span id="hud-risk-label" class="sub">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-vehicle">
+            <div class="vehicle-head">
+                <span id="hud-vehicle" class="value">Véhicule</span>
+                <span id="hud-plate" class="plate">--------</span>
+            </div>
+            <div class="gauge">
+                <span class="label">Carrosserie</span>
+                <div class="bar"><div id="hud-body" class="bar-fill health"></div></div>
+                <span id="hud-body-value" class="gauge-value">-</span>
+            </div>
+            <div class="gauge">
+                <span class="label">Moteur</span>
+                <div class="bar"><div id="hud-engine" class="bar-fill health"></div></div>
+                <span id="hud-engine-value" class="gauge-value">-</span>
+            </div>
+            <div class="vehicle-foot">
+                <span id="hud-vehicle-state" class="sub">Verrouillé</span>
+                <span id="hud-speed" class="speed">0 km/h</span>
+            </div>
+        </div>
+
+        <div id="hud-away" class="away hidden">
+            <span>Retourne au véhicule</span>
+            <span id="hud-away-time" class="away-time">0 s</span>
+        </div>
+    </section>
+
+    <!-- ================= ENCADRÉ D'OBJECTIFS ================= -->
+    <aside id="objective" class="objective pos-left hidden" aria-live="polite">
+        <div class="obj-head">
+            <span id="obj-title" class="obj-title">Go Fast</span>
+            <span id="obj-mission" class="obj-mission"></span>
+        </div>
+        <div id="obj-now" class="obj-now">
+            <span id="obj-text" class="obj-text">-</span>
+            <span id="obj-hint" class="obj-hint"></span>
+        </div>
+        <ol id="obj-steps" class="obj-steps"></ol>
+        <ul id="obj-alerts" class="obj-alerts"></ul>
+    </aside>
+
+    <!-- ================= MENU DU CONTACT ================= -->
+    <section id="menu" class="menu hidden" role="dialog" aria-modal="true" aria-labelledby="menu-giver">
+        <div class="menu-panel">
+            <aside class="menu-side">
+                <div>
+                    <h1 id="menu-giver" class="menu-giver">Contact</h1>
+                    <p id="menu-subtitle" class="menu-subtitle">-</p>
+                </div>
+
+                <blockquote id="menu-quote" class="quote hidden"></blockquote>
+
+                <div id="menu-level" class="level-card">
+                    <div class="level-row">
+                        <span class="level-number" id="menu-level-number">1</span>
+                        <div class="level-text">
+                            <span class="label">Niveau de réputation</span>
+                            <span id="menu-level-xp" class="sub">0 XP</span>
+                        </div>
+                    </div>
+                    <div class="bar"><div id="menu-level-bar" class="bar-fill xp"></div></div>
+                    <span id="menu-level-next" class="sub">-</span>
+                </div>
+
+                <dl class="menu-stats">
+                    <div><dt>Contrats remplis</dt><dd id="menu-missions">0</dd></div>
+                    <div><dt>Disponibilité</dt><dd id="menu-cooldown">Disponible</dd></div>
+                </dl>
+
+                <div class="menu-actions">
+                    <button id="btn-abandon" class="btn btn-danger hidden" type="button">Abandonner le Go Fast en cours</button>
+                    <button id="btn-close" class="btn btn-ghost" type="button">Fermer <kbd>Échap</kbd></button>
+                </div>
+            </aside>
+
+            <div class="menu-main">
+                <h2 class="menu-heading">Contrats disponibles</h2>
+                <div id="menu-tiers" class="tier-list"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= BILAN DE FIN ================= -->
+    <section id="summary" class="summary hidden" aria-live="polite">
+        <div class="summary-head">
+            <span id="summary-title" class="summary-title">Contrat rempli</span>
+            <span id="summary-mission" class="sub">-</span>
+        </div>
+        <div id="summary-amount" class="summary-amount">0 $</div>
+        <p id="summary-reason" class="summary-reason hidden"></p>
+        <p id="summary-quote" class="quote hidden"></p>
+        <div id="summary-lines" class="summary-lines"></div>
+        <div id="summary-extra" class="summary-extra"></div>
+    </section>
+
+    <!-- ================= NOTIFICATIONS ================= -->
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

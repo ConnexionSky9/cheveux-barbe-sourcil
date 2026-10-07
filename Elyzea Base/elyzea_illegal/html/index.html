@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Elyzea Illégal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Tablette du groupe : même structure que le MenuStaff -->
+    <div id="app" class="hidden">
+        <div class="screen">
+            <div class="statusbar">
+                <img src="logo.png" class="sb-logo" alt="">
+                <span class="sb-title">Tablette <span id="sb-title">Illégal</span></span>
+                <span class="sb-spacer"></span>
+                <span class="sb-item" id="sb-via"></span>
+                <span class="sb-item" id="sb-clock"></span>
+                <button class="sb-close" id="close-btn" title="Fermer (Échap)">✕</button>
+            </div>
+            <div class="body">
+                <aside class="sidebar">
+                    <div class="brand">
+                        <img src="logo.png" class="brand-logo" alt="">
+                        <div class="brand-name" id="brand-name"></div>
+                        <div class="brand-sub" id="brand-sub"></div>
+                    </div>
+                    <div class="identity">
+                        <div class="identity-stripe"></div>
+                        <div>
+                            <div class="identity-label" id="me-name"></div>
+                            <div class="identity-rank" id="me-grade"></div>
+                        </div>
+                    </div>
+                    <nav id="tabs"></nav>
+                    <div class="sidebar-foot" id="sidebar-foot"></div>
+                </aside>
+                <main>
+                    <header class="topbar"><h1 id="page-title"></h1><p id="page-sub"></p></header>
+                    <section id="content"></section>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu F5 : même panneau que le menu rapide du staff -->
+    <div id="quick" class="hidden"></div>
+    <!-- Invite d'interaction [E] : même design que celle du MenuStaff -->
+    <div id="prompt" class="hidden" aria-live="polite"></div>
+    <!-- Missions : compte à rebours, barre de progression, fin de mission -->
+    <div id="missionhud" class="hidden"></div>
+    <div id="dprogress" class="hidden"><div class="dp-lab"><b></b><span></span></div><div class="dp-track"><i></i></div><small>X pour annuler</small></div>
+    <div id="missionend" class="hidden"></div>
+    <div id="modal-root"></div>
+    <div id="toasts"></div>
+    <script src="app.js"></script>
+</body>
+</html>

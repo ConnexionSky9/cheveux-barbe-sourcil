@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Auto-école Elyzea</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Auto-école : accueil, code, résultats -->
+    <div id="app" class="layer hidden">
+        <div class="panel">
+            <header class="head">
+                <img src="logo.png" class="crest" alt="">
+                <div class="titles"><div class="eyebrow">Elyzea · Auto-école</div><h1 id="schoolName">Auto-école</h1></div>
+                <button class="icon-btn" id="closeBtn" title="Fermer (Échap)">✕</button>
+            </header>
+            <main id="screen" class="screen"></main>
+        </div>
+    </div>
+
+    <!-- Compteur pendant la conduite -->
+    <div id="hud" class="hud hidden">
+        <div class="hud-title"><span class="eyebrow">Examen de conduite</span><b id="hudLabel"></b></div>
+        <div class="hud-row">
+            <div class="gauge" id="gauge"><span id="hudSpeed">0</span><small>km/h</small></div>
+            <div class="limit"><span id="hudLimit">50</span></div>
+            <div class="hud-stats">
+                <div><small>Point</small><b id="hudPoint">0/0</b></div>
+                <div><small>Fautes</small><b id="hudFaults">0/0</b></div>
+                <div><small>Temps</small><b id="hudTime">00:00</b></div>
+            </div>
+        </div>
+    </div>
+    <div id="faults"></div>
+
+    <!-- Permis de conduire -->
+    <div id="card" class="layer hidden">
+        <div class="license-wrap">
+            <div class="license" id="license"></div>
+            <div class="license-actions" id="licenseActions"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

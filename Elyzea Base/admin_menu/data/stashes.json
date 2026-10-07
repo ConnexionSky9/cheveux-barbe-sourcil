@@ -1,0 +1,20 @@
+[
+    {
+        "z": 36.396,
+        "jobs": [
+            {
+                "grade": 0,
+                "job": "ambulance"
+            }
+        ],
+        "name": "Coffre",
+        "weight": 1000,
+        "model": "prop_cs_cardbox_01",
+        "slots": 500,
+        "id": 1,
+        "x": 1134.61,
+        "gangs": [],
+        "y": -1540.554,
+        "h": 90.002
+    }
+]

@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elyzea · Menu des animations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --night:#060914;
+  --marble:#0e1730;
+  --marble-2:#16244a;
+  --gold:#e9d4a4;
+  --gold-deep:#b8904f;
+  --ivory:#f6efe0;
+  --muted:#93a0bf;
+  --blue:#3d86ff;
+  --red:#ff3e4d;
+  --line:rgba(233,212,164,.22);
+  --scale:1;
+  --ui-font:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --display:"Cinzel","Trajan Pro",Georgia,serif;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{
+  margin:0;height:100%;min-height:100%;
+  font-family:var(--ui-font);color:var(--ivory);
+  background:var(--night);overflow:hidden;
+}
+body.demo{
+  background:
+    radial-gradient(ellipse 60% 70% at 15% 40%, rgba(61,134,255,.18), transparent 70%),
+    radial-gradient(ellipse 60% 70% at 85% 60%, rgba(255,62,77,.16), transparent 70%),
+    linear-gradient(180deg,#0a1024,#05070f);
+}
+body.fivem{background:transparent}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* Demo hint */
+.hint{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;white-space:nowrap}
+.hint button{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--gold)}
+body.fivem .hint{display:none}
+
+/* Panel */
+.panel{
+  position:fixed;top:50%;right:28px;
+  width:min(520px,calc(100vw - 24px));height:min(720px,calc(100% - 40px));
+  transform:translateY(-50%) scale(var(--scale));transform-origin:right center;
+  display:grid;grid-template-rows:auto auto 1fr auto;
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(61,134,255,.14), transparent 55%),
+    radial-gradient(120% 60% at 100% 100%, rgba(255,62,77,.12), transparent 55%),
+    linear-gradient(160deg,var(--marble-2),var(--marble) 45%,#0a1124);
+  border-radius:22px;
+  box-shadow:0 0 0 1px rgba(233,212,164,.5),0 0 0 4px rgba(6,9,20,.9),0 0 0 5px rgba(184,144,79,.55),
+    -14px 0 40px -18px var(--blue),14px 0 40px -18px var(--red),0 30px 80px rgba(0,0,0,.6);
+  opacity:0;pointer-events:none;
+  transition:opacity .22s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.panel.left{right:auto;left:28px;transform-origin:left center}
+.panel.open{opacity:1;pointer-events:auto}
+.panel:not(.open){transform:translateY(-50%) translateX(24px) scale(var(--scale))}
+.panel.left:not(.open){transform:translateY(-50%) translateX(-24px) scale(var(--scale))}
+
+/* Header */
+.head{display:flex;align-items:center;gap:14px;padding:18px 20px 12px;position:relative}
+.medal{width:78px;height:78px;flex:none;border-radius:50%;position:relative;
+  box-shadow:-6px 0 18px -4px rgba(61,134,255,.7),6px 0 18px -4px rgba(255,62,77,.7)}
+.medal img{width:100%;height:100%;border-radius:50%;display:block}
+.title{flex:1;min-width:0}
+.title h1{margin:0;font-family:var(--display);font-weight:900;font-size:26px;letter-spacing:.06em;line-height:1.05;
+  background:linear-gradient(180deg,#fff8e6 0%,var(--gold) 45%,var(--gold-deep) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.title p{margin:4px 0 0;color:var(--muted);font-size:15px}
+.iconbtn{width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--line);background:rgba(6,9,20,.5);
+  display:grid;place-items:center;cursor:pointer;color:var(--gold);transition:background .15s,border-color .15s}
+.iconbtn:hover{background:rgba(233,212,164,.1);border-color:rgba(233,212,164,.5)}
+.iconbtn svg{width:19px;height:19px}
+
+/* Ornament divider echoing logo */
+.orn{height:14px;margin:0 20px;position:relative}
+.orn::before{content:"";position:absolute;left:0;right:0;top:6px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue) 15%,var(--gold) 45%,var(--gold) 55%,var(--red) 85%,transparent)}
+.orn::after{content:"";position:absolute;left:50%;top:0;width:12px;height:12px;transform:translateX(-50%) rotate(45deg);
+  background:linear-gradient(135deg,#fff3d6,var(--gold-deep));box-shadow:0 0 10px rgba(233,212,164,.6)}
+
+/* Search row */
+.tools{padding:10px 20px 12px;display:flex;gap:10px}
+.search{flex:1;display:flex;align-items:center;gap:8px;padding:0 12px;height:42px;border-radius:12px;
+  background:rgba(4,7,16,.6);border:1px solid var(--line)}
+.search svg{width:17px;height:17px;color:var(--muted);flex:none}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:16px}
+.search input::placeholder{color:#6d7894}
+.stop{height:42px;padding:0 14px;border-radius:12px;border:1px solid rgba(255,62,77,.5);background:rgba(255,62,77,.12);
+  color:#ffd6d9;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600}
+.stop:hover{background:rgba(255,62,77,.22)}
+.stop svg{width:16px;height:16px}
+
+/* Body: rail + list */
+.body{display:grid;grid-template-columns:auto 1fr;min-height:0;border-top:1px solid rgba(233,212,164,.1)}
+.rail{display:flex;flex-direction:column;gap:4px;padding:10px 8px;overflow-y:auto;border-right:1px solid rgba(233,212,164,.1);
+  scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.cat{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:72px;padding:8px 4px;border:0;border-radius:12px;
+  background:none;cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600;line-height:1.1;text-align:center}
+.cat svg{width:21px;height:21px}
+.cat:hover{color:var(--ivory);background:rgba(255,255,255,.04)}
+.cat[aria-selected="true"]{color:var(--gold);background:linear-gradient(180deg,rgba(233,212,164,.14),rgba(233,212,164,.04))}
+.cat[aria-selected="true"]::before{content:"";position:absolute;left:-8px;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--gold);
+  box-shadow:0 0 10px var(--gold)}
+.cat[data-side="rue"][aria-selected="true"]{color:#ffb3b9}
+.cat[data-side="rue"][aria-selected="true"]::before{background:var(--red);box-shadow:0 0 10px var(--red)}
+.cat .n{font-size:11px;font-weight:500;color:#5f6a86}
+
+.listwrap{min-height:0;overflow-y:auto;padding:12px 14px 16px;scrollbar-width:thin;scrollbar-color:rgba(233,212,164,.3) transparent}
+.listhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 4px 12px}
+.listhead h2{margin:0;font-family:var(--display);font-weight:700;font-size:19px;color:var(--ivory);letter-spacing:.03em}
+.listhead span{color:var(--muted);font-size:14px}
+.desc{margin:-6px 4px 12px;color:var(--muted);font-size:14px;line-height:1.35}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.emote{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;
+  padding:11px 34px 10px 12px;border-radius:12px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+  border:1px solid rgba(233,212,164,.12);transition:border-color .15s,background .15s,transform .1s}
+.emote::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--blue);opacity:.7}
+.emote.rue::before{background:var(--red)}
+.emote.duo::before{background:linear-gradient(var(--blue),var(--red))}
+.emote:hover{border-color:rgba(233,212,164,.45);background:linear-gradient(180deg,rgba(233,212,164,.1),rgba(233,212,164,.03))}
+.emote:active{transform:scale(.98)}
+.emote.playing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 18px -4px var(--gold)}
+.emote b{font-weight:600;font-size:16px;line-height:1.15}
+.emote code{font-family:var(--ui-font);font-size:13px;color:#7f8bab}
+body.nocmd .emote code{display:none}
+.fav{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#56617e;cursor:pointer}
+.fav:hover{color:var(--gold);background:rgba(233,212,164,.08)}
+.fav.on{color:var(--gold)}
+.fav svg{width:15px;height:15px}
+.fav.on svg{fill:var(--gold)}
+.emote{min-height:64px}
+.place{position:absolute;bottom:6px;right:6px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#56617e;cursor:pointer;transition:opacity .15s}
+.place:hover{color:var(--gold);background:rgba(233,212,164,.08)}
+.place svg{width:15px;height:15px}
+.emote.bound .place{opacity:0}
+.emote.bound:hover .place,.emote.bound:focus-within .place{opacity:1}
+.emote.bound:hover .keytag,.emote.bound:focus-within .keytag{opacity:0}
+.empty{padding:40px 16px;text-align:center;color:var(--muted);line-height:1.45}
+.empty b{display:block;color:var(--ivory);font-family:var(--display);font-size:17px;margin-bottom:6px}
+
+/* Footer */
+.foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 20px 14px;
+  border-top:1px solid rgba(233,212,164,.1);color:var(--muted);font-size:14px}
+.keys{display:flex;gap:14px;flex-wrap:wrap}
+kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;margin-right:6px;border-radius:6px;
+  font-family:var(--ui-font);font-weight:700;font-size:13px;color:var(--night);
+  background:linear-gradient(180deg,#fff4da,var(--gold-deep));box-shadow:0 2px 0 #6e532a}
+.now{color:var(--gold);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+
+/* Sheets (settings / player picker) */
+.sheet{position:absolute;inset:0;border-radius:22px;background:rgba(6,9,20,.92);backdrop-filter:blur(6px);
+  display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet.open{opacity:1;pointer-events:auto}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:20px 20px 14px}
+.sheet-head h2{flex:1;margin:0;font-family:var(--display);font-size:22px;color:var(--gold)}
+.sheet-body{flex:1;overflow-y:auto;padding:4px 20px 20px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid rgba(233,212,164,.1)}
+.row:last-child{border-bottom:0}
+.row label,.row .lbl{display:block;font-weight:600;font-size:16px}
+.row small{display:block;color:var(--muted);font-size:14px;margin-top:2px;line-height:1.3}
+.keycap{min-width:64px;height:40px;padding:0 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:17px;
+  border:1px solid var(--gold-deep);background:rgba(233,212,164,.08);color:var(--gold)}
+.keycap.listening{border-color:var(--blue);color:#cfe0ff;background:rgba(61,134,255,.15);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(61,134,255,.25)}}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+.seg button{border:0;background:none;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg button.on{background:rgba(233,212,164,.15);color:var(--gold)}
+.switch{position:relative;width:46px;height:26px;flex:none;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.06);cursor:pointer}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:transform .18s,background .18s}
+.switch[aria-checked="true"]{background:rgba(233,212,164,.18);border-color:var(--gold-deep)}
+.switch[aria-checked="true"]::after{transform:translateX(20px);background:var(--gold)}
+input[type=range]{accent-color:var(--gold);width:140px}
+.danger{margin-top:16px;width:100%;height:42px;border-radius:12px;border:1px solid rgba(255,62,77,.4);background:rgba(255,62,77,.08);color:#ffc5ca;cursor:pointer;font-weight:600}
+.note{color:var(--muted);font-size:13.5px;line-height:1.4;margin-top:16px}
+
+.player{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:12px;cursor:pointer;text-align:left;
+  border:1px solid rgba(233,212,164,.15);background:rgba(255,255,255,.03)}
+.player:hover{border-color:var(--gold)}
+.player .id{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:var(--night);
+  background:linear-gradient(135deg,#fff3d6,var(--gold-deep))}
+.player b{display:block;font-size:16px}
+.player small{color:var(--muted)}
+
+/* Toast */
+.toast{position:fixed;left:50%;top:calc(22px + env(safe-area-inset-top,0px));transform:translate(-50%,-20px);opacity:0;
+  padding:10px 18px;border-radius:12px;background:rgba(6,9,20,.92);border:1px solid var(--gold-deep);color:var(--ivory);
+  font-weight:600;transition:all .2s;pointer-events:none;z-index:10;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Ambiance */
+body.amb-legal{--red:#3d86ff}
+body.amb-illegal{--blue:#ff3e4d}
+
+@media (max-width:600px){
+  .panel,.panel.left{right:12px;left:12px;width:auto;height:calc(100% - 24px);transform-origin:center}
+  .panel:not(.open),.panel.left:not(.open){transform:translateY(-50%) translateY(16px) scale(var(--scale))}
+  .medal{width:60px;height:60px}
+  .title h1{font-size:22px}
+  .cat{width:62px;font-size:11.5px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+  .foot .now{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.emote{padding-bottom:10px}
+.keybtn{margin-top:8px;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:8px;font-size:13px;font-weight:600;
+  border:1px dashed rgba(233,212,164,.4);color:var(--gold);background:rgba(233,212,164,.05);cursor:pointer}
+.keybtn:hover{background:rgba(233,212,164,.14)}
+.keybtn.set{border-style:solid;background:linear-gradient(180deg,#fff4da,var(--gold-deep));color:var(--night);box-shadow:0 2px 0 #6e532a}
+.keytag{position:absolute;right:8px;bottom:8px;min-width:22px;height:20px;padding:0 5px;border-radius:5px;display:grid;place-items:center;
+  font-size:12px;font-weight:700;color:var(--night);background:linear-gradient(180deg,#fff4da,var(--gold-deep))}
+.bindbox{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}
+.bindbox p{margin:0;color:var(--muted);font-size:15px;line-height:1.45;max-width:34ch}
+.bindbox .big{min-width:110px;height:110px;padding:0 20px;border-radius:22px;display:grid;place-items:center;
+  font-family:var(--display);font-weight:900;font-size:40px;color:var(--gold);border:2px solid var(--gold-deep);
+  background:radial-gradient(circle at 30% 30%,rgba(61,134,255,.25),transparent 60%),radial-gradient(circle at 70% 70%,rgba(255,62,77,.25),transparent 60%),rgba(6,9,20,.6);
+  animation:pulse2 1.4s infinite}
+@keyframes pulse2{50%{box-shadow:0 0 0 8px rgba(233,212,164,.12)}}
+.bindbox .acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.bindbox .acts button{height:42px;padding:0 18px;border-radius:12px;cursor:pointer;font-weight:600;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.bindbox .acts .rm{border-color:rgba(255,62,77,.45);color:#ffc5ca;background:rgba(255,62,77,.08)}
+.bindbox h3{margin:0;font-family:var(--display);font-size:20px;color:var(--ivory)}
+.shortlist{margin:0 4px 14px;padding:10px 12px;border-radius:12px;border:1px solid rgba(233,212,164,.15);background:rgba(4,7,16,.45);
+  color:var(--muted);font-size:14px;line-height:1.5}
+.shortlist kbd{margin-right:4px}
+.shortlist span{display:inline-block;margin:2px 12px 2px 0;color:var(--ivory)}
+
+.toast.ok{border-color:#3fbf7f}
+.toast.err{border-color:var(--red)}
+.req{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top,0px));z-index:20;width:min(430px,calc(100vw - 24px));
+  transform:translate(-50%,-16px);opacity:0;pointer-events:none;transition:opacity .22s,transform .28s cubic-bezier(.2,.8,.2,1);
+  border-radius:18px;overflow:hidden;
+  background:radial-gradient(120% 90% at 0% 0%,rgba(61,134,255,.2),transparent 60%),radial-gradient(120% 90% at 100% 100%,rgba(255,62,77,.18),transparent 60%),linear-gradient(160deg,var(--marble-2),var(--marble));
+  box-shadow:0 0 0 1px rgba(233,212,164,.55),0 0 0 4px rgba(6,9,20,.9),0 0 0 5px rgba(184,144,79,.5),0 20px 60px rgba(0,0,0,.6)}
+.req.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.req-in{display:flex;gap:14px;padding:16px 18px 14px}
+.req img{width:56px;height:56px;border-radius:50%;flex:none;box-shadow:-4px 0 12px -3px rgba(61,134,255,.7),4px 0 12px -3px rgba(255,62,77,.7)}
+.req h4{margin:0 0 4px;font-family:var(--display);font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+.req p{margin:0;font-size:16px;line-height:1.35;color:var(--ivory)}
+.req p b{color:var(--gold);font-weight:700}
+.req .preview{display:block;margin-top:4px;font-size:13px;color:var(--muted)}
+.req-acts{display:flex;gap:8px;margin-top:12px}
+.req-acts button{flex:1;height:38px;border-radius:10px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;gap:2px}
+.req-acts .yes{border:1px solid rgba(63,191,127,.6);background:rgba(63,191,127,.14);color:#c9f2dc}
+.req-acts .no{border:1px solid rgba(255,62,77,.55);background:rgba(255,62,77,.12);color:#ffd0d4}
+.req-acts kbd{min-width:22px;height:22px;font-size:12px}
+.req-bar{height:3px;background:linear-gradient(90deg,var(--blue),var(--gold),var(--red));transform-origin:left;transform:scaleX(1)}
+
+.pv{position:fixed;top:50%;right:28px;width:230px;transform:translateY(-50%) translateX(20px);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .3s;border-radius:20px;padding:14px 14px 16px;text-align:center;
+  background:radial-gradient(100% 60% at 50% 100%,rgba(233,212,164,.12),transparent 70%),linear-gradient(170deg,rgba(22,36,74,.85),rgba(10,17,36,.9));
+  box-shadow:0 0 0 1px rgba(233,212,164,.45),-10px 0 30px -16px var(--blue),10px 0 30px -16px var(--red)}
+.pv.show{opacity:1;transform:translateY(-50%)}
+body.posright .pv{right:auto;left:28px}
+body.fivem .pv,body.nopv .pv{display:none}
+@media (max-width:900px){.pv{display:none}}
+.pv-stage{height:240px;display:grid;place-items:end center}
+.pv svg{height:230px;overflow:visible}
+.pv-txt b{display:block;font-family:var(--display);font-size:15px;color:var(--gold);line-height:1.25;min-height:2.5em;display:flex;align-items:center;justify-content:center}
+.pv-txt code{display:block;font-family:var(--ui-font);font-size:13px;color:var(--muted);min-height:1.2em}
+.pv small{display:block;margin-top:10px;font-size:12px;line-height:1.35;color:#6d7894}
+.fig *{transform-box:fill-box}
+.fig .armL{transform-origin:50% 4%}.fig .armR{transform-origin:50% 4%}
+.fig .legL,.fig .legR{transform-origin:50% 2%}
+.fig .body{transform-origin:50% 100%}
+.a-idle .body{animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{50%{transform:scaleY(1.012)}}
+.a-wave .armR{animation:wave 1s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:rotate(-150deg)}50%{transform:rotate(-120deg)}}
+.a-dance .body{animation:dance .7s ease-in-out infinite}
+.a-dance .armL{animation:dl .7s ease-in-out infinite}.a-dance .armR{animation:dr .7s ease-in-out infinite}
+@keyframes dance{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
+@keyframes dl{50%{transform:rotate(60deg)}}@keyframes dr{50%{transform:rotate(-60deg)}}
+.a-sit .body{animation:sit .6s ease-out forwards}
+@keyframes sit{to{transform:translateY(40px) scaleY(.82)}}
+.a-sport .body{animation:jump .6s ease-in-out infinite}.a-sport .armL{animation:dl .6s infinite}.a-sport .armR{animation:dr .6s infinite}
+@keyframes jump{50%{transform:translateY(-14px)}}
+.a-walk .legL{animation:stepA .8s ease-in-out infinite}.a-walk .legR{animation:stepB .8s ease-in-out infinite}
+.a-walk .armL{animation:stepB .8s ease-in-out infinite}.a-walk .armR{animation:stepA .8s ease-in-out infinite}
+@keyframes stepA{0%,100%{transform:rotate(18deg)}50%{transform:rotate(-18deg)}}
+@keyframes stepB{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(18deg)}}
+.a-shake .body{animation:shake .25s linear infinite}
+@keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.a-lean .body{animation:lean .5s ease-out forwards}.a-lean .armL{transform:rotate(25deg)}.a-lean .armR{transform:rotate(-25deg)}
+@keyframes lean{to{transform:rotate(-6deg)}}
+</style>
+</head>
+<body class="demo">
+
+<div class="hint" id="hint">Appuie sur <kbd id="hintKey">K</kbd>pour ouvrir le menu <button id="openBtn" type="button">Ouvrir</button></div>
+
+<section class="panel" id="panel" role="dialog" aria-label="Menu des animations">
+  <header class="head">
+    <div class="medal"><img src="data:image/webp;base64,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" alt="Elyzea"></div>
+    <div class="title">
+      <h1>Animations</h1>
+      <p id="subtitle">Elyzea roleplay</p>
+    </div>
+    <button class="iconbtn" id="settingsBtn" type="button" aria-label="Paramètres"><i data-lucide="settings-2"></i></button>
+    <button class="iconbtn" id="closeBtn" type="button" aria-label="Fermer"><i data-lucide="x"></i></button>
+  </header>
+  <div class="orn" aria-hidden="true"></div>
+
+  <div class="tools">
+    <div class="search"><i data-lucide="search"></i><input id="q" type="search" placeholder="Rechercher une animation ou une commande" autocomplete="off"></div>
+    <button class="stop" id="stopBtn" type="button"><i data-lucide="square"></i>Arrêter</button>
+  </div>
+
+  <div class="body">
+    <nav class="rail" id="rail" role="tablist" aria-orientation="vertical"></nav>
+    <div class="listwrap" id="listwrap">
+      <div class="listhead"><h2 id="catTitle"></h2><span id="catCount"></span></div>
+      <p class="desc" id="catDesc"></p>
+      <div id="shortlist"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <div class="keys"><span><kbd id="kOpen">K</kbd>Ouvrir</span><span><kbd id="kStop">X</kbd>Arrêter</span><span><kbd>Échap</kbd>Fermer</span><span id="kPlaceWrap"><kbd>Clic droit</kbd>Placer</span></div>
+    <div class="now" id="now"></div>
+  </footer>
+
+  <div class="sheet" id="settings" aria-label="Paramètres">
+    <div class="sheet-head"><h2>Paramètres</h2><button class="iconbtn" data-close="settings" type="button" aria-label="Retour"><i data-lucide="arrow-left"></i></button></div>
+    <div class="sheet-body">
+      <div class="row"><div><span class="lbl">Touche d'ouverture</span><small>Clique puis appuie sur la nouvelle touche</small></div><button class="keycap" id="bindOpen" type="button">K</button></div>
+      <div class="row"><div><span class="lbl">Touche pour arrêter</span><small>Coupe l'animation en cours, même menu fermé</small></div><button class="keycap" id="bindStop" type="button">X</button></div>
+      <div class="row"><div><span class="lbl">Position du menu</span></div><div class="seg" id="segPos"><button data-v="left" type="button">Gauche</button><button data-v="right" type="button">Droite</button></div></div>
+      <div class="row"><div><label for="scale">Taille du menu</label><small id="scaleVal">100 %</small></div><input type="range" id="scale" min="80" max="120" step="5" value="100"></div>
+      <div class="row"><div><span class="lbl">Ambiance</span><small>Couleur des reflets du menu</small></div><div class="seg" id="segAmb"><button data-v="legal" type="button">Légal</button><button data-v="both" type="button">Les deux</button><button data-v="illegal" type="button">Illégal</button></div></div>
+      <div class="row"><div><span class="lbl">Afficher les commandes</span><small>Montre la commande sous chaque animation</small></div><button class="switch" id="swCmd" role="switch" aria-checked="true" type="button" aria-label="Afficher les commandes"></button></div>
+      <div class="row"><div><span class="lbl">Fermer après lancement</span><small>Le menu se ferme dès qu'une animation démarre</small></div><button class="switch" id="swClose" role="switch" aria-checked="false" type="button" aria-label="Fermer après lancement"></button></div>
+      <div class="row"><div><span class="lbl">Aperçu 3D</span><small>Ton personnage montre l'animation quand tu survoles</small></div><button class="switch" id="swPreview" role="switch" aria-checked="true" type="button" aria-label="Aperçu 3D"></button></div>
+      <div class="row"><div><span class="lbl">Masquer l'autre sexe</span><small>Cache les animations prévues pour un personnage de l'autre sexe</small></div><button class="switch" id="swGender" role="switch" aria-checked="true" type="button" aria-label="Masquer l'autre sexe"></button></div>
+      <button class="danger" id="resetBinds" type="button">Retirer tous les raccourcis</button>
+      <button class="danger" id="resetFav" type="button">Vider les favoris et l'historique</button>
+      <p class="note">Les raccourcis apparaissent aussi dans Paramètres GTA &gt; Raccourcis &gt; FiveM, sous le nom « Elyzea animations ».</p>
+    </div>
+  </div>
+
+  <div class="sheet" id="picker" aria-label="Choisir un joueur">
+    <div class="sheet-head"><h2 id="pickTitle">Avec qui ?</h2><button class="iconbtn" data-close="picker" type="button" aria-label="Retour"><i data-lucide="arrow-left"></i></button></div>
+    <div class="sheet-body" id="pickList"></div>
+  </div>
+
+  <div class="sheet" id="bindSheet" aria-label="Assigner une touche">
+    <div class="sheet-head"><h2>Raccourci</h2><button class="iconbtn" data-close="bindSheet" type="button" aria-label="Retour"><i data-lucide="arrow-left"></i></button></div>
+    <div class="bindbox">
+      <h3 id="bindName"></h3>
+      <div class="big" id="bindKey">…</div>
+      <p>Appuie sur la touche à utiliser : chiffres, F1 à F12, pavé numérique ou une lettre libre. Elle lancera l'animation menu fermé.</p>
+      <div class="acts"><button class="rm" id="bindRemove" type="button">Retirer la touche</button><button id="bindCancel" type="button">Annuler</button></div>
+    </div>
+  </div>
+</section>
+
+<aside class="pv" id="pv" aria-hidden="true">
+  <div class="pv-stage">
+    <svg id="pvFig" class="fig a-idle" viewBox="0 0 120 220" aria-hidden="true">
+      <defs><linearGradient id="gfig" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3d6"/><stop offset="1" stop-color="#b8904f"/></linearGradient></defs>
+      <ellipse cx="60" cy="212" rx="34" ry="5" fill="rgba(0,0,0,.45)"/>
+      <g class="body">
+        <circle class="head" cx="60" cy="30" r="15" fill="url(#gfig)"/>
+        <rect class="torso" x="44" y="48" width="32" height="62" rx="12" fill="url(#gfig)"/>
+        <g class="armL"><rect x="30" y="50" width="11" height="58" rx="5.5" fill="url(#gfig)"/></g>
+        <g class="armR"><rect x="79" y="50" width="11" height="58" rx="5.5" fill="url(#gfig)"/></g>
+        <g class="legL"><rect x="46" y="106" width="12" height="100" rx="6" fill="url(#gfig)"/></g>
+        <g class="legR"><rect x="62" y="106" width="12" height="100" rx="6" fill="url(#gfig)"/></g>
+      </g>
+    </svg>
+  </div>
+  <div class="pv-txt"><b id="pvName">Survole une animation</b><code id="pvCmd"></code></div>
+  <small>Aperçu du navigateur. En jeu, c'est ton propre personnage en 3D qui fait la vraie animation.</small>
+</aside>
+
+<div class="toast" id="toast" role="status"></div>
+
+<div class="req" id="req" role="alertdialog" aria-live="assertive" aria-label="Demande d'animation">
+  <div class="req-in">
+    <img id="reqImg" alt="">
+    <div style="flex:1;min-width:0">
+      <h4>Demande d'animation</h4>
+      <p><b id="reqName"></b> te propose : <b id="reqLabel"></b></p>
+      <span class="preview" id="reqPreview" hidden>Aperçu de ce que voit l'autre joueur</span>
+      <div class="req-acts">
+        <button class="yes" id="reqYes" type="button"><kbd id="reqKeyYes">Y</kbd>Accepter</button>
+        <button class="no" id="reqNo" type="button"><kbd id="reqKeyNo">N</kbd>Refuser</button>
+      </div>
+    </div>
+  </div>
+  <div class="req-bar" id="reqBar"></div>
+</div>
+<script>
+/* ===================== DONNÉES =====================
+   Liste générée depuis rpemotes (client/AnimationList.lua).
+   Format de chaque animation : ["Nom affiché", "commande", "drapeaux"]
+   Drapeaux (optionnels) : v = seulement en véhicule, n = pas en véhicule, f = femme, m = homme
+   Préfixes : nearby_ = animation partagée, walk_ = démarche, mood_ = humeur, sans préfixe = /e */
+const EMOTES = {"gestes":[["Airforce - Salute","airforce04"],["ASL No 🇺🇸","aslno"],["ASL Yes 🇺🇸","aslyes"],["Blow Kiss","blowkiss"],["Blow Kiss 2","blowkiss2"],["Blow Snot","snot"],["Bow","bow"],["Bow 2","bow2"],["Celebrate","celebrate"],["Cheer","cheer"],["Clap","clap"],["Come at me bro","comeatmebro"],["Countdown","countdown"],["Cross hands","crosshands"],["Crossarms","crossarms"],["Crossarms 2","crossarms2"],["Crossarms 3","crossarms3"],["Crossarms 4","crossarms4"],["Crossarms 5","crossarms5"],["Crossarms 6","crossarms6"],["Crossarms Side","crossarmsside"],["Damn","damn"],["Damn 2","damn2"],["Facepalm","facepalm"],["Facepalm 2","facepalm2"],["Facepalm 3","facepalm3"],["Facepalm 4","facepalm4"],["Female Stand Cute Pose Finger","femalestandcutefinger","f"],["Finger","finger"],["Finger 2","finger2"],["Fold Arms","foldarms"],["Fold Arms 2","foldarms2"],["Hands in pockets (Hoodie)","pockets"],["Hands Up","handsup"],["Hands Up 2","handsup2"],["Hands Up 3","handsup3"],["Handshake","handshake"],["Handshake 2","handshake2"],["Heart Hands","hhands"],["Illuminati Hand Sign","illuminati"],["Illuminati Hand Sign 2","illuminati2"],["Illuminati Hand Sign 3","illuminati3"],["Impatient","impatient"],["Korean Hand Hearts 🇰🇷","khands"],["Male Cross Arms","malecrossarms","m"],["Male Fist Face","malefistface","m"],["Male Middle Finger","malemiddlefinger","m"],["Mind Blown","mindblown"],["Mind Blown 2","mindblown2"],["No","no"],["No 2","no2"],["No Way","noway"],["OK","ok"],["Peace","peace"],["Peace 2","peace2"],["Peace 3","peace3"],["Peace 4","peace4"],["Peace 5","peace5"],["Peace 6","peace6"],["Peace 7","peace7"],["Peace Female","peacef","f"],["Point","point"],["Point Down","pointdown"],["Point Right","pointright"],["Salute","salute"],["Salute 2","salute2"],["Salute 3","salute3"],["Shake Off","shakeoff"],["Shrug","shrug"],["Shrug 2","shrug2"],["Slow Clap","slowclap"],["Slow Clap 2","slowclap2"],["Slow Clap 3","slowclap3"],["Surrender","surrender"],["Surrender 2","surrender2"],["Surrender 3","surrender3"],["Surrender 4","surrender4"],["Surrender 5","surrender5"],["Surrender 6","surrender6"],["Thumbs Up","thumbsup"],["Thumbs Up 2","thumbsup2"],["Thumbs Up 3","thumbsup3"],["Wave","wave"],["Wave 2","wave2"],["Wave 3","wave3"],["Wave 4","wave4"],["Wave 5","wave5"],["Wave 6","wave6"],["Wave 7","wave7"],["Wave 8","wave8"],["Wave 9","wave9"],["Whistle","whistle"],["Whistle 2","whistle2"]],"reactions":[["Argue Angry 1","argue5"],["Argue Angry 2","argue6"],["Clap Angry","clapangry"],["Cough","cough"],["Idle Drunk","idledrunk"],["Idle Drunk 2","idledrunk2"],["Idle Drunk 3","idledrunk3"],["Nervous","nervous"],["Nervous 2","nervous2"],["Nervous 3","nervous3"],["Scared","scared"],["Scared 2","scared2"],["Think","think"],["Think 2","think2"],["Think 3","think3"],["Think 4","think4"],["Think 5","think5"]],"danses":[["Boxing Dance Solo","boxdance"],["Dance","dance"],["Dance 2","dance2"],["Dance 3","dance3"],["Dance 4","dance4"],["Dance 5","dance5"],["Dance 6","dance6"],["Dance 7","dance7"],["Dance 8","dance8"],["Dance 9","dance9"],["Dance - MJ Thriller","dancethriller"],["Dance Club","danceclub"],["Dance Club 2","danceclubb"],["Dance Club 3","danceclubc"],["Dance Club 4","danceclubd"],["Dance Club 5","danceclube"],["Dance Club 6","danceclubf"],["Dance Club 7","danceclubg"],["Dance Club 8","danceclubh"],["Dance Club 9","danceclubi"],["Dance Club 10","danceclubj"],["Dance Club 11","danceclubk"],["Dance Club 12","danceclubl"],["Dance Club 13","danceclubm"],["Dance Club 14","danceclubn"],["Dance Club 15","danceclubo"],["Dance Club 16","danceclubp"],["Dance Crank Dat","dancecrankdat"],["Dance Crank Dat 2","dancecrankdat2"],["Dance Drink 2 (Wine)","dancedrink2"],["Dance Drink 3 (Whiskey)","dancedrink3"],["Dance Drink 4 (Whiskey)","dancedrink4"],["Dance Drink 5 (Wine)","dancedrink5"],["Dance Drink 6 (Beer)","dancedrink6"],["Dance Drink 7 (Wine)","dancedrink7"],["Dance Drink 8 (Wine)","dancedrink8"],["Dance Drink (Beer)","dancedrink"],["Dance F","dancef"],["Dance F2","dancef2"],["Dance F3","dancef3"],["Dance F4","dancef4"],["Dance F5","dancef5"],["Dance F6","dancef6"],["Dance Glowsticks","danceglowstick"],["Dance Glowsticks 2","danceglowstick2"],["Dance Glowsticks 3","danceglowstick3"],["Dance Horse","dancehorse"],["Dance Horse 2","dancehorse2"],["Dance Horse 3","dancehorse3"],["Dance Old","danceold"],["Dance Pride A","dancepride"],["Dance Pride A - Bisexual","dancepridea"],["Dance Pride B - LGBTQIA","danceprideb"],["Dance Pride C - Lesbian","dancepridec"],["Dance Pride D - Pansexual","danceprided"],["Dance Pride E - Transgender","dancepridee"],["Dance Pride F - Non Binary","dancepridef"],["Dance Pride G - Asexual","danceprideg"],["Dance Pride H - Straight Ally","danceprideh"],["Dance Shy","danceshy"],["Dance Shy 2","danceshy2"],["Dance Silly","dancesilly"],["Dance Silly 1","dancesilly1"],["Dance Silly 2","dancesilly2"],["Dance Silly 3","dancesilly3"],["Dance Silly 4","dancesilly4"],["Dance Silly 5","dancesilly5"],["Dance Silly 6","dancesilly6"],["Dance Silly 7","dancesilly7"],["Dance Silly 8","dancesilly8"],["Dance Silly 9","dancesilly9"],["Dance Slow","danceslow"],["Dance Slow 2","danceslow2"],["Dance Slow 3","danceslow3"],["Dance Slow 4","danceslow4"],["Dance Upper","danceupper"],["Dance Upper 2","danceupper2"],["DJ","dj"],["DJ 1","dj1"],["DJ 2","dj2"],["DJ 3","dj3"],["DJ 4","dj4"],["DJ 5","dj5"],["DJ 6","dj6"],["DJ 7","dj7"],["DJ 8","dj8"],["DJ 9","dj9"],["Hip Hop Dance","dancehiphop"],["Hip Hop Dance 2","dancehiphop2"],["Hip Hop Dance 3","dancehiphop3"],["Lap Chair","lapchair"],["Lap Chair2","lapchair2"],["Lap Chair3","lapchair3"],["Lapdance","lapdance"],["Lapdance 2","lapdance2"],["Lapdance 3","lapdance3"],["Lapdance 4","lapdance4"],["Lapdance 5","lapdance5"],["Lapdance 6","lapdance6"],["Lapdance With","lapdancewith"],["Lapdance With2","lapdancewith2"],["Lapdance With3","lapdancewith3"],["Monkey Dance","dancemonkey"],["Monkey Dance 2","dancemonkey2"],["Monkey Dance 3","dancemonkey3"],["Salso Roll","salsa"],["Twerk","twerk"],["Wave Dance","dancewave"],["Wave Dance 2","dancewave02"],["Wave Dance 3","dancewave03"],["Wave Dance 4","dancewave04"],["Wave Dance 5 - Tutankhamen","dancewave05"],["Wave Dance 6 - Tutankhamen 2","dancewave06"],["Wave Dance 7 - Snake Dance","dancewave07"],["Wave Dance 8 - Slide Dance","dancewave08"],["Wave Dance 9 - Slide Dance 2","dancewave09"],["Wave Dance 10 - Robot Dance","dancewave10"],["Wave Dance 11 - Locking Dance","dancewave11"],["Wave Dance 12 - Headspin","dancewave12"],["Wave Dance 13 - Flaire Dance","dancewave13"],["Wave Dance 14 - Female Crowd Dance","dancewave14","f"],["Wave Dance 15 - Uprock Dance","dancewave15"]],"duo":[["Baseball","nearby_baseball"],["Baseball Throw","nearby_baseballthrow"],["Be carried","nearby_carry2"],["Be carried 2","nearby_carry4"],["Be Held","nearby_holdmeb"],["Be Held 2","nearby_holdmed"],["Be Held 3","nearby_holdmef"],["Be hostage","nearby_hostage2"],["Be Piggy Backed","nearby_pback2"],["Be searched","nearby_search2"],["Best Friends 1","nearby_bestfriends"],["Best Friends 2","nearby_bestfriends2"],["BFF Pose","nearby_bff"],["BFF Pose 2","nearby_bffb"],["Big Dog Carried","nearby_cbdog2"],["Bro","nearby_bro"],["Bro 2","nearby_bro2"],["Carry","nearby_carry"],["Carry 2","nearby_carry3"],["Carry Big Dog","nearby_cbdog"],["Carry Me Cute","nearby_carrymecute"],["Carry Me Cute 2","nearby_carrymecute2"],["Carry Me Cute 3","nearby_carrycmg"],["Carry Me Cute 4","nearby_carrycmg2"],["Carry Small Dog","nearby_csdog"],["Carry Small Dog 2","nearby_csdog3"],["Couple Drinking (Wine Glasses)","nearby_coupleanim"],["Couple Drinking F (Wine Glasses)","nearby_coupleanim2"],["Couple Heart Hands","nearby_couplehhands"],["Couple Heart Hands 2","nearby_couplehhands2"],["Couple Wedding Pose 1A","nearby_couplewed1a"],["Couple Wedding Pose 1B","nearby_couplewed1b"],["Couple Wedding Pose 2A","nearby_couplewed2a"],["Couple Wedding Pose 2B","nearby_couplewed2b"],["Cute Pic Pose","nearby_cutepicpose"],["Cute Pic Pose 2","nearby_cutepicpose2"],["Follow A (Front)","nearby_followa"],["Follow B (Back)","nearby_followb"],["Get CPR","nearby_cprs2"],["Get CPR 2","nearby_cprs4"],["Give","nearby_give"],["Give 2","nearby_give2"],["Give CPR","nearby_cprs"],["Give CPR 2","nearby_cprs3"],["Handshake","nearby_handshake"],["Handshake 2","nearby_handshake2"],["Headbutt","nearby_headbutt"],["Headbutted","nearby_headbutted"],["Hold Me","nearby_holdme"],["Hold Me 2","nearby_holdmec"],["Hold Me 3","nearby_holdmee"],["Hug","nearby_hug"],["Hug 2","nearby_hug2"],["Hug Pose","nearby_hugpose"],["Hug Pose Tippy Toes","nearby_hugtip"],["Hug Pose Tippy Toes 2","nearby_hugtip2"],["Hug Pose With Me?","nearby_hugpose2"],["Hug Romantic 1","nearby_hugr"],["Hug Romantic 2","nearby_hugr2"],["Kiss","nearby_kiss"],["Kiss 2","nearby_kiss2"],["Kiss 3","nearby_kiss3"],["Kiss 4","nearby_kiss4"],["Kiss Cute - Neck (Female)","nearby_kisscuteneck2","f"],["Kiss Cute - Neck (Male)","nearby_kisscuteneck","m"],["Kiss Cute Cheek (Female)","nearby_kisscutecheek2","f"],["Kiss Cute Cheek (Male)","nearby_kisscutecheek","m"],["Kiss Cute Lips (Female)","nearby_kisslips","f"],["Kiss Cute Lips (Male)","nearby_kisslips2","m"],["Kiss Forehead (Female)","nearby_kisscutefh2","f"],["Kiss Forehead (Male)","nearby_kisscutefh","m"],["Lift Me","nearby_liftme"],["Lift Me 2","nearby_liftme2"],["Lift Me 3","nearby_liftme3"],["Lift Me 4","nearby_liftme4"],["Lift Me 5","nearby_liftme5"],["Lift Me 6","nearby_liftme6"],["Offer Piggy Back","nearby_pback"],["Punch","nearby_punch"],["Punched","nearby_punched"],["Search","nearby_search"],["Sit With Me","nearby_sitwithmepose"],["Sit With Me Please?","nearby_sitwithmepose2"],["Slap","nearby_slap"],["Slap 2","nearby_slap2"],["Slapped","nearby_slapped"],["Slapped 2","nearby_slapped2"],["Small Dog Carried","nearby_csdog2"],["Small Dog Carried 2","nearby_csdog4"],["Stick Up","nearby_stickup"],["Stickup Scared","nearby_stickupscared"],["Take hostage","nearby_hostage"]],"manger":[["Animal Bread","kawaii_animal_breads"],["Apple","apple"],["Baby Cake","cake2"],["Bagel","bagel"],["Beer","beer"],["Beer 2","beer2"],["Beer 3","beer3"],["Beer 4 - Pour One Out For The Homies","beer4"],["Beer 5","beer5"],["Beer Box 1","beerbox"],["Beer Box 2","beerbox2"],["Beer Box 3","beerbox3"],["Beer Box 4","beerbox4"],["Beer Can","beercan"],["Beer Can 2","beercan2"],["Beer Can 3","beercan3"],["Beer Female","beerf","f"],["Beer Female 3","beerf3","f"],["Birthday Cake","cake"],["Burger","burger"],["Burger - Pose","burgerpose"],["Cake Waiter - Baby","cakew2"],["Cake Waiter - Birthday","cakew"],["Cake Waiter - Casino","cakew3"],["Cake Waiter - Chocolate Mud","cakew7"],["Cake Waiter - Love","cakew4"],["Cake Waiter - Pride","cakew6"],["Cake Waiter - Unicorn","cakew5"],["Candy","candy"],["Candy Apple","candyapple"],["Carry Beer Box","cbbox"],["Carry Beer Box 2","cbbox2"],["Carry Beer Box 3","cbbox3"],["Carry Beer Box 4","cbbox4"],["Carry Beer Box 5","cbbox5"],["Carry Beer Box 6","cbbox6"],["Carry Food Bag","carryfoodbag"],["Carry Food Bag 2","carryfoodbag2"],["Carry Food Bag 3","carryfoodbag3"],["Carry Pizza Box","carrypizza"],["Casino Cake","cake3"],["Champagne","champagne"],["Champagne Spray","champagnespray"],["Champagne Waiter","champw"],["Chill Tequila","chillteq"],["Chocolate Mud Cake","cake7"],["Coffee","coffee"],["Coffee & Burger Pose","cofpose"],["Croissant","croissant"],["Cup","cup"],["Dinner","dinner"],["Donut","donut"],["Donut Chocolate","donut2"],["Donut Raspberry","donut3"],["Drink","drink"],["Eat","eat"],["Eat dessert","desert"],["Ego Bar","egobar"],["Energy Drink - Bottle","edrink"],["Energy Drink - Can","edrink2"],["Energy Drink - XXL Can","edrink3"],["Food Tray","foodtraya"],["Food Tray B","foodtrayb"],["Food Tray C","foodtrayc"],["Food Tray D","foodtrayd"],["Food Tray E","foodtraye"],["Food Tray F","foodtrayf"],["Food Tray G","foodtrayg"],["Food Tray H","foodtrayh"],["Food Tray I","foodtrayi"],["Food Tray J","foodtrayj"],["Food Tray K","foodtrayk"],["Food Tray L","foodtrayl"],["Food Tray M","foodtraym"],["Food Tray N","foodtrayn"],["Food Tray O","foodtrayo"],["Hotdog","hotdog"],["Ice cream Cherry","icecreama"],["Ice cream Chocolate","icecreamb"],["Ice cream Lemon","icecreamc"],["Ice cream Pistachio","icecreamd"],["Ice cream Raspberry","icecreame"],["Ice cream Stracciatella","icecreamf"],["Ice cream Strawberry","icecreamg"],["Ice cream Walnut","icecreamh"],["Lollipop Spin Pink And White","lollipop2e"],["Lollipop Spin Red","lollipop2a"],["Lollipop Spin Yellow And Green","lollipop2c"],["Lollipop Spin Yellow And Pink","lollipop2b"],["Lollipop Spin Yellow And White","lollipop2d"],["Lollipop Spiral Blue","lollipop1d"],["Lollipop Spiral Green","lollipop1c"],["Lollipop Spiral Pink","lollipop1b"],["Lollipop Spiral Purple","lollipop1f"],["Lollipop Spiral Red","lollipop1"],["Lollipop Spiral Yellow","lollipop1e"],["Lollipop Suck","lollipop3a"],["Love Cake","cake4"],["Milshake - Chocolate","mshakec"],["Milshake - Coffee","mshaked"],["Milshake - Double Chocolate","mshakee"],["Mugshot","mugshot"],["Pizza Slice - Double Peperoni","pizzas5"],["Pizza Slice - Jalapeño And Peperoni","pizzaslice"],["Pizza Slice - Jalapeño And Peperoni","pizzas"],["Pizza Slice - Margherita","pizzas4"],["Pizza Slice - Mushroom","pizzas3"],["Pizza Slice - Tomato And Pesto","pizzas2"],["Popcorn","popcorn"],["Pride Cake","cake6"],["Raise Your Glass","raiseglass"],["Raise Your Glass 2","raiseglass2"],["Sandwich","sandwich"],["Selfie & Wine","selfiefloor3"],["Selfie Wine","selfiewine"],["Sip Milkshake - Bubblegum","sipshake"],["Sip Milkshake - Cherry","sipshakeb"],["Sip Milkshake - Chocolate","sipshakec"],["Sip Milkshake - Coffee","sipshaked"],["Sip Milkshake - Double Chocolate","sipshakee"],["Sip Milkshake - Frappe","sipshakef"],["Sip Milkshake - Lemon","sipshakeg"],["Sip Milkshake - Mint","sipshakeh"],["Sip Milkshake - Raspberry","sipshakej"],["Sip Milkshake - Salted","sipshakek"],["Sip Milkshake - Strawberry","sipshakei"],["Sip Milkshake - Vanilla","sipshakel"],["Sip Soda Cup - eCola","sipsodac"],["Sip Soda Cup - eCola Light","sipsodad"],["Sip Soda Cup - Sprunk","sipsoda"],["Sip Soda Cup - Sprunk Light","sipsodab"],["Soda 2 - Sprunk Can","soda2"],["Soda 3 - P's & Q's Cup","soda3"],["Soda 4 - Burger Shot Cup","soda4"],["Soda 5 - eCola Cup","soda5"],["Soda 6 - eCola Light Cup","soda6"],["Soda 7- Sprunk Cup","soda7"],["Soda 8 - Sprunk Light Cup","soda8"],["Soda 9 - Orange Flavoured Can","soda9"],["Soda - Dumb Bitch","dbsoda"],["Soda - eCola Can","soda"],["Soda Middle Finger eCola","sodafu"],["Soda Middle Finger Sprunk","sodafu2"],["Taco","taco"],["Tagging Shake Can Female","tag2","f"],["Tagging Shake Can Male","tag","m"],["Unicorn Cake","cake5"],["Water Bottle","water"],["Whiskey","whiskey"],["Whiskey Bottle","whiskeyb"],["Whiskey Bottle 2","whiskeyb2"],["Whiskey Bottle 3","whiskeyb3"],["Wine","wine"],["Wine 2 - Bottle","wine2"],["Wine 3 - Bottle","wine3"],["Xmas Candy Cane - Blue","candycanee"],["Xmas Candy Cane - Green","candycaneb"],["Xmas Candy Cane - Purple","candycanec"],["Xmas Candy Cane - Red","candycane"],["Xmas Candy Cane - Yellow","candycaned"],["Xmas Cupcake","xmascc"],["Xmas Cupcake 2","xmascc2"],["Xmas Ice Cream","xmasic"],["Xmas Mug - Coffee","xmasmug2"],["Xmas Mug - Tea","xmasmug"],["Xmas Mulled Wine","xmaswine"],["Xmas Snowflake Cookie","xmassf"]],"objets":[["Airport Bag","airportbag"],["Airport Bag 2 - Phone","airportbag2"],["Airport Bag 3 - Pose","airportbag3"],["Axe","axe"],["Axe - Ground Impact","axe2"],["Axe - Pickaxe","axe3"],["Axe - Pickaxe Ground Impact","axe4"],["Backpack","backpack"],["Balloon","balloon"],["Balloon 2 - Pride","balloon2"],["Basket","basket"],["Basket 2","basket2"],["Basketball Hold","bball"],["Basketball Hold 2","bball3"],["Basketball Hold 3","bball4"],["Basketball Pose","bball2"],["BBQ (Female)","bbqf","f"],["Beach Floatie Thingy","beachring"],["Beans","beans"],["Beg","beg"],["Beg 2","beg2"],["Beg 3","beg3"],["Beg 4","beg4"],["Book","book"],["Book 2","bookb"],["Book 3","bookc"],["Book 4","bookd"],["Book 5","booke"],["Book 6","bookf"],["Boombox","boombox"],["Boombox 2","boombox2"],["Bouquet","bouquet"],["Bouquet 2","bouquet2"],["Box","box"],["Briefcase","brief"],["Briefcase 2","brief2"],["Broom","broom"],["Broom 2","broom2"],["Broom 3","broom3"],["Broom 4","broom4"],["Business Bag","businessbag"],["Business Bag - Pose","businessbag2"],["Camera","camera"],["Camera 2","camera2"],["Camera 3","camera3"],["Camera 4","camera4"],["Camera 5","camera5"],["Camera 6 - Carry News Camera","camera6"],["Camera Photography","cameraphotography"],["Candle","candle"],["Cig","cig"],["Cigar","cigar"],["Cigar 2","cigar2"],["Clean","clean"],["Clean 2","clean2"],["Clipboard","clipboard"],["Cone Head","conehead"],["Cop 4","cop4"],["Cop Beacon","copbeacon"],["Dig","dig"],["Digiscan 1","digiscan"],["Digiscan 2","digiscan2"],["Digiscan 3","digiscan3"],["Dollar","dollar"],["Duffel Bag","dufbag"],["Easter Basket","easter"],["Easter Bunny","easter2"],["Female Mirror Selfie","femalemirrorselfie","f"],["Female Mirror Selfie 1","femalemirrorselfie1","f"],["Female Scary Mask Black - Pose","femscaremask2","f"],["Female Scary Mask Red - Pose","femscaremask","f"],["Female Scary Mask White - Pose","femscaremask3","f"],["Fire Torch","ftorch"],["Fire Torch 2","ftorch2"],["Firefighter Adjust Tank / Bag","adjustbag"],["Firefighter Extinguisher","carryextinguisher"],["Firefighter K12 Saw","k12saw"],["Firefighter Mask","maskdown"],["Firefighter Pump PSI","adjustpanel"],["Firefighter Unmask","maskup"],["Fishing 1","fishing1"],["Fishing 2","fishing2"],["Fishing 3","fishing3"],["Flute","flute"],["Frappe","frappe"],["Frappe 2","frappe2"],["Frappe 3","frappe3"],["Frappe 4","frappe4"],["Fuel","fuel"],["Fuel 2 (Carry)","fuel2"],["Gamer","gamer"],["Gamer Laying On Stomach","gamer2"],["Garbage Bag","gbag"],["Garbage Bin","gbin"],["Garbage Bin 2","gbin2"],["Garbage Bin 3","gbin3"],["Garbage Bin 4","gbin4"],["Garbage Bin 5","gbin5"],["Gift","gift"],["Gift 2","gift2"],["Golf Swing","golfswing"],["Gucci Bag","handbag"],["Guitar","guitar"],["Guitar 2","guitar2"],["Guitar 3 - Pink","guitar3"],["Guitar 4 - Pink","guitar4"],["Guitar - Pride","guitar5"],["Guitar - Pride 2","guitar6"],["Guitar Carry Accoustic","guitarcarry2"],["Guitar Carry Accoustic - Pink","guitarcarry3"],["Guitar Carry Accoustic - Pride","guitarcarry4"],["Guitar Carry Electric","guitarcarry5"],["Guitar Carry Electric 2","guitarcarry6"],["Guitar Carry Electric 3","guitarcarry7"],["Guitar Carry Electric 4","guitarcarry8"],["Guitar Carry Electric 5","guitarcarry9"],["Guitar Case Carry","guitarcarry"],["Guitar Electric","guitarelectric"],["Guitar Electric 2","guitarelectric2"],["Guitar Sit And Play","guitarsit"],["Guitar Sit And Play 2 - Pink","guitarsit2"],["Guitar Sit And Play 2 - Pride","guitarsit3"],["Heart Prop","heartprop"],["Hitchhike","hitchhike"],["Hold Firework","holdfw"],["Holster 6 - Flash Light","holster6"],["Holster 8 Flashlight 2","holster8"],["ID Card 1","idcard"],["ID Card 2 - FIB","idcardb"],["ID Card 3","idcardc"],["ID Card 4","idcardd"],["ID Card 5","idcarde"],["ID Card 6","idcardf"],["ID Card 7","idcardg"],["ID Card 8 - Cop Badge","idcardh"],["ID Card 9 - Drivers License","idcardi"],["Lawnchair","lawnchair"],["Lawnchair 2","lawnchair2"],["Lawnchair 3","lawnchair3"],["Leaf Blower","leafblower"],["Leaning With Phone","leanphone"],["Lighter - Cigar","lighter"],["Lighter - Cigar Sit","lighter2"],["Macaroon","macaroon"],["Male Mirror Selfie","malemirrorselfie","m"],["Male Mirror Selfie 1","malemirrorselfie1","m"],["Male Mirror Selfie 2","malemirrorselfie2","m"],["Male Mirror Selfie 3","malemirrorselfie3","m"],["Male Mirror Selfie 4","malemirrorselfie4","m"],["Map","map"],["Map 2","map2"],["Marshmallow On A Fork - Burnt","mallow6"],["Marshmallow On A Fork - Pink","mallow5"],["Marshmallow On A Fork - White","mallow4"],["Marshmallow Stick - Burnt","mallow3"],["Marshmallow Stick - Pink","mallow2"],["Marshmallow Stick - White","mallow"],["Meat On A Fork","meat2"],["Meat On A Stick","meat"],["Medic Bag","medbag"],["Medic Box","medbox"],["Megaphone","megaphone"],["Megaphone 2","megaphone2"],["Megaphone 3","megaphone3"],["Microphone Rock","microck"],["Microphone Rock 2","microckb"],["Microphone Rock 3","microckc"],["Microphone Rock 4","microckd"],["Microphone Rock 5","microcke"],["Microphone Rock 6","microckf"],["Microphone Rock 7","microckg"],["Microphone Rock 8","microckh"],["Microphone Rock 9","microcki"],["Microphone Rock 10","microckj"],["Milshake - Bubblegum","mshake"],["Milshake - Cherry","mshakeb"],["Milshake - Frappe","mshakef"],["Milshake - Lemon","mshakeg"],["Milshake - Mint","mshakeh"],["Milshake - Raspberry","mshakej"],["Milshake - Salted","mshakek"],["Milshake - Strawberry","mshakei"],["Milshake - Vanilla","mshakel"],["Mojito","mojito"],["Mop","mop"],["Mop 2","mop2"],["News Boom Microphone","newsbmic"],["News Microphone","newsmic"],["Newspaper","newspaper"],["Newspaper 2","newspaper2"],["Newspaper 3","newspaper3"],["Notepad","notepad"],["Old Man Walking Stick","old","m"],["Old Man Zimmerframe","old2","m"],["Papers","papers"],["Patrol - On Foot","patrolf1"],["Patrol - On Foot 2","patrolf2"],["Patrol - On Foot 3","patrolf3"],["Patrol - On Foot 4 Over The Shoulder","patrolf4"],["Patrol Car - Front","patrolcar"],["Patrol Car - Left","patrolcarl"],["Patrol Car - Right","patrolcarr"],["Phone","phone"],["Phone Call","phonecall"],["Phone Call 2","phonecall2"],["Pineapple","pineapple"],["Play Pool","poolcue"],["Play Pool 2 (Pose)","poolcue2"],["Play Pool 3 (Pose)","poolcue3"],["Play Pool 4 (Pose)","poolcue4"],["Play Pool 5","poolcue5"],["Pot Plant (Large)","potplant3"],["Pot Plant (Medium)","potplant2"],["Pot Plant (Small)","potplant"],["Power House","power"],["Present","present"],["Pride Flag 2 - LGBTQ","pflag2"],["Pride Flag 3 - Bisexual","pflag3"],["Pride Flag 4 - Lesbian","pflag4"],["Pride Flag 5 - Pansexual","pflag5"],["Pride Flag 6 - Transgender","pflag6"],["Pride Flag 7 - Non Binary","pflag7"],["Pride Flag 8 - Asexual","pflag8"],["Pride Flag 9 - Straight Ally","pflag9"],["Pride Flag - Rainbow","pflag"],["Propose","propose"],["Propose 2 - Valentines Day","propose2"],["Propose 3","propose3"],["Protest","protest"],["Protest 2 - Pride","protest2"],["Puke","puke"],["Puke 2","puke2"],["Puke 3","puke3"],["Puke 4","puke4"],["Pumpkin","pump"],["Pumpkin 2","pump2"],["Pumpkin 3","pump3"],["Pumpkin 4","pump4"],["Pumpkin 5","pump5"],["Rake","rake"],["Rake 2","rake2"],["Rake 3","rake3"],["Rake 4","rake4"],["Rap / Sing 2 - Microhpone","rap2"],["Rap / Sing 3 - Microhpone Rock Hand Sign","rap3"],["Rap / Sing 4 - Microhpone Bend Back","rap4"],["Rap / Sing 5 - Microhpone Kneel","rap5"],["Rap / Sing 6 - Microhpone","rap6"],["Register","register"],["Rose","rose"],["Rose 2 (Male)","rose2","m"],["Rose 3 (Female)","rose3","f"],["Saxophone 1","sax"],["Saxophone 2","sax2"],["Selfie","selfie"],["Selfie 2","selfie2"],["Selfie 3 - West Side","selfie3"],["Selfie 4 - Finger","selfie4"],["Selfie 5 - Finger 2","selfie5"],["Selfie 6 - Throat Slit","selfie6"],["Selfie 7 - Chest Bump","selfie7"],["Selfie Beach Bum","selfiebbum"],["Selfie Crouching","selfiecrouch"],["Selfie Crouching 2","selfiecrouch2"],["Selfie Crouching 3","selfiecrouch3"],["Selfie Crouching 4","selfiecrouch4"],["Selfie Cute","selfiecute"],["Selfie Cute 2","selfiecute2"],["Selfie Cute 3","selfiecute3"],["Selfie Cute 4","selfiecute4"],["Selfie Cute 5","selfiecute5"],["Selfie E Girl","selfieegirl","f"],["Selfie Floor 2","selfiefloor2"],["Selfie Floor Instagram","selfiefloor"],["Selfie Hand Bag","selfiehb"],["Selfie Heart Hands","selfiehhands"],["Selfie High","selfiehigh"],["Selfie Male Pose","selfiemale","m"],["Selfie Meh","selfiemeh"],["Selfie Middle Finger","selfiefu"],["Selfie Middle Finger 2","selfiefu2"],["Selfie Peace","selfiepeace"],["Selfie Sexy","selfiesexy"],["Selfie Sexy 2","selfiesexy2"],["Selfie Sexy 3 - Squat","selfiesexy3"],["Selfie Sexy 4","selfiesexy4"],["Selfie Sexy 5","selfiesexy5"],["Selfie Sitting","selfiesit"],["Selfie Sitting 2","selfiesit2"],["Selfie Sitting 3","selfiesit3"],["Selfie Sitting 4","selfiesit4"],["Selfie Sitting 5","selfiesit5"],["Selfie Squat Male","selfiesquat","m"],["Selfie Thot Instagram","selfiethot"],["Shield","shield"],["Shield 2","shield2"],["Shit","shit"],["Shit While Walking","shit2"],["Shopping Bag","shopbag"],["Shopping Bag 2","shopbag2"],["Shopping Bag 3","shopbag3"],["Shopping Bag 4","shopbag4"],["Sit Chair - Armchair","sitchairf"],["Sit Chair - Arms Folded","sitchairf2"],["Sit Chair - Book","sitchairf8"],["Sit Chair - Laptop","sitchairf6"],["Sit Chair - Leaning Forward","sitchairf3"],["Sit Chair - Legs Crossed","sitchairf5"],["Sit Chair - Smart","sitchairf4"],["Sit Chair - Tablet","sitchairf7"],["Sit TV","sittv"],["Skateboard - Hold Female","skatehold","f"],["Skateboard - Hold Female 2","skatehold2","f"],["Skateboard - Hold Female 3","skatehold3","f"],["Skateboard - Hold Female DRX","skatehold8","f"],["Skateboard - Hold Male","skatehold4","m"],["Skateboard - Hold Male 2","skatehold5","m"],["Skateboard - Hold Male 3","skatehold6","m"],["Skateboard - Hold Male DRX","skatehold7","m"],["Skateboard - Sit","skatesit"],["Skateboard - Sit 2","skatesit2"],["Skateboard Kneeling 2 - Female","skatekneel2","f"],["Skateboard Kneeling - Male","skatekneel","m"],["Smoke 2","smoke2"],["Smoke 3","smoke3"],["Smoke 4","smoke4"],["Smoke 5","smoke5"],["SMS","sms"],["SMS 2","sms2"],["SMS 3","sms3"],["SMS 4","sms4"],["SMS 5","sms5"],["SMS Sit","smssit"],["Squat Mask Black - Pose","squatmask2"],["Squat Mask Red - Pose","squatmask"],["Squat Mask White - Pose","squatmask1"],["Stop Sign","stopsign"],["Stop Sign 2 - Slow Down","stopsign2"],["Stop Sign 3 - Stop","stopsign3"],["Stop Sign 4 - Slow Down","stopsign4"],["Study","study"],["Suitcase","suitcase"],["Suitcase 2","suitcase2"],["Surf Board","surfboard"],["Tablet","tablet"],["Tablet 2","tablet2"],["Tagging Female 1","tag5","f"],["Tagging Female 2","tag6","f"],["Tagging Male 1","tag3","m"],["Tagging Male 2","tag4","m"],["Teddy","teddy"],["Tennis Play","tennisplay"],["Tire","tire"],["Toolbox","toolbox"],["Toolbox 2","toolbox2"],["Toolbox 3","toolbox3"],["Toolbox 4","toolbox4"],["Umbrella 2 - Right Shoulder","umbrella2"],["Umbrella 3 - Rain Check","umbrella3"],["Umbrella 4 - Hold Left","umbrella4"],["Umbrella - Middle","umbrella"],["Vape","vape"],["Vape 2","vape2"],["Vlog","vlog"],["Vlog 2","vlog2"],["Walkie Talkie","wt"],["Walkie Talkie 2","wt2"],["Walkie Talkie 3 Left","wt3"],["Walkie Talkie 4","wt4"],["Weights","weights"],["Weights 2","weights2"],["Weights 3 - Pose","weights3"],["Weights 4 - Pose","weights4"],["Weights 5 - Female Pose","weights5","f"],["Weights 6 - Female Pose 2","weights6","f"],["Weights 7 - Female Pose 3","weights7","f"],["Xmas Cocoa","cocoa"],["Xmas Gingerbread Man","gingerbread","m"]],"assis":[["Airforce - Parade Rest","airforce03"],["Bum Sleep","bumsleep"],["Female On Knees Pose","femaleonknees","f"],["Female On Knees Pose 1","femaleonknees1","f"],["Female On Knees Pose 2","femaleonknees2","f"],["Female Sit Cute","femalesitcute","f"],["Female Sit Cute 1","femalesitcute1","f"],["Female Sit Cute 2","femalesitcute2","f"],["Kneel","kneel"],["Kneel 2","kneel2"],["Kneel 3","kneel3"],["Kneel Bored Pose","kneelbored"],["Kneel Peace Sign Pose","kneelpeace"],["Kneel Thot Instagram","kneelthot"],["Lay & Cry","layncry"],["Lay & Cry 2","layncry2"],["Lay & Cry 3","layncry3"],["Lay & Cry 4","layncry4"],["Lay & Cry 5","layncry5"],["Lay & Cry 6","layncry6"],["Lay Sexy","laysexy"],["Laying Down Sexy","laydownsexy"],["Meditate","meditate"],["Meditate 2","meditate2"],["Meditate 3","meditate3"],["Passout","passout","n"],["Passout 2","passout2","n"],["Passout 3","passout3","n"],["Passout 4","passout4","n"],["Passout 5","passout5","n"],["Prone","prone"],["Sit","sit"],["Sit 2","sit2"],["Sit 3","sit3"],["Sit 4","sit4"],["Sit 5","sit5"],["Sit 6","sit6"],["Sit 7","sit7"],["Sit 8","sit8"],["Sit 9","sit9"],["Sit Chair","sitchair"],["Sit Chair 2","sitchair2"],["Sit Chair 3 (Female)","sitchair3","f"],["Sit Chair 4 - Side","sitchair4"],["Sit Chair Lean Back","sitchair6"],["Sit Chair Legs Crossed","sitchair5"],["Sit Cute","sitcute"],["Sit Drunk","sitdrunk"],["Sit Lean","sitlean"],["Sit Middle Finger","sitfu"],["Sit Sad","sitsad"],["Sit Sad 2","sitsad2"],["Sit Sad 3","sitsad3"],["Sit Sad 4","sitsad4"],["Sit Scared","sitscared"],["Sit Scared 2","sitscared2"],["Sit Scared 3","sitscared3"],["Sleep","sleep"],["Sunbathe 2 - Hand Over Face","sunbathe2","n"],["Sunbathe 3 - Lay On Stomach","sunbathe3","n"],["Sunbathe - Hand On Head","sunbathe","n"]],"debout":[["Chill","chill"],["Cute Pose Female","posecutef","f"],["Cute Pose Female 2","posecutef2","f"],["Cute Pose Female 3","posecutef3","f"],["Cute Pose Female 4","posecutef4","f"],["Cute Pose Male","posecutem","m"],["Female Pose A","femaleposea","f"],["Female Pose B","femaleposeb","f"],["Female Pose C","femaleposec","f"],["Female Pose D","femaleposed","f"],["Female Pose E","femaleposee","f"],["Female Pose F","femaleposef","f"],["Female Pose G","femaleposeg","f"],["Female Pose H","femaleposeh","f"],["Female Pose I","femaleposei","f"],["Female Pose J","femaleposej","f"],["Female Pose K","femaleposek","f"],["Female Pose L","femaleposel","f"],["Female Pose M","femaleposem","f"],["Female Pose N","femaleposen","f"],["Female Pose O","femaleposeo","f"],["Female Pose P","femaleposep","f"],["Female Pose Q","femaleposeq","f"],["Female Pose R","femaleposer","f"],["Female Pose S","femaleposes","f"],["Female Pose T","femaleposet","f"],["Female Pose U","femaleposeu","f"],["Female Pose V","femaleposev","f"],["Female Pose W","femaleposew","f"],["Female Pose X","femaleposex","f"],["Female Pose Y","femaleposey","f"],["Female Pose Z","femaleposez","f"],["Female Stand Cute Pose","femalestandcute","f"],["Female Stand Cute Pose 1","femalestandcute1","f"],["Female Stand Cute Pose 2","femalestandcute2","f"],["Female Stand Cute Pose 3","femalestandcute3","f"],["Female Stand Cute Pose 4","femalestandcute4","f"],["Idle","idle"],["Idle 2","idle2"],["Idle 3","idle3"],["Idle 4","idle4"],["Idle 5","idle5"],["Idle 6","idle6"],["Idle 7","idle7"],["Idle 8","idle8"],["Idle 9","idle9"],["Idle 10","idle10"],["Idle 11","idle11"],["Lean","lean"],["Lean 2","lean2"],["Lean 3","lean3"],["Lean 4","lean4"],["Lean 5","lean5"],["Lean Bar","leanbar"],["Lean Bar 2","leanbar2"],["Lean Bar 3","leanbar3"],["Lean Bar 4","leanbar4"],["Lean Flirt","leanflirt"],["Lean High","leanhigh"],["Lean High 2","leanhigh2"],["Lean On Table","leanplan"],["Leanside","leanside"],["Leanside 2","leanside2"],["Leanside 3","leanside3"],["Leanside 4","leanside4"],["Leanside 5","leanside5"],["Lookout","lookout"],["Male Pose 1","malepose1","m"],["Male Pose 2","malepose2","m"],["Male Pose 3","malepose3","m"],["Male Pose 4","malepose4","m"],["Male Pose 5","malepose5","m"],["Male Pose A","maleposea","m"],["Male Pose B","maleposeb","m"],["Male Pose C","maleposec","m"],["Male Pose D","maleposed","m"],["Male Pose E","maleposee","m"],["Male Pose E1","maleposee1","m"],["Male Pose F","maleposef","m"],["Male Pose F1","maleposef1","m"],["Male Pose G","maleposeg","m"],["Male Pose H","maleposeh","m"],["Male Pose I","maleposei","m"],["Male Pose Tie","maleposetie","m"],["Male Stand Pose","malestandpose","m"],["Model Pose 2","model2"],["Model Pose 3","model3"],["Model Pose Sexy","model"],["Sexy Pose","sexypose"],["Sexy Pose 2","sexypose2"],["Sexy Pose 3","sexypose3"],["Sexy Pose 4","sexypose4"],["Sexy Pose 5","sexypose5"],["Sexy Pose 6","sexypose6"],["Sexy Pose 7","sexypose7"],["Statue","statue"],["Statue 2","statue2"],["Statue 3","statue3"],["T Pose","tpose"],["T Pose 2","tpose2"],["Wait","wait"],["Wait 2","wait2"],["Wait 3","wait3"],["Wait 4","wait4"],["Wait 5","wait5"],["Wait 6","wait6"],["Wait 7","wait7"],["Wait 8","wait8"],["Wait 9","wait9"],["Wait 10","wait10"],["Wait 11","wait11"],["Wait 12","wait12"],["Wait 13","wait13"]],"sport":[["Boxing","boxing"],["Boxing 2","boxing2"],["Fight Me","fightme"],["Fight Me 2","fightme2"],["Flex","flex"],["Flex 2","flex2"],["Gym - Crunches","gym2"],["Gym - Jumping","gym3"],["Gym - Jumping Jacks","gym4"],["Gym - Sit Up","gym5"],["Gym - Squats","gym"],["Gym Pose","gympose"],["Gym Pose 2 - One Handed Push Up","gympose2"],["Gym Pose 3 - Planking Pose","gympose3"],["Gym Pose 4 - Sit Ups Pose","gympose4"],["Jog","jog"],["Jog 2","jog2"],["Jog 3","jog3"],["Jog 4","jog4"],["Jog 5","jog5"],["Jumping Jacks","jumpingjacks"],["Karate","karate"],["Karate 2","karate2"],["Kick","kick"],["Kick 2","kick2"],["Kick 3","kick3"],["Pushup","pushup"],["Shoe Kick Pose","shoepose"],["Sit Up","situp"],["Stretch","stretch"],["Stretch 2","stretch2"],["Stretch 3","stretch3"],["Stretch 4","stretch4"],["Tigten (Yoga)","tighten"],["Yoga","yoga"]],"metiers":[["ATM","atm"],["Bartender","bartender"],["BBQ","bbq"],["Call Dog","calldog"],["Call Dog - Left","calldogl"],["Call Dog - Right","calldogr"],["Check Out 2 · Male","checkcar2","m"],["Check Out · Female","checkcar","f"],["Check Watch","checkwatch"],["Clean Them Filthy Hands","cleanhands"],["Clean Your Face","cleanface"],["Clipboard 2","clipboard2"],["Construction Drilling","drill"],["Cop","cop"],["Cop 2","cop2"],["Cop 3","cop3"],["CPR","cpr"],["CPR 2","cpr2"],["Film Shocking","filmshocking"],["Fish Dance","fishdance"],["Gardening","garden"],["Guard","guard"],["Hammer","hammer"],["Inspect","inspect"],["Janitor","janitor"],["Male Shoe Check Pose","maleshoecheck","m"],["Mechanic","mechanic"],["Mechanic 2","mechanic2"],["Mechanic 3","mechanic3"],["Mechanic 4","mechanic4"],["Mechanic 5","mechanic5"],["Medic","medic"],["Medic 2","medic2"],["Notepad 2","notepad2"],["Parking Meter","parkingmeter"],["Police Crowd","policecrowd"],["Police Crowd 2","policecrowd2"],["Radio","radio"],["Texting","texting"],["Type","type"],["Type 2","type2"],["Type 3","type3"],["Type 4","type4"],["Weld","weld"]],"rue":[["Baseball Bat Pose","bbat"],["Bong","bong"],["Bong 2","bong2"],["Bong 3 - Sit & Rip","bong3"],["Bong 4 - Sit & Rip Purple","bong4"],["Bongo Drums","bongos"],["Cash Box","cashbox"],["Cash Briefcase","cashcase"],["Cash Briefcase 2","cashcase2"],["Cash Briefcase 3","cashcase3"],["Cash Briefcase 4 - Diamonds","cashcase4"],["Crack Head","crackhead"],["Gang Sign","gangsign"],["Gang Sign 2","gangsign2"],["Gang Sign 3","gangsign3"],["Gang Sign 4","gangsign4"],["Gun Point - Robbery","gunpoint"],["Guncase","guncase"],["Handcuffed - Back","cuffedback"],["Handcuffed - Front","cuffedfront"],["Hide a gun","hidegun"],["Joint","joint"],["Knuckle Crunch","knucklecrunch"],["Mafia Boss - Gun Point","mafia"],["Make It Rain","makeitrain"],["Male Gang Pose","malegangpose","m"],["Male Gun Pose 1","malegunpose1","m"],["Pass The Blunt","joint2"],["Rifle Pose","gungirl1"],["Sitting Smoke & Gun","smokengun"],["Smoke Weed (Female)","smokeweed2","f"],["Smoke Weed (Male)","smokeweed","m"],["Squat Cash - Pose","squatcash"],["Squat Gun Pose 2 - Right","squatgunpose2"],["Squat Gun Pose 3","squatgunpose3"],["Squat Gun Pose - Left","squatgunpose"],["Steal Freeway Sign","ssign8"],["Steal Hospital Sign","ssign3"],["Steal Parking Sign","ssign4"],["Steal Parking Sign 2","ssign5"],["Steal Pedestrian Sign","ssign6"],["Steal Stop Sign","ssign"],["Steal Stop Sign Snow","ssign9"],["Steal Street Sign","ssign7"],["Steal TV","stealtv"],["Steal Yield Sign","ssign2"],["Threaten","threaten"],["Weed Brick","weedbrick"],["Weed Brick BIG","weedbrick2"],["Weed Bucket","weedbucket"],["Weed Light","wlight"]],"autres":[["Adjust","adjust"],["Adjust Tie","adjusttie"],["Air Guitar","airguitar"],["Air Plane","airplane"],["Air Synth","airsynth"],["Airforce - At Ease","airforce01"],["Airforce - Attention","airforce02"],["Argue","argue"],["Argue 2","argue2"],["Argue 3","argue3"],["Argue 4","argue4"],["ASL I Am Good 🇺🇸","aslimgood"],["ASL See Ya 🇺🇸","aslcya"],["ASL What 🇺🇸","aslwhat"],["Bang Bang","bang"],["Bark","bark"],["Beast","beast"],["Bird","bird"],["Block Face","block"],["BOI","boi"],["Bring It On","bringiton"],["Bum Bin","bumbin"],["Buzz Door","buzz"],["Car Taunt","cartaunt","v"],["Car Taunt 2","cartauntb","v"],["Car Taunt 3","cartauntc","v"],["Car Taunt 4","cartauntd","v"],["Car Taunt 5","cartaunte","v"],["Car Taunt 6","cartauntf","v"],["Car Taunt 7","cartauntg","v"],["Car Taunt 8","cartaunth","v"],["Car Taunt 9","cartaunti","v"],["Car Taunt 10","cartauntj","v"],["Car Taunt 11","cartauntk","v"],["Car Taunt 12","cartauntl","v"],["Car Taunt 13","cartauntm","v"],["Car Taunt 14","cartauntn","v"],["Chicken","chicken"],["Chinup","chinup"],["Cloudgaze","cloudgaze"],["Cloudgaze 2","cloudgaze2"],["Clown","clown"],["Clown 2","clown2"],["Clown 3","clown3"],["Clown 4","clown4"],["Clown 5","clown5"],["Crawl","crawl"],["Curtsy","curtsy"],["Cut Throat","cutthroat"],["Cut Throat 2","cutthroat2"],["Dab","dab"],["Daydream In The Clouds","daydream"],["Dispenser","dispenser"],["Dock","dock"],["Fall Asleep","fallasleep"],["Fall Over","fallover"],["Fall Over 2","fallover2"],["Fall Over 3","fallover3"],["Fall Over 4","fallover4"],["Fall Over 5","fallover5"],["Female Adorable 1","femaleadorable1","f"],["Female Adorable 2","femaleadorable2","f"],["Flip","flip"],["Flip 2","flip2"],["Flip Off","flipoff"],["Flip Off 2","flipoff2"],["Grieve The Dead","grieve"],["Hangout","hangout"],["Headbutt","headbutt"],["Hiking","hiking"],["Hold Vest","vest"],["Hold Vest 2","vest2"],["Hold Vest 3","vest3"],["Hold Vest 4","vest4"],["Hold Vest 5","vest5"],["Hold Vest 6","vest6"],["Holster","holster"],["Holster 2","holster2"],["Holster 3","holster3"],["Holster 4 - Stop","holster4"],["Holster 5 - Stop 2","holster5"],["Hug Dog","k9pose"],["Hug Me","hugme"],["Hug Me 2","hugme2"],["Jazzhands","jazzhands"],["Key Fob","keyfob"],["Knock","knock"],["Knock 2","knock2"],["Ledge","ledge"],["Lift","lift"],["LOL","lol"],["LOL 2","lol2"],["Maid","maid"],["Me","me"],["Metal","metal"],["Mind Control","mindcontrol"],["Mind Control 2","mindcontrol2"],["Musician","musician"],["Namaste","namaste"],["Nose Pick","nosepick"],["Out of Breath","outofbreath"],["Party","party"],["Peek","peek"],["Petting","petting"],["Picklock","picklock"],["Pickup","pickup"],["Prostitue High","prosthigh"],["Prostitue Low","prostlow"],["Puddle","puddle"],["Pull","pull"],["Pullover","pullover"],["Punching","punching"],["Push","push"],["Push 2","push2"],["Rabbit","rabbit"],["Rap / Sing","rap"],["Rawr","rawr"],["Record","record"],["Relax","relax","n"],["Relax 2","relax2","n"],["Respect Female","respectf","f"],["Respect Male","respect","m"],["Sassy","sassy"],["Screw You","screwyou"],["Shaka 'Hang Loose Casual'","shaka2"],["Shaka 'Hang Loose'","shaka"],["Shot","shot"],["Shower Enter Female","showerf","f"],["Shower Enter Male","showerm","m"],["Shower Female","showerf2","f"],["Shower Female 2","showerf3","f"],["Shower Male 2","showerm2","m"],["Shower Male 3","showerm3","m"],["Shower Male 4","showerm4","m"],["Slap","slap"],["Slide","slide"],["Slide 2","slide2"],["Slide 3","slide3"],["Slugger","slugger"],["Smell","smell"],["Smoke","smoke"],["Smoke And Whiskey","smokendrink"],["Spider-Man","spiderman","nm"],["Stick Up","stickup"],["Stink","stink"],["Stop","stop"],["Stumble","stumble"],["Stunned","stunned"],["Superhero","superhero"],["Superhero 2","superhero2"],["Try Clothes","tryclothes"],["Try Clothes 2","tryclothes2"],["Try Clothes 3","tryclothes3"],["UwU","uwu"],["UwU 2","uwu2"],["Valet","valet"],["Valet 2","valet2"],["Valet 3","valet3"],["Warmth","warmth"],["Window Elbow","elbow"],["Window Elbow 2","elbow2","v"],["Window Shop","windowshop"],["Yeah","yeah"],["Zombie Agony","zombieagony"],["Zombie Crawl","zombiecrawl"],["Zombie Scream","zombiescream"],["Zombie Walk","zombiewalk"],["Zombie Walk 2","zombiewalk2"]],"marches":[["Par défaut","walk_reset"],["Alien","walk_Alien"],["Armored","walk_Armored"],["Arrogant","walk_Arrogant"],["Brave","walk_Brave"],["Brave 2","walk_Brave2"],["Butch","walk_Butch"],["Butch 2","walk_Butch2"],["Butch 3","walk_Butch3"],["Buzzed","walk_Buzzed"],["Casey","walk_Casey"],["Casual","walk_Casual"],["Casual 2","walk_Casual2"],["Casual 3","walk_Casual3"],["Casual 4","walk_Casual4"],["Casual 5","walk_Casual5"],["Casual 6","walk_Casual6"],["Chichi","walk_Chichi"],["Chubby Female","walk_Chubbyfemale"],["Chubby Male","walk_Chubbymale"],["Confident","walk_Confident"],["Cop","walk_Cop"],["Cop 2","walk_Cop2"],["Cop 3","walk_Cop3"],["Coward","walk_Coward"],["Dave","walk_Dave"],["Default Female","walk_Defaultfemale"],["Default Male","walk_Defaultmale"],["Depressed","walk_Depressed"],["Depressed 2","walk_Depressed2"],["Depressed 3","walk_Depressed3"],["Depressed 4","walk_Depressed4"],["Dreyfuss","walk_Dreyfuss"],["Drunk","walk_Drunk"],["Drunk 2 - Buzzed","walk_Drunk2"],["Drunk 3 - Moderate","walk_Drunk3"],["Drunk 4 - Moderate 2","walk_Drunk4"],["Drunk 5 - Slightly Drunk","walk_Drunk5"],["Drunk 6 - Very Drunk","walk_Drunk6"],["Fat & Bulky","walk_Fat3"],["Fat Female","walk_Fat2"],["Fat Female 2","walk_Fat4"],["Fat Male","walk_Fat"],["Femme","walk_Femme"],["Femme 2","walk_Femme2"],["Fire","walk_Fire"],["Fire 2","walk_Fire2"],["Fire 3","walk_Fire3"],["Flee","walk_Flee"],["Flee 2","walk_Flee2"],["Flee 3","walk_Flee3"],["Flee 4","walk_Flee4"],["Flee 5","walk_Flee5"],["Floyd","walk_Floyd"],["Franklin","walk_Franklin"],["Gangster","walk_Gangster"],["Gangster 2","walk_Gangsterb"],["Gangster 3","walk_Gangsterc"],["Gangster 4","walk_Gangsterd"],["Gangster 5","walk_Gangstere"],["Gangster 6","walk_Gangsterf"],["Gangster 7","walk_Gangsterg"],["Gangster 8","walk_Gangsterh"],["Gangster 9","walk_Gangsteri"],["Gangster 10","walk_Gangsterj"],["Gangster 11","walk_Gangsterk"],["Gangster 12","walk_Gangsterl"],["Gangster 13","walk_Gangsterm"],["Gangster 14","walk_Gangstern"],["Generic Female","walk_Generic2"],["Generic Male","walk_Generic"],["Grooving Female","walk_Grooving2"],["Grooving Male","walk_Grooving"],["Guard","walk_Guard"],["Handcuffs","walk_Handcuffs"],["Heels","walk_Heels"],["Heels 2","walk_Heels2"],["Hiking","walk_Hiking"],["Hiking 2","walk_Hiking2"],["Hipster","walk_Hipster"],["Hobo","walk_Hobo"],["Hobo 2","walk_Hobo2"],["Injured 2 - Female","walk_Injured2"],["Intimidation","walk_Intimidation"],["Intimidation 2","walk_Intimidation2"],["Intimidation 3","walk_Intimidation3"],["Janitor","walk_Janitor"],["Janitor 2","walk_Janitor2"],["Jimmy","walk_Jimmy"],["Jog","walk_Jog"],["Lamar","walk_Lamar"],["Lamar 2","walk_Lamar2"],["Lester","walk_Lester"],["Lester 2","walk_Lester2"],["Maneater","walk_Maneater"],["Michael","walk_Michael"],["Money","walk_Money"],["Muscle","walk_Muscle"],["Nervous","walk_Nervous"],["Paramedic","walk_Paramedic"],["Patricia","walk_Patricia"],["Posh","walk_Posh"],["Posh 2","walk_Posh2"],["Quick","walk_Quick"],["Ron","walk_Ron"],["Runner","walk_Runner"],["Sad Female","walk_Sad4"],["Sad Female 2","walk_Sad5"],["Sad Male","walk_Sad"],["Sad Male 2","walk_Sad2"],["Sad Male 3","walk_Sad3"],["Sassy","walk_Sassy"],["Sassy 2","walk_Sassy2"],["Scared","walk_Scared"],["Sexy","walk_Sexy"],["Shady","walk_Shady"],["Slow","walk_Slow"],["Stripper","walk_Stripper"],["Swagger","walk_Swagger"],["Swagger 2","walk_Swagger2"],["Toolbelt Female","walk_Toolbelt2"],["Toolbelt Male","walk_Toolbelt"],["Tough","walk_Tough"],["Tough 2","walk_Tough2"],["Tracey","walk_Tracey"],["Trash","walk_Trash"],["Trash 2","walk_Trash2"],["Trevor","walk_Trevor"],["Very Slow","walk_Veryslow"],["Wide","walk_Wide"]],"humeurs":[["Neutre","mood_reset"],["Aiming","mood_Aiming"],["Angry","mood_Angry"],["Burning","mood_Burning"],["Crying","mood_Crying"],["Dead","mood_Dead"],["Drunk","mood_Drunk"],["Dumb","mood_Dumb"],["Electrocuted","mood_Electrocuted"],["Excited","mood_Excited"],["Frustrated","mood_Frustrated"],["Grumpy","mood_Grumpy"],["Grumpy2","mood_Grumpy2"],["Grumpy3","mood_Grumpy3"],["Happy","mood_Happy"],["Injured","mood_Injured"],["Joyful","mood_Joyful"],["Mouthbreather","mood_Mouthbreather"],["Neverblink","mood_Neverblink"],["Oneeye","mood_Oneeye"],["Shocked","mood_Shocked"],["Shocked2","mood_Shocked2"],["Sleeping","mood_Sleeping"],["Sleeping2","mood_Sleeping2"],["Sleeping3","mood_Sleeping3"],["Smug","mood_Smug"],["Speculative","mood_Speculative"],["Stressed","mood_Stressed"],["Sulking","mood_Sulking"],["Weird","mood_Weird"],["Weird2","mood_Weird2"]]};
+const META = [
+  {id:"gestes",name:"Gestes",icon:"hand",desc:"Saluer, montrer, réagir avec les mains."},
+  {id:"reactions",name:"Réactions",icon:"laugh",desc:"Émotions et état du personnage."},
+  {id:"danses",name:"Danses",icon:"music",desc:"Pour les soirées, les clubs et le reste."},
+  {id:"duo",name:"Partagées",icon:"users",type:"duo",desc:"À deux : choisis un joueur proche, il reçoit une demande à accepter."},
+  {id:"manger",name:"Boire & manger",icon:"utensils",desc:"Boissons et nourriture en main."},
+  {id:"objets",name:"Objets",icon:"package",desc:"Animations avec un accessoire."},
+  {id:"assis",name:"Assis & allongé",icon:"armchair",desc:"S'asseoir, s'allonger, s'agenouiller."},
+  {id:"debout",name:"Debout & poses",icon:"person-standing",desc:"Attendre, s'adosser, prendre la pose."},
+  {id:"sport",name:"Sport",icon:"dumbbell",desc:"Échauffement, entraînement, combat."},
+  {id:"metiers",name:"Métiers",icon:"briefcase",desc:"Pour le RP des services et des entreprises."},
+  {id:"rue",name:"Rue",icon:"skull",type:"rue",side:"rue",desc:"Le côté illégal d'Elyzea."},
+  {id:"autres",name:"Divers",icon:"sparkles",desc:"Tout le reste : chutes, voitures, déguisements, situations."},
+  {id:"marches",name:"Démarches",icon:"footprints",desc:"Ta façon de marcher, gardée jusqu'à « Par défaut »."},
+  {id:"humeurs",name:"Humeurs",icon:"smile",desc:"Expression du visage, gardée pendant que tu bouges."}
+];
+const CATS = [
+  {id:"fav",name:"Favoris",icon:"star",desc:"Assigne une touche à tes favoris pour les lancer sans ouvrir le menu."},
+  {id:"recent",name:"Récents",icon:"history",desc:"Les 12 dernières animations lancées."},
+  ...META.map(c=>({...c,items:(EMOTES[c.id]||[]).map(([n,cmd,f])=>({n,cmd,f:f||"",t:c.type||"",cat:c.id}))}))
+];
+const ALL = CATS.flatMap(c=>c.items||[]);
+const byCmd = Object.fromEntries(ALL.map(i=>[i.cmd,i]));
+const typeOf = i=>i.cmd.startsWith("walk_")?"walk":i.cmd.startsWith("mood_")?"mood":i.cmd.startsWith("nearby_")?"shared":"emote";
+const cmdLabel = i=>{const t=typeOf(i);return t==="walk"?"/walk "+i.cmd.slice(5):t==="mood"?"/mood "+i.cmd.slice(5):t==="shared"?"/nearby "+i.cmd.slice(7):"/e "+i.cmd};
+
+/* ===================== ÉTAT ===================== */
+const DEF={openKey:"K",stopKey:"X",pos:"left",preview:true,genderFilter:true,scale:100,amb:"both",showCmd:true,closeOnPlay:false};
+const store={
+  get(k,d){try{const v=localStorage.getItem("elyzea_anim_"+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("elyzea_anim_"+k,JSON.stringify(v))}catch(e){}}
+};
+let S={...DEF,...store.get("settings",{})};
+let favs=store.get("favs",[]), recent=store.get("recent",[]);
+let binds=store.get("binds",{}); // { "1": {emote:"wave", type:"emote"} }
+let ENV={hidden:new Set(),inVehicle:false,male:null};
+const canDo=i=>{
+  if(ENV.hidden.has(i.cmd)) return false;
+  if(i.f.includes("v")&&!ENV.inVehicle) return false;
+  if(i.f.includes("n")&&ENV.inVehicle) return false;
+  if(S.genderFilter&&ENV.male!==null&&((ENV.male&&i.f.includes("f"))||(!ENV.male&&i.f.includes("m")))) return false;
+  return true;
+};
+let cat="gestes", playing=null, binding=null, bindingEmote=null;
+let REQ_KEYS={accept:"Y",refuse:"N",place:"J"};
+const BASE_RESERVED=["W","A","S","D","Z","Q","E","F","G","R","T","C","V","ESPACE","TAB","ESCAPE"];
+const isReserved=k=>BASE_RESERVED.includes(k)||k===REQ_KEYS.accept||k===REQ_KEYS.refuse||(REQ_KEYS.place&&k===REQ_KEYS.place);
+const canPlace=i=>REQ_KEYS.place!==null&&typeOf(i)==="emote"&&!ENV.inVehicle&&!i.f.includes("v");
+let req=null;
+
+const IS_FIVEM=typeof GetParentResourceName==="function";
+if(IS_FIVEM) document.body.classList.replace("demo","fivem");
+function nui(ev,data){
+  if(!IS_FIVEM) return Promise.resolve(null);
+  return fetch(`https://${GetParentResourceName()}/${ev}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data||{})})
+    .then(r=>r.json()).catch(()=>null);
+}
+
+/* ===================== OUTILS ===================== */
+const $=id=>document.getElementById(id);
+const icons=()=>{if(window.lucide) lucide.createIcons()};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const keyOf=cmd=>Object.keys(binds).find(k=>binds[k].emote===cmd);
+function keyName(e){
+  if(e.code&&e.code.startsWith("Digit")) return e.code.slice(5);
+  if(e.code&&e.code.startsWith("Numpad")&&/\d$/.test(e.code)) return "NUMPAD"+e.code.slice(-1);
+  if(/^F\d{1,2}$/.test(e.key)) return e.key;
+  if(e.key===" ") return "ESPACE";
+  if(e.key==="Tab") return "TAB";
+  if(e.key==="Escape") return "ESCAPE";
+  if(/^[a-z]$/i.test(e.key)) return e.key.toUpperCase();
+  if(e.code&&e.code.startsWith("Key")) return e.code.slice(3);
+  return null;
+}
+const pretty=k=>k.startsWith("NUMPAD")?"Num "+k.slice(6):k;
+function toast(t,kind){const e=$("toast");e.textContent=t;e.classList.remove("ok","err");if(kind)e.classList.add(kind);e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),2000)}
+
+/* ===================== RENDU ===================== */
+function renderRail(){
+  $("rail").innerHTML=CATS.map(c=>{
+    const n=c.id==="fav"?favs.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.id==="recent"?recent.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.items.filter(canDo).length;
+    return `<button class="cat" role="tab" data-id="${c.id}" ${c.side?`data-side="${c.side}"`:""} aria-selected="${c.id===cat&&!$("q").value}" type="button">
+      <i data-lucide="${c.icon}"></i>${c.name}<span class="n">${n}</span></button>`;
+  }).join("");
+}
+function tile(i,favView){
+  const on=favs.includes(i.cmd), k=keyOf(i.cmd);
+  const keyUi = favView
+    ? `<span class="keybtn ${k?"set":""}" role="button" tabindex="0" data-bind="${i.cmd}">${k?pretty(k):"+ Touche"}</span>`
+    : (k?`<span class="keytag">${pretty(k)}</span>`:"");
+  const placeUi = canPlace(i)
+    ? `<span class="place" role="button" tabindex="0" data-place="${i.cmd}" title="Placer où je veux (clic droit)" aria-label="Placer où je veux"><i data-lucide="move"></i></span>` : "";
+  return `<div class="emote ${i.t} ${playing===i.cmd?"playing":""} ${k&&!favView?"bound":""}" role="button" tabindex="0" data-cmd="${i.cmd}">
+    <b>${esc(i.n)}</b><code>${esc(cmdLabel(i))}</code>${keyUi}${placeUi}
+    <span class="fav ${on?"on":""}" role="button" tabindex="0" data-fav="${i.cmd}" aria-label="${on?"Retirer des favoris":"Ajouter aux favoris"}"><i data-lucide="star"></i></span></div>`;
+}
+function renderShortlist(show){
+  const ks=Object.keys(binds);
+  $("shortlist").innerHTML = show&&ks.length
+    ? `<div class="shortlist">${ks.sort().map(k=>`<span><kbd>${pretty(k)}</kbd>${esc(byCmd[binds[k].emote]?.n||binds[k].emote)}</span>`).join("")}</div>` : "";
+}
+function renderList(){
+  const q=$("q").value.trim().toLowerCase();
+  let items,title,desc,favView=false;
+  if(q){
+    items=ALL.filter(i=>i.n.toLowerCase().includes(q)||cmdLabel(i).toLowerCase().includes(q));
+    title="Recherche";desc="";
+  }else{
+    const c=CATS.find(c=>c.id===cat); title=c.name; desc=c.desc;
+    favView=cat==="fav";
+    items=cat==="fav"?favs.map(k=>byCmd[k]).filter(Boolean):cat==="recent"?recent.map(k=>byCmd[k]).filter(Boolean):c.items;
+  }
+  items=items.filter(canDo);
+  $("catTitle").textContent=title;
+  $("catDesc").textContent=desc; $("catDesc").hidden=!desc;
+  $("catCount").textContent=items.length+(items.length>1?" animations":" animation");
+  renderShortlist(favView);
+  if(!items.length){
+    const m=q?["Aucun résultat",`Rien ne correspond à « ${esc($("q").value)} ». Essaie un autre mot ou une commande.`]
+      :cat==="fav"?["Pas encore de favoris","Touche l'étoile d'une animation, puis reviens ici pour lui donner une touche."]
+      :["Rien de lancé","Les animations que tu lances apparaîtront ici."];
+    $("grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><b>${m[0]}</b>${m[1]}</div>`;
+  }else $("grid").innerHTML=items.map(i=>tile(i,favView)).join("");
+  icons();
+}
+function renderAll(){renderRail();renderList()}
+
+/* ===================== ACTIONS ===================== */
+function play(cmd,target){
+  const i=byCmd[cmd]; if(!i) return;
+  const type=typeOf(i);
+  if(type==="shared"&&target===undefined&&panel.classList.contains("open")) return openPicker(i);
+  nui("playEmote",{emote:cmd,type,label:i.n,target:target??null});
+  if(type==="shared"&&!IS_FIVEM&&target!==undefined) setTimeout(()=>showRequest({name:"Joueur "+target,label:i.n,timeout:15,preview:true}),700);
+  if(type!=="walk"&&type!=="mood"&&type!=="shared"){playing=cmd;$("now").textContent="En cours : "+i.n}
+  addRecent(cmd);
+  if(!(type==="shared"&&IS_FIVEM)) toast(type==="shared"?`Demande envoyée : ${i.n}`:type==="walk"?`Démarche : ${i.n}`:type==="mood"?`Humeur : ${i.n}`:`Animation : ${i.n}`);
+  renderAll();
+  if(S.closeOnPlay&&panel.classList.contains("open")) close();
+}
+function addRecent(cmd){recent=[cmd,...recent.filter(c=>c!==cmd)].slice(0,12); store.set("recent",recent)}
+function place(cmd){
+  const i=byCmd[cmd]; if(!i||!canPlace(i)) return;
+  if(!IS_FIVEM) return toast(`En jeu : déplace ton fantôme, puis valide avec Entrée`);
+  nui("placeEmote",{emote:cmd,label:i.n});
+}
+function placed(cmd){
+  const i=byCmd[cmd]; if(!i) return;
+  playing=cmd;$("now").textContent="En cours : "+i.n;
+  addRecent(cmd); toast(`Animation placée : ${i.n}`,"ok"); renderAll();
+}
+function stop(){
+  nui("stopEmote");
+  if(playing){playing=null;$("now").textContent="";toast("Animation arrêtée");renderList()}
+}
+function saveBinds(){store.set("binds",binds);nui("saveBinds",{binds})}
+function toggleFav(cmd){
+  if(favs.includes(cmd)){
+    favs=favs.filter(c=>c!==cmd);
+    const k=keyOf(cmd); if(k){delete binds[k];saveBinds()}
+    toast("Retiré des favoris");
+  }else{favs=[...favs,cmd];toast("Ajouté aux favoris")}
+  store.set("favs",favs); renderAll();
+}
+function openBind(cmd){
+  bindingEmote=cmd;
+  const k=keyOf(cmd);
+  $("bindName").textContent=byCmd[cmd].n;
+  $("bindKey").textContent=k?pretty(k):"…";
+  $("bindRemove").hidden=!k;
+  $("bindSheet").classList.add("open");
+  document.activeElement?.blur();
+}
+function closeBind(){bindingEmote=null;$("bindSheet").classList.remove("open")}
+function assign(k){
+  if(k===S.openKey||k===S.stopKey) return toast(`${pretty(k)} sert déjà à ${k===S.openKey?"ouvrir le menu":"arrêter"}`);
+  if(isReserved(k)) return toast(`${pretty(k)} est déjà utilisée par le jeu ou pour accepter/refuser, choisis une autre touche`,"err");
+  const old=keyOf(bindingEmote); if(old) delete binds[old];
+  const prev=binds[k];
+  binds[k]={emote:bindingEmote,type:typeOf(byCmd[bindingEmote]),label:byCmd[bindingEmote].n};
+  if(!favs.includes(bindingEmote)){favs=[...favs,bindingEmote];store.set("favs",favs)}
+  saveBinds();
+  toast(prev&&prev.emote!==bindingEmote?`${pretty(k)} remplace ${byCmd[prev.emote]?.n||prev.emote}`:`${pretty(k)} lance ${byCmd[bindingEmote].n}`);
+  closeBind(); renderAll();
+}
+
+async function openPicker(i){
+  $("pickTitle").textContent=i.n+" avec…";
+  let players=await nui("getNearbyPlayers");
+  if(!players) players=IS_FIVEM?[]:[{id:12,name:"Joueur 12",dist:1.4},{id:37,name:"Joueur 37",dist:2.8},{id:5,name:"Joueur 5",dist:4.1}];
+  $("pickList").innerHTML=players.length?players.map(p=>`<button class="player" data-pid="${p.id}" type="button">
+      <span class="id">${p.id}</span><span><b>${esc(p.name)}</b><small>à ${Number(p.dist).toFixed(1)} m</small></span></button>`).join("")
+    :`<div class="empty"><b>Personne à côté</b>Approche-toi à moins de 3 mètres d'un joueur, puis réessaie.</div>`;
+  $("pickList").dataset.cmd=i.cmd;
+  $("picker").classList.add("open");
+}
+
+/* ===================== DEMANDES PARTAGÉES ===================== */
+function showRequest(r){
+  req=r;
+  $("reqImg").src=document.querySelector(".medal img").src;
+  $("reqName").textContent=r.name||"Un joueur";
+  $("reqLabel").textContent=r.label||r.emote||"une animation";
+  $("reqPreview").hidden=!r.preview;
+  $("reqKeyYes").textContent=pretty(REQ_KEYS.accept);
+  $("reqKeyNo").textContent=pretty(REQ_KEYS.refuse);
+  const bar=$("reqBar"),t=(r.timeout||15);
+  bar.style.transition="none";bar.style.transform="scaleX(1)";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{bar.style.transition=`transform ${t}s linear`;bar.style.transform="scaleX(0)"}));
+  $("req").classList.add("show");
+  clearTimeout(showRequest._t);
+  showRequest._t=setTimeout(()=>{if(req===r){hideRequest();if(!IS_FIVEM)toast("Demande expirée","err")}},t*1000);
+}
+function hideRequest(){req=null;clearTimeout(showRequest._t);$("req").classList.remove("show")}
+function respond(accept){
+  if(!req) return;
+  const r=req; hideRequest();
+  nui("respond",{accept});
+  if(!IS_FIVEM) toast(accept?`Tu as accepté : ${r.label}`:`Tu as refusé : ${r.label}`,accept?"ok":"err");
+}
+$("reqYes").onclick=()=>respond(true);
+$("reqNo").onclick=()=>respond(false);
+
+/* ===================== APERÇU 3D ===================== */
+function setEnv(e){
+  if(Array.isArray(e.hidden)) ENV.hidden=new Set(e.hidden);
+  if(typeof e.inVehicle==="boolean") ENV.inVehicle=e.inVehicle;
+  if(typeof e.male==="boolean") ENV.male=e.male;
+  renderAll();
+}
+let pvCmd=null,pvTimer=null;
+function previewMood(i){
+  const c=i.cat; const fig=$("pvFig");
+  fig.className="fig "+({danses:"a-dance",gestes:"a-wave",duo:"a-wave",assis:"a-sit",sport:"a-sport",marches:"a-walk",reactions:"a-shake",rue:"a-lean",debout:"a-idle"}[c]||"a-idle");
+  $("pvName").textContent=i.n; $("pvCmd").textContent=cmdLabel(i);
+  $("pv").classList.add("on");
+}
+function hoverPreview(cmd){
+  if(!S.preview||cmd===pvCmd) return;
+  pvCmd=cmd; clearTimeout(pvTimer);
+  pvTimer=setTimeout(()=>{
+    const i=byCmd[cmd]; if(!i) return;
+    if(IS_FIVEM) nui("preview",{emote:cmd}); else previewMood(i);
+  },140);
+}
+function endPreview(){
+  clearTimeout(pvTimer); if(pvCmd===null) return; pvCmd=null;
+  if(IS_FIVEM) nui("previewEnd"); else {$("pvFig").className="fig a-idle";$("pvName").textContent="Survole une animation";$("pvCmd").textContent="";$("pv").classList.remove("on")}
+}
+$("grid").addEventListener("mouseover",e=>{const t=e.target.closest(".emote");if(t) hoverPreview(t.dataset.cmd)});
+$("grid").addEventListener("focusin",e=>{const t=e.target.closest(".emote");if(t) hoverPreview(t.dataset.cmd)});
+$("listwrap").addEventListener("mouseleave",endPreview);
+
+/* ===================== OUVERTURE ===================== */
+const panel=$("panel");
+function open(){panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
+function close(){
+  panel.classList.remove("open");
+  ["settings","picker","bindSheet"].forEach(id=>$(id).classList.remove("open"));
+  bindingEmote=null;endPreview();$("pv").classList.remove("show");$("hint").style.opacity=1;document.activeElement?.blur();nui("close");
+}
+window.addEventListener("message",e=>{
+  const d=e.data||{};
+  if(d.env) setEnv(d.env);
+  if(d.action==="env") return;
+  if(d.action==="open") open();
+  if(d.action==="close") close();
+  if(d.action==="stopped"){playing=null;$("now").textContent="";renderList()}
+  if(d.action==="placed") placed(d.emote);
+  if(d.action==="request") showRequest(d);
+  if(d.action==="requestEnd") hideRequest();
+  if(d.action==="notify") toast(d.text,d.kind);
+  if(d.action==="init"){
+    if(d.keys) REQ_KEYS={...REQ_KEYS,place:null,...d.keys};
+    if(d.settings) S={...S,...d.settings};
+    if(d.binds&&typeof d.binds==="object") binds=d.binds;
+    store.set("settings",S);store.set("binds",binds);applySettings();renderAll();
+  }
+});
+
+/* ===================== PARAMÈTRES ===================== */
+function applySettings(){
+  panel.classList.toggle("left",S.pos==="left");
+  document.body.classList.toggle("posright",S.pos!=="left");
+  document.documentElement.style.setProperty("--scale",S.scale/100);
+  document.body.classList.remove("amb-legal","amb-illegal");
+  if(S.amb!=="both") document.body.classList.add("amb-"+S.amb);
+  document.body.classList.toggle("nocmd",!S.showCmd);
+  ["kOpen","hintKey","bindOpen"].forEach(id=>$(id).textContent=pretty(S.openKey));
+  ["kStop","bindStop"].forEach(id=>$(id).textContent=pretty(S.stopKey));
+  $("scale").value=S.scale;$("scaleVal").textContent=S.scale+" %";
+  document.querySelectorAll("#segPos button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.pos));
+  document.querySelectorAll("#segAmb button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.amb));
+  $("swCmd").setAttribute("aria-checked",S.showCmd);
+  $("swClose").setAttribute("aria-checked",S.closeOnPlay);
+  $("swPreview").setAttribute("aria-checked",S.preview);
+  $("swGender").setAttribute("aria-checked",S.genderFilter);
+  document.body.classList.toggle("nopv",!S.preview);
+  $("kPlaceWrap").hidden=REQ_KEYS.place===null;
+  $("subtitle").textContent=`Elyzea roleplay, ${ALL.filter(canDo).length} animations`;
+}
+function save(){store.set("settings",S);applySettings();nui("saveSettings",S)}
+function startBind(which){binding=which;const b=$(which==="open"?"bindOpen":"bindStop");b.classList.add("listening");b.textContent="…"}
+function endBind(){binding=null;$("bindOpen").classList.remove("listening");$("bindStop").classList.remove("listening");applySettings()}
+
+/* ===================== ÉVÉNEMENTS ===================== */
+$("rail").addEventListener("click",e=>{
+  const b=e.target.closest(".cat"); if(!b) return;
+  cat=b.dataset.id;$("q").value="";renderAll();$("listwrap").scrollTop=0;
+});
+function gridAction(e){
+  const bd=e.target.closest("[data-bind]"); if(bd){e.stopPropagation();e.preventDefault();return openBind(bd.dataset.bind)}
+  const f=e.target.closest("[data-fav]"); if(f){e.stopPropagation();e.preventDefault();return toggleFav(f.dataset.fav)}
+  const pl=e.target.closest("[data-place]"); if(pl){e.stopPropagation();e.preventDefault();return place(pl.dataset.place)}
+  const t=e.target.closest(".emote"); if(t){e.preventDefault();play(t.dataset.cmd)}
+}
+$("grid").addEventListener("click",gridAction);
+$("grid").addEventListener("contextmenu",e=>{const t=e.target.closest(".emote");if(!t)return;e.preventDefault();place(t.dataset.cmd)});
+$("grid").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")gridAction(e)});
+$("pickList").addEventListener("click",e=>{
+  const p=e.target.closest(".player"); if(!p) return;
+  $("picker").classList.remove("open");play($("pickList").dataset.cmd,Number(p.dataset.pid));
+});
+$("q").addEventListener("input",renderAll);
+$("stopBtn").onclick=stop;
+$("closeBtn").onclick=close;
+$("openBtn").onclick=open;
+$("settingsBtn").onclick=()=>$("settings").classList.add("open");
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{b.dataset.close==="bindSheet"?closeBind():$(b.dataset.close).classList.remove("open")});
+$("bindCancel").onclick=closeBind;
+$("bindRemove").onclick=()=>{const k=keyOf(bindingEmote);if(k){delete binds[k];saveBinds();toast(`Raccourci ${pretty(k)} retiré`)}closeBind();renderAll()};
+$("bindOpen").onclick=()=>startBind("open");
+$("bindStop").onclick=()=>startBind("stop");
+$("segPos").onclick=e=>{const b=e.target.closest("button");if(b){S.pos=b.dataset.v;save()}};
+$("segAmb").onclick=e=>{const b=e.target.closest("button");if(b){S.amb=b.dataset.v;save()}};
+$("scale").oninput=e=>{S.scale=+e.target.value;save()};
+$("swCmd").onclick=()=>{S.showCmd=!S.showCmd;save()};
+$("swClose").onclick=()=>{S.closeOnPlay=!S.closeOnPlay;save()};
+$("swPreview").onclick=()=>{S.preview=!S.preview;save();if(!S.preview)endPreview()};
+$("swGender").onclick=()=>{S.genderFilter=!S.genderFilter;save();renderAll()};
+$("resetBinds").onclick=()=>{binds={};saveBinds();renderAll();toast("Raccourcis retirés")};
+$("resetFav").onclick=()=>{favs=[];recent=[];binds={};store.set("favs",favs);store.set("recent",recent);saveBinds();renderAll();toast("Favoris et historique vidés")};
+
+document.addEventListener("keydown",e=>{
+  const k=keyName(e);
+  // Choix d'un raccourci pour une animation
+  if(bindingEmote){
+    e.preventDefault();
+    if(e.key==="Escape") return closeBind();
+    if(e.key==="Delete"||e.key==="Backspace") return $("bindRemove").click();
+    if(k) assign(k);
+    return;
+  }
+  // Choix de la touche ouvrir / arrêter
+  if(binding){
+    e.preventDefault();
+    if(e.key==="Escape") return endBind();
+    if(!k||k==="ESCAPE") return;
+    const other=binding==="open"?S.stopKey:S.openKey;
+    if(k===other) return toast(`${pretty(k)} est déjà utilisée`);
+    if(binds[k]) return toast(`${pretty(k)} lance déjà ${byCmd[binds[k].emote]?.n||"une animation"}`);
+    if(binding==="open") S.openKey=k; else S.stopKey=k;
+    endBind();save();toast(`Touche enregistrée : ${pretty(k)}`);return;
+  }
+  if(e.key==="Escape"){
+    if($("picker").classList.contains("open")) return $("picker").classList.remove("open");
+    if($("settings").classList.contains("open")) return $("settings").classList.remove("open");
+    if(panel.classList.contains("open")) return close();
+  }
+  if(document.activeElement===$("q")) return;
+  if(!k) return;
+  if(req&&k===REQ_KEYS.accept){e.preventDefault();return respond(true)}
+  if(req&&k===REQ_KEYS.refuse){e.preventDefault();return respond(false)}
+  if(k===S.openKey){e.preventDefault();return panel.classList.contains("open")?close():open()}
+  if(k===S.stopKey) return stop();
+  // Raccourcis (dans le navigateur ; en jeu c'est client.lua qui les gère menu fermé)
+  if(binds[k]){e.preventDefault();play(binds[k].emote)}
+});
+
+applySettings();renderAll();
+if(!IS_FIVEM) setTimeout(open,350);
+</script>
+</body>
+</html>

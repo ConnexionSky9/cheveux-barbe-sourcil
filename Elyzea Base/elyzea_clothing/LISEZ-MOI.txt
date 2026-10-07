@@ -1,0 +1,79 @@
+==============================================================
+  ELYZEA CLOTHING - Boutique de vêtements
+==============================================================
+
+INSTALLATION
+1. Copiez le dossier elyzea_clothing dans resources/.
+2. Dans server.cfg, APRÈS elyzea_core, elyzea_inventory et admin_menu :
+       ensure elyzea_clothing
+3. Remplacez aussi admin_menu (nouveau rôle de PNJ « Boutique de vêtements »).
+
+CRÉER UNE BOUTIQUE (menu admin › Éditeur de map › PNJ)
+- Placez un PNJ avec le rôle « 👕 Boutique de vêtements » (ou « 👔 Boutique de luxe »),
+  ou ouvrez un PNJ existant › « Modifier son rôle » › activez « Boutique de vêtements ».
+- Réglez : nom de la boutique (Binco, Ponsonbys…), prix en % des prix de base
+  (250 % pour une boutique de luxe), rayons vendus (chaussures seulement, etc.).
+- « Qui peut lui parler » permet aussi de réserver une boutique à un métier
+  (tenues de service) ou à un groupe.
+- En jeu : le joueur s'approche, « APPUYER POUR ENTRER DANS · Ponsonbys », E.
+
+DANS LA BOUTIQUE
+- 15 rayons : hauts, t-shirts, pantalons, chaussures, sacs, gilets, gants, colliers et
+  cravates, masques, logos, chapeaux, lunettes, boucles d'oreilles, montres, bracelets.
+- Aperçu direct : SURVOLER un modèle le montre tout de suite sur le personnage
+  (pareil en survolant un coloris) ; quitter la grille remet le modèle choisi.
+  Flèches du clavier : modèle suivant / précédent, Entrée : ajouter au panier.
+- Clic sur un modèle = le choisir (il reste sur le personnage), la caméra se place
+  toute seule (tête, haut, bas, pieds, dos pour les sacs, poignet pour les montres).
+- Coloris : boutons 1, 2, 3… ou flèches.
+- Panier : un article par rayon (un nouvel article remplace l'ancien), prix, total,
+  paiement en liquide ou par banque (soldes affichés). Retirer un article du panier
+  remet le vêtement d'avant.
+- Caméra : Entier / Tête / Haut / Bas / Pieds, pivoter (boutons, A / E, ou clic
+  maintenu et glisser sur le personnage), mains en l'air.
+- Quitter sans payer : confirmation, puis le joueur retrouve EXACTEMENT sa tenue.
+- Après paiement : seuls les articles payés sont gardés, et la tenue est enregistrée
+  dans l'apparence du personnage (ely_creator) : elle reste après reconnexion.
+
+VÊTEMENTS EN OBJETS D'INVENTAIRE (elyzea_inventory)
+Aucune installation d'objets à faire : les 15 objets vet_* sont déclarés dans
+elyzea_inventory/shared/items.lua (10 grammes chacun) et leurs images sont dans
+elyzea_inventory/html/img/.
+Ordre dans server.cfg : ensure elyzea_inventory  PUIS  ensure elyzea_clothing.
+Fonctionnement :
+- Acheter : chaque vêtement arrive dans l'inventaire comme un objet (« Haut n°263 »).
+  Le poids et la place sont vérifiés AVANT de payer. Option « Porter tout de suite ».
+- Porter : glisser l'objet sur le personnage dans l'inventaire (TAB), double-clic,
+  raccourci 1 à 5, ou clic droit > Porter. Ce que tu portais retourne dans l'inventaire.
+- Ranger : glisser la pièce du personnage vers la grille, clic droit > Ranger, ou F7.
+- Renommer : clic droit > Renommer (32 caractères ; vide = nom d'origine).
+- Sac (vet_sac) : porté = capacité 28 KG. Le retirer est refusé si tu dépasserais 18 KG.
+- Un vêtement homme ne se porte pas sur un personnage femme, et inversement.
+- « Rien » de chaque rayon : Config.Naked. Ces modèles ne sont jamais rangés en objet.
+
+SÉCURITÉ
+- Les prix sont recalculés par le serveur (catégorie × % de la boutique).
+- Le serveur vérifie la distance au PNJ et que les rayons sont bien vendus ici.
+
+PRIX ET RAYONS PAR DÉFAUT : config.lua (Config.Categories)
+VÊTEMENTS INTERDITS À LA VENTE (tenues police, staff…) : Config.Blacklist
+   ex. male = { tops = { 55, 56 } }
+
+IMAGES RÉELLES DES VÊTEMENTS (facultatif)
+- Chaque carte, chaque pastille de coloris et chaque article du panier affiche la vraie
+  image du vêtement si elle existe, sinon l'icône dorée du rayon.
+- Emplacement : html/images/<sexe>/<rayon>/<drawable>_<texture>.webp
+      html/images/male/tops/12_0.webp      haut homme n°12, coloris 1
+      html/images/male/tops/12_1.webp      même haut, coloris 2
+      html/images/female/pants/25_0.webp   pantalon femme n°25, coloris 1
+  Les 30 dossiers (2 sexes × 15 rayons) sont déjà créés. .png est accepté aussi.
+- Image manquante : image du coloris 0 du même modèle, puis icône générique.
+- Réglages : config.lua › Config.Images (base https, extensions, nommage, repli).
+- Détails : html/images/LISEZ-MOI.txt
+
+TEST RAPIDE (staff) : /boutique_vetements
+   (permission ACE « elyzea.clothing.test » ou accès aux commandes)
+
+POUR LES DÉVELOPPEURS
+   exports.elyzea_clothing:OpenFor(source, { name = 'Binco', multiplier = 100,
+       categories = { 'tops', 'pants' }, coords = vector3(...) })    -- côté serveur

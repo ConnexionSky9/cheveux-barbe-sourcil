@@ -1,0 +1,3 @@
+Place ta musique ici sous le nom : loading.mp3
+(ou modifie le chemin dans js/config.js -> music.file)
+Formats acceptés : .mp3 et .ogg

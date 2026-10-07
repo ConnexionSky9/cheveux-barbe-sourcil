@@ -1,0 +1,24 @@
+COUPES PERSONNALISÉES
+=====================
+
+Installation : mets ce dossier dans resources/ et ajoute dans server.cfg :
+    ensure elyzea_coupes
+Redémarre le serveur puis reconnecte-toi.
+
+Coupes installées
+-----------------
+Femme n°24 : coupe « natt_hair4 »
+  (le n°24 était la coiffure buguée « vision nocturne », cachée dans le salon : aucune coupe perdue)
+
+Ajouter une coupe de ce type (fichiers hair_XXX_u.ydd + hair_diff_XXX_a_uni.ytd)
+-----------------------------------------------------------------------------------
+1. Choisis le numéro à remplacer (N, sur 3 chiffres : 024, 047…) et le sexe :
+   homme = mp_m_freemode_01   femme = mp_f_freemode_01
+2. Renomme les 2 fichiers et mets-les dans stream/ :
+     hair_XXX_u.ydd             ->  mp_f_freemode_01^hair_N_u.ydd
+     hair_diff_XXX_a_uni.ytd    ->  mp_f_freemode_01^hair_diff_N_a_uni.ytd
+   (le même N dans les deux noms ; s'il y a d'autres textures _b_, _c_… renomme-les pareil)
+3. Dans admin_menu/barber_data.lua, donne-lui un nom :  [N] = 'Nom de la coupe',
+4. Redémarre le serveur.
+
+Attention : la coupe d'origine portant ce numéro est remplacée pour tout le monde.

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff Police</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="mdt" class="hidden">
+        <div class="device">
+            <span class="guard tl"></span><span class="guard tr"></span>
+            <span class="guard bl"></span><span class="guard br"></span>
+            <div class="screen">
+                <header class="statusbar">
+                    <div class="brand"><span class="badge-shield">★</span>Staff · Métier Police</div>
+                    <div class="status-right">
+                        <span id="clock"></span>
+                        <button class="close" id="closeBtn">Fermer</button>
+                    </div>
+                </header>
+                <div class="layout">
+                    <nav id="nav">
+                        <button data-tab="overview" class="active">Vue d'ensemble</button>
+                        <button data-tab="job">Métier et grades</button>
+                        <button data-tab="perms">Permissions</button>
+                        <button data-tab="fines">Amendes</button>
+                        <button data-tab="armory">Armurerie</button>
+                        <button data-tab="uniforms">Tenues</button>
+                        <button data-tab="points">Points</button>
+                        <button data-tab="settings">Réglages</button>
+                        <button data-tab="files">Dossiers</button>
+                    </nav>
+                    <main id="page"></main>
+                </div>
+                <div id="toast" class="toast hidden"></div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
