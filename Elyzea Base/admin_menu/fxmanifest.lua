@@ -78,6 +78,7 @@ server_scripts {
     'server/map.lua',
     'server/drops.lua',
     'server/farm.lua',
+    'server/entreprises.lua',
 }
 
 ui_page 'html/index.html'
@@ -113,5 +114,6 @@ files {
     'html/stashes.js',
     'html/drops.js',
     'html/farm.js',
+    'html/entreprises.js',
     'html/logo.png',
 }

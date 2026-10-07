@@ -15,6 +15,10 @@ local GROUPS = {
     police = { perm = 'police_staff', label = 'Police', cfg = function() return Config.Police or {} end },
     lscustom = { perm = 'lscustom_staff', label = 'LsCustom', cfg = function() return Config.LsCustom or {} end },
     concess = { perm = 'concess_staff', label = 'Concession', cfg = function() return Config.Concess or {} end },
+    entreprises = { perm = 'entreprises_staff', label = 'Entreprises', cfg = function()
+        local ok, list = pcall(function() return exports.elyzea_entreprises:GetJobNames() end)
+        return { jobs = ok and list or {} }
+    end },
     -- Tous les autres métiers du serveur (onglet Métiers › Gestion des métiers)
     custom = { perm = 'jobs_manage', label = 'Métiers', cfg = function() return { jobs = AM.JobsMgrList and AM.JobsMgrList() or {} } end },
 }

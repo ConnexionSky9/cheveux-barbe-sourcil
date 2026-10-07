@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Entreprises Elyzea</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Tablette des employés (F6) -->
+    <div id="tablet" class="layer hidden">
+        <div class="panel">
+            <header class="brandbar">
+                <img src="logo.png" class="crest" alt="">
+                <div class="brand-txt"><div class="eyebrow" id="tEyebrow">Elyzea · Entreprise</div><div class="title" id="tTitle"></div><div class="sub" id="tSub"></div></div>
+                <button class="icon-btn" data-close title="Fermer (Échap)">✕</button>
+            </header>
+            <nav class="tabs" id="tabs"></nav>
+            <div class="body" id="body"></div>
+        </div>
+    </div>
+
+    <!-- Compteur du taxi -->
+    <div id="meter" class="meter hidden"></div>
+
+    <!-- Facture reçue -->
+    <div id="invoice" class="layer hidden">
+        <div class="panel invoice" id="invoiceBox"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

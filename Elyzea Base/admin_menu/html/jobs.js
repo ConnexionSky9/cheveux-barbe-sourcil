@@ -5,7 +5,7 @@
    et tous les autres métiers du serveur sont listés avec leurs effectifs.
    ========================================================= */
 (() => {
-    const CHILDREN = ['jobsmgr', 'ems', 'police', 'lscustom', 'concess', 'permis', 'farm'];
+    const CHILDREN = ['jobsmgr', 'ems', 'police', 'lscustom', 'concess', 'ent_taxi', 'ent_burgershot', 'ent_nightclub', 'permis', 'farm'];
     const BLURB = {
         ems: 'Tablette staff EMS, accès, tenues, rejoindre le métier.',
         police: 'Tablette staff Police, accès, tenues, rejoindre le métier.',
@@ -13,6 +13,9 @@
         concess: 'Tablette direction, grades, zones, tenues, permissions.',
         permis: 'Questions du code de la route et prix des permis B, A, C.',
         farm: 'Bûcheron… : temps de coupe, bûches obtenues, prix de revente, zones de travail, tenue.',
+        ent_taxi: 'Compteur, courses PNJ, grades, zones, véhicules, tenues.',
+        ent_burgershot: 'Carte et prix, recettes, fournisseur, grades, zones, tenues.',
+        ent_nightclub: 'Bar, entrée, carte et prix, fournisseur, grades, zones, tenues.',
         jobsmgr: 'Tous les autres métiers : grades, salaires, points, véhicules de service, tenues, bureau du patron.',
     };
     for (const id of CHILDREN) {

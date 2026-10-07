@@ -31,6 +31,7 @@ local function managedElsewhere()
     add('elyzea_police', function() return exports.elyzea_police:GetPoliceJobs() end)
     add('elyzea_lscustom', function() return exports.elyzea_lscustom:GetJobName() end)
     add('elyzea_concess', function() return exports.elyzea_concess:GetJobName() end)
+    add('elyzea_entreprises', function() return exports.elyzea_entreprises:GetJobNames() end)
     for _, n in ipairs((Config.Ems or {}).jobs or {}) do set[n] = set[n] or 'elyzea_ems' end
     return set
 end

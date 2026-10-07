@@ -79,6 +79,35 @@ Items = {
     gun_parts_heavy  = { label = 'Pièces d\'armes lourdes', weight = 800, stack = true, max = 100 },
     crowbar          = { label = 'Pied-de-biche', weight = 1500, stack = false },
 
+    -- Burger Shot (elyzea_entreprises) : ingrédients et produits
+    bs_pain     = { label = 'Pain à burger', weight = 80, stack = true, max = 50, icon = '🍞', description = 'Ingrédient du Burger Shot.' },
+    bs_viande   = { label = 'Steak haché', weight = 150, stack = true, max = 50, icon = '🥩', description = 'Ingrédient du Burger Shot.' },
+    bs_legumes  = { label = 'Salade et tomates', weight = 80, stack = true, max = 50, icon = '🥬', description = 'Ingrédient du Burger Shot.' },
+    bs_fromage  = { label = 'Tranches de cheddar', weight = 50, stack = true, max = 50, icon = '🧀', description = 'Ingrédient du Burger Shot.' },
+    bs_patates  = { label = 'Pommes de terre', weight = 300, stack = true, max = 50, icon = '🥔', description = 'Ingrédient du Burger Shot.' },
+    bs_sirop    = { label = 'Sirop de soda', weight = 200, stack = true, max = 50, icon = '🧃', description = 'Ingrédient du Burger Shot.' },
+    bs_lait     = { label = 'Lait', weight = 300, stack = true, max = 50, icon = '🥛', description = 'Ingrédient du Burger Shot.' },
+    bs_bleeder      = food('The Bleeder', 250, 30, 0, { notification = 'Vous avez mangé un Bleeder.' }),
+    bs_heartstopper = food('Heart Stopper', 350, 45, 0, { notification = 'Vous avez mangé un Heart Stopper.' }),
+    bs_frites       = food('Frites', 150, 15, 0, { prop = { model = `prop_food_bs_chips`, pos = vec3(0.02, 0.02, -0.02), rot = vec3(0.0, 0.0, 0.0) } }),
+    bs_soda         = food('Soda Burger Shot', 400, 0, 30, { prop = { model = `prop_food_bs_juice01`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_milkshake    = food('Milkshake', 400, 5, 25, { prop = { model = `prop_food_bs_juice02`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+
+    -- Boîte de nuit (elyzea_entreprises) : ingrédients et cocktails
+    nc_rhum      = { label = 'Bouteille de rhum', weight = 800, stack = true, max = 20, icon = '🥃', description = 'Pour le bar de la boîte de nuit.' },
+    nc_whisky    = { label = 'Bouteille de whisky', weight = 800, stack = true, max = 20, icon = '🥃', description = 'Pour le bar de la boîte de nuit.' },
+    nc_vodka     = { label = 'Bouteille de vodka', weight = 800, stack = true, max = 20, icon = '🍶', description = 'Pour le bar de la boîte de nuit.' },
+    nc_champagne = { label = 'Bouteille de champagne', weight = 1000, stack = true, max = 20, icon = '🍾', description = 'Pour le bar de la boîte de nuit.' },
+    nc_citron    = { label = 'Citron vert', weight = 50, stack = true, max = 50, icon = '🍋', description = 'Pour le bar de la boîte de nuit.' },
+    nc_glace     = { label = 'Glaçons', weight = 100, stack = true, max = 50, icon = '🧊', description = 'Pour le bar de la boîte de nuit.' },
+    nc_soda      = { label = 'Soda (bar)', weight = 300, stack = true, max = 50, icon = '🥤', description = 'Pour le bar de la boîte de nuit.' },
+    nc_energy    = { label = 'Boisson énergisante', weight = 300, stack = true, max = 50, icon = '⚡', description = 'Pour le bar de la boîte de nuit.' },
+    nc_mojito      = food('Mojito', 300, 0, 20, { prop = { model = `prop_mojito`, pos = vec3(0.01, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+    nc_whiskycoca  = food('Whisky-coca', 300, 0, 20, { prop = { model = `prop_drink_whisky`, pos = vec3(0.01, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+    nc_vodkaenergy = food('Vodka énergie', 300, 0, 20, { prop = { model = `prop_cocktail`, pos = vec3(0.01, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+    nc_shot        = food('Shot', 60, 0, 5, { prop = { model = `prop_tequila`, pos = vec3(0.01, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+    nc_coupe       = food('Coupe de champagne', 150, 0, 10, { prop = { model = `prop_drink_champ`, pos = vec3(0.01, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+
     -- Métiers de farm (elyzea_farm)
     buche_bois       = { label = 'Bûche de bois', weight = 1500, stack = true, max = 100, image = 'buche_bois.png', icon = '🪵',
         description = 'Bûche coupée par un bûcheron. Se revend au responsable du chantier.' },
