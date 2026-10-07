@@ -365,7 +365,7 @@ local function cleanNpc(n)
     local ca = type(n.catalog) == 'table' and n.catalog or nil
     if ca then
         local name = cleanName(ca.name, 40)
-        out.catalog = { name = name ~= '' and name or 'Catalogue des véhicules',
+        out.catalog = { concess = ca.concess == 'air' and 'air' or 'car', name = name ~= '' and name or 'Catalogue des véhicules',
             test = bool(ca.test, false), testDuration = math.floor(num(ca.testDuration, 30, 1800, 120)) }
     end
     -- Garage public Elyzea (ressource elyzea_garage) : les points de sortie se posent à part
@@ -1305,11 +1305,12 @@ RegisterNetEvent('adminmenu:catalog:open', function(id)
     if not AM.rateLimit(src, 'npc', 4, 1000) then return end
     local r = checkNpc(src, tonumber(id))
     if not r or not r.npc.catalog then return end
-    local res = (Config.Concess and Config.Concess.resource) or 'elyzea_concess'
+    local ca = r.npc.catalog
+    local res = ca.concess == 'air' and ((Config.ConcessAir and Config.ConcessAir.resource) or 'elyzea_concess_air')
+        or ((Config.Concess and Config.Concess.resource) or 'elyzea_concess')
     if GetResourceState(res) ~= 'started' then
         return AM.notify(src, 'Le catalogue est indisponible (concession non démarrée).', 'error')
     end
-    local ca = r.npc.catalog
     CallExport(src, res, 'ViewCatalog', src, ca.name, {
         test = ca.test == true and ca.testSpot ~= nil, duration = ca.testDuration or 120, spot = ca.testSpot,
         npc = { x = r.x, y = r.y, z = r.z }, pedId = r.id,

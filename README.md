@@ -295,7 +295,47 @@ recopie la ligne affichée dans la console F8 dans `Config.BodyWeapons`, puis `r
 
 ---
 
-## 10. Pour les développeurs
+## 10. Métiers : bûcheron, entreprises, concession aérienne
+
+### Bûcheron (`elyzea_farm`) : métier secondaire
+Il se cumule avec le métier principal : un policier peut aller couper du bois sans quitter son métier.
+1. **Menu admin › Éditeur de map › PNJ** : crée un PNJ, coche le rôle **🪓 Métier de farm** et choisis **Bûcheron**.
+2. **Menu admin › Métiers › Métiers de farm › Bûcheron** :
+   - **zones de coupe** (centre et rayon, visibles sur la carte) : on ne peut couper que dedans ;
+   - **points** d'arbres posés à la main si besoin (les arbres de la map sont aussi détectés) ;
+   - **réglages** : temps de coupe, nombre de bûches par coupe (min / max), prix de revente, plafond par heure ;
+   - **tenue** : mets la tenue sur toi, puis « Copier ma tenue actuelle » (homme et femme séparés).
+3. En jeu : **E** sur le PNJ › « Voulez-vous travailler en tant que bûcheron ? » › Oui : la tenue est mise.
+   Devant un arbre, dans une zone : **ALT** pour couper (barre de progression). L'arbre ne disparaît pas.
+4. Retour au PNJ : **vendre les bûches** (`buche_bois`) et **arrêter de travailler** : tu récupères tes vêtements
+   (gardés même après une déconnexion).
+
+### Taxi, Burger Shot, Boîte de nuit (`elyzea_entreprises`)
+Tablette des employés : **F6**.
+| Entreprise | Ce que font les employés |
+|---|---|
+| Taxi | Compteur dans le véhicule, factures, **courses PNJ** (client à prendre puis à déposer, paiement vérifié par le serveur), véhicules de service |
+| Burger Shot | Préparation des recettes (cuisine), achat de fournitures payé par l'entreprise, factures, coffre |
+| Boîte de nuit | Bar (préparation des boissons), entrée payante, factures, coffre |
+
+Toutes ont : prise de service avec tenue, coffre partagé, factures (banque ou liquide, commission de l'employé),
+direction (recrutement, grades, renvoi, dépôt / retrait sur le compte de l'entreprise).
+
+**Staff : Menu admin › Métiers › Taxi / Burger Shot / Boîte de nuit** (permission `entreprises_staff`) :
+activer / désactiver, nom, grades et salaires, permissions par grade, zones, carte (prix), recettes, fournitures,
+tarifs du taxi, points de course, réglages. Les positions par défaut sont approximatives : vérifie les zones.
+
+### Concession aérienne (`elyzea_concess_air`)
+Même fonctionnement que la concession automobile, avec son propre métier `planedealer` (« Elyzea Aviation ») à LSIA.
+Staff : **Menu admin › Métiers › Concession aérienne**. Détails dans `elyzea_concess_air/README.md`.
+
+### PNJ catalogue (consultation seule)
+**Menu admin › Éditeur de map › PNJ** : rôle **📚 Catalogue**, puis choisis **Concession automobile** ou **Concession aérienne**.
+Les joueurs regardent le catalogue, sans pouvoir acheter (l'achat passe par un vendeur).
+
+---
+
+## 11. Pour les développeurs
 
 **Serveur**
 ```lua

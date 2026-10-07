@@ -79,6 +79,7 @@ server_scripts {
     'server/drops.lua',
     'server/farm.lua',
     'server/entreprises.lua',
+    'server/concessair.lua',
 }
 
 ui_page 'html/index.html'
@@ -115,5 +116,6 @@ files {
     'html/drops.js',
     'html/farm.js',
     'html/entreprises.js',
+    'html/concessair.js',
     'html/logo.png',
 }

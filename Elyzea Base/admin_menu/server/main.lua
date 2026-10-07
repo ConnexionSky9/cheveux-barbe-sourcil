@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v38 then
+        -- Concession aérienne : SuperAdmin
+        if Ranks.superadmin then Ranks.superadmin.perms.concessair_staff = true end
+        meta.v38 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v37 then
         -- Entreprises (Taxi, Burger Shot, Boîte de nuit) : SuperAdmin
         if Ranks.superadmin then Ranks.superadmin.perms.entreprises_staff = true end

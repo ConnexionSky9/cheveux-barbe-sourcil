@@ -3,8 +3,8 @@
    Ajouté en bas des onglets 🚑 EMS et 🚓 Police.
    ========================================================= */
 (() => {
-    const JT = { ems: {}, police: {}, lscustom: {}, concess: {}, entreprises: {}, custom: {}, trying: false };
-    const GROUP_LABEL = { ems: 'EMS', police: 'Police', lscustom: 'LsCustom', concess: 'Concession', entreprises: 'de l\'entreprise', custom: 'du serveur' };
+    const JT = { ems: {}, police: {}, lscustom: {}, concess: {}, concessair: {}, entreprises: {}, custom: {}, trying: false };
+    const GROUP_LABEL = { ems: 'EMS', police: 'Police', lscustom: 'LsCustom', concess: 'Concession', concessair: 'Concession aérienne', entreprises: 'de l\'entreprise', custom: 'du serveur' };
 
     const groupData = (g) => (D && D.jobtools && D.jobtools.groups ? D.jobtools.groups[g] : null);
     const sel = (g, key, def) => (JT[g][key] !== undefined ? JT[g][key] : def);

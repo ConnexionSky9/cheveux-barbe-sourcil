@@ -1168,6 +1168,7 @@ function toPedEdit(r) {
         pubRadius: n.pubgarage ? (n.pubgarage.storeRadius || 4) : 4,
         catalogOn: !!n.catalog,
         catName: n.catalog ? n.catalog.name : 'Catalogue des véhicules',
+        catConcess: n.catalog && n.catalog.concess === 'air' ? 'air' : 'car',
         catTest: n.catalog ? !!n.catalog.test : true,
         catTestDuration: n.catalog ? (n.catalog.testDuration || 120) : 120,
         clothingOn: !!n.clothing,
@@ -1499,7 +1500,7 @@ function pedEditPayload(p) {
             maxPerSale: num(p.maxPerSale, 10), cooldown: num(p.cooldown, 60), policeChance: num(p.policeChance, 0), minPolice: num(p.minPolice, 0),
         } : null,
         hours: p.hoursOn ? { from: num(p.from, 0), to: num(p.to, 0) } : null,
-        catalog: p.catalogOn ? { name: String(p.catName || '').trim(), test: !!p.catTest, testDuration: num(p.catTestDuration, 120) } : null,
+        catalog: p.catalogOn ? { concess: p.catConcess === 'air' ? 'air' : 'car', name: String(p.catName || '').trim(), test: !!p.catTest, testDuration: num(p.catTestDuration, 120) } : null,
         dmv: p.dmvOn ? { name: String(p.dmvName || '').trim(), codePrice: num(p.dmvCode, 250), drivePrice: num(p.dmvDrive, 500),
             questions: num(p.dmvQ, 10), passScore: num(p.dmvPass, 8), maxFaults: num(p.dmvFaults, 5), speedTolerance: num(p.dmvTol, 8),
             categories: { car: !!p.dmvCar, moto: !!p.dmvMoto, truck: !!p.dmvTruck },
@@ -1821,6 +1822,8 @@ function pedEditor() {
                 <p class="hint">Quand un joueur parle à ce PNJ, le catalogue de la concession s'ouvre : catégories, recherche, fiches avec
                     caractéristiques. Il peut seulement <b>regarder</b> : l'achat se fait avec un vendeur. Les véhicules masqués n'apparaissent pas.
                     Nécessite la ressource <b>elyzea_concess</b>.${p.shopOn || p.buyerOn || p.garageOn || p.clothingOn ? ' Avec ce rôle, parler au PNJ ouvre le catalogue : ses autres rôles ne sont plus proposés.' : ''}</p>
+                <div class="form-grid" style="grid-template-columns:1fr;margin-bottom:12px"><div><label>Concession</label><select class="input" data-pe="catConcess">
+                    <option value="car" ${p.catConcess !== 'air' ? 'selected' : ''}>🚘 Concession automobile</option><option value="air" ${p.catConcess === 'air' ? 'selected' : ''}>✈️ Concession aérienne (avions, hélicoptères)</option></select></div></div>
                 <div class="form-grid" style="grid-template-columns:2fr 1fr;margin-bottom:12px"><div><label>Titre affiché</label><input class="input" data-pe="catName" value="${esc(p.catName)}" placeholder="ex : Catalogue Premium Deluxe"></div>
                     <div><label>Durée de l'essai (secondes)</label><input class="input" type="number" min="30" max="1800" data-pe="catTestDuration" value="${esc(p.catTestDuration)}"></div></div>
                 ${tog('catTest', '🏁 Essai routier', 'Bouton « Essai » sur chaque véhicule du catalogue')}

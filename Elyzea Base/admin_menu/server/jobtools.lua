@@ -15,6 +15,7 @@ local GROUPS = {
     police = { perm = 'police_staff', label = 'Police', cfg = function() return Config.Police or {} end },
     lscustom = { perm = 'lscustom_staff', label = 'LsCustom', cfg = function() return Config.LsCustom or {} end },
     concess = { perm = 'concess_staff', label = 'Concession', cfg = function() return Config.Concess or {} end },
+    concessair = { perm = 'concessair_staff', label = 'Concession aérienne', cfg = function() return Config.ConcessAir or {} end },
     entreprises = { perm = 'entreprises_staff', label = 'Entreprises', cfg = function()
         local ok, list = pcall(function() return exports.elyzea_entreprises:GetJobNames() end)
         return { jobs = ok and list or {} }
@@ -38,8 +39,8 @@ function groupJobsRaw(g)
     local list, seen = {}, {}
     local function add(n) n = tostring(n) if not seen[n] then seen[n] = true list[#list + 1] = n end end
     for _, j in ipairs(cfg.jobs or {}) do add(j) end
-    if g == 'lscustom' or g == 'concess' then
-        local res = cfg.resource or (g == 'concess' and 'elyzea_concess' or 'elyzea_lscustom')
+    if g == 'lscustom' or g == 'concess' or g == 'concessair' then
+        local res = cfg.resource or (g == 'concess' and 'elyzea_concess' or g == 'concessair' and 'elyzea_concess_air' or 'elyzea_lscustom')
         if GetResourceState(res) == 'started' then
             local ok, name = pcall(function() return exports[res]:GetJobName() end)
             if ok and name then add(name) end
@@ -309,6 +310,8 @@ end }
 -- ---------------------------------------------------------
 AddEventHandler('onResourceStart', function(res)
     if res == 'elyzea_police' or res == 'elyzea_lscustom' or res == 'elyzea_concess' or res == 'elyzea_ems' then
+        SetTimeout(4000, seedAll)
+    elseif res == 'elyzea_concess_air' or res == 'elyzea_entreprises' then
         SetTimeout(4000, seedAll)
     end
 end)
