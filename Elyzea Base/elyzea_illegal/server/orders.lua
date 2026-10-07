@@ -1,7 +1,7 @@
 -- =========================================================
 --  ELYZEA ILLÉGAL - COMMANDES ILLÉGALES
 --  Catalogue : le staff choisit, groupe par groupe (ou pour tous),
---  ce qui peut être commandé (objet ox_inventory) et à quel prix.
+--  ce qui peut être commandé (objet elyzea_inventory) et à quel prix.
 --  (Config.Orders.playerCanCreate : les grades autorisés aussi, sans objet.)
 --
 --  Cycle : un membre passe commande → le coffre du groupe paie
@@ -13,13 +13,13 @@ local U = Illegal.Utils
 
 local function validPayment(p) return p == 'clean' or p == 'dirty' or p == 'both' end
 
--- Objets ox_inventory (pour le choix du staff), relus au plus toutes les 60 s
+-- Objets elyzea_inventory (pour le choix du staff), relus au plus toutes les 60 s
 local itemsCache, itemsTime = nil, -1e9
 function Orders.itemList()
     if itemsCache and GetGameTimer() - itemsTime < 60000 then return itemsCache end
     local list, map = {}, {}
-    if GetResourceState('ox_inventory') == 'started' then
-        local ok, items = pcall(function() return exports.ox_inventory:Items() end)
+    if GetResourceState('elyzea_inventory') == 'started' then
+        local ok, items = pcall(function() return exports.elyzea_inventory:Items() end)
         if ok and type(items) == 'table' then
             for name, it in pairs(items) do
                 if type(it) == 'table' then
@@ -55,7 +55,7 @@ local function readOrder(actor, data, current)
     if actor.isAdmin then
         local item = itemName
         if item ~= '' and not item:match('^[%w_]+$') then return nil, 'Nom d\'objet invalide (ex : weapon_pistol).' end
-        if item ~= '' and next(items.map) and not items.map[item] then return nil, ('L\'objet « %s » n\'existe pas dans ox_inventory.'):format(item) end
+        if item ~= '' and next(items.map) and not items.map[item] then return nil, ('L\'objet « %s » n\'existe pas dans elyzea_inventory.'):format(item) end
         o.item = item ~= '' and item or nil
         o.itemCount = U.int(data.itemCount, 1, 1000) or 1
     end

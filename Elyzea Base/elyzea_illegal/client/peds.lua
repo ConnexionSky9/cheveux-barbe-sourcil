@@ -21,7 +21,7 @@ local function spawn(def)
         Spawned[def.groupId] = { entity = 0, version = def.version, invalid = true }
         return
     end
-    if not lib.requestModel(hash, 5000) then return end
+    if not LoadModel(hash, 5000) then return end
     local ped = CreatePed(4, hash, def.x, def.y, def.z, def.h, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetEntityInvincible(ped, true)

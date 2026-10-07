@@ -3,7 +3,7 @@
 --
 --  SÉCURITÉ : le client n'envoie JAMAIS son groupe. À chaque appel
 --  le serveur relit lui-même :
---    personnage (Qbox) → groupe → grade → permissions,
+--    personnage (elyzea_core) → groupe → grade → permissions,
 --  vérifie que la tablette a bien été ouverte (F5 ou à côté du PNJ),
 --  que l'onglet est autorisé, puis la permission de l'action.
 -- =========================================================
@@ -231,7 +231,7 @@ RegisterNetEvent('illegal:server:action', function(name, data)
 end)
 
 -- Historique financier plus ancien (pagination)
-lib.callback.register('illegal:server:history', function(src, beforeId)
+Ely.callback.register('illegal:server:history', function(src, beforeId)
     if not Players.rateLimit(src, 'history', 5, 3000) then return nil end
     local s, ctx = Sessions[src], context(src)
     if not s or not ctx or ctx.group.id ~= s.groupId or not Tablet.tabsOf(s, ctx.group).finances then return nil end

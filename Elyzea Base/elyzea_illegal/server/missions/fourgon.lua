@@ -892,9 +892,7 @@ actions.relay = function(run, src, phase)
         st.transfer = spawnVehicle(run, T.transferModel, st.relay.vehiclePos, ('ILL%03d'):format(math.random(0, 999)))
         if st.transfer then
             SetVehicleDoorsLocked(st.transfer, 1)
-            if GetResourceState('qbx_vehiclekeys') == 'started' then
-                for s in pairs(run.participants) do pcall(function() exports.qbx_vehiclekeys:GiveKeys(s, st.transfer) end) end
-            end
+            for s in pairs(run.participants) do pcall(function() exports.elyzea_core:GiveKeys(s, st.transfer) end) end
         end
     end
     Missions.useInfo(run, 'password')

@@ -471,7 +471,7 @@ function Missions.onDutyPolice()
         local ok, list = pcall(function() return exports[res]:GetOnDutyPolice() end)
         if ok and type(list) == 'table' then return list end
     end
-    -- Secours : métier Qbox de la liste Config.Missions.policeJobs, en service
+    -- Secours : métier elyzea_core de la liste Config.Missions.policeJobs, en service
     local jobs = {}
     for _, j in ipairs(Config.Missions.policeJobs or {}) do jobs[j] = true end
     local list = {}
@@ -705,7 +705,7 @@ function Missions.complete(run, src)
                     local ok = Stashes and Stashes.addItem(g, it.item, count)
                     if ok then reward.items[#reward.items + 1] = { item = it.item, count = count } end
                     Log(actor, g.id, ok and 'Récompense : objets' or 'Récompense : objets non ajoutés', ('%dx %s %s le coffre de %s'):format(count, it.item,
-                        ok and 'dans' or 'impossible à mettre dans (coffre plein ou ox_inventory absent)', g.label))
+                        ok and 'dans' or 'impossible à mettre dans (coffre plein ou elyzea_inventory absent)', g.label))
                 end
             end
         end
@@ -822,7 +822,7 @@ RegisterNetEvent('illegal:mission:action', function(runId, name, a, b)
 end)
 
 AddEventHandler('playerDropped', function() Missions.leave(source, 'Déconnexion') end)
-AddEventHandler('QBCore:Server:OnPlayerUnload', function(src) if tonumber(src) then Missions.leave(tonumber(src), 'Changement de personnage') end end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src) if tonumber(src) then Missions.leave(tonumber(src), 'Changement de personnage') end end)
 
 -- Reconnexion de la ressource cliente : renvoi de l'état
 RegisterNetEvent('illegal:mission:resync', function()

@@ -42,7 +42,7 @@ RegisterNUICallback('gps', function(body, cb)
 end)
 
 RegisterNUICallback('history', function(body, cb)
-    local list = lib.callback.await('illegal:server:history', false, body and body.before)
+    local list = Ely.callback.await('illegal:server:history', false, body and body.before)
     cb(list or {})
 end)
 

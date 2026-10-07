@@ -1,5 +1,5 @@
 -- =========================================================
---  ELYZEA ILLÉGAL - BASE DE DONNÉES (oxmysql)
+--  ELYZEA ILLÉGAL - BASE DE DONNÉES (elyzea_core)
 --  Seule couche qui écrit du SQL. Les tables sont créées au
 --  démarrage depuis sql/install.sql si elles n'existent pas.
 -- =========================================================
@@ -164,7 +164,7 @@ function DB.touchMember(cid, name)
     MySQL.update('UPDATE illegal_members SET last_seen = NOW(), name = ? WHERE citizenid = ?', { name, cid })
 end
 
--- Personnage existant (même hors ligne) dans la table Qbox
+-- Personnage existant (même hors ligne) dans la table players (elyzea_core)
 function DB.findCharacter(cid)
     local ok, row = pcall(MySQL.single.await, 'SELECT citizenid, charinfo FROM players WHERE citizenid = ?', { cid })
     if not ok or not row then return nil end

@@ -58,7 +58,7 @@ end
 
 local function makePed(model, x, y, z, h)
     local hash = joaat(model)
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then
         print(('^1[ILLEGAL] Modèle de PNJ inconnu : %s^7'):format(model))
         return nil
     end
@@ -90,7 +90,7 @@ local function spawn(a)
     -- Le chef, bras croisés, face au sac
     local boss = makePed(C.bossModel, d.x, d.y, d.z, d.h)
     if boss then
-        if lib.requestAnimDict(C.bossAnim.dict, 5000) then
+        if LoadAnimDict(C.bossAnim.dict, 5000) then
             TaskPlayAnim(boss, C.bossAnim.dict, C.bossAnim.name, 8.0, -8.0, -1, 1, 0.0, false, false, false)
         end
         a.peds[#a.peds + 1] = boss
@@ -115,7 +115,7 @@ local function spawn(a)
     -- Le sac, posé devant le chef
     local bag = bagCoords(d)
     local hash = joaat(C.bagModel)
-    if lib.requestModel(hash, 5000) then
+    if LoadModel(hash, 5000) then
         a.bag = CreateObject(hash, bag.x, bag.y, groundZ(bag.x, bag.y, d.z), false, false, false)
         PlaceObjectOnGroundProperly(a.bag)
         FreezeEntityPosition(a.bag, true)
@@ -198,7 +198,7 @@ CreateThread(function()
     end
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
+RegisterNetEvent('elyzea:client:playerUnloaded', function()
     for id in pairs(Active) do removeDelivery(id) end
 end)
 

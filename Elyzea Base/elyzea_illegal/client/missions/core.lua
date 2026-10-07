@@ -99,7 +99,7 @@ function M.progress(label, seconds, dict, anim, anchor, maxDist)
     M.busy = true
     Prompt.hide()
     if anchor then TaskTurnPedToFaceCoord(ped, anchor.x, anchor.y, anchor.z, 600) Wait(600) end
-    local hasAnim = dict and dict ~= '' and anim and anim ~= '' and lib.requestAnimDict(dict, 2000)
+    local hasAnim = dict and dict ~= '' and anim and anim ~= '' and LoadAnimDict(dict, 2000)
     if hasAnim then TaskPlayAnim(ped, dict, anim, 6.0, -6.0, -1, 1, 0, false, false, false) end
     SendNUIMessage({ action = 'dprogress', show = true, label = label, time = seconds })
     local start, ok = GetGameTimer(), true

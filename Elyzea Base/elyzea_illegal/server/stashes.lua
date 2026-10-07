@@ -1,10 +1,10 @@
 -- =========================================================
 --  ELYZEA ILLÉGAL - COFFRE DU GROUPE
 --  Un coffre par groupe, placé par le staff (objet, poids, places).
---  Inventaire ox_inventory « illegal_stash_<id du groupe> ».
+--  Inventaire elyzea_inventory « illegal_stash_<id du groupe> ».
 --  Ouverture : membre du groupe, permission « stash » de son grade
 --  (le OG la donne aux grades qu'il veut), à côté du coffre.
---  Le serveur vérifie tout ; un hook ox_inventory bloque aussi
+--  Le serveur vérifie tout ; un contrôle d'accès elyzea_inventory bloque aussi
 --  toute ouverture qui ne passerait pas par ici.
 -- =========================================================
 Stashes = {}
@@ -13,13 +13,14 @@ local S = Config.Stash
 
 function Stashes.invId(groupId) return ('illegal_stash_%d'):format(groupId) end
 
-local function oxStarted() return GetResourceState('ox_inventory') == 'started' end
+local function oxStarted() return GetResourceState('elyzea_inventory') == 'started' end
+local inv = exports.elyzea_inventory
 
 local function register(g)
     if not g.stash or not oxStarted() then return end
     local s = g.stash
     pcall(function()
-        exports.ox_inventory:RegisterStash(Stashes.invId(g.id), ('%s · %s'):format(g.label, s.label), s.slots, s.weight * 1000, false, nil,
+        inv:RegisterStash(Stashes.invId(g.id), ('%s · %s'):format(g.label, s.label), s.slots, s.weight * 1000, false, nil,
             vector3(s.x, s.y, s.z))
     end)
 end
@@ -31,10 +32,10 @@ function Stashes.addItem(g, item, count)
     if g.stash then register(g)
     else
         pcall(function()
-            exports.ox_inventory:RegisterStash(Stashes.invId(g.id), ('%s · Coffre'):format(g.label), S.defaultSlots, S.defaultWeight * 1000, false)
+            inv:RegisterStash(Stashes.invId(g.id), ('%s · Coffre'):format(g.label), S.defaultSlots, S.defaultWeight * 1000, false)
         end)
     end
-    local ok, res = pcall(function() return exports.ox_inventory:AddItem(Stashes.invId(g.id), item, count) end)
+    local ok, res = pcall(function() return inv:AddItem(Stashes.invId(g.id), item, count) end)
     return ok and res == true
 end
 
@@ -48,18 +49,16 @@ function Stashes.canOpen(src, g)
     return #(vector3(pos.x, pos.y, pos.z + 1.0) - vector3(g.stash.x, g.stash.y, g.stash.z + 0.5)) <= S.interactDistance + 2.0
 end
 
--- Hook ox_inventory : aucune ouverture d'un coffre de groupe sans les bons droits
-local hookId
+-- Contrôle d'accès elyzea_inventory : aucune ouverture d'un coffre de groupe sans les bons droits
 local function registerHook()
     if not oxStarted() then return end
-    local ok, id = pcall(function()
-        return exports.ox_inventory:registerHook('openInventory', function(payload)
-            local gid = tonumber(tostring(payload.inventoryId or ''):match('^illegal_stash_(%d+)$'))
-            if not gid then return end
-            return Stashes.canOpen(payload.source, Cache.group(gid))
-        end, { inventoryFilter = { '^illegal_stash_%d+$' } })
+    pcall(function()
+        inv:RegisterStashAccess('illegal_stash_', function(src, stashId)
+            local gid = tonumber(tostring(stashId or ''):match('^illegal_stash_(%d+)$'))
+            if not gid then return true end
+            return Stashes.canOpen(src, Cache.group(gid))
+        end)
     end)
-    if ok then hookId = id end
 end
 
 function Stashes.registerAll()
@@ -68,10 +67,7 @@ function Stashes.registerAll()
 end
 
 AddEventHandler('onServerResourceStart', function(res)
-    if res == 'ox_inventory' and Cache.ready then SetTimeout(1000, Stashes.registerAll) end
-end)
-AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() and hookId then pcall(function() exports.ox_inventory:removeHooks(hookId) end) end
+    if res == 'elyzea_inventory' and Cache.ready then SetTimeout(1000, Stashes.registerAll) end
 end)
 
 -- ---------------------------------------------------------
@@ -146,7 +142,7 @@ function Stashes.set(actor, g, data)
     return true, cur and 'Coffre enregistré.' or 'Coffre placé.'
 end
 
--- Le contenu reste enregistré dans ox_inventory : replacer un coffre le retrouve
+-- Le contenu reste enregistré dans elyzea_inventory : replacer un coffre le retrouve
 function Stashes.remove(actor, g)
     if not g.stash then return false, 'Ce groupe n\'a pas de coffre.' end
     if DB.deleteStash(g.id) == nil then return false, 'Erreur de la base de données.' end
@@ -169,7 +165,7 @@ RegisterNetEvent('illegal:server:openStash', function(groupId)
     if not mg or mg.id ~= g.id then return Players.notify(src, 'Ce coffre n\'appartient pas à ton groupe.', 'error') end
     if not Cache.hasPerm(grade, 'stash') then return Players.notify(src, 'Ton grade n\'a pas accès au coffre du groupe.', 'error') end
     if not Stashes.canOpen(src, g) then return end   -- trop loin
-    if not oxStarted() then return Players.notify(src, 'ox_inventory n\'est pas démarré.', 'error') end
+    if not oxStarted() then return Players.notify(src, 'elyzea_inventory n\'est pas démarré.', 'error') end
     register(g)
-    pcall(function() exports.ox_inventory:forceOpenInventory(src, 'stash', Stashes.invId(g.id)) end)
+    pcall(function() inv:OpenInventory(src, 'stash', Stashes.invId(g.id)) end)
 end)

@@ -10,7 +10,7 @@
 -- =========================================================
 local U = Illegal.Utils
 local Selected = {}   -- [src] = groupId ouvert dans le menu staff
-local WantItems = {}  -- [src] = true : liste des objets ox_inventory à envoyer une fois (gardée ensuite par l'interface)
+local WantItems = {}  -- [src] = true : liste des objets elyzea_inventory à envoyer une fois (gardée ensuite par l'interface)
 AddEventHandler('playerDropped', function() Selected[source] = nil WantItems[source] = nil end)
 
 local function staffActor(src)

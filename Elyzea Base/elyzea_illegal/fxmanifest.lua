@@ -8,7 +8,7 @@ description 'Elyzea Illégal : gangs, organisations et cartels (grades, membres,
 version '1.0.0'
 
 shared_scripts {
-    '@ox_lib/init.lua',
+    '@elyzea_core/lib/ely.lua',
     'config.lua',
     'shared/constants.lua',
     'shared/utils.lua',
@@ -27,7 +27,7 @@ client_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@elyzea_core/lib/MySQL.lua',
     'server/database.lua',
     'server/logs.lua',
     'server/players.lua',
@@ -58,4 +58,4 @@ files {
     'html/logo.png',
 }
 
-dependencies { 'qbx_core', 'ox_lib', 'oxmysql' }
+dependencies { 'elyzea_core', 'elyzea_inventory' }

@@ -87,7 +87,7 @@ end)
 local function spawnCrate(run)
     local l, c = run.location, run.crate
     local hash = joaat(c.model)
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then return end
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then return end
     S.crate = CreateObject(hash, l.x, l.y, groundZ(l.x, l.y, l.z), false, false, false)
     PlaceObjectOnGroundProperly(S.crate)
     FreezeEntityPosition(S.crate, true)
@@ -106,7 +106,7 @@ end
 local function spawnDeliveryPed(run)
     local d = run.delivery
     local hash = joaat(d.ped)
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then return end
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then return end
     local ped = CreatePed(4, hash, d.x, d.y, groundZ(d.x, d.y, d.z), d.h or 0.0, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetEntityInvincible(ped, true)

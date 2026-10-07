@@ -17,7 +17,7 @@ end
 local function spawn(d)
     local hash = joaat(d.model)
     Spawned[d.groupId] = { version = d.version }
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then
         print(('^1[ILLEGAL] Modèle de coffre inconnu : %s^7'):format(d.model))
         return
     end

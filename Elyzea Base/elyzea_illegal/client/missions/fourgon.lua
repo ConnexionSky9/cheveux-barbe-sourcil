@@ -20,7 +20,7 @@ end
 
 local function spawnProp(model, x, y, z, h)
     local hash = joaat(model)
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then return nil end
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then return nil end
     local o = CreateObject(hash, x, y, groundZ(x, y, z), false, false, false)
     SetEntityHeading(o, h or 0.0)
     PlaceObjectOnGroundProperly(o)
@@ -31,7 +31,7 @@ end
 
 local function spawnPed(model, x, y, z, h, scenario)
     local hash = joaat(model)
-    if not IsModelInCdimage(hash) or not lib.requestModel(hash, 5000) then return nil end
+    if not IsModelInCdimage(hash) or not LoadModel(hash, 5000) then return nil end
     local p = CreatePed(4, hash, x, y, groundZ(x, y, z), h or 0.0, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetEntityInvincible(p, true)

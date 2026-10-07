@@ -1,16 +1,16 @@
 -- =========================================================
---  ELYZEA ILLÉGAL - JOUEURS (Qbox), ARGENT DU JOUEUR, ANTI-SPAM
+--  ELYZEA ILLÉGAL - JOUEURS (elyzea_core), ARGENT DU JOUEUR, ANTI-SPAM
 -- =========================================================
 Players = {}
 
 function Players.get(src)
     src = tonumber(src)
     if not src or src <= 0 then return nil end
-    local ok, p = pcall(function() return exports.qbx_core:GetPlayer(src) end)
+    local ok, p = pcall(function() return exports.elyzea_core:GetPlayer(src) end)
     return ok and p or nil
 end
 
--- citizenid du personnage joué : toujours relu sur Qbox (jamais envoyé par le client)
+-- citizenid du personnage joué : toujours relu sur elyzea_core (jamais envoyé par le client)
 function Players.cid(src)
     local p = Players.get(src)
     return p and p.PlayerData and p.PlayerData.citizenid or nil
@@ -26,7 +26,7 @@ function Players.charName(src)
 end
 
 function Players.bySrcCid(cid)
-    local ok, p = pcall(function() return exports.qbx_core:GetPlayerByCitizenId(cid) end)
+    local ok, p = pcall(function() return exports.elyzea_core:GetPlayerByCitizenId(cid) end)
     if ok and p and p.PlayerData then return p.PlayerData.source end
     return nil
 end
@@ -59,7 +59,7 @@ AddEventHandler('playerDropped', function() Buckets[source] = nil end)
 
 -- ---------------------------------------------------------
 --  Argent du joueur
---  Propre : compte Qbox. Sale : objet ox_inventory ou compte Qbox.
+--  Propre : compte elyzea_core. Sale : objet elyzea_inventory ou compte elyzea_core.
 --  Chaque fonction renvoie true seulement si l'opération a réellement eu lieu.
 -- ---------------------------------------------------------
 local function dirtyIsItem() return Config.DirtyMoney.type == 'item' end
@@ -71,7 +71,7 @@ function Players.getMoney(src, account)
         return tonumber(p.PlayerData.money and p.PlayerData.money[Config.CleanMoney.account]) or 0
     end
     if dirtyIsItem() then
-        local ok, n = pcall(function() return exports.ox_inventory:GetItemCount(src, Config.DirtyMoney.item) end)
+        local ok, n = pcall(function() return exports.elyzea_inventory:GetItemCount(src, Config.DirtyMoney.item) end)
         return ok and tonumber(n) or 0
     end
     return tonumber(p.PlayerData.money and p.PlayerData.money[Config.DirtyMoney.account]) or 0
@@ -85,7 +85,7 @@ function Players.removeMoney(src, account, amount, reason)
         return p.Functions.RemoveMoney(Config.CleanMoney.account, amount, reason) == true
     end
     if dirtyIsItem() then
-        local ok, res = pcall(function() return exports.ox_inventory:RemoveItem(src, Config.DirtyMoney.item, amount) end)
+        local ok, res = pcall(function() return exports.elyzea_inventory:RemoveItem(src, Config.DirtyMoney.item, amount) end)
         return ok and res == true
     end
     return p.Functions.RemoveMoney(Config.DirtyMoney.account, amount, reason) == true
@@ -98,9 +98,9 @@ function Players.addMoney(src, account, amount, reason)
         return p.Functions.AddMoney(Config.CleanMoney.account, amount, reason) == true
     end
     if dirtyIsItem() then
-        local okCarry, can = pcall(function() return exports.ox_inventory:CanCarryItem(src, Config.DirtyMoney.item, amount) end)
+        local okCarry, can = pcall(function() return exports.elyzea_inventory:CanCarryItem(src, Config.DirtyMoney.item, amount) end)
         if okCarry and can == false then return false end
-        local ok, res = pcall(function() return exports.ox_inventory:AddItem(src, Config.DirtyMoney.item, amount) end)
+        local ok, res = pcall(function() return exports.elyzea_inventory:AddItem(src, Config.DirtyMoney.item, amount) end)
         return ok and res == true
     end
     return p.Functions.AddMoney(Config.DirtyMoney.account, amount, reason) == true
@@ -108,10 +108,10 @@ end
 
 -- Objet d'une commande livrée
 function Players.giveItem(src, item, count)
-    if GetResourceState('ox_inventory') ~= 'started' then return false end
-    local okCarry, can = pcall(function() return exports.ox_inventory:CanCarryItem(src, item, count) end)
+    if GetResourceState('elyzea_inventory') ~= 'started' then return false end
+    local okCarry, can = pcall(function() return exports.elyzea_inventory:CanCarryItem(src, item, count) end)
     if okCarry and can == false then return false end
-    local ok, res = pcall(function() return exports.ox_inventory:AddItem(src, item, count) end)
+    local ok, res = pcall(function() return exports.elyzea_inventory:AddItem(src, item, count) end)
     return ok and res == true
 end
 

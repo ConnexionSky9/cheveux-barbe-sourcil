@@ -32,15 +32,24 @@ function Prompt.hide(owner)
 end
 RegisterNetEvent('illegal:client:notify', function(msg, kind) Notify(msg, kind) end)
 
+-- Chargement d'un modèle / d'une animation : renvoie nil au lieu d'une erreur si c'est impossible
+function LoadModel(model, timeout)
+    local ok, res = pcall(Ely.requestModel, model, timeout)
+    return ok and res or nil
+end
+function LoadAnimDict(dict, timeout)
+    local ok, res = pcall(Ely.requestAnimDict, dict, timeout)
+    return ok and res or nil
+end
+
 RegisterNetEvent('illegal:client:membership', function(data)
     Membership = type(data) == 'table' and data or { inGroup = false }
 end)
 
 -- État demandé au serveur quand le personnage est prêt (ou au démarrage de la ressource)
 local function hello() TriggerServerEvent('illegal:server:hello') end
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', hello)
-RegisterNetEvent('qbx_core:client:playerLoaded', hello)
-RegisterNetEvent('QBCore:Client:OnPlayerUnload', function() Membership = { inGroup = false } end)
+RegisterNetEvent('elyzea:client:playerLoaded', hello)
+RegisterNetEvent('elyzea:client:playerUnloaded', function() Membership = { inGroup = false } end)
 
 CreateThread(function()
     while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end

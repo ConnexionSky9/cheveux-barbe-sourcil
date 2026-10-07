@@ -38,7 +38,7 @@ end)
 RegisterNUICallback('f5close', function(_, cb) closeF5() cb('ok') end)
 
 if Config.F5.enabled then
-    lib.addKeybind({
+    Ely.addKeybind({
         name = 'illegal_f5',
         description = 'Menu du groupe illégal',
         defaultKey = Config.F5.key,

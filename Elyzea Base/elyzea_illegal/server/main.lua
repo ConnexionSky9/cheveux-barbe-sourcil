@@ -48,12 +48,10 @@ local function onLoaded(src)
 end
 
 -- Évènements serveur uniquement (AddEventHandler) : un client ne peut pas les déclencher
-local function fromPlayer(player)
-    local src = player and player.PlayerData and player.PlayerData.source
+AddEventHandler('elyzea:server:playerLoaded', function(src)
+    src = tonumber(src)
     if src then onLoaded(src) end
-end
-AddEventHandler('QBCore:Server:PlayerLoaded', fromPlayer)
-AddEventHandler('qbx_core:server:playerLoaded', fromPlayer)
+end)
 
 -- Le client demande son état (démarrage de la ressource, reconnexion…)
 RegisterNetEvent('illegal:server:hello', function()
@@ -80,7 +78,7 @@ local function onUnload(src)
         Sync.group(g.id)
     end
 end
-AddEventHandler('QBCore:Server:OnPlayerUnload', function(src) if tonumber(src) then onUnload(tonumber(src)) end end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src) if tonumber(src) then onUnload(tonumber(src)) end end)
 AddEventHandler('playerDropped', function() onUnload(source) end)
 
 -- ---------------------------------------------------------

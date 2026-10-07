@@ -350,11 +350,33 @@ end
 
 local function stashKey(id, owner) return owner and (tostring(id) .. ':' .. tostring(owner)) or tostring(id) end
 
+-- Ancienne table ox_inventory présente en base ? (vérifié une seule fois)
+local oxTable
+local function hasOxTable()
+    if oxTable == nil then
+        local ok, n = pcall(MySQL.scalar.await, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ox_inventory'")
+        oxTable = ok and (tonumber(n) or 0) > 0
+    end
+    return oxTable
+end
+
 local function loadContainer(c)
     if c.loaded then return end
     c.loaded = true
     local row = MySQL.single.await('SELECT `items` FROM `elyzea_stashes` WHERE `id` = ?', { c.id })
     local data = row and Shared.DecodeList(row.items) or {}
+    -- Première ouverture : reprise du contenu de l'ancien coffre ox_inventory (même nom, même propriétaire)
+    if not row and hasOxTable() then
+        local ok, old = pcall(MySQL.scalar.await, 'SELECT `data` FROM `ox_inventory` WHERE `name` = ? AND `owner` = ? LIMIT 1',
+            { c.def, c.owner and tostring(c.owner) or '' })
+        if ok and old then
+            data = Shared.DecodeList(old)
+            if #data > 0 then
+                c.dirty = true
+                print(('[elyzea_inventory] Coffre « %s » repris de l\'ancien inventaire (%d pile(s)).'):format(c.id, #data))
+            end
+        end
+    end
     for _, it in ipairs(data) do
         local name = ResolveItemName(it.name)
         local slot = int(it.slot, 1, c.size)
@@ -405,7 +427,7 @@ local function getStash(id, src)
     local key = stashKey(def.id, owner)
     local c = Containers[key]
     if not c then
-        c = { id = key, def = def.id, kind = 'stash', label = def.label, size = def.size, maxWeight = def.maxWeight,
+        c = { id = key, def = def.id, owner = owner, kind = 'stash', label = def.label, size = def.size, maxWeight = def.maxWeight,
               slots = {}, groups = def.groups, coords = def.coords, temporary = def.temporary }
         Containers[key] = c
     end

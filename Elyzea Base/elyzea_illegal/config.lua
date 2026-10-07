@@ -16,12 +16,12 @@ Config.DiscordWebhook = ''
 -- ---------------------------------------------------------
 --  Argent du joueur utilisé pour les dépôts / retraits
 -- ---------------------------------------------------------
--- Argent propre : compte Qbox (« cash » = liquide, « bank » = banque)
+-- Argent propre : compte elyzea_core (« cash » = liquide, « bank » = banque)
 Config.CleanMoney = { account = 'cash' }
 
 -- Argent sale :
---   type = 'item'    → objet d'inventaire ox_inventory (ex. black_money, markedbills)
---   type = 'account' → compte Qbox (ex. 'black_money' si ton qbx_core en a un)
+--   type = 'item'    → objet d'inventaire elyzea_inventory (ex. black_money, markedbills)
+--   type = 'account' → compte elyzea_core (à ajouter dans elyzea_core/config.lua › Config.Money.types)
 Config.DirtyMoney = { type = 'item', item = 'black_money', account = 'black_money' }
 
 -- Montant maximum d'une opération (dépôt, retrait, ajout staff, prix d'une commande)
@@ -167,7 +167,7 @@ Config.Missions = {
     },
 }
 
--- Notification « téléphone » : lb-phone est détecté automatiquement, sinon notification ox_lib.
+-- Notification « téléphone » : lb-phone est détecté automatiquement, sinon notification elyzea_core.
 -- Pour un autre téléphone, remplace cette fonction (côté client) :
 --   Config.PhoneNotify = function(title, message) exports['mon-phone']:Notify(title, message) end
 Config.PhoneNotify = nil
