@@ -227,7 +227,7 @@ CreateThread(function()
     Wait(3000)
     InitPhoneUI()
 end)
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function() CreateThread(function() Wait(2000) InitPhoneUI() end) end)
+RegisterNetEvent('elyzea:client:playerLoaded', function() CreateThread(function() Wait(2000) InitPhoneUI() end) end)
 RegisterNetEvent('esx:playerLoaded', function() CreateThread(function() Wait(2000) InitPhoneUI() end) end)
 
 -- ---------------------------------------------------------
@@ -325,7 +325,7 @@ RegisterNetEvent('elyzea_aura:client:bankUpdate', function(balance)
     SendNUIMessage({ action = 'bank', data = { balance = balance } })
 end)
 
-RegisterNetEvent('QBCore:Client:OnMoneyChange', function(moneyType)
+RegisterNetEvent('elyzea:client:onMoneyChange', function(moneyType)
     if moneyType ~= 'bank' then return end
     CreateThread(function()
         local b = ServerCallback('getBalance')
@@ -1127,6 +1127,9 @@ local CoreObj, EsxObj
 local function SetVehicleProps(veh, props)
     if type(props) == 'string' then props = json.decode(props) end
     if type(props) ~= 'table' then return end
+    if GetResourceState('elyzea_core') == 'started' then
+        pcall(function() exports.elyzea_core:SetVehicleProperties(veh, props) end); return
+    end
     if GetResourceState('qb-core') == 'started' then
         CoreObj = CoreObj or exports['qb-core']:GetCoreObject()
         if CoreObj and CoreObj.Functions and CoreObj.Functions.SetVehicleProperties then

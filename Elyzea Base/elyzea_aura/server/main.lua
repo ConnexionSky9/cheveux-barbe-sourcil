@@ -4,7 +4,9 @@
 local ESX, QBCore
 local Framework = Config.Framework
 if Framework == 'auto' then
-    if GetResourceState('qbx_core') ~= 'missing' or GetResourceState('qb-core') ~= 'missing' then
+    if GetResourceState('elyzea_core') ~= 'missing' then
+        Framework = 'elyzea'
+    elseif GetResourceState('qb-core') ~= 'missing' then
         Framework = 'qb'
     elseif GetResourceState('es_extended') ~= 'missing' then
         Framework = 'esx'
@@ -15,7 +17,17 @@ end
 if Framework == 'esx' then
     ESX = exports['es_extended']:getSharedObject()
 elseif Framework == 'qb' then
-    QBCore = exports['qb-core']:GetCoreObject() -- Qbox fournit 'qb-core' via son pont
+    QBCore = exports['qb-core']:GetCoreObject()
+elseif Framework == 'elyzea' then
+    -- Base Elyzea : le joueur elyzea_core a la même forme (PlayerData, Functions) et les mêmes tables
+    local core = exports.elyzea_core
+    QBCore = {
+        Functions = {
+            GetPlayer = function(src) return core:GetPlayer(src) end,
+            GetPlayerByCitizenId = function(cid) return core:GetPlayerByCitizenId(cid) end,
+        },
+        Shared = { Items = {} },
+    }
 end
 print(('[elyzea_aura] Elyzea Aura 5 démarré (framework : %s)'):format(Framework))
 
@@ -159,10 +171,10 @@ function EffectiveUploadMethod()
     return m
 end
 
--- Appel sécurisé d'une fonction d'ox_inventory : renvoie nil si elle n'existe pas
+-- Appel sécurisé d'une fonction d'elyzea_inventory : renvoie nil si elle n'existe pas
 local function Ox(fn, ...)
-    if GetResourceState('ox_inventory') ~= 'started' then return nil end
-    local ok, res = pcall(function(...) return exports.ox_inventory[fn](exports.ox_inventory, ...) end, ...)
+    if GetResourceState('elyzea_inventory') ~= 'started' then return nil end
+    local ok, res = pcall(function(...) return exports.elyzea_inventory[fn](exports.elyzea_inventory, ...) end, ...)
     if ok then return res end
     return nil
 end
@@ -229,7 +241,7 @@ local function ResetPlayer(src)
 end
 
 AddEventHandler('esx:playerLoaded', function(src) ResetPlayer(src) end)
-RegisterNetEvent('QBCore:Server:OnPlayerLoaded', function() ResetPlayer(source) end)
+AddEventHandler('elyzea:server:playerLoaded', function(src) ResetPlayer(src) end)
 
 CreateThread(function()
     Wait(1000)
@@ -1414,12 +1426,12 @@ for _, cat in ipairs(Config.Delivery.Categories) do
     for _, it in ipairs(cat.items) do Catalog[it.name] = { label = it.label, price = it.price, category = cat.id } end
 end
 
-local function HasOx() return GetResourceState('ox_inventory') == 'started' end
+local function HasOx() return GetResourceState('elyzea_inventory') == 'started' end
 
 -- L'item existe-t-il dans l'inventaire du serveur ?
 local function ItemExists(item)
     if HasOx() then
-        local ok, data = pcall(function() return exports.ox_inventory:Items(item) end)
+        local ok, data = pcall(function() return exports.elyzea_inventory:Items(item) end)
         if ok then return data ~= nil end
     end
     if QBCore and QBCore.Shared and QBCore.Shared.Items and next(QBCore.Shared.Items) then return QBCore.Shared.Items[item] ~= nil end
@@ -1446,13 +1458,13 @@ CreateThread(function()
     for name in pairs(Catalog) do if not ItemExists(name) then missing[#missing + 1] = name end end
     if #missing > 0 then
         print(('^3[elyzea_aura] Livrézy : ces articles n\'existent pas dans ton inventaire et sont masqués : %s^0'):format(table.concat(missing, ', ')))
-        print('^3[elyzea_aura] Corrige leur "name" dans Config.Delivery.Categories (voir ox_inventory/data/items.lua).^0')
+        print('^3[elyzea_aura] Corrige leur "name" dans Config.Delivery.Categories (voir elyzea_inventory/shared/items.lua et data/items.lua).^0')
     end
 end)
 
 local function GiveItem(src, item, count)
     if HasOx() then
-        local ok, res = pcall(function() return exports.ox_inventory:AddItem(src, item, count) end)
+        local ok, res = pcall(function() return exports.elyzea_inventory:AddItem(src, item, count) end)
         if ok then return res and true or false end
     end
     if QBCore then
@@ -1795,7 +1807,7 @@ AddEventHandler('playerDropped', function()
 end)
 
 -- ---------------------------------------------------------
---  Véhicules du joueur (Qbox/QBCore : player_vehicles ; ESX : owned_vehicles)
+--  Véhicules du joueur (Elyzea/QBCore : player_vehicles ; ESX : owned_vehicles)
 -- ---------------------------------------------------------
 local function CleanPlate(p) return (tostring(p or ''):gsub('^%s+', ''):gsub('%s+$', '')):upper() end
 
@@ -1972,10 +1984,11 @@ end)
 -- Remise des clés une fois le véhicule livré
 local function GiveVehicleKeys(src, netId, plate)
     local veh = NetworkGetEntityFromNetworkId(netId)
-    if GetResourceState('qbx_vehiclekeys') == 'started' and veh and veh ~= 0 then
-        pcall(function() exports.qbx_vehiclekeys:GiveKeys(src, veh) end)
+    if GetResourceState('elyzea_core') == 'started' then
+        pcall(function() exports.elyzea_core:GiveKeys(src, (veh and veh ~= 0) and veh or plate) end)
+    else
+        TriggerClientEvent('vehiclekeys:client:SetOwner', src, plate) -- qb-vehiclekeys et compatibles
     end
-    TriggerClientEvent('vehiclekeys:client:SetOwner', src, plate) -- qb-vehiclekeys et compatibles
 end
 
 RegisterNetEvent('elyzea_aura:server:garageComplete', function(id, netId)

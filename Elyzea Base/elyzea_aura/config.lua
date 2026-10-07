@@ -1,7 +1,6 @@
 Config = {}
 
--- 'auto' (recommandé : détecte Qbox, QBCore ou ESX) | 'esx' | 'qb' | 'standalone'
--- Qbox : 'auto' ou 'qb' (le pont qb-core de Qbox est utilisé)
+-- 'auto' (recommandé : détecte la base Elyzea, QBCore ou ESX) | 'elyzea' | 'esx' | 'qb' | 'standalone'
 Config.Framework = 'auto'
 
 -- Se déplacer (marcher, courir, conduire) avec le téléphone ouvert.
@@ -15,7 +14,7 @@ Config.ClockMode = 'real'
 -- Touche d'ouverture (modifiable par chaque joueur dans Paramètres > Raccourcis > FiveM)
 Config.OpenKey = 'F1'
 
--- Exiger un item "phone" dans l'inventaire (ox_inventory, ESX ou QBCore détectés automatiquement)
+-- Exiger un item "phone" dans l'inventaire (elyzea_inventory, ESX ou QBCore détectés automatiquement)
 Config.RequireItem = false
 Config.ItemName = 'phone'
 
@@ -166,9 +165,8 @@ Config.Delivery = {
     MaxPerItem = 10,
     Vehicles = { 'blista', 'panto', 'issi2', 'asea' },
     Peds = { 's_m_y_busboy_01', 'a_m_y_hipster_01', 'a_f_y_hipster_02', 'a_m_y_business_02' },
-    -- Images des articles dans l'app : %s = nom de l'item (ox_inventory par défaut)
-    -- qb-inventory : 'nui://qb-inventory/html/images/%s.png'
-    ImagePath = 'nui://ox_inventory/web/images/%s.png',
+    -- Images des articles dans l'app : %s = nom de l'item (elyzea_inventory)
+    ImagePath = 'nui://elyzea_inventory/html/img/%s.png',
 
     -- Points de départ des livreurs (le plus proche du joueur est choisi)
     Shops = {
@@ -256,7 +254,7 @@ Config.Mechanic = {
 
 -- =========================================================
 --  Garage : voir ses véhicules et se faire livrer par un voiturier PNJ
---  (tables utilisées : player_vehicles pour Qbox/QBCore, owned_vehicles pour ESX)
+--  (tables utilisées : player_vehicles pour la base Elyzea / QBCore, owned_vehicles pour ESX)
 -- =========================================================
 Config.Garage = {
     Enabled = true,

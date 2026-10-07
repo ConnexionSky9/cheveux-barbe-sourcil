@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_aura'
 author 'Elyzea'
-description 'Elyzea Aura 5 - Téléphone complet pour FiveM (Qbox / QBCore / ESX / Standalone)'
+description 'Elyzea Aura 5 - Téléphone complet pour FiveM (Elyzea / QBCore / ESX / Standalone)'
 version '5.2.0'
 
 shared_scripts {
@@ -16,7 +16,7 @@ client_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@elyzea_core/lib/MySQL.lua',
     'server/main.lua'
 }
 
@@ -29,5 +29,5 @@ files {
 }
 
 dependencies {
-    'oxmysql'
+    'elyzea_core'
 }
