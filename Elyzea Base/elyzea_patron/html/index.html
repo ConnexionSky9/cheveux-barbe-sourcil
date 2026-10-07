@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Menu patron Elyzea</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root { --night:#04060c; --panel:rgba(17,25,44,.72); --line:rgba(217,181,106,.14); --line-strong:rgba(217,181,106,.36);
+  --text:#edf1f8; --muted:#8f9bb4; --gold:#d9b56a; --gold-hi:#f6e2ae; --gold-lo:#9c7a3c; --ok:#4fb3a9; --bad:#e0433b;
+  --gold-grad:linear-gradient(180deg,var(--gold-hi) 0%,var(--gold) 55%,var(--gold-lo) 100%);
+  --edge:linear-gradient(90deg,#3b6fe0 0%,var(--gold) 50%,#e0433b 100%);
+  --brand:'Cinzel',Georgia,serif; --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',Arial,sans-serif; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;font-family:var(--body);color:var(--text);font-size:14px;user-select:none}
+.hidden{display:none!important}
+button,input,select{font:inherit;color:inherit}
+@keyframes rise{from{transform:translateY(16px) scale(.985);opacity:0}}
+.layer{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at center,rgba(4,6,12,.3),rgba(4,6,12,.75))}
+.panel{width:min(900px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  background:radial-gradient(120% 80% at 80% -10%,rgba(217,181,106,.14),transparent 50%),radial-gradient(90% 70% at -10% 110%,rgba(59,111,224,.08),transparent 50%),linear-gradient(160deg,#0d1528 0%,#070b16 55%,var(--night) 100%);
+  border:1px solid var(--line-strong);border-radius:22px;box-shadow:0 40px 90px rgba(0,0,0,.7),0 0 0 6px rgba(4,6,12,.9),0 0 0 7px rgba(217,181,106,.18);animation:rise .28s cubic-bezier(.2,.8,.2,1)}
+.brandbar{position:relative;display:flex;align-items:center;gap:14px;padding:18px 22px 14px}
+.brandbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--edge);opacity:.85}
+.crest{width:54px;height:54px;border-radius:50%;box-shadow:0 0 0 1px var(--gold-lo),0 0 24px rgba(217,181,106,.3)}
+.brand-txt{flex:1}
+.eyebrow{font:700 .66rem var(--brand);letter-spacing:.24em;text-transform:uppercase;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.title{font:700 1.5rem var(--brand)}
+.sub{color:var(--muted);font-size:.85rem;margin-top:2px}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);background:rgba(4,6,12,.6);color:var(--gold);cursor:pointer}
+.icon-btn:hover{background:var(--gold);color:var(--night)}
+.body{padding:18px 22px 22px;overflow-y:auto}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.stat{padding:12px 14px;border-radius:14px;background:rgba(4,6,12,.45);border:1px solid var(--line)}
+.stat b{display:block;font:700 1.35rem var(--brand)} .stat span{color:var(--muted);font-size:.8rem}
+.gold{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card{padding:16px;border-radius:16px;background:var(--panel);border:1px solid var(--line);margin-bottom:14px}
+.card h3{font:700 1.05rem var(--brand);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.row{display:grid;grid-template-columns:1.4fr 1fr auto;gap:10px;align-items:end}
+label.lab{display:block;font:600 .7rem var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-strong);background:rgba(4,6,12,.6);color:var(--text);outline:none}
+.input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,181,106,.15)}
+select.input option{background:#0d1528}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:1px solid var(--line-strong);background:rgba(24,34,58,.85);cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--gold)}
+.btn.primary{background:var(--gold-grad);border-color:var(--gold);color:#1a1406}
+.btn.danger{border-color:rgba(224,67,59,.6);color:#ffb4ae}
+.btn.small{padding:6px 10px;font-size:.85rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.list{display:flex;flex-direction:column;gap:6px}
+.li{display:grid;grid-template-columns:1fr 190px auto auto;gap:8px;align-items:center;padding:9px 12px;border-radius:12px;background:rgba(4,6,12,.45);border:1px solid var(--line)}
+.li .who b{font-weight:600} .li .who small{color:var(--muted);margin-left:6px}
+.pill{display:inline-block;padding:2px 8px;border-radius:9px;font:600 .68rem var(--display);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.pill.on{color:#7fe3d8;border-color:rgba(79,179,169,.5)} .pill.duty{color:var(--gold-hi);border-color:var(--line-strong)}
+.card h3 .input{font:500 .9rem var(--body);padding:8px 10px;letter-spacing:0}
+.empty{padding:14px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+.confirm{position:fixed;inset:0;display:grid;place-items:center;background:rgba(4,6,12,.6)}
+.confirm .box{width:min(400px,90vw);padding:22px;border-radius:18px;text-align:center;background:linear-gradient(160deg,#0d1528,#070b16);border:1px solid var(--line-strong);animation:rise .2s}
+.confirm h4{font:700 1.15rem var(--brand);margin-bottom:8px} .confirm p{color:var(--muted);margin-bottom:16px}
+.confirm .acts{display:flex;gap:10px;justify-content:center}
+</style>
+</head>
+<body>
+<div id="app" class="layer hidden"><div class="panel">
+  <header class="brandbar">
+    <img src="logo.png" class="crest" alt="">
+    <div class="brand-txt"><div class="eyebrow">Elyzea · Menu patron</div><div class="title" id="title"></div><div class="sub">Recruter, changer les grades, renvoyer</div></div>
+    <button class="icon-btn" data-close title="Fermer (Échap)">✕</button>
+  </header>
+  <div class="body" id="body"></div>
+</div></div>
+<div id="confirm" class="confirm hidden"><div class="box"><h4 id="cTitle"></h4><p id="cText"></p>
+  <div class="acts"><button class="btn" data-c="0">Annuler</button><button class="btn danger" data-c="1">Confirmer</button></div></div></div>
+<script>
+const RES = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'elyzea_patron';
+const post = (e, d = {}) => fetch(`https://${RES}/${e}`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(d) }).then((r) => r.json()).catch(() => ({}));
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (n) => `${Number(n || 0).toLocaleString('fr-FR')} $`;
+let D = null, nearby = [], q = '', confirmCb = null;
+
+const canGive = (lvl) => lvl < D.myGrade || (D.myGrade >= D.top && lvl <= D.myGrade);
+const gradeName = (lvl) => (D.grades.find((g) => g.level === lvl) || {}).name || lvl;
+const gradeOpts = (sel) => D.grades.filter((g) => canGive(g.level)).map((g) => `<option value="${g.level}" ${g.level === sel ? 'selected' : ''}>${g.isboss ? '👑 ' : ''}${esc(g.name)}</option>`).join('');
+
+function render() {
+  if (!D) return;
+  $('#title').textContent = D.job.label;
+  const m = D.members, low = q.toLowerCase();
+  const list = m.filter((x) => !low || x.name.toLowerCase().includes(low));
+  $('#body').innerHTML = `
+    <div class="stats">
+      <div class="stat"><b>${m.length}</b><span>Employés</span></div>
+      <div class="stat"><b>${m.filter((x) => x.online).length}</b><span>Connectés</span></div>
+      <div class="stat"><b>${m.filter((x) => x.duty).length}</b><span>En service</span></div>
+      <div class="stat"><b class="gold">${money(D.balance)}</b><span>Compte de l'entreprise</span></div></div>
+    <div class="card"><h3>➕ Recruter <span class="btn small" data-a="nearby">Actualiser</span></h3>
+      ${nearby.length ? `<div class="row">
+        <div><label class="lab">Personne proche (moins de 6 m)</label><select class="input" id="rTarget">${nearby.map((p) => `<option value="${p.id}">Joueur ${p.id} · ${p.dist} m</option>`).join('')}</select></div>
+        <div><label class="lab">Grade</label><select class="input" id="rGrade">${gradeOpts(0)}</select></div>
+        <button class="btn primary" data-a="recruit">Recruter</button></div>`
+        : '<div class="empty">Personne à proximité. Approche-toi de la personne puis « Actualiser ».</div>'}</div>
+    <div class="card"><h3>👥 Employés (${m.length}) <input class="input" id="search" placeholder="Rechercher…" value="${esc(q)}" style="max-width:220px"></h3>
+      ${list.length ? `<div class="list">${list.map((x) => `<div class="li">
+        <div class="who"><b>${esc(x.name)}</b>${x.me ? '<small>(toi)</small>' : ''}${x.online ? `<span class="pill on">En ligne</span>${x.duty ? '<span class="pill duty">En service</span>' : ''}` : '<span class="pill">Hors ligne</span>'}</div>
+        ${x.manageable ? `<select class="input" data-g="${esc(x.cid)}">${gradeOpts(x.grade)}</select>` : `<span class="muted" style="color:var(--muted)">${D.grades.find((g) => g.level === x.grade && g.isboss) ? '👑 ' : ''}${esc(gradeName(x.grade))}</span>`}
+        <button class="btn small" data-set="${esc(x.cid)}" ${x.manageable ? '' : 'disabled'}>Valider</button>
+        <button class="btn small danger" data-fire="${esc(x.cid)}" data-name="${esc(x.name)}" ${x.manageable ? '' : 'disabled'}>Renvoyer</button></div>`).join('')}</div>`
+        : '<div class="empty">Aucun employé.</div>'}</div>`;
+}
+
+function ask(title, text, cb) { $('#cTitle').textContent = title; $('#cText').textContent = text; confirmCb = cb; $('#confirm').classList.remove('hidden'); }
+$('#confirm').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  $('#confirm').classList.add('hidden');
+  if (b.dataset.c === '1' && confirmCb) confirmCb();
+  confirmCb = null;
+});
+
+document.addEventListener('click', async (e) => {
+  let n;
+  if (e.target.closest('[data-close]')) return close();
+  if ((n = e.target.closest('[data-a]'))) {
+    if (n.dataset.a === 'nearby') { const r = await post('nearby'); nearby = r.players || []; return render(); }
+    if (n.dataset.a === 'recruit') {
+      const t = Number($('#rTarget').value), g = Number($('#rGrade').value);
+      return ask('Recruter ?', `Le joueur ${t} rejoint ${D.job.label} au grade « ${gradeName(g)} ».`, () => post('act', { name: 'recruit', data: { target: t, grade: g } }));
+    }
+  }
+  if ((n = e.target.closest('[data-set]')) && !n.disabled) {
+    const sel = document.querySelector(`[data-g="${CSS.escape(n.dataset.set)}"]`);
+    return post('act', { name: 'setGrade', data: { cid: n.dataset.set, grade: Number(sel.value) } });
+  }
+  if ((n = e.target.closest('[data-fire]')) && !n.disabled) {
+    const cid = n.dataset.fire;
+    return ask('Renvoyer ?', `${n.dataset.name} ne fera plus partie de ${D.job.label}.`, () => post('act', { name: 'fire', data: { cid } }));
+  }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'search') return;
+  q = e.target.value;
+  const pos = e.target.selectionStart;
+  render();
+  const s = $('#search'); s.focus(); s.setSelectionRange(pos, pos);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('#confirm').classList.contains('hidden')) { $('#confirm').classList.add('hidden'); return; }
+  close();
+});
+function close() { $('#app').classList.add('hidden'); post('close'); }
+
+window.addEventListener('message', (e) => {
+  const m = e.data || {};
+  if (m.action === 'data') { D = m.data; if (m.nearby) nearby = m.nearby; $('#app').classList.remove('hidden'); render(); }
+  if (m.action === 'close') $('#app').classList.add('hidden');
+});
+</script>
+</body>
+</html>

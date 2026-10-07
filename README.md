@@ -129,6 +129,18 @@ Remplace `mm_radio`, sans ox_lib.
 - **Brouilleur** (`jammer`) : posé au sol, coupe les radios dans un rayon de 35 m pendant 10 min.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
+### 3.8 Menu patron et métier staff
+- **Menu patron (`elyzea_patron`)** : **F11** ou `/patron`.
+  - Il marche pour **tous les métiers** (police, EMS, mécano, concessions, entreprises…), dès que le joueur a un grade patron 👑.
+  - Il affiche les employés (en ligne, en service, hors ligne) et le compte de l'entreprise.
+  - **Recruter** une personne à moins de 6 m, **changer un grade**, **renvoyer** : chaque action importante demande une confirmation.
+  - Règles : on ne gère que les grades **en dessous du sien**. Seul le plus haut grade du métier peut tout gérer. On ne se modifie jamais soi-même.
+  - Chaque action est notée dans les logs du menu admin.
+- **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
+  - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
+  - Ton vrai métier est gardé dans ton personnage : **↩ Revenir à mon métier d'origine** te le rend, même après une déconnexion.
+  - **Garder ce métier** fait du métier actuel ton métier normal.
+
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.
 
@@ -141,6 +153,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
+| **F11** | Menu patron : recruter, changer les grades, renvoyer | Grade patron 👑 de n'importe quel métier |
 | **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, boîte de nuit) | Une seule s'ouvre : celle de ton métier |
 | **F7** | Menu d'interaction police | Police |
 | **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |

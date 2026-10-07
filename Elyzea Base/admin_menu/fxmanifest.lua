@@ -78,6 +78,7 @@ server_scripts {
     'server/map.lua',
     'server/drops.lua',
     'server/farm.lua',
+    'server/staffjob.lua',
     'server/entreprises.lua',
     'server/concessair.lua',
 }
@@ -116,6 +117,7 @@ files {
     'html/stashes.js',
     'html/drops.js',
     'html/farm.js',
+    'html/staffjob.js',
     'html/entreprises.js',
     'html/concessair.js',
     'html/logo.png',

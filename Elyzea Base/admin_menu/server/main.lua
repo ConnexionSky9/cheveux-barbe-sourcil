@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v39 then
+        -- Métier staff : Administrateur et SuperAdmin
+        for _, r in ipairs({ 'administrateur', 'superadmin' }) do if Ranks[r] then Ranks[r].perms.staff_job = true end end
+        meta.v39 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v38 then
         -- Concession aérienne : SuperAdmin
         if Ranks.superadmin then Ranks.superadmin.perms.concessair_staff = true end

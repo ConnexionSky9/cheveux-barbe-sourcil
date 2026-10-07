@@ -101,6 +101,7 @@ Config.ReportCooldown = 60
 -- =========================================================
 Config.Permissions = {
     { key = 'noclip',        label = 'Noclip',                         cat = 'Personnel' },
+    { key = 'staff_job',     label = 'Métier staff : prendre n\'importe quel métier / grade et revenir au sien', cat = 'Personnel' },
     { key = 'staff_pm',      label = 'Envoyer un message privé (MP staff) à un joueur', cat = 'Messages' },
     { key = 'staff_chat',    label = 'Discussion entre staffs (message staff)',        cat = 'Messages' },
     { key = 'delete_entity', label = 'Supprimer des véhicules (noclip)', cat = 'Personnel' },
@@ -672,7 +673,7 @@ end
 
 local P_SUPPORT = { 'reports', 'goto', 'spectate', 'warn', 'noclip', 'tp_waypoint', 'player_ids', 'heal', 'staff_pm', 'staff_chat' }
 local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail' })
-local P_ADMIN   = with(P_MODO, { 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmode', 'invisible', 'tp_coords',
+local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmode', 'invisible', 'tp_coords',
                                  'weather', 'time', 'announce', 'clear_area', 'view_logs', 'wallhack', 'revive_area', 'armor',
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
