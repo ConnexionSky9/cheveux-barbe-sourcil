@@ -187,6 +187,7 @@ function Sync(src, toast)
     if not Inv[src] then return end
     TriggerClientEvent('elyzea_inv:sync', src, buildPayload(src), toast)
     if CheckEquippedWeapon then CheckEquippedWeapon(src) end
+    if UpdateBodyWeapons then UpdateBodyWeapons(src) end
 end
 local sync = Sync
 

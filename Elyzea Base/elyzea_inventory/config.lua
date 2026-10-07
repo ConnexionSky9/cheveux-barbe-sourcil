@@ -77,3 +77,20 @@ Config.Weapons = {
     maxLoadedAmmo = 250,   -- munitions chargées au maximum dans une arme
     holsterAnim = true,    -- animation pour sortir / ranger une arme
 }
+
+-- 🎒 Armes visibles sur le personnage (vues par tous les joueurs)
+-- Fusils, mitraillettes, fusils à pompe, fusils de précision et armes lourdes : dans le dos.
+-- Pistolets : glissés à l'arrière du pantalon. L'arme en main n'est jamais affichée en double.
+-- Réglage des positions en jeu : /positionarme dos|ceinture x y z rx ry rz  (puis recopier la ligne affichée en F8)
+Config.BodyWeapons = {
+    enabled = true,
+    distance = 60.0,           -- distance d'affichage (mètres)
+    hideInVehicle = true,      -- cacher les armes quand le joueur est dans un véhicule
+    back = { bone = 24818, pos = vec3(0.075, -0.15, -0.02), rot = vec3(0.0, 165.0, 0.0) },   -- haut du dos (SKEL_Spine3)
+    waist = { bone = 11816, pos = vec3(-0.08, -0.17, -0.06), rot = vec3(0.0, 95.0, 180.0) },  -- bas du dos (SKEL_Pelvis)
+    -- Emplacement forcé pour une arme : 'back', 'waist' ou false (jamais affichée)
+    override = {
+        WEAPON_STUNGUN = false,
+        WEAPON_FLAREGUN = false,
+    },
+}

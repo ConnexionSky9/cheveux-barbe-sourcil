@@ -518,6 +518,7 @@ local function crouchProgress(label, seconds, targetPed)
     return ok
 end
 
+local PPA_TIME = 8   -- secondes d'examen avant de délivrer un PPA
 local function doAction(action, player)
     if busy then return end
     if not inService() then return notify('Vous devez être en service pour soigner, réanimer ou inspecter.') end
@@ -536,6 +537,10 @@ local function doAction(action, player)
         if not isDownPed(ped, player) then busy = false return notify('Ce patient n\'est pas dans le coma.') end
         if crouchProgress('Réanimation', D.care.revive.time or 10, ped) then TriggerServerEvent('elyzea_ems:doCare', 'revive', sid)
         else notify('Réanimation annulée.') end
+    elseif action == 'ppa' then
+        if self then busy = false return notify('Vous ne pouvez pas vous délivrer un PPA.') end
+        if crouchProgress('Examen médical', PPA_TIME, ped) then TriggerServerEvent('elyzea_papiers:issuePpa', sid)
+        else notify('Examen annulé.') end
     elseif action == 'heal' then
         if crouchProgress('Soin', D.care.heal.time or 5, not self and ped or nil) then TriggerServerEvent('elyzea_ems:doCare', 'heal', sid)
         else notify('Soin annulé.') end
@@ -590,9 +595,14 @@ local function altOptions(player)
     local hp = healthPct(ped)
     local hurt = hp < 100
     local gain = (D.care.heal.amount or 100) >= 100 and 'rend toute la vie' or ('+%d %%'):format(D.care.heal.amount)
-    return hurt and 'hurt' or 'ok', hp, {
+    local options = {
         { id = 'heal', label = 'Soigner', hint = lock or (hurt and ('Bandage requis · %s'):format(gain) or 'Aucun soin nécessaire'), time = D.care.heal.time, disabled = not duty or not hurt },
     }
+    -- Permis de port d'arme (ressource elyzea_papiers)
+    if GetResourceState('elyzea_papiers') == 'started' then
+        options[#options + 1] = { id = 'ppa', label = 'Délivrer un PPA', hint = lock or 'Examen médical · permis de port d\'arme', time = PPA_TIME, disabled = not duty }
+    end
+    return hurt and 'hurt' or 'ok', hp, options
 end
 local function closeAlt()
     if not altOpen then return end

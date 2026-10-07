@@ -10,9 +10,33 @@ local Equipped = {}   -- [src] = { slot, name, serial }
 
 local function serialOf(it) return it and it.metadata and it.metadata.serial end
 
+-- Armes visibles sur le personnage : liste des armes portées (sauf celle en main),
+-- partagée avec tous les joueurs par un state bag (client/body.lua les affiche)
+local LastBody = {}
+function UpdateBodyWeapons(src)
+    if not Config.BodyWeapons or not Config.BodyWeapons.enabled or not GetPlayerName(src) then return end
+    local inv, e = Inv[src], Equipped[src]
+    local list, seen = {}, {}
+    if inv then
+        for i = 1, inv.size do
+            local it = inv.slots[i]
+            local d = it and Items[it.name]
+            if d and d.kind == 'weapon' and not d.throwable and not (e and e.slot == i) and not seen[it.name] then
+                seen[it.name] = true
+                list[#list + 1] = it.name
+            end
+        end
+    end
+    local key = table.concat(list, ',')
+    if LastBody[src] == key then return end
+    LastBody[src] = key
+    Player(src).state:set('elyBodyWeapons', list, true)
+end
+
 local function disarm(src)
     Equipped[src] = nil
     TriggerClientEvent('elyzea_inv:weapon:disarm', src)
+    UpdateBodyWeapons(src)
 end
 
 -- Appelée après chaque synchronisation : l'arme en main est-elle toujours là ?
@@ -48,12 +72,14 @@ function UseWeapon(src, slot, item, def)
     if e and e.slot == slot then
         TriggerClientEvent('elyzea_inv:weapon:holster', src)
         Equipped[src] = nil
+        UpdateBodyWeapons(src)
         return true
     end
     local meta = item.metadata or {}
     if def.throwable then
         Equipped[src] = { slot = slot, name = item.name, throwable = true }
         TriggerClientEvent('elyzea_inv:weapon:equip', src, { slot = slot, name = item.name, ammo = 1, throwable = true, label = def.label })
+        UpdateBodyWeapons(src)
         return true
     end
     Equipped[src] = { slot = slot, name = item.name, serial = meta.serial }
@@ -61,6 +87,7 @@ function UseWeapon(src, slot, item, def)
         slot = slot, name = item.name, label = def.label, ammo = tonumber(meta.ammo) or 0,
         ammoname = def.ammoname, components = meta.components, tint = meta.tint,
     })
+    UpdateBodyWeapons(src)
     return true
 end
 
@@ -131,9 +158,13 @@ function UseAmmo(src, slot, item, def)
     return reload(src, slot)
 end
 
-RegisterNetEvent('elyzea_inv:weapon:cleared', function() Equipped[source] = nil end)
-AddEventHandler('playerDropped', function() Equipped[source] = nil end)
-AddEventHandler('elyzea:server:playerUnloaded', function(src) Equipped[tonumber(src) or -1] = nil end)
+RegisterNetEvent('elyzea_inv:weapon:cleared', function() local src = source Equipped[src] = nil UpdateBodyWeapons(src) end)
+AddEventHandler('playerDropped', function() Equipped[source] = nil LastBody[source] = nil end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src)
+    src = tonumber(src) or -1
+    Equipped[src], LastBody[src] = nil, nil
+    if GetPlayerName(src) then Player(src).state:set('elyBodyWeapons', {}, true) end
+end)
 
 exports('GetCurrentWeapon', function(src)
     local e = Equipped[tonumber(src) or -1]

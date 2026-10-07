@@ -23,6 +23,7 @@ client_scripts {
     'client/drops.lua',
     'client/main.lua',
     'client/use.lua',
+    'client/body.lua',
 }
 
 server_scripts {

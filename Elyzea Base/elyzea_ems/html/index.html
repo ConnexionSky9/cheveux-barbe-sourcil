@@ -564,7 +564,7 @@ $('#close').onclick=()=>{if(IN_GAME)closeTablet();else toast('En jeu, cela range
 /* ===================== Menu Alt ===================== */
 function showAlt(d){
   const st=d.state==='dead'?'var(--cross)':d.state==='hurt'?'var(--gold)':'var(--ok)';
-  const icon={inspect:I.search,revive:I.heart,heal:I.bandage};
+  const icon={inspect:I.search,revive:I.heart,heal:I.bandage,ppa:I.search};
   $('#alt').innerHTML=`<header><span class="st" style="background:${st};box-shadow:0 0 8px ${st}"></span><div style="flex:1"><b>${esc(d.title||'Patient')}</b><small>${d.state==='dead'?'Inconscient · dans le coma':d.state==='hurt'?`Blessé · ${d.health} % de santé`:`En bonne santé · ${d.health} %`}</small>${d.state!=='dead'?`<div class="hp"><i style="width:${d.health}%;background:${d.health<50?'var(--cross)':d.health<80?'var(--gold)':'var(--ok)'}"></i></div>`:''}</div></header>
    <ul>${d.options.map(o=>`<li><button data-alt="${o.id}" ${o.disabled?'disabled':''}><span class="oi ${o.id==='revive'?'red':''}">${svg(icon[o.id]||I.heart)}</span><span><b>${esc(o.label)}</b><small>${esc(o.hint||'')}</small></span><span class="t">${o.time?o.time+' s':''}</span></button></li>`).join('')}</ul>
    <footer>Relâchez Alt pour fermer</footer>`;

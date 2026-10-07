@@ -244,7 +244,39 @@ Plus de détails : `elyzea_coupes/LISEZMOI.txt` et `admin_menu/install/COIFFEUR.
 
 ---
 
-## 8. Pour les développeurs
+## 8. Papiers : permis, carte d'identité, PPA
+
+Les trois papiers ont le même design Elyzea (carte holographique avec la photo du titulaire).
+Clic droit › **Utiliser** pour regarder son papier, puis **Montrer à la personne la plus proche** (3 m).
+
+| Papier | Objet | Comment on l'obtient |
+|---|---|---|
+| Permis de conduire | `permis` | Réussir l'examen de l'auto-école (`elyzea_permis`) |
+| Carte d'identité | `carte_identite` | Automatiquement, au **premier passage en jeu** de chaque personnage. Carte perdue : le staff fait `/refairecarte [id]` |
+| Permis de port d'arme (PPA) | `ppa` | Délivré par un **EMS en service** : menu de soins (Alt sur le patient) › **Délivrer un PPA** (examen médical de 8 s) |
+
+Le PPA enregistre aussi le permis `weapon` dans le personnage (visible sur la tablette de la police).
+Réglages (métier, grade minimum, prix, durée de validité) : `elyzea_papiers/config.lua`.
+
+---
+
+## 9. Armes visibles sur le personnage
+
+Les armes que l'on a dans l'inventaire sont visibles par tous les joueurs :
+- **dans le dos** : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes (la plus grosse) ;
+- **à l'arrière du pantalon** : le pistolet.
+
+L'arme sortie en main n'est jamais affichée en double. Les armes sont cachées dans les véhicules (réglable).
+Réglages : `elyzea_inventory/config.lua` › `Config.BodyWeapons`.
+
+**Ajuster la position** (si l'arme rentre dans le corps ou flotte) : en jeu, avec une arme dans l'inventaire,
+tape `/positionarme dos x y z rx ry rz` ou `/positionarme ceinture x y z rx ry rz`.
+Le changement est visible tout de suite (pour toi seulement). Quand c'est bien placé, recopie la ligne
+affichée dans la console F8 dans `Config.BodyWeapons`, puis `restart elyzea_inventory`.
+
+---
+
+## 10. Pour les développeurs
 
 **Serveur**
 ```lua
