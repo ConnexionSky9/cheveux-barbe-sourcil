@@ -103,6 +103,8 @@ Si l'une affiche une erreur au démarrage (`Could not find dependency ox_lib`, `
 | Message dans la console | Solution |
 |---|---|
 | `No such config file: secrets.cfg` puis `does not have a license key` / `mysql_connection_string est vide` | Mets **`secrets.cfg` dans le même dossier que `server.cfg`** (ex. `D:\txData\Qbox_BE5BF8.base\secrets.cfg`). Sans lui : pas de clé de licence et **pas de base de données** (personnages, inventaires non sauvegardés). |
+| **Écran noir après le loading screen** / à la connexion : « Serveur en maintenance : la base de données n'est pas configurée » | La base n'est pas branchée : `secrets.cfg` est introuvable ou faux (voir la ligne au-dessus). Avant, le joueur restait bloqué sur un écran noir ; maintenant il reçoit ce message et la console serveur dit pourquoi. |
+| `attempt to index a nil value (field 'job')` (elyzea_lscustom, elyzea_concess, elyzea_concess_air) | Corrigé : les réglages par défaut sont chargés tout de suite, même si la base est lente ou absente. |
 | `Argument count mismatch (passed 1, wanted 2)` | Une tabulation dans `voice.cfg` (`voice_enableSubmix`). Corrigé : remplace ton `voice.cfg`. |
 | `The file myLogo.png must be a 96x96 PNG image` | Remplace `myLogo.png` à côté du server.cfg par celui de `Serveur cfg/` (96 × 96). |
 | `Could not find dependency ox_lib for resource mm_radio` | **Supprime le dossier `mm_radio`** (dans `[voice]`) : `elyzea_radio` le remplace. |

@@ -136,7 +136,12 @@ local function Load()
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)]])
 
     local raw = MySQL.scalar.await('SELECT `value` FROM lscustom_settings WHERE `key` = ?', { 'config' })
-    local loaded = raw and json.decode(raw) or {}
+    L.S = L.Build(raw and json.decode(raw) or {})
+    if not raw then L.Save() end
+end
+
+-- Réglages = valeurs par défaut + ce qui est enregistré (« loaded »)
+function L.Build(loaded)
     local s = L.Copy(Config.Defaults)
     for k, v in pairs(loaded) do
         if s[k] ~= nil then
@@ -153,9 +158,11 @@ local function Load()
         if not z.id then z.id = s.nextZone s.nextZone = s.nextZone + 1 end
         if z.enabled == nil then z.enabled = true end
     end
-    L.S = s
-    if not raw then L.Save() end
+    return s
 end
+
+-- Réglages par défaut tout de suite : aucune erreur si un joueur arrive avant la fin du chargement
+L.S = L.Build({})
 
 -- ---------------------------------------------------------------------
 -- Métier dans elyzea_core
@@ -192,6 +199,7 @@ function L.Public()
 end
 
 function L.Sync(target)
+    if not L.Ready then return end      -- tout le monde est synchronisé à la fin du chargement
     TriggerClientEvent('lscustom:client:sync', target or -1, L.Public())
 end
 
@@ -205,7 +213,11 @@ function L.Changed(what)
 end
 
 CreateThread(function()
-    Load()
+    local ok, err = pcall(Load)
+    if not ok then
+        print(('^1[LsCustom] Base de données indisponible (%s) : réglages par défaut, non sauvegardés.^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
+    end
+    L.Ready = true
     L.RegisterJob()
     L.Sync()
     print(('^2[LsCustom] Chargé : métier « %s », %d zone(s).^0'):format(L.JobName(), #L.S.zones))

@@ -389,13 +389,12 @@ end
 -- ---------------------------------------------------------------------
 -- Expiration, déconnexions, remboursements en attente
 -- ---------------------------------------------------------------------
-CreateThread(function()
+local function LoadOrders()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_entreprises_orders` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `company` VARCHAR(40) NOT NULL, `cid` VARCHAR(50) NOT NULL,
         `name` VARCHAR(100) NOT NULL, `items` LONGTEXT NOT NULL, `total` INT NOT NULL, `method` VARCHAR(10) NOT NULL,
         `status` VARCHAR(20) NOT NULL, `employee` VARCHAR(100) NULL, `created` INT NOT NULL,
         INDEX (`company`), INDEX (`cid`), INDEX (`status`))]])
-    while not next(E.S) do Wait(500) end
     for _, r in ipairs(MySQL.query.await("SELECT * FROM elyzea_entreprises_orders WHERE status IN ('pending', 'preparing', 'ready')") or {}) do
         if E.S[r.company] then
             local o = { id = r.id, company = r.company, cid = r.cid, name = r.name, lines = json.decode(r.items or '[]') or {}, total = r.total,
@@ -403,6 +402,14 @@ CreateThread(function()
             Orders[o.id] = o
             if r.status == 'preparing' then SetStatus(o, 'pending') end
         end
+    end
+end
+
+CreateThread(function()
+    local ok, err = pcall(LoadOrders)
+    if not ok then
+        print(('^1[elyzea_entreprises] Borne de commande désactivée : base de données indisponible (%s).^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
+        return
     end
     ready = true
     while true do

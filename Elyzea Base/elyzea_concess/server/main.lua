@@ -196,7 +196,14 @@ local function Load()
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`seller_cid`), INDEX (`created_at`))]])
 
     local raw = MySQL.scalar.await('SELECT `value` FROM concess_settings WHERE `key` = ?', { 'config' })
-    local loaded = raw and json.decode(raw) or {}
+    C.S = C.Build(raw and json.decode(raw) or {})
+    if not raw then C.Save() end
+    C.SeedCatalog()
+    C.LoadCatalog()
+end
+
+-- Réglages = valeurs par défaut + ce qui est enregistré (« loaded »)
+function C.Build(loaded)
     local s = C.Copy(Config.Defaults)
     for k, v in pairs(loaded) do
         if s[k] ~= nil then
@@ -212,16 +219,20 @@ local function Load()
         if not z.id then z.id = s.nextZone s.nextZone = s.nextZone + 1 end
         if z.enabled == nil then z.enabled = true end
     end
-    C.S = s
-    if not raw then C.Save() end
+    return s
+end
 
+-- Catalogue de départ si la table est vide
+function C.SeedCatalog()
     if (MySQL.scalar.await('SELECT COUNT(*) FROM concess_vehicles') or 0) == 0 then
         for _, v in ipairs(Config.DefaultCatalog) do
             MySQL.insert.await('INSERT INTO concess_vehicles (model, label, price, category) VALUES (?, ?, ?, ?)', { v.model, v.label, v.price, v.category })
         end
     end
-    C.LoadCatalog()
 end
+
+-- Réglages par défaut tout de suite : aucune erreur si un joueur arrive avant la fin du chargement
+C.S = C.Build({})
 
 -- ---------------------------------------------------------------------
 -- Métier dans elyzea_core
@@ -252,7 +263,10 @@ function C.Public()
     }
 end
 
-function C.Sync(target) TriggerClientEvent('concess:client:sync', target or -1, C.Public()) end
+function C.Sync(target)
+    if not C.Ready then return end      -- tout le monde est synchronisé à la fin du chargement
+    TriggerClientEvent('concess:client:sync', target or -1, C.Public())
+end
 RegisterNetEvent('concess:server:requestSync', function() C.Sync(source) end)
 
 function C.Changed(what)
@@ -263,7 +277,10 @@ function C.Changed(what)
 end
 
 CreateThread(function()
-    Load()
+    local ok, err = pcall(Load)
+    if not ok then
+        print(('^1[Concession] Base de données indisponible (%s) : réglages par défaut, catalogue vide.^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
+    end
     C.Ready = true
     C.RegisterJob()
     C.Sync()

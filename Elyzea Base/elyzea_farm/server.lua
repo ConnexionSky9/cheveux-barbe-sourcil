@@ -54,18 +54,31 @@ end
 local function Sync(target) TriggerClientEvent('elyzea_farm:sync', target or -1, Public()) end
 RegisterNetEvent('elyzea_farm:requestSync', function() Sync(source) end)
 
+-- Réglages d'un farm = valeurs par défaut + ce qui est enregistré
+local function Build(cfg, loaded)
+    local s = Copy(cfg.defaults)
+    for k, v in pairs(loaded or {}) do if s[k] ~= nil then s[k] = v end end
+    s.nextId = s.nextId or 1
+    for _, z in ipairs(s.zones) do if not z.id then z.id = s.nextId s.nextId = s.nextId + 1 end end
+    for _, p in ipairs(s.points) do if not p.id then p.id = s.nextId s.nextId = s.nextId + 1 end end
+    return s
+end
+
+-- Valeurs par défaut tout de suite : aucune erreur si un joueur parle au PNJ avant la fin du chargement
+for farm, cfg in pairs(Config.Farms) do S[farm] = Build(cfg, nil) end
+
 CreateThread(function()
-    MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_farm_settings` (
-        `farm` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
-    for farm, cfg in pairs(Config.Farms) do
-        local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_farm_settings WHERE `farm` = ?', { farm })
-        local s = Copy(cfg.defaults)
-        for k, v in pairs(raw and json.decode(raw) or {}) do if s[k] ~= nil then s[k] = v end end
-        s.nextId = s.nextId or 1
-        for _, z in ipairs(s.zones) do if not z.id then z.id = s.nextId s.nextId = s.nextId + 1 end end
-        for _, p in ipairs(s.points) do if not p.id then p.id = s.nextId s.nextId = s.nextId + 1 end end
-        S[farm] = s
-        if not raw then Save(farm) end
+    local ok, err = pcall(function()
+        MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_farm_settings` (
+            `farm` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
+        for farm, cfg in pairs(Config.Farms) do
+            local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_farm_settings WHERE `farm` = ?', { farm })
+            S[farm] = Build(cfg, raw and json.decode(raw) or nil)
+            if not raw then Save(farm) end
+        end
+    end)
+    if not ok then
+        print(('^1[elyzea_farm] Base de données indisponible (%s) : réglages par défaut, non sauvegardés.^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
     end
     Sync()
     print(('^2[elyzea_farm] %d métier(s) de farm chargé(s).^0'):format((function() local n = 0 for _ in pairs(S) do n = n + 1 end return n end)()))

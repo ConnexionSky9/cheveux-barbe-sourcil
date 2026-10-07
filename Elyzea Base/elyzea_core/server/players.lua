@@ -488,13 +488,27 @@ AddEventHandler('onResourceStop', function(res)
     for src in pairs(Players) do Save(src) end
 end)
 
--- Vérification d'un license au moment de la connexion (doublons)
+-- Connexion : license Rockstar + base de données prête.
+-- Sans base, le joueur resterait sur un écran noir après le loading screen :
+-- on le prévient tout de suite avec un message clair à la place.
 AddEventHandler('playerConnecting', function(_, _, deferrals)
     local src = source
-    local license = GetLicense(src)
-    if not license then
-        deferrals.defer()
-        Wait(0)
-        deferrals.done('Licence Rockstar introuvable : relancez FiveM.')
+    deferrals.defer()
+    Wait(0)
+    if not GetLicense(src) then return deferrals.done('Licence Rockstar introuvable : relancez FiveM.') end
+    local db = exports[GetCurrentResourceName()]
+    local ok, st = pcall(function() return db:db_status() end)
+    if ok and type(st) == 'table' and not st.ready then
+        if st.disabled then
+            print(('^1[elyzea_core] Connexion refusée (%s) : base de données désactivée.^0'):format(GetPlayerName(src) or src))
+            return deferrals.done('Serveur en maintenance : la base de données n\'est pas configurée. Réessaie plus tard.')
+        end
+        deferrals.update('Connexion à la base de données du serveur…')
+        local t = GetGameTimer() + 20000
+        while not db:db_isReady() and GetGameTimer() < t do Wait(500) end
+        if not db:db_isReady() then
+            return deferrals.done('Le serveur démarre encore (base de données injoignable). Réessaie dans une minute.')
+        end
     end
+    deferrals.done()
 end)

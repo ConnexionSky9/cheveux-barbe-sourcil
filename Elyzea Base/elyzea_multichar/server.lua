@@ -102,7 +102,11 @@ RegisterNetEvent('elyzea_multichar:requestCharacters', function()
 
     SetPlayerRoutingBucket(src, 1000 + src) -- seul pendant la sélection
     local ok, list = pcall(fetchCharacters, src)
-    if not ok then print('[elyzea_multichar] ERREUR SQL : ' .. tostring(list)); list = {} end
+    if not ok then
+        -- Sans liste, le joueur resterait sur un écran noir : on l'en informe
+        print('[elyzea_multichar] Personnages introuvables (base de données) : ' .. tostring(list))
+        return DropPlayer(src, 'Impossible de charger tes personnages : la base de données ne répond pas. Réessaie dans un instant.')
+    end
     dbg(('joueur %s : %d personnage(s)'):format(src, #list))
     TriggerClientEvent('elyzea_multichar:setCharacters', src, list)
 end)

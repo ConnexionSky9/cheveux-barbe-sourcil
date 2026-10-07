@@ -161,6 +161,9 @@ local function LoadSettings()
     if not raw then P.SaveSettings() end
 end
 
+-- Réglages par défaut tout de suite : aucune erreur si un joueur arrive avant la fin du chargement
+P.Settings = P.Copy(Config.Defaults)
+
 -- ---------------------------------------------------------------------
 -- Métier dans elyzea_core
 -- ---------------------------------------------------------------------
@@ -276,8 +279,10 @@ end)
 -- Démarrage
 -- ---------------------------------------------------------------------
 CreateThread(function()
-    InitDatabase()
-    LoadSettings()
+    local ok, err = pcall(function() InitDatabase() LoadSettings() end)
+    if not ok then
+        print(('^1[Police] Base de données indisponible (%s) : réglages par défaut, non sauvegardés.^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
+    end
     P.RegisterJob()
     P.RegisterArmory()
     P.Sync()

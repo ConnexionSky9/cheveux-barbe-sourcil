@@ -174,12 +174,17 @@ CreateThread(function()
     SetEntityVisible(ped, false, false)
     FreezeEntityPosition(ped, true)
 
-    for attempt = 1, 5 do
-        if received then break end
+    -- On redemande tant que la liste n'est pas arrivée (jamais d'abandon silencieux = jamais d'écran noir définitif)
+    local attempt = 0
+    while not received do
+        attempt = attempt + 1
         dbg('demande des personnages, essai', attempt)
         TriggerServerEvent('elyzea_multichar:requestCharacters')
-        local t = GetGameTimer() + 6000
+        local t = GetGameTimer() + (attempt <= 5 and 6000 or 10000)
         while not received and GetGameTimer() < t do Wait(200) end
+        if attempt == 5 and not received then
+            print('^1[elyzea_multichar] Le serveur ne renvoie pas les personnages : vérifie la console serveur (base de données, elyzea_core).^0')
+        end
     end
 end)
 

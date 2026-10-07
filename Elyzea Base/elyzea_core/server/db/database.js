@@ -19754,17 +19754,26 @@ function connectionOptions() {
 
 let pool = null;
 let ready = false;
-const readyWaiters = [];
+let disabled = null;            // raison si la base ne peut pas démarrer (pas de connexion configurée…)
+const readyWaiters = [];         // { resolve, reject }
+const WAIT_TIMEOUT = 30000;      // une requête n'attend jamais plus de 30 s une base injoignable
+const warned = new Set();
+
+function offError(msg) { const e = new Error(msg); e.code = 'ELY_DB_OFF'; return e; }
+
+function disable(reason) {
+  disabled = reason;
+  console.log(`^1[elyzea_core] ${reason}^0`);
+  readyWaiters.splice(0).forEach((w) => w.reject(offError(reason)));
+}
 
 async function connect() {
   if (!CONNECTION) {
-    console.log('^1[elyzea_core] mysql_connection_string est vide : base de données désactivée. Vérifie que secrets.cfg est bien dans le même dossier que server.cfg (« No such config file: secrets.cfg » plus haut = fichier introuvable).^0');
-    return;
+    return disable('mysql_connection_string est vide : base de données désactivée. Vérifie que secrets.cfg est bien dans le même dossier que server.cfg (« No such config file: secrets.cfg » plus haut = fichier introuvable).');
   }
   let opts;
   try { opts = connectionOptions(); } catch (e) {
-    console.log(`^1[elyzea_core] ${e.message}^0`);
-    return;
+    return disable(`mysql_connection_string invalide : ${e.message}`);
   }
   while (!pool) {
     try {
@@ -19779,13 +19788,23 @@ async function connect() {
     }
   }
   ready = true;
-  readyWaiters.splice(0).forEach((fn) => fn());
+  readyWaiters.splice(0).forEach((w) => w.resolve());
   ScheduleResourceTick(RES);
 }
 
-function waitReady() {
+// Attend la base ; échoue vite (base désactivée) ou au bout de WAIT_TIMEOUT (base injoignable)
+function waitReady(timeout = WAIT_TIMEOUT) {
   if (ready) return Promise.resolve();
-  return new Promise((r) => readyWaiters.push(r));
+  if (disabled) return Promise.reject(offError(disabled));
+  return new Promise((resolve, reject) => {
+    const w = { resolve: () => { clearTimeout(t); resolve(); }, reject: (e) => { clearTimeout(t); reject(e); } };
+    const t = timeout > 0 ? setTimeout(() => {
+      const i = readyWaiters.indexOf(w);
+      if (i >= 0) readyWaiters.splice(i, 1);
+      reject(offError('base de données injoignable (connexion en cours, voir les messages plus haut)'));
+    }, timeout) : null;
+    readyWaiters.push(w);
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -19892,7 +19911,12 @@ function wrap(type) {
     run(invoking, type, sql, params)
       .then((res) => { if (cb) { try { cb(res); } catch (e) { console.log(`^1[elyzea_core] ${invoking} : erreur dans le callback SQL : ${e.message}^0`); } } })
       .catch((err) => {
-        console.log(`^1[elyzea_core] ${invoking} : erreur SQL : ${err.message}\n  > ${typeof sql === 'string' ? sql : ''}^0`);
+        if (err.code === 'ELY_DB_OFF') {
+          // une seule ligne par ressource, pas une par requête
+          if (!warned.has(invoking)) { warned.add(invoking); console.log(`^1[elyzea_core] ${invoking} : requête refusée, ${err.message}^0`); }
+        } else {
+          console.log(`^1[elyzea_core] ${invoking} : erreur SQL : ${err.message}\n  > ${typeof sql === 'string' ? sql : ''}^0`);
+        }
         if (cb) { try { cb(null, err.message); } catch (e) { /* ignoré */ } }
       });
   };
@@ -19907,12 +19931,14 @@ exports('db_transaction', (queries, shared, cb) => {
   if (typeof shared === 'function' && cb === undefined) { cb = shared; shared = undefined; }
   const invoking = GetInvokingResource() || RES;
   transaction(invoking, queries, shared).then((ok) => cb && cb(ok)).catch((err) => {
-    console.log(`^1[elyzea_core] ${invoking} : transaction : ${err.message}^0`);
+    if (err.code !== 'ELY_DB_OFF' || !warned.has(invoking)) { warned.add(invoking); console.log(`^1[elyzea_core] ${invoking} : transaction : ${err.message}^0`); }
     if (cb) cb(false);
   });
 });
 exports('db_isReady', () => ready);
-exports('db_awaitReady', (cb) => { waitReady().then(() => cb && cb(true)); });
+exports('db_status', () => ({ ready, disabled: disabled !== null, reason: disabled }));
+// Sans délai : attend la vraie connexion (ne répond pas si la base est désactivée)
+exports('db_awaitReady', (cb) => { waitReady(0).then(() => cb && cb(true)).catch(() => {}); });
 
 connect();
 })();

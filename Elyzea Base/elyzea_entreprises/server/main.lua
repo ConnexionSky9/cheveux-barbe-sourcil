@@ -245,8 +245,19 @@ function E.Changed(c, what)
     E.Sync()
 end
 
+-- Valeurs par défaut tout de suite : aucune erreur si un joueur arrive avant la fin du chargement
+for c, cfg in pairs(Config.Companies) do
+    local s = E.Copy(cfg.defaults)
+    s.nextZone = 1
+    for _, z in ipairs(s.zones) do z.id = s.nextZone s.nextZone = s.nextZone + 1 z.enabled = z.enabled ~= false end
+    E.S[c] = s
+end
+
 CreateThread(function()
-    Load()
+    local ok, err = pcall(Load)
+    if not ok then
+        print(('^1[elyzea_entreprises] Base de données indisponible (%s) : réglages par défaut, non sauvegardés.^0'):format(tostring(err):gsub('^.-:%d+: ', '')))
+    end
     for c in pairs(E.S) do E.RegisterJob(c) E.RegisterStash(c) end
     E.Sync()
     local names = {}
