@@ -148,7 +148,103 @@ En cas d'erreur, note la ligne rouge exacte de la console : elle donne la ressou
 
 ---
 
-## 6. Pour les développeurs
+## 6. Ajouter un objet (item)
+
+Les objets sont dans **`elyzea_inventory`** :
+
+| Fichier | Rôle |
+|---|---|
+| `shared/items.lua` | Objets Elyzea (prioritaires). **C'est ici qu'on ajoute un objet.** |
+| `data/items.lua` | Catalogue repris de l'ancien ox_inventory (même format qu'ox). |
+| `data/weapons.lua` | Armes, munitions, accessoires d'armes. |
+| `html/img/` | Images des objets (`<nom>.png` ou `.webp`, idéalement 100×100 à 256×256, fond transparent). |
+
+### Étape par étape
+
+1. Ouvre `elyzea_inventory/shared/items.lua` et ajoute une ligne **dans `Items = { … }`** :
+
+   ```lua
+   -- Objet simple
+   lockpick = { label = 'Crochet', weight = 50, stack = true, max = 10, description = 'Pour ouvrir les serrures.' },
+
+   -- Nourriture / boisson : food('Nom', poids en grammes, faim rendue, soif rendue)
+   sandwich = food('Sandwich', 200, 20, 0, { notification = 'Vous avez mangé un sandwich.' }),
+   ```
+
+   - `weight` : poids en **grammes** par unité.
+   - `stack` : `true` si les objets s'empilent ; `max` : taille maximum d'une pile.
+   - `image` : facultatif. Par défaut, l'image est `html/img/<nom>.png`.
+
+2. Ajoute l'image : `elyzea_inventory/html/img/lockpick.png` (le **même nom** que l'objet).
+   Sans image, l'objet s'affiche avec une icône emoji (champ `icon = '🔧'`).
+   Pour réutiliser une image existante, ajoute une ligne dans `ImageAlias`, en bas de `shared/items.lua` :
+   `lockpick = 'repairkit.png',`
+
+3. **Objet utilisable** (clic droit › Utiliser), depuis le serveur de n'importe quelle ressource :
+
+   ```lua
+   exports.elyzea_inventory:RegisterUsableItem('lockpick', function(source, item)
+       -- ton code…
+       return true   -- true = consomme 1 objet ; false ou rien = ne consomme pas
+   end)
+   ```
+
+4. Redémarre : `restart elyzea_inventory` dans la console (ou redémarre le serveur).
+5. Teste : `/giveitem [id] lockpick 5` (droit `command.giveitem`, déjà donné au groupe admin).
+
+### État actuel des images
+- 367 objets au catalogue, 409 images.
+- 55 objets n'ont pas encore d'image et s'affichent avec un emoji : 37 skins d'armes (`at_skin_…`),
+  `WEAPON_BATTLERIFLE`, `WEAPON_SNOWLAUNCHER`, `WEAPON_TACTICALRIFLE`, `WEAPON_TEARGAS`, et quelques objets
+  (`diamond`, `small_tv`, `toaster`, `jammer`, `gatecrack`, `magic_mushroom`, `gun_parts_…`…).
+  Pour leur en donner une, dépose simplement `<nom>.png` dans `html/img/`.
+- Pour vérifier les objets des joueurs absents du catalogue : `elyzea_inventory_check` dans la console.
+
+---
+
+## 7. Ajouter une coiffure
+
+Il y a deux cas.
+
+### A. Donner un nom à une coupe du jeu (ou la cacher)
+
+Le salon de coiffure (PNJ « Coiffeur » de l'éditeur de map) lit tout seul les coupes du jeu.
+Pour les nommer, ouvre **`admin_menu/barber_data.lua`**, partie `BarberData.hair`, rubrique `male` ou `female` :
+
+```lua
+[41] = 'Ma nouvelle coupe',   -- donne un nom à la coupe n°41
+[23] = false,                 -- cache la coupe n°23 dans le salon
+```
+
+Le numéro est affiché sur chaque carte du salon. Puis `restart admin_menu`.
+
+### B. Ajouter une vraie nouvelle coupe (fichiers `.ydd` / `.ytd`)
+
+Une coupe téléchargée contient en général `hair_XXX_u.ydd` et `hair_diff_XXX_a_uni.ytd`.
+Elle **remplace** un numéro de coupe existant (pour tout le monde).
+
+1. Choisis le **sexe** et le **numéro à remplacer** N (3 chiffres : `024`, `047`…).
+   - Homme : `mp_m_freemode_01`
+   - Femme : `mp_f_freemode_01`
+   Prends de préférence une coupe buguée ou inutile (ex. femme n°24, l'ancienne coupe « vision nocturne »).
+2. Renomme les fichiers (même N partout) :
+
+   ```
+   hair_XXX_u.ydd           →  mp_f_freemode_01^hair_N_u.ydd
+   hair_diff_XXX_a_uni.ytd  →  mp_f_freemode_01^hair_diff_N_a_uni.ytd
+   ```
+
+   S'il y a d'autres textures (`_b_`, `_c_`…), renomme-les de la même façon.
+3. Place-les dans **`elyzea_coupes/stream/`** (la ressource est déjà lancée par le `server.cfg` : `ensure elyzea_coupes`).
+4. Donne-lui un nom dans `admin_menu/barber_data.lua` : `[24] = 'Ma coupe',`
+5. Redémarre le serveur, puis reconnecte-toi (les fichiers du dossier `stream` sont envoyés à la connexion).
+
+Les coupes déjà installées sont dans `elyzea_coupes/stream` (femme n°24) et `admin_menu/stream`.
+Plus de détails : `elyzea_coupes/LISEZMOI.txt` et `admin_menu/install/COIFFEUR.md`.
+
+---
+
+## 8. Pour les développeurs
 
 **Serveur**
 ```lua

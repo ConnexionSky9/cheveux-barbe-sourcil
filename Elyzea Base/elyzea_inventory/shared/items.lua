@@ -107,3 +107,23 @@ Items.vet_sac.description = 'Sac : +10 KG de capacité une fois porté.'
 
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
+
+-- ───────── Images partagées ─────────
+-- Objets sans image à leur nom : on réutilise une image existante de html/img.
+-- Pour en ajouter : ['nom_objet'] = 'fichier.png'
+ImageAlias = {
+    weed_ak47 = 'weed_baggy.png', weed_amnesia = 'weed_baggy.png', ['weed_og-kush'] = 'weed_baggy.png',
+    ['weed_purple-haze'] = 'weed_baggy.png', weed_skunk = 'weed_baggy.png', ['weed_white-widow'] = 'weed_baggy.png',
+    weed_ak47_seed = 'weed_seed.png', weed_amnesia_seed = 'weed_seed.png', ['weed_og-kush_seed'] = 'weed_seed.png',
+    ['weed_purple-haze_seed'] = 'weed_seed.png', weed_skunk_seed = 'weed_seed.png', ['weed_white-widow_seed'] = 'weed_seed.png',
+    weed_pouch = 'weed_baggy.png', weed_leaf = 'weed.png', empty_weed_bag = 'weed_baggy_empty.png',
+    coca_leaf = 'cocaineleaf.png', cokebaggy = 'cocaine_baggy.png', xtcbaggy = 'xtc_baggy.png',
+    meth_chemicals = 'hydrochloricacid.png', metal_scrap = 'metalscrap.png',
+    empty_evidence_bag = 'evidence.png', filled_evidence_bag = 'evidence.png',
+    blood_bag = 'blood_bag_500.png', defibrillator = 'defibrilator.png', painkiller = 'painkillers.png',
+    pizza = 'pizza_ham_slice.png', bread = 'WEAPON_BREAD.png', kurkakola = 'cola.png',
+    carte_identite = 'id_card.png', weaponlicense = 'WEAPON_LICENSE.png',
+    crowbar = 'WEAPON_CROWBAR.png', walking_stick = 'walkstick.png',
+    advancedrepairkit = 'repairkit.png', trojan_usb = 'usb_device.png',
+    at_scope_macro = 'at_scope_small.png', at_compensator = 'at_muzzle_tactical.png',
+}

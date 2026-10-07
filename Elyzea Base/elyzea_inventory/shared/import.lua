@@ -74,6 +74,10 @@ if weapons then
     for name, d in pairs(weapons.Components or {}) do add(name, d, 'component') end
 end
 
+for name, img in pairs(ImageAlias or {}) do
+    if Items[name] then Items[name].image = img end
+end
+
 -- Recherche insensible à la casse (weapon_pistol -> WEAPON_PISTOL)
 ItemAlias = {}
 for name in pairs(Items) do ItemAlias[name:lower()] = name end
