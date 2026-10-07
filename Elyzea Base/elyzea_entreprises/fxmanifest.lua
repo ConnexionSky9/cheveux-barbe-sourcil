@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_entreprises'
 author 'Elyzea FA'
-description 'Entreprises Elyzea : Taxi, Burger Shot, Boîte de nuit (tablette F6, factures, cuisine / bar, fournisseur, compteur, courses, entrée). Gestion dans admin_menu › Métiers'
+description 'Entreprises Elyzea : Taxi, Burger Shot (borne de commande), Boîte de nuit (tablette F6, factures, cuisine / bar, fournisseur, compteur, courses, entrée). Gestion dans admin_menu › Métiers'
 version '1.0.0'
 
 shared_scripts {
@@ -15,6 +15,7 @@ shared_scripts {
 client_scripts {
     'client/main.lua',
     'client/taxi.lua',
+    'client/kiosk.lua',
 }
 
 server_scripts {
@@ -22,6 +23,7 @@ server_scripts {
     'server/main.lua',
     'server/work.lua',
     'server/taxi.lua',
+    'server/kiosk.lua',
     'server/admin.lua',
 }
 
@@ -30,6 +32,9 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/visuals.js',
+    'html/kiosk.js',
+    'html/kiosk.css',
     'html/logo.png',
 }
 

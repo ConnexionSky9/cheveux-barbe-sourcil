@@ -6,6 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="kiosk.css">
 </head>
 <body>
     <!-- Tablette des employés (F6) -->
@@ -29,6 +30,18 @@
         <div class="panel invoice" id="invoiceBox"></div>
     </div>
 
+    <!-- Borne de commande (clients) -->
+    <div id="kiosk" class="layer hidden">
+        <div class="panel kiosk-panel" id="kioskBox"></div>
+    </div>
+
+    <!-- Préparation en cours (employé) / suivi de la commande (client) -->
+    <div id="assemble" class="prep hidden"></div>
+    <div id="watch" class="prep watch hidden"></div>
+    <div id="toasts" class="toasts"></div>
+
+    <script src="visuals.js"></script>
     <script src="app.js"></script>
+    <script src="kiosk.js"></script>
 </body>
 </html>

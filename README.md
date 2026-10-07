@@ -325,6 +325,48 @@ direction (recrutement, grades, renvoi, dépôt / retrait sur le compte de l'ent
 activer / désactiver, nom, grades et salaires, permissions par grade, zones, carte (prix), recettes, fournitures,
 tarifs du taxi, points de course, réglages. Les positions par défaut sont approximatives : vérifie les zones.
 
+### Borne de commande du Burger Shot
+**Points à poser** (Menu admin › Métiers › Burger Shot › Zones, « Utiliser ma position actuelle ») :
+- **Borne de commande (clients)** : autant que tu veux, devant chaque borne du restaurant ;
+- **Plan de travail** : place-toi **derrière le comptoir, face au client**. Le plateau apparaît devant ce point.
+
+**Côté client** : **E** sur la borne → interface Elyzea Burger Shot : **6 burgers, 6 boissons, 6 desserts**, panier, paiement banque ou liquide.
+La commande part aux employés en service ; le client la suit en direct (burger assemblé couche par couche).
+Elle est remboursée automatiquement si personne ne la prépare à temps, ou si elle est annulée (même s'il s'est déconnecté).
+
+**Côté employé** : une alerte sonne à chaque commande. **F6 › Commandes** (ou **E** au plan de travail) → **Préparer** :
+- l'employé prépare devant le client, avec une animation par produit ;
+- chaque produit est posé sur le plateau, visible par tous ;
+- les ingrédients sont pris dans son inventaire.
+
+Client à moins de 6 m : la commande lui est remise. Sinon, il la récupère au comptoir avec **E**.
+L'argent va à l'entreprise à la fin de la préparation, moins la part de l'employé.
+
+**Staff : Menu admin › Métiers › Burger Shot › 🍔 Borne de commande** :
+- **commandes en cours**, avec bouton d'annulation et remboursement ;
+- **réglages** :
+  - borne ouverte, employé obligatoire, ingrédients consommés, alerte ;
+  - mode de paiement, articles maximum, commandes par client, délai de remboursement ;
+  - part de l'employé, distance de remise directe ;
+  - plateau : modèle, distance, hauteur ;
+  - catégories et animations ;
+- **produits** :
+  - nom, objet donné, prix, temps, description, actif, catégorie ;
+  - couches du burger (de bas en haut, avec aperçu) ou visuel et couleur de la boisson ;
+  - modèle posé sur le plateau ;
+  - ingrédients.
+
+Objets ajoutés (avec images) :
+- **Burgers** : `bs_burger_classic`, `bs_burger_double`, `bs_burger_bacon`, `bs_burger_chicken`, `bs_burger_veggie`, `bs_burger_monster`.
+- **Boissons** : `bs_drink_cola`, `bs_drink_orange`, `bs_drink_lemon`, `bs_drink_icetea`, `bs_drink_shake`, `bs_drink_coffee`.
+- **Desserts** : `bs_dessert_sundae`, `bs_dessert_donut`, `bs_dessert_cookie`, `bs_dessert_pie`, `bs_dessert_cheesecake`, `bs_dessert_muffin`.
+- **Nouveaux ingrédients**, en vente chez le fournisseur : `bs_bacon`, `bs_poulet`, `bs_cafe`, `bs_patisserie`.
+
+Sur un serveur déjà lancé, au premier démarrage, la mise à jour se fait seule :
+- la permission « commandes » est donnée aux grades qui peuvent cuisiner ;
+- les nouveaux ingrédients sont ajoutés au fournisseur ;
+- 2 bornes et 1 plan de travail sont posés (positions approximatives, à vérifier).
+
 ### Concession aérienne (`elyzea_concess_air`)
 Même fonctionnement que la concession automobile, avec son propre métier `planedealer` (« Elyzea Aviation ») à LSIA.
 Staff : **Menu admin › Métiers › Concession aérienne**. Détails dans `elyzea_concess_air/README.md`.

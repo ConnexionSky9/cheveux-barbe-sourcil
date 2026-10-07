@@ -264,6 +264,102 @@ function A.tpMissionPoint(src, d)
 end
 
 -- ---------------------------------------------------------------------
+-- Borne de commande (Burger Shot)
+-- ---------------------------------------------------------------------
+local LAYERS = {}
+for _, l in ipairs({ 'pain_bas', 'pain_milieu', 'pain_haut', 'steak', 'poulet', 'galette', 'cheddar', 'salade', 'tomate', 'oignon',
+    'bacon', 'cornichon', 'sauce', 'ketchup' }) do LAYERS[l] = true end
+local VISUALS = { gobelet = true, verre = true, milkshake = true, cafe = true }
+local function Model(v) local m = Str(v, 60):gsub('[^%w_]', '') return m ~= '' and m or nil end
+local function AnimName(v) return (Str(v, 100):gsub('[^%w@_%-/]', '')) end
+
+local function KioskOf(d)
+    local c, s = Company(d)
+    if not Config.Companies[c].features.kiosk or not s.kiosk then error('Cette entreprise n\'a pas de borne de commande.') end
+    return c, s, s.kiosk
+end
+
+function A.saveKioskSettings(src, d)
+    local c, _, k = KioskOf(d)
+    local st = type(d.kiosk) == 'table' and d.kiosk or {}
+    for _, key in ipairs({ 'enabled', 'requireStaff', 'useIngredients', 'announce' }) do if st[key] ~= nil then k[key] = Bool(st[key]) end end
+    if st.payment ~= nil then k.payment = ({ bank = 'bank', cash = 'cash', both = 'both' })[tostring(st.payment)] or 'both' end
+    k.maxItems = math.floor(Num(st.maxItems, k.maxItems or 10, 1, 50))
+    k.maxActive = math.floor(Num(st.maxActive, k.maxActive or 2, 1, 10))
+    k.orderTimeout = math.floor(Num(st.orderTimeout, k.orderTimeout or 15, 1, 240))
+    k.employeeShare = math.floor(Num(st.employeeShare, k.employeeShare or 0, 0, 100))
+    k.deliverDistance = Num(st.deliverDistance, k.deliverDistance or 6, 1, 30)
+    k.trayForward = Num(st.trayForward, k.trayForward or 0.55, -3, 3)
+    k.trayHeight = Num(st.trayHeight, k.trayHeight or -0.05, -3, 3)
+    k.trayModel = Model(st.trayModel) or k.trayModel
+    if type(st.categories) == 'table' then
+        local list, seen = {}, {}
+        for _, cat in ipairs(st.categories) do
+            local key = Str(cat.key, 20):lower():gsub('[^%w_]', '')
+            local label = Str(cat.label, 30)
+            if key ~= '' and label ~= '' and not seen[key] then
+                seen[key] = true
+                list[#list + 1] = { key = key, label = label, icon = Str(cat.icon, 8) }
+            end
+        end
+        if #list == 0 then error('Il faut au moins une catégorie.') end
+        k.categories = list
+    end
+    if type(st.anims) == 'table' then
+        local anims = {}
+        for key, a in pairs(st.anims) do
+            if type(a) == 'table' and AnimName(a.dict) ~= '' then anims[Str(key, 20)] = { dict = AnimName(a.dict), clip = AnimName(a.clip) } end
+        end
+        k.anims = anims
+    end
+    E.Changed(c)
+    E.Log(src, c, 'Borne de commande : réglages modifiés')
+    return 'Réglages de la borne enregistrés.'
+end
+
+function A.saveKioskProducts(src, d)
+    local c, _, k = KioskOf(d)
+    local cats = {}
+    for _, cat in ipairs(k.categories or {}) do cats[cat.key] = true end
+    local list, seen = {}, {}
+    for _, p in ipairs(type(d.products) == 'table' and d.products or {}) do
+        local label, item = Str(p.label, 60), ItemName(p.item)
+        if label ~= '' and item then
+            local id = Str(p.id, 30):lower():gsub('[^%w_]', '')
+            if id == '' or seen[id] then id = ('p%d'):format(#list + 1) end
+            seen[id] = true
+            local cat = Str(p.category, 20)
+            if not cats[cat] then error(('Catégorie inconnue pour « %s ».'):format(label)) end
+            local ing = {}
+            for _, x in ipairs(type(p.ingredients) == 'table' and p.ingredients or {}) do
+                local n = ItemName(x.item)
+                if n then ing[#ing + 1] = { item = n, count = math.floor(Num(x.count, 1, 1, 50)) } end
+            end
+            local layers
+            if type(p.layers) == 'table' then
+                layers = {}
+                for _, l in ipairs(p.layers) do if LAYERS[tostring(l)] and #layers < 24 then layers[#layers + 1] = tostring(l) end end
+                if #layers == 0 then layers = nil end
+            end
+            local visual = VISUALS[tostring(p.visual or '')] and tostring(p.visual) or nil
+            local color = tostring(p.color or ''):match('^#%x%x%x%x%x%x$')
+            list[#list + 1] = { id = id, category = cat, label = label, item = item, price = math.floor(Num(p.price, 0, 0, 100000)),
+                time = Num(p.time, 5, 1, 120), description = Str(p.description, 200), enabled = p.enabled ~= false,
+                ingredients = ing, layers = layers, visual = visual, color = color, prop = Model(p.prop) }
+        end
+    end
+    k.products = list
+    E.Changed(c)
+    E.Log(src, c, 'Borne de commande : produits modifiés', ('%d produit(s)'):format(#list))
+    return 'Produits de la borne enregistrés.'
+end
+
+function A.cancelOrder(src, d)
+    KioskOf(d)
+    return E.KioskAdminCancel(d.id, E.Name(src))
+end
+
+-- ---------------------------------------------------------------------
 -- Données pour le menu
 -- ---------------------------------------------------------------------
 local function Data()
@@ -286,10 +382,18 @@ local function Data()
             for _, x in ipairs(r.ingredients or {}) do labels[x.item] = E.ItemLabel(x.item) end
         end
         for _, x in ipairs(s.supplies or {}) do labels[x.item] = E.ItemLabel(x.item) end
+        local kiosk
+        if cfg.features.kiosk and s.kiosk then
+            for _, p in ipairs(s.kiosk.products or {}) do
+                labels[p.item] = E.ItemLabel(p.item)
+                for _, x in ipairs(p.ingredients or {}) do labels[x.item] = E.ItemLabel(x.item) end
+            end
+            kiosk = { settings = s.kiosk, orders = E.KioskActive and E.KioskActive(c) or {}, stats = E.KioskStats and E.KioskStats(c) or {} }
+        end
         out.companies[c] = {
             key = c, icon = cfg.icon, color = cfg.color, features = cfg.features, enabled = s.enabled,
             job = s.job, perms = s.perms, zones = s.zones, menu = s.menu, recipes = s.recipes, supplies = s.supplies, settings = s.settings,
-            permissions = perms, itemLabels = labels,
+            permissions = perms, itemLabels = labels, kiosk = kiosk,
             stats = { online = #online, duty = #duty, zones = #s.zones, invoicesToday = today.n or 0, revenueToday = today.total or 0,
                 balance = core:GetSocietyMoney(s.job.name) },
             employees = employees,

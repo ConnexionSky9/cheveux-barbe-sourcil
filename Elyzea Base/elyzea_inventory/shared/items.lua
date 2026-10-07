@@ -92,6 +92,32 @@ Items = {
     bs_frites       = food('Frites', 150, 15, 0, { prop = { model = `prop_food_bs_chips`, pos = vec3(0.02, 0.02, -0.02), rot = vec3(0.0, 0.0, 0.0) } }),
     bs_soda         = food('Soda Burger Shot', 400, 0, 30, { prop = { model = `prop_food_bs_juice01`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
     bs_milkshake    = food('Milkshake', 400, 5, 25, { prop = { model = `prop_food_bs_juice02`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    -- Burger Shot : borne de commande (ingrédients en plus)
+    bs_bacon      = { label = 'Tranches de bacon', weight = 80, stack = true, max = 50, icon = '🥓', description = 'Ingrédient du Burger Shot.' },
+    bs_poulet     = { label = 'Poulet pané', weight = 150, stack = true, max = 50, icon = '🍗', description = 'Ingrédient du Burger Shot.' },
+    bs_cafe       = { label = 'Café moulu', weight = 100, stack = true, max = 50, icon = '☕', description = 'Ingrédient du Burger Shot.' },
+    bs_patisserie = { label = 'Pâte et sucre', weight = 150, stack = true, max = 50, icon = '🥐', description = 'Ingrédient des desserts du Burger Shot.' },
+    -- Burger Shot : 6 burgers
+    bs_burger_classic = food('Le Classic Shot', 280, 35, 0, { description = 'Steak, cheddar, salade, tomate, sauce maison.', notification = 'Vous avez mangé un Classic Shot.' }),
+    bs_burger_double  = food('Double Shot', 380, 50, 0, { description = 'Deux steaks, double cheddar, oignons, cornichons.', notification = 'Vous avez mangé un Double Shot.' }),
+    bs_burger_bacon   = food('Bacon Blaster', 360, 45, 0, { description = 'Steak, bacon croustillant, cheddar, oignons.', notification = 'Vous avez mangé un Bacon Blaster.' }),
+    bs_burger_chicken = food('Chicken Crunch', 300, 40, 0, { description = 'Poulet pané, salade, tomate, mayonnaise.', notification = 'Vous avez mangé un Chicken Crunch.' }),
+    bs_burger_veggie  = food('Green Shot', 260, 32, 0, { description = 'Galette de légumes, salade, tomate, oignons rouges.', notification = 'Vous avez mangé un Green Shot.' }),
+    bs_burger_monster = food('The Monster', 520, 70, 0, { description = 'Trois steaks, triple cheddar, bacon. Pour les affamés.', notification = 'Vous avez dévoré un Monster.' }),
+    -- Burger Shot : 6 boissons
+    bs_drink_cola   = food('Shot Cola', 400, 0, 35, { description = 'Le cola maison du Burger Shot.', prop = { model = `prop_food_bs_juice01`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_drink_orange = food('Orangeade Sunset', 400, 0, 35, { description = 'Soda pétillant à l\'orange.', prop = { model = `prop_food_bs_juice03`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_drink_lemon  = food('Citronnade glacée', 400, 0, 40, { description = 'Citronnade maison avec glaçons.', prop = { model = `prop_food_bs_juice03`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_drink_icetea = food('Thé glacé pêche', 400, 0, 40, { description = 'Thé infusé à froid, saveur pêche.', prop = { model = `prop_food_bs_juice03`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_drink_shake  = food('Milkshake fraise', 450, 10, 30, { description = 'Milkshake à la fraise et chantilly.', prop = { model = `prop_food_bs_juice02`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_drink_coffee = food('Café Shot', 250, 0, 20, { description = 'Café serré, servi chaud.', prop = { model = `prop_fib_coffee`, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) } }),
+    -- Burger Shot : 6 desserts
+    bs_dessert_sundae     = food('Sundae caramel', 200, 15, 5, { description = 'Glace vanille, caramel, noisettes.', prop = { model = `prop_food_bs_juice02`, pos = vec3(0.01, 0.01, 0.06), rot = vec3(5.0, 5.0, -180.5) } }),
+    bs_dessert_donut      = food('Donut glacé', 120, 15, 0, { description = 'Glaçage rose et vermicelles.', prop = { model = `prop_donut_02`, pos = vec3(0.01, 0.01, -0.02), rot = vec3(0.0, 0.0, 0.0) } }),
+    bs_dessert_cookie     = food('Cookie géant', 100, 12, 0, { description = 'Pépites de chocolat, tout juste sorti du four.', prop = { model = `prop_donut_01`, pos = vec3(0.01, 0.01, -0.02), rot = vec3(0.0, 0.0, 0.0) } }),
+    bs_dessert_pie        = food('Chausson aux pommes', 140, 15, 0, { description = 'Pâte feuilletée, compote de pommes chaude.' }),
+    bs_dessert_cheesecake = food('Cheesecake', 160, 20, 0, { description = 'Coulis de fruits rouges.' }),
+    bs_dessert_muffin     = food('Muffin chocolat', 120, 15, 0, { description = 'Cœur fondant au chocolat.' }),
 
     -- Boîte de nuit (elyzea_entreprises) : ingrédients et cocktails
     nc_rhum      = { label = 'Bouteille de rhum', weight = 800, stack = true, max = 20, icon = '🥃', description = 'Pour le bar de la boîte de nuit.' },

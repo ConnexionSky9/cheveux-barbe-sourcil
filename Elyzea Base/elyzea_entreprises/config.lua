@@ -22,6 +22,8 @@ Config.ZoneTypes = {
     { key = 'garage',      label = 'Garage de service',         color = { 59, 111, 224 } },
     { key = 'spawn',       label = 'Sortie des véhicules',      color = { 59, 111, 224 } },
     { key = 'parking',     label = 'Rangement des véhicules',   color = { 120, 140, 170 } },
+    { key = 'borne',       label = 'Borne de commande (clients)', color = { 224, 67, 59 } },
+    { key = 'assemblage',  label = 'Plan de travail (préparation devant le client)', color = { 246, 226, 174 } },
 }
 
 -- Permissions possibles (cochées par grade dans le menu admin)
@@ -34,6 +36,7 @@ Config.Permissions = {
     { key = 'meter',      label = 'Utiliser le compteur',                  feature = 'meter' },
     { key = 'missions',   label = 'Faire des courses (clients PNJ)',       feature = 'missions' },
     { key = 'entry',      label = 'Faire payer l\'entrée',                  feature = 'entry' },
+    { key = 'orders',     label = 'Préparer les commandes de la borne',    feature = 'kiosk' },
     { key = 'boss_staff', label = 'Gérer les employés (recruter, grades, renvoyer)' },
     { key = 'boss_money', label = 'Gérer l\'argent de l\'entreprise (déposer, retirer)' },
 }
@@ -60,6 +63,100 @@ local function perms(list)   -- { [grade] = 'invoice prepare …' }
     end
     return out
 end
+
+-- =====================================================================
+--  BORNE DE COMMANDE DU BURGER SHOT (tout se règle dans admin_menu ›
+--  Métiers › Burger Shot › Borne de commande, sans redémarrage)
+--  Le client commande et paie à la borne ; la commande arrive chez les
+--  employés en service (tablette F6 › Commandes) ; un employé la prépare
+--  au « Plan de travail », devant le client, puis la lui remet.
+--
+--  layers (burgers) : couches dessinées et assemblées de bas en haut :
+--    pain_bas, pain_milieu, pain_haut, steak, poulet, galette, cheddar,
+--    salade, tomate, oignon, bacon, cornichon, sauce, ketchup
+--  visual (boissons, desserts) : gobelet, verre, milkshake, cafe, ou rien
+--  (image de l'objet).  prop : objet posé sur le plateau pendant la préparation.
+-- =====================================================================
+local function product(id, cat, label, price, item, time, desc, ing, extra)
+    local p = { id = id, category = cat, label = label, price = price, item = item, time = time, description = desc, enabled = true, ingredients = {} }
+    for k, n in pairs(ing or {}) do p.ingredients[#p.ingredients + 1] = { item = k, count = n } end
+    table.sort(p.ingredients, function(a, b) return a.item < b.item end)
+    for k, v in pairs(extra or {}) do p[k] = v end
+    return p
+end
+
+local KIOSK = {
+    enabled = true,
+    payment = 'both',            -- 'bank', 'cash' ou 'both' (le client choisit)
+    requireStaff = true,         -- commande impossible si aucun employé (permission « commandes ») n'est en service
+    useIngredients = true,       -- l'employé consomme les ingrédients de son inventaire
+    announce = true,             -- son et notification aux employés à chaque commande
+    maxItems = 10,               -- articles maximum par commande
+    maxActive = 2,               -- commandes en cours maximum par client
+    orderTimeout = 15,           -- minutes : commande non préparée -> remboursée automatiquement
+    employeeShare = 10,          -- % du montant pour l'employé qui prépare (le reste va à l'entreprise)
+    deliverDistance = 6,         -- mètres : client assez proche -> la commande lui est remise directement
+    trayModel = 'prop_food_bs_tray_01',
+    trayForward = 0.55,          -- plateau : distance devant le point « Plan de travail » (m)
+    trayHeight = -0.05,          -- plateau : hauteur par rapport au point (m)
+    categories = {
+        { key = 'burger',  label = 'Burgers',  icon = '🍔' },
+        { key = 'drink',   label = 'Boissons', icon = '🥤' },
+        { key = 'dessert', label = 'Desserts', icon = '🍨' },
+    },
+    anims = {
+        burger  = { dict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', clip = 'machinic_loop_mechandplayer' },
+        drink   = { dict = 'mini@drinking', clip = 'shots_barman_b' },
+        dessert = { dict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', clip = 'machinic_loop_mechandplayer' },
+    },
+    products = {
+        -- Burgers
+        product('classic', 'burger', 'Le Classic Shot', 45, 'bs_burger_classic', 6, 'Steak grillé, cheddar fondu, salade, tomate et sauce maison.',
+            { bs_pain = 1, bs_viande = 1, bs_fromage = 1, bs_legumes = 1 },
+            { layers = { 'pain_bas', 'sauce', 'steak', 'cheddar', 'salade', 'tomate', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        product('double', 'burger', 'Double Shot', 65, 'bs_burger_double', 8, 'Deux steaks, double cheddar, oignons et cornichons.',
+            { bs_pain = 1, bs_viande = 2, bs_fromage = 2 },
+            { layers = { 'pain_bas', 'ketchup', 'steak', 'cheddar', 'pain_milieu', 'steak', 'cheddar', 'oignon', 'cornichon', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        product('bacon', 'burger', 'Bacon Blaster', 70, 'bs_burger_bacon', 8, 'Steak, bacon croustillant, cheddar, oignons et sauce barbecue.',
+            { bs_pain = 1, bs_viande = 1, bs_bacon = 1, bs_fromage = 1 },
+            { layers = { 'pain_bas', 'sauce', 'steak', 'cheddar', 'bacon', 'oignon', 'ketchup', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        product('chicken', 'burger', 'Chicken Crunch', 55, 'bs_burger_chicken', 7, 'Poulet pané croustillant, salade fraîche et mayonnaise.',
+            { bs_pain = 1, bs_poulet = 1, bs_legumes = 1 },
+            { layers = { 'pain_bas', 'sauce', 'poulet', 'salade', 'tomate', 'sauce', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        product('veggie', 'burger', 'Green Shot', 50, 'bs_burger_veggie', 6, 'Galette de légumes, salade, tomate, oignons rouges.',
+            { bs_pain = 1, bs_legumes = 2 },
+            { layers = { 'pain_bas', 'sauce', 'galette', 'salade', 'tomate', 'oignon', 'salade', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        product('monster', 'burger', 'The Monster', 95, 'bs_burger_monster', 12, 'Trois steaks, triple cheddar, bacon, salade, tomate. Pour les affamés.',
+            { bs_pain = 2, bs_viande = 3, bs_fromage = 2, bs_bacon = 1, bs_legumes = 1 },
+            { layers = { 'pain_bas', 'ketchup', 'steak', 'cheddar', 'bacon', 'pain_milieu', 'steak', 'cheddar', 'steak', 'cheddar', 'salade', 'tomate', 'pain_haut' }, prop = 'prop_cs_burger_01' }),
+        -- Boissons
+        product('cola', 'drink', 'Shot Cola', 15, 'bs_drink_cola', 3, 'Le cola maison, servi bien frais.',
+            { bs_sirop = 1 }, { visual = 'gobelet', color = '#4a2416', prop = 'prop_food_bs_juice01' }),
+        product('orange', 'drink', 'Orangeade Sunset', 15, 'bs_drink_orange', 3, 'Soda pétillant à l\'orange.',
+            { bs_sirop = 1 }, { visual = 'gobelet', color = '#f08a1c', prop = 'prop_food_bs_juice03' }),
+        product('lemon', 'drink', 'Citronnade glacée', 18, 'bs_drink_lemon', 4, 'Citronnade maison avec glaçons.',
+            { bs_sirop = 1 }, { visual = 'verre', color = '#f3dc4c', prop = 'prop_food_bs_juice03' }),
+        product('icetea', 'drink', 'Thé glacé pêche', 18, 'bs_drink_icetea', 4, 'Thé infusé à froid, saveur pêche.',
+            { bs_sirop = 1 }, { visual = 'verre', color = '#c46a28', prop = 'prop_food_bs_juice03' }),
+        product('shake', 'drink', 'Milkshake fraise', 25, 'bs_drink_shake', 5, 'Milkshake onctueux à la fraise, chantilly.',
+            { bs_lait = 1, bs_sirop = 1 }, { visual = 'milkshake', color = '#f07aa6', prop = 'prop_food_bs_juice02' }),
+        product('coffee', 'drink', 'Café Shot', 12, 'bs_drink_coffee', 3, 'Café serré, servi chaud.',
+            { bs_cafe = 1 }, { visual = 'cafe', color = '#6b3d22', prop = 'prop_fib_coffee' }),
+        -- Desserts
+        product('sundae', 'dessert', 'Sundae caramel', 20, 'bs_dessert_sundae', 4, 'Glace vanille, nappage caramel et éclats de noisette.',
+            { bs_lait = 1, bs_patisserie = 1 }, { prop = 'prop_food_bs_juice02' }),
+        product('donut', 'dessert', 'Donut glacé', 12, 'bs_dessert_donut', 3, 'Donut moelleux glaçage rose et vermicelles.',
+            { bs_patisserie = 1 }, { prop = 'prop_donut_02' }),
+        product('cookie', 'dessert', 'Cookie géant', 10, 'bs_dessert_cookie', 3, 'Cookie aux pépites de chocolat, tout juste sorti du four.',
+            { bs_patisserie = 1 }, { prop = 'prop_donut_01' }),
+        product('pie', 'dessert', 'Chausson aux pommes', 14, 'bs_dessert_pie', 4, 'Pâte feuilletée et compote de pommes chaude.',
+            { bs_patisserie = 1 }, { prop = 'prop_donut_01' }),
+        product('cheesecake', 'dessert', 'Cheesecake', 22, 'bs_dessert_cheesecake', 4, 'Cheesecake new-yorkais, coulis de fruits rouges.',
+            { bs_patisserie = 1, bs_lait = 1 }, { prop = 'prop_donut_01' }),
+        product('muffin', 'dessert', 'Muffin chocolat', 12, 'bs_dessert_muffin', 3, 'Muffin cœur fondant au chocolat.',
+            { bs_patisserie = 1 }, { prop = 'prop_donut_01' }),
+    },
+}
 
 -- =====================================================================
 --  LES ENTREPRISES
@@ -101,14 +198,14 @@ Config.Companies = {
     -- ─────────────────────────── BURGER SHOT ───────────────────────────
     burgershot = {
         icon = '🍔', color = '#e0433b',
-        features = { production = true },
+        features = { production = true, kiosk = true },
         defaults = {
             enabled = true,
             job = { name = 'burgershot', label = 'Burger Shot', type = 'restaurant', defaultDuty = false, offDutyPay = false,
                 grades = grades({ { 'equipier', 'Équipier', 40 }, { 'cuisinier', 'Cuisinier', 60 }, { 'chef', 'Chef de cuisine', 85 },
                     { 'manager', 'Manager', 110 }, { 'patron', 'Patron', 150, true } }) },
-            perms = perms({ [0] = 'invoice prepare', [1] = 'invoice prepare stash', [2] = 'invoice prepare stash stock garage',
-                [3] = 'invoice prepare stash stock garage boss_staff', [4] = 'invoice prepare stash stock garage boss_staff boss_money' }),
+            perms = perms({ [0] = 'invoice prepare orders', [1] = 'invoice prepare orders stash', [2] = 'invoice prepare orders stash stock garage',
+                [3] = 'invoice prepare orders stash stock garage boss_staff', [4] = 'invoice prepare orders stash stock garage boss_staff boss_money' }),
             -- Burger Shot de Del Perro (positions approximatives : à ajuster dans le menu admin)
             zones = {
                 { type = 'service',     label = 'Vestiaire du personnel', x = -1178.0, y = -896.0, z = 13.9, h = 300.0, radius = 1.5 },
@@ -116,6 +213,9 @@ Config.Companies = {
                 { type = 'fournisseur', label = 'Réserve', x = -1203.9, y = -894.9, z = 14.0, h = 34.0, radius = 1.5 },
                 { type = 'comptoir',    label = 'Caisse', x = -1195.3, y = -892.2, z = 14.0, h = 124.0, radius = 1.5 },
                 { type = 'stash',       label = 'Frigo', x = -1198.2, y = -901.1, z = 14.0, h = 34.0, radius = 1.5 },
+                { type = 'borne',       label = 'Borne 1', x = -1189.6, y = -885.6, z = 14.0, h = 124.0, radius = 1.0 },
+                { type = 'borne',       label = 'Borne 2', x = -1188.2, y = -887.7, z = 14.0, h = 124.0, radius = 1.0 },
+                { type = 'assemblage',  label = 'Plan de travail', x = -1194.9, y = -893.7, z = 14.0, h = 304.0, radius = 1.2 },
             },
             -- Carte : prix de vente proposés à la caisse (facture)
             menu = {
@@ -134,7 +234,9 @@ Config.Companies = {
             supplies = {
                 { item = 'bs_pain', price = 4 }, { item = 'bs_viande', price = 10 }, { item = 'bs_legumes', price = 3 }, { item = 'bs_fromage', price = 5 },
                 { item = 'bs_patates', price = 3 }, { item = 'bs_sirop', price = 3 }, { item = 'bs_lait', price = 4 },
+                { item = 'bs_bacon', price = 6 }, { item = 'bs_poulet', price = 8 }, { item = 'bs_cafe', price = 4 }, { item = 'bs_patisserie', price = 5 },
             },
+            kiosk = KIOSK,
             settings = {
                 commission = 20, invoiceTimeout = 60, maxInvoice = 10000, showBlips = true, blipSprite = 106, blipColor = 1,
                 serviceVehicles = { { model = 'stalion2', label = 'Voiture de livraison', grade = 2 } }, maxServiceVehicles = 1,

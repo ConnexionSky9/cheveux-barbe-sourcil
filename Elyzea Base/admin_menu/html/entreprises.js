@@ -7,7 +7,7 @@
 (() => {
     const COMPANIES = [
         { key: 'taxi', ico: '🚕', label: 'Taxi', sub: 'Compteur, courses PNJ, grades, zones, véhicules, tenues.' },
-        { key: 'burgershot', ico: '🍔', label: 'Burger Shot', sub: 'Carte et prix, recettes, fournisseur, grades, zones, tenues.' },
+        { key: 'burgershot', ico: '🍔', label: 'Burger Shot', sub: 'Borne de commande, carte et prix, recettes, fournisseur, grades, zones, tenues.' },
         { key: 'nightclub', ico: '🍸', label: 'Boîte de nuit', sub: 'Bar, entrée, carte et prix, fournisseur, grades, zones, tenues.' },
     ];
     const ES = {};   // [company] = { sub, drafts… }
@@ -35,6 +35,7 @@
         const f = d.features || {};
         const list = [{ id: 'info', label: 'Informations' }, { id: 'grades', label: 'Grades' }, { id: 'perms', label: 'Permissions' },
             { id: 'zones', label: 'Zones' }, { id: 'menu', label: 'Carte & prix' }];
+        if (f.kiosk) list.push({ id: 'kiosk', label: '🍔 Borne de commande' });
         if (f.production) list.push({ id: 'recipes', label: 'Recettes' }, { id: 'supplies', label: 'Fournisseur' });
         if (f.meter || f.missions) list.push({ id: 'taxi', label: 'Compteur & courses' });
         list.push({ id: 'config', label: 'Configuration' }, { id: 'uniforms', label: 'Tenues' });
@@ -58,6 +59,8 @@
         if (!s.supplies) s.supplies = clone(d.supplies || []);
         if (!s.settings) s.settings = clone(d.settings || {});
         if (!s.zoneType) s.zoneType = 'all';
+        if (d.kiosk && !s.kiosk) { s.kiosk = clone(d.kiosk.settings); delete s.kiosk.products; }
+        if (d.kiosk && !s.kprods) s.kprods = clone(d.kiosk.settings.products || []);
         const list = subs(d);
         if (!list.find((x) => x.id === s.sub)) s.sub = 'info';
         const nav = `<div class="segmented">${list.map((x) => `<button class="seg ${x.id === s.sub ? 'active' : ''}" data-ens="${x.id}">${x.label}</button>`).join('')}</div>`;
@@ -152,6 +155,7 @@
         const t = ['Prise de service', 'Coffre', 'Comptoir / caisse', 'Garage de service + Sortie + Rangement des véhicules'];
         if (f.production) t.push('Préparation (cuisine / bar)', 'Réserve (fournisseur)');
         if (f.entry) t.push('Entrée');
+        if (f.kiosk) t.push('Borne de commande (clients)', 'Plan de travail (l\'employé y prépare la commande devant le client)');
         return t.join(', ');
     }
 
@@ -201,6 +205,131 @@
         </table>
         <div class="btn-row" style="margin-top:12px"><button class="btn" data-ena="rowAdd" data-list="supplies">+ Ajouter un produit</button><span style="flex:1"></span>
             <button class="btn" data-ena="reset" data-what="supplies">Annuler</button><button class="btn primary" data-ena="saveSupplies">Enregistrer</button></div></div>`;
+
+    /* ---------- Borne de commande ---------- */
+    // Aperçu des produits : visuels de la ressource (burgers couche par couche, boissons)
+    if (!window.Viz && !document.getElementById('entViz')) {
+        const sc = document.createElement('script');
+        sc.id = 'entViz';
+        sc.src = 'nui://elyzea_entreprises/html/visuals.js';
+        sc.onload = () => { if (isOpen && companyOfTab()) render(); };
+        document.head.appendChild(sc);
+    }
+    const LAYER_LABELS = { pain_bas: 'Pain (dessous)', pain_milieu: 'Pain (milieu)', pain_haut: 'Pain (dessus)', steak: 'Steak', poulet: 'Poulet pané',
+        galette: 'Galette de légumes', cheddar: 'Cheddar', salade: 'Salade', tomate: 'Tomate', oignon: 'Oignons', bacon: 'Bacon',
+        cornichon: 'Cornichons', sauce: 'Sauce', ketchup: 'Ketchup' };
+    const VISUALS = [['', 'Image de l\'objet'], ['gobelet', 'Gobelet Burger Shot'], ['verre', 'Verre (glaçons)'], ['milkshake', 'Milkshake (chantilly)'], ['cafe', 'Café chaud']];
+    const ORDER_ST = { pending: 'En attente', preparing: 'En préparation', ready: 'Prête (au comptoir)' };
+    const knum = (key, label, extra = '') => `<div class="field"><label>${label}</label><input class="input" type="number" data-enf="kiosk.${key}" value="${esc(state(companyOfTab()).kiosk[key] ?? '')}" ${extra}></div>`;
+    const preview = (p) => {
+        const box = 'width:92px;height:92px;border-radius:12px;background:radial-gradient(60% 70% at 50% 60%,rgba(224,67,59,.25),transparent 70%),rgba(4,6,12,.5);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px';
+        let inner = '';
+        if (window.Viz && p.layers && p.layers.length) inner = Viz.burger(p.layers);
+        else if (window.Viz && p.visual) inner = Viz.drink(p.visual, p.color);
+        else inner = `<img src="nui://elyzea_inventory/html/img/${esc(p.item)}.png" style="max-width:100%;max-height:100%" onerror="this.style.visibility='hidden'">`;
+        return `<div style="${box}"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${inner.replace('class="viz-svg', 'style="width:100%;height:100%" class="viz-svg')}</div></div>`;
+    };
+
+    SUB.kiosk = (k, d, s) => {
+        const kd = d.kiosk || {}, ks = s.kiosk, st = kd.stats || {};
+        const orders = kd.orders || [];
+        const cats = ks.categories || [];
+        const catOf = (key) => cats.find((c) => c.key === key) || { label: key, icon: '' };
+        return `<div class="stats">
+                <div class="stat"><b>${orders.filter((o) => o.status === 'pending').length}</b><span>En attente</span></div>
+                <div class="stat"><b>${orders.filter((o) => o.status === 'preparing').length}</b><span>En préparation</span></div>
+                <div class="stat"><b>${orders.filter((o) => o.status === 'ready').length}</b><span>Prêtes (au comptoir)</span></div>
+                <div class="stat"><b>${st.n || 0}</b><span>Commandes servies (24 h) · ${money(st.total)}</span></div>
+                <div class="stat" data-ens="zones"><b>${d.zones.filter((z) => z.type === 'borne').length} / ${d.zones.filter((z) => z.type === 'assemblage').length}</b><span>Bornes / plans de travail</span></div></div>
+
+            <div class="section"><h2>🧾 Commandes en cours (${orders.length})</h2>
+                <p class="hint">Le client paie à la borne ; l'argent est gardé de côté jusqu'à la préparation (puis versé à l'entreprise et à l'employé).
+                    Annuler rembourse le client, même déconnecté (à sa prochaine connexion).</p>
+                ${orders.length ? `<table><tr><th>N°</th><th>Client</th><th>Articles</th><th>Total</th><th>État</th><th></th></tr>
+                    ${orders.map((o) => `<tr><td><strong>${esc(o.number)}</strong></td><td>${esc(o.name)}<br><span class="muted" style="font-size:12px">il y a ${Math.floor((o.age || 0) / 60)} min · ${o.method === 'cash' ? 'liquide' : 'banque'}</span></td>
+                        <td>${(o.lines || []).map((l) => `${l.qty} × ${esc(l.label)}`).join('<br>')}</td><td>${money(o.total)}</td>
+                        <td><span class="badge">${ORDER_ST[o.status] || o.status}</span>${o.employee ? `<br><span class="muted" style="font-size:12px">${esc(o.employee)}</span>` : ''}</td>
+                        <td style="text-align:right"><button class="btn danger" data-ena="kOrderCancel" data-id="${o.id}">Annuler et rembourser</button></td></tr>`).join('')}</table>`
+                    : '<div class="empty">Aucune commande en cours.</div>'}</div>
+
+            <div class="section"><h2>⚙️ Réglages de la borne</h2>
+                <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-bottom:12px">
+                    ${tog('kiosk.enabled', 'Borne ouverte', 'Les clients peuvent commander.', ks.enabled !== false)}
+                    ${tog('kiosk.requireStaff', 'Employé en service obligatoire', 'Sinon, on peut commander même sans personne.', ks.requireStaff !== false)}
+                    ${tog('kiosk.useIngredients', 'Consommer les ingrédients', 'L\'employé utilise les ingrédients de son inventaire.', ks.useIngredients !== false)}
+                    ${tog('kiosk.announce', 'Alerte aux employés', 'Son et notification à chaque commande.', ks.announce !== false)}</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1000px">
+                    <div class="field"><label>Paiement</label><select class="input" data-enf="kiosk.payment">
+                        ${[['both', 'Au choix du client'], ['bank', 'Banque uniquement'], ['cash', 'Liquide uniquement']].map(([v, l]) => `<option value="${v}" ${ks.payment === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+                    ${knum('maxItems', 'Articles max. par commande', 'min="1" max="50"')}${knum('maxActive', 'Commandes en cours max. par client', 'min="1" max="10"')}
+                    ${knum('orderTimeout', 'Remboursement si non préparée (min)', 'min="1"')}
+                    ${knum('employeeShare', 'Part de l\'employé qui prépare (%)', 'min="0" max="100"')}${knum('deliverDistance', 'Remise directe si client à moins de (m)', 'min="1" step="0.5"')}</div>
+                <h3 class="sub-h" style="margin-top:16px">Plateau posé devant le client</h3>
+                <p class="hint">Le plateau apparaît devant le point « Plan de travail » (place-toi derrière le comptoir, face au client, pour poser ce point).
+                    Chaque produit préparé y est posé, visible par tous.</p>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;max-width:820px">
+                    <div class="field"><label>Modèle du plateau</label><input class="input" data-enf="kiosk.trayModel" value="${esc(ks.trayModel || '')}"></div>
+                    ${knum('trayForward', 'Distance devant le point (m)', 'step="0.05"')}${knum('trayHeight', 'Hauteur (m)', 'step="0.05"')}</div>
+                <h3 class="sub-h" style="margin-top:16px">Catégories et animations de préparation</h3>
+                <table><tr><th style="width:120px">Clé</th><th>Nom affiché</th><th style="width:90px">Icône</th><th>Animation (dict)</th><th>Animation (clip)</th><th style="width:60px"></th></tr>
+                    ${cats.map((c, i) => `<tr><td><input class="input" data-enf="kiosk.categories.${i}.key" value="${esc(c.key)}"></td>
+                        <td><input class="input" data-enf="kiosk.categories.${i}.label" value="${esc(c.label)}"></td>
+                        <td><input class="input" data-enf="kiosk.categories.${i}.icon" value="${esc(c.icon || '')}"></td>
+                        <td><input class="input" data-enf="kiosk.anims.${esc(c.key)}.dict" value="${esc(((ks.anims || {})[c.key] || {}).dict || '')}"></td>
+                        <td><input class="input" data-enf="kiosk.anims.${esc(c.key)}.clip" value="${esc(((ks.anims || {})[c.key] || {}).clip || '')}"></td>
+                        <td><button class="btn danger" data-ena="kCatDel" data-i="${i}" ${cats.length <= 1 ? 'disabled' : ''}>✕</button></td></tr>`).join('')}</table>
+                <div class="btn-row" style="margin-top:12px"><button class="btn" data-ena="kCatAdd">+ Ajouter une catégorie</button><span style="flex:1"></span>
+                    <button class="btn" data-ena="reset" data-what="kiosk">Annuler</button><button class="btn primary" data-ena="kSave">Enregistrer les réglages</button></div></div>
+
+            <div class="section"><h2>🍔 Produits de la borne (${s.kprods.length})</h2>
+                <p class="hint">Chaque produit donne un <b>objet</b> de l'inventaire au client. Les <b>couches</b> dessinent le burger, assemblé en direct pendant la préparation
+                    (de bas en haut). Le <b>visuel</b> dessine une boisson ; sinon l'image de l'objet est utilisée. Le <b>modèle</b> est l'objet posé sur le plateau.</p>
+                ${cats.map((c) => {
+                    const list = s.kprods.map((p, i) => ({ p, i })).filter((x) => x.p.category === c.key);
+                    return `<h3 class="sub-h" style="margin:14px 0 8px">${esc(c.icon || '')} ${esc(c.label)} (${list.length})</h3>
+                        ${list.map(({ p, i }) => prodCard(d, p, i, cats)).join('') || '<div class="empty">Aucun produit.</div>'}
+                        <div class="btn-row" style="margin-top:8px"><button class="btn" data-ena="kProdAdd" data-cat="${esc(c.key)}">+ Ajouter : ${esc(c.label)}</button></div>`;
+                }).join('')}
+                ${s.kprods.filter((p) => !cats.find((c) => c.key === p.category)).map((p) => prodCard(d, p, s.kprods.indexOf(p), cats)).join('')}
+                <div class="btn-row" style="margin-top:14px"><span style="flex:1"></span>
+                    <button class="btn" data-ena="reset" data-what="kprods">Annuler</button><button class="btn primary" data-ena="kProdsSave">Enregistrer les produits</button></div></div>`;
+    };
+
+    function prodCard(d, p, i, cats) {
+        const isBurger = (p.layers && p.layers.length) || p.category === 'burger';
+        return `<div class="card" style="margin-bottom:10px;padding:12px 14px;${p.enabled === false ? 'opacity:.6' : ''}">
+            <div style="display:grid;grid-template-columns:92px 1fr;gap:14px">
+                ${preview(p)}
+                <div>
+                    <div style="display:grid;grid-template-columns:2fr 1.6fr 90px 90px 1.2fr auto;gap:8px;align-items:end">
+                        <div class="field"><label>Nom</label><input class="input" data-enf="kprods.${i}.label" value="${esc(p.label)}"></div>
+                        <div class="field"><label>Objet donné</label><input class="input" data-enf="kprods.${i}.item" value="${esc(p.item)}" title="${esc(itemLabel(d, p.item))}"></div>
+                        <div class="field"><label>Prix ($)</label><input class="input" type="number" min="0" data-enf="kprods.${i}.price" value="${Number(p.price) || 0}"></div>
+                        <div class="field"><label>Temps (s)</label><input class="input" type="number" min="1" data-enf="kprods.${i}.time" value="${Number(p.time) || 5}"></div>
+                        <div class="field"><label>Catégorie</label><select class="input" data-enf="kprods.${i}.category" data-enre="1">${cats.map((c) => `<option value="${esc(c.key)}" ${c.key === p.category ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>
+                        <div style="white-space:nowrap"><label class="inline" style="gap:6px;margin-right:6px"><input type="checkbox" data-enf="kprods.${i}.enabled" ${p.enabled !== false ? 'checked' : ''}> Actif</label>
+                            <button class="btn" data-ena="kProdUp" data-i="${i}">↑</button><button class="btn" data-ena="kProdDown" data-i="${i}">↓</button>
+                            <button class="btn danger" data-ena="kProdDel" data-i="${i}">✕</button></div></div>
+                    <div style="display:grid;grid-template-columns:3fr 1.4fr;gap:8px;margin-top:8px">
+                        <div class="field"><label>Description (borne)</label><input class="input" data-enf="kprods.${i}.description" value="${esc(p.description || '')}" maxlength="200"></div>
+                        <div class="field"><label>Modèle posé sur le plateau</label><input class="input" data-enf="kprods.${i}.prop" value="${esc(p.prop || '')}" placeholder="prop_cs_burger_01"></div></div>
+                    ${isBurger ? `<div style="margin-top:8px"><label class="muted" style="font-size:12px">Couches (de bas en haut)</label>
+                        <div class="chips" style="margin-top:6px;align-items:center">${(p.layers || []).map((l, j) => `<span class="badge" style="display:inline-flex;gap:6px;align-items:center">${j + 1}. ${esc(LAYER_LABELS[l] || l)}
+                            <button class="btn" style="padding:0 6px" data-ena="kLayerDel" data-i="${i}" data-j="${j}">✕</button></span>`).join('')}
+                            <select class="input" style="max-width:200px" data-klayer="${i}"><option value="">+ Ajouter une couche…</option>
+                                ${Object.entries(LAYER_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div></div>`
+                    : `<div style="display:grid;grid-template-columns:1.4fr 120px;gap:8px;margin-top:8px;max-width:420px">
+                        <div class="field"><label>Visuel</label><select class="input" data-enf="kprods.${i}.visual" data-enre="1">${VISUALS.map(([v, l]) => `<option value="${v}" ${(p.visual || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+                        <div class="field"><label>Couleur</label><input class="input" type="color" data-enf="kprods.${i}.color" data-enre="1" value="${esc(p.color || '#4a2416')}" style="height:38px;padding:2px"></div></div>`}
+                    <div style="margin-top:8px"><label class="muted" style="font-size:12px">Ingrédients utilisés par l'employé (si « Consommer les ingrédients »)</label>
+                        ${(p.ingredients || []).map((x, j) => `<div class="inline" style="gap:8px;margin-top:6px">
+                            <input class="input" style="max-width:220px" data-enf="kprods.${i}.ingredients.${j}.item" value="${esc(x.item)}" placeholder="objet">
+                            <input class="input" style="max-width:90px" type="number" min="1" data-enf="kprods.${i}.ingredients.${j}.count" value="${Number(x.count) || 1}">
+                            <span class="muted">${esc(itemLabel(d, x.item))}</span>
+                            <button class="btn danger" data-ena="kIngDel" data-i="${i}" data-j="${j}">✕</button></div>`).join('')}
+                        <button class="btn" style="margin-top:6px" data-ena="kIngAdd" data-i="${i}">+ Ingrédient</button></div>
+                </div></div></div>`;
+    }
 
     /* ---------- Taxi : compteur et courses ---------- */
     const num = (key, label, extra = '') => `<div class="field"><label>${label}</label><input class="input" type="number" data-enf="settings.${key}" value="${esc(state(companyOfTab()).settings[key] ?? '')}" ${extra}></div>`;
@@ -289,6 +418,12 @@
         if (!isOpen || !k || !ES[k]) return;
         const t = ev.target;
         if (t.type === 'checkbox' && t.dataset.enf) setPath(ES[k], t.dataset.enf, t.checked);
+        if (t.dataset.klayer !== undefined && t.value) {
+            const p = ES[k].kprods[Number(t.dataset.klayer)];
+            (p.layers = p.layers || []).push(t.value);
+            return render();
+        }
+        if (t.dataset.enre) return render();
         if (t.dataset.enp) {
             const [g, key] = t.dataset.enp.split(':');
             ES[k].perms[g] = ES[k].perms[g] || {};
@@ -360,6 +495,29 @@
                 delete st.missionPoints;
                 send(k, 'saveSettings', st); s.settings = null; return;
             }
+            case 'kSave': send(k, 'saveKioskSettings', { kiosk: s.kiosk }); s.kiosk = null; return;
+            case 'kProdsSave': send(k, 'saveKioskProducts', { products: s.kprods }); s.kprods = null; return;
+            case 'kCatAdd': s.kiosk.categories.push({ key: `cat${s.kiosk.categories.length + 1}`, label: 'Nouvelle catégorie', icon: '🍽️' }); return render();
+            case 'kCatDel': s.kiosk.categories.splice(i, 1); return render();
+            case 'kProdAdd': {
+                const cat = n.dataset.cat;
+                s.kprods.push({ id: '', category: cat, label: '', item: '', price: 0, time: 5, description: '', enabled: true, ingredients: [],
+                    layers: cat === 'burger' ? ['pain_bas', 'steak', 'cheddar', 'salade', 'pain_haut'] : null, visual: cat === 'drink' ? 'gobelet' : '', color: '#4a2416', prop: '' });
+                return render();
+            }
+            case 'kProdDel': {
+                const p = s.kprods[i];
+                if (!(await confirmBox('Supprimer le produit ?', `« ${p.label || 'sans nom'} » ne sera plus proposé à la borne (après enregistrement).`))) return;
+                s.kprods.splice(i, 1); return render();
+            }
+            case 'kProdUp': if (i > 0) [s.kprods[i - 1], s.kprods[i]] = [s.kprods[i], s.kprods[i - 1]]; return render();
+            case 'kProdDown': if (i < s.kprods.length - 1) [s.kprods[i + 1], s.kprods[i]] = [s.kprods[i], s.kprods[i + 1]]; return render();
+            case 'kLayerDel': s.kprods[i].layers.splice(Number(n.dataset.j), 1); return render();
+            case 'kIngAdd': (s.kprods[i].ingredients = s.kprods[i].ingredients || []).push({ item: '', count: 1 }); return render();
+            case 'kIngDel': s.kprods[i].ingredients.splice(Number(n.dataset.j), 1); return render();
+            case 'kOrderCancel':
+                if (!(await confirmBox('Annuler la commande ?', 'Le client est remboursé et la préparation en cours est arrêtée.'))) return;
+                return send(k, 'cancelOrder', { id: Number(n.dataset.id) });
             case 'pointAdd': return send(k, 'addMissionPoint');
             case 'pointTp': post('close'); return send(k, 'tpMissionPoint', { index: i });
             case 'pointDel': return send(k, 'deleteMissionPoint', { index: i });

@@ -8,7 +8,7 @@ const money = (n) => `${Number(n || 0).toLocaleString('fr-FR')} $`;
 const act = (action, data = {}) => post('act', { action, data });
 
 const T = { company: null, cfg: null, data: null, tab: 'home', nearby: [], cart: {}, custom: { amount: '', label: '' }, target: null,
-    counts: {}, qty: {}, meter: null, mission: null };
+    counts: {}, qty: {}, meter: null, mission: null, orders: [] };
 
 function hexToRgba(hex, a) {
     const m = String(hex || '').match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
@@ -24,6 +24,7 @@ function tabs() {
     const list = [{ id: 'home', label: 'Accueil' }];
     if (p.invoice) list.push({ id: 'invoice', label: f.meter ? 'Facture' : 'Caisse' });
     if (f.meter || f.missions) list.push({ id: 'taxi', label: 'Taxi' });
+    if (f.kiosk && p.orders) list.push({ id: 'orders', label: `Commandes${T.orders.length ? ` (${T.orders.filter((o) => o.status === 'pending').length})` : ''}` });
     if (f.production && p.prepare) list.push({ id: 'prepare', label: T.company === 'nightclub' ? 'Bar' : 'Cuisine' });
     if (f.production && p.stock) list.push({ id: 'supply', label: 'Fournisseur' });
     if (f.entry && p.entry) list.push({ id: 'entry', label: 'Entrée' });
@@ -41,11 +42,11 @@ function render() {
     $('#tSub').innerHTML = d ? `${d.onduty ? '<span class="status on">● En service</span>' : '<span class="status">Hors service</span>'}
         <span class="status">${esc(d.gradeLabel || '')}</span>${d.enabled ? '' : '<span class="status off">Fermé par le staff</span>'}` : '';
     const list = tabs();
-    if (!list.find((t) => t.id === T.tab)) T.tab = 'home';
+    if (d && !list.find((t) => t.id === T.tab)) T.tab = 'home';
     $('#tabs').innerHTML = list.map((t) => `<button class="${t.id === T.tab ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');
     if (!d) { $('#body').innerHTML = '<p class="muted">Chargement…</p>'; return; }
     $('#body').innerHTML = (VIEWS[T.tab] || VIEWS.home)();
-    if (T.tab === 'prepare') loadCounts();
+    if (T.tab === 'prepare' || T.tab === 'orders') loadCounts();
 }
 
 const VIEWS = {};
@@ -126,11 +127,12 @@ VIEWS.taxi = () => {
 async function loadCounts() {
     const items = new Set();
     (T.cfg.recipes || []).forEach((r) => (r.ingredients || []).forEach((x) => items.add(x.item)));
+    ((T.cfg.kiosk && T.cfg.kiosk.products) || []).forEach((p) => (p.ingredients || []).forEach((x) => items.add(x.item)));
     if (!items.size) return;
     const r = await post('counts', { items: [...items] });
     const changed = JSON.stringify(r) !== JSON.stringify(T.counts);
     T.counts = r || {};
-    if (changed && T.tab === 'prepare') $('#body').innerHTML = VIEWS.prepare();
+    if (changed && (T.tab === 'prepare' || T.tab === 'orders')) $('#body').innerHTML = VIEWS[T.tab]();
 }
 VIEWS.prepare = () => {
     const list = T.cfg.recipes || [];
@@ -142,6 +144,41 @@ VIEWS.prepare = () => {
                 <div class="ings">${(r.ingredients || []).map((x) => `<span class="chip ${(T.counts[x.item] || 0) >= x.count ? 'ok' : 'ko'}">${x.count} × ${esc(x.label)} (${T.counts[x.item] || 0})</span>`).join('') || '<span class="chip">Aucun ingrédient</span>'}</div>
                 <button class="btn ${ok ? 'primary' : ''}" data-prepare="${esc(r.id)}" ${ok && T.data.onduty ? '' : 'disabled'}>Préparer</button></div>`;
         }).join('')}</div>`;
+};
+
+/* ---------- Commandes de la borne ---------- */
+function orderNeeds(o) {
+    const k = T.cfg.kiosk || {};
+    if (k.useIngredients === false) return [];
+    const need = {};
+    (o.lines || []).forEach((l) => {
+        const p = (k.products || []).find((x) => x.id === l.pid);
+        ((p && p.ingredients) || []).forEach((x) => { need[x.item] = (need[x.item] || 0) + x.count * l.qty; });
+    });
+    return Object.entries(need).map(([item, count]) => ({ item, count, have: T.counts[item] || 0 }));
+}
+const ago = (s) => (s < 60 ? 'à l\'instant' : `il y a ${Math.floor(s / 60)} min`);
+const ORDER_ST = { pending: 'En attente', preparing: 'En préparation', ready: 'Prête' };
+VIEWS.orders = () => {
+    const list = T.orders || [];
+    const k = T.cfg.kiosk || {};
+    return `${dutyLock()}<p class="lead">Les clients commandent à la borne et paient d'avance. Va au <b>plan de travail</b>, puis « Préparer » :
+            tu prépares la commande devant le client${k.useIngredients === false ? '' : ' avec les ingrédients de ton inventaire'}.
+            Client à moins de ${k.deliverDistance || 6} m : elle lui est remise directement, sinon il la récupère au comptoir.</p>
+        <div class="row" style="margin-bottom:12px"><button class="btn small" data-a="ordersRefresh">Actualiser</button>
+            <span class="muted">${list.filter((o) => o.status === 'pending').length} en attente · ${list.filter((o) => o.status === 'preparing').length} en préparation · ${list.filter((o) => o.status === 'ready').length} prête(s)</span></div>
+        ${list.length ? `<div class="orders">${list.map((o) => {
+            const needs = orderNeeds(o);
+            const ok = needs.every((x) => x.have >= x.count);
+            return `<div class="ticket ${o.status}"><div class="t-head"><span class="t-num gold-text">n°${esc(o.number)}</span><span class="st ${o.status}">${ORDER_ST[o.status] || o.status}</span></div>
+                <small class="muted">${esc(o.name)} · ${ago(o.age || 0)} · ${money(o.total)}</small>
+                <ul>${(o.lines || []).map((l) => `<li><b>${l.qty}×</b>${esc(l.label)}</li>`).join('')}</ul>
+                ${o.status === 'pending' && needs.length ? `<div class="ings">${needs.map((x) => `<span class="chip ${x.have >= x.count ? 'ok' : 'ko'}">${x.count} × ${esc((T.cfg.kioskLabels || {})[x.item] || x.item)} (${x.have})</span>`).join(' ')}</div>` : ''}
+                ${o.status === 'preparing' ? `<small class="muted">Préparée par ${esc(o.employee || '?')}</small>` : ''}
+                ${o.status === 'ready' ? '<small class="muted">En attente du client au comptoir.</small>' : ''}
+                ${o.status === 'pending' ? `<div class="row end" style="margin-top:6px"><button class="btn small danger" data-ocancel="${o.id}">Annuler et rembourser</button>
+                    <button class="btn small ${ok ? 'primary' : ''}" data-ostart="${o.id}" ${T.data.onduty && ok ? '' : 'disabled'}>Préparer</button></div>` : ''}</div>`;
+        }).join('')}</div>` : '<div class="empty">Aucune commande pour le moment. Une alerte s\'affiche à chaque nouvelle commande.</div>'}`;
 };
 
 /* ---------- Fournisseur ---------- */
@@ -220,6 +257,8 @@ $('#tablet').addEventListener('click', async (e) => {
     }
     if ((n = e.target.closest('[data-qty]'))) { const i = n.dataset.qty; T.qty[i] = Math.min(100, Math.max(1, (T.qty[i] || 5) + Number(n.dataset.d))); return render(); }
     if ((n = e.target.closest('[data-supply]')) && !n.disabled) return act('supply', { index: Number(n.dataset.supply) + 1, qty: T.qty[n.dataset.supply] || 5 });
+    if ((n = e.target.closest('[data-ostart]')) && !n.disabled) return act('orderStart', { id: Number(n.dataset.ostart) });
+    if ((n = e.target.closest('[data-ocancel]'))) return act('orderCancel', { id: Number(n.dataset.ocancel) });
     if ((n = e.target.closest('[data-prepare]')) && !n.disabled) return act('prepare', { id: n.dataset.prepare });
     if ((n = e.target.closest('[data-entry]')) && !n.disabled) return act('entry', { target: T.target, vip: n.dataset.entry === '1' });
     if ((n = e.target.closest('[data-veh]')) && !n.disabled) return act('vehicle', { index: Number(n.dataset.veh) });
@@ -244,6 +283,7 @@ $('#tablet').addEventListener('click', async (e) => {
         case 'meterBill': T.custom = { amount: String((T.meter && T.meter.total) || 0), label: 'Course de taxi' }; T.cart = {}; T.tab = 'invoice'; act('meterStop'); return render();
         case 'missionStart': case 'missionCancel': return act(n.dataset.a);
         case 'stash': return act('stash');
+        case 'ordersRefresh': return act('ordersRefresh');
         case 'deposit': case 'withdraw': {
             const v = Number(document.querySelector('[data-money]').value);
             if (v > 0) act('boss', { name: n.dataset.a, data: { amount: v } });
@@ -326,13 +366,14 @@ window.addEventListener('message', (e) => {
     const m = e.data || {};
     switch (m.action) {
         case 'tablet':
-            Object.assign(T, { company: m.company, cfg: m.cfg, data: null, nearby: m.nearby || [], counts: {}, mission: m.mission || null });
+            Object.assign(T, { company: m.company, cfg: m.cfg, data: null, nearby: m.nearby || [], counts: {}, mission: m.mission || null, orders: m.orders || [] });
             if (m.meter) T.meter = m.meter;
             T.tab = m.tab || (T.tab && T.company === m.company ? T.tab : 'home');
             $('#tablet').classList.remove('hidden');
             return render();
         case 'tabletData': T.data = m.data; if (m.nearby) T.nearby = m.nearby; return render();
         case 'closeTablet': $('#tablet').classList.add('hidden'); return;
+        case 'orders': T.orders = m.list || []; if (!$('#tablet').classList.contains('hidden') && T.data) render(); return;
         case 'meter': return renderMeter(m.show, m.data);
         case 'mission': T.mission = m.data; if (!$('#tablet').classList.contains('hidden')) render(); return;
         case 'invoice': return openInvoice(m.invoice);

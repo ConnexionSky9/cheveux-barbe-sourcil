@@ -102,8 +102,9 @@ function C.OpenTablet(tab)
     C.tabletOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'tablet', company = c, cfg = s, tab = tab, nearby = C.NearbyPlayers(6.0), meter = C.MeterState and C.MeterState() or nil,
-        mission = C.MissionState and C.MissionState() or nil })
+        mission = C.MissionState and C.MissionState() or nil, orders = C.orders })
     TriggerServerEvent('ent:tabletData')
+    if s.features and s.features.kiosk then TriggerServerEvent('ent:ordersData') end
 end
 
 RegisterCommand('entreprise_tablette', function() C.OpenTablet() end, false)
@@ -147,6 +148,7 @@ RegisterNUICallback('act', function(body, cb)
     elseif a == 'vehicle' then C.CloseTablet() TriggerServerEvent('ent:spawnVehicle', tonumber(d.index))
     elseif a == 'boss' then TriggerServerEvent('ent:boss', d.name, d.data)
     elseif a == 'refresh' then TriggerServerEvent('ent:tabletData')
+    elseif C.KioskAction and C.KioskAction(a, d) then return
     elseif C.TaxiAction then C.TaxiAction(a, d) end
 end)
 
@@ -203,6 +205,7 @@ local HELP = {
     comptoir = function() return C.Can('invoice') and '[E] Caisse' or nil end,
     entree = function() return C.Can('entry') and '[E] Faire payer l\'entrée' or nil end,
     garage = function() return C.Can('garage') and '[E] Véhicules de service' or nil end,
+    assemblage = function() return C.Can('orders') and '[E] Commandes de la borne' or nil end,
     parking = function() return (IsPedInAnyVehicle(PlayerPedId(), false) and C.OnDuty()) and '[E] Ranger le véhicule' or nil end,
 }
 local ACTION = {
@@ -213,6 +216,7 @@ local ACTION = {
     comptoir = function() C.OpenTablet('invoice') end,
     entree = function() C.OpenTablet('entry') end,
     garage = function() C.OpenTablet('vehicles') end,
+    assemblage = function() C.OpenTablet('orders') end,
     parking = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then TriggerServerEvent('ent:storeVehicle', NetworkGetNetworkIdFromEntity(veh)) end

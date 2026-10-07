@@ -144,6 +144,25 @@ function E.RegisterStash(c)
     end)
 end
 
+-- Ajoute à une entreprise déjà enregistrée ce que la borne apporte : permission « orders »,
+-- nouveaux ingrédients chez le fournisseur, points « borne » et « plan de travail » par défaut
+function E.SeedKiosk(c, s, defaults)
+    for _, row in pairs(s.perms or {}) do if row.prepare then row.orders = true end end
+    local have = {}
+    for _, x in ipairs(s.supplies or {}) do have[x.item] = true end
+    for _, x in ipairs(defaults.supplies or {}) do if not have[x.item] then s.supplies[#s.supplies + 1] = E.Copy(x) end end
+    s.nextZone = s.nextZone or (#s.zones + 1)
+    for _, z in ipairs(defaults.zones or {}) do
+        if z.type == 'borne' or z.type == 'assemblage' then
+            local nz = E.Copy(z)
+            nz.id, nz.enabled = s.nextZone, true
+            s.nextZone = s.nextZone + 1
+            s.zones[#s.zones + 1] = nz
+        end
+    end
+    print(('^2[elyzea_entreprises] %s : borne de commande ajoutée (permission, ingrédients, points).^0'):format(c))
+end
+
 local function Load()
     MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_entreprises` (
         `company` VARCHAR(40) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL)]])
@@ -156,9 +175,10 @@ local function Load()
     for c, cfg in pairs(Config.Companies) do
         local raw = MySQL.scalar.await('SELECT `value` FROM elyzea_entreprises WHERE `company` = ?', { c })
         local s = E.Copy(cfg.defaults)
-        for k, v in pairs(raw and json.decode(raw) or {}) do
+        local saved = raw and json.decode(raw) or {}
+        for k, v in pairs(saved) do
             if s[k] ~= nil then
-                if k == 'settings' and type(v) == 'table' then
+                if (k == 'settings' or k == 'kiosk') and type(v) == 'table' then
                     for k2, v2 in pairs(v) do s[k][k2] = v2 end   -- garde les nouveaux réglages d'une mise à jour
                 else
                     s[k] = v
@@ -170,8 +190,10 @@ local function Load()
             if not z.id then z.id = s.nextZone s.nextZone = s.nextZone + 1 end
             if z.enabled == nil then z.enabled = true end
         end
+        -- Mise à jour : première apparition de la borne de commande sur une installation existante
+        if raw and cfg.features.kiosk and saved.kiosk == nil then E.SeedKiosk(c, s, cfg.defaults) end
         E.S[c] = s
-        if not raw then E.Save(c) end
+        if not raw or (cfg.features.kiosk and saved.kiosk == nil) then E.Save(c) end
     end
 end
 
@@ -190,11 +212,18 @@ function E.Public()
         end
         local supplies = {}
         for i, x in ipairs(s.supplies or {}) do supplies[i] = { item = x.item, price = x.price, label = E.ItemLabel(x.item) } end
+        local kioskLabels
+        if cfg.features.kiosk and s.kiosk then
+            kioskLabels = {}
+            for _, p in ipairs(s.kiosk.products or {}) do
+                for _, x in ipairs(p.ingredients or {}) do kioskLabels[x.item] = kioskLabels[x.item] or E.ItemLabel(x.item) end
+            end
+        end
         local st = s.settings
         out[c] = {
             enabled = s.enabled, icon = cfg.icon, color = cfg.color, features = cfg.features,
             job = { name = s.job.name, label = s.job.label }, perms = s.perms, zones = s.zones, menu = s.menu,
-            recipes = recipes, supplies = supplies,
+            recipes = recipes, supplies = supplies, kiosk = cfg.features.kiosk and s.kiosk or nil, kioskLabels = kioskLabels,
             settings = {
                 showBlips = st.showBlips, blipSprite = st.blipSprite, blipColor = st.blipColor, maxInvoice = st.maxInvoice,
                 invoiceTimeout = st.invoiceTimeout, serviceVehicles = st.serviceVehicles,
