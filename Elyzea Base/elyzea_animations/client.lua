@@ -9,7 +9,7 @@ local Config = {
     DefaultOpenKey = 'K',
     DefaultStopKey = 'X',
     AcceptKey      = 'Y',          -- accepter une demande d'animation partagée
-    RefuseKey      = 'N',          -- refuser une demande
+    RefuseKey      = 'L',          -- refuser une demande (N = parler, pma-voice)
     NearbyRadius   = 3.0,          -- distance max (mètres) pour les animations partagées (3 m comme rpemotes)
     -- Aperçu 3D : caméra devant ton personnage pendant que le menu est ouvert
     PreviewCam = {
@@ -279,9 +279,9 @@ local function respond(accept)
 end
 
 RegisterCommand('elyzea_anim_accept', function() respond(true) end, false)
-RegisterCommand('elyzea_anim_refuse', function() respond(false) end, false)
+RegisterCommand('elyzea_anim_refuser', function() respond(false) end, false)
 RegisterKeyMapping('elyzea_anim_accept', 'Elyzea animations : accepter une demande', 'keyboard', Config.AcceptKey)
-RegisterKeyMapping('elyzea_anim_refuse', 'Elyzea animations : refuser une demande', 'keyboard', Config.RefuseKey)
+RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une demande', 'keyboard', Config.RefuseKey)
 
 -- ---------------------------------------------------------
 --  Animations solo

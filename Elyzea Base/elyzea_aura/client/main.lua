@@ -1515,11 +1515,11 @@ local function OpenCarPlay()
     end)
 end
 
-RegisterCommand('+elyzea_carplay', function()
+RegisterCommand('+elyzea_carplay_ouvrir', function()
     CreateThread(function() if cpOpen then CloseCarPlay() else OpenCarPlay() end end)
 end, false)
-RegisterCommand('-elyzea_carplay', function() end, false)
-RegisterKeyMapping('+elyzea_carplay', 'Ouvrir la tablette ElyzeaCarPlay', 'keyboard', Config.CarPlay.Key)
+RegisterCommand('-elyzea_carplay_ouvrir', function() end, false)
+RegisterKeyMapping('+elyzea_carplay_ouvrir', 'Ouvrir la tablette ElyzeaCarPlay', 'keyboard', Config.CarPlay.Key)
 
 RegisterNUICallback('carplayClose', function(_, cb) CloseCarPlay(); cb({ ok = true }) end)
 RegisterNUICallback('carplaySkip', function(_, cb) cpSkipIntro = true; cb({ ok = true }) end)

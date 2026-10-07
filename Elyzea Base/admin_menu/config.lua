@@ -43,7 +43,7 @@ Config.NoclipKeys = {
     { id = 'slow',       label = 'Aller lentement',       mapper = 'keyboard',     key = 'LMENU',          hold = true },
     { id = 'speed_up',   label = 'Augmenter la vitesse',  mapper = 'MOUSE_WHEEL',  key = 'IOM_WHEEL_UP' },
     { id = 'speed_down', label = 'Baisser la vitesse',    mapper = 'MOUSE_WHEEL',  key = 'IOM_WHEEL_DOWN' },
-    { id = 'delete',     label = 'Supprimer le véhicule visé', mapper = 'keyboard', key = 'G' },
+    { id = 'delete',     label = 'Supprimer le véhicule visé', mapper = 'keyboard', key = 'DELETE' },
     { id = 'spectate',   label = 'Spectate le joueur visé', mapper = 'MOUSE_BUTTON', key = 'MOUSE_LEFT' },
 }
 
@@ -55,11 +55,11 @@ Config.EditorKeys = {
     { id = 'rot_right',  label = 'Tourner à droite',      mapper = 'MOUSE_WHEEL', key = 'IOM_WHEEL_DOWN' },
     { id = 'up',         label = 'Monter l\'objet',        mapper = 'keyboard',    key = 'PRIOR', hold = true },
     { id = 'down',       label = 'Descendre l\'objet',     mapper = 'keyboard',    key = 'NEXT',  hold = true },
-    { id = 'reset',      label = 'Remettre la hauteur à zéro', mapper = 'keyboard', key = 'R' },
-    { id = 'snap',       label = 'Coller au sol (oui / non)', mapper = 'keyboard', key = 'G' },
+    { id = 'reset',      label = 'Remettre la hauteur à zéro', mapper = 'keyboard', key = 'HOME' },
+    { id = 'snap',       label = 'Coller au sol (oui / non)', mapper = 'keyboard', key = 'END' },
     { id = 'finish',     label = 'Terminer la zone dessinée', mapper = 'keyboard', key = 'RETURN' },
     { id = 'magnet',     label = 'Aimant : coller aux autres objets (oui / non)', mapper = 'keyboard', key = 'M' },
-    { id = 'magnet_side', label = 'Aimant : changer de côté (dessus, devant…)', mapper = 'keyboard', key = 'X' },
+    { id = 'magnet_side', label = 'Aimant : changer de côté (dessus, devant…)', mapper = 'keyboard', key = 'INSERT' },
 }
 
 -- Touche de récolte (pour TOUS les joueurs)

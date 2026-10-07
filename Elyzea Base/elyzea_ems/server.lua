@@ -26,6 +26,12 @@ do
         print('^2[elyzea_ems] Réanimation : objet « medikit » remplacé par « medical_kit ».^7')
     end
 end
+-- Touches : X (arrêter une animation) n'est plus utilisée pour ignorer une alerte
+if type(saved.settings) == 'table' and (saved.settings.keyIgnore == 'X' or saved.settings.keyIgnore == 'U') then
+    saved.settings.keyIgnore = 'I'
+    SaveResourceFile(RES, 'data/config.json', json.encode(saved, { indent = true }), -1)
+    print('^2[elyzea_ems] Touche « ignorer une alerte » : I (X sert à arrêter une animation).^7')
+end
 local D = EMSData(saved)
 local S = function(k) return D.settings[k] end
 

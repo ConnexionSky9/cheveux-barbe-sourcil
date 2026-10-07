@@ -797,10 +797,10 @@ const DEMO = {
 };
 if (!IN_GAME) {
   window.postMessage({ action: 'open', ...DEMO }, '*');
-  // Barre d'aperçu : voir aussi le panneau « Ma tenue » (touche F7 en jeu)
+  // Barre d'aperçu : voir aussi le panneau « Ma tenue » (touche F3 en jeu)
   const bar = document.createElement('div');
   bar.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:40;display:flex;gap:6px';
-  bar.innerHTML = '<button class="mini gold" id="demoShop">Boutique</button><button class="mini gold" id="demoW">Ma tenue (F7)</button>';
+  bar.innerHTML = '<button class="mini gold" id="demoShop">Boutique</button><button class="mini gold" id="demoW">Ma tenue (F3)</button>';
   document.body.appendChild(bar);
   $('#demoW').onclick = () => { $('#app').classList.add('hidden'); window.postMessage({ action: 'wardrobe', data: { itemsMode: true, names: { tops: 'Veste de mariage' }, list: DEMO.categories.map((c) => ({ id: c.id, label: c.label, icon: c.icon, drawable: c.current.drawable < 0 ? -1 : c.current.drawable + 7, texture: 2, naked: c.current.drawable < 0 || c.id === 'bags' || c.id === 'masks' })) } }, '*'); };
   $('#demoShop').onclick = () => { $('#wardrobe').classList.add('hidden'); window.postMessage({ action: 'open', ...DEMO }, '*'); };

@@ -624,7 +624,7 @@ function showShare(r){const el=$('#bill');clearTimeout(billT);
 function showBill(b){const el=$('#bill');
   el.innerHTML=`<div class="top"><img src="${document.querySelector('.me img').src}" alt=""><div><b>Facture ${esc(b.company||'EMS')}</b><small>${esc(b.from||'')}</small></div></div>
    <div class="amt">${money(b.amount)}</div><p>${esc(b.label)}</p>
-   <div class="acts"><span><kbd>Y</kbd>Payer par carte</span><span><kbd>X</kbd>Refuser</span></div><div class="timer"><i id="billBar"></i></div>`;
+   <div class="acts"><span><kbd>Y</kbd>Payer par carte</span><span><kbd>L</kbd>Refuser</span></div><div class="timer"><i id="billBar"></i></div>`;
   el.classList.remove('hidden');const bar=$('#billBar');bar.style.transition='none';bar.style.width='100%';void bar.offsetWidth;bar.style.transition=`width ${b.timeout||20}s linear`;bar.style.width='0';
   clearTimeout(billT);billT=setTimeout(hideBill,(b.timeout||20)*1000)}
 function hideBill(){$('#bill').classList.add('hidden')}

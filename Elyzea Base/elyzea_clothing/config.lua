@@ -66,7 +66,7 @@ Config.Naked = {
 
 -- Panneau « Ma tenue » : voir ce qu'on porte et ranger une pièce dans l'inventaire
 Config.WardrobeCommand = 'tenue'
-Config.WardrobeKey = 'F7'        -- touche par défaut ('' = aucune), modifiable par chaque joueur
+Config.WardrobeKey = 'F3'        -- touche par défaut ('' = aucune), modifiable par chaque joueur
 
 -- Modèles cachés dans la boutique (vêtements de métier, tenues staff…), par sexe et catégorie
 -- Exemple : male = { tops = { 55, 56 } }  -> les hauts n°55 et 56 ne sont pas vendus aux hommes

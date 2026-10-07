@@ -1,3 +1,10 @@
+-- Touche réellement choisie par le joueur pour une commande (sinon la touche par défaut)
+function KeyOf(cmd, default)
+    local t = GetControlInstructionalButton(0, joaat(cmd) | 0x80000000, true)
+    if type(t) == 'string' and t:sub(1, 2) == 't_' then return t:sub(3) end
+    return default
+end
+
 -- =====================================================================
 --  elyzea_police - client : dispatch, alertes, collègues, coups de feu
 -- =====================================================================
@@ -42,7 +49,7 @@ local function Refresh()
             remaining = math.max(0, math.ceil((p.expires - GetGameTimer()) / 1000)), timeout = p.timeout,
         }
     end
-    SendNUIMessage({ action = 'alerts', alerts = list })
+    SendNUIMessage({ action = 'alerts', alerts = list, keys = { accept = KeyOf('police_accepter', Config.Keys.accept), ignore = KeyOf('police_ignorer', Config.Keys.ignore) } })
 end
 
 CreateThread(function()
@@ -135,21 +142,21 @@ end)
 -- ---------------------------------------------------------------------
 -- Touches
 -- ---------------------------------------------------------------------
-RegisterCommand('police_accept', function()
+RegisterCommand('police_accepter', function()
     if not C.OnDuty() or C.cuffed then return end
     local p = pending[1]
     if p then Accept(p.call.id) end
 end, false)
-RegisterKeyMapping('police_accept', "Police : accepter l'appel", 'keyboard', Config.Keys.accept)
+RegisterKeyMapping('police_accepter', "Police : accepter l'appel", 'keyboard', Config.Keys.accept)
 
-RegisterCommand('police_ignore', function()
+RegisterCommand('police_ignorer', function()
     local p = table.remove(pending, 1)
     if p then
         if not active or active.id ~= p.call.id then RemoveCallBlip(p.call.id) end
         Refresh()
     end
 end, false)
-RegisterKeyMapping('police_ignore', "Police : ignorer l'appel", 'keyboard', Config.Keys.ignore)
+RegisterKeyMapping('police_ignorer', "Police : ignorer l'appel", 'keyboard', Config.Keys.ignore)
 
 RegisterCommand('police_panic', function()
     if not C.OnDuty() then return end

@@ -434,7 +434,10 @@ end)
 if Config.WardrobeCommand then
     RegisterCommand(Config.WardrobeCommand, toggleWardrobe, false)
     if Config.WardrobeKey and Config.WardrobeKey ~= '' then
-        RegisterKeyMapping(Config.WardrobeCommand, 'Vêtements : ma tenue (retirer, renommer)', 'keyboard', Config.WardrobeKey)
+        -- Commande à part pour la touche (le nouveau défaut F3 s'applique aussi aux joueurs déjà venus)
+        RegisterCommand('tenue_touche', toggleWardrobe, false)
+        RegisterKeyMapping('tenue_touche', 'Vêtements : ma tenue (retirer, renommer)', 'keyboard', Config.WardrobeKey)
+        TriggerEvent('chat:removeSuggestion', '/tenue_touche')
     end
 end
 AddEventHandler('onResourceStop', function(res) if res == GetCurrentResourceName() and isOpen then closeShop(false) end end)

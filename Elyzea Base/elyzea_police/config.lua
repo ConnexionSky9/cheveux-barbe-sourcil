@@ -11,8 +11,8 @@ Config = {}
 Config.Keys = {
     tablet   = 'F6',   -- tablette de l'agent
     actions  = 'F7',   -- menu d'interaction (menottes, escorte, fouille…)
-    accept   = 'Y',    -- accepter l'appel
-    ignore   = 'U',    -- ignorer l'appel
+    accept   = 'G',    -- accepter l'appel (même touche que les EMS)
+    ignore   = 'I',    -- ignorer l'appel (même touche que les EMS)
     panic    = '',     -- bouton panique (à assigner)
 }
 

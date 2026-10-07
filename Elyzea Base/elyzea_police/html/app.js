@@ -26,7 +26,7 @@ const S = {
 window.addEventListener('message', (e) => {
     const m = e.data || {};
     switch (m.action) {
-        case 'alerts': return renderAlerts(m.alerts || []);
+        case 'alerts': S.keys = m.keys || S.keys; return renderAlerts(m.alerts || []);
         case 'jail': return jailHud(m);
         case 'actions':
             if (m.show) return openActions(m);
@@ -81,7 +81,7 @@ function renderAlerts(list) {
                 <div class="a-head"><span class="a-title">${esc(a.title)}</span><span class="a-code">${a.code ? esc(a.code) + ' · ' : ''}#${a.id}</span></div>
                 ${a.message ? `<div class="a-msg">${esc(a.message)}</div>` : ''}
                 <div class="a-meta">${a.street ? esc(a.street) + ' · ' : ''}${a.distance >= 1000 ? (a.distance / 1000).toFixed(1) + ' km' : a.distance + ' m'}${a.units ? ` · ${a.units} unité${a.units > 1 ? 's' : ''} en route` : ''}</div>
-                ${i === 0 ? '<div class="a-keys"><span><kbd>Y</kbd> Accepter</span><span><kbd>U</kbd> Ignorer</span></div>' : ''}
+                ${i === 0 ? `<div class="a-keys"><span><kbd>${esc((S.keys && S.keys.accept) || 'G')}</kbd> Accepter</span><span><kbd>${esc((S.keys && S.keys.ignore) || 'I')}</kbd> Ignorer</span></div>` : ''}
             </div>
             <div class="a-time"><span style="width:${a.timeout ? (a.remaining / a.timeout) * 100 : 0}%"></span></div>
         </div>`).join('');

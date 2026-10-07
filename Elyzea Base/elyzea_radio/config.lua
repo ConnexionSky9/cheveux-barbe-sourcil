@@ -3,7 +3,7 @@ Config = {}
 -- =====================================================================
 --  RADIO ELYZEA (remplace mm_radio)
 --  Objets (déjà déclarés dans elyzea_inventory) : radio, radiocell (piles), jammer (brouilleur)
---  Parler à la radio : touche de pma-voice (voice.cfg › voice_defaultRadio, ALT gauche par défaut)
+--  Parler à la radio : touche de pma-voice (voice.cfg › voice_defaultRadio, Verr. Maj par défaut)
 -- =====================================================================
 Config.Item = 'radio'
 Config.BatteryItem = 'radiocell'

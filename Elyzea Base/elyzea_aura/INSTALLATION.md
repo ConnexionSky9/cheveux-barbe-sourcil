@@ -250,7 +250,7 @@ Pour un véhicule au garage, le joueur paie `Config.Garage.Price` (250 $ par dé
 
 ### ElyzeaCarPlay (tablette de bord)
 
-Dans un véhicule, appuie sur **F7** (modifiable par chaque joueur dans Paramètres → Raccourcis → FiveM → « Ouvrir la tablette ElyzeaCarPlay »). À la première ouverture dans un véhicule, une caméra tourne autour de la voiture pendant que « Bienvenue sur ElyzeaCarPlay » s'affiche ; « Passer » saute l'animation.
+Dans un véhicule, appuie sur **F4** (modifiable par chaque joueur dans Paramètres → Raccourcis → FiveM → « Ouvrir la tablette ElyzeaCarPlay »). À la première ouverture dans un véhicule, une caméra tourne autour de la voiture pendant que « Bienvenue sur ElyzeaCarPlay » s'affiche ; « Passer » saute l'animation.
 
 La tablette permet d'ouvrir et fermer chaque porte, le capot et le coffre (touche-les sur le schéma), de baisser ou monter les vitres, d'allumer les LED avec 7 couleurs, de verrouiller, et de lancer de la musique YouTube ou d'un lien audio. Les passagers l'entendent à plein volume, les gens dehors selon la distance, et moins fort si les vitres sont fermées. On peut continuer à conduire tablette ouverte (clic droit maintenu pour regarder autour).
 

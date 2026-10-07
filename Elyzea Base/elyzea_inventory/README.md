@@ -271,7 +271,7 @@ Faites ces tests avec un joueur, dans l'ordre. Donnez des objets avec `/egive [i
 14. Repassez sous 17.99 KG : le sac se retire, la capacité revient à 18 KG.
 15. Remplissez l'inventaire au maximum puis achetez un vêtement : refus **avant** le paiement.
 16. Essayez un vêtement femme sur un personnage homme : refus.
-17. **F7** (Ma tenue) : la liste correspond à ce que vous portez ; « Ranger » met la pièce dans l'inventaire.
+17. **F3** (Ma tenue) : la liste correspond à ce que vous portez ; « Ranger » met la pièce dans l'inventaire.
 
 **Console :** aucune ligne rouge mentionnant `ox_inventory`, `elyzea_inventory` ou `elyzea_clothing`.
 
@@ -287,7 +287,7 @@ Faites ces tests avec un joueur, dans l'ordre. Donnez des objets avec `/egive [i
 | `No such export ... in resource elyzea_inventory` | Fonction ox non fournie (`RegisterStash`, `CustomDrop`…). | Voir la dernière ligne du tableau de la section 6. |
 | `objet inconnu ignoré au chargement : X` | Objet absent de `shared/items.lua`. | Le déclarer (section 3), puis redémarrer. |
 | Achat de vêtement refusé « inventaire plein ou trop lourd » alors qu'il reste de la place | Toutes les cases sont occupées. | Libérer un emplacement : chaque vêtement en prend un (non empilable). |
-| Le sac porté ne donne pas 28 KG | Sac porté via la tenue enregistrée avant la migration, sans passer par l'objet. | Le ranger (F7) puis le porter depuis l'inventaire. |
+| Le sac porté ne donne pas 28 KG | Sac porté via la tenue enregistrée avant la migration, sans passer par l'objet. | Le ranger (F3) puis le porter depuis l'inventaire. |
 | Images d'objets manquantes (emoji à la place) | PNG absent de `elyzea_inventory/html/img/`. | Copier l'image (`nom_objet.png`). |
 | TAB n'ouvre rien | Ancienne touche enregistrée côté joueur, ou ressource non démarrée. | Paramètres > Raccourcis > FiveM > « Ouvrir l'inventaire » ; vérifier `ensure elyzea_inventory`. |
 

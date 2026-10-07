@@ -120,11 +120,50 @@ Remplace `mm_radio`, sans ox_lib.
 - **★ Mes favoris** : saisis une fréquence, donne-lui un nom (facultatif), **★ Ajouter**. Clic pour la rejoindre, ✕ pour la retirer (10 maximum, `Config.MaxFavorites`).
 - **🔒 Canaux du métier** : policiers (police, sheriff, gendarmerie) et EMS ont d'office les canaux réservés de leur métier dans la radio, sans pouvoir les supprimer.
   Noms et fréquences dans `Config.JobChannels` (`elyzea_radio/config.lua`) ; ils changent tout seuls si le joueur change de métier.
-- Parler : touche radio de pma-voice (ALT gauche par défaut, `voice.cfg`).
+- Parler : **Verr. Maj** (touche radio de pma-voice, `voice.cfg` › `voice_defaultRadio`).
 - **Fréquences réservées** (`elyzea_radio/config.lua`) : 1 à 10.99 police, 11 à 20.99 EMS, 21 à 25.99 services. Le serveur bloque aussi l'accès direct par pma-voice.
 - **Batterie** : se vide radio allumée ; l'objet `radiocell` (piles AAA) la recharge.
 - **Brouilleur** (`jammer`) : posé au sol, coupe les radios dans un rayon de 35 m pendant 10 min.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
+
+### 3.7 Touches du serveur (aucune ne se chevauche)
+Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.
+
+| Touche | Action | Qui |
+|---|---|---|
+| **E** | Interagir avec le point le plus proche (PNJ, zones, récolte, borne…) | Tous |
+| **TAB** · **1 à 5** · **R** | Inventaire · raccourcis rapides · recharger l'arme | Tous |
+| **U** | Verrouiller / déverrouiller le véhicule | Tous |
+| **F1** | Téléphone | Tous |
+| **F3** | Ma tenue (vêtements) | Tous |
+| **F4** | Tablette CarPlay | Tous, en véhicule |
+| **F5** | Menu du groupe illégal | Membres d'un groupe |
+| **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, boîte de nuit) | Une seule s'ouvre : celle de ton métier |
+| **F7** | Menu d'interaction police | Police |
+| **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |
+| **ALT** (maintenir en visant) | Menu de soins | EMS |
+| **ALT** | Couper du bois | Bûcheron, dans une zone de coupe |
+| **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
+| **Y** · **L** | Accepter · refuser une demande (animation à deux, facture EMS) | Tous |
+| **N** | Parler (pma-voice) · **²** changer la portée de la voix | Tous |
+| **Verr. Maj** | Parler à la radio | Avec une radio |
+| **F2** · **F9** · **F10** | Noclip · menu rapide · menu admin | Staff |
+| **Suppr** · **Début** · **Fin** · **Inser** · **M** | Noclip : supprimer le véhicule · éditeur : hauteur à zéro · coller au sol · côté de l'aimant · aimant | Staff, dans ces modes |
+
+- **Changements :**
+  - Police : accepter **Y → G**, ignorer **U → I** (Y servait aux animations, U au verrou).
+  - EMS : ignorer **X → I** (X arrête une animation).
+  - Animations : refuser **N → L** (N sert à parler).
+  - Tenue : **F7 → F3** ; CarPlay : **F7 → F4** (F7 = menu police).
+  - Radio : **ALT → Verr. Maj** (ALT sert aux soins EMS et au bûcheron).
+  - Facture EMS : refuser **X → L**.
+- Le menu des animations refuse maintenant qu'on mette une animation sur une touche déjà prise.
+- Les nouvelles touches s'appliquent même aux joueurs déjà venus : les commandes ont été renommées pour que FiveM reprenne les nouveaux défauts.
+  **Seules exceptions :**
+  - la radio (pma-voice) : ceux qui avaient déjà joué gardent ALT ; à changer dans Raccourcis › FiveM › « Radio » ;
+  - les touches du staff (noclip / éditeur) : à refaire dans le même menu.
+- `rpemotes` (ressource externe) a ses propres touches dans son `config.lua` : vérifie qu'elles ne reprennent pas une touche du tableau.
+  Elle fait doublon avec `elyzea_animations` : tu peux la retirer du server.cfg.
 
 ---
 

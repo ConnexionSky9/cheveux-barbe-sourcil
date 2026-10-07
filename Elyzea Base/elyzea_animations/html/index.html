@@ -403,7 +403,7 @@ body.fivem .pv,body.nopv .pv{display:none}
       <span class="preview" id="reqPreview" hidden>Aperçu de ce que voit l'autre joueur</span>
       <div class="req-acts">
         <button class="yes" id="reqYes" type="button"><kbd id="reqKeyYes">Y</kbd>Accepter</button>
-        <button class="no" id="reqNo" type="button"><kbd id="reqKeyNo">N</kbd>Refuser</button>
+        <button class="no" id="reqNo" type="button"><kbd id="reqKeyNo">L</kbd>Refuser</button>
       </div>
     </div>
   </div>
@@ -460,8 +460,10 @@ const canDo=i=>{
   return true;
 };
 let cat="gestes", playing=null, binding=null, bindingEmote=null;
-let REQ_KEYS={accept:"Y",refuse:"N",place:"J"};
-const BASE_RESERVED=["W","A","S","D","Z","Q","E","F","G","R","T","C","V","ESPACE","TAB","ESCAPE"];
+let REQ_KEYS={accept:"Y",refuse:"L",place:"J"};
+// Touches déjà prises sur le serveur Elyzea (une animation ne peut pas s'y mettre)
+const BASE_RESERVED=["W","A","S","D","Z","Q","E","F","G","R","T","C","V","H","P","N","U","I","L","M","ESPACE","TAB","ESCAPE",
+  "1","2","3","4","5","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"];
 const isReserved=k=>BASE_RESERVED.includes(k)||k===REQ_KEYS.accept||k===REQ_KEYS.refuse||(REQ_KEYS.place&&k===REQ_KEYS.place);
 const canPlace=i=>REQ_KEYS.place!==null&&typeOf(i)==="emote"&&!ENV.inVehicle&&!i.f.includes("v");
 let req=null;

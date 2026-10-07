@@ -79,7 +79,7 @@ CreateThread(function()
     -- Touches par défaut (chaque joueur peut les changer dans Paramètres > Raccourcis > FiveM)
     RegisterKeyMapping('tablette_ems', 'EMS : ouvrir la tablette', 'keyboard', S('keyTablet') or 'F6')
     RegisterKeyMapping('ems_alerte_accepter', 'EMS : accepter une alerte', 'keyboard', S('keyAccept') or 'G')
-    RegisterKeyMapping('ems_alerte_ignorer', 'EMS : ignorer / abandonner une alerte', 'keyboard', S('keyIgnore') or 'X')
+    RegisterKeyMapping('ems_ignorer_alerte', 'EMS : ignorer / abandonner une alerte', 'keyboard', S('keyIgnore') or 'I')
     -- Appel des EMS par les civils : /ems [message]
     if S('callEnabled') then
         RegisterCommand(S('callCommand') or 'ems', function(_, args)
@@ -169,7 +169,7 @@ RegisterCommand('ems_alerte_accepter', function()
     local id = firstPending()
     if id then TriggerServerEvent('elyzea_ems:acceptAlert', id) end
 end)
-RegisterCommand('ems_alerte_ignorer', function()
+RegisterCommand('ems_ignorer_alerte', function()
     if tabletOpen or altOpen then return end
     if mineId then return TriggerServerEvent('elyzea_ems:abandonAlert', mineId) end
     local id = firstPending()
@@ -689,7 +689,7 @@ RegisterNetEvent('elyzea_ems:billPrompt', function(b)
         local answer
         while GetGameTimer() < stop and answer == nil do
             if IsControlJustPressed(0, 246) then answer = true end      -- Y
-            if IsControlJustPressed(0, 73) then answer = false end      -- X
+            if IsControlJustPressed(0, 182) then answer = false end     -- L (X = arrêter une animation)
             Wait(0)
         end
         SendNUIMessage({ action = 'billEnd' })

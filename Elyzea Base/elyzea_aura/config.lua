@@ -290,7 +290,7 @@ Config.Garage = {
 -- =========================================================
 Config.CarPlay = {
     Enabled = true,
-    Key = 'F7',                  -- touche par défaut (chaque joueur peut la changer dans Paramètres > Raccourcis > FiveM)
+    Key = 'F4',                  -- touche par défaut (chaque joueur peut la changer dans Paramètres > Raccourcis > FiveM)
     Seats = 'front',             -- qui peut ouvrir la tablette : 'driver', 'front' (conducteur + passager avant) ou 'all'
     Intro = true,                -- animation 3D de la voiture à l'ouverture
     IntroSeconds = 3.6,
