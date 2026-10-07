@@ -48,9 +48,27 @@ html, body { width: 100%; height: 100%; background: transparent; overflow: hidde
 .vol span { font: 600 .7rem var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); width: 54px; }
 .vol input { flex: 1; accent-color: var(--gold); }
 .vol b { width: 34px; text-align: right; font-size: .85rem; }
-.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
-.preset { padding: 8px 2px; border-radius: 10px; border: 1px dashed var(--line); background: rgba(4, 6, 12, .45); color: var(--muted); font: 600 .78rem 'Share Tech Mono', monospace; cursor: pointer; text-align: center; }
-.preset.set { border-style: solid; color: var(--gold-hi); }
+.radio { width: 320px; bottom: 30px; }
+.body { max-height: calc(100vh - 130px); overflow-y: auto; scrollbar-width: thin; }
+.sec { margin-top: 14px; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font: 600 .7rem var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.sec-h b { color: var(--gold-hi); font-weight: 600; }
+.add { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-bottom: 6px; }
+.add input { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(4, 6, 12, .6); color: var(--text); font: 500 .85rem var(--body); outline: none; }
+.add input:focus { border-color: var(--gold); }
+.add .btn { padding: 8px 12px; }
+.chans { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; scrollbar-width: thin; }
+.chan { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(4, 6, 12, .45); cursor: pointer; transition: border-color .15s, background .15s; }
+.chan:hover { border-color: var(--gold); }
+.chan.cur { border-color: rgba(79, 179, 169, .6); background: rgba(79, 179, 169, .1); }
+.chan .f { font: 600 .95rem 'Share Tech Mono', monospace; color: var(--gold-hi); min-width: 58px; }
+.chan .l { flex: 1; min-width: 0; font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chan .l small { color: var(--muted); }
+.chan.job .f { color: #8fc7ff; }
+.chan .del { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.chan .del:hover { border-color: var(--bad); color: #ffb4ae; }
+.chan .lock { width: 24px; text-align: center; font-size: .8rem; opacity: .7; }
+.empty { padding: 10px; text-align: center; color: var(--muted); font-size: .78rem; border: 1px dashed var(--line); border-radius: 10px; }
 .hint { margin-top: 10px; color: var(--muted); font-size: .7rem; line-height: 1.4; text-align: center; }
 </style>
 </head>
@@ -67,8 +85,11 @@ html, body { width: 100%; height: 100%; background: transparent; overflow: hidde
             <button class="btn" id="leave" data-a="leave">Quitter</button>
         </div>
         <div class="vol"><span>Volume</span><input type="range" min="0" max="100" id="vol"><b id="volv"></b></div>
-        <div class="presets" id="presets"></div>
-        <p class="hint">Clic sur un favori : le rejoindre · clic droit : y enregistrer la fréquence actuelle.<br>Parler : touche radio de pma-voice (ALT gauche par défaut).</p>
+        <div class="sec hidden" id="jobSec"><div class="sec-h"><span>🔒 Canaux <b id="jobLabel"></b></span></div><div class="chans" id="jobList"></div></div>
+        <div class="sec"><div class="sec-h"><span>★ Mes favoris</span><span id="favCount"></span></div>
+            <div class="add"><input id="favName" maxlength="24" placeholder="Nom (optionnel) puis ★"><button class="btn primary" data-a="favAdd" title="Ajouter la fréquence saisie aux favoris">★ Ajouter</button></div>
+            <div class="chans" id="favList"></div></div>
+        <p class="hint">Clic sur un canal ou un favori : le rejoindre.<br>Parler : touche radio de pma-voice (ALT gauche par défaut).</p>
     </div>
 </div>
 <script>
@@ -97,32 +118,44 @@ function render() {
     $('#leave').disabled = !S.freq;
     $('#vol').value = S.volume; $('#volv').textContent = S.volume;
     $('#freq').max = S.max;
-    $('#presets').innerHTML = [1, 2, 3, 4].map((i) => {
-        const f = (S.presets || {})[String(i)];
-        return `<div class="preset ${f ? 'set' : ''}" data-p="${i}" title="${f ? esc(rangeLabel(f) || '') : 'Vide'}">${f ? Number(f).toFixed(2) : `F${i}`}</div>`;
-    }).join('');
+    const cur = S.on && S.freq ? Number(S.freq).toFixed(2) : null;
+    const job = S.jobChannels || [];
+    $('#jobSec').classList.toggle('hidden', !job.length);
+    $('#jobLabel').textContent = S.jobLabel ? `· ${S.jobLabel}` : '';
+    $('#jobList').innerHTML = job.map((c) => `<div class="chan job ${cur === Number(c.freq).toFixed(2) ? 'cur' : ''}" data-join="${c.freq}">
+        <span class="f">${Number(c.freq).toFixed(2)}</span><span class="l">${esc(c.label)}</span><span class="lock">🔒</span></div>`).join('');
+    const favs = S.favorites || [];
+    $('#favCount').textContent = `${favs.length}/${S.maxFavorites || 10}`;
+    $('#favList').innerHTML = favs.map((c) => {
+        const r = rangeLabel(Number(c.freq));
+        return `<div class="chan ${cur === Number(c.freq).toFixed(2) ? 'cur' : ''}" data-join="${c.freq}">
+            <span class="f">${Number(c.freq).toFixed(2)}</span><span class="l">${esc(c.label || 'Sans nom')}${r ? ` <small>· ${esc(r)}</small>` : ''}</span>
+            <button class="del" data-del="${c.freq}" title="Retirer des favoris">✕</button></div>`;
+    }).join('') || '<div class="empty">Saisis une fréquence au-dessus, donne-lui un nom, puis ★ Ajouter.</div>';
 }
 
 document.addEventListener('click', (e) => {
-    const p = e.target.closest('[data-p]');
-    if (p) return post('preset', { index: Number(p.dataset.p) });
+    const del = e.target.closest('[data-del]');
+    if (del) return post('favDel', { freq: Number(del.dataset.del) });
+    const j = e.target.closest('[data-join]');
+    if (j) { $('#freq').value = Number(j.dataset.join).toFixed(2); return post('favJoin', { freq: Number(j.dataset.join) }); }
     const b = e.target.closest('[data-a]');
     if (!b || b.disabled) return;
     const a = b.dataset.a;
     if (a === 'close') return close();
+    if (a === 'favAdd') {
+        const v = parseFloat($('#freq').value) || (S && S.freq);
+        post('favAdd', { freq: v ? Math.round(v * 100) / 100 : null, label: $('#favName').value });
+        $('#favName').value = '';
+        return;
+    }
     if (a === 'join') { const v = parseFloat($('#freq').value); if (v) post('join', { freq: Math.round(v * 100) / 100 }); return; }
     post(a);
-});
-document.addEventListener('contextmenu', (e) => {
-    const p = e.target.closest('[data-p]');
-    if (!p) return;
-    e.preventDefault();
-    const v = parseFloat($('#freq').value) || (S && S.freq);
-    post('preset', { index: Number(p.dataset.p), save: true, freq: v || null });
 });
 $('#vol').addEventListener('input', (e) => { $('#volv').textContent = e.target.value; });
 $('#vol').addEventListener('change', (e) => post('volume', { volume: Number(e.target.value) }));
 $('#freq').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#join').click(); });
+$('#favName').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.querySelector('[data-a="favAdd"]').click(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 function close() { $('#radio').classList.add('hidden'); post('close'); }
 

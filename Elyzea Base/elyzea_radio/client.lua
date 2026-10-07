@@ -11,7 +11,30 @@ local function SetKvp(k, v) SetResourceKvp('elyzea_radio_' .. k, json.encode(v))
 
 R.battery = Config.Battery.enabled and (Kvp('battery', 100) or 100) or 100
 R.volume = Kvp('volume', Config.DefaultVolume) or Config.DefaultVolume
-R.presets = Kvp('presets', {}) or {}
+-- Favoris : liste de { freq, label } (reprend les anciens favoris F1 à F4)
+R.favorites = Kvp('favorites', nil)
+if type(R.favorites) ~= 'table' then
+    R.favorites = {}
+    for _, f in pairs(Kvp('presets', {}) or {}) do
+        if tonumber(f) then R.favorites[#R.favorites + 1] = { freq = tonumber(f), label = '' } end
+    end
+    table.sort(R.favorites, function(a, b) return a.freq < b.freq end)
+end
+
+local function Job()
+    local ok, pd = pcall(function() return exports.elyzea_core:GetPlayerData() end)
+    return ok and pd and pd.job or nil
+end
+
+-- Canaux réservés du métier du joueur (favoris imposés)
+local function JobChannels()
+    local job = Job()
+    local list = job and Config.JobChannels[job.name] or nil
+    if not list then return {}, nil end
+    local out = {}
+    for _, c in ipairs(list) do out[#out + 1] = { freq = tonumber(('%.2f'):format(c.freq)), label = c.label } end
+    return out, job.label or job.name
+end
 
 local function HasRadio()
     local ok, n = pcall(function() return exports.elyzea_inventory:Search('count', Config.Item) end)
@@ -20,7 +43,8 @@ end
 
 local function State()
     return { on = R.on, freq = R.freq, label = R.label, volume = R.volume, battery = math.floor(R.battery + 0.5),
-        batteryEnabled = Config.Battery.enabled, presets = R.presets, jammed = R.jammed, max = Config.MaxFrequency,
+        batteryEnabled = Config.Battery.enabled, favorites = R.favorites, maxFavorites = Config.MaxFavorites,
+        jobChannels = (JobChannels()), jobLabel = select(2, JobChannels()), jammed = R.jammed, max = Config.MaxFrequency,
         restricted = Config.Restricted }
 end
 local function Push() if R.open then SendNUIMessage({ action = 'state', state = State() }) end end
@@ -114,19 +138,50 @@ RegisterNUICallback('volume', function(body, cb)
     if R.freq then pcall(function() voice:setRadioVolume(R.volume) end) end
     Push()
 end)
-RegisterNUICallback('preset', function(body, cb)
+local function Round(f) return tonumber(('%.2f'):format(tonumber(f) or 0)) end
+
+RegisterNUICallback('favJoin', function(body, cb)
     cb('ok')
-    local i = math.floor(tonumber(body.index) or 0)
-    if i < 1 or i > 4 then return end
-    if body.save then
-        local f = tonumber(body.freq) or R.freq
-        R.presets[tostring(i)] = f and tonumber(('%.2f'):format(f)) or nil
-        SetKvp('presets', R.presets)
-        Push()
-    elseif R.presets[tostring(i)] and R.on then
-        TriggerServerEvent('elyzea_radio:join', R.presets[tostring(i)])
-    end
+    if not R.on then return Notify('Allume la radio d\'abord.', 'error') end
+    if R.jammed then return Notify('Signal brouillé ici.', 'error') end
+    local f = tonumber(body.freq)
+    if f then TriggerServerEvent('elyzea_radio:join', f) end
 end)
+
+RegisterNUICallback('favAdd', function(body, cb)
+    cb('ok')
+    local f = Round(tonumber(body.freq) or R.freq)
+    if not f or f < 1 or f > Config.MaxFrequency then return Notify('Entre une fréquence valide (1.00 à ' .. Config.MaxFrequency .. ').', 'error') end
+    for _, c in ipairs((JobChannels())) do if c.freq == f then return Notify('Cette fréquence est déjà dans les canaux de ton métier.', 'inform') end end
+    local label = tostring(body.label or ''):gsub('^%s+', ''):gsub('%s+$', ''):sub(1, 24)
+    for _, fav in ipairs(R.favorites) do
+        if fav.freq == f then
+            fav.label = label ~= '' and label or fav.label
+            SetKvp('favorites', R.favorites)
+            Notify('Favori mis à jour.', 'success')
+            return Push()
+        end
+    end
+    if #R.favorites >= Config.MaxFavorites then return Notify(('%d favoris maximum : supprimes-en un.'):format(Config.MaxFavorites), 'error') end
+    R.favorites[#R.favorites + 1] = { freq = f, label = label }
+    table.sort(R.favorites, function(a, b) return a.freq < b.freq end)
+    SetKvp('favorites', R.favorites)
+    Notify(('Fréquence %.2f ajoutée aux favoris.'):format(f), 'success')
+    Push()
+end)
+
+RegisterNUICallback('favDel', function(body, cb)
+    cb('ok')
+    local f = Round(body.freq)
+    for i, fav in ipairs(R.favorites) do
+        if fav.freq == f then table.remove(R.favorites, i) break end
+    end
+    SetKvp('favorites', R.favorites)
+    Push()
+end)
+
+-- Le métier change : les canaux du métier suivent
+RegisterNetEvent('elyzea:client:onJobUpdate', function() SetTimeout(200, Push) end)
 
 -- ---------------------------------------------------------------------
 -- Radio retirée de l'inventaire, batterie, brouilleurs

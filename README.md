@@ -116,7 +116,10 @@ Si l'une affiche une erreur au démarrage (`Could not find dependency ox_lib`, `
 
 ### 3.6 Radio (`elyzea_radio`)
 Remplace `mm_radio`, sans ox_lib.
-- **Utiliser** l'objet `radio` → talkie-walkie Elyzea : allumer, fréquence (1.00 à 999.99), rejoindre / quitter, volume, 4 favoris (clic droit pour enregistrer).
+- **Utiliser** l'objet `radio` → talkie-walkie Elyzea : allumer, fréquence (1.00 à 999.99), rejoindre / quitter, volume.
+- **★ Mes favoris** : saisis une fréquence, donne-lui un nom (facultatif), **★ Ajouter**. Clic pour la rejoindre, ✕ pour la retirer (10 maximum, `Config.MaxFavorites`).
+- **🔒 Canaux du métier** : policiers (police, sheriff, gendarmerie) et EMS ont d'office les canaux réservés de leur métier dans la radio, sans pouvoir les supprimer.
+  Noms et fréquences dans `Config.JobChannels` (`elyzea_radio/config.lua`) ; ils changent tout seuls si le joueur change de métier.
 - Parler : touche radio de pma-voice (ALT gauche par défaut, `voice.cfg`).
 - **Fréquences réservées** (`elyzea_radio/config.lua`) : 1 à 10.99 police, 11 à 20.99 EMS, 21 à 25.99 services. Le serveur bloque aussi l'accès direct par pma-voice.
 - **Batterie** : se vide radio allumée ; l'objet `radiocell` (piles AAA) la recharge.

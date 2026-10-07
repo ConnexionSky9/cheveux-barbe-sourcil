@@ -20,6 +20,30 @@ Config.Restricted = {
     { from = 21, to = 25.99, label = 'Services',   jobs = { police = true, sheriff = true, ambulance = true, mechanic = true }, requireDuty = false },
 }
 
+-- Favoris personnels (enregistrés sur l'ordinateur du joueur)
+Config.MaxFavorites = 10
+
+-- Canaux du métier : ajoutés d'office aux favoris des joueurs de ce métier (ils ne peuvent pas les supprimer).
+-- Les fréquences doivent être dans une plage réservée à ce métier (Config.Restricted) pour rester privées.
+local POLICE = {
+    { freq = 1.00, label = 'Central police' },
+    { freq = 2.00, label = 'Patrouille' },
+    { freq = 3.00, label = 'Intervention' },
+    { freq = 4.00, label = 'Enquêtes' },
+    { freq = 21.00, label = 'Commun police / EMS' },
+}
+Config.JobChannels = {
+    police = POLICE,
+    sheriff = POLICE,
+    gendarmerie = POLICE,
+    ambulance = {
+        { freq = 11.00, label = 'Central EMS' },
+        { freq = 12.00, label = 'Équipes terrain' },
+        { freq = 13.00, label = 'Hôpital' },
+        { freq = 21.00, label = 'Commun police / EMS' },
+    },
+}
+
 -- Batterie (pourcentage gardé sur l'ordinateur du joueur)
 Config.Battery = {
     enabled = true,
