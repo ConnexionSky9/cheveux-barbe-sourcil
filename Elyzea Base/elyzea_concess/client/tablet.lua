@@ -9,8 +9,9 @@ local DICT, CLIP = 'amb@code_human_in_bus_passenger_idles@female@tablet@base', '
 local function StartAnim()
     local ped = PlayerPedId()
     if IsPedInAnyVehicle(ped, false) then return end
-    lib.requestAnimDict(DICT, 2000)
-    local model = lib.requestModel(`prop_cs_tablet`, 2000)
+    pcall(Ely.requestAnimDict, DICT, 2000)
+    local okModel, model = pcall(Ely.requestModel, `prop_cs_tablet`, 2000)
+    if not okModel then model = nil end
     if model then
         prop = CreateObject(model, 0.0, 0.0, 0.0, true, true, false)
         AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, 60309), 0.03, 0.002, -0.0, 10.0, 160.0, 0.0, true, false, false, false, 2, true)

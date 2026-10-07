@@ -57,6 +57,11 @@ function HasKeys(src, vehicle)
     local plate = plateOf(vehicle)
     if not cid or not plate then return false end
     if Keys[cid] and Keys[cid][plate] then return true end
+    -- Clé d'inventaire (concession) : fonctionne aussi si elle a été donnée à un autre joueur
+    if Config.Keys.item and GetResourceState('elyzea_inventory') == 'started' then
+        local ok, n = pcall(function() return exports.elyzea_inventory:Search(src, 'count', Config.Keys.item, { plate = plate }) end)
+        if ok and (tonumber(n) or 0) > 0 then return true end
+    end
     local owner = MySQL.scalar.await('SELECT `citizenid` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { plate, ' ' .. plate })
     if owner == cid then
         Keys[cid] = Keys[cid] or {}

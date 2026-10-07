@@ -44,7 +44,7 @@ RegisterNetEvent('lscustom:server:toggleDuty', function(fromMenu)
     local state = not p.PlayerData.job.onduty
     -- Fin de service pendant un travail : on libère le véhicule pris en charge
     if not state and L.Sessions[src] then L.Sessions[src] = nil end
-    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.qbx_core:SetJobDuty(src, state) end) end
+    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.elyzea_core:SetJobDuty(src, state) end) end
     L.Notify(src, state and 'Tu as pris ton service.' or 'Tu as terminé ton service.', state and 'success' or 'inform')
     L.Log(src, state and 'Prise de service' or 'Fin de service', fromMenu and 'menu F6' or 'accueil')
     if fromMenu then TriggerClientEvent('lscustom:client:dutyChanged', src) end
@@ -191,8 +191,8 @@ RegisterNetEvent('lscustom:server:invoiceAnswer', function(id, accept)
     local commission = math.floor(inv.amount * math.max(0, math.min(100, L.S.settings.commission or 0)) / 100)
     local mech = L.GetPlayer(inv.mechanic)
     if mech and commission > 0 then mech.Functions.AddMoney('bank', commission, 'lscustom-commission') end
-    if L.S.settings.societyDeposit and GetResourceState('Renewed-Banking') == 'started' then
-        pcall(function() exports['Renewed-Banking']:addAccountMoney(L.JobName(), inv.amount - commission) end)
+    if L.S.settings.societyDeposit and inv.amount - commission > 0 then
+        pcall(function() exports.elyzea_core:AddSocietyMoney(L.JobName(), inv.amount - commission, 'Facture LsCustom') end)
     end
 
     -- Personnalisation : on enregistre les modifications du véhicule (s'il appartient à un joueur)
@@ -269,7 +269,7 @@ RegisterNetEvent('lscustom:server:spawnVehicle', function(index)
     if not DoesEntityExist(veh) then return L.Notify(src, 'Le véhicule n\'a pas pu être créé.', 'error') end
     SetVehicleNumberPlateText(veh, ('LSC %04d'):format(math.random(0, 9999)))
     L.ServiceVehicles[veh] = src
-    pcall(function() exports.qbx_vehiclekeys:GiveKeys(src, veh) end)
+    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
     TaskWarpPedIntoVehicle(GetPlayerPed(src), veh, -1)
     L.Log(src, 'Véhicule de service', v.label or v.model)
 end)

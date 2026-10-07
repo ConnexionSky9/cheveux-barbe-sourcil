@@ -469,7 +469,7 @@ VIEWS.finances = async () => {
     const card = (label, p) => `<div class="card stat"><span>${label}</span><b class="gold-text">${money(p.total)}</b><span class="small">${p.n} vente${p.n > 1 ? 's' : ''}${Number(p.discounts) ? ` · ${money(p.discounts)} de remises` : ''}</span></div>`;
     return `
         <div class="grid cols-4">
-            <div class="card stat"><span>Compte de l'entreprise</span><b class="gold-text">${f.balance != null ? money(f.balance) : '—'}</b><span class="small">${f.balance != null ? 'Solde actuel' : 'Renewed-Banking non détecté'}</span></div>
+            <div class="card stat"><span>Compte de l'entreprise</span><b class="gold-text">${f.balance != null ? money(f.balance) : '—'}</b><span class="small">${f.balance != null ? 'Solde actuel' : 'Compte indisponible'}</span></div>
             ${card('Aujourd\'hui', f.today)}${card('7 derniers jours', f.week)}${card('30 derniers jours', f.month)}
         </div>
         <h3>Chiffre d'affaires · 14 jours</h3>

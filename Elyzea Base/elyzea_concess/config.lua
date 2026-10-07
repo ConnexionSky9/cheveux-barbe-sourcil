@@ -5,10 +5,9 @@ Config = {}
 -- =====================================================================
 Config.Keys = {
     tablet = 'F6',
-    lock = 'U',     -- verrouiller / déverrouiller son véhicule (avec sa clé dans l'inventaire)
 }
 
--- Clé de véhicule (objet ox_inventory, à déclarer : voir install/ox_inventory_items.lua)
+-- Clé de véhicule (objet elyzea_inventory, déjà déclaré). La touche U (elyzea_core) ouvre / ferme avec cette clé.
 Config.KeyItem = 'concess_key'
 
 -- =====================================================================
@@ -90,11 +89,11 @@ Config.Defaults = {
     },
     settings = {
         commission = 10,            -- % de chaque vente pour le vendeur (le reste va au compte du métier)
-        societyDeposit = true,      -- verser au compte du métier (Renewed-Banking)
+        societyDeposit = true,      -- verser au compte du métier (elyzea_core)
         offerTimeout = 60,          -- secondes pour accepter une proposition
         platePrefix = 'EL',         -- début des plaques (2 à 4 lettres), complété par des chiffres
         delivery = 'spawn',         -- 'spawn' : livré sur le parking ; 'garage' : rangé directement au garage
-        ownGarage = true,           -- garage de la concession (désactive si tu utilises qbx_garages)
+        ownGarage = true,           -- garage de la concession (désactive si tu utilises seulement elyzea_garage)
         showBlip = true,
     },
     showroom = {},                  -- [emplacement] = véhicule exposé (rempli depuis la tablette)

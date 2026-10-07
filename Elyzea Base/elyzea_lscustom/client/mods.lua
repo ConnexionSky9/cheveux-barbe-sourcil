@@ -277,7 +277,7 @@ end
 local function Close(revert)
     if not M.open then return end
     if M.veh and DoesEntityExist(M.veh) then L.SetPreviewFx(M.veh, nil) end
-    if revert and M.veh and DoesEntityExist(M.veh) and M.orig then lib.setVehicleProperties(M.veh, M.orig) end
+    if revert and M.veh and DoesEntityExist(M.veh) and M.orig then Ely.setVehicleProperties(M.veh, M.orig) end
     L.ModCam.Stop()
     if M.veh and DoesEntityExist(M.veh) then
         FreezeEntityPosition(M.veh, false)
@@ -305,7 +305,7 @@ RegisterNetEvent('lscustom:client:openMods', function(prices)
     M.pendingVeh = nil
     if not veh or not DoesEntityExist(veh) then return TriggerServerEvent('lscustom:server:closeMods') end
     SetVehicleModKit(veh, 0)
-    M.veh, M.orig, M.origValues, M.open, L.busy = veh, lib.getVehicleProperties(veh), {}, true, true
+    M.veh, M.orig, M.origValues, M.open, L.busy = veh, Ely.getVehicleProperties(veh), {}, true, true
     FreezeEntityPosition(veh, true)
     SetVehicleEngineOn(veh, false, true, true)
     L.ModCam.Start(veh)
@@ -373,7 +373,7 @@ RegisterNUICallback('modsInvoice', function(body, cb)
     for _, it in ipairs(body.items or {}) do
         if it.key == 'repair' or it.key == 'tyres' or it.key == 'clean' then M.services[it.key] = true end
     end
-    local props = PropsWithServices(lib.getVehicleProperties(M.veh), M.services)
+    local props = PropsWithServices(Ely.getVehicleProperties(M.veh), M.services)
     props._neonFx = IsVehicleNeonLightEnabled(M.veh, 0) and L.NeonFxOf(M.veh) or nil
     TriggerServerEvent('lscustom:server:modsInvoice', tonumber(body.target), body.items or {}, L.Plate(M.veh), props)
 end)
@@ -402,7 +402,7 @@ AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() and M.open then
         L.ModCam.Stop()
         if M.veh and DoesEntityExist(M.veh) then
-            if M.orig then lib.setVehicleProperties(M.veh, M.orig) end
+            if M.orig then Ely.setVehicleProperties(M.veh, M.orig) end
             FreezeEntityPosition(M.veh, false)
         end
         SetNuiFocus(false, false)

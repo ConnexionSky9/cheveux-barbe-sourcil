@@ -9,11 +9,11 @@ local ZONE_COLORS = {}
 for _, z in ipairs(Config.ZoneTypes) do ZONE_COLORS[z.key] = z.color end
 
 function L.Notify(msg, kind)
-    lib.notify({ description = msg, type = kind == 'inform' and 'inform' or kind or 'inform' })
+    Ely.notify({ description = msg, type = kind == 'inform' and 'inform' or kind or 'inform' })
 end
 
 function L.Job()
-    local pd = exports.qbx_core:GetPlayerData()
+    local pd = exports.elyzea_core:GetPlayerData()
     return pd and pd.job or nil
 end
 
@@ -47,7 +47,7 @@ end
 function L.ClosestVehicle(max)
     local ped = PlayerPedId()
     if IsPedInAnyVehicle(ped, false) then return GetVehiclePedIsIn(ped, false) end
-    local veh = lib.getClosestVehicle(GetEntityCoords(ped), max or 5.0, false)
+    local veh = Ely.getClosestVehicle(GetEntityCoords(ped), max or 5.0, false)
     return veh
 end
 
@@ -135,13 +135,13 @@ end)
 AddEventHandler('onClientResourceStart', function(res)
     if res == GetCurrentResourceName() then TriggerServerEvent('lscustom:server:requestSync') end
 end)
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function() TriggerServerEvent('lscustom:server:requestSync') end)
+RegisterNetEvent('elyzea:client:playerLoaded', function() TriggerServerEvent('lscustom:server:requestSync') end)
 
 -- ---------------------------------------------------------------------
 -- Zones : marqueurs et touche E
 -- ---------------------------------------------------------------------
 local function Help(text)
-    lib.showTextUI(text, { position = 'left-center' })
+    Ely.showTextUI(text)
 end
 
 local HELP = {
@@ -188,7 +188,7 @@ CreateThread(function()
             end
         end
         if text ~= shown then
-            if text then Help(text) else lib.hideTextUI() end
+            if text then Help(text) else Ely.hideTextUI() end
             shown = text
         end
         if zone and IsControlJustPressed(0, 38) then TriggerEvent('lscustom:client:zoneAction', zone) Wait(400) end
@@ -197,5 +197,5 @@ CreateThread(function()
 end)
 
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() then lib.hideTextUI() end
+    if res == GetCurrentResourceName() then Ely.hideTextUI() end
 end)

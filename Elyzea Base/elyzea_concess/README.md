@@ -1,19 +1,19 @@
 # elyzea_concess
 
-Concessionnaire automobile complet pour **Qbox** (ox_lib, oxmysql), relié au menu admin (`admin_menu`).
+Concessionnaire automobile complet pour la **base Elyzea** (elyzea_core, elyzea_inventory), relié au menu admin (`admin_menu`).
 
 ## Installation
-1. Place `elyzea_concess` dans `resources/` (arrête tout autre script de concession : qb-vehicleshop, qbx_vehicleshop…).
+1. Place `elyzea_concess` dans `resources/` (arrête tout autre script de concession).
 2. `server.cfg` :
    ```
    ensure admin_menu
    ensure elyzea_concess
    ```
-3. **Clé de véhicule** : colle le contenu de `install/ox_inventory_items.lua` dans `ox_inventory/data/items.lua`,
-   copie `install/concess_key.png` dans `ox_inventory/web/images/`, puis redémarre ox_inventory.
+3. **Clé de véhicule** : l'objet `concess_key` est déjà déclaré dans `elyzea_inventory` (image comprise).
+   La touche **U** (elyzea_core) ouvre / ferme le véhicule pour qui a la clé dans son inventaire.
 4. Tables créées automatiquement : `concess_settings`, `concess_vehicles` (50 véhicules du jeu de base au départ),
-   `concess_sales`. Les véhicules vendus vont dans `player_vehicles` (table Qbox).
-5. Le métier `cardealer` (5 grades) est créé dans Qbox. Des zones sont posées au Premium Deluxe Motorsport
+   `concess_sales`. Les véhicules vendus vont dans `player_vehicles` (table de la base Elyzea).
+5. Le métier `cardealer` (5 grades) est créé dans elyzea_core. Des zones sont posées au Premium Deluxe Motorsport
    (positions approximatives) : vérifie-les dans **Menu admin › Métiers › Concession › Zones** (Y aller, 📍).
 
 ## Employés (F6)
@@ -35,16 +35,16 @@ Concessionnaire automobile complet pour **Qbox** (ox_lib, oxmysql), relié au me
 
 ## Vente (tout est vérifié côté serveur)
 Le prix vient du catalogue serveur, la remise est limitée par le grade. Si l'acheteur répond Oui : paiement par banque,
-commission du vendeur, reste au compte de l'entreprise (Renewed-Banking), véhicule enregistré à son nom avec une plaque
+commission du vendeur, reste au compte de l'entreprise (compte d'entreprise elyzea_core), véhicule enregistré à son nom avec une plaque
 unique, livré sur le parking, et **une clé dans son inventaire** (objet `concess_key`, plaque dans la description).
 Tant qu'il a cette clé, **U** près du véhicule (ou dedans) le verrouille / déverrouille (bip, phares). La clé se donne,
 se perd, se vole comme un objet. S'il la perd, le garage de la concession lui remet un double à la sortie.
-Les clés de démarrage de qbx_vehiclekeys sont aussi données (si la ressource est là).
+Les clés de la session (elyzea_core) sont aussi données.
 
 ## Garage de la concession
 Zone **Garage** : liste de ses véhicules (état moteur, carrosserie, essence), sortie à la zone **Sortie du garage**.
 Zone **Rangement** : le véhicule est rangé dans l'état exact (pièces, peinture, dégâts, pneus, vitres, portes, saleté,
-essence) et ressort identique. Désactivable (`Configuration › Garage de la concession`) si tu utilises qbx_garages.
+essence) et ressort identique. Désactivable (`Configuration › Garage de la concession`) si tu utilises seulement elyzea_garage.
 
 ## Catalogue et essais sur un PNJ
 Dans **Menu admin › Éditeur de map › PNJ**, active « 🚘 Catalogue concession » sur un PNJ : en lui parlant, les joueurs

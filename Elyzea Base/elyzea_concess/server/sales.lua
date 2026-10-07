@@ -22,11 +22,7 @@ local function Spawn(model, vtype, zone)
 end
 
 local function GiveKeys(src, veh)
-    if GetResourceState('qbx_vehiclekeys') == 'started' then
-        pcall(function() exports.qbx_vehiclekeys:GiveKeys(src, veh) end)
-    elseif GetResourceState('qb-vehiclekeys') == 'started' then
-        TriggerClientEvent('vehiclekeys:client:SetOwner', src, GetVehicleNumberPlateText(veh))
-    end
+    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
 end
 C.GiveKeys = GiveKeys
 
@@ -162,8 +158,8 @@ CompleteSale = function(o)
     local commission = o.self and 0 or math.floor(o.price * math.max(0, math.min(100, C.S.settings.commission or 0)) / 100)
     local seller = C.GetPlayer(o.seller)
     if seller and commission > 0 then seller.Functions.AddMoney('bank', commission, 'concess-commission') end
-    if C.S.settings.societyDeposit and GetResourceState('Renewed-Banking') == 'started' then
-        pcall(function() exports['Renewed-Banking']:addAccountMoney(C.JobName(), o.price - commission) end)
+    if C.S.settings.societyDeposit and o.price - commission > 0 then
+        pcall(function() exports.elyzea_core:AddSocietyMoney(C.JobName(), o.price - commission, ('Vente %s'):format(v.label or v.model)) end)
     end
 
     -- 3. Véhicule attribué au joueur
@@ -246,25 +242,26 @@ end)
 -- Clé de véhicule (objet d'inventaire)
 -- ---------------------------------------------------------------------
 function C.HasKey(src, plate)
-    if GetResourceState('ox_inventory') ~= 'started' then return false end
-    local ok, n = pcall(function() return exports.ox_inventory:Search(src, 'count', Config.KeyItem, { plate = plate }) end)
+    if GetResourceState('elyzea_inventory') ~= 'started' then return false end
+    local ok, n = pcall(function() return exports.elyzea_inventory:Search(src, 'count', Config.KeyItem, { plate = plate }) end)
     return ok and (tonumber(n) or 0) > 0
 end
 
 function C.GiveKeyItem(src, plate, label)
-    if GetResourceState('ox_inventory') ~= 'started' then return false end
+    if GetResourceState('elyzea_inventory') ~= 'started' then return false end
     if C.HasKey(src, plate) then return true end
     local ok, res = pcall(function()
-        return exports.ox_inventory:AddItem(src, Config.KeyItem, 1, { plate = plate, label = ('Clé · %s'):format(label or plate), description = ('Plaque %s · U pour ouvrir ou fermer'):format(plate) })
+        return exports.elyzea_inventory:AddItem(src, Config.KeyItem, 1, { plate = plate, label = ('Clé · %s'):format(label or plate), description = ('Plaque %s · U pour ouvrir ou fermer'):format(plate) })
     end)
     if not ok or not res then
-        print(('^1[Concession] Impossible de donner la clé (objet « %s » déclaré dans ox_inventory ?)^0'):format(Config.KeyItem))
+        print(('^1[Concession] Impossible de donner la clé (objet « %s » déclaré dans elyzea_inventory, inventaire plein ?)^0'):format(Config.KeyItem))
         return false
     end
     return true
 end
 
--- Verrouiller / déverrouiller : il faut avoir la clé de cette plaque
+-- Ancien verrouillage par la concession : la touche U est maintenant gérée par elyzea_core
+-- (qui reconnaît la clé d'inventaire). Gardé pour les ressources qui déclencheraient encore l'événement.
 RegisterNetEvent('concess:server:toggleLock', function(netId)
     local src = source
     local veh = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)

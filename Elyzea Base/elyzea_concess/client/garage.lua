@@ -31,10 +31,10 @@ AddEventHandler('concess:client:storeVehicle', function()
     local veh = GetVehiclePedIsIn(ped, false)
     if veh == 0 then return end
     if GetPedInVehicleSeat(veh, -1) ~= ped then return C.Notify('Mets-toi au volant pour ranger le véhicule.', 'error') end
-    local props = lib.getVehicleProperties(veh)
+    local props = Ely.getVehicleProperties(veh)
     props._neonFx = Entity(veh).state.neonFx
     props.fuelLevel = GetVehicleFuelLevel(veh)
-    if GetResourceState('ox_fuel') == 'started' and Entity(veh).state.fuel then props.fuelLevel = Entity(veh).state.fuel end
+    if Entity(veh).state.fuel then props.fuelLevel = Entity(veh).state.fuel end
     TaskLeaveVehicle(ped, veh, 0)
     Wait(1200)
     TriggerServerEvent('concess:server:garageStore', NetworkGetNetworkIdFromEntity(veh), props)

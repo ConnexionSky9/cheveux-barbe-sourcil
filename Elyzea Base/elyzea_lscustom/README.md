@@ -1,6 +1,6 @@
 # elyzea_lscustom
 
-Métier **LsCustom** complet pour Qbox (ox_lib, oxmysql). Aucun menu admin séparé :
+Métier **LsCustom** complet pour la base Elyzea (elyzea_core). Aucun menu admin séparé :
 toute la gestion se fait dans **admin_menu › Métiers › LsCustom**.
 
 ## Installation
@@ -11,7 +11,7 @@ toute la gestion se fait dans **admin_menu › Métiers › LsCustom**.
    ensure elyzea_lscustom
    ```
 3. Les tables `lscustom_settings` et `lscustom_invoices` sont créées automatiquement. Le métier `lscustom`
-   est créé dans Qbox avec 5 grades (Stagiaire → Patron).
+   est créé dans elyzea_core avec 5 grades (Stagiaire → Patron).
 4. Des zones de départ sont posées au LS Customs de Burton (positions approximatives) : vérifie-les avec
    « Y aller » dans le menu admin et déplace-les avec 📍 si besoin.
 
@@ -37,7 +37,7 @@ toute la gestion se fait dans **admin_menu › Métiers › LsCustom**.
 - **F6** : menu de l'atelier : **prendre / terminer le service** (de n'importe où), réparer, nettoyer, personnaliser,
   facturer, tarifs, mécanos en service.
 - Personnalisation : au volant, ou véhicule vide. Réparation et nettoyage : véhicule vide (fais descendre le client).
-- Chaque facture payée : commission au mécanicien (20 % par défaut), le reste au compte du métier (Renewed-Banking).
+- Chaque facture payée : commission au mécanicien (20 % par défaut), le reste au compte d'entreprise (elyzea_core).
 
 ## Pour les clients
 La facture s'affiche à l'écran : « Payer par banque » ou « Refuser ».

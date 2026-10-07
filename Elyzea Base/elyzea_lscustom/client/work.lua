@@ -29,7 +29,7 @@ RegisterNetEvent('lscustom:client:doWork', function(kind, seconds)
     TaskTurnPedToFaceEntity(ped, veh, 800)
     Wait(800)
     if kind == 'repair' then SetVehicleDoorOpen(veh, 4, false, false) end
-    local done = lib.progressBar({
+    local done = Ely.progressBar({
         duration = math.max(1, tonumber(seconds) or 10) * 1000,
         label = kind == 'repair' and 'Réparation du véhicule…' or 'Nettoyage du véhicule…',
         canCancel = true,

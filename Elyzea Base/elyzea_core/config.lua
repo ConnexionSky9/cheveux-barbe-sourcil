@@ -53,6 +53,8 @@ Config.Keys = {
     enabled = true,
     lockKey = 'U',                   -- touche pour verrouiller / déverrouiller (modifiable dans les réglages FiveM)
     lockDistance = 15.0,
+    -- Objet d'inventaire « clé » (metadata.plate) : le détenteur peut ouvrir / fermer le véhicule (clés de la concession)
+    item = 'concess_key',
 }
 
 -- ─────────────────────────── Divers ───────────────────────────

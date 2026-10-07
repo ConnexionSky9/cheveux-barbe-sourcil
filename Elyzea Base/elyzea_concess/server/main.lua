@@ -20,7 +20,7 @@ function C.Copy(t)
 end
 
 function C.Bool(v) return v == true or v == 1 or v == '1' end
-function C.GetPlayer(src) return exports.qbx_core:GetPlayer(src) end
+function C.GetPlayer(src) return exports.elyzea_core:GetPlayer(src) end
 
 function C.Name(src)
     local p = C.GetPlayer(src)
@@ -95,7 +95,7 @@ C.Deny = {
 
 function C.Employees()
     local online, duty = {}, {}
-    for src, p in pairs(exports.qbx_core:GetQBPlayers()) do
+    for src, p in pairs(exports.elyzea_core:GetPlayers()) do
         if p.PlayerData.job.name == C.JobName() then
             online[#online + 1] = src
             if p.PlayerData.job.onduty then duty[#duty + 1] = src end
@@ -224,7 +224,7 @@ local function Load()
 end
 
 -- ---------------------------------------------------------------------
--- Métier dans Qbox
+-- Métier dans elyzea_core
 -- ---------------------------------------------------------------------
 function C.RegisterJob()
     local j = C.S.job
@@ -233,12 +233,12 @@ function C.RegisterJob()
         grades[i - 1] = { name = g.label, payment = tonumber(g.payment) or 0, isboss = g.isboss or nil, bankAuth = g.isboss or nil }
     end
     local ok, err = pcall(function()
-        exports.qbx_core:CreateJobs({ [j.name] = {
+        exports.elyzea_core:CreateJobs({ [j.name] = {
             label = j.label, type = (j.type and j.type ~= '') and j.type or nil,
             defaultDuty = j.defaultDuty == true, offDutyPay = j.offDutyPay == true, grades = grades,
         } })
     end)
-    if not ok then print('^1[Concession] Impossible d\'enregistrer le métier dans qbx_core : ' .. tostring(err) .. '^0') end
+    if not ok then print('^1[Concession] Impossible d\'enregistrer le métier dans elyzea_core : ' .. tostring(err) .. '^0') end
 end
 
 -- ---------------------------------------------------------------------

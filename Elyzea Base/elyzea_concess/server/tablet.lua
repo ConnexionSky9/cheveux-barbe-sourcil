@@ -70,7 +70,7 @@ T.toggleDuty = { fn = function(src)
     local p = C.GetPlayer(src)
     local state = not p.PlayerData.job.onduty
     if state and not C.S.enabled then return { error = C.Deny.closed } end
-    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.qbx_core:SetJobDuty(src, state) end) end
+    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.elyzea_core:SetJobDuty(src, state) end) end
     C.Log(src, state and 'Prise de service' or 'Fin de service')
     return { ok = true, message = state and 'Tu es en service : ta tenue de travail est mise.' or 'Tu as terminé ton service : tu as retrouvé tes vêtements.' }
 end }
@@ -170,9 +170,9 @@ end
 local function Members()
     local jobName = C.JobName()
     local online = {}
-    for s, p in pairs(exports.qbx_core:GetQBPlayers()) do online[p.PlayerData.citizenid] = s end
+    for s, p in pairs(exports.elyzea_core:GetPlayers()) do online[p.PlayerData.citizenid] = s end
     local list = {}
-    local ok, members = pcall(function() return exports.qbx_core:GetGroupMembers(jobName, 'job') end)
+    local ok, members = pcall(function() return exports.elyzea_core:GetGroupMembers(jobName, 'job') end)
     if ok and type(members) == 'table' then
         local cids = {}
         for _, m in ipairs(members) do cids[#cids + 1] = m.citizenid end
@@ -238,15 +238,15 @@ T.setGrade = { perm = 'employees', fn = function(src, d)
     if not C.S.job.grades[grade + 1] then return { error = 'Grade inexistant.' } end
     if not CanManageGrade(src, grade) then return { error = 'Tu ne peux donner qu\'un grade inférieur au tien.' } end
     local target
-    for s, p in pairs(exports.qbx_core:GetQBPlayers()) do if p.PlayerData.citizenid == cid then target = s end end
+    for s, p in pairs(exports.elyzea_core:GetPlayers()) do if p.PlayerData.citizenid == cid then target = s end end
     local p = target and C.GetPlayer(target)
     if p and p.PlayerData.job.name == C.JobName() then
         if not CanManageGrade(src, p.PlayerData.job.grade.level) then return { error = 'Grade égal ou supérieur au tien.' } end
         p.Functions.SetJob(C.JobName(), grade)
         C.Notify(target, ('Nouveau grade : %s.'):format(GradeLabel(grade)), 'inform')
     else
-        local ok = pcall(function() exports.qbx_core:AddPlayerToJob(cid, C.JobName(), grade) end)
-        if not ok then return { error = 'Impossible de modifier un employé hors ligne avec cette version de Qbox.' } end
+        local ok = pcall(function() exports.elyzea_core:AddPlayerToJob(cid, C.JobName(), grade) end)
+        if not ok then return { error = 'Impossible de modifier un employé hors ligne (elyzea_core).' } end
     end
     C.Log(src, 'Changement de grade', ('%s · %s'):format(cid, GradeLabel(grade)))
     return { ok = true, message = 'Grade modifié.' }
@@ -256,14 +256,14 @@ T.fire = { perm = 'employees', fn = function(src, d)
     local cid = Str(d.citizenid, 50)
     if cid == C.Cid(src) then return { error = 'Tu ne peux pas te renvoyer toi-même.' } end
     local target
-    for s, p in pairs(exports.qbx_core:GetQBPlayers()) do if p.PlayerData.citizenid == cid then target = s end end
+    for s, p in pairs(exports.elyzea_core:GetPlayers()) do if p.PlayerData.citizenid == cid then target = s end end
     local p = target and C.GetPlayer(target)
     if p and p.PlayerData.job.name == C.JobName() then
         if not CanManageGrade(src, p.PlayerData.job.grade.level) then return { error = 'Grade égal ou supérieur au tien.' } end
         p.Functions.SetJob('unemployed', 0)
         C.Notify(target, 'Tu as été renvoyé de la concession.', 'error')
     end
-    pcall(function() exports.qbx_core:RemovePlayerFromJob(cid, C.JobName()) end)
+    pcall(function() exports.elyzea_core:RemovePlayerFromJob(cid, C.JobName()) end)
     C.Log(src, 'Renvoi', cid)
     return { ok = true, message = 'Employé renvoyé.' }
 end }
@@ -299,10 +299,8 @@ end }
 -- ---------------------------------------------------------------------
 T.finances = { perm = 'finances', fn = function()
     local balance = nil
-    if GetResourceState('Renewed-Banking') == 'started' then
-        local ok, v = pcall(function() return exports['Renewed-Banking']:getAccountMoney(C.JobName()) end)
-        if ok then balance = v end
-    end
+    local ok, v = pcall(function() return exports.elyzea_core:GetSocietyMoney(C.JobName()) end)
+    if ok then balance = v end
     local function period(where)
         return MySQL.single.await('SELECT COUNT(*) AS n, COALESCE(SUM(price), 0) AS total, COALESCE(SUM(base_price - price), 0) AS discounts FROM concess_sales ' .. where) or {}
     end

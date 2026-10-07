@@ -3,11 +3,11 @@ game 'gta5'
 lua54 'yes'
 
 name 'elyzea_concess'
-description 'Concessionnaire automobile complet (Qbox) : tablette employé et direction, catalogue, ventes, essais, garage. Structure du métier dans admin_menu > Métiers > Concession'
+description 'Concessionnaire automobile complet (base Elyzea) : tablette employé et direction, catalogue, ventes, essais, garage. Structure du métier dans admin_menu > Métiers > Concession'
 version '1.0.0'
 
 shared_scripts {
-    '@ox_lib/init.lua',
+    '@elyzea_core/lib/ely.lua',
     'config.lua',
 }
 
@@ -18,7 +18,7 @@ client_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/tablet.lua',
     'server/sales.lua',
@@ -36,7 +36,6 @@ files {
 }
 
 dependencies {
-    'qbx_core',
-    'ox_lib',
-    'oxmysql',
+    'elyzea_core',
+    'elyzea_inventory',
 }

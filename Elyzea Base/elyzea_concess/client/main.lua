@@ -5,10 +5,10 @@ CCL = { cfg = nil }
 local C = CCL
 local blip = nil
 
-function C.Notify(msg, kind) lib.notify({ description = msg, type = kind or 'inform' }) end
+function C.Notify(msg, kind) Ely.notify({ description = msg, type = kind or 'inform' }) end
 
 function C.Job()
-    local pd = exports.qbx_core:GetPlayerData()
+    local pd = exports.elyzea_core:GetPlayerData()
     return pd and pd.job
 end
 
@@ -44,10 +44,10 @@ end
 function C.ApplyProps(veh, props)
     if not veh or type(props) ~= 'table' then return end
     if not C.Control(veh) then return end
-    lib.setVehicleProperties(veh, props)
+    Ely.setVehicleProperties(veh, props)
     if props.fuelLevel then
         SetVehicleFuelLevel(veh, props.fuelLevel + 0.0)
-        if GetResourceState('ox_fuel') == 'started' then Entity(veh).state:set('fuel', props.fuelLevel + 0.0, true) end
+        Entity(veh).state:set('fuel', props.fuelLevel + 0.0, true)
     end
 end
 
@@ -87,7 +87,7 @@ end)
 AddEventHandler('onClientResourceStart', function(res)
     if res == GetCurrentResourceName() then TriggerServerEvent('concess:server:requestSync') end
 end)
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function() TriggerServerEvent('concess:server:requestSync') end)
+RegisterNetEvent('elyzea:client:playerLoaded', function() TriggerServerEvent('concess:server:requestSync') end)
 
 -- ---------------------------------------------------------------------
 -- Livraison d'un véhicule acheté
@@ -174,7 +174,7 @@ CreateThread(function()
             end
         end
         if text ~= shown then
-            if text then lib.showTextUI(text, { position = 'left-center' }) else lib.hideTextUI() end
+            if text then Ely.showTextUI(text) else Ely.hideTextUI() end
             shown = text
         end
         if zone and IsControlJustPressed(0, 38) then
@@ -188,7 +188,7 @@ CreateThread(function()
 end)
 
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() then lib.hideTextUI() end
+    if res == GetCurrentResourceName() then Ely.hideTextUI() end
 end)
 
 -- ---------------------------------------------------------------------
@@ -237,23 +237,13 @@ end)
 -- ---------------------------------------------------------------------
 -- Clé de véhicule : U pour verrouiller / déverrouiller (il faut la clé de la plaque)
 -- ---------------------------------------------------------------------
-local function Plate(veh) local p = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '') return p end
 
-RegisterCommand('concess_lock', function()
-    local ped = PlayerPedId()
-    local veh = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or lib.getClosestVehicle(GetEntityCoords(ped), 10.0, false)
-    if not veh or veh == 0 then return end
-    if GetResourceState('ox_inventory') ~= 'started' then return end
-    local n = exports.ox_inventory:Search('count', Config.KeyItem, { plate = Plate(veh) })
-    if (tonumber(n) or 0) < 1 then return end   -- pas sa clé : la touche reste libre pour les autres scripts
-    TriggerServerEvent('concess:server:toggleLock', NetworkGetNetworkIdFromEntity(veh))
-end, false)
-RegisterKeyMapping('concess_lock', 'Véhicule : verrouiller / déverrouiller (clé)', 'keyboard', Config.Keys.lock)
+-- La touche U est gérée par elyzea_core (elyzea_core/config.lua › Config.Keys.item = clé de la concession)
 
 RegisterNetEvent('concess:client:lockFx', function(netId, locked)
     local ped = PlayerPedId()
     local veh = NetworkDoesNetworkIdExist(netId) and NetworkGetEntityFromNetworkId(netId) or 0
-    if not IsPedInAnyVehicle(ped, false) and lib.requestAnimDict('anim@mp_player_intmenu@key_fob@', 1000) then
+    if not IsPedInAnyVehicle(ped, false) and pcall(Ely.requestAnimDict, 'anim@mp_player_intmenu@key_fob@', 1000) then
         TaskPlayAnim(ped, 'anim@mp_player_intmenu@key_fob@', 'fob_click', 3.0, 3.0, 800, 48, 0, false, false, false)
     end
     if veh ~= 0 then

@@ -3,11 +3,11 @@ game 'gta5'
 lua54 'yes'
 
 name 'elyzea_lscustom'
-description 'Métier LsCustom complet (Qbox) : atelier, personnalisation, réparation, factures. Gestion dans admin_menu > Métiers > LsCustom'
+description 'Métier LsCustom complet (base Elyzea) : atelier, personnalisation, réparation, factures. Gestion dans admin_menu > Métiers > LsCustom'
 version '1.0.0'
 
 shared_scripts {
-    '@ox_lib/init.lua',
+    '@elyzea_core/lib/ely.lua',
     'config.lua',
 }
 
@@ -20,7 +20,7 @@ client_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/work.lua',
     'server/admin.lua',
@@ -35,7 +35,5 @@ files {
 }
 
 dependencies {
-    'qbx_core',
-    'ox_lib',
-    'oxmysql',
+    'elyzea_core',
 }

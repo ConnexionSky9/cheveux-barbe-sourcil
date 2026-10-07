@@ -238,7 +238,7 @@ Config.Defaults = {
     },
     settings = {
         commission = 20,          -- % de chaque facture pour le mécanicien (le reste va au métier)
-        societyDeposit = true,    -- verser le reste au compte du métier (Renewed-Banking)
+        societyDeposit = true,    -- verser le reste au compte du métier (compte d'entreprise elyzea_core)
         maxInvoice = 100000,      -- facture maximum
         invoiceTimeout = 60,      -- secondes pour accepter une facture
         repairTime = 12,          -- secondes de réparation
