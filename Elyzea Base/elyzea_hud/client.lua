@@ -46,26 +46,25 @@ AddEventHandler('onClientResourceStart', function(res)
 end)
 
 ------------------------------------------------------------
--- Faim / soif : ESX (esx_status) et QBCore / Qbox
+-- Faim / soif : base Elyzea (elyzea_core)
 ------------------------------------------------------------
--- ESX
-AddEventHandler('esx_status:onTick', function(data)
-    for _, s in pairs(data) do
-        if s.name == 'hunger' then hunger = s.percent end
-        if s.name == 'thirst' then thirst = s.percent end
-    end
-end)
+local function readNeeds(data)
+    local meta = type(data) == 'table' and data.metadata or nil
+    if meta then hunger, thirst = tonumber(meta.hunger) or hunger, tonumber(meta.thirst) or thirst end
+end
 
--- QBCore / Qbox
+-- Envoyé par elyzea_core à chaque baisse et quand on mange / boit
 RegisterNetEvent('hud:client:UpdateNeeds', function(newHunger, newThirst)
-    hunger, thirst = newHunger, newThirst
+    hunger, thirst = tonumber(newHunger) or hunger, tonumber(newThirst) or thirst
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    if GetResourceState('qb-core') ~= 'started' then return end
-    local QBCore = exports['qb-core']:GetCoreObject()
-    local meta = QBCore.Functions.GetPlayerData().metadata or {}
-    hunger, thirst = meta.hunger or 100, meta.thirst or 100
+RegisterNetEvent('elyzea:client:playerLoaded', readNeeds)
+RegisterNetEvent('elyzea:client:setPlayerData', readNeeds)
+
+-- Redémarrage du HUD avec un personnage déjà chargé
+CreateThread(function()
+    if GetResourceState('elyzea_core') ~= 'started' then return end
+    readNeeds(exports.elyzea_core:GetPlayerData())
 end)
 
 -- Si tu as un autre système de besoins, déclenche simplement cet événement :

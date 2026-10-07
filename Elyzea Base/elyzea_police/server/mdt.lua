@@ -217,9 +217,9 @@ M.calls = { perm = 'dispatch', fn = function() return { list = P.CallList() } en
 local function Members()
     local jobName = P.Settings.job.name
     local online = {}
-    for src, p in pairs(exports.qbx_core:GetQBPlayers()) do online[p.PlayerData.citizenid] = src end
+    for src, p in pairs(exports.elyzea_core:GetPlayers()) do online[p.PlayerData.citizenid] = src end
     local list = {}
-    local ok, members = pcall(function() return exports.qbx_core:GetGroupMembers(jobName, 'job') end)
+    local ok, members = pcall(function() return exports.elyzea_core:GetGroupMembers(jobName, 'job') end)
     if ok and type(members) == 'table' then
         local cids = {}
         for _, m in ipairs(members) do cids[#cids + 1] = m.citizenid end
@@ -282,8 +282,8 @@ M.setGrade = { perm = 'roster', fn = function(src, d)
         p.Functions.SetJob(jobName, grade)
         P.Notify(target, ('Nouveau grade : %s.'):format(GradeLabel(grade)), 'inform')
     else
-        local ok = pcall(function() exports.qbx_core:AddPlayerToJob(cid, jobName, grade) end)
-        if not ok then return { error = 'Impossible de modifier un agent hors ligne avec cette version de Qbox.' } end
+        local ok = pcall(function() exports.elyzea_core:AddPlayerToJob(cid, jobName, grade) end)
+        if not ok then return { error = 'Impossible de modifier un agent hors ligne (elyzea_core).' } end
     end
     P.Log(src, 'Changement de grade', ('%s · %s'):format(cid, GradeLabel(grade)))
     return { ok = true, message = 'Grade modifié.' }
@@ -299,7 +299,7 @@ M.fire = { perm = 'roster', fn = function(src, d)
         p.Functions.SetJob('unemployed', 0)
         P.Notify(target, 'Vous avez été renvoyé de la police.', 'error')
     end
-    pcall(function() exports.qbx_core:RemovePlayerFromJob(cid, jobName) end)
+    pcall(function() exports.elyzea_core:RemovePlayerFromJob(cid, jobName) end)
     P.Log(src, 'Renvoi', cid)
     return { ok = true, message = 'Agent renvoyé.' }
 end }

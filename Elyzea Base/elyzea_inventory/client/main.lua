@@ -239,7 +239,9 @@ end)
 local function openContainer(kind, id)
     if isOpen then closeInventory() Wait(50) end
     if not canOpen() then return notify(Config.Messages.cant_open, 'error') end
-    TriggerServerEvent('elyzea_inv:openContainer', kind, type(id) == 'table' and (id.id or id.type) or id)
+    -- Format ox : ('shop', { type = 'boutique', id = 1 }) / ('stash', { id = 'coffre' })
+    if type(id) == 'table' then id = kind == 'shop' and (id.type or id.id) or (id.id or id.type) end
+    TriggerServerEvent('elyzea_inv:openContainer', kind, id)
 end
 exports('openInventory', openContainer)
 exports('OpenStash', function(id) openContainer('stash', id) end)

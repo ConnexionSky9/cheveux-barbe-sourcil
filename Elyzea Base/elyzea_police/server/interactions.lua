@@ -69,7 +69,7 @@ RegisterNetEvent('police:server:takeOutVehicle', function(target)
 end)
 
 -- ---------------------------------------------------------------------
--- Fouille (ox_inventory)
+-- Fouille (elyzea_inventory)
 -- ---------------------------------------------------------------------
 RegisterNetEvent('police:server:search', function(target, handsUp)
     local src = source
@@ -79,10 +79,10 @@ RegisterNetEvent('police:server:search', function(target, handsUp)
     if P.Settings.settings.searchNeedsCuff and not P.Cuffed[target] and not handsUp then
         return P.Notify(src, 'La personne doit être menottée ou avoir les mains en l\'air.', 'error')
     end
-    if GetResourceState('ox_inventory') ~= 'started' then
-        return P.Notify(src, 'La fouille nécessite ox_inventory.', 'error')
+    if GetResourceState('elyzea_inventory') ~= 'started' then
+        return P.Notify(src, 'La fouille nécessite elyzea_inventory.', 'error')
     end
-    exports.ox_inventory:forceOpenInventory(src, 'player', target)
+    exports.elyzea_inventory:OpenInventory(src, 'player', target)
     P.Notify(target, 'Vous êtes fouillé.', 'inform')
     P.Log(src, 'Fouille', ('%s [%d]'):format(P.Name(target), target))
 end)
@@ -105,9 +105,7 @@ local function SocietyDeposit(amount)
     if not P.Settings.settings.fineToSociety then return end
     local job = P.Settings.job and P.Settings.job.name
     if not job then return end
-    if GetResourceState('Renewed-Banking') == 'started' then
-        pcall(function() exports['Renewed-Banking']:addAccountMoney(job, amount) end)
-    end
+    pcall(function() exports.elyzea_core:AddSocietyMoney(job, amount, 'Amende') end)
 end
 
 local function PayFine(src, fineId)
@@ -288,11 +286,11 @@ RegisterNetEvent('police:server:playerLoaded', function()
 end)
 
 AddEventHandler('police:server:ready', function()
-    for src in pairs(exports.qbx_core:GetQBPlayers()) do CheckJail(src) end
+    for src in pairs(exports.elyzea_core:GetPlayers()) do CheckJail(src) end
 end)
 
 -- ---------------------------------------------------------------------
--- Permis (metadata Qbox « licences »)
+-- Permis (metadata elyzea_core « licences »)
 -- ---------------------------------------------------------------------
 function P.SetLicense(src, cid, license, state)
     license = tostring(license or ''):lower():gsub('[^%w_]', '')

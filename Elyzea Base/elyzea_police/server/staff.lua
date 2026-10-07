@@ -205,7 +205,7 @@ function S.refresh() end
 -- ---------------------------------------------------------------------
 local function GetData()
     local units = {}
-    for src, p in pairs(exports.qbx_core:GetQBPlayers()) do
+    for src, p in pairs(exports.elyzea_core:GetPlayers()) do
         if P.IsCop(src) then
             units[#units + 1] = { id = src, name = P.Name(src), job = p.PlayerData.job.name, grade = p.PlayerData.job.grade.name,
                 onduty = P.OnDuty(src), callsign = p.PlayerData.metadata.callsign, cuffed = P.Cuffed[src] == true }
@@ -216,7 +216,7 @@ local function GetData()
     for src in pairs(P.Cuffed) do cuffed[#cuffed + 1] = { id = src, name = P.Name(src) } end
 
     local coreJobs, policeJobs = {}, {}
-    local ok, jobs = pcall(function() return exports.qbx_core:GetJobs() end)
+    local ok, jobs = pcall(function() return exports.elyzea_core:GetJobs() end)
     if ok and type(jobs) == 'table' then
         for name, j in pairs(jobs) do coreJobs[#coreJobs + 1] = { name = name, label = j.label or name } end
         table.sort(coreJobs, function(a, b) return a.label < b.label end)
@@ -240,7 +240,7 @@ local function GetData()
         defaults = { settings = Config.Defaults.settings },
         coreJobs = coreJobs,
         policeJobs = policeJobs,
-        hasInventory = GetResourceState('ox_inventory') == 'started',
+        hasInventory = GetResourceState('elyzea_inventory') == 'started',
         units = units,
         cuffed = cuffed,
         calls = P.CallList(),

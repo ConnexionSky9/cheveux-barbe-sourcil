@@ -9,7 +9,7 @@ PoliceC = {
 local C = PoliceC
 
 function C.Notify(msg, kind)
-    local ok = pcall(function() exports.qbx_core:Notify(msg, kind or 'inform') end)
+    local ok = pcall(function() exports.elyzea_core:Notify(msg, kind or 'inform') end)
     if not ok then
         BeginTextCommandThefeedPost('STRING')
         AddTextComponentSubstringPlayerName(msg)
@@ -18,7 +18,7 @@ function C.Notify(msg, kind)
 end
 
 function C.Job()
-    local ok, pd = pcall(function() return exports.qbx_core:GetPlayerData() end)
+    local ok, pd = pcall(function() return exports.elyzea_core:GetPlayerData() end)
     return ok and pd and pd.job or nil
 end
 
@@ -93,6 +93,6 @@ AddEventHandler('onClientResourceStart', function(res)
     if res == GetCurrentResourceName() then TriggerServerEvent('police:server:requestSync') end
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+RegisterNetEvent('elyzea:client:playerLoaded', function()
     TriggerServerEvent('police:server:playerLoaded')
 end)

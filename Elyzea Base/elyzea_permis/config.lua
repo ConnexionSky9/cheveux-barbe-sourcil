@@ -1,6 +1,6 @@
 Config = {}
 
--- Objet ox_inventory du permis (à déclarer : install/ox_inventory_items.lua)
+-- Objet du permis (déjà déclaré dans elyzea_inventory/shared/items.lua)
 Config.Item = 'permis'
 
 -- Les trois permis

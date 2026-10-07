@@ -4,7 +4,7 @@
 local uiOpen = false
 local Exam = nil
 
-local function Notify(msg, kind) lib.notify({ description = msg, type = kind or 'inform' }) end
+local function Notify(msg, kind) Ely.notify({ description = msg, type = kind or 'inform' }) end
 RegisterNetEvent('permis:client:notify', function(msg, kind) Notify(msg, kind) end)
 
 local function Focus(on) uiOpen = on SetNuiFocus(on, on) end
@@ -178,7 +178,7 @@ local function ShowCard(meta, ownerSrc, slot)
     SendNUIMessage({ action = 'card', meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot })
 end
 
--- Utilisation de l'objet (ox_inventory › client.export)
+-- Utilisation de l'objet (elyzea_inventory › client.export)
 exports('useLicense', function(data, slot)
     local s = type(slot) == 'table' and slot or data
     local meta = (s and s.metadata) or (data and data.metadata)

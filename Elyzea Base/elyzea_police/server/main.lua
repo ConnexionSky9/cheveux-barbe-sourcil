@@ -22,7 +22,7 @@ end
 
 function P.Bool(v) return v == true or v == 1 or v == '1' end
 
-function P.GetPlayer(src) return exports.qbx_core:GetPlayer(src) end
+function P.GetPlayer(src) return exports.elyzea_core:GetPlayer(src) end
 
 function P.CharName(charinfo)
     if type(charinfo) == 'string' then charinfo = json.decode(charinfo) or {} end
@@ -54,7 +54,7 @@ function P.Dist(a, b)
 end
 
 function P.FindByCid(cid)
-    for src, p in pairs(exports.qbx_core:GetQBPlayers()) do
+    for src, p in pairs(exports.elyzea_core:GetPlayers()) do
         if p.PlayerData.citizenid == cid then return src, p end
     end
 end
@@ -103,7 +103,7 @@ end
 
 function P.CopsOnDuty()
     local list = {}
-    for src in pairs(exports.qbx_core:GetQBPlayers()) do
+    for src in pairs(exports.elyzea_core:GetPlayers()) do
         if P.OnDuty(src) then list[#list + 1] = src end
     end
     return list
@@ -162,7 +162,7 @@ local function LoadSettings()
 end
 
 -- ---------------------------------------------------------------------
--- Métier dans Qbox
+-- Métier dans elyzea_core
 -- ---------------------------------------------------------------------
 function P.RegisterJob()
     local j = P.Settings.job
@@ -172,19 +172,19 @@ function P.RegisterJob()
         grades[i - 1] = { name = g.name, payment = tonumber(g.payment) or 0, isboss = g.isboss or nil, bankAuth = g.isboss or nil }
     end
     local ok, err = pcall(function()
-        exports.qbx_core:CreateJobs({ [j.name] = {
+        exports.elyzea_core:CreateJobs({ [j.name] = {
             label = j.label, type = (j.type and j.type ~= '') and j.type or nil,
             defaultDuty = j.defaultDuty == true, offDutyPay = j.offDutyPay == true, grades = grades,
         } })
     end)
-    if not ok then print('^1[Police] Impossible d\'enregistrer le métier dans qbx_core : ' .. tostring(err) .. '^0') end
+    if not ok then print('^1[Police] Impossible d\'enregistrer le métier dans elyzea_core : ' .. tostring(err) .. '^0') end
 end
 
 -- ---------------------------------------------------------------------
--- Armurerie (ox_inventory)
+-- Armurerie (elyzea_inventory)
 -- ---------------------------------------------------------------------
 function P.RegisterArmory()
-    if GetResourceState('ox_inventory') ~= 'started' then return end
+    if GetResourceState('elyzea_inventory') ~= 'started' then return end
     local items = {}
     for _, a in ipairs(P.Settings.armory or {}) do
         items[#items + 1] = { name = a.item, price = tonumber(a.price) or 0, grade = tonumber(a.grade) or 0 }
@@ -195,7 +195,7 @@ function P.RegisterArmory()
     for _, pt in ipairs(P.Settings.points.armory or {}) do locations[#locations + 1] = vec3(pt.x, pt.y, pt.z) end
     if #locations == 0 then locations[1] = vec3(0.0, 0.0, -100.0) end
     pcall(function()
-        exports.ox_inventory:RegisterShop('police_armory', {
+        exports.elyzea_inventory:RegisterShop('police_armory', {
             name = 'Armurerie de la police', inventory = items, groups = groups, locations = locations,
         })
     end)
@@ -209,7 +209,7 @@ function P.PublicConfig()
     return {
         policeJobs = P.JobSet(), permGrades = s.permGrades, fines = s.fines, points = s.points,
         settings = s.settings, jobLabel = s.job and s.job.label or 'Police',
-        hasInventory = GetResourceState('ox_inventory') == 'started',
+        hasInventory = GetResourceState('elyzea_inventory') == 'started',
     }
 end
 
@@ -229,7 +229,7 @@ function P.SetDuty(src, state)
     if p.Functions.SetJobDuty then
         p.Functions.SetJobDuty(state)
     else
-        pcall(function() exports.qbx_core:SetJobDuty(src, state) end)
+        pcall(function() exports.elyzea_core:SetJobDuty(src, state) end)
     end
     P.Notify(src, state and 'Vous avez pris votre service.' or 'Vous avez terminé votre service.', state and 'success' or 'inform')
     TriggerClientEvent('police:client:dutyChanged', src, state)
@@ -286,7 +286,7 @@ CreateThread(function()
 end)
 
 AddEventHandler('onResourceStart', function(res)
-    if res == 'ox_inventory' then SetTimeout(2000, P.RegisterArmory) end
+    if res == 'elyzea_inventory' then SetTimeout(2000, P.RegisterArmory) end
 end)
 
 -- ---------------------------------------------------------------------

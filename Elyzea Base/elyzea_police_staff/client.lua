@@ -37,7 +37,7 @@ end
 
 RegisterNetEvent('police_staff:client:notify', function(msg, kind)
     if open then SendNUIMessage({ action = 'toast', message = msg, kind = kind }) end
-    pcall(function() exports.qbx_core:Notify(msg, kind or 'inform') end)
+    pcall(function() exports.elyzea_core:Notify(msg, kind or 'inform') end)
 end)
 
 RegisterNetEvent('police_staff:client:open', function(data)

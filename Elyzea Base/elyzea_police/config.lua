@@ -26,7 +26,7 @@ Config.Defaults = {
     -- Métiers considérés comme police (reçoivent le dispatch, ouvrent la tablette)
     policeJobs = { 'police' },
 
-    -- Métier géré par la tablette staff (créé / mis à jour dans Qbox)
+    -- Métier géré par la tablette staff (créé / mis à jour dans elyzea_core)
     job = {
         name = 'police', label = 'LSPD', type = 'leo', defaultDuty = false, offDutyPay = false,
         grades = {
@@ -68,7 +68,7 @@ Config.Defaults = {
         { id = 'evade',    label = 'Délit de fuite',               amount = 2000, jail = 15, category = 'Route' },
     },
 
-    -- Armurerie (nécessite ox_inventory)
+    -- Armurerie (elyzea_inventory)
     armory = {
         { item = 'WEAPON_STUNGUN',     price = 0,   grade = 0 },
         { item = 'WEAPON_NIGHTSTICK',  price = 0,   grade = 0 },
@@ -100,7 +100,7 @@ Config.Defaults = {
         maxJail        = 120,    -- minutes de prison max
         jailRadius     = 120.0,  -- au-delà, le prisonnier est ramené
         maxFine        = 50000,  -- amende max
-        fineToSociety  = true,   -- l'argent des amendes va au compte du métier (si Renewed-Banking / qbx_management)
+        fineToSociety  = true,   -- l'argent des amendes va au compte du métier (compte d'entreprise elyzea_core)
         callCooldown   = 30,     -- secondes entre deux /112 d'un citoyen
     },
 }

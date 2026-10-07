@@ -3,7 +3,7 @@ game 'gta5'
 lua54 'yes'
 
 name 'elyzea_police'
-description 'Métier Police complet (Qbox) : tablette agent, dispatch, interactions, amendes, prison, casiers'
+description 'Métier Police complet (base Elyzea) : tablette agent, dispatch, interactions, amendes, prison, casiers'
 version '1.0.0'
 
 shared_script 'config.lua'
@@ -18,7 +18,7 @@ client_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/dispatch.lua',
     'server/interactions.lua',
@@ -34,6 +34,6 @@ files {
 }
 
 dependencies {
-    'qbx_core',
-    'oxmysql',
+    'elyzea_core',
+    'elyzea_inventory',
 }

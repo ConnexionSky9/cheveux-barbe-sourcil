@@ -1,6 +1,6 @@
 # elyzea_garage · Elyzea Public Garage
 
-Garages publics **connectés** pour Qbox (ox_lib, oxmysql), attribués aux PNJ du menu admin.
+Garages publics **connectés** pour la base Elyzea (elyzea_core), attribués aux PNJ du menu admin.
 
 ## Installation
 1. Place `elyzea_garage` dans `resources/` et, dans `server.cfg` : `ensure elyzea_garage` (après admin_menu).

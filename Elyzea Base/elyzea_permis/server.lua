@@ -5,7 +5,7 @@
 -- =====================================================================
 local Sessions = {}   -- [src] = { opts, quiz = {...}, exam = {...} }
 
-local function GetPlayer(src) return exports.qbx_core:GetPlayer(src) end
+local function GetPlayer(src) return exports.elyzea_core:GetPlayer(src) end
 local function Cid(src) local p = GetPlayer(src) return p and p.PlayerData.citizenid end
 local function Notify(src, msg, kind) TriggerClientEvent('permis:client:notify', src, msg, kind or 'inform') end
 local function Coords(src) return GetEntityCoords(GetPlayerPed(src)) end
@@ -206,13 +206,13 @@ local function GiveLicense(src, cat)
     if not d.number then d.number = ('EL-%06d'):format(math.random(0, 999999)) end
     Save(cid, d)
 
-    -- Permis reconnus par Qbox (et la tablette de police)
+    -- Permis reconnus par la base Elyzea (et la tablette de police)
     local lic = p.PlayerData.metadata.licences or {}
     lic[Config.Categories[cat].license] = true
     p.Functions.SetMetaData('licences', lic)
 
     -- Un seul objet « permis de conduire » qui regroupe toutes les catégories
-    if GetResourceState('ox_inventory') == 'started' then
+    if GetResourceState('elyzea_inventory') == 'started' then
         local ci = p.PlayerData.charinfo or {}
         local cats = {}
         for _, key in ipairs(Config.Order) do if d.licenses[key] then cats[#cats + 1] = { short = Config.Categories[key].short, label = Config.Categories[key].label, date = d.licenses[key] } end end
@@ -223,13 +223,13 @@ local function GiveLicense(src, cat)
             birthdate = ci.birthdate, gender = ci.gender, categories = cats,
             description = ('%s %s · catégories %s · n° %s'):format(ci.firstname or '', ci.lastname or '', table.concat(shorts, ', '), d.number),
         }
-        local slots = exports.ox_inventory:Search(src, 'slots', Config.Item) or {}
+        local slots = exports.elyzea_inventory:Search(src, 'slots', Config.Item) or {}
         local own
         for _, sl in ipairs(slots) do if sl.metadata and sl.metadata.number == d.number then own = sl end end
         if own then
-            exports.ox_inventory:SetMetadata(src, own.slot, meta)
-        elseif not exports.ox_inventory:AddItem(src, Config.Item, 1, meta) then
-            print(('^1[Auto-école] Impossible de donner « %s » : objet déclaré dans ox_inventory ?^0'):format(Config.Item))
+            exports.elyzea_inventory:SetMetadata(src, own.slot, meta)
+        elseif not exports.elyzea_inventory:AddItem(src, Config.Item, 1, meta) then
+            print(('^1[Auto-école] Impossible de donner « %s » : inventaire plein ?^0'):format(Config.Item))
         end
     end
     Log(src, 'Permis obtenu', Config.Categories[cat].label)
@@ -253,7 +253,7 @@ RegisterNetEvent('permis:server:startExam', function(cat)
     while not DoesEntityExist(veh) and GetGameTimer() - t < 4000 do Wait(10) end
     if not DoesEntityExist(veh) then return Notify(src, ('Le véhicule d\'examen « %s » n\'existe pas sur ce serveur.'):format(model), 'error') end
     SetVehicleNumberPlateText(veh, 'PERMIS')
-    if GetResourceState('qbx_vehiclekeys') == 'started' then pcall(function() exports.qbx_vehiclekeys:GiveKeys(src, veh) end) end
+    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
 
     s.exam = { cat = cat, veh = veh, started = os.time() }
     Log(src, 'Conduite commencée', Config.Categories[cat].label)
@@ -286,8 +286,8 @@ end)
 -- ---------------------------------------------------------------------
 RegisterNetEvent('permis:server:show', function(slot)
     local src = source
-    if GetResourceState('ox_inventory') ~= 'started' then return end
-    local item = exports.ox_inventory:GetSlot(src, tonumber(slot) or 0)
+    if GetResourceState('elyzea_inventory') ~= 'started' then return end
+    local item = exports.elyzea_inventory:GetSlot(src, tonumber(slot) or 0)
     if not item or item.name ~= Config.Item or not item.metadata then return end
     local me = Coords(src)
     local target, best

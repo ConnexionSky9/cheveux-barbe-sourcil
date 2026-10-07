@@ -27,7 +27,7 @@ CreateThread(function()
                             elseif C.OnDuty() and C.cfg.hasInventory then
                                 Help('~INPUT_CONTEXT~ Ouvrir l\'armurerie')
                                 if IsControlJustPressed(0, 38) then
-                                    exports.ox_inventory:openInventory('shop', { type = 'police_armory', id = i })
+                                    exports.elyzea_inventory:OpenShop('police_armory')
                                 end
                             end
                         end

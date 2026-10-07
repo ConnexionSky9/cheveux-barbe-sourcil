@@ -7,7 +7,7 @@
 -- =====================================================================
 local Sessions = {}   -- [src] = { name, spots, npc = {x,y,z} } : garage ouvert par un PNJ
 
-local function GetPlayer(src) return exports.qbx_core:GetPlayer(src) end
+local function GetPlayer(src) return exports.elyzea_core:GetPlayer(src) end
 local function Cid(src) local p = GetPlayer(src) return p and p.PlayerData.citizenid end
 local function Notify(src, msg, kind) TriggerClientEvent('garage:client:notify', src, msg, kind or 'inform') end
 local function Coords(src) return GetEntityCoords(GetPlayerPed(src)) end
@@ -126,8 +126,8 @@ RegisterNetEvent('garage:server:takeOut', function(plate, vtype)
     MySQL.update('UPDATE player_vehicles SET state = 0 WHERE plate = ?', { plate })
     local saved = json.decode(row.mods or '{}') or {}
     if saved._neonFx then Entity(veh).state:set('neonFx', saved._neonFx, true) end
-    -- Clés : démarrage (qbx_vehiclekeys) et clé d'inventaire de la concession si elle manque
-    if GetResourceState('qbx_vehiclekeys') == 'started' then pcall(function() exports.qbx_vehiclekeys:GiveKeys(src, veh) end) end
+    -- Clés : démarrage (elyzea_core) et clé d'inventaire de la concession si elle manque
+    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
     if GetResourceState('elyzea_concess') == 'started' then pcall(function() exports.elyzea_concess:EnsureKey(src, plate, row.vehicle) end) end
 
     TriggerClientEvent('garage:client:spawned', src, NetworkGetNetworkIdFromEntity(veh), json.decode(row.mods or '{}') or {})

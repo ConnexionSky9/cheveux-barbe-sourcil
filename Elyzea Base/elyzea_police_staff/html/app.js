@@ -16,7 +16,7 @@ const PERMS = [
     { k: 'mdt', label: 'Ouvrir la tablette', help: 'Accès à la tablette de l\'agent (F6).' },
     { k: 'dispatch', label: 'Accepter les appels', help: 'Prendre et clôturer les appels du dispatch.' },
     { k: 'cuff', label: 'Menotter, escorter, véhicule', help: 'Menottes, escorte, mettre ou sortir d\'un véhicule, vérifier l\'identité.' },
-    { k: 'search', label: 'Fouiller', help: 'Ouvrir l\'inventaire d\'une personne (ox_inventory).' },
+    { k: 'search', label: 'Fouiller', help: 'Ouvrir l\'inventaire d\'une personne (elyzea_inventory).' },
     { k: 'fines', label: 'Mettre une amende', help: 'Avec le catalogue ou un montant libre.' },
     { k: 'records_write', label: 'Écrire un rapport', help: 'Ajouter au casier judiciaire.' },
     { k: 'jail', label: 'Prison', help: 'Envoyer en prison et libérer.' },
@@ -43,7 +43,7 @@ const SETTINGS = [
 
 const POINTS = [
     { k: 'duty', label: 'Prise de service', help: 'E pour prendre ou terminer son service.' },
-    { k: 'armory', label: 'Armurerie', help: 'E pour ouvrir la boutique de l\'armurerie (ox_inventory).' },
+    { k: 'armory', label: 'Armurerie', help: 'E pour ouvrir la boutique de l\'armurerie (elyzea_inventory).' },
     { k: 'jail', label: 'Prison (cellule)', help: 'Le premier point est utilisé pour les détenus.' },
     { k: 'release', label: 'Sortie de prison', help: 'Où le détenu est relâché. Le premier point est utilisé.' },
 ];
@@ -136,7 +136,7 @@ VIEWS.job = () => {
     const core = st.data.coreJobs;
     return `
         <h1>Métier et grades</h1>
-        <p class="lead">Le métier <b class="mono">${esc(j.name)}</b> est créé et mis à jour dans Qbox à chaque enregistrement, sans redémarrage.</p>
+        <p class="lead">Le métier <b class="mono">${esc(j.name)}</b> est créé et mis à jour dans elyzea_core à chaque enregistrement, sans redémarrage.</p>
         <div class="card">
             <div class="grid2">
                 <label class="field">Nom affiché<input type="text" data-jf="label" value="${esc(j.label)}"></label>
@@ -197,8 +197,8 @@ VIEWS.armory = () => {
     const grades = st.data.settings.job.grades;
     return `
         <h1>Armurerie</h1>
-        <p class="lead">Objets disponibles au point « Armurerie ». Utilise les noms d'objets d'ox_inventory (ex. <span class="mono">WEAPON_STUNGUN</span>, <span class="mono">ammo-9</span>).</p>
-        ${st.data.hasInventory ? '' : '<div class="warnbox">ox_inventory n\'est pas démarré : l\'armurerie et la fouille ne fonctionneront pas.</div>'}
+        <p class="lead">Objets disponibles au point « Armurerie ». Utilise les noms d'objets d'elyzea_inventory (ex. <span class="mono">WEAPON_STUNGUN</span>, <span class="mono">ammo-9</span>).</p>
+        ${st.data.hasInventory ? '' : '<div class="warnbox">elyzea_inventory n\'est pas démarré : l\'armurerie et la fouille ne fonctionneront pas.</div>'}
         <div class="table-wrap"><table class="edit-table">
             <thead><tr><th>Objet</th><th style="width:130px">Prix ($)</th><th style="width:220px">Grade minimum</th><th style="width:90px"></th></tr></thead>
             <tbody>${st.armory.map((a, i) => `<tr>
@@ -216,7 +216,7 @@ VIEWS.uniforms = () => {
     const d = st.data;
     if (!d.uniformsAvailable) return `<h1>Tenues de service</h1><div class="warnbox">Les tenues sont gérées par admin_menu : démarre-le pour les utiliser.</div>`;
     const jobs = d.policeJobs || [];
-    if (!jobs.length) return `<h1>Tenues de service</h1>${empty('Aucun métier police trouvé dans Qbox.')}`;
+    if (!jobs.length) return `<h1>Tenues de service</h1>${empty('Aucun métier police trouvé dans elyzea_core.')}`;
     const job = jobs.find((j) => j.name === st.uniJob) || jobs[0];
     st.uniJob = job.name;
     const uni = (d.uniforms || {})[job.name] || {};

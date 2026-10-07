@@ -478,7 +478,7 @@ end
 function ForceOpen(src, kind, id)
     src = tonumber(src)
     if not src or not Inv[src] then return false end
-    if type(id) == 'table' then id = id.id or id.type end
+    if type(id) == 'table' then id = kind == 'shop' and (id.type or id.id) or (id.id or id.type) end
     if kind == 'stash' then
         local c = getStash(id, src)
         if not c then return false end

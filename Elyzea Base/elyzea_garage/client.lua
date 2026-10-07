@@ -3,7 +3,7 @@
 -- =====================================================================
 local open = false
 
-local function Notify(msg, kind) lib.notify({ description = msg, type = kind or 'inform' }) end
+local function Notify(msg, kind) Ely.notify({ description = msg, type = kind or 'inform' }) end
 RegisterNetEvent('garage:client:notify', function(msg, kind) Notify(msg, kind) end)
 
 local function Plate(veh) local p = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '') return p end
@@ -58,7 +58,7 @@ end
 -- ---------------------------------------------------------------------
 local function StoreCandidate()
     local ped = PlayerPedId()
-    local veh = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or lib.getClosestVehicle(GetEntityCoords(ped), 10.0, false)
+    local veh = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or Ely.getClosestVehicle(GetEntityCoords(ped), 10.0, false)
     if not veh or veh == 0 then return nil end
     return veh
 end
@@ -119,9 +119,9 @@ local function DoStore()
     local veh = StoreCandidate()
     if not veh then return Notify('Aucun véhicule à ranger près de toi.', 'error') end
     local ped = PlayerPedId()
-    local props = lib.getVehicleProperties(veh)
+    local props = Ely.getVehicleProperties(veh)
     props.fuelLevel = GetVehicleFuelLevel(veh)
-    if GetResourceState('ox_fuel') == 'started' and Entity(veh).state.fuel then props.fuelLevel = Entity(veh).state.fuel end
+    if Entity(veh).state.fuel then props.fuelLevel = Entity(veh).state.fuel end
     props.engineHealth, props.bodyHealth, props.tankHealth = GetVehicleEngineHealth(veh), GetVehicleBodyHealth(veh), GetVehiclePetrolTankHealth(veh)
     props._deform = ReadDeformation(veh)
     props._neonFx = Entity(veh).state.neonFx   -- néons animés (LsCustom)
@@ -165,13 +165,13 @@ RegisterNetEvent('garage:client:spawned', function(netId, props)
     t = GetGameTimer()
     while not NetworkHasControlOfEntity(veh) and GetGameTimer() - t < 3000 do NetworkRequestControlOfEntity(veh) Wait(50) end
     if type(props) == 'table' and next(props) then
-        lib.setVehicleProperties(veh, props)
+        Ely.setVehicleProperties(veh, props)
         if props.engineHealth then SetVehicleEngineHealth(veh, props.engineHealth + 0.0) end
         if props.bodyHealth then SetVehicleBodyHealth(veh, props.bodyHealth + 0.0) end
         if props.tankHealth then SetVehiclePetrolTankHealth(veh, props.tankHealth + 0.0) end
         if props.fuelLevel then
             SetVehicleFuelLevel(veh, props.fuelLevel + 0.0)
-            if GetResourceState('ox_fuel') == 'started' then Entity(veh).state:set('fuel', props.fuelLevel + 0.0, true) end
+            Entity(veh).state:set('fuel', props.fuelLevel + 0.0, true)
         end
         Wait(250)
         ApplyDeformation(veh, props._deform)

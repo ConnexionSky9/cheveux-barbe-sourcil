@@ -148,7 +148,7 @@ function renderActions() {
             <button class="act" data-do="escort" ${dis(A.perms.cuff && t && t.cuffed)}><strong>Escorter</strong><span>Prendre / lâcher</span></button>
             <button class="act" data-do="inVehicle" ${dis(A.perms.cuff && t && t.cuffed)}><strong>Mettre en véhicule</strong><span>Véhicule le plus proche</span></button>
             <button class="act" data-do="outVehicle" ${A.perms.cuff ? '' : 'disabled'}><strong>Sortir du véhicule</strong><span>Personnes menottées</span></button>
-            <button class="act" data-do="search" ${dis(A.perms.search && A.hasInventory)}><strong>Fouiller</strong><span>${A.hasInventory ? 'Menotté ou mains en l\'air' : 'Nécessite ox_inventory'}</span></button>
+            <button class="act" data-do="search" ${dis(A.perms.search && A.hasInventory)}><strong>Fouiller</strong><span>${A.hasInventory ? 'Menotté ou mains en l\'air' : 'Nécessite elyzea_inventory'}</span></button>
             <button class="act" data-do="id" ${dis(A.perms.cuff)}><strong>Vérifier l'identité</strong><span>Ouvre son dossier</span></button>
             <button class="act" data-view="fine" ${dis(A.perms.fines)}><strong>Amende</strong><span>Catalogue des infractions</span></button>
             <button class="act" data-view="jail" ${dis(A.perms.jail)}><strong>Prison</strong><span>Envoyer en cellule</span></button>

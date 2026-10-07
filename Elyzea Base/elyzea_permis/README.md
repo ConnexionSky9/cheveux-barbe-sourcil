@@ -1,11 +1,10 @@
 # elyzea_permis · Auto-école Elyzea
 
-Permis **B (voiture)**, **A (moto)** et **C (poids lourd)** pour Qbox (ox_lib, oxmysql, ox_inventory), sur un PNJ du menu admin.
+Permis **B (voiture)**, **A (moto)** et **C (poids lourd)** pour la base Elyzea (elyzea_core, elyzea_inventory), sur un PNJ du menu admin.
 
 ## Installation
 1. Place `elyzea_permis` dans `resources/` et, dans `server.cfg`, après admin_menu : `ensure elyzea_permis`.
-2. **Objet permis** : colle `install/ox_inventory_items.lua` dans `ox_inventory/data/items.lua`, copie
-   `install/permis.png` dans `ox_inventory/web/images/`, redémarre ox_inventory.
+2. **Objet permis** : déjà déclaré dans `elyzea_inventory/shared/items.lua` (image `elyzea_inventory/html/img/permis.png`).
 3. **Menu admin › Métiers › Auto-école** : questions du code et prix de chaque permis.
 4. **Menu admin › Éditeur de map › PNJ** : active **🪪 Auto-école** sur un PNJ (nom, nombre de questions,
    bonnes réponses nécessaires, fautes autorisées, tolérance de vitesse, permis proposés, véhicules d'examen), enregistre, puis :
@@ -21,6 +20,6 @@ Permis **B (voiture)**, **A (moto)** et **C (poids lourd)** pour Qbox (ox_lib, o
    Échec si trop de fautes, véhicule détruit, sortie du véhicule plus de 10 s ou temps largement dépassé.
    Le code reste acquis : seule la conduite est à repasser.
 3. **Réussite** : l'objet **`permis`** (Permis de conduire) arrive dans l'inventaire (un seul permis qui regroupe B, A, C avec leurs dates).
-   Le permis est aussi enregistré dans Qbox (`licences.driver`, `moto`, `truck` : visibles par la police).
+   Le permis est aussi enregistré dans elyzea_core (`licences.driver`, `moto`, `truck` : visibles par la police).
 4. **Utiliser le permis** : il s'affiche (photo du titulaire, nom, date de naissance, n°, catégories) avec
    **Montrer à la personne la plus proche** (3 m) : elle voit le permis avec la photo du titulaire.

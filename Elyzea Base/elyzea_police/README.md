@@ -1,6 +1,6 @@
 # elyzea_police
 
-Métier Police complet pour **Qbox** (oxmysql, ox_inventory conseillé), relié au menu admin (`admin_menu`)
+Métier Police complet pour la **base Elyzea** (elyzea_core, elyzea_inventory), relié au menu admin (`admin_menu`)
 et configuré en jeu avec la tablette staff (`elyzea_police_staff`).
 
 ## Installation
@@ -30,10 +30,10 @@ Touches modifiables : Paramètres › Raccourcis clavier › FiveM › « Police
 appels du dispatch (accepter, GPS, clôturer), citoyens (recherche, dossier complet, permis, casier, amendes, véhicules),
 véhicules (recherche de plaque), rapports, avis de recherche, prison, effectif (recruter, promouvoir, renvoyer).
 
-**Menu d'interaction (F7)** : menotter / démenotter, escorter, mettre dans / sortir d'un véhicule, fouiller (ox_inventory),
+**Menu d'interaction (F7)** : menotter / démenotter, escorter, mettre dans / sortir d'un véhicule, fouiller (elyzea_inventory),
 vérifier l'identité, amende (catalogue + montant libre), prison.
 
-**Points** : prise de service (E), armurerie (E, boutique ox_inventory filtrée par grade).
+**Points** : prise de service (E), armurerie (E, boutique elyzea_inventory filtrée par grade).
 
 ## Pour les citoyens
 - `/112 <message>` : appeler la police (position envoyée).
@@ -41,7 +41,7 @@ vérifier l'identité, amende (catalogue + montant libre), prison.
 - Coups de feu sans silencieux : alerte automatique (réglable).
 
 ## Pour le staff (tablette `/police_staff`)
-Vue d'ensemble, métier et grades (créé dans Qbox), métiers considérés comme police, permissions par grade,
+Vue d'ensemble, métier et grades (créé dans elyzea_core), métiers considérés comme police, permissions par grade,
 **tenues de service par grade** (enfilées à la prise de service, retirées à la fin ; enregistrées par admin_menu),
 catalogue des amendes, armurerie, points, réglages, dossiers (détenus, avis, amendes impayées, rapports).
 L'accès est donné dans le menu admin (permission `police_staff`).
