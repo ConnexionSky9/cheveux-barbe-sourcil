@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v36 then
+        -- Métiers de farm : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.farm_manage = true end
+        meta.v36 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v35 then
         -- ILLEGAL : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.illegal_staff = true end

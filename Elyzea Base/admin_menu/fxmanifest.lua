@@ -77,6 +77,7 @@ server_scripts {
     'server/gunshop.lua',
     'server/map.lua',
     'server/drops.lua',
+    'server/farm.lua',
 }
 
 ui_page 'html/index.html'
@@ -111,5 +112,6 @@ files {
     'html/vehcustom.js',
     'html/stashes.js',
     'html/drops.js',
+    'html/farm.js',
     'html/logo.png',
 }

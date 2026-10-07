@@ -170,6 +170,7 @@ Config.Permissions = {
     { key = 'lscustom_staff',  label = 'LsCustom : gérer tout le métier (grades, zones, prix, tenues, permissions)', cat = 'Métiers' },
     { key = 'concess_staff',   label = 'Concession : gérer tout le métier (grades, zones, permissions, tenues, tablette direction)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
+    { key = 'farm_manage',     label = 'Métiers de farm (bûcheron…) : temps, quantités, prix, zones, tenue', cat = 'Métiers' },
     { key = 'jobs_manage',     label = 'Métiers : paramétrer tous les métiers (grades, salaires, points, véhicules, tenues)', cat = 'Métiers' },
     -- Illégal (ressource elyzea_illegal)
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
@@ -668,7 +669,7 @@ local P_ADMIN   = with(P_MODO, { 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmo
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },

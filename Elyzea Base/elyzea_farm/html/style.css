@@ -1,0 +1,44 @@
+/* ELYZEA · MÉTIERS DE FARM */
+:root {
+    --night: #04060c; --panel: rgba(17, 25, 44, .72); --panel-2: rgba(24, 34, 58, .85);
+    --line: rgba(217, 181, 106, .14); --line-strong: rgba(217, 181, 106, .36);
+    --text: #edf1f8; --muted: #8f9bb4; --gold: #d9b56a; --gold-hi: #f6e2ae; --gold-lo: #9c7a3c; --ok: #4fb3a9;
+    --gold-grad: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 55%, var(--gold-lo) 100%);
+    --edge: linear-gradient(90deg, #3b6fe0 0%, var(--gold) 50%, #e0433b 100%);
+    --brand: 'Cinzel', Georgia, serif; --display: 'Barlow Condensed', 'Arial Narrow', sans-serif; --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: var(--body); color: var(--text); font-size: 14px; user-select: none; }
+.hidden { display: none !important; }
+button { font: inherit; color: inherit; }
+@keyframes rise { from { transform: translateY(16px) scale(.985); opacity: 0; } }
+.layer { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(4, 6, 12, .25), rgba(4, 6, 12, .7)); }
+.dialog { position: relative; width: min(500px, 92vw); padding: 26px 26px 22px; border-radius: 20px; text-align: center; overflow: hidden;
+    background: radial-gradient(120% 80% at 80% -10%, rgba(59, 111, 224, .14), transparent 50%), radial-gradient(90% 70% at -10% 110%, rgba(79, 179, 169, .1), transparent 50%),
+                linear-gradient(160deg, #0d1528 0%, #070b16 60%, var(--night) 100%);
+    border: 1px solid var(--line-strong); box-shadow: 0 30px 70px rgba(0, 0, 0, .7), 0 0 0 6px rgba(4, 6, 12, .9), 0 0 0 7px rgba(217, 181, 106, .18); animation: rise .25s; }
+.dialog::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--edge); }
+.close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong); background: rgba(4, 6, 12, .6); color: var(--gold); cursor: pointer; }
+.close:hover { background: var(--gold); color: var(--night); }
+.crest { display: block; width: 62px; height: 62px; margin: 0 auto 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold-lo), 0 0 24px rgba(217, 181, 106, .3); }
+.eyebrow { display: block; font: 700 .68rem var(--brand); letter-spacing: .24em; text-transform: uppercase; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font: 700 1.4rem var(--brand); margin: 6px 0 10px; }
+.big-ico { font-size: 2.6rem; margin: 2px 0 6px; }
+p { color: var(--muted); line-height: 1.5; }
+p b { color: var(--text); }
+.facts { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+.chip { padding: 5px 12px; border-radius: 14px; background: rgba(4, 6, 12, .5); border: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+.sell { margin-top: 16px; padding: 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); display: flex; align-items: center; gap: 12px; text-align: left; }
+.sell .txt { flex: 1; } .sell b { display: block; font: 600 1.05rem var(--display); } .sell small { color: var(--muted); }
+.sell .price { font: 700 1.3rem var(--brand); background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.row { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 18px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--panel-2); cursor: pointer; font-weight: 600; transition: filter .15s, box-shadow .15s, border-color .15s; }
+.btn:hover:not(:disabled) { border-color: var(--gold); }
+.btn.primary { background: var(--gold-grad); border-color: var(--gold); color: #1a1406; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 0 22px rgba(217, 181, 106, .35); }
+.btn.danger { border-color: rgba(224, 67, 59, .6); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font: 600 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.status.on { color: #7fe3d8; background: rgba(79, 179, 169, .12); border: 1px solid rgba(79, 179, 169, .5); }
+.status.off { color: var(--muted); background: rgba(4, 6, 12, .5); border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

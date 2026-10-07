@@ -78,6 +78,10 @@ Items = {
     gun_parts_medium = { label = 'Pièces d\'armes moyennes', weight = 500, stack = true, max = 100 },
     gun_parts_heavy  = { label = 'Pièces d\'armes lourdes', weight = 800, stack = true, max = 100 },
     crowbar          = { label = 'Pied-de-biche', weight = 1500, stack = false },
+
+    -- Métiers de farm (elyzea_farm)
+    buche_bois       = { label = 'Bûche de bois', weight = 1500, stack = true, max = 100, image = 'buche_bois.png', icon = '🪵',
+        description = 'Bûche coupée par un bûcheron. Se revend au responsable du chantier.' },
 }
 
 -- ───────── Vêtements elyzea_clothing : 10 GRAMMES chacun ─────────

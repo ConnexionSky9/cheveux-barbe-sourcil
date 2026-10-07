@@ -399,6 +399,14 @@ local function cleanNpc(n)
         out.gov = { name = name ~= '' and name or 'Gouvernement d\'Elyzea', blip = bool(gv.blip, true),
             blipSprite = math.floor(num(gv.blipSprite, 1, 900, 419)), blipColor = math.floor(num(gv.blipColor, 0, 85, 0)) }
     end
+    -- Métier de farm (ressource elyzea_farm) : commencer / arrêter le travail, revendre
+    local fm = type(n.farm) == 'table' and n.farm or nil
+    if fm then
+        local name = cleanName(fm.name, 40)
+        local farm = tostring(fm.farm or 'bucheron'):lower():gsub('[^%w_]', ''):sub(1, 30)
+        out.farm = { farm = farm ~= '' and farm or 'bucheron', name = name ~= '' and name or 'Responsable du chantier', blip = bool(fm.blip, true),
+            blipSprite = math.floor(num(fm.blipSprite, 1, 900, 85)), blipColor = math.floor(num(fm.blipColor, 0, 85, 25)) }
+    end
     -- Coiffeur / barbier (interface intégrée au menu, voir server/barber.lua)
     local bb = type(n.barber) == 'table' and n.barber or nil
     if bb and BarberCleanRole then out.barber = BarberCleanRole(bb) end
@@ -407,7 +415,7 @@ local function cleanNpc(n)
     if type(n.market) == 'table' and MarketCleanRole then out.market = MarketCleanRole(n.market) end
     if type(n.gunshop) == 'table' and GunshopCleanRole then out.gunshop = GunshopCleanRole(n.gunshop) end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.gov and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -1277,6 +1285,18 @@ RegisterNetEvent('adminmenu:gov:open', function(id)
         return AM.notify(src, 'Le guichet est fermé (ressource elyzea_papiers non démarrée).', 'error')
     end
     CallExport(src, 'elyzea_papiers', 'OpenGovernment', src, { name = r.npc.gov.name, npc = { x = r.x, y = r.y, z = r.z } })
+end)
+
+-- Métier de farm : le PNJ propose de commencer / arrêter le travail et rachète la récolte
+RegisterNetEvent('adminmenu:farm:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'npc', 4, 1000) then return end
+    local r = checkNpc(src, tonumber(id))
+    if not r or not r.npc.farm then return end
+    if GetResourceState('elyzea_farm') ~= 'started' then
+        return AM.notify(src, 'Ce travail est fermé (ressource elyzea_farm non démarrée).', 'error')
+    end
+    CallExport(src, 'elyzea_farm', 'OpenFor', src, { farm = r.npc.farm.farm, name = r.npc.farm.name, npc = { x = r.x, y = r.y, z = r.z } })
 end)
 
 -- Catalogue de la concession : le PNJ montre les véhicules en vente (sans achat)

@@ -1264,6 +1264,9 @@ CreateThread(function()
                 if best.interact == 'npc' and best.ref.npc and best.ref.npc.dmv then
                     ShowPrompt('Appuyer pour entrer', best.ref.npc.dmv.name or 'à l\'auto-école')
                     if pressed then TriggerServerEvent('adminmenu:dmv:open', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.farm then
+                    ShowPrompt('Appuyer pour parler à', best.ref.npc.farm.name or 'au responsable')
+                    if pressed then TriggerServerEvent('adminmenu:farm:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.gov then
                     ShowPrompt('Appuyer pour aller au guichet', best.ref.npc.gov.name or 'du gouvernement')
                     if pressed then TriggerServerEvent('adminmenu:gov:open', best.ref.id) end
