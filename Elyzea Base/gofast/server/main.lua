@@ -703,6 +703,9 @@ RegisterNetEvent('gofast:server:requestUnlock', function(token)
     end
 
     SetVehicleDoorsLocked(mission.vehicle, 1)
+    if GetResourceState('elyzea_core') == 'started' then
+        pcall(function() exports.elyzea_core:GiveKeys(src, mission.vehicle) end)
+    end
 
     local now = os.time()
     mission.phase = 'transit'

@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'gofast'
 author 'gofast'
-description 'Missions Go Fast dynamiques : niveaux, risque, police, NUI. ESX / QBCore / Qbox / standalone.'
+description 'Missions Go Fast dynamiques : niveaux, risque, police, NUI. Elyzea / ESX / QBCore / standalone.'
 version '1.1.0'
 
 -- OneSync est obligatoire : le véhicule de mission est créé côté serveur

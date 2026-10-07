@@ -1,7 +1,7 @@
 --[[
     GO FAST - Récompenses & framework (serveur uniquement)
-    * Bridge : ESX / QBCore (Qbox via compat qb-core) / standalone
-    * Stockage XP : KVP (sans base) ou oxmysql
+    * Bridge : base Elyzea (elyzea_core) / ESX / QBCore / standalone
+    * Stockage XP : KVP (sans base) ou base de données (elyzea_core)
     * Calcul de la récompense finale : base, niveau, rapidité, checkpoints, dégâts
 ]]
 
@@ -16,9 +16,11 @@ local ESX, QBCore = nil, nil
 do
     local framework = Config.Framework
     if framework == 'auto' then
-        if GetResourceState('es_extended') == 'started' then
+        if GetResourceState('elyzea_core') == 'started' then
+            framework = 'elyzea'
+        elseif GetResourceState('es_extended') == 'started' then
             framework = 'esx'
-        elseif GetResourceState('qb-core') == 'started' or GetResourceState('qbx_core') == 'started' then
+        elseif GetResourceState('qb-core') == 'started' then
             framework = 'qbcore'
         else
             framework = 'standalone'
@@ -33,6 +35,10 @@ do
             print('^1[gofast] es_extended introuvable : passage en standalone^0')
             framework = 'standalone'
         end
+    elseif framework == 'elyzea' then
+        -- Le joueur elyzea_core a la même forme que celui de QBCore (PlayerData, Functions)
+        local core = exports.elyzea_core
+        QBCore = { Functions = { GetPlayer = function(src) return core:GetPlayer(src) end }, Shared = { Items = {} } }
     elseif framework == 'qbcore' then
         local ok, object = pcall(function() return exports['qb-core']:GetCoreObject() end)
         if ok and object then
@@ -132,8 +138,8 @@ function Bridge.AddMoney(src, amount)
 end
 
 function Bridge.AddItem(src, itemName, count)
-    if GetResourceState('ox_inventory') == 'started' then
-        local success = exports.ox_inventory:AddItem(src, itemName, count)
+    if GetResourceState('elyzea_inventory') == 'started' then
+        local success = exports.elyzea_inventory:AddItem(src, itemName, count)
         return success and true or false
     end
     if ESX then
@@ -167,17 +173,18 @@ local function KvpKey(identifier)
 end
 
 local function UseDatabase()
-    return Config.XP.Storage == 'oxmysql'
+    return Config.XP.Storage == 'database' or Config.XP.Storage == 'oxmysql'
 end
+local db = exports.elyzea_core
 
 if UseDatabase() then
     CreateThread(function()
-        if GetResourceState('oxmysql') ~= 'started' then
-            print('^1[gofast] oxmysql non démarré : stockage XP basculé en KVP^0')
+        if GetResourceState('elyzea_core') ~= 'started' then
+            print('^1[gofast] elyzea_core non démarré : stockage XP basculé en KVP^0')
             Config.XP.Storage = 'kvp'
             return
         end
-        exports.oxmysql:query([[
+        db:db_query([[
             CREATE TABLE IF NOT EXISTS `gofast_players` (
                 `identifier` VARCHAR(64) NOT NULL,
                 `xp` INT NOT NULL DEFAULT 0,
@@ -202,7 +209,7 @@ function Rewards.LoadStats(identifier)
     local stats = { xp = 0, missions = 0 }
     if UseDatabase() then
         local query = promise.new()
-        exports.oxmysql:single('SELECT `xp`, `missions` FROM `gofast_players` WHERE `identifier` = ? LIMIT 1', { identifier }, function(row)
+        db:db_single('SELECT `xp`, `missions` FROM `gofast_players` WHERE `identifier` = ? LIMIT 1', { identifier }, function(row)
             query:resolve(row or false)
         end)
         local row = Citizen.Await(query)
@@ -235,7 +242,7 @@ function Rewards.SaveStats(identifier)
     local stats = Stats[identifier]
     if not stats then return end
     if UseDatabase() then
-        exports.oxmysql:query(
+        db:db_query(
             'INSERT INTO `gofast_players` (`identifier`, `xp`, `missions`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `xp` = VALUES(`xp`), `missions` = VALUES(`missions`)',
             { identifier, stats.xp, stats.missions }
         )

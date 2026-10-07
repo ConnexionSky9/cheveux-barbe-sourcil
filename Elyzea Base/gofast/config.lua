@@ -9,7 +9,7 @@
 
 Config = {}
 
--- 'auto' | 'esx' | 'qbcore' | 'standalone'   (Qbox est géré via 'qbcore' grâce à sa compatibilité qb-core)
+-- 'auto' (détecte la base Elyzea) | 'elyzea' | 'esx' | 'qbcore' | 'standalone'
 Config.Framework = 'auto'
 Config.Debug = false
 Config.CurrencySymbol = '$'
@@ -41,7 +41,7 @@ Config.Objectives = {
 -- NOTIFICATIONS / SONS
 -- =========================================================================
 Config.Notify = {
-    Type = 'nui',              -- 'nui' | 'esx' | 'qbcore' | 'ox_lib' | 'gta'
+    Type = 'nui',              -- 'nui' | 'elyzea' | 'esx' | 'qbcore' | 'ox_lib' | 'gta'
     Duration = 6000,
 }
 
@@ -152,8 +152,11 @@ Config.Vehicle = {
     end,
 
     -- Clés : adapté aux scripts de clés les plus courants (exécuté côté client)
+    -- (base Elyzea : les clés sont données par le serveur au déverrouillage)
     GiveKeys = function(vehicle, plate)
-        if GetResourceState('qb-vehiclekeys') == 'started' then
+        if GetResourceState('elyzea_core') == 'started' then
+            return
+        elseif GetResourceState('qb-vehiclekeys') == 'started' then
             TriggerEvent('vehiclekeys:client:SetOwner', plate)
         elseif GetResourceState('wasabi_carlock') == 'started' then
             exports.wasabi_carlock:GiveKey(plate)
@@ -259,7 +262,7 @@ Config.Rare = {
 -- RÉCOMPENSES (calculées UNIQUEMENT côté serveur)
 -- =========================================================================
 Config.Rewards = {
-    Account = { esx = 'black_money', qbcore = 'cash', standalone = 'cash' }, -- ESX : 'money' | 'bank' | 'black_money'
+    Account = { elyzea = 'cash', esx = 'black_money', qbcore = 'cash', standalone = 'cash' }, -- ESX : 'money' | 'bank' | 'black_money'
     LevelBonusPerLevel = 0.03,   -- +3 % de la base par niveau au-dessus de 1
     FastBonus = { Enabled = true, Threshold = 0.65, Percent = 0.25, XPPercent = 0.2 }, -- livré en moins de 65 % du temps = +25 %
     DamagePenalty = { Enabled = true, Threshold = 850.0, MaxPercent = 0.6 },          -- santé moyenne /1000
@@ -279,7 +282,7 @@ Config.Standalone = {
 -- =========================================================================
 Config.XP = {
     Enabled = true,
-    Storage = 'kvp',            -- 'kvp' (aucune base nécessaire) | 'oxmysql' (table créée automatiquement)
+    Storage = 'kvp',            -- 'kvp' (aucune base nécessaire) | 'database' (base elyzea_core, table créée automatiquement)
     FailPenalty = 15,
     AbandonPenalty = 25,
     DisconnectPenalty = 25,

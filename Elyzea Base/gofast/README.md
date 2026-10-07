@@ -1,6 +1,6 @@
 # Go Fast — missions dynamiques pour FiveM
 
-Missions de convoyage générées dynamiquement, 4 paliers de difficulté débloqués par niveau, police et événements aléatoires, HUD NUI. Fonctionne en **ESX**, **QBCore / Qbox** ou **standalone** (`Config.Framework = 'auto'` détecte tout seul).
+Missions de convoyage générées dynamiquement, 4 paliers de difficulté débloqués par niveau, police et événements aléatoires, HUD NUI. Fonctionne avec la **base Elyzea** (elyzea_core), en **ESX**, **QBCore** ou **standalone** (`Config.Framework = 'auto'` détecte tout seul).
 
 **Version 1.1** : les contacts (PNJ) se créent et se gèrent **en jeu** depuis le menu staff `admin_menu`
 (onglet **Événements › GoFast**) : emplacements multiples, déplacements automatiques, dialogues, contrats,
@@ -45,8 +45,8 @@ Ordre de chargement (fxmanifest) : `config.lua` et `shared/utils.lua` partout, p
 | Élément | Obligatoire | Rôle |
 |---|---|---|
 | OneSync (Legacy ou Infinity) | **oui** | le véhicule est créé côté serveur |
-| es_extended **ou** qb-core / qbx_core | non | sinon mode standalone |
-| oxmysql | non | uniquement si `Config.XP.Storage = 'oxmysql'` (sinon KVP intégré) |
+| elyzea_core (ou es_extended / qb-core) | non | sinon mode standalone |
+| elyzea_core | non | uniquement si `Config.XP.Storage = 'database'` (sinon KVP intégré) |
 | ox_target **ou** qb-target | non | si `Config.Interaction.Mode` les utilise |
 | ox_lib | non | si `Config.Notify.Type = 'ox_lib'` |
 | ox_inventory | non | récompenses objets (détecté automatiquement) |
@@ -62,7 +62,7 @@ Ordre de chargement (fxmanifest) : `config.lua` et `shared/utils.lua` partout, p
    Sans admin_menu : mets `Config.Manage.SeedDefaultContacts = true` pour créer les deux contacts d'exemple au premier démarrage.
 4. Le dossier `data/` doit exister (il est fourni) : c'est là qu'est écrit `gofast.json`.
 5. Ajouter les lignes `server.cfg` ci-dessous et redémarrer le serveur (pas seulement la ressource la première fois si tu ajoutes des convars).
-6. Si `Config.XP.Storage = 'oxmysql'`, la table `gofast_players` est créée automatiquement au démarrage.
+6. Si `Config.XP.Storage = 'database'`, la table `gofast_players` est créée automatiquement au démarrage.
 
 ## 5. server.cfg
 
@@ -71,8 +71,8 @@ Ordre de chargement (fxmanifest) : `config.lua` et `shared/utils.lua` partout, p
 set onesync on
 
 # Ordre de démarrage : framework -> base de données -> cibles -> gofast
-ensure oxmysql
-ensure es_extended        # ou qb-core / qbx_core
+ensure elyzea_core
+# (ou es_extended / qb-core sur un autre serveur)
 ensure ox_lib             # si utilisé
 ensure ox_target          # ou qb-target, si utilisé
 ensure admin_menu
@@ -148,7 +148,7 @@ Réglages : `Config.Objectives` (`Enabled`, `Position` = `left` / `right` / `bot
 
 **RandomEvents** — `wanted` (niveau de recherche), `rivals` (véhicules, PNJ, armes, nombre, précision, distances, durée), `tracker` (balise GPS : la police reçoit la position régulièrement).
 
-**Rare / Rewards / XP / Levels** — multiplicateurs des missions rares ; compte de paiement par framework (`black_money` par défaut en ESX) ; bonus par niveau, bonus rapidité, pénalité de dégâts, bonus par checkpoint ; stockage XP (`kvp` ou `oxmysql`), pénalités d'XP ; seuils d'XP par niveau ; libellés de risque.
+**Rare / Rewards / XP / Levels** — multiplicateurs des missions rares ; compte de paiement par framework (`black_money` par défaut en ESX) ; bonus par niveau, bonus rapidité, pénalité de dégâts, bonus par checkpoint ; stockage XP (`kvp` ou `database`), pénalités d'XP ; seuils d'XP par niveau ; libellés de risque.
 
 **Manage** — fichier de sauvegarde, `SeedDefaultContacts`, valeurs d'un nouveau contact (modèle, animation, icône), blip et cercle au sol des contacts, rayon « personne autour », limites (contacts, emplacements, points véhicule, répliques).
 

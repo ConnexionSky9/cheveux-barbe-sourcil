@@ -17,7 +17,9 @@ function Notify(message, notifyType, duration)
     duration = duration or Config.Notify.Duration
     local mode = Config.Notify.Type
 
-    if mode == 'esx' then
+    if mode == 'elyzea' and GetResourceState('elyzea_core') == 'started' then
+        exports.elyzea_core:Notify(message, notifyType == 'info' and 'inform' or notifyType, duration)
+    elseif mode == 'esx' then
         TriggerEvent('esx:showNotification', message)
     elseif mode == 'qbcore' then
         TriggerEvent('QBCore:Notify', message, notifyType == 'info' and 'primary' or notifyType, duration)
