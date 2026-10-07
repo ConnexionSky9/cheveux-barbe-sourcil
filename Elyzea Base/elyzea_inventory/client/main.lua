@@ -42,6 +42,12 @@ end
 
 local function withWorn(payload)
     payload.equipment = worn()
+    -- Armes : emplacement possible sur le personnage (dos / ceinture), voir client/body.lua
+    if BodyPlace then
+        for _, it in ipairs(payload.items or {}) do
+            if it.weapon then it.wear = BodyPlace(it.name) end
+        end
+    end
     return payload
 end
 
@@ -191,6 +197,14 @@ RegisterNUICallback('button', function(data, cb)
     if btn.close then closeInventory() Wait(100) end
     local ok, err = pcall(function() exports[res][fn](exports[res], slot) end)
     if not ok then print(('[elyzea_inventory] bouton %s : %s'):format(btn.export, err)) end
+end)
+
+RegisterNUICallback('wear', function(data, cb)
+    cb('ok')
+    local slot = tonumber(data and data.slot)
+    local it = slot and bySlot[slot]
+    local place = it and BodyPlace and BodyPlace(it.name)
+    if place then TriggerServerEvent('elyzea_inv:wear', slot, place) end
 end)
 
 RegisterNUICallback('rotate', function(data, cb)

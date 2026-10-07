@@ -105,6 +105,7 @@ local function serialize(it, slot, extra)
     local desc = meta.description or def.description
     if def.kind == 'weapon' and meta.ammo then desc = (desc and desc .. ' · ' or '') .. ('Munitions : %d'):format(meta.ammo) end
     if meta.serial and def.kind == 'weapon' then desc = (desc and desc .. ' · ' or '') .. ('N° %s'):format(meta.serial) end
+    if meta.worn and def.kind == 'weapon' then desc = (desc and desc .. ' · ' or '') .. (meta.worn == 'back' and 'Portée dans le dos' or 'Portée à la ceinture') end
     local img = meta.imageurl or meta.image or def.image or (it.name .. '.png')
     local isUrl = type(img) == 'string' and img:find('://') ~= nil
     local out = {

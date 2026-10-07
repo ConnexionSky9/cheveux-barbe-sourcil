@@ -107,7 +107,7 @@ CreateThread(function()
     while true do
         local seen = {}
         for _, r in ipairs(Editor.peds or {}) do
-            local g = r.npc and (r.npc.garage or r.npc.pubgarage)
+            local g = r.npc and (r.npc.garage or r.npc.pubgarage or r.npc.gov)
             if g and g.blip then
                 seen[r.id] = true
                 local b = Blips[r.id]
@@ -120,7 +120,7 @@ CreateThread(function()
                     SetBlipScale(id, 0.8)
                     SetBlipAsShortRange(id, true)
                     BeginTextCommandSetBlipName('STRING')
-                    AddTextComponentSubstringPlayerName(r.npc.pubgarage and (r.npc.pubgarage.name or 'Garage public') or ((r.name and r.name ~= '') and r.name or 'Garage'))
+                    AddTextComponentSubstringPlayerName((r.npc.gov and (r.npc.gov.name or 'Gouvernement')) or (r.npc.pubgarage and (r.npc.pubgarage.name or 'Garage public')) or ((r.name and r.name ~= '') and r.name or 'Garage'))
                     EndTextCommandSetBlipName(id)
                     Blips[r.id] = { id = id, sig = sig }
                 end

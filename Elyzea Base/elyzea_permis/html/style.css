@@ -111,8 +111,12 @@ button { font: inherit; color: inherit; }
 .field b { font: 600 1.05rem var(--display); letter-spacing: .03em; }
 .field.wide { grid-column: span 2; } .field .num { font-family: var(--brand); letter-spacing: .12em; color: var(--gold-hi); }
 .lc-cats { position: absolute; left: 24px; right: 24px; bottom: 18px; display: flex; gap: 8px; }
-.lc-cat { flex: 1; padding: 6px 8px; border-radius: 10px; text-align: center; background: rgba(4, 6, 12, .55); border: 1px solid var(--line); opacity: .35; }
+.lc-cat { flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px; background: rgba(4, 6, 12, .55); border: 1px solid var(--line); opacity: .45; }
 .lc-cat.on { opacity: 1; border-color: var(--gold); box-shadow: inset 0 0 0 1px rgba(217, 181, 106, .4); }
-.lc-cat b { display: block; font: 700 1.3rem var(--brand); } .lc-cat small { color: var(--muted); font-size: .7rem; }
+.lc-check { flex-shrink: 0; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--line-strong); font: 700 .9rem var(--body); color: #1a1406; }
+.lc-cat.on .lc-check { background: var(--gold-grad); border-color: var(--gold); }
+.lc-name { flex: 1; min-width: 0; } .lc-name b { display: block; font: 600 .92rem var(--display); letter-spacing: .02em; white-space: nowrap; }
+.lc-name small { color: var(--muted); font-size: .66rem; white-space: nowrap; }
+.lc-letter { font: 700 1.25rem var(--brand); color: var(--muted); }
 .license-actions { display: flex; gap: 10px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

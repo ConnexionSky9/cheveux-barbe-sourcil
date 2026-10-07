@@ -392,6 +392,13 @@ local function cleanNpc(n)
             maxFaults = math.floor(num(dm.maxFaults, 0, 50, 5)), speedTolerance = math.floor(num(dm.speedTolerance, 0, 50, 8)),
             categories = cats, models = models }
     end
+    -- Gouvernement (ressource elyzea_papiers) : carte d'identité, changement d'identité
+    local gv = type(n.gov) == 'table' and n.gov or nil
+    if gv then
+        local name = cleanName(gv.name, 40)
+        out.gov = { name = name ~= '' and name or 'Gouvernement d\'Elyzea', blip = bool(gv.blip, true),
+            blipSprite = math.floor(num(gv.blipSprite, 1, 900, 419)), blipColor = math.floor(num(gv.blipColor, 0, 85, 0)) }
+    end
     -- Coiffeur / barbier (interface intégrée au menu, voir server/barber.lua)
     local bb = type(n.barber) == 'table' and n.barber or nil
     if bb and BarberCleanRole then out.barber = BarberCleanRole(bb) end
@@ -400,7 +407,7 @@ local function cleanNpc(n)
     if type(n.market) == 'table' and MarketCleanRole then out.market = MarketCleanRole(n.market) end
     if type(n.gunshop) == 'table' and GunshopCleanRole then out.gunshop = GunshopCleanRole(n.gunshop) end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
+        and not out.gov and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -1258,6 +1265,18 @@ RegisterNetEvent('adminmenu:dmv:open', function(id)
         codePrice = dm.codePrice, drivePrice = dm.drivePrice, questions = dm.questions, passScore = dm.passScore,
         maxFaults = dm.maxFaults, speedTolerance = dm.speedTolerance, categories = dm.categories, models = dm.models,
     })
+end)
+
+-- Gouvernement : le PNJ ouvre le guichet (carte d'identité, changement d'identité)
+RegisterNetEvent('adminmenu:gov:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'npc', 4, 1000) then return end
+    local r = checkNpc(src, tonumber(id))
+    if not r or not r.npc.gov then return end
+    if GetResourceState('elyzea_papiers') ~= 'started' then
+        return AM.notify(src, 'Le guichet est fermé (ressource elyzea_papiers non démarrée).', 'error')
+    end
+    CallExport(src, 'elyzea_papiers', 'OpenGovernment', src, { name = r.npc.gov.name, npc = { x = r.x, y = r.y, z = r.z } })
 end)
 
 -- Catalogue de la concession : le PNJ montre les véhicules en vente (sans achat)

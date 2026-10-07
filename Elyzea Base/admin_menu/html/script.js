@@ -1058,6 +1058,7 @@ function npcSummary(n) {
             · ${sp ? `${sp} point(s) de sortie` : '<b style="color:var(--danger)">aucun point de sortie</b>'}`);
     }
     if (n.pubgarage) parts.push(`🅿️ Garage public <b>${esc(n.pubgarage.name)}</b> · ${(n.pubgarage.spots || []).length ? `${n.pubgarage.spots.length} place(s) de sortie` : '<b style="color:var(--danger)">aucune place de sortie</b>'}`);
+    if (n.gov) parts.push(`🏛️ Gouvernement <b>${esc(n.gov.name)}</b> (carte d'identité, changement d'identité)`);
     if (n.catalog) parts.push(`🚘 Catalogue de la concession : <b>${esc(n.catalog.name)}</b> (voir les véhicules, sans achat)`);
     if (n.barber) {
         const bp = n.barber.prices || {};
@@ -1153,6 +1154,9 @@ function toPedEdit(r) {
         dmvFaults: n.dmv ? n.dmv.maxFaults : 5, dmvTol: n.dmv ? n.dmv.speedTolerance : 8,
         dmvCar: n.dmv ? (n.dmv.categories || {}).car !== false : true, dmvMoto: n.dmv ? (n.dmv.categories || {}).moto !== false : true, dmvTruck: n.dmv ? (n.dmv.categories || {}).truck !== false : true,
         dmvMCar: n.dmv && n.dmv.models ? n.dmv.models.car || '' : '', dmvMMoto: n.dmv && n.dmv.models ? n.dmv.models.moto || '' : '', dmvMTruck: n.dmv && n.dmv.models ? n.dmv.models.truck || '' : '',
+        govOn: !!n.gov,
+        govName: n.gov ? n.gov.name : 'Gouvernement d\'Elyzea',
+        govBlip: n.gov ? n.gov.blip !== false : true,
         pubOn: !!n.pubgarage,
         pubName: n.pubgarage ? n.pubgarage.name : 'Garage public',
         pubBlip: n.pubgarage ? n.pubgarage.blip !== false : true,
@@ -1482,7 +1486,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
@@ -1495,6 +1499,7 @@ function pedEditPayload(p) {
             questions: num(p.dmvQ, 10), passScore: num(p.dmvPass, 8), maxFaults: num(p.dmvFaults, 5), speedTolerance: num(p.dmvTol, 8),
             categories: { car: !!p.dmvCar, moto: !!p.dmvMoto, truck: !!p.dmvTruck },
             models: { car: String(p.dmvMCar || '').trim(), moto: String(p.dmvMMoto || '').trim(), truck: String(p.dmvMTruck || '').trim() } } : null,
+        gov: p.govOn ? { name: String(p.govName || '').trim(), blip: !!p.govBlip, blipSprite: 419, blipColor: 0 } : null,
         pubgarage: p.pubOn ? { name: String(p.pubName || '').trim(), blip: !!p.pubBlip, blipSprite: 357, blipColor: 3, storeRadius: num(p.pubRadius, 4) } : null,
         clothing: p.clothingOn ? { name: String(p.clName || '').trim(), multiplier: num(p.clMult, 100),
             categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice() } : null,
@@ -1777,6 +1782,7 @@ function pedEditor() {
                 ${tog('catalogOn', '🚘 Catalogue concession', 'Montre les véhicules en vente (sans achat)')}
                 ${tog('pubOn', '🅿️ Garage public', 'Les joueurs sortent et rangent leurs véhicules')}
                 ${tog('dmvOn', '🪪 Auto-école', 'Code, conduite et permis B / A / C')}
+                ${tog('govOn', '🏛️ Gouvernement', 'Carte d\'identité, changement d\'identité')}
                 ${tog('barberOn', '💈 Coiffeur / barbier', 'Coupes, barbe, sourcils, yeux, couleurs')}
                 ${tog('tattooOn', '🖋️ Tatoueur', 'Tatouages par zone du corps, retrait au laser')}
                 ${tog('marketOn', '🏪 Supérette', 'Magasin avec rayons, panier et paiement')}
@@ -1787,6 +1793,13 @@ function pedEditor() {
             ${p.marketOn ? marketCard(p, tog) : ''}
             ${p.gunshopOn ? gunshopCard(p, tog) : ''}
             ${p.dmvOn ? dmvCard(p, tog) : ''}
+            ${p.govOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🏛️ Guichet du gouvernement</h3>
+                <p class="hint">En parlant à ce PNJ, les joueurs ouvrent le guichet : <b>achat de la carte d'identité</b> et <b>changement d'identité</b>
+                    (nom, prénom, date de naissance…). Les prix et les règles se règlent dans <b>elyzea_papiers/config.lua</b>.
+                    Nécessite la ressource <b>elyzea_papiers</b>.</p>
+                <div class="form-grid" style="grid-template-columns:1fr;margin-bottom:10px"><div><label>Nom du guichet</label><input class="input" data-pe="govName" value="${esc(p.govName)}" placeholder="ex : Mairie de Los Santos"></div></div>
+                ${tog('govBlip', '🗺️ Visible sur la carte', 'Icône du gouvernement pour tous les joueurs')}
+            </div>` : ''}
             ${p.pubOn ? pubGarageCard(p, tog) : ''}
             ${p.catalogOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🚘 Catalogue de la concession</h3>
                 <p class="hint">Quand un joueur parle à ce PNJ, le catalogue de la concession s'ouvre : catégories, recherche, fiches avec

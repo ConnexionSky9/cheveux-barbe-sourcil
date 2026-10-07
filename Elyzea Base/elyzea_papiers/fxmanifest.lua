@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_papiers'
 author 'Elyzea FA'
-description 'Papiers Elyzea : carte d\'identité et permis de port d\'arme (PPA) délivré par les EMS'
+description 'Papiers Elyzea : guichet du gouvernement (carte d\'identité, changement d\'identité) et PPA (test et remise par les EMS)'
 version '1.0.0'
 
 shared_scripts {
@@ -12,7 +12,10 @@ shared_scripts {
     'config.lua',
 }
 client_script 'client.lua'
-server_script 'server.lua'
+server_scripts {
+    'questions.lua',
+    'server.lua',
+}
 
 ui_page 'html/index.html'
 files {

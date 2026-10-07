@@ -1,8 +1,9 @@
 -- ELYZEA FA — Inventaire : armes visibles sur le personnage (client)
 -- Le serveur partage la liste des armes portées par chaque joueur (state bag « elyBodyWeapons »).
 -- Chaque client dessine ces armes sur les joueurs proches : objets locaux attachés aux os du personnage.
---   dos      : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes (une seule, la plus grosse)
---   ceinture : pistolet glissé à l'arrière du pantalon
+--   dos      : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes (une seule)
+--   ceinture : pistolet glissé à l'arrière du pantalon (un seul)
+-- Le joueur choisit dans l'inventaire : clic droit › Mettre dans le dos / à la ceinture.
 
 local C = Config.BodyWeapons
 if not C or not C.enabled then return end
@@ -38,16 +39,22 @@ local function infoOf(name)
     return i
 end
 
--- Arme du dos et arme de ceinture à afficher (jamais celle tenue en main)
+-- Emplacement possible d'une arme : 'back', 'waist' ou nil (utilisé par le clic droit de l'inventaire)
+function BodyPlace(name)
+    if type(name) ~= 'string' then return nil end
+    return infoOf(name).place or nil
+end
+
+-- Arme du dos et arme de ceinture choisies par le joueur (jamais celle tenue en main)
 local function wanted(ped, list)
     local inHand = u32(GetSelectedPedWeapon(ped))
-    local back, backPrio, waist
-    for _, name in ipairs(list) do
-        if type(name) == 'string' then
-            local i = infoOf(name)
-            if u32(i.hash) ~= inHand then
-                if i.place == 'back' and (not back or i.prio > backPrio) then back, backPrio = i.hash, i.prio
-                elseif i.place == 'waist' and not waist then waist = i.hash end
+    local back, waist
+    for _, w in ipairs(list) do
+        if type(w) == 'table' and type(w.n) == 'string' then
+            local i = infoOf(w.n)
+            if u32(i.hash) ~= inHand and i.place == w.p then
+                if w.p == 'back' and not back then back = i.hash
+                elseif w.p == 'waist' and not waist then waist = i.hash end
             end
         end
     end

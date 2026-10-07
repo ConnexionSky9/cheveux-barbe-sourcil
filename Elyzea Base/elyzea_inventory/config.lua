@@ -79,8 +79,9 @@ Config.Weapons = {
 }
 
 -- 🎒 Armes visibles sur le personnage (vues par tous les joueurs)
--- Fusils, mitraillettes, fusils à pompe, fusils de précision et armes lourdes : dans le dos.
--- Pistolets : glissés à l'arrière du pantalon. L'arme en main n'est jamais affichée en double.
+-- Dans l'inventaire : clic droit sur l'arme › « Mettre dans le dos » / « Retirer du dos ».
+-- Dos : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes (UNE seule arme).
+-- Ceinture : pistolet glissé à l'arrière du pantalon (UN seul). L'arme en main n'est jamais affichée en double.
 -- Réglage des positions en jeu : /positionarme dos|ceinture x y z rx ry rz  (puis recopier la ligne affichée en F8)
 Config.BodyWeapons = {
     enabled = true,

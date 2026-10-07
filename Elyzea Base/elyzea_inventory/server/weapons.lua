@@ -10,24 +10,30 @@ local Equipped = {}   -- [src] = { slot, name, serial }
 
 local function serialOf(it) return it and it.metadata and it.metadata.serial end
 
--- Armes visibles sur le personnage : liste des armes portées (sauf celle en main),
--- partagée avec tous les joueurs par un state bag (client/body.lua les affiche)
+-- Armes visibles sur le personnage : le joueur choisit (clic droit › Mettre dans le dos / à la ceinture).
+-- metadata.worn = 'back' | 'waist'. Une seule arme par emplacement. L'arme en main n'est pas affichée.
+-- La liste est partagée avec tous les joueurs par un state bag (client/body.lua les affiche).
 local LastBody = {}
+local PLACES = { back = 'dans le dos', waist = 'à la ceinture' }
+
 function UpdateBodyWeapons(src)
     if not Config.BodyWeapons or not Config.BodyWeapons.enabled or not GetPlayerName(src) then return end
     local inv, e = Inv[src], Equipped[src]
-    local list, seen = {}, {}
+    local list, used = {}, {}
     if inv then
         for i = 1, inv.size do
             local it = inv.slots[i]
             local d = it and Items[it.name]
-            if d and d.kind == 'weapon' and not d.throwable and not (e and e.slot == i) and not seen[it.name] then
-                seen[it.name] = true
-                list[#list + 1] = it.name
+            local place = it and it.metadata and it.metadata.worn
+            if d and d.kind == 'weapon' and PLACES[place] and not used[place] then
+                used[place] = true   -- une seule arme par emplacement (même reçue d'un autre joueur)
+                if not (e and e.slot == i) then list[#list + 1] = { n = it.name, p = place } end
             end
         end
     end
-    local key = table.concat(list, ',')
+    local parts = {}
+    for _, w in ipairs(list) do parts[#parts + 1] = w.n .. ':' .. w.p end
+    local key = table.concat(parts, ',')
     if LastBody[src] == key then return end
     LastBody[src] = key
     Player(src).state:set('elyBodyWeapons', list, true)
@@ -157,6 +163,35 @@ function UseAmmo(src, slot, item, def)
     if not wd or wd.ammoname ~= item.name then return false, 'no_weapon' end
     return reload(src, slot)
 end
+
+-- Clic droit › Mettre dans le dos / à la ceinture (ou retirer)
+RegisterNetEvent('elyzea_inv:wear', function(slot, place)
+    local src = source
+    local inv = Inv[src]
+    slot = tonumber(slot)
+    if not inv or not slot or not PLACES[place] then return end
+    local it = inv.slots[slot]
+    local d = it and Items[it.name]
+    if not d or d.kind ~= 'weapon' or d.throwable then return end
+    it.metadata = it.metadata or {}
+    local msg
+    if it.metadata.worn then
+        msg = ('%s retiré %s.'):format(d.label, PLACES[it.metadata.worn])
+        it.metadata.worn = nil
+    else
+        for i = 1, inv.size do
+            local x = inv.slots[i]
+            if i ~= slot and x and x.metadata and x.metadata.worn == place then
+                local xd = Items[x.name] or {}
+                return Sync(src, { type = 'error', text = ('Vous avez déjà une arme %s (%s). Retirez-la d\'abord.'):format(PLACES[place], xd.label or x.name) })
+            end
+        end
+        it.metadata.worn = place
+        msg = ('%s mis %s.'):format(d.label, PLACES[place])
+    end
+    inv.dirty = true
+    Sync(src, { type = 'success', text = msg })
+end)
 
 RegisterNetEvent('elyzea_inv:weapon:cleared', function() local src = source Equipped[src] = nil UpdateBodyWeapons(src) end)
 AddEventHandler('playerDropped', function() Equipped[source] = nil LastBody[source] = nil end)

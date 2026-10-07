@@ -1,8 +1,7 @@
 -- =====================================================================
---  elyzea_papiers - client : afficher / montrer ses papiers
+--  elyzea_papiers - client : papiers, guichet du gouvernement, test PPA
 -- =====================================================================
 local open = false
-
 local function Focus(on) open = on SetNuiFocus(on, on) end
 
 -- Photo du titulaire (si son personnage est à portée)
@@ -17,8 +16,9 @@ local function Headshot(ped)
     return ('https://nui-img/%s/%s'):format(txd, txd)
 end
 
-local function Kind(item)
-    if item == Config.Items.ppa then return 'ppa' end
+local function Kind(item, meta)
+    if item == Config.Items.ppa_fdo then return 'ppa', 'fdo' end
+    if item == Config.Items.ppa then return 'ppa', (meta and meta.kind) or 'civil' end
     return 'id'
 end
 
@@ -28,8 +28,9 @@ local function ShowCard(item, meta, ownerSrc, slot)
         local pl = GetPlayerFromServerId(ownerSrc)
         ped = pl ~= -1 and GetPlayerPed(pl) or 0
     end
+    local kind, sub = Kind(item, meta)
     Focus(true)
-    SendNUIMessage({ action = 'card', kind = Kind(item), meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot,
+    SendNUIMessage({ action = 'card', kind = kind, sub = sub, meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot,
         now = GetCloudTimeAsInt() })
 end
 
@@ -51,9 +52,62 @@ RegisterNUICallback('show', function(body, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('close', function(_, cb)
+-- ─────────── Guichet du gouvernement ───────────
+local govOpen = false
+RegisterNetEvent('elyzea_papiers:gov', function(data)
+    if type(data) ~= 'table' then return end
+    govOpen = true
+    Focus(true)
+    SendNUIMessage({ action = 'gov', data = data, photo = Headshot(PlayerPedId()) })
+end)
+RegisterNetEvent('elyzea_papiers:govData', function(data)
+    if govOpen and type(data) == 'table' then SendNUIMessage({ action = 'govData', data = data }) end
+end)
+RegisterNUICallback('govBuy', function(body, cb) TriggerServerEvent('elyzea_papiers:gov:buyId', body.method) cb('ok') end)
+RegisterNUICallback('govChange', function(body, cb) TriggerServerEvent('elyzea_papiers:gov:change', body.data, body.method) cb('ok') end)
+
+-- ─────────── Test PPA ───────────
+RegisterNetEvent('elyzea_papiers:ppaOffer', function(data)
+    if type(data) ~= 'table' then return end
+    Focus(true)
+    SendNUIMessage({ action = 'offer', data = data })
+end)
+RegisterNUICallback('offerAnswer', function(body, cb)
+    TriggerServerEvent('elyzea_papiers:ppaAnswer', body.accept == true, body.method)
+    if body.accept ~= true then Focus(false) end
+    cb('ok')
+end)
+RegisterNetEvent('elyzea_papiers:ppaTest', function(data)
+    Focus(true)
+    SendNUIMessage({ action = 'test', data = data })
+end)
+RegisterNUICallback('testSubmit', function(body, cb)
+    TriggerServerEvent('elyzea_papiers:ppaSubmit', body.answers or {})
+    cb('ok')
+end)
+RegisterNetEvent('elyzea_papiers:ppaResult', function(data)
+    SendNUIMessage({ action = 'result', data = data })
+end)
+
+-- ─────────── Fermeture ───────────
+RegisterNUICallback('close', function(body, cb)
+    if govOpen then govOpen = false TriggerServerEvent('elyzea_papiers:gov:close') end
+    if body and body.cancelTest then TriggerServerEvent('elyzea_papiers:ppaSubmit', {}) end
     Focus(false)
     cb('ok')
+end)
+
+-- Guichet : se ferme si le joueur s'éloigne
+CreateThread(function()
+    while true do
+        Wait(1000)
+        if govOpen and (IsEntityDead(PlayerPedId()) or IsPedInAnyVehicle(PlayerPedId(), false)) then
+            govOpen = false
+            SendNUIMessage({ action = 'closeAll' })
+            Focus(false)
+            TriggerServerEvent('elyzea_papiers:gov:close')
+        end
+    end
 end)
 
 AddEventHandler('onResourceStop', function(res)

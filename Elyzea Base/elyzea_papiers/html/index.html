@@ -8,12 +8,31 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Papier (carte d'identité, PPA) -->
     <div id="card" class="layer hidden">
         <div class="doc-wrap">
             <div class="doc" id="doc"></div>
             <div class="doc-actions" id="actions"></div>
         </div>
     </div>
+
+    <!-- Guichet du gouvernement / test PPA -->
+    <div id="app" class="layer hidden">
+        <div class="panel">
+            <div class="head">
+                <img class="crest" src="logo.png" alt="">
+                <div class="titles"><span class="eyebrow" id="appEyebrow">Gouvernement d'Elyzea</span><h1 id="appTitle"></h1></div>
+                <button class="icon-btn" id="closeBtn" title="Fermer">✕</button>
+            </div>
+            <div class="screen" id="screen"></div>
+        </div>
+    </div>
+
+    <!-- Demande de test PPA (avec le prix) -->
+    <div id="offer" class="layer hidden">
+        <div class="dialog" id="offerBox"></div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

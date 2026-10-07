@@ -575,6 +575,11 @@
       } else {
         opts.push([it.weapon ? 'Équiper / ranger' : 'Utiliser', () => action('use', { from: src.slot })]);
       }
+      if (it.wear) {
+        const on = !!(it.metadata && it.metadata.worn);
+        const label = it.wear === 'back' ? (on ? 'Retirer du dos' : 'Mettre dans le dos') : (on ? 'Retirer de la ceinture' : 'Mettre à la ceinture');
+        opts.push([label, () => post('wear', { slot: src.slot })]);
+      }
       if (state.data.container && !isShop()) opts.push(['Ranger dans le coffre', () => action('store', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Donner', () => post('give', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Jeter', () => action('drop', { from: src.slot, count: dragCount(it) })]);

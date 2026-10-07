@@ -183,7 +183,10 @@ function openCard(m) {
                 <div class="field wide"><small>N° de permis</small><b class="num">${esc(d.number || '')}</b></div>
             </div>
         </div>
-        <div class="lc-cats">${[['A', 'Moto'], ['B', 'Voiture'], ['C', 'Poids lourd']].map(([k, l]) => `<div class="lc-cat ${have[k] ? 'on' : ''}"><b class="${have[k] ? 'gold-text' : ''}">${k}</b><small>${have[k] ? esc(have[k]) : l}</small></div>`).join('')}</div>`;
+        <div class="lc-cats">${[['B', 'Voiture', '🚗'], ['A', 'Moto', '🏍️'], ['C', 'Poids lourd', '🚚']].map(([k, l, ico]) => `<div class="lc-cat ${have[k] ? 'on' : ''}">
+            <span class="lc-check">${have[k] ? '✓' : ''}</span>
+            <span class="lc-name"><b>${ico} ${l}</b><small>${have[k] ? `Obtenu le ${esc(have[k])}` : 'Non obtenu'}</small></span>
+            <span class="lc-letter ${have[k] ? 'gold-text' : ''}">${k}</span></div>`).join('')}</div>`;
     $('#licenseActions').innerHTML = m.own
         ? `<button class="btn" data-card="close">Ranger</button><button class="btn primary" data-card="show" data-slot="${m.slot}">Montrer à la personne la plus proche</button>`
         : '<button class="btn primary" data-card="close">Rendre le permis</button>';

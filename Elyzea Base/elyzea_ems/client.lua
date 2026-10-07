@@ -518,7 +518,6 @@ local function crouchProgress(label, seconds, targetPed)
     return ok
 end
 
-local PPA_TIME = 8   -- secondes d'examen avant de délivrer un PPA
 local function doAction(action, player)
     if busy then return end
     if not inService() then return notify('Vous devez être en service pour soigner, réanimer ou inspecter.') end
@@ -537,10 +536,11 @@ local function doAction(action, player)
         if not isDownPed(ped, player) then busy = false return notify('Ce patient n\'est pas dans le coma.') end
         if crouchProgress('Réanimation', D.care.revive.time or 10, ped) then TriggerServerEvent('elyzea_ems:doCare', 'revive', sid)
         else notify('Réanimation annulée.') end
-    elseif action == 'ppa' then
-        if self then busy = false return notify('Vous ne pouvez pas vous délivrer un PPA.') end
-        if crouchProgress('Examen médical', PPA_TIME, ped) then TriggerServerEvent('elyzea_papiers:issuePpa', sid)
-        else notify('Examen annulé.') end
+    elseif action == 'ppa_civil' or action == 'ppa_fdo' or action == 'ppa_give' then
+        -- Permis de port d'arme (elyzea_papiers) : test proposé au joueur (avec le prix), puis remise si réussi
+        if self then busy = false return notify('Vous ne pouvez pas faire ça sur vous-même.') end
+        if action == 'ppa_give' then TriggerServerEvent('elyzea_papiers:issuePpa', sid)
+        else TriggerServerEvent('elyzea_papiers:ppaRequest', sid, action == 'ppa_fdo' and 'fdo' or 'civil') end
     elseif action == 'heal' then
         if crouchProgress('Soin', D.care.heal.time or 5, not self and ped or nil) then TriggerServerEvent('elyzea_ems:doCare', 'heal', sid)
         else notify('Soin annulé.') end
@@ -600,7 +600,9 @@ local function altOptions(player)
     }
     -- Permis de port d'arme (ressource elyzea_papiers)
     if GetResourceState('elyzea_papiers') == 'started' then
-        options[#options + 1] = { id = 'ppa', label = 'Délivrer un PPA', hint = lock or 'Examen médical · permis de port d\'arme', time = PPA_TIME, disabled = not duty }
+        options[#options + 1] = { id = 'ppa_civil', label = 'Test PPA civil', hint = lock or 'Envoie la demande (prix) puis le test au joueur', disabled = not duty }
+        options[#options + 1] = { id = 'ppa_fdo', label = 'Test PPA forces de l\'ordre', hint = lock or 'Réservé aux forces de l\'ordre', disabled = not duty }
+        options[#options + 1] = { id = 'ppa_give', label = 'Donner le PPA', hint = lock or 'Seulement si le test est réussi', disabled = not duty }
     end
     return hurt and 'hurt' or 'ok', hp, options
 end

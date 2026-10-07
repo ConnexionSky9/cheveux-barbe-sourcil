@@ -246,33 +246,52 @@ Plus de détails : `elyzea_coupes/LISEZMOI.txt` et `admin_menu/install/COIFFEUR.
 
 ## 8. Papiers : permis, carte d'identité, PPA
 
-Les trois papiers ont le même design Elyzea (carte holographique avec la photo du titulaire).
+Tous les papiers ont le même design Elyzea (carte holographique avec la photo du titulaire).
 Clic droit › **Utiliser** pour regarder son papier, puis **Montrer à la personne la plus proche** (3 m).
+Réglages : `elyzea_papiers/config.lua` (prix, paiement banque / liquide / au choix, règles) et `elyzea_papiers/questions.lua` (questions du test PPA).
 
-| Papier | Objet | Comment on l'obtient |
-|---|---|---|
-| Permis de conduire | `permis` | Réussir l'examen de l'auto-école (`elyzea_permis`) |
-| Carte d'identité | `carte_identite` | Automatiquement, au **premier passage en jeu** de chaque personnage. Carte perdue : le staff fait `/refairecarte [id]` |
-| Permis de port d'arme (PPA) | `ppa` | Délivré par un **EMS en service** : menu de soins (Alt sur le patient) › **Délivrer un PPA** (examen médical de 8 s) |
+### Permis de conduire (`elyzea_permis`)
+Trois cases sur le permis : **Voiture (B)**, **Moto (A)**, **Poids lourd (C)**, cochées avec la date d'obtention.
+Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à chaque nouvelle catégorie.
 
-Le PPA enregistre aussi le permis `weapon` dans le personnage (visible sur la tablette de la police).
-Réglages (métier, grade minimum, prix, durée de validité) : `elyzea_papiers/config.lua`.
+### Carte d'identité et changement d'identité : PNJ « Gouvernement »
+1. Menu admin › **Éditeur de map › PNJ** : crée ou choisis un PNJ, coche le rôle **🏛️ Gouvernement**, donne un nom au guichet, enregistre.
+2. Les joueurs parlent au PNJ (E) et ouvrent le guichet :
+   - **Carte d'identité** : prix réglable (`Config.Government.idCard`), première carte gratuite, une seule carte à la fois (réglable) ;
+   - **Changement d'identité** : prénom, nom, date de naissance, nationalité (et sexe si activé), prix, délai entre deux changements,
+     âge minimum / maximum, liste des nationalités ; une nouvelle carte est remise et les anciennes sont retirées (réglable).
+3. L'argent va sur le compte d'entreprise `gouvernement` (réglable).
+4. Staff : `/refairecarte [id]` donne une carte gratuite.
+
+### Permis de port d'arme (PPA) : test et remise par les EMS
+| PPA | Objet | Catégories sur la carte | Qui peut le passer |
+|---|---|---|---|
+| Civil | `ppa` | Pistolet | Tout le monde |
+| Forces de l'ordre | `ppa_fdo` | Arme légère, arme lourde | Métiers `police`, `sheriff`, `gendarmerie` (réglable) |
+
+1. L'EMS en service vise le joueur, **Alt** › **Test PPA civil** (ou **forces de l'ordre**).
+2. Le joueur reçoit une **demande avec le prix** : il accepte, il paie tout de suite (banque ou liquide), le test démarre.
+   L'argent va au compte des EMS.
+3. Le test s'affiche sur son écran : **questions** et **mises en situation**, réponses mélangées, corrigées par le serveur
+   (les bonnes réponses ne sont jamais envoyées aux joueurs). L'EMS reçoit le résultat.
+4. Réussi : l'EMS fait **Alt › Donner le PPA** (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
+5. Le PPA enregistre aussi le permis `weapon` dans le personnage (tablette de la police, armureries qui exigent un PPA).
 
 ---
 
-## 9. Armes visibles sur le personnage
+## 9. Armes portées sur le personnage
 
-Les armes que l'on a dans l'inventaire sont visibles par tous les joueurs :
-- **dans le dos** : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes (la plus grosse) ;
-- **à l'arrière du pantalon** : le pistolet.
+Dans l'inventaire, **clic droit sur une arme** :
+- **Mettre dans le dos / Retirer du dos** : fusils, mitraillettes, fusils à pompe, fusils de précision, armes lourdes ;
+- **Mettre à la ceinture / Retirer de la ceinture** : pistolet, glissé à l'arrière du pantalon.
 
-L'arme sortie en main n'est jamais affichée en double. Les armes sont cachées dans les véhicules (réglable).
+**Une seule arme dans le dos et une seule à la ceinture** (impossible de mettre deux fusils d'assaut dans le dos).
+Elles sont visibles par tous les joueurs. L'arme sortie en main n'est pas affichée en double. Cachées en véhicule (réglable).
 Réglages : `elyzea_inventory/config.lua` › `Config.BodyWeapons`.
 
-**Ajuster la position** (si l'arme rentre dans le corps ou flotte) : en jeu, avec une arme dans l'inventaire,
-tape `/positionarme dos x y z rx ry rz` ou `/positionarme ceinture x y z rx ry rz`.
-Le changement est visible tout de suite (pour toi seulement). Quand c'est bien placé, recopie la ligne
-affichée dans la console F8 dans `Config.BodyWeapons`, puis `restart elyzea_inventory`.
+**Ajuster la position** (si l'arme rentre dans le corps ou flotte) : en jeu, tape `/positionarme dos x y z rx ry rz`
+ou `/positionarme ceinture x y z rx ry rz`. Le changement est visible tout de suite (pour toi seulement). Quand c'est bien placé,
+recopie la ligne affichée dans la console F8 dans `Config.BodyWeapons`, puis `restart elyzea_inventory`.
 
 ---
 
