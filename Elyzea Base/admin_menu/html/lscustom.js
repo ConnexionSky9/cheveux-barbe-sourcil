@@ -181,7 +181,7 @@
         { k: 'maxServiceVehicles', label: 'Véhicules de service par mécano', unit: '' },
         { k: 'workInZonesOnly', label: 'Travailler seulement dans les zones', bool: true, help: 'Réparation, nettoyage et modification uniquement dans les zones prévues.' },
         { k: 'showBlips', label: 'Icône sur la carte', bool: true, help: 'Les zones « Modification » apparaissent sur la carte de tous les joueurs.' },
-        { k: 'societyDeposit', label: 'Verser au compte du métier', bool: true, help: 'Le reste de chaque facture va au compte du métier (Renewed-Banking).' },
+        { k: 'societyDeposit', label: 'Verser au compte du métier', bool: true, help: 'Le reste de chaque facture va au compte de l\'entreprise (elyzea_core).' },
     ];
     SUBVIEWS.config = (d) => {
         const s = LS.settings;

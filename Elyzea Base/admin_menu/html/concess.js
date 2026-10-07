@@ -165,7 +165,7 @@
     const SETTINGS = [
         { k: 'commission', label: 'Commission du vendeur', unit: '%', help: 'Part de chaque vente versée au vendeur ; le reste va au compte de l\'entreprise.' },
         { k: 'offerTimeout', label: 'Temps pour accepter une proposition', unit: 's' },
-        { k: 'societyDeposit', label: 'Verser au compte de l\'entreprise', bool: true, help: 'Renewed-Banking.' },
+        { k: 'societyDeposit', label: 'Verser au compte de l\'entreprise', bool: true, help: 'Compte d\'entreprise elyzea_core.' },
         { k: 'ownGarage', label: 'Garage de la concession', bool: true, help: 'Désactive-le si tu utilises un autre garage (elyzea_garage).' },
         { k: 'showBlip', label: 'Icône sur la carte', bool: true, help: 'Sur le podium du showroom.' },
     ];

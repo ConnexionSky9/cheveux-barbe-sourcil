@@ -36,7 +36,7 @@ const SETTINGS = [
     { k: 'maxJail', label: 'Prison maximum', help: 'Durée maximale d\'une peine.', unit: 'min' },
     { k: 'jailRadius', label: 'Rayon de la prison', help: 'Au-delà, le détenu est ramené au point de prison.', unit: 'm' },
     { k: 'maxFine', label: 'Amende maximum', help: 'Montant total maximum d\'une amende.', unit: '$' },
-    { k: 'fineToSociety', label: 'Amendes versées au métier', help: 'Crédite le compte du métier (Renewed-Banking).', bool: true },
+    { k: 'fineToSociety', label: 'Amendes versées au métier', help: 'Crédite le compte de l\'entreprise (elyzea_core).', bool: true },
     { k: 'blipSprite', label: 'Icône des appels', help: 'Numéro de blip GTA (161 = cercle d\'alerte).' },
     { k: 'blipColor', label: 'Couleur des appels', help: 'Numéro de couleur de blip GTA (3 = bleu).' },
 ];
