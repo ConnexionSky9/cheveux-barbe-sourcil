@@ -292,6 +292,13 @@ RegisterNetEvent('elyzea_inv:clientExport', function(path, label, slot)
     if not ok then print(('[elyzea_inventory] %s : %s'):format(path, err)) end
 end)
 
+-- Objet utilisé côté client : événement d'une autre ressource (champ client.event de l'objet, ex. radio)
+RegisterNetEvent('elyzea_inv:clientEvent', function(event, slot)
+    if type(event) ~= 'string' or event == '' then return end
+    closeInventory()
+    TriggerEvent(event, slot)
+end)
+
 CreateThread(function()
     while true do
         Wait(1000)

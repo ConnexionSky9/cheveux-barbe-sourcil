@@ -777,6 +777,10 @@ function UseSlot(src, from)
 
     if def.client then
         local c = def.client
+        if c.event and not (c.status or c.usetime or c.anim) then
+            TriggerClientEvent('elyzea_inv:clientEvent', src, c.event, slotData(inv, from))
+            return true
+        end
         if c.export and not (c.status or c.usetime or c.anim) then
             TriggerClientEvent('elyzea_inv:clientExport', src, c.export, def.label, slotData(inv, from))
             return true

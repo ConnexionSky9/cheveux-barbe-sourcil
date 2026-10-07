@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Radio Elyzea</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root { --night: #04060c; --line: rgba(217, 181, 106, .16); --line-strong: rgba(217, 181, 106, .38); --text: #edf1f8; --muted: #8f9bb4;
+    --gold: #d9b56a; --gold-hi: #f6e2ae; --gold-lo: #9c7a3c; --ok: #4fb3a9; --bad: #e0433b;
+    --gold-grad: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 55%, var(--gold-lo) 100%);
+    --brand: 'Cinzel', Georgia, serif; --display: 'Barlow Condensed', 'Arial Narrow', sans-serif; --body: 'Barlow', 'Segoe UI', Arial, sans-serif; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: var(--body); color: var(--text); user-select: none; }
+.hidden { display: none !important; }
+@keyframes rise { from { transform: translateY(30px); opacity: 0; } }
+.radio { position: fixed; right: 40px; bottom: 40px; width: 300px; animation: rise .3s cubic-bezier(.2, .8, .2, 1); }
+.antenna { position: absolute; left: 44px; top: -86px; width: 16px; height: 100px; border-radius: 8px 8px 4px 4px; background: linear-gradient(90deg, #1a2236, #2c3753 50%, #141b2c); border: 1px solid var(--line); }
+.antenna::after { content: ''; position: absolute; top: 6px; left: 3px; width: 8px; height: 8px; border-radius: 50%; background: #3a4560; }
+.antenna.live::after { background: var(--bad); box-shadow: 0 0 10px var(--bad); }
+.body { position: relative; padding: 18px 18px 20px; border-radius: 28px 28px 34px 34px;
+    background: radial-gradient(120% 70% at 80% -10%, rgba(217, 181, 106, .16), transparent 55%), linear-gradient(165deg, #121b31 0%, #080d1a 60%, var(--night) 100%);
+    border: 1px solid var(--line-strong); box-shadow: 0 30px 70px rgba(0, 0, 0, .7), 0 0 0 6px rgba(4, 6, 12, .9), 0 0 0 7px rgba(217, 181, 106, .2); }
+.top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.top img { width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold-lo); }
+.top .t { flex: 1; }
+.eyebrow { font: 700 .58rem var(--brand); letter-spacing: .24em; text-transform: uppercase; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.top b { font: 700 1.05rem var(--brand); }
+.x { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line-strong); background: rgba(4, 6, 12, .6); color: var(--gold); cursor: pointer; }
+.screen { padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, #0c1a14, #07110d); border: 1px solid rgba(79, 179, 169, .35); box-shadow: inset 0 0 22px rgba(0, 0, 0, .6); color: #8ff0d8; font-family: 'Share Tech Mono', monospace; }
+.screen.off { color: #2c4a40; border-color: rgba(79, 179, 169, .12); }
+.screen.jam { color: #ffb4ae; border-color: rgba(224, 67, 59, .45); background: linear-gradient(180deg, #1a0c0c, #110707); }
+.s-row { display: flex; justify-content: space-between; font-size: .8rem; opacity: .85; }
+.freq { font-size: 2.5rem; text-align: center; letter-spacing: .04em; margin: 4px 0; text-shadow: 0 0 12px currentColor; }
+.s-label { text-align: center; font-size: .78rem; min-height: 1em; }
+.bat { display: inline-flex; align-items: center; gap: 5px; }
+.bat i { position: relative; width: 22px; height: 10px; border: 1px solid currentColor; border-radius: 2px; }
+.bat i::after { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 4px; background: currentColor; }
+.bat i span { position: absolute; left: 1px; top: 1px; bottom: 1px; background: currentColor; }
+.input { width: 100%; margin-top: 12px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(4, 6, 12, .6); color: var(--text); font: 600 1.1rem 'Share Tech Mono', monospace; text-align: center; outline: none; }
+.input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(217, 181, 106, .15); }
+.btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.btn { padding: 10px 6px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(24, 34, 58, .85); color: var(--text); font: 600 .9rem var(--body); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--gold); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary { background: var(--gold-grad); border-color: var(--gold); color: #1a1406; }
+.btn.power.on { border-color: rgba(79, 179, 169, .6); color: #7fe3d8; }
+.vol { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.vol span { font: 600 .7rem var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); width: 54px; }
+.vol input { flex: 1; accent-color: var(--gold); }
+.vol b { width: 34px; text-align: right; font-size: .85rem; }
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+.preset { padding: 8px 2px; border-radius: 10px; border: 1px dashed var(--line); background: rgba(4, 6, 12, .45); color: var(--muted); font: 600 .78rem 'Share Tech Mono', monospace; cursor: pointer; text-align: center; }
+.preset.set { border-style: solid; color: var(--gold-hi); }
+.hint { margin-top: 10px; color: var(--muted); font-size: .7rem; line-height: 1.4; text-align: center; }
+</style>
+</head>
+<body>
+<div id="radio" class="radio hidden">
+    <div class="antenna" id="ant"></div>
+    <div class="body">
+        <div class="top"><img src="logo.png" alt=""><div class="t"><div class="eyebrow">Elyzea · Radio</div><b>Talkie-walkie</b></div><button class="x" data-a="close" title="Fermer (Échap)">✕</button></div>
+        <div class="screen" id="screen"></div>
+        <input class="input" id="freq" type="number" step="0.01" min="1" placeholder="Fréquence (ex : 104.50)">
+        <div class="btns">
+            <button class="btn power" id="power" data-a="power">⏻ Allumer</button>
+            <button class="btn primary" id="join" data-a="join">Rejoindre</button>
+            <button class="btn" id="leave" data-a="leave">Quitter</button>
+        </div>
+        <div class="vol"><span>Volume</span><input type="range" min="0" max="100" id="vol"><b id="volv"></b></div>
+        <div class="presets" id="presets"></div>
+        <p class="hint">Clic sur un favori : le rejoindre · clic droit : y enregistrer la fréquence actuelle.<br>Parler : touche radio de pma-voice (ALT gauche par défaut).</p>
+    </div>
+</div>
+<script>
+const RES = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'elyzea_radio';
+const post = (e, d = {}) => fetch(`https://${RES}/${e}`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(d) }).catch(() => {});
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let S = null;
+
+function rangeLabel(f) {
+    const r = (S.restricted || []).find((x) => f >= x.from && f <= x.to);
+    return r ? r.label : null;
+}
+function render() {
+    if (!S) return;
+    const scr = $('#screen');
+    scr.className = `screen ${!S.on ? 'off' : S.jammed ? 'jam' : ''}`;
+    const bat = S.batteryEnabled ? `<span class="bat"><i><span style="width:${Math.max(0, Math.min(100, S.battery)) * 0.18}px"></span></i>${S.battery} %</span>` : '<span></span>';
+    scr.innerHTML = `<div class="s-row"><span>${S.on ? (S.jammed ? 'BROUILLÉ' : S.freq ? '● EN LIGNE' : 'PRÊT') : 'ÉTEINTE'}</span>${bat}</div>
+        <div class="freq">${S.on && S.freq ? Number(S.freq).toFixed(2) : S.on ? '---.--' : ''}</div>
+        <div class="s-label">${S.on && S.freq ? esc(S.label ? `Canal ${S.label}` : 'MHz') : S.on ? 'Choisis une fréquence' : ''}</div>`;
+    $('#ant').classList.toggle('live', !!(S.on && S.freq && !S.jammed));
+    $('#power').classList.toggle('on', S.on);
+    $('#power').textContent = S.on ? '⏻ Éteindre' : '⏻ Allumer';
+    $('#join').disabled = !S.on || S.jammed;
+    $('#leave').disabled = !S.freq;
+    $('#vol').value = S.volume; $('#volv').textContent = S.volume;
+    $('#freq').max = S.max;
+    $('#presets').innerHTML = [1, 2, 3, 4].map((i) => {
+        const f = (S.presets || {})[String(i)];
+        return `<div class="preset ${f ? 'set' : ''}" data-p="${i}" title="${f ? esc(rangeLabel(f) || '') : 'Vide'}">${f ? Number(f).toFixed(2) : `F${i}`}</div>`;
+    }).join('');
+}
+
+document.addEventListener('click', (e) => {
+    const p = e.target.closest('[data-p]');
+    if (p) return post('preset', { index: Number(p.dataset.p) });
+    const b = e.target.closest('[data-a]');
+    if (!b || b.disabled) return;
+    const a = b.dataset.a;
+    if (a === 'close') return close();
+    if (a === 'join') { const v = parseFloat($('#freq').value); if (v) post('join', { freq: Math.round(v * 100) / 100 }); return; }
+    post(a);
+});
+document.addEventListener('contextmenu', (e) => {
+    const p = e.target.closest('[data-p]');
+    if (!p) return;
+    e.preventDefault();
+    const v = parseFloat($('#freq').value) || (S && S.freq);
+    post('preset', { index: Number(p.dataset.p), save: true, freq: v || null });
+});
+$('#vol').addEventListener('input', (e) => { $('#volv').textContent = e.target.value; });
+$('#vol').addEventListener('change', (e) => post('volume', { volume: Number(e.target.value) }));
+$('#freq').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#join').click(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+function close() { $('#radio').classList.add('hidden'); post('close'); }
+
+window.addEventListener('message', (e) => {
+    const m = e.data || {};
+    if (m.action === 'open') { S = m.state; $('#radio').classList.remove('hidden'); if (S.freq) $('#freq').value = Number(S.freq).toFixed(2); render(); }
+    if (m.action === 'state') { S = m.state; render(); }
+    if (m.action === 'close') $('#radio').classList.add('hidden');
+});
+</script>
+</body>
+</html>

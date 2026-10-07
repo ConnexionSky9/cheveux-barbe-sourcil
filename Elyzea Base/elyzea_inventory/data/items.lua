@@ -211,26 +211,26 @@ return {
         allowArmed = true,
         consume = 0,
         client = {
-            event = 'mm_radio:client:use'
+            event = 'elyzea_radio:use'
         }
     },
 
     ['jammer'] = {
-        label = 'Radio Jammer',
+        label = 'Brouilleur radio',
         weight = 10000,
         allowArmed = true,
         client = {
-            event = 'mm_radio:client:usejammer'
+            event = 'elyzea_radio:useJammer'
         }
     },
 
     ['radiocell'] = {
-        label = 'AAA Cells',
+        label = 'Piles AAA',
         weight = 1000,
         stack = true,
         allowArmed = true,
         client = {
-            event = 'mm_radio:client:recharge'
+            event = 'elyzea_radio:recharge'
         }
     },
 

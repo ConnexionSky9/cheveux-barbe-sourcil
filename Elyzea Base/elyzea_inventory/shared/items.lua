@@ -179,6 +179,7 @@ IgnoredItems = { money = true, testburger = true }
 -- Objets sans image à leur nom : on réutilise une image existante de html/img.
 -- Pour en ajouter : ['nom_objet'] = 'fichier.png'
 ImageAlias = {
+    jammer = 'radiojammer.png',
     weed_ak47 = 'weed_baggy.png', weed_amnesia = 'weed_baggy.png', ['weed_og-kush'] = 'weed_baggy.png',
     ['weed_purple-haze'] = 'weed_baggy.png', weed_skunk = 'weed_baggy.png', ['weed_white-widow'] = 'weed_baggy.png',
     weed_ak47_seed = 'weed_seed.png', weed_amnesia_seed = 'weed_seed.png', ['weed_og-kush_seed'] = 'weed_seed.png',

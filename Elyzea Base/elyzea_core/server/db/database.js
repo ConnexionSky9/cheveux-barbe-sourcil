@@ -19758,7 +19758,7 @@ const readyWaiters = [];
 
 async function connect() {
   if (!CONNECTION) {
-    console.log('^1[elyzea_core] mysql_connection_string est vide dans le server.cfg : base de données désactivée.^0');
+    console.log('^1[elyzea_core] mysql_connection_string est vide : base de données désactivée. Vérifie que secrets.cfg est bien dans le même dossier que server.cfg (« No such config file: secrets.cfg » plus haut = fichier introuvable).^0');
     return;
   }
   let opts;

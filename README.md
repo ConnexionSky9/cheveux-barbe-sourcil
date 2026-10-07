@@ -95,8 +95,33 @@ qbx_core   qb-core   ox_lib   oxmysql   ox_inventory   @ox_lib   @oxmysql   Rene
 ### 3.4 Ressources externes à vérifier
 
 Ces ressources ne sont pas dans ce dépôt et peuvent encore demander qbx ou ox :
-**`p_bridge`, `rcore_spray`, `rpemotes`**.
+**`p_bridge`, `rcore_spray`, `rpemotes`, `mm_radio`, `tstudio_mrpd`**.
+`p_bridge` et `rcore_spray` sont désactivés dans le server.cfg. `mm_radio` est remplacée par **`elyzea_radio`** (voir 3.5).
 Si l'une affiche une erreur au démarrage (`Could not find dependency ox_lib`, `qbx_core`…), mets sa ligne en commentaire (`#ensure …`) ou cherche sa version « standalone ».
+
+### 3.5 Problèmes vus dans les logs du serveur et leur solution
+| Message dans la console | Solution |
+|---|---|
+| `No such config file: secrets.cfg` puis `does not have a license key` / `mysql_connection_string est vide` | Mets **`secrets.cfg` dans le même dossier que `server.cfg`** (ex. `D:\txData\Qbox_BE5BF8.base\secrets.cfg`). Sans lui : pas de clé de licence et **pas de base de données** (personnages, inventaires non sauvegardés). |
+| `Argument count mismatch (passed 1, wanted 2)` | Une tabulation dans `voice.cfg` (`voice_enableSubmix`). Corrigé : remplace ton `voice.cfg`. |
+| `The file myLogo.png must be a 96x96 PNG image` | Remplace `myLogo.png` à côté du server.cfg par celui de `Serveur cfg/` (96 × 96). |
+| `Could not find dependency ox_lib for resource mm_radio` | **Supprime le dossier `mm_radio`** (dans `[voice]`) : `elyzea_radio` le remplace. |
+| `p_bridge … attempt to index a nil value (global 'lib')` | `p_bridge` est désactivé dans le server.cfg ; tu peux supprimer son dossier. |
+| `Couldn't find resource rcore_spray` | Ligne désactivée dans le server.cfg. |
+| `tstudio_mrpd : Failed to load script @ox_lib/init.lua` / `could not find server_script scripts/*.lua` | Dans `tstudio_mrpd/fxmanifest.lua`, supprime la ligne `'@ox_lib/init.lua'` et la ligne `server_script 'scripts/*.lua'` (ou `server_scripts { 'scripts/*.lua' }`). La map marche sans. |
+| `permis_item does not have a resource manifest` | Supprime le dossier `permis_item` : le permis est déjà dans `elyzea_inventory`. |
+| `elyzea_aura exists in more than one place` | Supprime l'ancienne copie `resources\[telephone]\elyzea_aura`. |
+| `Asset … uses XX MiB of physical memory` / `Oversized assets` | Avertissements sur des véhicules / maps trop lourds (textures). Rien de cassé ; si des textures ne chargent pas, réduis les `.ytd` (OpenIV / Texture Toolkit). |
+| `could not find file handling.meta / carcols.meta / vehicle_names.lua` (gayaems, 21x90, umbuf4bb, elusnon, m3g80, onx-evp-b-audio) | Fichiers déclarés dans leur manifeste mais absents : sans gravité. Pour supprimer l'avertissement, retire la ligne correspondante dans leur `fxmanifest.lua` / `__resource.lua`. |
+
+### 3.6 Radio (`elyzea_radio`)
+Remplace `mm_radio`, sans ox_lib.
+- **Utiliser** l'objet `radio` → talkie-walkie Elyzea : allumer, fréquence (1.00 à 999.99), rejoindre / quitter, volume, 4 favoris (clic droit pour enregistrer).
+- Parler : touche radio de pma-voice (ALT gauche par défaut, `voice.cfg`).
+- **Fréquences réservées** (`elyzea_radio/config.lua`) : 1 à 10.99 police, 11 à 20.99 EMS, 21 à 25.99 services. Le serveur bloque aussi l'accès direct par pma-voice.
+- **Batterie** : se vide radio allumée ; l'objet `radiocell` (piles AAA) la recharge.
+- **Brouilleur** (`jammer`) : posé au sol, coupe les radios dans un rayon de 35 m pendant 10 min.
+- Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
 ---
 
