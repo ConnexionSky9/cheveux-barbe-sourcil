@@ -291,11 +291,11 @@ Config.Illegal = {
 Config.Minimap = {
     enabled = true,           -- false : le menu ne touche pas à la mini-carte
     shape = 'square',         -- 'square' (carrée), 'round' (ronde), 'default' (rectangle GTA)
-    position = 'top-right',   -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
-    size = 0.20,              -- hauteur (part de l'écran)
-    widthAdjust = 100,        -- % de largeur (100 = carré parfait)
-    marginX = 0.012,          -- écart avec le bord gauche / droit
-    marginY = 0.018,          -- écart avec le bord haut / bas
+    position = 'bottom-left', -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
+    size = 0.185,             -- hauteur (part de l'écran)
+    widthAdjust = 160,        -- % de largeur (100 = carré parfait, 160 = rectangle façon HUD)
+    marginX = 0.014,          -- écart avec le bord gauche / droit
+    marginY = 0.030,          -- écart avec le bord haut / bas
     hideHealthBars = true,    -- cacher les barres de vie / armure de GTA sous la carte
     onlyInVehicle = false,    -- mini-carte seulement en véhicule
     -- Commandes d'autres scripts qui déplacent la mini-carte : désactivées (la position est celle du staff)

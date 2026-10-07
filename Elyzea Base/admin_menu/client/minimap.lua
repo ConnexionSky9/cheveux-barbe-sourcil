@@ -15,6 +15,21 @@ local ALIGN = {
 
 local function current() return preview or saved end
 
+-- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le HUD
+MinimapRect = nil
+function RectOf(a, x, y, w, h, aspect, round)
+    local off = (1.0 - GetSafeZoneSize()) * 0.5
+    local left = (a[1] == 'R') and (1.0 - off + x) or (off + x)
+    local top = (a[2] == 'T') and (off + y) or (1.0 - off + y - h)
+    -- Écrans plus larges que 16:9 : GTA place la carte dans une zone 16:9 centrée
+    if aspect > 16 / 9 + 0.01 then
+        local k = (16 / 9) / aspect
+        left, w = 0.5 + (left - 0.5) * k, w * k
+    end
+    return { x = left, y = top, w = w, h = h, align = a[1] .. a[2], round = round == true }
+end
+exports('GetMinimapRect', function() return MinimapRect end)
+
 -- Pose les trois éléments de la mini-carte
 local function apply()
     local s = current()
@@ -38,6 +53,8 @@ local function apply()
     local y = (a[2] == 'T') and my or -my
 
     SetMinimapClipType(s.shape == 'round' and 1 or 0)
+    MinimapRect = RectOf(a, x, y, w, h, aspect, s.shape == 'round')
+    TriggerEvent('elyzea:minimapRect', MinimapRect)
     SetMinimapComponentPosition('minimap', a[1], a[2], x, y, w, h)
     SetMinimapComponentPosition('minimap_mask', a[1], a[2], x, y, w, h)
     SetMinimapComponentPosition('minimap_blur', a[1], a[2], x - (a[1] == 'R' and 0.004 or -0.004), y, w + 0.008, h + 0.012)

@@ -5,220 +5,175 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elyzea HUD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* Unité relative : 1 = 1px en 1080p, s'adapte à toutes les résolutions */
+    /* 1 unité = 1 px en 1080p : s'adapte à toutes les résolutions */
     --u: calc(100vh / 1080);
-
-    /* Palette Elyzea */
-    --gold:      #E7CF9A;
-    --gold-deep: #A8823F;
-    --cream:     #FBF1DC;
-    --navy:      #0A1426;
-    --navy-2:    #13223F;
-    --legal:     #3E86FF;   /* bleu LSPD / légal  */
-    --illegal:   #FF3346;   /* rouge / illégal    */
-    --hunger:    #F0A63A;
-    --thirst:    #8FD0F5;
-
-    /* Cadre de la mini-carte : à caler sur la position du radar natif (voir config.lua) */
-    /*--map-top:   calc(var(--u) * 36);
-    --map-right: calc(var(--u) * 36);
-    --map-w:     calc(var(--u) * 300);
-    --map-h:     calc(var(--u) * 196);*/
+    --gold:#E7CF9A; --gold-deep:#A8823F; --cream:#FBF1DC; --navy:#0A1426;
+    --health:#FF3346; --armor:#3E86FF; --hunger:#F0A63A; --thirst:#8FD0F5; --voice:#E7CF9A;
+    /* Position de la mini-carte (remplie par le jeu, valeurs de secours = bas gauche) */
+    --mx: 1.4vw; --my: calc(100vh - 3vh - 18.5vh); --mw: 16.65vw; --mh: 18.5vh;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;overflow:hidden;background:transparent;
     font-family:"Rajdhani","Segoe UI",Arial,sans-serif;color:var(--cream);user-select:none}
-
   #hud{position:fixed;inset:0;transition:opacity .35s ease}
   #hud.hidden{opacity:0}
 
-  /* ================= STATUTS ================= */
-  .status{
-    position:absolute;left:calc(var(--u)*28);bottom:calc(var(--u)*28);
-    display:flex;align-items:center;gap:calc(var(--u)*16);
-  }
+  /* ================= CADRE DE LA MINI-CARTE ================= */
+  .frame{position:absolute;left:var(--mx);top:var(--my);width:var(--mw);height:var(--mh);pointer-events:none;
+    transition:opacity .3s}
+  .frame.off{opacity:0}
+  .frame::before{content:"";position:absolute;inset:calc(var(--u)*-3);
+    border:calc(var(--u)*1.5) solid rgba(231,207,154,.55);
+    box-shadow:0 0 0 calc(var(--u)*1) rgba(6,12,24,.85),0 calc(var(--u)*6) calc(var(--u)*18) rgba(0,0,0,.45),inset 0 0 calc(var(--u)*14) rgba(6,12,24,.55)}
+  .frame.round::before{border-radius:50%}
+  .corner{position:absolute;width:calc(var(--u)*16);height:calc(var(--u)*16);border:calc(var(--u)*2.5) solid var(--gold);
+    filter:drop-shadow(0 0 calc(var(--u)*4) rgba(231,207,154,.6))}
+  .c1{left:calc(var(--u)*-5);top:calc(var(--u)*-5);border-right:none;border-bottom:none}
+  .c2{right:calc(var(--u)*-5);top:calc(var(--u)*-5);border-left:none;border-bottom:none}
+  .c3{left:calc(var(--u)*-5);bottom:calc(var(--u)*-5);border-right:none;border-top:none}
+  .c4{right:calc(var(--u)*-5);bottom:calc(var(--u)*-5);border-left:none;border-top:none}
+  .frame.round .corner{display:none}
+  .edge{position:absolute;left:0;right:0;bottom:calc(var(--u)*-6);height:calc(var(--u)*2);
+    background:linear-gradient(90deg,#3E86FF,var(--gold) 50%,#FF3346);opacity:.85}
+  .frame.round .edge{display:none}
 
-  .panel{
-    position:relative;
-    width:calc(var(--u)*330);
-    padding:calc(var(--u)*14) calc(var(--u)*16) calc(var(--u)*12);
-    background:linear-gradient(160deg,rgba(19,34,63,.88),rgba(6,12,24,.92));
-    clip-path:polygon(0 0,calc(100% - var(--u)*18) 0,100% calc(var(--u)*18),100% 100%,calc(var(--u)*18) 100%,0 calc(100% - var(--u)*18));
-  }
-  .panel-wrap{position:relative;padding:calc(var(--u)*1.5);
-    background:linear-gradient(115deg,var(--legal),var(--gold) 35%,var(--cream) 50%,var(--gold) 65%,var(--illegal));
-    clip-path:polygon(0 0,calc(100% - var(--u)*18) 0,100% calc(var(--u)*18),100% 100%,calc(var(--u)*18) 100%,0 calc(100% - var(--u)*18));
-    filter:drop-shadow(0 0 calc(var(--u)*10) rgba(231,207,154,.25));
-  }
+  /* ================= STATUTS (collés à droite de la carte) ================= */
+  .status{position:absolute;left:calc(var(--mx) + var(--mw) + var(--u)*14);
+    bottom:calc(100vh - var(--my) - var(--mh) - var(--u)*3);
+    width:calc(var(--u)*196);display:flex;flex-direction:column;gap:calc(var(--u)*7)}
 
-  .row{display:flex;align-items:center;gap:calc(var(--u)*10);height:calc(var(--u)*26);
-    margin-bottom:calc(var(--u)*7);transition:opacity .3s}
-  .row.off{opacity:.35}
-  .gem{flex:none;width:calc(var(--u)*22);height:calc(var(--u)*22);position:relative;display:grid;place-items:center}
-  .gem::before{content:"";position:absolute;inset:calc(var(--u)*2);transform:rotate(45deg);
-    border:calc(var(--u)*1.5) solid var(--gold);background:var(--navy);
-    box-shadow:0 0 calc(var(--u)*6) var(--c)}
-  .gem svg{position:relative;width:calc(var(--u)*12);height:calc(var(--u)*12);fill:var(--c);
-    filter:drop-shadow(0 0 calc(var(--u)*3) var(--c))}
-
-  .track{flex:1;height:calc(var(--u)*10);position:relative;
-    background:rgba(0,0,0,.55);
-    clip-path:polygon(calc(var(--u)*6) 0,100% 0,calc(100% - var(--u)*6) 100%,0 100%);
-    outline:1px solid rgba(231,207,154,.15)}
-  .fill{position:absolute;inset:0 auto 0 0;width:100%;
-    background:linear-gradient(90deg,color-mix(in srgb,var(--c) 55%,#000),var(--c) 70%,#fff);
-    box-shadow:0 0 calc(var(--u)*10) var(--c);
+  .bar{display:flex;align-items:center;gap:calc(var(--u)*7);height:calc(var(--u)*16);transition:opacity .3s}
+  .bar.off{opacity:.3}
+  .ico{flex:none;width:calc(var(--u)*16);height:calc(var(--u)*16);display:grid;place-items:center}
+  .ico svg{width:100%;height:100%;fill:var(--c);filter:drop-shadow(0 0 calc(var(--u)*3) var(--c)) drop-shadow(0 calc(var(--u)*1) calc(var(--u)*1) #000)}
+  .track{flex:1;height:calc(var(--u)*7);position:relative;background:rgba(6,12,24,.7);
+    border:calc(var(--u)*1) solid rgba(231,207,154,.18);border-radius:calc(var(--u)*4);overflow:hidden}
+  .fill{position:absolute;inset:0 auto 0 0;width:100%;border-radius:inherit;
+    background:linear-gradient(90deg,var(--c2),var(--c));box-shadow:0 0 calc(var(--u)*8) var(--c);
     transition:width .45s cubic-bezier(.2,.8,.2,1)}
-  .ticks{position:absolute;inset:0;
-    background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),rgba(6,12,24,.9) calc(10% - 2px) 10%)}
-  .val{flex:none;width:calc(var(--u)*38);text-align:right;
-    font-weight:700;font-size:calc(var(--u)*17);letter-spacing:.02em;font-variant-numeric:tabular-nums;color:var(--cream)}
-
-  .row.low .fill{animation:pulse 1s ease-in-out infinite}
-  .row.low .val{color:var(--illegal)}
+  .val{flex:none;width:calc(var(--u)*26);text-align:right;font-weight:700;font-size:calc(var(--u)*13);
+    font-variant-numeric:tabular-nums;text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
+  .bar.low .fill{animation:pulse 1s ease-in-out infinite}
+  .bar.low .val{color:var(--health)}
   @keyframes pulse{50%{opacity:.35}}
 
-  .divider{height:1px;margin:calc(var(--u)*4) 0 calc(var(--u)*9);
-    background:linear-gradient(90deg,transparent,var(--gold) 20%,var(--gold) 80%,transparent);opacity:.5}
+  .gauges{display:flex;align-items:center;gap:calc(var(--u)*9);margin-top:calc(var(--u)*2)}
+  .gauge{--p:100;position:relative;width:calc(var(--u)*34);height:calc(var(--u)*34);border-radius:50%;
+    background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(6,12,24,.75) 0);
+    box-shadow:0 0 calc(var(--u)*8) rgba(0,0,0,.5);transition:--p .4s}
+  .gauge::before{content:"";position:absolute;inset:calc(var(--u)*3);border-radius:50%;
+    background:radial-gradient(circle at 50% 35%,#16274a,var(--navy));border:calc(var(--u)*1) solid rgba(231,207,154,.25)}
+  .gauge svg{position:absolute;inset:0;margin:auto;width:calc(var(--u)*15);height:calc(var(--u)*15);fill:var(--c);
+    filter:drop-shadow(0 0 calc(var(--u)*3) var(--c))}
+  .gauge.low{animation:pulse 1s ease-in-out infinite}
+  .gauge.talking::before{border-color:var(--cream);box-shadow:0 0 calc(var(--u)*10) var(--cream)}
+  .gauge.radio{--c:#FF3346 !important}
+  .voice-txt{display:flex;flex-direction:column;line-height:1.05}
+  .voice-txt b{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:calc(var(--u)*11.5);letter-spacing:.06em;color:var(--gold);
+    text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
+  .voice-txt span{font-weight:700;font-size:calc(var(--u)*12);font-variant-numeric:tabular-nums;text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
+  .pips{display:flex;gap:calc(var(--u)*3);margin-top:calc(var(--u)*3)}
+  .pip{width:calc(var(--u)*7);height:calc(var(--u)*3);border-radius:calc(var(--u)*2);background:rgba(231,207,154,.2)}
+  .pip.on{background:var(--gold)}
 
-  /* voix */
-  .voice{display:flex;align-items:center;gap:calc(var(--u)*10);height:calc(var(--u)*24)}
-  .voice .gem{--c:var(--gold)}
-  .voice.talking .gem{--c:var(--cream)}
-  .voice.talking .gem::before{border-color:var(--cream);box-shadow:0 0 calc(var(--u)*12) var(--cream)}
-  .voice.radio .gem{--c:var(--illegal)}
-  .pips{display:flex;align-items:flex-end;gap:calc(var(--u)*5);height:calc(var(--u)*18)}
-  .pip{width:calc(var(--u)*9);background:rgba(231,207,154,.18);
-    clip-path:polygon(50% 0,100% 18%,100% 100%,0 100%,0 18%);transition:background .2s,box-shadow .2s}
-  .pip:nth-child(1){height:40%}.pip:nth-child(2){height:70%}.pip:nth-child(3){height:100%}
-  .pip.on{background:linear-gradient(180deg,var(--cream),var(--gold))}
-  .voice.talking .pip.on{background:linear-gradient(180deg,#fff,var(--cream));animation:talk .5s ease-in-out infinite alternate}
-  .voice.radio .pip.on{background:linear-gradient(180deg,#ff9aa4,var(--illegal))}
-  @keyframes talk{to{opacity:.55}}
-  .voice-label{flex:1;font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:calc(var(--u)*14);
-    letter-spacing:.08em;color:var(--gold)}
-  .voice-dist{font-weight:700;font-size:calc(var(--u)*15);color:var(--cream);font-variant-numeric:tabular-nums}
-
-  /* ================= MARQUE ================= */
-  .brand{position:absolute;right:calc(var(--u)*24);bottom:calc(var(--u)*48);
-    font-family:"Chalet","Rajdhani","Segoe UI",Arial,sans-serif;font-weight:500;
-    font-size:calc(var(--u)*17);color:#e6e6e6;opacity:.6;
-    text-shadow:0 0 calc(var(--u)*2) #000,calc(var(--u)*1) calc(var(--u)*1) calc(var(--u)*1) #000}
+  .brand{position:absolute;right:calc(var(--u)*22);bottom:calc(var(--u)*18);font-weight:600;font-size:calc(var(--u)*15);
+    color:#e6e6e6;opacity:.55;text-shadow:0 0 calc(var(--u)*2) #000}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-
-  /* ================= APERÇU NAVIGATEUR (hors FiveM) ================= */
-  body.demo{
-    background:
-      radial-gradient(ellipse at 20% 30%,rgba(62,134,255,.25),transparent 55%),
-      radial-gradient(ellipse at 85% 75%,rgba(255,51,70,.22),transparent 55%),
-      linear-gradient(180deg,#1a2240 0%,#3a2a3f 45%,#120d18 100%);
-  }
-  body.demo::before{content:"Aperçu — dans FiveM le fond est transparent";
-    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
-    font-size:14px;color:rgba(251,241,220,.45);text-align:center;max-width:80vw}
+  body.demo{background:radial-gradient(ellipse at 30% 60%,#3b4a3a,#1d2620 60%,#0d120f)}
+  body.demo .frame::after{content:"";position:absolute;inset:0;background:
+    linear-gradient(35deg,transparent 46%,#d9d9d9 46% 49%,transparent 49%),linear-gradient(-50deg,transparent 30%,#cfcfcf 30% 33%,transparent 33%),#9a9a9a}
 </style>
 </head>
 <body>
 <div id="hud">
   <div class="brand">Elyzea FA</div>
 
+  <div class="frame" id="frame">
+    <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i><i class="edge"></i>
+  </div>
 
-  <!-- Statuts -->
   <div class="status">
-
-    <div class="panel-wrap"><div class="panel">
-      <div class="row" id="r-health" style="--c:var(--illegal)">
-        <div class="gem"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4 7 4c2.2 0 3.6 1.2 5 3 1.4-1.8 2.8-3 5-3 4 0 6.1 4.2 4.6 7.7C19.5 16.4 12 21 12 21z"/></svg></div>
-        <div class="track"><div class="fill"></div><div class="ticks"></div></div>
-        <div class="val">100</div>
-      </div>
-      <div class="row" id="r-armor" style="--c:var(--legal)">
-        <div class="gem"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5z"/></svg></div>
-        <div class="track"><div class="fill"></div><div class="ticks"></div></div>
-        <div class="val">100</div>
-      </div>
-      <div class="row" id="r-hunger" style="--c:var(--hunger)">
-        <div class="gem"><svg viewBox="0 0 24 24"><path d="M7 2v8a2 2 0 0 1-1.5 1.9V22h-2V11.9A2 2 0 0 1 2 10V2h1.5v6h1V2H6v6h1V2zm9 0c2.8 0 4 3 4 7 0 2-1 3.4-2.5 3.8V22h-2.2V2z"/></svg></div>
-        <div class="track"><div class="fill"></div><div class="ticks"></div></div>
-        <div class="val">100</div>
-      </div>
-      <div class="row" id="r-thirst" style="--c:var(--thirst)">
-        <div class="gem"><svg viewBox="0 0 24 24"><path d="M12 2s7 7.6 7 13a7 7 0 0 1-14 0c0-5.4 7-13 7-13z"/></svg></div>
-        <div class="track"><div class="fill"></div><div class="ticks"></div></div>
-        <div class="val">100</div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="voice" id="voice">
-        <div class="gem"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5h1.8a7.8 7.8 0 0 1-6.9 7.7V22h-1.8v-2.8a7.8 7.8 0 0 1-6.9-7.7H6a6 6 0 0 0 12 0z"/></svg></div>
-        <div class="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
-        <div class="voice-label" id="voice-label">Normal</div>
-        <div class="voice-dist" id="voice-dist">8 m</div>
-      </div>
-    </div></div>
+    <div class="bar" id="b-health" style="--c:var(--health);--c2:#8e1420">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4 7 4c2.2 0 3.6 1.2 5 3 1.4-1.8 2.8-3 5-3 4 0 6.1 4.2 4.6 7.7C19.5 16.4 12 21 12 21z"/></svg></div>
+      <div class="track"><div class="fill"></div></div><div class="val">100</div>
+    </div>
+    <div class="bar" id="b-armor" style="--c:var(--armor);--c2:#1c3f80">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5z"/></svg></div>
+      <div class="track"><div class="fill"></div></div><div class="val">100</div>
+    </div>
+    <div class="gauges">
+      <div class="gauge" id="g-hunger" style="--c:var(--hunger)"><svg viewBox="0 0 24 24"><path d="M7 2v8a2 2 0 0 1-1.5 1.9V22h-2V11.9A2 2 0 0 1 2 10V2h1.5v6h1V2H6v6h1V2zm9 0c2.8 0 4 3 4 7 0 2-1 3.4-2.5 3.8V22h-2.2V2z"/></svg></div>
+      <div class="gauge" id="g-thirst" style="--c:var(--thirst)"><svg viewBox="0 0 24 24"><path d="M12 2s7 7.6 7 13a7 7 0 0 1-14 0c0-5.4 7-13 7-13z"/></svg></div>
+      <div class="gauge" id="g-voice" style="--c:var(--voice)"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5h1.8a7.8 7.8 0 0 1-6.9 7.7V22h-1.8v-2.8a7.8 7.8 0 0 1-6.9-7.7H6a6 6 0 0 0 12 0z"/></svg></div>
+      <div class="voice-txt"><b id="voice-label">Normal</b><span id="voice-dist">8 m</span>
+        <div class="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i></div></div>
+    </div>
   </div>
 </div>
 
 <script>
 (() => {
   const hud = document.getElementById('hud');
-    const voiceEl = document.getElementById('voice');
-  const pips = voiceEl.querySelectorAll('.pip');
-  const VOICE_NAMES = { 1: 'Chuchoter', 2: 'Normal', 3: 'Crier' };
+  const frame = document.getElementById('frame');
+  const root = document.documentElement.style;
+  const pips = document.querySelectorAll('.pip');
+  const NAMES = { 1: 'Chuchoter', 2: 'Normal', 3: 'Crier' };
+  const clamp = (v) => Math.max(0, Math.min(100, Math.round(v ?? 0)));
 
-  function setBar(id, value, lowAt = 25) {
-    const row = document.getElementById(id);
-    const v = Math.max(0, Math.min(100, Math.round(value ?? 0)));
-    row.querySelector('.fill').style.width = v + '%';
-    row.querySelector('.val').textContent = v;
-    row.classList.toggle('low', v <= lowAt && id !== 'r-armor');
-    if (id === 'r-armor') row.classList.toggle('off', v === 0);
+  function bar(id, value, lowAt = 25) {
+    const el = document.getElementById(id), v = clamp(value);
+    el.querySelector('.fill').style.width = v + '%';
+    el.querySelector('.val').textContent = v;
+    if (id === 'b-armor') el.classList.toggle('off', v === 0);
+    else el.classList.toggle('low', v <= lowAt);
   }
-
-  function setVoice(mode = 2, distance, talking = false, radio = false) {
+  function gauge(id, value, lowAt = 20) {
+    const el = document.getElementById(id), v = clamp(value);
+    el.style.setProperty('--p', v);
+    el.classList.toggle('low', v <= lowAt);
+  }
+  function voice(mode = 2, distance, talking, radio) {
+    const g = document.getElementById('g-voice');
+    g.style.setProperty('--p', Math.round(mode / 3 * 100));
+    g.classList.toggle('talking', !!talking);
+    g.classList.toggle('radio', !!radio);
     pips.forEach((p, i) => p.classList.toggle('on', i < mode));
-    document.getElementById('voice-label').textContent = radio ? 'Radio' : (VOICE_NAMES[mode] || 'Normal');
+    document.getElementById('voice-label').textContent = radio ? 'Radio' : (NAMES[mode] || 'Normal');
     document.getElementById('voice-dist').textContent = distance != null ? Math.round(distance) + ' m' : '';
-    voiceEl.classList.toggle('talking', !!talking);
-    voiceEl.classList.toggle('radio', !!radio);
   }
-
+  function setRect(r) {
+    if (!r || !(r.w > 0)) return;
+    root.setProperty('--mx', (r.x * 100) + 'vw');
+    root.setProperty('--my', (r.y * 100) + 'vh');
+    root.setProperty('--mw', (r.w * 100) + 'vw');
+    root.setProperty('--mh', (r.h * 100) + 'vh');
+    frame.classList.toggle('round', !!r.round);
+  }
   function update(d) {
-    if ('health' in d) setBar('r-health', d.health);
-    if ('armor'  in d) setBar('r-armor',  d.armor);
-    if ('hunger' in d) setBar('r-hunger', d.hunger);
-    if ('thirst' in d) setBar('r-thirst', d.thirst);
-    if ('voice'  in d) setVoice(d.voice.mode, d.voice.distance, d.talking, d.radio);
-    if ('show'   in d) hud.classList.toggle('hidden', !d.show);
+    if ('health' in d) bar('b-health', d.health);
+    if ('armor' in d) bar('b-armor', d.armor);
+    if ('hunger' in d) gauge('g-hunger', d.hunger);
+    if ('thirst' in d) gauge('g-thirst', d.thirst);
+    if ('voice' in d) voice(d.voice.mode, d.voice.distance, d.talking, d.radio);
+    if ('show' in d) hud.classList.toggle('hidden', !d.show);
+    if ('map' in d) frame.classList.toggle('off', !d.map);
   }
 
   window.addEventListener('message', (e) => {
     const d = e.data || {};
     if (d.action === 'update') update(d);
-    if (d.action === 'toggle') hud.classList.toggle('hidden', !d.show);
+    if (d.action === 'rect') setRect(d.rect);
   });
 
-  // ---- Aperçu dans un navigateur (hors FiveM) ----
+  // ---- Aperçu hors FiveM ----
   if (typeof GetParentResourceName === 'undefined') {
     document.body.classList.add('demo');
-    const s = { health: 86, armor: 54, hunger: 72, thirst: 31, mode: 2 };
-    const dist = { 1: 3, 2: 8, 3: 15 };
-    update({ ...s, voice: { mode: 2, distance: 8 } });
-    let t = 0;
-    setInterval(() => {
-      t++;
-      s.hunger = Math.max(0, s.hunger - 0.6);
-      s.thirst = s.thirst <= 8 ? 100 : s.thirst - 0.9;
-      s.health = 60 + 30 * Math.abs(Math.sin(t / 9));
-      s.armor  = t % 40 < 30 ? 54 : 0;
-      if (t % 12 === 0) s.mode = s.mode % 3 + 1;
-      update({ ...s, voice: { mode: s.mode, distance: dist[s.mode] }, talking: t % 6 < 3, radio: t % 50 > 44 });
-    }, 500);
+    const s = { health: 82, armor: 46, hunger: 64, thirst: 18 };
+    update({ ...s, map: true, voice: { mode: 2, distance: 8 } });
   }
 })();
 </script>

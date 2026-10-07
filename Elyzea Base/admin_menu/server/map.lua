@@ -16,6 +16,14 @@ if not Map.minimap then
     for k, v in pairs(Config.Minimap or {}) do Map.minimap[k] = v end
 end
 
+-- Mise à jour : mini-carte en bas à gauche, en rectangle (accordée au HUD elyzea_hud)
+if not Map.minimapV2 then
+    Map.minimap = {}
+    for k, v in pairs(Config.Minimap or {}) do Map.minimap[k] = v end
+    Map.minimapV2 = true
+    Storage.save('map', Map)
+end
+
 local DISPLAYS = { all = true, map = true, minimap = true, hidden = true }
 local SHAPES = { square = true, round = true, default = true }
 local POSITIONS = { ['top-right'] = true, ['top-left'] = true, ['bottom-left'] = true, ['bottom-right'] = true }
