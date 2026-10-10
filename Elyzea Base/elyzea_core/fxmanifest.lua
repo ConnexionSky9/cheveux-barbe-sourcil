@@ -38,5 +38,6 @@ ui_page 'html/index.html'
 files {
     'html/index.html',
     'lib/ely.lua',
+    'lib/clothing.lua',   -- vêtements par collection (packs) : '@elyzea_core/lib/clothing.lua'
 }
 

@@ -159,14 +159,20 @@ RegisterNetEvent('elyzea_photos:start', function(cats, allTextures, overwrite)
             -- Liste des images à produire pour ce rayon
             local count = c.type == 'prop' and GetNumberOfPedPropDrawableVariations(ped, c.index) or GetNumberOfPedDrawableVariations(ped, c.index)
             local naked = Config.Naked[sex] and Config.Naked[sex][id]
-            local paths = {}
+            local paths, where = {}, {}
             for d = 0, count - 1 do
                 if not (naked and c.type ~= 'prop' and d == naked[1]) then
                     local nt = 1
                     if allTextures then
                         nt = c.type == 'prop' and GetNumberOfPedPropTextureVariations(ped, c.index, d) or GetNumberOfPedTextureVariations(ped, c.index, d)
                     end
-                    for t = 0, math.max(1, nt) - 1 do paths[#paths + 1] = ('%s/%s/%d_%d.webp'):format(sex, id, d, t) end
+                    for t = 0, math.max(1, nt) - 1 do
+                        -- Même nommage que la boutique (dossier du pack pour un vêtement de pack)
+                        local ok, path = pcall(function() return exports.elyzea_clothing:ImagePath(sex, id, d, t) end)
+                        path = ok and path or ('%s/%s/%d_%d.webp'):format(sex, id, d, t)
+                        paths[#paths + 1] = path
+                        where[path] = { d, t }
+                    end
                 end
             end
             if not overwrite then paths = askMissing(paths) end
@@ -175,8 +181,7 @@ RegisterNetEvent('elyzea_photos:start', function(cats, allTextures, overwrite)
 
             for _, path in ipairs(paths) do
                 if stopAsked then break end
-                local d, t = path:match('/(%d+)_(%d+)%.webp$')
-                d, t = tonumber(d), tonumber(t)
+                local d, t = table.unpack(where[path])
                 wear(ped, c, d, t)
                 frame(ped, view)
                 Wait(PhotoConfig.Delay)

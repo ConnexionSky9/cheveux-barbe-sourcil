@@ -8,7 +8,10 @@ version '1.0.0'
 
 shared_script 'config.lua'
 
-client_script 'client/main.lua'
+client_scripts {
+    '@elyzea_core/lib/clothing.lua',   -- vêtements de packs : gardés juste même si on ajoute / retire des packs
+    'client/main.lua',
+}
 
 server_scripts {
     '@elyzea_core/lib/MySQL.lua',

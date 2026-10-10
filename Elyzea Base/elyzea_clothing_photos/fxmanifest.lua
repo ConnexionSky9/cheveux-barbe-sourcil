@@ -10,7 +10,7 @@ version '1.0.0'
 dependencies { 'screenshot-basic', 'elyzea_clothing' }
 
 -- Réutilise les rayons et les valeurs « rien » de la boutique
-shared_scripts { '@elyzea_clothing/config.lua', 'config.lua' }
+shared_scripts { '@elyzea_clothing/config.lua', '@elyzea_clothing/shared/data.lua', 'config.lua' }
 client_script 'client.lua'
 server_script 'server.lua'
 

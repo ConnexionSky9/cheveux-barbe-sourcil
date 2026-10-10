@@ -327,6 +327,15 @@ Plus de détails : `elyzea_coupes/LISEZMOI.txt` et `admin_menu/install/COIFFEUR.
 
 ---
 
+## 7 bis. Ajouter un pack de vêtements
+
+1. Dépose le dossier du pack dans `resources/[vetements]/`.
+2. Redémarre le serveur.
+
+La boutique le détecte toute seule (filtre à son nom) ; console serveur : `vetements_packs` pour vérifier.
+Nom, prix ou masquage d'un pack : `elyzea_clothing/config.lua` → `Config.Packs.list`.
+Détails : `Elyzea Base/elyzea_clothing/README.md`.
+
 ## 8. Papiers : permis, carte d'identité, PPA
 
 Tous les papiers ont le même design Elyzea (carte holographique avec la photo du titulaire).

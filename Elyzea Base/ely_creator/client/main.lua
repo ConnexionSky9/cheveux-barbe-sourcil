@@ -111,6 +111,8 @@ local function applyOverlay(ped, id, o)
 end
 
 local function applyProp(ped, id, p)
+    -- Accessoire d'un pack : retrouvé par son pack (le n° global a pu changer)
+    if p.col and ElyCloth and ElyCloth.apply(ped, 'prop', id, p) then return end
     local d = toInt(p.drawable, -1)
     if d < 0 then
         ClearPedProp(ped, id)
@@ -145,7 +147,10 @@ function ApplySkin(ped, skin)
     for k, c in pairs(skin.components or {}) do
         local id = tonumber(k)
         if id and id ~= 0 and id ~= 2 then
-            SetPedComponentVariation(ped, id, toInt(c.drawable, 0), toInt(c.texture, 0), 0)
+            -- Vêtement d'un pack : retrouvé par son pack (le n° global a pu changer)
+            if not (c.col and ElyCloth and ElyCloth.apply(ped, 'component', id, c)) then
+                SetPedComponentVariation(ped, id, toInt(c.drawable, 0), toInt(c.texture, 0), 0)
+            end
         end
     end
 
@@ -706,10 +711,12 @@ exports('SaveOutfit', function()
     local ped = PlayerPedId()
     local comps, props = {}, {}
     for _, id in ipairs(Config.ComponentIds) do
-        comps[tostring(id)] = { drawable = GetPedDrawableVariation(ped, id), texture = GetPedTextureVariation(ped, id) }
+        comps[tostring(id)] = ElyCloth and ElyCloth.read(ped, 'component', id)
+            or { drawable = GetPedDrawableVariation(ped, id), texture = GetPedTextureVariation(ped, id) }
     end
     for _, id in ipairs(Config.PropIds) do
-        props[tostring(id)] = { drawable = GetPedPropIndex(ped, id), texture = math.max(0, GetPedPropTextureIndex(ped, id)) }
+        props[tostring(id)] = ElyCloth and ElyCloth.read(ped, 'prop', id)
+            or { drawable = GetPedPropIndex(ped, id), texture = math.max(0, GetPedPropTextureIndex(ped, id)) }
     end
     if loadedSkin then loadedSkin.components, loadedSkin.props = comps, props end
     TriggerServerEvent('ely_creator:saveOutfit', comps, props)

@@ -6,10 +6,11 @@ local Active = {}
 
 local function allowed(src) return src == 0 or IsPlayerAceAllowed(src, PhotoConfig.Ace) end
 
--- Chemin strictement contrôlé : male|female / rayon connu / nombre_nombre.webp
+-- Chemin strictement contrôlé : male|female / rayon connu / [dossier du pack /] nombre_nombre.webp
 local function validPath(p)
-    if type(p) ~= 'string' then return false end
+    if type(p) ~= 'string' or p:find('%.%.') then return false end
     local sex, cat, d, t = p:match('^(%a+)/(%a+)/(%d+)_(%d+)%.webp$')
+    if not sex then sex, cat, d, t = p:match('^(%a+)/(%a+)/[%w_%-]+/(%d+)_(%d+)%.webp$') end
     return (sex == 'male' or sex == 'female') and CATS[cat] == true and tonumber(d) < 5000 and tonumber(t) < 500
 end
 
@@ -59,12 +60,29 @@ RegisterNetEvent('elyzea_photos:check', function(paths)
     TriggerLatentClientEvent('elyzea_photos:missing', src, 200000, missing)
 end)
 
+-- Crée le dossier d'un pack (html/images/<sexe>/<rayon>/<pack>/) s'il n'existe pas encore
+local function makeDir(path)
+    local dir = path:match('^(.+)/[^/]+$')
+    local root = GetResourcePath(TARGET)
+    if not dir or not root or not os or not os.execute then return false end
+    local full = root .. '/html/images/' .. dir
+    if package.config:sub(1, 1) == '\\' then
+        os.execute('mkdir "' .. full:gsub('/', '\\') .. '" 2>nul')
+    else
+        os.execute("mkdir -p '" .. full .. "'")
+    end
+    return true
+end
+
 RegisterNetEvent('elyzea_photos:save', function(path, b64)
     local src = source
     if not Active[src] or not allowed(src) or not validPath(path) or type(b64) ~= 'string' or #b64 > 600000 then return end
     local data = b64decode(b64)
     if data:sub(1, 4) ~= 'RIFF' or data:sub(9, 12) ~= 'WEBP' then return end   -- seulement du webp
-    if not SaveResourceFile(TARGET, 'html/images/' .. path, data, #data) then
+    if not SaveResourceFile(TARGET, 'html/images/' .. path, data, #data) and makeDir(path) then
+        SaveResourceFile(TARGET, 'html/images/' .. path, data, #data)
+    end
+    if not LoadResourceFile(TARGET, 'html/images/' .. path) then
         print(('^1[elyzea_clothing_photos] écriture impossible : %s (le dossier existe-t-il ?)^0'):format(path))
     end
 end)

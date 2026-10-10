@@ -82,6 +82,15 @@ local function int(v, def, mn, mx)
     return math.floor(num(v, def, mn, mx))
 end
 
+-- Vêtement de pack : collection (nom) + n° dans le pack, en plus du n° global
+local function packRef(src, dst)
+    if type(src.col) == 'string' and src.col ~= '' and #src.col <= 64 and tonumber(src.li) then
+        dst.col = src.col:lower():gsub('[^%w_%-]', '')
+        dst.li = int(src.li, 0, 0, 5000)
+    end
+    return dst
+end
+
 local function sanitizeSkin(s, sex)
     if type(s) ~= 'table' then return nil end
     local out = {
@@ -125,19 +134,19 @@ local function sanitizeSkin(s, sex)
     local comps = type(s.components) == 'table' and s.components or {}
     for _, id in ipairs(Config.ComponentIds) do
         local c = type(comps[tostring(id)]) == 'table' and comps[tostring(id)] or {}
-        out.components[tostring(id)] = {
+        out.components[tostring(id)] = packRef(c, {
             drawable = int(c.drawable, 0, 0, 5000),
             texture  = int(c.texture, 0, 0, 200)
-        }
+        })
     end
 
     local props = type(s.props) == 'table' and s.props or {}
     for _, id in ipairs(Config.PropIds) do
         local p = type(props[tostring(id)]) == 'table' and props[tostring(id)] or {}
-        out.props[tostring(id)] = {
+        out.props[tostring(id)] = packRef(p, {
             drawable = int(p.drawable, -1, -1, 5000),
             texture  = int(p.texture, 0, 0, 200)
-        }
+        })
     end
 
     return out

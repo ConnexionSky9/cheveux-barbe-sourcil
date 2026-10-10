@@ -28,7 +28,7 @@ local function worn()
             local itemName = data.items and data.items[c.id]
             out[c.id] = {
                 slot = c.id, name = itemName or c.id, count = 1,
-                label = custom or (c.single or c.label) .. ' n°' .. c.drawable,
+                label = custom or c.title or ((c.single or c.label) .. ' n°' .. c.drawable),
                 description = ('%s · coloris %d'):format(c.label, (c.texture or 0) + 1),
                 image = itemName and (itemName .. '.png') or nil,
                 icon = Shared.EquipByName[c.id].icon,

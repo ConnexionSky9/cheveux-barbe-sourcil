@@ -4,6 +4,7 @@
 Crée les VRAIES images des vêtements depuis votre jeu (vêtements GTA de base ET vos
 vêtements addons), directement au format attendu par la boutique :
     elyzea_clothing/html/images/<sexe>/<rayon>/<drawable>_<texture>.webp
+    (vêtement de pack : <sexe>/<rayon>/<pack>/<n° dans le pack>_<coloris>.webp)
 Fond transparent, 256 × 256 px.
 
 INSTALLATION
