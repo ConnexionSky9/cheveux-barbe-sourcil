@@ -210,19 +210,45 @@ function counts(c) {
 }
 
 /* ---------- Rendu ---------- */
-function renderRail() {
-  $('#rail').innerHTML = S.categories.map((c) => `<button class="${cat && c.id === cat.id ? 'on' : ''}" data-cat="${c.id}" title="${esc(c.label)}">
-    ${svg(c.icon)}<span>${esc(c.label)}</span>${cart.has(c.id) ? '<i class="dot"></i>' : ''}</button>`).join('');
+// Nombre de modèles par filtre, tous rayons confondus (barre des collections)
+let totals = null;
+function allCounts() {
+  if (totals) return totals;
+  totals = { per: {}, sum: { all: 0, gta: 0 } };
+  for (const c of S.categories) {
+    const n = counts(c);
+    totals.per[c.id] = n;
+    for (const k in n) totals.sum[k] = (totals.sum[k] || 0) + n[k];
+  }
+  return totals;
 }
+const countIn = (c, f) => (allCounts().per[c.id] || {})[f] || 0;
+
+function renderRail() {
+  const cats = filter === 'all' ? S.categories : S.categories.filter((c) => countIn(c, filter) > 0);
+  $('#rail').innerHTML = cats.map((c) => `<button class="${cat && c.id === cat.id ? 'on' : ''}" data-cat="${c.id}" title="${esc(c.label)}">
+    ${svg(c.icon)}<span>${esc(c.label)}</span>${filter !== 'all' ? `<em class="cnt">${countIn(c, filter)}</em>` : ''}${cart.has(c.id) ? '<i class="dot"></i>' : ''}</button>`).join('');
+}
+// Barre « Collection » : Tout / GTA / un bouton par pack, valable pour toute la boutique
 function renderFilters() {
-  const n = counts(cat);
+  const n = allCounts().sum;
   const packs = S.packs.filter((p) => n[p.id]);
-  if (!packs.length) { $('#filters').innerHTML = ''; $('#filters').style.display = 'none'; if (filter !== 'all') filter = 'all'; return; }
+  if (!packs.length) { $('#filters').innerHTML = ''; $('#filters').style.display = 'none'; filter = 'all'; return; }
   $('#filters').style.display = '';
-  if (filter !== 'all' && filter !== 'gta' && !n[filter]) filter = 'all';
+  if (filter !== 'all' && !n[filter]) filter = 'all';
   const chip = (id, txt, k) => `<button class="${filter === id ? 'on' : ''}" data-filter="${esc(id)}">${esc(txt)}<i>${k}</i></button>`;
-  $('#filters').innerHTML = chip('all', 'Tout', n.all) + (S.gta && n.gta ? chip('gta', 'GTA', n.gta) : '')
+  $('#filters').innerHTML = '<span class="flabel">Collection</span>' + chip('all', 'Tout', n.all) + (S.gta && n.gta ? chip('gta', 'GTA', n.gta) : '')
     + packs.map((p) => chip(p.id, p.label, n[p.id])).join('');
+}
+// Choisir une collection : le menu de gauche ne garde que les rayons où elle a des modèles
+function setFilter(f) {
+  filter = f; shown = 60;
+  renderFilters();
+  if (filter !== 'all' && countIn(cat, filter) === 0) {
+    const first = S.categories.find((c) => countIn(c, filter) > 0);
+    if (first) return chooseCat(first.id);
+  }
+  renderRail(); renderGrid();
 }
 function renderGrid(keepScroll) {
   const g = $('#grid'), top = g.scrollTop;
@@ -357,7 +383,7 @@ function toast(text, kind = '') { const t = $('#toast'); t.textContent = text; t
 $('#rail').addEventListener('click', (e) => { const b = e.target.closest('[data-cat]'); if (b) chooseCat(b.dataset.cat); });
 $('#filters').addEventListener('click', (e) => {
   const b = e.target.closest('[data-filter]'); if (!b) return;
-  filter = b.dataset.filter; shown = 60; renderFilters(); renderGrid();
+  setFilter(b.dataset.filter);
 });
 $('#grid').addEventListener('click', (e) => { const b = e.target.closest('[data-d]'); if (b) { hover = null; tryOn(Number(b.dataset.d), 0); } });
 
@@ -496,7 +522,7 @@ window.addEventListener('message', (e) => {
       S = { shop: m.shop, sex: m.sex, categories: m.categories, packs: m.packs || [], gta: m.gta !== false, money: m.money || {},
         payments: m.payments || ['cash', 'bank'], currency: m.currency || '$', itemsMode: !!m.itemsMode };
       IMG.setup(m.images);
-      cart.clear(); wearNow = false; busy = false; hands = false; camView = 'full'; filter = 'all'; method = S.payments[0];
+      cart.clear(); wearNow = false; busy = false; hands = false; camView = 'full'; filter = 'all'; totals = null; method = S.payments[0];
       $('#shopName').textContent = S.shop.name;
       $('#app').classList.remove('hidden', 'closing');
       $('#modal').innerHTML = '';
