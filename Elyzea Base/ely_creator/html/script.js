@@ -531,7 +531,7 @@ const renderers = {
         slider(g4, {
             label: 'Taille', min: cfg.heightMin, max: cfg.heightMax, step: 1, value: id.height,
             fmt: (v) => `${(v / 100).toFixed(2).replace('.', ',')} m`,
-            onInput: (v) => { id.height = v; refreshCard(); }
+            onInput: (v) => { id.height = v; refreshCard(); post('height', { height: v }); }
         });
         const { f: natField } = fieldShell(g4, 'Nationalité');
         const nat = el('select', 'select');
@@ -845,6 +845,7 @@ async function changeSex(sex) {
     state.outfit = 0; // le serveur a déjà appliqué la 1re tenue du nouveau sexe
     if (sex === 'f' && state.identity.height > 175) state.identity.height = 165;
     if (sex === 'm' && state.identity.height < 165) state.identity.height = 178;
+    post('height', { height: state.identity.height });
     setCam(TAB_CAMERA[TABS[state.tab].id]);
     render();
 }
@@ -979,6 +980,7 @@ function open(d) {
         height: 178,
         nationality: state.cfg.nationalities[0]
     };
+    post('height', { height: state.identity.height });
 
     $('#brandName').textContent = state.cfg.serverName;
     $('#modal').classList.add('hidden');

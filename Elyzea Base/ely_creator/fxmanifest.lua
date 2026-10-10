@@ -11,6 +11,7 @@ shared_script 'config.lua'
 client_scripts {
     '@elyzea_core/lib/clothing.lua',   -- vêtements de packs : gardés juste même si on ajoute / retire des packs
     'client/main.lua',
+    'client/height.lua',
 }
 
 server_scripts {

@@ -341,6 +341,7 @@ local function CloseCreator(skin, isNew, spawn)
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
     isOpen = false
+    if SetHeightPreview then SetHeightPreview(nil) end
     destroyCamera()
 
     -- Point d'apparition : celui d'admin_menu (nouveaux arrivants), sinon Config.SpawnCoords
@@ -475,6 +476,11 @@ RegisterNUICallback('setSex', function(d, cb)
     preparePed(ped)
     ApplySkin(ped, skin)
     cb({ skin = skin, limits = getLimits(ped, skin) })
+end)
+
+RegisterNUICallback('height', function(d, cb)
+    if (isOpen or inSelect) and SetHeightPreview then SetHeightPreview(d.height) end
+    cb({})
 end)
 
 RegisterNUICallback('camera', function(d, cb)
@@ -643,6 +649,7 @@ RegisterNUICallback('previewChar', function(d, cb)
             SetEntityHeading(ped, baseHeading)
         end
         ApplySkin(PlayerPedId(), c.skin)
+        if SetHeightPreview then SetHeightPreview(c.height) end
     end
     cb({})
 end)
@@ -669,6 +676,7 @@ RegisterNetEvent('ely_creator:spawn', function(data)
         SendNUIMessage({ action = 'closeSelect' })
     end
     cleanupScene()
+    if SetHeightPreview then SetHeightPreview(nil) end
 
     local p = data.position or { x = Config.SpawnCoords.x, y = Config.SpawnCoords.y, z = Config.SpawnCoords.z, w = Config.SpawnCoords.w }
     if data.skin then

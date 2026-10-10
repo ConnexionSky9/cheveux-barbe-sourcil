@@ -366,6 +366,8 @@ RegisterNetEvent('ely_creator:save', function(identity, rawSkin)
     SetPlayerRoutingBucket(src, 0)
     reply(src, true, nil, skin, isNew, isNew and adminSpawn() or nil)
 
+    Player(src).state:set('elyHeight', height, true)
+
     TriggerEvent('ely_creator:characterCreated', src, {
         firstname = firstname, lastname = lastname, dateofbirth = dob,
         sex = sex, height = height, nationality = nationality
@@ -410,6 +412,17 @@ RegisterCommand(Config.AdminCommand, function(src, args)
     end
     openFor(target)
 end, true)
+
+-- Taille du personnage visible par tous (client/height.lua)
+AddEventHandler('elyzea:server:playerLoaded', function(src)
+    local player = core:GetPlayer(src)
+    if not player then return end
+    local row = MySQL.single.await('SELECT `height` FROM `ely_characters` WHERE `identifier` = ?', { player.PlayerData.citizenid })
+    Player(src).state:set('elyHeight', row and tonumber(row.height) or nil, true)
+end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src)
+    Player(src).state:set('elyHeight', nil, true)
+end)
 
 AddEventHandler('playerDropped', function()
     local src = source
