@@ -30,6 +30,7 @@ Config.Packs = {
     --   ['eup_police'] = { hidden = true },
     --   ['ma_marque_luxe'] = { label = 'Maison Elyzea', price = 250 },
     list = {
+        ['elyzea_staff_assets'] = { hidden = true },   -- tenues staff : pas vendues en boutique
     },
 }
 
