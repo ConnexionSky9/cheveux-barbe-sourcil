@@ -73,6 +73,11 @@ local function scanResource(res)
         end
     end
     if files == 0 then return nil end
+    -- Nom de collection illisible : celui que donnent les outils (Durty…) au nom du dossier
+    if next(cols) == nil then
+        local base = res:lower():gsub('[^%w_]', '')
+        cols['mp_m_' .. base], cols['mp_f_' .. base] = true, true
+    end
     local o = override(res, cols)
     return {
         id = res, label = o.label or pretty(res), cols = cols, male = sexes.male == true, female = sexes.female == true,
@@ -122,7 +127,14 @@ end
 -- Pack d'une collection (nil = vêtement de GTA)
 function Packs.ofCollection(col)
     if type(col) ~= 'string' or col == '' then return nil end
-    return Packs.byCol[col:lower()]
+    col = col:lower()
+    if Packs.byCol[col] then return Packs.byCol[col] end
+    -- même règle que le client : collection qui porte le nom du dossier d'un pack
+    for _, p in ipairs(Packs.list) do
+        local name = p.id:lower():gsub('[^%w_]', '')
+        if #name >= 4 and col:find(name, 1, true) then return p end
+    end
+    return nil
 end
 
 RegisterNetEvent('elyzea_clothing:requestPacks', function()

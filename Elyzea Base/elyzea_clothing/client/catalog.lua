@@ -22,7 +22,16 @@ CreateThread(function() Wait(2000) TriggerServerEvent('elyzea_clothing:requestPa
 -- Pack d'une collection (nil = vêtement de GTA)
 function Catalog.packOf(col)
     if type(col) ~= 'string' or col == '' then return nil end
-    return Catalog.byCol[col:lower()]   -- seulement les packs trouvés par le serveur ; le reste = GTA (DLC Rockstar)
+    col = col:lower()
+    if Catalog.byCol[col] ~= nil then return Catalog.byCol[col] or nil end
+    -- Collection pas annoncée par le serveur mais qui porte le nom du dossier d'un pack (ex. mp_m_fsclothes -> fsclothes)
+    local found = false
+    for id, p in pairs(Catalog.packs) do
+        local name = id:lower():gsub('[^%w_]', '')
+        if #name >= 4 and col:find(name, 1, true) then found = p break end
+    end
+    Catalog.byCol[col] = found   -- mémorisé (false = GTA)
+    return found or nil
 end
 
 -- Données d'un rayon pour ce personnage
@@ -78,7 +87,7 @@ RegisterCommand('vetements_diag', function()
         for _, r in ipairs(ElyCloth.ranges(ped, c.type, c.index)) do
             local k = (r.col or ''):lower()
             if k ~= '' then
-                local pack = Catalog.byCol[k]
+                local pack = Catalog.packOf(k)
                 local t = pack and packs or other
                 t[k] = (t[k] or 0) + r.count
             end
@@ -91,7 +100,7 @@ RegisterCommand('vetements_diag', function()
     local found = false
     for col, n in pairs(packs) do
         found = true
-        local p = Catalog.byCol[col]
+        local p = Catalog.packOf(col)
         print(('  ^2PACK %s^0 (%s) : %d vêtement(s)%s'):format(p.label, col, n, p.hidden and ' (caché)' or ''))
     end
     if not found then print('^3  Aucun vêtement de pack chargé pour ce personnage.^0') end
