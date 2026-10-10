@@ -36,8 +36,8 @@ Config.Identity = {
     nameMax   = 16,
     minAge    = 18,
     maxAge    = 90,
-    heightMale   = 178,   -- taille écrite sur l'identité (les joueurs ne la choisissent plus)
-    heightFemale = 168,
+    heightMin = 150,   -- taille écrite sur l'identité (sans effet visuel)
+    heightMax = 210,
     -- Prénoms / noms interdits (comparaison insensible à la casse)
     blacklist = { 'admin', 'staff', 'moderateur', 'fondateur', 'police', 'test' }
 }
