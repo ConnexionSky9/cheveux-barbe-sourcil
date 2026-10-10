@@ -18,6 +18,16 @@ C'est tout. La boutique trouve le pack toute seule, le range dans un filtre à s
 Vérifier : tape `vetements_packs` dans la console du serveur → liste des packs trouvés et de leurs collections.
 Au démarrage, la console affiche aussi `[elyzea_clothing] Packs de vêtements détectés : …`.
 
+### Le pack n'apparaît pas ?
+
+1. **Le fichier du pack doit s'appeler `fxmanifest.lua`** (ou `__resource.lua`, avec **un seul s**).
+   `__ressource.lua` n'est pas reconnu par FiveM : la ressource n'existe pas pour le serveur.
+2. Le pack doit contenir son fichier **`.meta`** (ex. `mp_m_freemode_01_mp_m_monpack.meta`) déclaré dans le fxmanifest :
+   `data_file 'SHOP_PED_APPAREL_META_FILE' 'mp_m_freemode_01_mp_m_monpack.meta'`
+   et le fichier **`.ymt`** du même nom dans `stream/`. Sans eux, GTA ne charge pas les vêtements.
+3. En jeu, `F8` → `vetements_diag` : liste les packs vraiment chargés pour ton personnage.
+   Un pack `mp_m_…` ne contient que des vêtements **homme**, `mp_f_…` que des vêtements **femme**.
+
 ### Réglages facultatifs d'un pack (`config.lua` → `Config.Packs.list`)
 
 ```lua

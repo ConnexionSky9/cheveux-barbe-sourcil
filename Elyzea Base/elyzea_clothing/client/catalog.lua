@@ -77,3 +77,32 @@ exports('ImagePath', function(sex, catId, d, t)
     if pack and li then return ('%s/%s/%s/%d_%d.webp'):format(sex, catId, (pack.id:gsub('^col:', '')), li, t or 0) end
     return ('%s/%s/%d_%d.webp'):format(sex, catId, d, t or 0)
 end)
+
+-- Diagnostic (F8) : packs de vêtements réellement chargés par le jeu pour ce personnage
+--   /vetements_diag   -> collections trouvées, nombre de vêtements, pack reconnu ou non
+RegisterCommand('vetements_diag', function()
+    local ped = PlayerPedId()
+    if not ElyCloth.enabled then return print('^1[elyzea_clothing] Natives de collection absentes (serveur/jeu trop ancien).^0') end
+    local seen, n = {}, 0
+    for _, c in ipairs(Config.Categories) do
+        for _, r in ipairs(ElyCloth.ranges(ped, c.type, c.index)) do
+            if r.col ~= '' and not isRockstar(r.col:lower()) then
+                local k = r.col:lower()
+                seen[k] = seen[k] or { total = 0, cats = {} }
+                seen[k].total = seen[k].total + r.count
+                seen[k].cats[#seen[k].cats + 1] = c.id .. ' ' .. r.count
+            end
+        end
+    end
+    print(('[elyzea_clothing] Modèle du personnage : %s'):format(GetEntityModel(ped) == `mp_f_freemode_01` and 'femme' or 'homme'))
+    for col, d in pairs(seen) do
+        n = n + 1
+        local pack = Catalog.byCol[col]
+        print(('  ^2%s^0 : %d vêtement(s) [%s] -> %s'):format(col, d.total, table.concat(d.cats, ', '),
+            pack and ('pack « ' .. pack.label .. ' »' .. (pack.hidden and ' (caché)' or '')) or 'pack sans fichier .meta lu (affiché quand même)'))
+    end
+    if n == 0 then
+        print('^3  Aucun vêtement addon chargé pour ce sexe. Le jeu n\'a pas chargé le pack : vérifie que la ressource démarre ^0')
+        print('^3  (fxmanifest.lua, ligne data_file SHOP_PED_APPAREL_META_FILE, fichier .meta et .ymt dans stream/).^0')
+    end
+end, false)
