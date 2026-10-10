@@ -299,11 +299,13 @@ RegisterNetEvent('ely_creator:save', function(identity, rawSkin)
 
     local sex = identity.sex == 'f' and 'f' or 'm'
 
-    local height = tonumber(identity.height)
-    if not height or height < Config.Identity.heightMin or height > Config.Identity.heightMax then
-        return fail('Taille invalide.')
+    -- La taille n'est plus choisie par le joueur : taille standard, ou celle déjà enregistrée
+    local height = sex == 'f' and Config.Identity.heightFemale or Config.Identity.heightMale
+    local existing = getIdentifier(src)
+    if existing then
+        local row = MySQL.single.await('SELECT `height` FROM `ely_characters` WHERE `identifier` = ?', { existing })
+        if row and tonumber(row.height) then height = tonumber(row.height) end
     end
-    height = math.floor(height)
 
     local nationality = 'Autre'
     for _, n in ipairs(Config.Nationalities) do

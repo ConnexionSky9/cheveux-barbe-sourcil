@@ -527,12 +527,7 @@ const renderers = {
         g3.appendChild(el('div', null)).style.height = '14px';
         updateAge();
 
-        const g4 = group('Physique et origines');
-        slider(g4, {
-            label: 'Taille', min: cfg.heightMin, max: cfg.heightMax, step: 1, value: id.height,
-            fmt: (v) => `${(v / 100).toFixed(2).replace('.', ',')} m`,
-            onInput: (v) => { id.height = v; refreshCard(); }
-        });
+        const g4 = group('Origines');
         const { f: natField } = fieldShell(g4, 'Nationalité');
         const nat = el('select', 'select');
         state.cfg.nationalities.forEach((n) => nat.append(new Option(n, n)));
@@ -840,6 +835,7 @@ async function changeSex(sex) {
     showLoader(false);
     if (!res.skin) return toast('Le changement de modèle a échoué. Réessayez.');
     state.identity.sex = sex;
+    state.identity.height = sex === 'f' ? (state.cfg.identity.heightFemale || 168) : (state.cfg.identity.heightMale || 178);
     state.skin = res.skin;
     state.limits = res.limits;
     state.outfit = 0; // le serveur a déjà appliqué la 1re tenue du nouveau sexe
@@ -974,7 +970,7 @@ function open(d) {
     state.identity = {
         firstname: '', lastname: '', sex: 'm',
         day: 1, month: 1, year,
-        height: 175,
+        height: state.cfg.identity.heightMale || 178,
         nationality: state.cfg.nationalities[0]
     };
 
@@ -1098,7 +1094,7 @@ if (!IN_GAME) {
         palettes: { hair: gradient([20, 16, 14], [235, 210, 160], 64), makeup: gradient([120, 20, 40], [250, 180, 200], 64) },
         config: {
             serverName: 'Elyzea',
-            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMin: 150, heightMax: 210 },
+            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMale: 178, heightFemale: 168 },
             nationalities: ['Française', 'Belge', 'Suisse', 'Canadienne', 'Autre']
         }
     });

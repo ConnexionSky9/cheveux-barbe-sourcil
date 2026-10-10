@@ -288,5 +288,5 @@ La taille VISIBLE en jeu (personnage vraiment petit ou grand, vu par tous) est r
 - `/taille reset [id]` : taille normale
 
 Elle est gardée pour le personnage (même après reconnexion) et appliquée à pied, en véhicule, porté, à terre.
-Le curseur « Taille » du créateur ne sert plus qu'à l'identité (1,50 m à 2,10 m), sans effet visuel.
+Les joueurs ne choisissent plus leur taille : le créateur n'a plus de curseur « Taille » (identité : 1,78 m homme, 1,68 m femme, réglable dans `Config.Identity`).
 Limites de GTA : les collisions restent celles d'un personnage normal ; en visant, GTA peut remettre la taille normale.
