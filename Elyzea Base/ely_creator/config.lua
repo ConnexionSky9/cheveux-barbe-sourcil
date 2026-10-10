@@ -36,8 +36,8 @@ Config.Identity = {
     nameMax   = 16,
     minAge    = 18,
     maxAge    = 90,
-    heightMin = 120,   -- 1,20 m : personnage de petite taille (nain)
-    heightMax = 215,
+    heightMin = 140,   -- 1,40 m : personnage de petite taille
+    heightMax = 180,
     -- Prénoms / noms interdits (comparaison insensible à la casse)
     blacklist = { 'admin', 'staff', 'moderateur', 'fondateur', 'police', 'test' }
 }
@@ -122,7 +122,7 @@ Config.Height = {
     enabled      = true,
     baseMale     = 178,
     baseFemale   = 168,
-    minScale     = 0.65,   -- plus petit possible (0,65 = 65 % de la taille normale)
-    maxScale     = 1.20,   -- plus grand possible
+    minScale     = 0.75,   -- plus petit possible (0,75 = 75 % de la taille normale)
+    maxScale     = 1.10,   -- plus grand possible
     groundOffset = 1.0,    -- garde les pieds au sol (à ajuster si le personnage flotte ou s'enfonce)
 }

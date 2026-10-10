@@ -843,8 +843,6 @@ async function changeSex(sex) {
     state.skin = res.skin;
     state.limits = res.limits;
     state.outfit = 0; // le serveur a déjà appliqué la 1re tenue du nouveau sexe
-    if (sex === 'f' && state.identity.height > 175) state.identity.height = 165;
-    if (sex === 'm' && state.identity.height < 165) state.identity.height = 178;
     post('height', { height: state.identity.height });
     setCam(TAB_CAMERA[TABS[state.tab].id]);
     render();
@@ -977,7 +975,7 @@ function open(d) {
     state.identity = {
         firstname: '', lastname: '', sex: 'm',
         day: 1, month: 1, year,
-        height: 178,
+        height: 175,
         nationality: state.cfg.nationalities[0]
     };
     post('height', { height: state.identity.height });
@@ -1102,7 +1100,7 @@ if (!IN_GAME) {
         palettes: { hair: gradient([20, 16, 14], [235, 210, 160], 64), makeup: gradient([120, 20, 40], [250, 180, 200], 64) },
         config: {
             serverName: 'Elyzea',
-            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMin: 150, heightMax: 210 },
+            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMin: 140, heightMax: 180 },
             nationalities: ['Française', 'Belge', 'Suisse', 'Canadienne', 'Autre']
         }
     });

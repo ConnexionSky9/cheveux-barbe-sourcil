@@ -3,6 +3,7 @@
 -- La taille choisie dans le créateur (en cm) est partagée par le serveur
 -- (state bag « elyHeight ») ; chaque joueur redimensionne les personnages autour de lui.
 -- GTA n'a pas de réglage de taille : on agrandit / rétrécit le modèle à chaque image.
+-- La taille reste appliquée tout le temps : à pied, en véhicule, porté, à terre, mort…
 -- Les collisions (portes, tirs) restent celles d'un personnage normal.
 -- ─────────────────────────────────────────────────────────────
 local H = Config.Height
@@ -27,23 +28,29 @@ end
 
 local placed = {}   -- [ped] = { z écrit, z d'origine } : évite de décaler deux fois un personnage immobile (figé)
 
-local function apply(ped, s)
+local function apply(ped, s, onFoot)
     local f, r, u, p = GetEntityMatrix(ped)
     local fx, fy, fz = unit(f.x, f.y, f.z)
     local rx, ry, rz = unit(r.x, r.y, r.z)
     local ux, uy, uz = unit(u.x, u.y, u.z)
     -- Le centre du personnage est à ~1 m du sol : on le descend / monte pour garder les pieds au sol.
     -- Si le jeu n'a pas replacé le personnage depuis l'image précédente, on repart de sa hauteur d'origine.
-    local last = placed[ped]
-    local base = (last and math.abs(p.z - last[1]) < 0.0005) and last[2] or p.z
-    local z = base + (s - 1.0) * H.groundOffset
-    placed[ped] = { z, base }
+    -- Assis (véhicule), porté, au sol (ragdoll) : on garde la position, seule la taille change.
+    local z = p.z
+    if onFoot then
+        local last = placed[ped]
+        local base = (last and math.abs(p.z - last[1]) < 0.0005) and last[2] or p.z
+        z = base + (s - 1.0) * H.groundOffset
+        placed[ped] = { z, base }
+    else
+        placed[ped] = nil
+    end
     SetEntityMatrix(ped, fx * s, fy * s, fz * s, rx * s, ry * s, rz * s, ux * s, uy * s, uz * s, p.x, p.y, z)
 end
 
-local function canScale(ped)
-    return DoesEntityExist(ped) and not IsPedInAnyVehicle(ped, false) and not IsPedRagdoll(ped)
-        and not IsEntityAttached(ped)
+-- À pied : on recale les pieds au sol. Sinon (véhicule, porté, ragdoll) : taille seulement.
+local function onFoot(ped)
+    return not IsPedInAnyVehicle(ped, true) and not IsPedRagdoll(ped) and not IsEntityAttached(ped)
 end
 
 CreateThread(function()
@@ -65,7 +72,7 @@ CreateThread(function()
             for _ = 1, 60 do
                 for i = 1, #list do
                     local ped, s = list[i][1], list[i][2]
-                    if canScale(ped) then apply(ped, s) end
+                    if DoesEntityExist(ped) then apply(ped, s, onFoot(ped)) end
                 end
                 Wait(0)
             end

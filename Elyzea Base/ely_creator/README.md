@@ -280,8 +280,7 @@ INSERT INTO `items` (`name`, `label`, `weight`, `rare`, `can_remove`) VALUES
 
 ## Taille du personnage (petit / grand)
 
-Le curseur **Taille** du créateur (1,20 m à 2,15 m) change vraiment la taille du personnage en jeu,
-vue par tous les joueurs : 1,20 m = personnage de petite taille, 2,10 m = géant.
+Le curseur **Taille** du créateur (1,40 m à 1,80 m) change vraiment la taille du personnage en jeu,
+vue par tous les joueurs, et elle reste appliquée quoi qu'il fasse (à pied, en véhicule, porté, à terre).
 Réglages : `Config.Height` dans `config.lua` (taille de référence, échelle min / max, `groundOffset` si les pieds flottent ou s'enfoncent).
-Limites de GTA : les collisions (portes, tirs, véhicules) restent celles d'un personnage normal,
-et la taille ne s'applique pas dans un véhicule ni pendant une chute (ragdoll).
+Limite de GTA : les collisions (portes, tirs, véhicules) restent celles d'un personnage normal.
