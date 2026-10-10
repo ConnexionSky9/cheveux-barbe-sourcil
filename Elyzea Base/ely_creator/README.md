@@ -278,9 +278,15 @@ INSERT INTO `items` (`name`, `label`, `weight`, `rare`, `can_remove`) VALUES
 ('ppa', "Permis de port d'arme", 1, 0, 1);
 ```
 
-## Taille du personnage (petit / grand)
+## Taille du personnage (petit / grand) — staff
 
-Le curseur **Taille** du créateur (1,40 m à 1,80 m) change vraiment la taille du personnage en jeu,
-vue par tous les joueurs, et elle reste appliquée quoi qu'il fasse (à pied, en véhicule, porté, à terre).
-Réglages : `Config.Height` dans `config.lua` (taille de référence, échelle min / max, `groundOffset` si les pieds flottent ou s'enfoncent).
-Limite de GTA : les collisions (portes, tirs, véhicules) restent celles d'un personnage normal.
+La taille VISIBLE en jeu (personnage vraiment petit ou grand, vu par tous) est réservée au staff
+**Fondateur** et **SuperAdmin** (grades admin_menu, réglables dans `Config.Height.ranks`) :
+
+- `/taille 120` : sa propre taille (de 1,10 m à 2,00 m)
+- `/taille 120 5` : la taille du joueur n° 5
+- `/taille reset [id]` : taille normale
+
+Elle est gardée pour le personnage (même après reconnexion) et appliquée à pied, en véhicule, porté, à terre.
+Le curseur « Taille » du créateur ne sert plus qu'à l'identité (1,50 m à 2,10 m), sans effet visuel.
+Limites de GTA : les collisions restent celles d'un personnage normal ; en visant, GTA peut remettre la taille normale.

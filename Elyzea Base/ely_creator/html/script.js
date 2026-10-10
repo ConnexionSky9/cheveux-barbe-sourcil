@@ -531,7 +531,7 @@ const renderers = {
         slider(g4, {
             label: 'Taille', min: cfg.heightMin, max: cfg.heightMax, step: 1, value: id.height,
             fmt: (v) => `${(v / 100).toFixed(2).replace('.', ',')} m`,
-            onInput: (v) => { id.height = v; refreshCard(); post('height', { height: v }); }
+            onInput: (v) => { id.height = v; refreshCard(); }
         });
         const { f: natField } = fieldShell(g4, 'Nationalité');
         const nat = el('select', 'select');
@@ -843,7 +843,6 @@ async function changeSex(sex) {
     state.skin = res.skin;
     state.limits = res.limits;
     state.outfit = 0; // le serveur a déjà appliqué la 1re tenue du nouveau sexe
-    post('height', { height: state.identity.height });
     setCam(TAB_CAMERA[TABS[state.tab].id]);
     render();
 }
@@ -978,7 +977,6 @@ function open(d) {
         height: 175,
         nationality: state.cfg.nationalities[0]
     };
-    post('height', { height: state.identity.height });
 
     $('#brandName').textContent = state.cfg.serverName;
     $('#modal').classList.add('hidden');
@@ -1100,7 +1098,7 @@ if (!IN_GAME) {
         palettes: { hair: gradient([20, 16, 14], [235, 210, 160], 64), makeup: gradient([120, 20, 40], [250, 180, 200], 64) },
         config: {
             serverName: 'Elyzea',
-            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMin: 140, heightMax: 180 },
+            identity: { nameMin: 2, nameMax: 16, minAge: 18, maxAge: 90, heightMin: 150, heightMax: 210 },
             nationalities: ['Française', 'Belge', 'Suisse', 'Canadienne', 'Autre']
         }
     });

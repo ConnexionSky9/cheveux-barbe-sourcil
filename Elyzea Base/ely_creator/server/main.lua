@@ -366,8 +366,6 @@ RegisterNetEvent('ely_creator:save', function(identity, rawSkin)
     SetPlayerRoutingBucket(src, 0)
     reply(src, true, nil, skin, isNew, isNew and adminSpawn() or nil)
 
-    Player(src).state:set('elyHeight', height, true)
-
     TriggerEvent('ely_creator:characterCreated', src, {
         firstname = firstname, lastname = lastname, dateofbirth = dob,
         sex = sex, height = height, nationality = nationality
@@ -413,16 +411,58 @@ RegisterCommand(Config.AdminCommand, function(src, args)
     openFor(target)
 end, true)
 
--- Taille du personnage visible par tous (client/height.lua)
-AddEventHandler('elyzea:server:playerLoaded', function(src)
+-- ─────────────────────────────────────────────────────────────
+-- Taille visible en jeu (client/height.lua) : réglée par le staff avec /taille
+-- ─────────────────────────────────────────────────────────────
+local H = Config.Height or {}
+
+local function heightKey(src)
     local player = core:GetPlayer(src)
-    if not player then return end
-    local row = MySQL.single.await('SELECT `height` FROM `ely_characters` WHERE `identifier` = ?', { player.PlayerData.citizenid })
-    Player(src).state:set('elyHeight', row and tonumber(row.height) or nil, true)
-end)
-AddEventHandler('elyzea:server:playerUnloaded', function(src)
-    Player(src).state:set('elyHeight', nil, true)
-end)
+    return player and ('height:' .. player.PlayerData.citizenid) or nil
+end
+
+local function applyHeight(src)
+    local key = heightKey(src)
+    local cm = key and GetResourceKvpInt(key) or 0
+    Player(src).state:set('elyHeight', cm > 0 and cm or nil, true)
+end
+
+AddEventHandler('elyzea:server:playerLoaded', function(src) applyHeight(src) end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src) Player(src).state:set('elyHeight', nil, true) end)
+
+local function canSetHeight(src)
+    if src == 0 then return true end
+    local ok, rank = pcall(function() return exports.admin_menu:GetRank(src) end)
+    if not ok or not rank then return false end
+    for _, r in ipairs(H.ranks or {}) do if r == rank then return true end end
+    return false
+end
+
+if H.enabled and H.command then
+    RegisterCommand(H.command, function(src, args)
+        local function say(msg, kind)
+            if src == 0 then print('[ely_creator] ' .. msg) else core:Notify(src, msg, kind or 'inform') end
+        end
+        if not canSetHeight(src) then return say('Réservé au staff (Fondateur, SuperAdmin).', 'error') end
+        local target = tonumber(args[2]) or src
+        if target <= 0 or not GetPlayerName(target) then return say('Joueur introuvable.', 'error') end
+        local key = heightKey(target)
+        if not key then return say("Ce joueur n'a pas de personnage chargé.", 'error') end
+        if args[1] == 'reset' or args[1] == 'normal' then
+            DeleteResourceKvp(key)
+            applyHeight(target)
+            return say(('Taille normale remise pour %s.'):format(GetPlayerName(target)), 'success')
+        end
+        local cm = math.floor(tonumber(args[1]) or 0)
+        if cm < H.min or cm > H.max then
+            return say(('Utilisation : /%s <%d-%d> [id]  ou  /%s reset [id]'):format(H.command, H.min, H.max, H.command), 'error')
+        end
+        SetResourceKvpInt(key, cm)
+        applyHeight(target)
+        say(('Taille de %s : %.2f m'):format(GetPlayerName(target), cm / 100), 'success')
+        pcall(function() exports.admin_menu:AddLog(src, '[Taille] ' .. GetPlayerName(target), ('%d cm'):format(cm)) end)
+    end, false)
+end
 
 AddEventHandler('playerDropped', function()
     local src = source

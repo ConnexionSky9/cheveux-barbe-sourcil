@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────
 -- Taille du personnage : petit (nain) ou grand, visible par tous
--- La taille choisie dans le créateur (en cm) est partagée par le serveur
--- (state bag « elyHeight ») ; chaque joueur redimensionne les personnages autour de lui.
+-- Réglée par le staff (/taille), partagée par le serveur (state bag « elyHeight ») ;
+-- chaque joueur redimensionne les personnages autour de lui.
 -- GTA n'a pas de réglage de taille : on agrandit / rétrécit le modèle à chaque image.
 -- La taille reste appliquée tout le temps : à pied, en véhicule, porté, à terre, mort…
 -- Les collisions (portes, tirs) restent celles d'un personnage normal.
@@ -10,7 +10,6 @@ local H = Config.Height
 if not H or not H.enabled then return end
 
 local FEMALE = `mp_f_freemode_01`
-local preview = nil   -- taille en cm affichée pendant le créateur (personnage du joueur)
 
 -- Taille en cm -> échelle (1.0 = taille de référence du modèle homme / femme)
 local function scaleOf(ped, cm)
@@ -55,9 +54,9 @@ end
 
 CreateThread(function()
     while true do
-        local list, me = {}, PlayerId()
+        local list = {}
         for _, id in ipairs(GetActivePlayers()) do
-            local cm = id == me and preview or Player(GetPlayerServerId(id)).state.elyHeight
+            local cm = Player(GetPlayerServerId(id)).state.elyHeight
             if cm then
                 local ped = GetPlayerPed(id)
                 local s = scaleOf(ped, cm)
@@ -79,6 +78,3 @@ CreateThread(function()
         end
     end
 end)
-
--- Créateur : la taille change en direct sur le personnage
-function SetHeightPreview(cm) preview = tonumber(cm) end

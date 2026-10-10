@@ -36,8 +36,8 @@ Config.Identity = {
     nameMax   = 16,
     minAge    = 18,
     maxAge    = 90,
-    heightMin = 140,   -- 1,40 m : personnage de petite taille
-    heightMax = 180,
+    heightMin = 150,   -- taille écrite sur l'identité (sans effet visuel)
+    heightMax = 210,
     -- Prénoms / noms interdits (comparaison insensible à la casse)
     blacklist = { 'admin', 'staff', 'moderateur', 'fondateur', 'police', 'test' }
 }
@@ -116,13 +116,20 @@ Config.OverlayColorType = {
 Config.ComponentIds = { 1, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
 Config.PropIds = { 0, 1, 2, 6, 7 }
 
--- Taille visible en jeu : le personnage est vraiment plus petit ou plus grand (vu par tous les joueurs)
--- Échelle = taille choisie / taille de référence (178 cm homme, 168 cm femme = taille normale de GTA)
+-- Taille VISIBLE en jeu (le personnage est vraiment petit ou grand, vu par tous) : réservée au staff
+--   /taille <cm>          -> sa propre taille (ex. /taille 120)
+--   /taille <cm> <id>     -> la taille d'un autre joueur
+--   /taille reset [id]    -> taille normale
+-- La taille est gardée pour le personnage (même après reconnexion).
 Config.Height = {
     enabled      = true,
-    baseMale     = 178,
-    baseFemale   = 168,
-    minScale     = 0.75,   -- plus petit possible (0,75 = 75 % de la taille normale)
-    maxScale     = 1.10,   -- plus grand possible
+    command      = 'taille',
+    ranks        = { 'fondateur', 'superadmin' },   -- grades admin_menu autorisés
+    min          = 110,    -- 1,10 m
+    max          = 200,    -- 2,00 m
+    baseMale     = 178,    -- taille normale d'un homme dans GTA
+    baseFemale   = 168,    -- taille normale d'une femme dans GTA
+    minScale     = 0.60,
+    maxScale     = 1.20,
     groundOffset = 1.0,    -- garde les pieds au sol (à ajuster si le personnage flotte ou s'enfonce)
 }
