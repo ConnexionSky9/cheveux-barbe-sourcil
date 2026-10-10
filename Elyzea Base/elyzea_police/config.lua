@@ -9,8 +9,8 @@ Config = {}
 
 -- Touches par défaut (chaque joueur peut les changer : Paramètres > Raccourcis > FiveM)
 Config.Keys = {
-    tablet   = 'F6',   -- tablette de l'agent
-    actions  = 'F7',   -- menu d'interaction (menottes, escorte, fouille…)
+    tablet   = 'F6',   -- tablette de l'agent (et partie Patron)
+    target   = 'LMENU',-- ALT maintenu + clic sur une personne : menu d'interaction (menottes, escorte, fouille…)
     accept   = 'G',    -- accepter l'appel (même touche que les EMS)
     ignore   = 'I',    -- ignorer l'appel (même touche que les EMS)
     panic    = '',     -- bouton panique (à assigner)
@@ -51,7 +51,12 @@ Config.Defaults = {
         licenses = 2,        -- donner / retirer des permis
         records_delete = 3,  -- supprimer un rapport
         roster = 4,          -- recruter, promouvoir, renvoyer
+        boss_money = 4,      -- Patron : voir l'argent de l'entreprise, déposer, retirer
+        boss_grades = 4,     -- Patron : créer et modifier les grades (nom, salaire, accès)
     },
+    -- Ces niveaux servent de départ : ensuite chaque grade a ses propres accès,
+    -- réglés par le patron dans la tablette (F6 > Patron > Grades).
+
 
     -- Catalogue des amendes
     fines = {
@@ -102,5 +107,24 @@ Config.Defaults = {
         maxFine        = 50000,  -- amende max
         fineToSociety  = true,   -- l'argent des amendes va au compte du métier (compte d'entreprise elyzea_core)
         callCooldown   = 30,     -- secondes entre deux /112 d'un citoyen
+        maxSalary      = 2000,   -- salaire max qu'un patron peut donner à un grade
+        maxGrades      = 15,     -- nombre max de grades
     },
+}
+
+-- Nom affiché de chaque accès (tablette, partie Patron)
+Config.PermLabels = {
+    { id = 'mdt',            label = 'Tablette de police' },
+    { id = 'dispatch',       label = 'Accepter les appels' },
+    { id = 'cuff',           label = 'Menotter, escorter, véhicule' },
+    { id = 'search',         label = 'Fouiller' },
+    { id = 'fines',          label = 'Mettre une amende' },
+    { id = 'records_write',  label = 'Écrire un rapport' },
+    { id = 'jail',           label = 'Prison (envoyer / libérer)' },
+    { id = 'warrants',       label = 'Avis de recherche' },
+    { id = 'licenses',       label = 'Donner / retirer des permis' },
+    { id = 'records_delete', label = 'Supprimer un rapport' },
+    { id = 'roster',         label = 'Recruter, changer de grade, renvoyer' },
+    { id = 'boss_money',     label = "Argent de l'entreprise" },
+    { id = 'boss_grades',    label = 'Gérer les grades' },
 }

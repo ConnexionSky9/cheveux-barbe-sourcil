@@ -27,11 +27,14 @@ end
 -- Métier
 -- ---------------------------------------------------------------------
 function S.saveJob(src, d)
+    -- Accès déjà réglés par le patron : gardés pour les grades du même nom
+    local oldPerms = {}
+    for _, g in ipairs(P.Settings.job.grades or {}) do oldPerms[g.name] = g.perms end
     local grades = {}
     for _, g in ipairs(type(d.grades) == 'table' and d.grades or {}) do
         local name = tostring(g.name or ''):sub(1, 50)
         if name ~= '' then
-            grades[#grades + 1] = { name = name, payment = Num(g.payment, 0, 0, 100000), isboss = P.Bool(g.isboss) }
+            grades[#grades + 1] = { name = name, payment = Num(g.payment, 0, 0, 100000), isboss = P.Bool(g.isboss), perms = oldPerms[name] }
         end
     end
     if #grades == 0 then error('Ajoutez au moins un grade.') end
@@ -41,6 +44,7 @@ function S.saveJob(src, d)
     j.defaultDuty = P.Bool(d.defaultDuty)
     j.offDutyPay = P.Bool(d.offDutyPay)
     j.grades = grades
+    P.EnsureGradePerms()
     Changed('job')
     P.Log(src, 'Métier modifié', ('%s · %d grade(s)'):format(j.label, #grades))
     return 'Métier enregistré.'
@@ -63,6 +67,7 @@ function S.savePermGrades(src, d)
     for perm in pairs(P.Settings.permGrades) do
         if d[perm] ~= nil then P.Settings.permGrades[perm] = Num(d[perm], 0, 0, 99) end
     end
+    P.EnsureGradePerms(true)   -- les accès de chaque grade repartent de ces niveaux
     Changed()
     P.Log(src, 'Permissions par grade modifiées')
     return 'Permissions enregistrées.'

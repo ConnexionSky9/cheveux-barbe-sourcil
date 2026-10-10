@@ -176,3 +176,13 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: .84rem
 /* Les panneaux latéraux masquent les alertes (même emplacement) */
 body.panel-open #alerts { display: none; }
 label.field input, label.field select, label.field textarea { font-size: .92rem; color: var(--text); }
+
+/* Patron */
+.subtabs { display: flex; gap: 6px; margin: 0 0 16px; border-bottom: 1px solid var(--line); }
+.subtabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; font: 600 .95rem var(--display); }
+.subtabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.subtabs button:hover { color: var(--text); }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 14px; }
+.perm-grid .check { display: flex; align-items: center; gap: 8px; font-size: .87rem; color: var(--text); cursor: pointer; }
+.perm-grid .check.locked { color: var(--muted); cursor: not-allowed; }
+h3.sub { font: 600 .95rem var(--display); margin: 14px 0 8px; color: var(--muted); }

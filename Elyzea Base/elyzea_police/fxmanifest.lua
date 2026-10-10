@@ -12,6 +12,7 @@ client_scripts {
     'client/main.lua',
     'client/dispatch.lua',
     'client/interactions.lua',
+    'client/target.lua',
     'client/jail.lua',
     'client/points.lua',
     'client/tablet.lua',

@@ -1,5 +1,5 @@
 -- =====================================================================
---  elyzea_police - client : menu d'interaction (F7) et état menotté
+--  elyzea_police - client : menu d'interaction (ALT + clic sur la personne) et état menotté
 -- =====================================================================
 local C = PoliceC
 local escortedBy = nil
@@ -7,8 +7,16 @@ local menuOpen = false
 
 local CUFF_DICT, CUFF_CLIP = 'mp_arresting', 'idle'
 
+local selected = nil   -- id serveur de la personne choisie avec ALT + clic
+
 local function TargetInfo()
-    local pid = C.ClosestPlayer(3.0)
+    local pid
+    if selected then
+        pid = GetPlayerFromServerId(selected)
+        if pid == -1 or #(GetEntityCoords(GetPlayerPed(pid)) - GetEntityCoords(PlayerPedId())) > 4.0 then return nil end
+    else
+        pid = C.ClosestPlayer(3.0)
+    end
     if not pid then return nil end
     local tPed = GetPlayerPed(pid)
     return {
@@ -34,8 +42,10 @@ end
 -- ---------------------------------------------------------------------
 -- Ouverture du menu
 -- ---------------------------------------------------------------------
-local function OpenMenu()
+-- targetId : personne choisie (ALT + clic) ; nil = personne la plus proche
+function C.OpenActions(targetId)
     if menuOpen or C.cuffed or not C.OnDuty() then return end
+    selected = targetId
     local t = TargetInfo()
     menuOpen = true
     SetNuiFocus(true, true)
@@ -48,11 +58,12 @@ local function OpenMenu()
     })
 end
 
-RegisterCommand('police_actions', OpenMenu, false)
-RegisterKeyMapping('police_actions', "Police : menu d'interaction", 'keyboard', Config.Keys.actions)
+-- Plus de touche F7 : le menu s'ouvre avec ALT + clic (client/target.lua). Commande gardée en secours.
+RegisterCommand('police_actions', function() C.OpenActions(nil) end, false)
 
 RegisterNUICallback('actionsClose', function(_, cb)
     menuOpen = false
+    selected = nil
     SetNuiFocus(false, false)
     cb('ok')
 end)

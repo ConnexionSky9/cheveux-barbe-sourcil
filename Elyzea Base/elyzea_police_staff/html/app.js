@@ -24,6 +24,8 @@ const PERMS = [
     { k: 'licenses', label: 'Permis', help: 'Donner ou retirer un permis de conduire ou de port d\'arme.' },
     { k: 'records_delete', label: 'Supprimer un rapport', help: 'Effacer une entrée du casier.' },
     { k: 'roster', label: 'Gérer l\'effectif', help: 'Recruter, promouvoir, renvoyer (grades inférieurs au sien).' },
+    { k: 'boss_money', label: 'Argent de l\'entreprise', help: 'Tablette > Patron : voir le compte, déposer, retirer.' },
+    { k: 'boss_grades', label: 'Gérer les grades', help: 'Tablette > Patron : créer des grades, salaires et accès (grades inférieurs au sien).' },
 ];
 
 const SETTINGS = [
@@ -168,7 +170,7 @@ VIEWS.perms = () => {
     const grades = st.data.settings.job.grades;
     return `
         <h1>Permissions par grade</h1>
-        <p class="lead">Grade minimum pour chaque action. Les grades au-dessus l'ont aussi.</p>
+        <p class="lead">Grade minimum pour chaque action. Les grades au-dessus l'ont aussi. Enregistrer ici remet les accès de tous les grades à partir de ces niveaux (le patron peut ensuite les ajuster grade par grade dans sa tablette).</p>
         <div class="card settings-list" style="padding:0">
             ${PERMS.map((p) => `<div class="srow"><div><b>${p.label}</b><p>${p.help}</p></div>
                 <select data-perm="${p.k}">${gradeOptions(pg[p.k] ?? 0, grades)}<option value="99" ${pg[p.k] >= 99 ? 'selected' : ''}>Personne</option></select></div>`).join('')}

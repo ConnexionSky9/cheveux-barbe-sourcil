@@ -55,3 +55,18 @@ exports.elyzea_police:GetCopsOnDuty()       -- liste des sources
 exports.elyzea_police:IsCuffed(source)
 ```
 L'état menotté est aussi dans `Player(source).state.cuffed`.
+
+## Mise à jour : ALT, tablette, Patron
+
+- **Interactions : ALT + clic.** En service, maintenir **ALT** : un curseur apparaît et la personne visée s'entoure.
+  Clic gauche sur la personne : menu (menotter, escorter, véhicule, fouille, identité, amende, prison).
+  Clic sur un véhicule : sortir les personnes menottées. La touche F7 n'est plus utilisée.
+- **Tablette (F6)** : F6 ou Échap la referme. Si elle reste bloquée en main : `/police_debloquer`.
+  Elle se range aussi toute seule si l'interface perd la main (autre menu, chute, mort).
+- **Patron (F6 › Patron)** remplace le menu patron F11 pour la police :
+  - **Argent** : solde du compte de l'entreprise, dépôt / retrait (liquide ou banque), dernières opérations ;
+  - **Employés** : recruter, changer de grade, renvoyer ;
+  - **Grades** : créer, renommer, salaire (max `settings.maxSalary`), accès de chaque grade (cases à cocher),
+    supprimer un grade vide. On ne gère que les grades en dessous du sien et on ne donne que des accès qu'on a soi-même.
+- Les accès par grade partent des niveaux de `permGrades` (tablette staff). Enregistrer les permissions dans la
+  tablette staff remet les accès de tous les grades à partir de ces niveaux.

@@ -73,8 +73,21 @@ local function Payload(src)
         members = members, balance = balance }
 end
 
+-- Police : la partie patron est dans la tablette F6 (elyzea_police)
+local function IsPoliceJob(name)
+    if GetResourceState('elyzea_police') ~= 'started' then return false end
+    local ok, jobs = pcall(function() return exports.elyzea_police:GetPoliceJobs() end)
+    if not ok or type(jobs) ~= 'table' then return false end
+    for _, j in ipairs(jobs) do if j == name then return true end end
+    return false
+end
+
 RegisterNetEvent('patron:open', function()
     local src = source
+    local p = core:GetPlayer(src)
+    if p and IsPoliceJob(p.PlayerData.job.name) then
+        return Notify(src, 'Police : la gestion patron est dans la tablette (F6 › Patron).', 'inform')
+    end
     local data = Payload(src)
     if not data then return Notify(src, 'Ce menu est réservé au patron (grade 👑) de l\'entreprise.', 'error') end
     TriggerClientEvent('patron:data', src, data)
@@ -145,6 +158,8 @@ RegisterNetEvent('patron:action', function(name, data)
     local fn = A[tostring(name)]
     if not fn then return end
     if not Boss(src) then return Notify(src, 'Ce menu est réservé au patron de l\'entreprise.', 'error') end
+    local me = core:GetPlayer(src)
+    if me and IsPoliceJob(me.PlayerData.job.name) then return TriggerClientEvent('patron:close', src) end
     local ok, err = pcall(fn, src, type(data) == 'table' and data or {})
     if not ok then print(('^1[elyzea_patron] %s : %s^0'):format(tostring(name), tostring(err))) end
     local payload = Payload(src)

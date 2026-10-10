@@ -39,6 +39,7 @@ window.addEventListener('message', (e) => {
             $('#mdt').classList.remove('hidden');
             if (m.page && m.page.name === 'profile') return openProfile(m.page.citizenid);
             return go('home');
+        case 'mdtHide': return $('#mdt').classList.add('hidden');
         case 'mdtProfile': return openProfile(m.citizenid);
         case 'mdtEvent':
             if (!$('#mdt').classList.contains('hidden') && (S.page === 'calls' || S.page === 'home')) go(S.page, true);
@@ -47,6 +48,8 @@ window.addEventListener('message', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+    // F6 : referme la tablette (même touche que pour l'ouvrir)
+    if (e.key === 'F6' && !$('#mdt').classList.contains('hidden')) { e.preventDefault(); return closePanel('mdt'); }
     if (e.key !== 'Escape') return;
     if (!$('#actions').classList.contains('hidden')) return closePanel('actions');
     if (!$('#myfines').classList.contains('hidden')) return closePanel('myfines');
@@ -136,7 +139,7 @@ function renderActions() {
     $('#actTarget').textContent = t ? `${t.name}` : 'Personne à proximité';
     $('#actTargetSub').innerHTML = t
         ? `ID ${t.id}${t.cuffed ? ' <span class="tag red">Menotté</span>' : ''}${t.handsUp ? ' <span class="tag amber">Mains en l\'air</span>' : ''}${t.inVehicle ? ' <span class="tag">En véhicule</span>' : ''}`
-        : 'Approchez-vous à moins de 3 m d\'une personne.';
+        : 'Maintenez ALT et cliquez sur une personne (moins de 4 m).';
     const body = $('#actBody');
     if (A.view === 'fine') return (body.innerHTML = fineView());
     if (A.view === 'jail') return (body.innerHTML = jailView());
@@ -144,7 +147,7 @@ function renderActions() {
     const dis = (ok) => (ok && t ? '' : 'disabled');
     body.innerHTML = `
         <div class="act-grid">
-            <button class="act" data-do="cuff" ${dis(A.perms.cuff)}><strong>${t && t.cuffed ? 'Démenotter' : 'Menotter'}</strong><span>Personne la plus proche</span></button>
+            <button class="act" data-do="cuff" ${dis(A.perms.cuff)}><strong>${t && t.cuffed ? 'Démenotter' : 'Menotter'}</strong><span>Personne ciblée</span></button>
             <button class="act" data-do="escort" ${dis(A.perms.cuff && t && t.cuffed)}><strong>Escorter</strong><span>Prendre / lâcher</span></button>
             <button class="act" data-do="inVehicle" ${dis(A.perms.cuff && t && t.cuffed)}><strong>Mettre en véhicule</strong><span>Véhicule le plus proche</span></button>
             <button class="act" data-do="outVehicle" ${A.perms.cuff ? '' : 'disabled'}><strong>Sortir du véhicule</strong><span>Personnes menottées</span></button>
@@ -152,7 +155,7 @@ function renderActions() {
             <button class="act" data-do="id" ${dis(A.perms.cuff)}><strong>Vérifier l'identité</strong><span>Ouvre son dossier</span></button>
             <button class="act" data-view="fine" ${dis(A.perms.fines)}><strong>Amende</strong><span>Catalogue des infractions</span></button>
             <button class="act" data-view="jail" ${dis(A.perms.jail)}><strong>Prison</strong><span>Envoyer en cellule</span></button>
-            <button class="act wide" data-do="refresh"><strong>Actualiser</strong><span>Rechercher à nouveau la personne la plus proche</span></button>
+            <button class="act wide" data-do="refresh"><strong>Actualiser</strong><span>Mettre à jour l'état de la personne</span></button>
         </div>`;
 }
 
@@ -275,7 +278,7 @@ function updateMe(me) {
     const pill = $('#dutyPill');
     pill.className = `pill ${me.onduty ? 'on' : 'off'}`;
     pill.textContent = me.onduty ? 'En service' : 'Hors service';
-    $('#navRoster').classList.toggle('hidden', !S.perms.roster);
+    $('#navBoss').classList.toggle('hidden', !(S.perms.roster || S.perms.boss_money || S.perms.boss_grades));
 }
 
 const PAGES = {};
@@ -505,15 +508,16 @@ PAGES.jail = async () => {
             ${S.perms.jail ? `<div class="actions"><button class="btn danger" data-confirm="release" data-cid="${esc(j.citizenid)}">Libérer</button></div>` : ''}</div>`).join('')}</div>` : empty('Aucun détenu.')}`;
 };
 
-/* ---------- Effectif ---------- */
-PAGES.roster = async () => {
+/* ---------- Patron ---------- */
+const BOSS_TABS = [['money', 'Argent', 'boss_money'], ['staff', 'Employés', 'roster'], ['grades', 'Grades', 'boss_grades']];
+
+async function rosterHtml() {
     const d = await mdt('roster');
-    if (d.error) return `<h1>Effectif</h1>${empty(esc(d.error))}`;
+    if (d.error) return empty(esc(d.error));
     const myGrade = S.me ? S.me.grade : 0;
     const opts = (cur) => d.grades.filter((g) => g.level < myGrade || g.level === cur)
         .map((g) => `<option value="${g.level}" ${g.level === cur ? 'selected' : ''}>${g.level} · ${esc(g.name)}</option>`).join('');
     return `
-        <h1>Effectif</h1>
         <p class="lead">Vous pouvez gérer les agents d'un grade inférieur au vôtre.</p>
         <div class="card" style="margin-bottom:16px"><div class="grid2" style="grid-template-columns:120px 1fr auto;align-items:end">
             <label class="field">ID du joueur<input type="number" id="hireId" min="1"></label>
@@ -528,7 +532,79 @@ PAGES.roster = async () => {
                 ${can ? `<div class="actions"><select class="rgrade" style="width:180px">${opts(m.grade)}</select><button class="btn" data-act="setGrade">Appliquer</button>
                     <button class="btn danger" data-confirm="fire" data-cid="${esc(m.citizenid)}">Renvoyer</button></div>` : ''}</div>`;
         }).join('')}</div>` : empty('Aucun agent.')}`;
+}
+
+async function moneyHtml() {
+    const d = await mdt('bossMoney');
+    if (d.error) return empty(esc(d.error));
+    const when = (v) => { const n = Number(v); if (n > 1e11) { const t = new Date(n); return `${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`; } return esc(String(v).slice(0, 16)); };
+    return `
+        <div class="stats" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${money(d.balance)}</b><span>Compte de l'entreprise</span></div>
+            <div class="stat"><b>${money(d.cash)}</b><span>Votre liquide</span></div>
+            <div class="stat"><b>${money(d.bank)}</b><span>Votre banque</span></div></div>
+        <div class="card" style="margin-top:14px"><div class="grid2" style="grid-template-columns:1fr 160px auto auto;align-items:end">
+            <label class="field">Montant<input type="number" id="bossAmount" min="1" placeholder="0"></label>
+            <label class="field">Depuis / vers<select id="bossAccount"><option value="cash">Liquide</option><option value="bank">Banque</option></select></label>
+            <button class="btn primary" data-act="bossDeposit">Déposer</button>
+            <button class="btn" data-act="bossWithdraw">Retirer</button></div></div>
+        <h2>Dernières opérations</h2>
+        ${d.logs.length ? `<div class="list">${d.logs.map((l) => `<div class="row"><div><b>${esc(l.reason || 'Opération')}</b><small>${when(l.date)}</small></div>
+            <span class="mono" style="color:${l.amount >= 0 ? 'var(--green)' : '#ff8a8d'}">${l.amount >= 0 ? '+' : '−'}${money(Math.abs(l.amount))}</span></div>`).join('')}</div>` : empty('Aucune opération.')}`;
+}
+
+function permBoxes(labels, perms, mine, all) {
+    return `<div class="perm-grid">${labels.map((l) => {
+        const on = all || (perms && perms[l.id] === true);
+        const lock = all || !mine[l.id];
+        return `<label class="check ${lock ? 'locked' : ''}" title="${lock && !all ? 'Vous n\'avez pas cet accès vous-même' : ''}"><input type="checkbox" data-gperm="${esc(l.id)}" ${on ? 'checked' : ''} ${lock ? 'disabled' : ''}> ${esc(l.label)}</label>`;
+    }).join('')}</div>`;
+}
+
+async function gradesHtml() {
+    const d = await mdt('bossGrades');
+    if (d.error) return empty(esc(d.error));
+    S.bossG = d;
+    const e = S.gradeEdit;
+    const editor = (g) => `
+        <div class="card grade-edit" data-level="${g ? g.level : 'new'}" style="margin:10px 0">
+            <div class="grid2" style="grid-template-columns:1fr 140px ${g ? '' : '1fr'}">
+                <label class="field">Nom du grade<input type="text" id="gName" maxlength="30" value="${esc(g ? g.name : '')}" placeholder="Ex. : Inspecteur"></label>
+                <label class="field">Salaire ($)<input type="number" id="gPay" min="0" max="${d.maxSalary}" value="${g ? g.payment : 0}"></label>
+                ${g ? '' : `<label class="field">Place<select id="gPos">${d.grades.filter((x) => x.level <= d.myLevel).map((x) => `<option value="${x.level}" ${x.level === d.myLevel ? 'selected' : ''}>Juste en dessous de « ${esc(x.name)} »</option>`).join('')}</select></label>`}
+            </div>
+            <h3 class="sub">Accès</h3>
+            ${permBoxes(d.labels, g ? g.perms : {}, d.mine, false)}
+            <div class="footer-actions" style="margin-top:12px"><button class="btn" data-act="gradeCancel">Annuler</button>
+                <button class="btn primary" data-act="${g ? 'gradeSave' : 'gradeCreate'}">${g ? 'Enregistrer' : 'Créer le grade'}</button></div>
+        </div>`;
+    const rows = [...d.grades].reverse().map((g) => `
+        <div class="row"><div><b>${g.level} · ${esc(g.name)}</b>${g.isboss ? '<span class="tag amber">Patron</span>' : ''}
+            <small>${money(g.payment)} / paie · ${g.members} agent(s) · ${g.perms === 'all' ? 'Tous les accès' : `${d.labels.filter((l) => g.perms[l.id]).length} accès`}</small></div>
+            ${g.editable ? `<div class="actions"><button class="btn" data-act="gradeEdit" data-level="${g.level}">Modifier</button>
+                <button class="btn danger" data-confirm="gradeDelete" data-level="${g.level}" ${g.members ? 'disabled title="Des agents ont ce grade"' : ''}>Supprimer</button></div>` : ''}
+        </div>${e === g.level ? editor(g) : ''}`).join('');
+    return `
+        <p class="lead">Vous pouvez modifier et créer les grades en dessous du vôtre, et ne donner que des accès que vous avez vous-même. ${d.grades.length}/${d.maxGrades} grades.</p>
+        <div class="footer-actions" style="margin-bottom:10px"><span></span><button class="btn primary" data-act="gradeNew" ${d.grades.length >= d.maxGrades ? 'disabled' : ''}>Nouveau grade</button></div>
+        ${e === 'new' ? editor(null) : ''}
+        <div class="list">${rows}</div>`;
+}
+
+PAGES.boss = async () => {
+    const tabs = BOSS_TABS.filter((t) => S.perms[t[2]]);
+    if (!tabs.length) return `<h1>Patron</h1>${empty('Votre grade ne donne pas accès à cette partie.')}`;
+    if (!tabs.some((t) => t[0] === S.bossTab)) S.bossTab = tabs[0][0];
+    const body = S.bossTab === 'money' ? await moneyHtml() : S.bossTab === 'staff' ? await rosterHtml() : await gradesHtml();
+    return `<h1>Patron</h1>
+        <div class="subtabs">${tabs.map((t) => `<button class="${t[0] === S.bossTab ? 'on' : ''}" data-act="bossTab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+        ${body}`;
 };
+
+function gradeForm() {
+    const perms = {};
+    document.querySelectorAll('.grade-edit [data-gperm]').forEach((c) => { perms[c.dataset.gperm] = c.checked; });
+    return { name: $('#gName').value.trim(), payment: Number($('#gPay').value), perms };
+}
 
 /* ================================================================== */
 /* Événements de la tablette                                           */
@@ -583,6 +659,22 @@ const Acts = {
         go('warrants');
     },
     hire: () => run('hire', { target: Number($('#hireId').value), grade: Number($('#hireGrade').value) }),
+    bossTab: (b) => { S.bossTab = b.dataset.tab; S.gradeEdit = null; go('boss'); },
+    bossDeposit: () => run('bossDeposit', { amount: Number($('#bossAmount').value), account: $('#bossAccount').value }),
+    bossWithdraw: () => run('bossWithdraw', { amount: Number($('#bossAmount').value), account: $('#bossAccount').value }),
+    gradeNew: () => { S.gradeEdit = 'new'; go('boss', true); },
+    gradeEdit: (b) => { S.gradeEdit = Number(b.dataset.level); go('boss', true); },
+    gradeCancel: () => { S.gradeEdit = null; go('boss', true); },
+    gradeSave: async () => {
+        const r = await mdt('bossSaveGrade', { level: S.gradeEdit, ...gradeForm() });
+        if (r.error) return toast(r.error, false);
+        toast(r.message); S.gradeEdit = null; go('boss', true);
+    },
+    gradeCreate: async () => {
+        const r = await mdt('bossCreateGrade', { position: Number($('#gPos').value), ...gradeForm() });
+        if (r.error) return toast(r.error, false);
+        toast(r.message); S.gradeEdit = null; go('boss', true);
+    },
     setGrade: (b) => { const row = b.closest('[data-cid]'); run('setGrade', { citizenid: row.dataset.cid, grade: Number(row.querySelector('.rgrade').value) }); },
 };
 
@@ -599,6 +691,7 @@ const Confirmed = {
     closeWarrant: (b) => run('closeWarrant', { id: Number(b.dataset.id) }, false).then(() => (S.page === 'profile' ? openProfile(S.profileId) : go(S.page, true))),
     release: (b) => run('release', { citizenid: b.dataset.cid }, false).then(() => (S.page === 'profile' ? openProfile(S.profileId) : go(S.page, true))),
     fire: (b) => run('fire', { citizenid: b.dataset.cid }),
+    gradeDelete: (b) => run('bossDeleteGrade', { level: Number(b.dataset.level) }),
 };
 
 $('#page').addEventListener('keydown', (e) => {

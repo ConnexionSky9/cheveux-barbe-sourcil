@@ -42,7 +42,14 @@ function C.Can(perm, allowOffDuty)
     if not C.IsCop() then return false end
     if not allowOffDuty and not C.OnDuty() then return false end
     local min = C.cfg.permGrades[perm]
-    return min ~= nil and C.Grade() >= min
+    if min == nil then return false end
+    local job = C.Job()
+    if C.cfg.jobName and job.name == C.cfg.jobName and C.cfg.gradePerms then
+        local gp = C.cfg.gradePerms[C.Grade() + 1]
+        if gp == 'all' then return true end
+        if type(gp) == 'table' then return gp[perm] == true end
+    end
+    return C.Grade() >= min
 end
 
 function C.Street(coords)
