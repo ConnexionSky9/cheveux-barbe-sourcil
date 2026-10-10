@@ -58,6 +58,20 @@ local function scanResource(res)
             end
         end
     end
+    -- Secours : fxmanifest sans data_file lisible -> on lit les .meta cités dans le fichier du manifeste
+    if next(cols) == nil then
+        local manifest = LoadResourceFile(res, 'fxmanifest.lua') or LoadResourceFile(res, '__resource.lua') or ''
+        for path in manifest:gmatch('[\'"]([^\'"]-%.meta)[\'"]') do
+            local xml = not path:find('%*') and LoadResourceFile(res, path)
+            local dlc = xml and xml:find('ShopPedApparel', 1, true) and xml:match('<dlcName>%s*([^<%s]+)%s*</dlcName>')
+            if dlc then
+                files = files + 1
+                cols[dlc:lower()] = true
+                local ped = xml:match('<pedName>%s*([^<%s]+)%s*</pedName>') or ''
+                if ped:find('mp_m_') then sexes.male = true elseif ped:find('mp_f_') then sexes.female = true end
+            end
+        end
+    end
     if files == 0 then return nil end
     local o = override(res, cols)
     return {
@@ -133,8 +147,27 @@ end)
 exports('GetPacks', function() return publicList() end)
 
 -- Console serveur : liste des packs détectés
-RegisterCommand('vetements_packs', function(src)
+RegisterCommand('vetements_packs', function(src, args)
     if src ~= 0 and not IsPlayerAceAllowed(src, 'command') then return end
+    -- vetements_packs <dossier> : ce que la boutique voit d'une ressource précise
+    if args[1] then
+        local res = args[1]
+        local n = GetNumResourceMetadata(res, 'data_file') or 0
+        print(('[elyzea_clothing] %s : état « %s », %d ligne(s) data_file'):format(res, GetResourceState(res), n))
+        for j = 0, n - 1 do
+            print(('  data_file %s %s'):format(GetResourceMetadata(res, 'data_file', j), GetResourceMetadata(res, 'data_file_extra', j) or '?'))
+        end
+        local manifest = LoadResourceFile(res, 'fxmanifest.lua') or LoadResourceFile(res, '__resource.lua')
+        print(manifest and '  manifeste lu' or '  ^1manifeste introuvable (fxmanifest.lua)^0')
+        for path in (manifest or ''):gmatch('[\'"]([^\'"]-%.meta)[\'"]') do
+            local xml = LoadResourceFile(res, path)
+            print(('  %s : %s'):format(path, not xml and '^1fichier introuvable^0'
+                or (xml:match('<dlcName>%s*([^<%s]+)') and ('collection ' .. xml:match('<dlcName>%s*([^<%s]+)')) or 'pas un fichier de boutique')))
+        end
+        local p = GetResourceState(res) == 'started' and scanResource(res)
+        print(p and ('  ^2-> pack détecté : ' .. p.label .. '^0') or '  ^1-> pas détecté comme pack^0')
+        return
+    end
     Packs.scan(true)
     print(('[elyzea_clothing] %d pack(s) :'):format(#Packs.list))
     for _, p in ipairs(Packs.list) do
