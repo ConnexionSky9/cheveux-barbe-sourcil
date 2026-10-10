@@ -48,13 +48,44 @@ local function Pick()
     return nil
 end
 
+-- Secours : joueur le plus proche devant soi (comme le menu ALT des EMS)
+local function Facing()
+    local me = PlayerPedId()
+    local pc = GetEntityCoords(me)
+    local fwd = GetEntityForwardVector(me)
+    local best, bestD
+    for _, pid in ipairs(GetActivePlayers()) do
+        if pid ~= PlayerId() then
+            local ped = GetPlayerPed(pid)
+            local v = GetEntityCoords(ped) - pc
+            local d = #v
+            if d <= 3.0 and (d < 1.0 or (v.x * fwd.x + v.y * fwd.y) / d > 0.3) and (not bestD or d < bestD) then best, bestD = ped, d end
+        end
+    end
+    return best
+end
+
+local function Help(text)
+    BeginTextCommandDisplayHelp('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandDisplayHelp(0, false, false, -1)
+end
+
+local warned = 0
 local function Stop()
     active = false
     Outline(nil)
 end
 
 local function Start()
-    if active or C.cuffed or not C.OnDuty() or IsPauseMenuActive() then return end
+    if active or C.cuffed or IsPauseMenuActive() or IsNuiFocused() then return end
+    if not C.OnDuty() then
+        if C.IsCop() and GetGameTimer() - warned > 5000 then
+            warned = GetGameTimer()
+            C.Notify('Prenez votre service (tablette F6) pour interagir avec ALT.', 'error')
+        end
+        return
+    end
     active = true
     CreateThread(function()
         while active do
@@ -63,13 +94,30 @@ local function Start()
             DisableControlAction(0, 24, true) DisableControlAction(0, 25, true)     -- tir / visée
             DisableControlAction(0, 140, true) DisableControlAction(0, 141, true) DisableControlAction(0, 142, true)
             DisableControlAction(0, 257, true) DisableControlAction(0, 263, true)
-            local kind, ent = Pick()
+            local ok, kind, ent = pcall(Pick)
+            if not ok then kind, ent = nil, nil end
+            if not kind then
+                local f = Facing()
+                if f then kind, ent = 'player', f end
+            end
             Outline(kind and ent or nil)
-            if IsDisabledControlJustPressed(0, 24) and kind then
-                local sid = kind == 'player' and GetPlayerServerId(NetworkGetPlayerIndexFromPed(ent)) or nil
-                Stop()
-                C.OpenActions(sid)
-                return
+            if kind == 'player' then
+                local c = GetEntityCoords(ent)
+                DrawMarker(2, c.x, c.y, c.z + 1.15, 0, 0, 0, 180.0, 0, 0, 0.18, 0.18, 0.18, 59, 130, 246, 220, true, true, 2, false)
+                Help(('~INPUT_ATTACK~ Interagir avec %s'):format(GetPlayerName(NetworkGetPlayerIndexFromPed(ent)) or 'la personne'))
+            elseif kind == 'vehicle' then
+                Help('~INPUT_ATTACK~ Sortir les personnes menottées du véhicule')
+            else
+                Help('Visez une personne avec le curseur (moins de 4 m)')
+            end
+            if IsDisabledControlJustPressed(0, 24) then
+                if kind then
+                    local sid = kind == 'player' and GetPlayerServerId(NetworkGetPlayerIndexFromPed(ent)) or nil
+                    Stop()
+                    C.OpenActions(sid)
+                    return
+                end
+                C.Notify('Personne à moins de 4 m : approchez-vous d\'un joueur.', 'error')
             end
             if not C.OnDuty() or C.cuffed then return Stop() end
             Wait(0)
