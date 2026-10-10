@@ -127,14 +127,7 @@ end
 -- Pack d'une collection (nil = vêtement de GTA)
 function Packs.ofCollection(col)
     if type(col) ~= 'string' or col == '' then return nil end
-    col = col:lower()
-    if Packs.byCol[col] then return Packs.byCol[col] end
-    -- même règle que le client : collection qui porte le nom du dossier d'un pack
-    for _, p in ipairs(Packs.list) do
-        local name = p.id:lower():gsub('[^%w_]', '')
-        if #name >= 4 and col:find(name, 1, true) then return p end
-    end
-    return nil
+    return Packs.byCol[col:lower()]
 end
 
 RegisterNetEvent('elyzea_clothing:requestPacks', function()

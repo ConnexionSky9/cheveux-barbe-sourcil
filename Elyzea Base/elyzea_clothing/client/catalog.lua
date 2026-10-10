@@ -22,16 +22,7 @@ CreateThread(function() Wait(2000) TriggerServerEvent('elyzea_clothing:requestPa
 -- Pack d'une collection (nil = vêtement de GTA)
 function Catalog.packOf(col)
     if type(col) ~= 'string' or col == '' then return nil end
-    col = col:lower()
-    if Catalog.byCol[col] ~= nil then return Catalog.byCol[col] or nil end
-    -- Collection pas annoncée par le serveur mais qui porte le nom du dossier d'un pack (ex. mp_m_fsclothes -> fsclothes)
-    local found = false
-    for id, p in pairs(Catalog.packs) do
-        local name = id:lower():gsub('[^%w_]', '')
-        if #name >= 4 and col:find(name, 1, true) then found = p break end
-    end
-    Catalog.byCol[col] = found   -- mémorisé (false = GTA)
-    return found or nil
+    return Catalog.byCol[col:lower()]   -- uniquement les collections annoncées par le serveur ; le reste = GTA
 end
 
 -- Données d'un rayon pour ce personnage
@@ -121,7 +112,7 @@ RegisterCommand('vetements_test', function(_, args)
     local col
     for _, r in ipairs(ElyCloth.ranges(ped, c.type, c.index)) do
         local p = Catalog.packOf(r.col)
-        if r.col:lower():find(packId, 1, true) or (p and p.id:lower() == packId) then col = r.col break end
+        if r.col:lower() == packId or (p and p.id:lower() == packId) then col = r.col break end
     end
     if not col then return print(('^1Le pack « %s » n\'a aucun vêtement dans le rayon %s pour ce personnage (bon sexe ?).^0'):format(packId, c.id)) end
     local isProp = c.type == 'prop'
