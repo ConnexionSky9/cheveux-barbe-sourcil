@@ -16,6 +16,8 @@ client_scripts {
     'client/main.lua',
     'client/taxi.lua',
     'client/kiosk.lua',
+    'client/alt.lua',
+    '@elyzea_jobs/client/bridge.lua',
 }
 
 server_scripts {
@@ -38,4 +40,4 @@ files {
     'html/logo.png',
 }
 
-dependencies { 'elyzea_core', 'elyzea_inventory' }
+dependencies { 'elyzea_core', 'elyzea_inventory', 'elyzea_jobs' }

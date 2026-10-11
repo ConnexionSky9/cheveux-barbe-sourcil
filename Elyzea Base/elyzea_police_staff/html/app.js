@@ -24,8 +24,13 @@ const PERMS = [
     { k: 'licenses', label: 'Permis', help: 'Donner ou retirer un permis de conduire ou de port d\'arme.' },
     { k: 'records_delete', label: 'Supprimer un rapport', help: 'Effacer une entrée du casier.' },
     { k: 'roster', label: 'Gérer l\'effectif', help: 'Recruter, promouvoir, renvoyer (grades inférieurs au sien).' },
-    { k: 'boss_money', label: 'Argent de l\'entreprise', help: 'Tablette > Patron : voir le compte, déposer, retirer.' },
-    { k: 'boss_grades', label: 'Gérer les grades', help: 'Tablette > Patron : créer des grades, salaires et accès (grades inférieurs au sien).' },
+    { k: 'ppa', label: 'Lancer une procédure PPA', help: 'Tablette › PPA.' },
+    { k: 'ppa_revoke', label: 'Retirer un PPA', help: 'ALT sur la personne.' },
+    { k: 'sci_view', label: 'Scientifique : consulter', help: 'Affaires, preuves et rapports.' },
+    { k: 'sci_cases', label: 'Scientifique : affaires', help: 'Créer, modifier, clôturer une affaire.' },
+    { k: 'sci_collect', label: 'Scientifique : collecter', help: 'Prélever les preuves (ALT), saisir une arme.' },
+    { k: 'sci_lab', label: 'Scientifique : laboratoire', help: 'Analyses et rapports.' },
+    { k: 'sci_custody', label: 'Scientifique : restitution / destruction', help: 'Fin de la chaîne de conservation.' },
 ];
 
 const SETTINGS = [
@@ -171,7 +176,7 @@ VIEWS.perms = () => {
     const grades = st.data.settings.job.grades;
     return `
         <h1>Permissions par grade</h1>
-        <p class="lead">Grade minimum pour chaque action. Les grades au-dessus l'ont aussi. Enregistrer ici remet les accès de tous les grades à partir de ces niveaux (le patron peut ensuite les ajuster grade par grade dans sa tablette).</p>
+        <p class="lead">Les accès des grades du LSPD se gèrent maintenant dans la tablette de police › Patron › Grades (elyzea_jobs), et la spécialisation « Police scientifique » dans Patron › Employés. Les niveaux ci-dessous ne servent qu\'aux autres métiers police (ex. sheriff) ou si elyzea_jobs n\'est pas démarré.</p>
         <div class="card settings-list" style="padding:0">
             ${PERMS.map((p) => `<div class="srow"><div><b>${p.label}</b><p>${p.help}</p></div>
                 <select data-perm="${p.k}">${gradeOptions(pg[p.k] ?? 0, grades)}<option value="99" ${pg[p.k] >= 99 ? 'selected' : ''}>Personne</option></select></div>`).join('')}

@@ -68,13 +68,31 @@ E.Deny = {
     perm = 'Ton grade ne permet pas de faire ça.',
 }
 
+-- Burger Shot, Bahamas… : grades, accès, recrutement et finances gérés par elyzea_jobs (tablette F6)
+function E.JobsManaged(c)
+    if not E.S[c] or GetResourceState('elyzea_jobs') ~= 'started' then return false end
+    local ok, r = pcall(function() return exports.elyzea_jobs:Manages(E.S[c].job.name) end)
+    return ok and r == true
+end
+E.BossPerms = { boss_staff = true, boss_money = true }
+
+-- Accès d'un grade : elyzea_jobs pour les entreprises gérées, sinon la matrice locale
+function E.HasPerm(src, c, perm)
+    if E.JobsManaged(c) then
+        if E.BossPerms[perm] then return false end   -- direction : espace Patron d'elyzea_jobs
+        local ok, r = pcall(function() return exports.elyzea_jobs:Can(src, perm) end)
+        return ok and r == true
+    end
+    return E.GradePerms(c, E.Grade(src))[perm] == true
+end
+
 -- Peut faire « perm » : employé, entreprise ouverte, en service, permission du grade
 function E.Can(src, perm, noDuty)
     local c, p = E.CompanyOf(src)
     if not c then return false, 'none' end
     if not E.S[c].enabled then return false, 'closed', c end
     if not noDuty and p.PlayerData.job.onduty ~= true then return false, 'duty', c end
-    if perm and not E.GradePerms(c, E.Grade(src))[perm] then return false, 'perm', c end
+    if perm and not E.HasPerm(src, c, perm) then return false, 'perm', c end
     return true, nil, c
 end
 
@@ -126,6 +144,11 @@ function E.RegisterJob(c)
     local grades = {}
     for i, g in ipairs(j.grades or {}) do
         grades[i - 1] = { name = g.label, payment = tonumber(g.payment) or 0, isboss = g.isboss or nil, bankAuth = g.isboss or nil }
+    end
+    -- Géré par elyzea_jobs : notre définition ne sert qu'à la première installation
+    if E.JobsManaged(c) then
+        pcall(function() exports.elyzea_jobs:Seed(j.name, { label = j.label, type = (j.type and j.type ~= '') and j.type or nil, grades = grades }) end)
+        return
     end
     local ok, err = pcall(function()
         core:CreateJobs({ [j.name] = { label = j.label, type = (j.type and j.type ~= '') and j.type or nil,

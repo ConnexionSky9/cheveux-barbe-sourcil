@@ -36,7 +36,7 @@ RegisterNetEvent('concess:client:open', function(info)
     if open then return end
     open = true
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'tablet', show = true, staff = info and info.staff, permissions = Config.Permissions, zoneTypes = Config.ZoneTypes })
+    SendNUIMessage({ action = 'tablet', show = true, staff = info and info.staff, page = info and info.page, permissions = Config.Permissions, zoneTypes = Config.ZoneTypes })
     StartAnim()
 end)
 

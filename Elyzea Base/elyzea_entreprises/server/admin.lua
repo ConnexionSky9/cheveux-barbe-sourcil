@@ -81,11 +81,18 @@ function A.saveGrades(src, d)
     s.perms = perms
     E.Changed(c, 'job')
     E.Log(src, c, 'Grades modifiés', ('%d grade(s)'):format(#list))
+    -- Entreprise gérée par elyzea_jobs : il garde les grades (les accès des grades du même nom sont conservés)
+    if E.JobsManaged(c) then
+        local out = {}
+        for i, g in ipairs(list) do out[i] = { name = g.label, payment = g.payment, isboss = g.isboss } end
+        pcall(function() exports.elyzea_jobs:StaffSetGrades(s.job.name, s.job.label, out) end)
+    end
     return 'Grades enregistrés.'
 end
 
 function A.savePerms(src, d)
     local c, s = Company(d)
+    if E.JobsManaged(c) then error('Les accès de cette entreprise se règlent dans la tablette F6 › Patron › Grades et accès.') end
     local valid = {}
     for _, p in ipairs(Config.Permissions) do valid[p.key] = true end
     local perms = {}

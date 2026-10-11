@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Elyzea · Tablette EMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="nui://elyzea_jobs/html/ejobs.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -362,6 +363,7 @@ html.preview .stage{padding-top:56px}
 <div class="alerts" id="alerts" aria-live="assertive"></div>
 <div class="toast" id="toast" role="status"></div>
 
+<script src="nui://elyzea_jobs/html/ejobs.js"></script>
 <script>
 const IN_GAME=typeof GetParentResourceName==='function';
 if(!IN_GAME)document.documentElement.classList.add('preview');
@@ -400,10 +402,8 @@ const PERM_KEYS=PERMS.flatMap(g=>g.items.map(i=>i[0]));
 const PAGES=[
   {id:'home',label:'Accueil',title:'Tableau de bord',desc:'Votre service et les gestes sur le terrain.',min:0},
   {id:'bill',label:'Facturer',title:'Facturer un patient',desc:'Choisissez un patient à proximité et une prestation.',perm:'bill'},
-  {id:'staff',label:'Effectif',title:'Effectif',desc:'Tout le personnel du service, de la direction aux stagiaires.',perm:'staff_view'},
-  {id:'recruit',label:'Recruter',title:'Recrutement',desc:'Engagez un joueur à proximité ou par son ID.',perm:'recruit',manage:true},
-  {id:'finance',label:'Finances',title:'Finances',desc:'Compte de la société et chiffre d\'affaires des 7 derniers jours.',perm:'finance_view',manage:true},
-  {id:'access',label:'Accès',title:'Accès par grade',desc:'Choisissez ce que chaque grade peut faire. La direction a toujours tous les accès.',boss:true,manage:true}
+  {id:'team',label:'Équipe',title:'Équipe',desc:'Votre service, vos collègues, la tenue de service et la démission.',icon:'staff'},
+  {id:'boss',label:'Direction',title:'Direction',desc:'Employés et recrutement, grades et accès, finances, journal.',icon:'access',ej:true,manage:true}
 ];
 
 /* ----- Données d'aperçu (hors jeu) ----- */
@@ -448,7 +448,7 @@ async function rpc(name,...args){
     case 'tablet_data':return mockData();
     case 'set_perms':MOCK.perms=JSON.parse(JSON.stringify(args[0]));return true;
   }}
-async function refresh(){const d=await rpc('tablet_data');if(d){D=d;render()}}
+async function refresh(){const d=await rpc('tablet_data');if(d){D=d;if(IN_GAME&&window.EJobs)await EJobs.team();render()}}
 
 /* ===================== Rendu tablette ===================== */
 const gLabel=g=>D.grades[g]?.label||('Grade '+g);
@@ -456,13 +456,14 @@ const isBoss=()=>!!D.boss;
 const can=k=>isBoss()||!!(D.perms&&D.perms[k]);
 function render(){
   if(!D)return;
-  const pages=PAGES.filter(p=>p.boss?isBoss():!p.perm||can(p.perm));
+  const pages=PAGES.filter(p=>p.ej?(window.EJobs&&EJobs.canBoss()):p.boss?isBoss():!p.perm||can(p.perm));
   if(!pages.find(p=>p.id===page))page='home';
   $('#meName').textContent=D.me.name;$('#meGrade').textContent=gLabel(D.me.grade);
-  $('#menu').innerHTML=pages.map((p,i)=>(p.manage&&!pages[i-1]?.manage?`<li class="sep">${isBoss()?'Direction':'Gestion'}</li>`:'')+`<li><button data-p="${p.id}" ${p.id===page?'aria-current="page"':''}>${svg(I[p.id])}${p.label}</button></li>`).join('');
+  $('#menu').innerHTML=pages.map((p,i)=>(p.manage&&!pages[i-1]?.manage?`<li class="sep">${isBoss()?'Direction':'Gestion'}</li>`:'')+`<li><button data-p="${p.id}" ${p.id===page?'aria-current="page"':''}>${svg(I[p.icon||p.id])}${p.label}</button></li>`).join('');
   const dut=$('#duty');dut.classList.toggle('on',!!D.me.duty);$('#dutyLab').textContent=D.me.duty?'En service':'Hors service';$('#dutySub').textContent=D.me.duty?'Appuyez pour terminer':'Appuyez pour prendre le service';
   const P=PAGES.find(p=>p.id===page);$('#ptitle').textContent=P.title;$('#pdesc').textContent=P.desc;
-  $('#body').innerHTML=({home:homePage,bill:billPage,staff:staffPage,recruit:recruitPage,finance:financePage,access:accessPage})[page]();
+  if(page==='team'||page==='boss'){EJobs.mount($('#body'),page,{onClose:closeTablet});return}
+  $('#body').innerHTML=({home:homePage,bill:billPage})[page]();
 }
 function homePage(){const c=D.care||{revive:10,heal:5,inspect:4};
   return `<div class="hero"><div class="crossmark" aria-hidden="true"></div><div><h2>Bonjour ${esc(D.me.name.split(' ')[0])}</h2><p>${esc(gLabel(D.me.grade))} · ${esc(D.label)}</p></div>
@@ -488,75 +489,19 @@ function billPage(){
     <label class="l" for="custom" style="margin-top:14px">Autre montant ($)</label><input type="number" id="custom" min="1" value="${esc(bill.custom)}" placeholder="Montant libre"></div></div>
    <div class="summary"><div class="amt">${money(amt)}</div><p>${tgt?`Facture envoyée à ${esc(tgt.name)}, qui aura ${D.billTimeout||20} s pour payer.`:'Sélectionnez un patient.'}${D.commission?` Vous touchez ${D.commission} %.`:''}</p><button class="btn" id="sendBill" ${tgt&&amt>0?'':'disabled'}>Envoyer la facture</button></div>`}
 
-function list(arr,manage){if(!arr.length)return '';
-  const top=D.grades.length-1,mine=D.me.grade,boss=isBoss();
-  const canMove=e=>manage&&can('promote')&&(boss||e.grade<mine);
-  return `<div class="list">${arr.map(e=>{const self=e.id===D.me.id;return `<div class="row"><span class="dot ${e.online?'on':''}" title="${e.online?'Connecté':'Hors ligne'}"></span>
-   <div class="who"><b>${esc(e.name)}${self?' (vous)':''}</b><small>${esc(gLabel(e.grade))}</small></div>${e.duty?'<span class="tag duty">En service</span>':e.online?'<span class="tag">Hors service</span>':''}
-   ${!self&&canMove(e)?`<button class="mini" data-up="${e.id}" ${e.grade>=(boss?top:mine-1)?'disabled':''} aria-label="Promouvoir ${esc(e.name)}">${svg(I.up)}</button><button class="mini" data-down="${e.id}" ${e.grade<=0?'disabled':''} aria-label="Rétrograder ${esc(e.name)}">${svg(I.down)}</button>`:''}${!self&&manage&&can('fire')&&(boss||e.grade<mine)?`<button class="mini red" data-fire="${e.id}" aria-label="Renvoyer ${esc(e.name)}">${svg(I.x)}</button>`:''}</div>`}).join('')}</div>`}
-function staffPage(){const top=D.grades.length-1;let h='';
-  for(let g=top;g>=0;g--){const m=D.employees.filter(e=>e.grade===g);
-    h+=`<div class="ghead ${g===top?'top':''}"><b>${esc(gLabel(g))}</b><span>${g===top?'Direction · ':''}${m.length} membre${m.length>1?'s':''}</span><span class="sal">${money(D.grades[g].salary)} / paie</span></div>${list(m,true)||'<p class="empty" style="padding:4px 0 0">Poste vacant.</p>'}`}
-  const tip=can('promote')||can('fire')?`<p class="sub">${can('promote')?'Les flèches promeuvent ou rétrogradent d\'un grade. ':''}${can('fire')?'La croix renvoie la personne du service. ':''}${isBoss()?'':'Vous ne gérez que les grades inférieurs au vôtre.'}</p>`:'';
-  return tip+h}
-
-let rec={nearby:null,id:''};
-function recruitPage(){
-  if(!rec.nearby){rpc('nearby').then(n=>{const ids=new Set(D.employees.map(e=>e.name));rec.nearby=(n||[]);if(page==='recruit')render()});}
-  return `<h3>Joueurs à proximité</h3>${!rec.nearby?'<p class="empty">Recherche…</p>':rec.nearby.length?`<div class="list">${rec.nearby.map(p=>`<div class="row">${svg(I.staff)}<div class="who"><b>${esc(p.name)}</b><small>ID ${p.id}</small></div><button class="chip" data-rec="${p.id}">Recruter comme ${esc(gLabel(0))}</button></div>`).join('')}</div>`:'<p class="empty">Aucun joueur à moins de 5 m.</p>'}
-   <button class="chip" id="recNear" style="margin-top:10px">Actualiser</button>
-   <h3>Par ID</h3><p class="sub">Le joueur doit être connecté. Il rejoint le service au premier grade.</p>
-   <div class="move" style="max-width:420px"><input type="number" id="recId" min="1" placeholder="ID du joueur" value="${esc(rec.id)}"><button class="btn" id="recBtn">Recruter</button></div>`}
-
-function financePage(){const f=D.finance;if(!f)return '<p class="empty">Votre grade n\'a pas accès aux finances.</p>';
-  const dep=can('deposit'),wit=can('withdraw');
-  const max=Math.max(1,...f.week.map(w=>w.amount));
-  return `<div class="fin"><div class="card main"><small>Solde de la société</small><b>${money(f.balance)}</b></div><div class="card"><small>Chiffre d'affaires (7 j)</small><b>${money(f.revenue)}</b></div><div class="card"><small>Factures payées (7 j)</small><b>${f.bills}</b></div></div>
-   <h3>Chiffre d'affaires par jour</h3><div class="chart">${f.week.map((w,i)=>`<div class="bar ${i===f.week.length-1?'today':''}"><em>${w.amount?(Math.round(w.amount/100)/10).toLocaleString('fr-FR')+' k':''}</em><i style="height:${Math.round(w.amount/max*100)}%"></i><span>${i===f.week.length-1?'auj.':w.day}</span></div>`).join('')}</div>
-   ${dep||wit?`<div class="two" style="margin-top:6px">${dep?`<div><h3>Déposer</h3><div class="move"><input type="number" id="dep" min="1" placeholder="Montant"><button class="chip" id="depBtn">Déposer</button></div></div>`:''}
-    ${wit?`<div><h3>Retirer</h3><div class="move"><input type="number" id="wit" min="1" placeholder="Montant"><button class="chip red" id="witBtn">Retirer</button></div></div>`:''}</div>`:''}
-   <h3>Dernières opérations</h3><div class="list">${f.logs.length?f.logs.map(l=>`<div class="row"><div class="who"><b>${esc(l.label)}${l.target?' · '+esc(l.target):''}</b><small>${esc(l.author||'')} · ${esc(l.ago||'')}</small></div><b class="amount ${l.amount>=0?'in':'out'}">${l.amount>=0?'+':''}${money(l.amount)}</b></div>`).join(''):'<p class="empty" style="padding:14px">Aucune opération.</p>'}</div>`}
-
-let accessDraft=null;
-const tickSvg='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-function accessPage(){
-  if(!D.permMatrix)return '<p class="empty">Réservé à la direction.</p>';
-  if(!accessDraft)accessDraft=JSON.parse(JSON.stringify(D.permMatrix));
-  const top=D.grades.length-1,cols=[];for(let g=top;g>=0;g--)cols.push(g);
-  const dirty=JSON.stringify(accessDraft)!==JSON.stringify(D.permMatrix);
-  const has=(g,k)=>g===top||!!(accessDraft[g]&&accessDraft[g][k]);
-  return `<p class="sub">Cliquez sur une case pour donner ou retirer un accès. Cliquez sur le nom d'un grade pour tout cocher ou tout décocher dans sa colonne.</p>
-   <div class="perm"><table><thead><tr><th class="lab">Accès</th>${cols.map(g=>`<th class="${g===top?'dir':''}">${g===top?esc(gLabel(g))+'<br><small style="font-weight:500;color:var(--muted)">tous les accès</small>':`<button data-col="${g}" aria-label="Tout basculer pour ${esc(gLabel(g))}">${esc(gLabel(g))}</button>`}</th>`).join('')}</tr></thead>
-   <tbody>${PERMS.map(gr=>`<tr class="grp"><td colspan="${cols.length+1}">${gr.group}</td></tr>`+gr.items.map(([k,l,d])=>`<tr><td class="lab"><b>${l}</b><small>${d}</small></td>${cols.map(g=>`<td><button class="tick" role="checkbox" aria-checked="${has(g,k)}" data-g="${g}" data-k="${k}" aria-label="${esc(l)} pour ${esc(gLabel(g))}" ${g===top?'disabled':''}>${tickSvg}</button></td>`).join('')}</tr>`).join('')).join('')}</tbody></table></div>
-   <div class="savebar ${dirty?'dirty':''}"><p>${dirty?'Modifications non enregistrées.':'Les accès sont à jour.'}</p><button class="chip" id="accReset" ${dirty?'':'disabled'}>Annuler</button><button class="btn" id="accSave" ${dirty?'':'disabled'}>Enregistrer les accès</button></div>`}
-
 /* ----- Interactions tablette ----- */
-$('#menu').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;page=b.dataset.p;if(page==='access')accessDraft=null;if(page==='bill')bill.nearby=null;if(page==='recruit')rec.nearby=null;render();$('#body').scrollTop=0});
+$('#menu').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;page=b.dataset.p;if(page==='bill')bill.nearby=null;render();$('#body').scrollTop=0});
 async function toggleDuty(){const v=!D.me.duty;if(await rpc('duty',v)){D.me.duty=v;D.onDuty+=v?1:-1;const me=D.employees.find(e=>e.id===D.me.id);if(me)me.duty=v;render();toast(v?'Vous êtes en service : vous recevrez les alertes.':'Fin de service.')}}
 $('#duty').onclick=toggleDuty;
 $('#body').addEventListener('input',e=>{const t=e.target;
-  if(t.id==='custom'){bill.custom=t.value;bill.fee=null;const p=t.selectionStart;render();const n=$('#custom');n.focus();try{n.setSelectionRange(p,p)}catch(_){}}
-  if(t.id==='recId')rec.id=t.value});
+  if(t.id==='custom'){bill.custom=t.value;bill.fee=null;const p=t.selectionStart;render();const n=$('#custom');n.focus();try{n.setSelectionRange(p,p)}catch(_){}}});
 $('#body').addEventListener('click',async e=>{const t=e.target,c=s=>t.closest(s);let b;
   if(c('#dutyBig')){toggleDuty();return}
-  if(b=c('.tick[data-g]')){const g=b.dataset.g,k=b.dataset.k;accessDraft[g]=accessDraft[g]||{};accessDraft[g][k]=!accessDraft[g][k];const st=$('#body').scrollTop;render();$('#body').scrollTop=st;return}
-  if(b=c('[data-col]')){const g=b.dataset.col;accessDraft[g]=accessDraft[g]||{};const all=PERM_KEYS.every(k=>accessDraft[g][k]);PERM_KEYS.forEach(k=>accessDraft[g][k]=!all);const st=$('#body').scrollTop;render();$('#body').scrollTop=st;return}
-  if(c('#accReset')){accessDraft=null;render();return}
-  if(c('#accSave')){if(await rpc('set_perms',accessDraft)){D.permMatrix=JSON.parse(JSON.stringify(accessDraft));toast('Accès enregistrés. Ils s\'appliquent tout de suite.');render()}else toast('Enregistrement refusé.');return}
   if(b=c('[data-tg]')){bill.target=+b.dataset.tg;render();return}
   if(b=c('[data-fee]')){bill.fee=+b.dataset.fee;bill.custom='';render();return}
   if(c('#near')){bill.nearby=null;render();return}
   if(c('#sendBill')){const amt=bill.fee!=null?D.fees[bill.fee].price:+bill.custom,label=bill.fee!=null?D.fees[bill.fee].label:'Prestation médicale',tg=bill.nearby.find(p=>p.id===bill.target);
     if(await rpc('bill',bill.target,label,amt)){toast(`Facture de ${money(amt)} envoyée à ${tg.name}.`);bill={target:null,fee:null,custom:'',nearby:bill.nearby};render()}else toast('Facture refusée : patient trop loin.');return}
-  if(b=c('[data-up]')||c('[data-down]')){const id=b.dataset.up||b.dataset.down,emp=D.employees.find(x=>x.id===id),g=emp.grade+(b.dataset.up?1:-1);
-    if(await rpc('set_grade',id,g)){emp.grade=g;render();toast(`${emp.name} est maintenant ${gLabel(g)}.`)}return}
-  if(b=c('[data-fire]')){const emp=D.employees.find(x=>x.id===b.dataset.fire);if(!confirm(`Renvoyer ${emp.name} du service ?`))return;
-    if(await rpc('fire',emp.id)){D.employees=D.employees.filter(x=>x!==emp);render();toast(`${emp.name} a été renvoyé.`)}return}
-  if(c('#recNear')){rec.nearby=null;render();return}
-  if(b=c('[data-rec]')){const id=+b.dataset.rec;if(await rpc('recruit',id)){toast('Recrutement effectué.');rec.nearby=null;await refresh()}else toast('Recrutement impossible : ce joueur a déjà un poste EMS ou n\'est plus là.');return}
-  if(c('#recBtn')){const id=+rec.id;if(!id){toast('Indiquez l\'ID du joueur.');return}if(await rpc('recruit',id)){toast('Recrutement effectué.');rec.id='';await refresh()}else toast(`Aucun joueur recrutable avec l'ID ${id}.`);return}
-  if(c('#depBtn')||c('#witBtn')){const dep=!!c('#depBtn'),v=Math.floor(+$(dep?'#dep':'#wit').value);if(!(v>0)){toast('Indiquez un montant.');return}
-    if(await rpc(dep?'deposit':'withdraw',v)){toast(dep?`${money(v)} déposés.`:`${money(v)} retirés.`);await refresh()}else toast(dep?'Vous n\'avez pas assez d\'argent sur vous.':'Solde de la société insuffisant.');return}
 });
 function closeTablet(){$('#stage').classList.add('hidden');nui('close')}
 $('#close').onclick=()=>{if(IN_GAME)closeTablet();else toast('En jeu, cela range la tablette.')};

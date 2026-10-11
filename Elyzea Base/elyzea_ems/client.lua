@@ -125,6 +125,15 @@ local function applyServiceOutfit(on)
     end
 end
 
+-- Tenue de service, seulement à la demande (tablette › Équipe › Mettre ma tenue) : appelée par elyzea_jobs
+function EJobsUniform(on)
+    if not S('outfitsEnabled') then return false, 'Les tenues de service EMS sont désactivées.' end
+    if not isEms() then return false, 'Réservé au personnel médical.' end
+    if not on and not civilOutfit then return false, 'Vous ne portez pas la tenue de service.' end
+    applyServiceOutfit(on)
+    return true, on and 'Tenue de service enfilée.' or 'Vous avez remis vos vêtements.'
+end
+
 --================================================================ Alertes (EMS en service)
 local alerts, order, mineId = {}, {}, nil
 local function removeAlertLocal(id, text)
@@ -197,8 +206,8 @@ CreateThread(function()   -- distances et arrivée sur place
     end
 end)
 
+-- La prise / fin de service ne change jamais la tenue (bouton « Mettre ma tenue » de la tablette)
 RegisterNetEvent('elyzea_ems:dutyChanged', function(state)
-    applyServiceOutfit(state)
     if not state then clearAlerts() end
 end)
 
@@ -581,7 +590,6 @@ local function reviveItemLabel()
     for _, it in ipairs(D.pharmacy or {}) do if it.item == D.care.revive.item then return it.label end end
     return D.care.revive.item or 'Medical Kit'
 end
-local altTarget
 local function altOptions(player)
     local ped = GetPlayerPed(player)
     local duty = inService()
@@ -606,80 +614,29 @@ local function altOptions(player)
     end
     return hurt and 'hurt' or 'ok', hp, options
 end
-local function closeAlt()
-    if not altOpen then return end
-    altOpen, altTarget = false, nil
-    SendNUIMessage({ action = 'altClose' })
-    SetNuiFocusKeepInput(false); SetNuiFocus(false, false)
-end
-local function openAlt(player)
-    local state, hp, options = altOptions(player)
-    altOpen, altTarget = true, player
-    SendNUIMessage({ action = 'alt', data = { title = 'Patient · ID ' .. GetPlayerServerId(player), state = state, health = hp, options = options } })
-    SetNuiFocus(true, true); SetNuiFocusKeepInput(true)
-end
-local function aimedPlayer()
-    local mc = GetEntityCoords(PlayerPedId())
-    local rot = GetGameplayCamRot(2)
-    local rx, rz = math.rad(rot.x), math.rad(rot.z)
-    local dir = vector3(-math.sin(rz) * math.abs(math.cos(rx)), math.cos(rz) * math.abs(math.cos(rx)), math.sin(rx))
-    local best, bestScore
-    for _, pl in ipairs(GetActivePlayers()) do
-        if pl ~= PlayerId() then
-            local v = GetEntityCoords(GetPlayerPed(pl)) - mc
-            local d = #v
-            if d <= (S('altDist') or 3.0) then
-                local dot = (v.x * dir.x + v.y * dir.y) / math.max(0.01, math.sqrt(v.x * v.x + v.y * v.y))
-                if dot > 0.35 then
-                    local score = d - dot
-                    if not bestScore or score < bestScore then best, bestScore = pl, score end
-                end
-            end
-        end
+-- Menu ALT commun (elyzea_jobs) : inspecter, soigner, réanimer, PPA. Seulement pour les EMS.
+local function altProvider(ctx)
+    if ctx.kind ~= 'player' or not ctx.serverId or not isEms() or downed then return {} end
+    local player = GetPlayerFromServerId(ctx.serverId)
+    if player == -1 then return {} end
+    local _, _, options = altOptions(player)
+    local out = {}
+    for i, o in ipairs(options) do
+        out[i] = { id = o.id, label = o.label, desc = o.hint, disabled = o.disabled, group = 'Soins (EMS)', order = 5 + i }
     end
-    return best
+    return out
 end
-RegisterNUICallback('altSelect', function(data, cb)
-    cb({})
-    local target = altTarget
-    closeAlt()
-    if target then CreateThread(function() doAction(data.action, target) end) end
-end)
-RegisterNUICallback('reportClosed', function(_, cb) cb({}) end)
-
-CreateThread(function()
-    while not configReady do Wait(200) if GetGameTimer() > 8000 then break end end
-    do
-        -- Menu intégré : « maintenir » = commande +ems_soins / -ems_soins (touche réglable par chaque joueur)
-        local KEYNAME = { [19] = 'LMENU', [36] = 'LCONTROL', [74] = 'H', [311] = 'K' }
-        local holding = false
-        RegisterCommand('+ems_soins', function()
-            holding = true
-            if altOpen or busy or tabletOpen or downed or not isEms() then return end
-            local ped = PlayerPedId()
-            if IsPedInAnyVehicle(ped, false) or IsEntityDead(ped) then return end
-            local t = aimedPlayer()
-            if not t then return end
-            openAlt(t)
-            CreateThread(function()   -- boucle seulement pendant que le menu est ouvert
-                while altOpen do
-                    for _, ctrl in ipairs({ 1, 2, 24, 25, 142, 106, 257 }) do DisableControlAction(0, ctrl, true) end
-                    local tp = altTarget and GetPlayerPed(altTarget)
-                    if not holding or not tp or tp == 0 or busy
-                        or #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(tp)) > (S('altDist') or 3.0) + 1.0 then
-                        closeAlt()
-                        break
-                    end
-                    local c = GetEntityCoords(tp)
-                    DrawMarker(2, c.x, c.y, c.z + 1.15, 0, 0, 0, 180.0, 0, 0, 0.18, 0.18, 0.18, 216, 180, 106, 200, true, true, 2, false)
-                    Wait(0)
-                end
-            end)
-        end, false)
-        RegisterCommand('-ems_soins', function() holding = false end, false)
-        RegisterKeyMapping('+ems_soins', 'EMS : menu de soins (maintenir en visant)', 'keyboard', KEYNAME[tonumber(S('altControl')) or 19] or 'LMENU')
-    end
-end)
+local function altSelect(id, ctx)
+    local player = ctx.serverId and GetPlayerFromServerId(ctx.serverId)
+    if not player or player == -1 or busy then return end
+    doAction(id, player)
+end
+local function registerAlt()
+    if GetResourceState('elyzea_jobs') ~= 'started' then return end
+    exports.elyzea_jobs:AltRegister('ems', altProvider, altSelect)
+end
+CreateThread(function() Wait(1500) registerAlt() end)
+AddEventHandler('onClientResourceStart', function(res) if res == 'elyzea_jobs' then Wait(600) registerAlt() end end)
 
 --================================================================ Facture reçue (patient)
 RegisterNetEvent('elyzea_ems:billPrompt', function(b)
@@ -900,7 +857,7 @@ end)
 CreateThread(function()
     while true do
         Wait(5000)
-        if LocalPlayer.state.emsDuty and not isEms() then clearAlerts(); applyServiceOutfit(false) end
+        if LocalPlayer.state.emsDuty and not isEms() then clearAlerts() end
     end
 end)
 

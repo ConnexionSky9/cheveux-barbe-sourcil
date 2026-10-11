@@ -15,6 +15,8 @@ client_scripts {
     'client/main.lua',
     'client/tablet.lua',
     'client/garage.lua',
+    'client/alt.lua',
+    '@elyzea_jobs/client/bridge.lua',
 }
 
 server_scripts {
@@ -38,4 +40,5 @@ files {
 dependencies {
     'elyzea_core',
     'elyzea_inventory',
+    'elyzea_jobs',
 }

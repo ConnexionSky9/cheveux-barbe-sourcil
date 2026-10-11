@@ -18,6 +18,7 @@ local function PermsOf(src)
     local out = {}
     for _, p in ipairs(Config.Permissions) do out[p.key] = C.Can(src, p.key) == true end
     out.discount = C.MaxDiscount(src)
+    out.managed = C.JobsManaged()
     return out
 end
 
@@ -65,15 +66,33 @@ T.dashboard = { fn = function(src)
     }
 end }
 
+-- Service : aucune tenue n'est changée (la tenue se met volontairement : tablette › Équipe)
+local function SetDuty(src, state, fromJobs)
+    local p = C.GetPlayer(src)
+    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.elyzea_core:SetJobDuty(src, state) end) end
+    C.Log(src, state and 'Prise de service' or 'Fin de service')
+    if C.JobsManaged() and not fromJobs then
+        pcall(function() exports.elyzea_jobs:AddLog(C.JobName(), state and 'duty_on' or 'duty_off', { cid = C.Cid(src), name = C.Name(src) }, nil, nil, 'tablette') end)
+    end
+end
+
 T.toggleDuty = { fn = function(src)
     if not C.IsEmployee(src) then return { error = C.Deny.job } end
     local p = C.GetPlayer(src)
     local state = not p.PlayerData.job.onduty
     if state and not C.S.enabled then return { error = C.Deny.closed } end
-    if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.elyzea_core:SetJobDuty(src, state) end) end
-    C.Log(src, state and 'Prise de service' or 'Fin de service')
-    return { ok = true, message = state and 'Tu es en service : ta tenue de travail est mise.' or 'Tu as terminé ton service : tu as retrouvé tes vêtements.' }
+    SetDuty(src, state)
+    return { ok = true, message = state and 'Tu es en service.' or 'Tu as terminé ton service.' }
 end }
+
+-- Service demandé depuis l'onglet Équipe (elyzea_jobs)
+AddEventHandler('elyzea_jobs:setDuty', function(src, job, state)
+    if job ~= C.JobName() or not C.IsEmployee(src) then return end
+    if state and not C.S.enabled then return C.Notify(src, C.Deny.closed, 'error') end
+    if C.OnDuty(src) == (state == true) then return end
+    SetDuty(src, state == true, true)
+    C.Notify(src, state and 'Tu es en service.' or 'Tu as terminé ton service.', state and 'success' or 'inform')
+end)
 
 -- ---------------------------------------------------------------------
 -- Catalogue
@@ -346,10 +365,10 @@ RegisterNetEvent('concess:server:req', function(reqId, action, data)
 end)
 
 -- Ouverture de la tablette (employé F6, ou staff depuis admin_menu)
-RegisterNetEvent('concess:server:open', function()
+RegisterNetEvent('concess:server:open', function(page)
     local src = source
     if not C.IsEmployee(src) and not C.Staff[src] then return C.Notify(src, C.Deny.job, 'error') end
-    TriggerClientEvent('concess:client:open', src, { staff = C.Staff[src] == true })
+    TriggerClientEvent('concess:client:open', src, { staff = C.Staff[src] == true, page = page == 'catalog' and 'catalog' or nil })
 end)
 
 RegisterNetEvent('concess:server:closed', function()

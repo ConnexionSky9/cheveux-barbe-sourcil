@@ -129,13 +129,16 @@ Remplace `mm_radio`, sans ox_lib.
 - **Brouilleur** (`jammer`) : posé au sol, coupe les radios dans un rayon de 35 m pendant 10 min.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
-### 3.8 Menu patron et métier staff
-- **Menu patron (`elyzea_patron`)** : **F11** ou `/patron`.
-  - Il marche pour **tous les métiers** (police, EMS, mécano, concessions, entreprises…), dès que le joueur a un grade patron 👑.
-  - Il affiche les employés (en ligne, en service, hors ligne) et le compte de l'entreprise.
-  - **Recruter** une personne à moins de 6 m, **changer un grade**, **renvoyer** : chaque action importante demande une confirmation.
-  - Règles : on ne gère que les grades **en dessous du sien**. Seul le plus haut grade du métier peut tout gérer. On ne se modifie jamais soi-même.
-  - Chaque action est notée dans les logs du menu admin.
+### 3.8 Métiers principaux, espace Patron et métier staff
+- **`elyzea_jobs`** gère les 5 métiers principaux : **LSPD** (`police`), **EMS** (`ambulance`), **Burger Shot** (`burgershot`),
+  **Bahamas** (`nightclub`), **AutoExotics** (`cardealer`). Détails : `Elyzea Base/elyzea_jobs/README.md`.
+  - Un personnage n'a **qu'un seul** de ces métiers (vérifié par le serveur). Pour en changer : **Démissionner** (tablette › Équipe).
+  - Dans la tablette **F6** de chaque métier : onglet **Équipe** (grade, collègues, service, tenue volontaire, démission)
+    et onglet **Patron** (invisible sans les droits) : employés, **RECRUTER** (la personne la plus proche reçoit une demande à accepter avec **Y** / refuser avec **L**),
+    promouvoir / rétrograder, renvoyer, grades et accès, compte de l'entreprise (dépôt / retrait avec motif), historique et journaux.
+  - La **prise de service ne change jamais la tenue** : la tenue de travail se met avec le bouton « Mettre ma tenue ».
+  - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, PPA, soins, facture, entrée du Bahamas, vente…).
+- L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
 - **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
   - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
   - Ton vrai métier est gardé dans ton personnage : **↩ Revenir à mon métier d'origine** te le rend, même après une déconnexion.
@@ -153,11 +156,9 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
-| **F11** | Menu patron : recruter, changer les grades, renvoyer | Grade patron 👑 de n'importe quel métier |
-| **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, boîte de nuit) | Une seule s'ouvre : celle de ton métier |
-| **F7** | Menu d'interaction police | Police |
+| **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, Bahamas) : Équipe et Patron inclus | Une seule s'ouvre : celle de ton métier |
 | **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |
-| **ALT** (maintenir en visant) | Menu de soins | EMS |
+| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, PPA, preuves), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
 | **ALT** | Couper du bois | Bûcheron, dans une zone de coupe |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux, facture EMS) | Tous |
@@ -170,7 +171,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
   - Police : accepter **Y → G**, ignorer **U → I** (Y servait aux animations, U au verrou).
   - EMS : ignorer **X → I** (X arrête une animation).
   - Animations : refuser **N → L** (N sert à parler).
-  - Tenue : **F7 → F3** ; CarPlay : **F7 → F4** (F7 = menu police).
+  - Tenue : **F7 → F3** ; CarPlay : **F7 → F4**. Police : le menu F7 est remplacé par **ALT**.
   - Radio : **ALT → Verr. Maj** (ALT sert aux soins EMS et au bûcheron).
   - Facture EMS : refuser **X → L**.
 - Le menu des animations refuse maintenant qu'on mette une animation sur une touche déjà prise.
@@ -355,7 +356,7 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
 3. L'argent va sur le compte d'entreprise `gouvernement` (réglable).
 4. Staff : `/refairecarte [id]` donne une carte gratuite.
 
-### Permis de port d'arme (PPA) : test et remise par les EMS
+### Permis de port d'arme (PPA) : test et remise par les EMS ou la police
 | PPA | Objet | Catégories sur la carte | Qui peut le passer |
 |---|---|---|---|
 | Civil | `ppa` | Pistolet | Tout le monde |
@@ -368,6 +369,8 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
    (les bonnes réponses ne sont jamais envoyées aux joueurs). L'EMS reçoit le résultat.
 4. Réussi : l'EMS fait **Alt › Donner le PPA** (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
 5. Le PPA enregistre aussi le permis `weapon` dans le personnage (tablette de la police, armureries qui exigent un PPA).
+6. **Police** : tablette F6 › **PPA** (Nom, Prénom, LANCER LE PPA : la personne doit être à côté et l'identité unique), puis « Délivrer » si le test est réussi.
+   Retrait : **ALT** sur la personne › Retirer le PPA (accès `ppa_revoke`). Réglage des métiers autorisés : `elyzea_papiers/config.lua` › `PPA.examiners`.
 
 ---
 
@@ -410,11 +413,12 @@ Tablette des employés : **F6**.
 | Burger Shot | Préparation des recettes (cuisine), achat de fournitures payé par l'entreprise, factures, coffre |
 | Boîte de nuit | Bar (préparation des boissons), entrée payante, factures, coffre |
 
-Toutes ont : prise de service avec tenue, coffre partagé, factures (banque ou liquide, commission de l'employé),
-direction (recrutement, grades, renvoi, dépôt / retrait sur le compte de l'entreprise).
+Toutes ont : prise de service (sans changement de tenue), coffre partagé, factures (banque ou liquide, commission de l'employé).
+Burger Shot et Bahamas : onglets **Équipe** et **Patron** communs (`elyzea_jobs`), **ALT** sur un client : facturer, entrée (Bahamas).
+Taxi : direction dans l'onglet « Entreprise » de sa tablette.
 
 **Staff : Menu admin › Métiers › Taxi / Burger Shot / Boîte de nuit** (permission `entreprises_staff`) :
-activer / désactiver, nom, grades et salaires, permissions par grade, zones, carte (prix), recettes, fournitures,
+activer / désactiver, nom, grades et salaires, permissions par grade (Taxi seulement : Burger Shot et Bahamas se règlent dans la tablette › Patron), zones, carte (prix), recettes, fournitures,
 tarifs du taxi, points de course, réglages. Les positions par défaut sont approximatives : vérifie les zones.
 
 ### Borne de commande du Burger Shot

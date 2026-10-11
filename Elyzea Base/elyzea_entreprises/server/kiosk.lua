@@ -41,7 +41,7 @@ end
 local function Cooks(c)
     local list = {}
     local _, duty = E.Employees(c)
-    for _, id in ipairs(duty) do if E.GradePerms(c, E.Grade(id)).orders then list[#list + 1] = id end end
+    for _, id in ipairs(duty) do if E.HasPerm(id, c, 'orders') then list[#list + 1] = id end end
     return list
 end
 

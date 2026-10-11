@@ -29,7 +29,11 @@ function tabs() {
     if (f.production && p.stock) list.push({ id: 'supply', label: 'Fournisseur' });
     if (f.entry && p.entry) list.push({ id: 'entry', label: 'Entrée' });
     if (p.garage || p.stash) list.push({ id: 'vehicles', label: 'Véhicules & coffre' });
-    if (p.boss_staff || p.boss_money) list.push({ id: 'boss', label: 'Entreprise' });
+    if (T.data && T.data.managed) {
+        // Équipe & direction communes (elyzea_jobs)
+        list.push({ id: 'team', label: 'Équipe' });
+        if (window.EJobs && EJobs.canBoss()) list.push({ id: 'boss', label: 'Patron' });
+    } else if (p.boss_staff || p.boss_money) list.push({ id: 'boss', label: 'Entreprise' });
     return list;
 }
 
@@ -45,6 +49,7 @@ function render() {
     if (d && !list.find((t) => t.id === T.tab)) T.tab = 'home';
     $('#tabs').innerHTML = list.map((t) => `<button class="${t.id === T.tab ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');
     if (!d) { $('#body').innerHTML = '<p class="muted">Chargement…</p>'; return; }
+    if (d.managed && (T.tab === 'team' || T.tab === 'boss') && window.EJobs) { EJobs.mount($('#body'), T.tab, { onClose: close }); return; }
     $('#body').innerHTML = (VIEWS[T.tab] || VIEWS.home)();
     if (T.tab === 'prepare' || T.tab === 'orders') loadCounts();
 }
@@ -64,7 +69,7 @@ VIEWS.home = () => {
     return `
         <div class="card duty ${d.onduty ? 'on' : ''}" style="margin-bottom:14px">
             <div><strong>${d.onduty ? 'Tu es en service' : 'Tu es hors service'}</strong>
-                <span>${d.onduty ? 'Tu peux travailler et tu portes ta tenue de service.' : 'Prends ton service pour travailler (la tenue se met toute seule).'}</span></div>
+                <span>${d.onduty ? (d.managed ? 'Tu peux travailler. Ta tenue de travail se met quand tu veux (onglet Équipe).' : 'Tu peux travailler.') : 'Prends ton service pour travailler (ta tenue ne change pas).'}</span></div>
             <button class="btn ${d.onduty ? '' : 'primary'}" data-a="duty" ${!d.onduty && !d.enabled ? 'disabled' : ''}>${d.onduty ? 'Terminer le service' : 'Prendre le service'}</button>
         </div>
         <div class="card"><h3>Collègues en service (${d.coworkers.length})</h3>
@@ -368,10 +373,15 @@ window.addEventListener('message', (e) => {
         case 'tablet':
             Object.assign(T, { company: m.company, cfg: m.cfg, data: null, nearby: m.nearby || [], counts: {}, mission: m.mission || null, orders: m.orders || [] });
             if (m.meter) T.meter = m.meter;
+            if (m.target) T.target = m.target;
             T.tab = m.tab || (T.tab && T.company === m.company ? T.tab : 'home');
             $('#tablet').classList.remove('hidden');
             return render();
-        case 'tabletData': T.data = m.data; if (m.nearby) T.nearby = m.nearby; return render();
+        case 'tabletData':
+            T.data = m.data; if (m.nearby) T.nearby = m.nearby;
+            // Droits d'équipe (affiche l'onglet Patron) avant d'afficher
+            if (T.data && T.data.managed && window.EJobs) return EJobs.team().then(render, render);
+            return render();
         case 'closeTablet': $('#tablet').classList.add('hidden'); return;
         case 'orders': T.orders = m.list || []; if (!$('#tablet').classList.contains('hidden') && T.data) render(); return;
         case 'meter': return renderMeter(m.show, m.data);

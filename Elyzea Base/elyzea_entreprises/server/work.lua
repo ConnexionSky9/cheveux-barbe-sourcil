@@ -30,11 +30,27 @@ RegisterNetEvent('ent:duty', function(fromTablet)
     if not c then return end
     if not fromTablet and not E.InZone(c, E.Coords(src), { service = true }, 2.5) then return end
     if not E.S[c].enabled then return E.Notify(src, E.Deny.closed, 'error') end
-    local state = not p.PlayerData.job.onduty
+    E.SetDuty(src, c, not p.PlayerData.job.onduty, fromTablet and 'tablette' or 'accueil')
+end)
+
+-- Aucune tenue n'est changée : la tenue de travail se met volontairement (tablette › Équipe › Mettre ma tenue)
+function E.SetDuty(src, c, state, from)
     core:SetJobDuty(src, state)
     E.Notify(src, state and 'Tu as pris ton service.' or 'Tu as terminé ton service.', state and 'success' or 'inform')
-    E.Log(src, c, state and 'Prise de service' or 'Fin de service', fromTablet and 'tablette' or 'accueil')
+    E.Log(src, c, state and 'Prise de service' or 'Fin de service', from)
+    if E.JobsManaged(c) and from ~= 'elyzea_jobs' then
+        pcall(function() exports.elyzea_jobs:AddLog(E.S[c].job.name, state and 'duty_on' or 'duty_off', { cid = core:GetCitizenId(src), name = E.Name(src) }, nil, nil, from) end)
+    end
     TriggerClientEvent('ent:dutyChanged', src)
+end
+
+-- Service demandé depuis l'onglet Équipe de la tablette (elyzea_jobs)
+AddEventHandler('elyzea_jobs:setDuty', function(src, job, state)
+    local c, p = E.CompanyOf(src)
+    if not c or E.S[c].job.name ~= job then return end
+    if state and not E.S[c].enabled then return E.Notify(src, E.Deny.closed, 'error') end
+    if (p.PlayerData.job.onduty == true) == (state == true) then return end
+    E.SetDuty(src, c, state == true, 'elyzea_jobs')
 end)
 
 -- ---------------------------------------------------------------------
@@ -70,7 +86,12 @@ RegisterNetEvent('ent:tabletData', function()
     if not c then return end
     local s = E.S[c]
     local grade = E.Grade(src)
+    local managed = E.JobsManaged(c)
     local perms = E.GradePerms(c, grade)
+    if managed then
+        perms = {}
+        for _, pm in ipairs(Config.Permissions) do perms[pm.key] = E.HasPerm(src, c, pm.key) end
+    end
     local _, duty = E.Employees(c)
     local coworkers = {}
     for _, id in ipairs(duty) do
@@ -79,7 +100,7 @@ RegisterNetEvent('ent:tabletData', function()
     end
     local data = {
         company = c, enabled = s.enabled, onduty = p.PlayerData.job.onduty == true, grade = grade, gradeLabel = p.PlayerData.job.grade.name,
-        perms = perms, coworkers = coworkers,
+        perms = perms, coworkers = coworkers, managed = managed,
     }
     if perms.boss_staff or perms.boss_money then
         data.balance = core:GetSocietyMoney(s.job.name)

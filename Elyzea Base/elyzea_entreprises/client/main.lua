@@ -30,6 +30,9 @@ end
 function C.Can(perm)
     local c, s = C.Company()
     if not c or not s.enabled or not C.OnDuty() then return false end
+    -- Entreprise gérée par elyzea_jobs : accès publiés par le serveur
+    local ej = LocalPlayer.state.ejobs
+    if ej and ej.job == s.job.name then return type(ej.perms) == 'table' and ej.perms[perm] == true end
     local g = C.Job().grade and C.Job().grade.level or 0
     return (s.perms[tostring(g)] or {})[perm] == true
 end
@@ -96,13 +99,13 @@ end)
 -- ---------------------------------------------------------------------
 -- Tablette (F6)
 -- ---------------------------------------------------------------------
-function C.OpenTablet(tab)
+function C.OpenTablet(tab, target)
     local c, s = C.Company()
     if not c or C.busy then return end
     C.tabletOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'tablet', company = c, cfg = s, tab = tab, nearby = C.NearbyPlayers(6.0), meter = C.MeterState and C.MeterState() or nil,
-        mission = C.MissionState and C.MissionState() or nil, orders = C.orders })
+        mission = C.MissionState and C.MissionState() or nil, orders = C.orders, target = target })
     TriggerServerEvent('ent:tabletData')
     if s.features and s.features.kiosk then TriggerServerEvent('ent:ordersData') end
 end

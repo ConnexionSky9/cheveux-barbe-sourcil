@@ -177,6 +177,8 @@ end
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or IsNuiFocused() then return end
     if IsEntityDead(PlayerPedId()) then return end
+    -- Seulement pour les employés des métiers gérés : ALT reste libre pour les autres (bûcheron, civils…)
+    if LocalPlayer.state.ejobs == nil then return end
     active = true
     CreateThread(function()
         local ctx, opts = nil, {}

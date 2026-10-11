@@ -85,9 +85,19 @@ local function isStaff(src)
     for _, n in ipairs(groups) do if Core.Functions.HasPermission(src, n) then return true end end
     return Core.Functions.HasPermission(src, 'god')
 end
+-- Accès : gérés par elyzea_jobs (tablette › Direction › Grades) ; sinon la matrice locale
+local function jobsManaged()
+    if GetResourceState('elyzea_jobs') ~= 'started' then return false end
+    local ok, r = pcall(function() return exports.elyzea_jobs:Manages(Config.Job) end)
+    return ok and r == true
+end
 local function can(src, perm)
     local _, job, grade = getPlayer(src)
     if job ~= Config.Job then return false end
+    if jobsManaged() then
+        local ok, r = pcall(function() return exports.elyzea_jobs:Can(src, perm) end)
+        return ok and r == true
+    end
     if grade >= D.bossGrade then return true end
     local g = perms[tostring(grade)]
     return g ~= nil and g[perm] == true
@@ -374,6 +384,8 @@ local function revivePlayer(target, health)
     closeVictimAlert(target, 'Patient pris en charge.')
 end
 
+local careLast = {}
+AddEventHandler('playerDropped', function() careLast[source] = nil end)
 RegisterNetEvent('elyzea_ems:doCare', function(kind, target)
     local src = source
     local c = (kind == 'revive' and D.care.revive) or (kind == 'heal' and D.care.heal)
@@ -381,7 +393,15 @@ RegisterNetEvent('elyzea_ems:doCare', function(kind, target)
     if not inService(src) then return notify(src, 'Vous devez être en service.') end
     target = tonumber(target)
     if not target or not GetPlayerName(target) then return end
+    local now = GetGameTimer()
+    if careLast[src] and now - careLast[src] < 2000 then return end
+    careLast[src] = now
     if target ~= src and distBetween(src, target) > D.care.distance + 2.0 then return notify(src, 'Le patient est trop loin.') end
+    if kind == 'revive' then
+        -- Réanimation seulement pour un patient réellement à terre (coma Elyzea ou système de mort externe)
+        local st = Player(target).state
+        if not (st.emsDown or st.isDead or st.dead or st.inLastStand or st.isInLastStand) then return notify(src, 'Ce patient n\'est pas dans le coma.') end
+    end
     if count(src, c.item) < 1 then
         local label = c.item
         for _, it in ipairs(D.pharmacy or {}) do if it.item == c.item then label = it.label end end
@@ -580,6 +600,12 @@ function RPC.duty(src, state)
     return true
 end
 
+-- Prise / fin de service depuis les pages communes (elyzea_jobs) : même chose, sans tenue
+AddEventHandler('elyzea_jobs:setDuty', function(src, job, state)
+    if job ~= Config.Job then return end
+    RPC.duty(src, state == true)
+end)
+
 function RPC.names(src, ids)
     local out = {}
     for _, id in ipairs(ids or {}) do
@@ -728,10 +754,22 @@ function RPC.staff_fire(src, target)
     return setJob(target, 'unemployed', 0)
 end
 
-local function registerJob()
+local function registerJob(fromStaff)
     local grades = {}
     for i, g in ipairs(D.grades) do
         grades[i - 1] = { name = g.label, payment = g.salary or 0, isboss = (i - 1) == D.bossGrade or nil, bankAuth = (i - 1) == D.bossGrade or nil }
+    end
+    -- Géré par elyzea_jobs : il garde les grades (modifiables par la direction). Le menu staff les remplace,
+    -- sinon on ne propose notre définition que pour la première installation.
+    if jobsManaged() then
+        if fromStaff then
+            local list = {}
+            for i, g in ipairs(D.grades) do list[i] = { name = g.label, payment = g.salary or 0, isboss = (i - 1) == D.bossGrade } end
+            pcall(function() exports.elyzea_jobs:StaffSetGrades(Config.Job, D.label, list) end)
+        else
+            pcall(function() exports.elyzea_jobs:Seed(Config.Job, { label = D.label, type = 'ems', grades = grades }) end)
+        end
+        return
     end
     local ok, err = pcall(function()
         core:CreateJob(Config.Job, { label = D.label, type = 'ems', defaultDuty = false, offDutyPay = false, grades = grades })
@@ -746,7 +784,7 @@ RegisterNetEvent('elyzea_ems:save', function(data)
     saved = data
     D = EMSData(saved)
     SaveResourceFile(RES, 'data/config.json', json.encode(saved, { indent = true }), -1)
-    registerStashes(); registerCare(); registerJob()
+    registerStashes(); registerCare(); registerJob(true)
     TriggerClientEvent('elyzea_ems:configUpdated', -1, saved)
     print(('[elyzea_ems] Configuration enregistrée par %s'):format(GetPlayerName(src)))
 end)

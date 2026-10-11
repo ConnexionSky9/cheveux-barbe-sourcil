@@ -217,7 +217,8 @@ function reportData(r) {
     const rows = [];
     if (r.kind === 'ballistic') {
         rows.push(['Calibre', d.calibre], ['Type d\'arme', d.weaponType], ['Arme identifiée', yesNo(d.identified)]);
-        if (d.identified) rows.push(['N° de série', d.serial], ['Gravure', d.engraving || 'Aucune'], ['Propriétaire enregistré', d.owner], ['Statut de l\'arme', d.weaponStatus || '—']);
+        const ws = { active: 'En circulation', seized: 'Saisie', destroyed: 'Détruite' };
+        if (d.identified) rows.push(['N° de série', d.serial], ['Gravure', d.engraving || 'Aucune'], ['Propriétaire enregistré', d.owner], ['Statut de l\'arme (au moment de l\'analyse)', ws[d.weaponStatus] || d.weaponStatus || '—']);
         else rows.push(['Armes compatibles enregistrées', d.compatible ?? '—']);
         if (d.count) rows.push(['Douilles relevées', d.count]);
     } else if (r.kind === 'dna') {
@@ -261,7 +262,7 @@ async function sciReportOne() {
                 <div><span>Finalisé</span><b>${r.ft ? fmtTime(r.ft) : '—'}</b></div>
             </div>
             <h3>Données examinées</h3>
-            <div class="sci-kv">${reportData(r).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v ?? '—')}</b></div>`).join('')}</div>
+            <div class="sci-kv grid">${reportData(r).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v ?? '—')}</b></div>`).join('')}</div>
             ${r.kind === 'prints' ? `<h3>Empreintes</h3>${(data.prints || []).length ? `<div class="list">${data.prints.map((p) => `<div class="row"><div><b class="mono">${esc(p.fingerprint)}</b></div>
                 <span class="tag ${p.identified ? 'green' : ''}">${p.identified ? esc(p.name) : 'Non identifiée'}</span></div>`).join('')}</div>` : empty('Aucune empreinte exploitable.')}` : ''}
             <h3>Résultat</h3><p class="sci-result">${esc(data.summary || '')}</p>

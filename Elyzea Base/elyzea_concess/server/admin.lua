@@ -68,6 +68,12 @@ function A.saveGrades(src, d)
     C.S.perms = perms
     C.Changed('job')
     C.Log(src, 'Grades modifiés', ('%d grade(s)'):format(#list))
+    -- Géré par elyzea_jobs : il garde les grades (accès des grades du même nom conservés)
+    if C.JobsManaged() then
+        local out = {}
+        for i, g in ipairs(list) do out[i] = { name = g.label, payment = g.payment, isboss = g.isboss } end
+        pcall(function() exports.elyzea_jobs:StaffSetGrades(C.JobName(), C.S.job.label, out) end)
+    end
     return 'Grades enregistrés.'
 end
 

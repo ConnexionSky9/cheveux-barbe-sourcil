@@ -79,11 +79,26 @@ end
 -- Peut faire « perm » ? Le staff ouvert depuis le menu admin peut tout faire.
 -- Les actions de vente / présentation / essai demandent d'être en service.
 local NEED_DUTY = { sell = true, present = true, test = true }
+
+-- AutoExotics : grades, accès, recrutement et finances gérés par elyzea_jobs (tablette F6 › Équipe / Patron)
+function C.JobsManaged()
+    if GetResourceState('elyzea_jobs') ~= 'started' then return false end
+    local ok, r = pcall(function() return exports.elyzea_jobs:Manages(C.JobName()) end)
+    return ok and r == true
+end
+local JOBS_PERM = { employees = false, permissions = false, finances = 'finance_view' }   -- false : espace Patron commun
+
 function C.Can(src, perm)
     if C.Staff[src] then return true end
     if not C.S.enabled then return false, 'closed' end
     if not C.IsEmployee(src) then return false, 'job' end
     if NEED_DUTY[perm] and not C.OnDuty(src) then return false, 'duty' end
+    if C.JobsManaged() then
+        local mapped = JOBS_PERM[perm]
+        if mapped == false then return false end
+        local ok, r = pcall(function() return exports.elyzea_jobs:Can(src, mapped or perm) end)
+        return ok and r == true
+    end
     return C.GradePerms(C.Grade(src))[perm] == true
 end
 
@@ -243,6 +258,11 @@ function C.RegisterJob()
     local grades = {}
     for i, g in ipairs(j.grades or {}) do
         grades[i - 1] = { name = g.label, payment = tonumber(g.payment) or 0, isboss = g.isboss or nil, bankAuth = g.isboss or nil }
+    end
+    -- Géré par elyzea_jobs : notre définition ne sert qu'à la première installation
+    if C.JobsManaged() then
+        pcall(function() exports.elyzea_jobs:Seed(j.name, { label = j.label, type = (j.type and j.type ~= '') and j.type or nil, grades = grades }) end)
+        return
     end
     local ok, err = pcall(function()
         exports.elyzea_core:CreateJobs({ [j.name] = {

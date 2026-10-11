@@ -76,7 +76,7 @@ window.addEventListener('message', (e) => {
             S.permsList = m.permissions || [];
             $('#tablet').classList.remove('hidden');
             $('#staffBadge').classList.toggle('hidden', !S.staff);
-            return go(S.staff ? 'catalog' : 'dashboard');
+            return go(S.staff ? 'catalog' : (m.page || 'dashboard'));
         case 'refresh': if (!$('#tablet').classList.contains('hidden')) go(S.page, true); return;
         case 'offer': return m.show ? openOffer(m.offer) : closeOffer();
         case 'garage': return openGarage(m.list || []);
@@ -107,10 +107,14 @@ const PAGES = [
     { id: 'catalog', label: 'Catalogue', ico: '🚘', group: 'Atelier de vente' },
     { id: 'showroom', label: 'Showroom', ico: '✨', group: 'Atelier de vente', perm: 'present' },
     { id: 'categories', label: 'Catégories', ico: '🗂️', group: 'Direction', perm: 'categories' },
-    { id: 'employees', label: 'Employés', ico: '👥', group: 'Direction', perm: 'employees' },
-    { id: 'permissions', label: 'Permissions', ico: '🔐', group: 'Direction', perm: 'permissions' },
-    { id: 'finances', label: 'Finances', ico: '💰', group: 'Direction', perm: 'finances' },
+    { id: 'employees', label: 'Employés', ico: '👥', group: 'Direction', perm: 'employees', show: () => !managed() },
+    { id: 'permissions', label: 'Permissions', ico: '🔐', group: 'Direction', perm: 'permissions', show: () => !managed() },
+    { id: 'finances', label: 'Ventes', ico: '📈', group: 'Direction', perm: 'finances' },
+    // Équipe & espace Patron communs (elyzea_jobs)
+    { id: 'team', label: 'Équipe', ico: '👥', group: 'Équipe', ej: true, show: () => managed() && S.me && S.me.employee },
+    { id: 'boss', label: 'Patron', ico: '👔', group: 'Équipe', ej: true, show: () => managed() && !!window.EJobs && EJobs.canBoss() },
 ];
+const managed = () => !!(S.me && S.me.perms && S.me.perms.managed);
 const can = (perm) => !!(S.me && S.me.perms && S.me.perms[perm]);
 
 function renderNav() {
@@ -138,6 +142,7 @@ async function loadMe() {
     S.dash = d;
     S.me = d.me;
     S.categories = d.categories || [];
+    if (managed() && d.me.employee && window.EJobs) await EJobs.team();
     $('#company').textContent = d.company.label;
     renderMe();
     return true;
@@ -153,6 +158,7 @@ async function go(page, keep) {
     const p = PAGES.find((x) => x.id === page) || PAGES[0];
     $('#pageEyebrow').textContent = S.viewer ? 'Véhicules en vente' : p.group;
     $('#pageTitle').textContent = p.label;
+    if (p.ej) { if (window.EJobs) EJobs.mount(el, page, { onClose: closeTablet }); return; }
     const html = await VIEWS[page]();
     if (S.page !== page) return;
     el.innerHTML = html;
@@ -189,7 +195,7 @@ VIEWS.dashboard = async () => {
             <div><h3>Équipe en service</h3><div class="card">${d.team.length ? d.team.map((t) => `<div class="list-item"><div><b>${esc(t.name)}</b><div class="muted small">${esc(t.grade)}</div></div><span class="badge green">En service</span></div>`).join('') : '<p class="muted">Personne en service.</p>'}</div></div>
             <div><h3>Dernières ventes</h3><div class="card">${d.lastSales.length ? d.lastSales.map((s) => `<div class="list-item"><div><b>${esc(s.label)}</b><div class="muted small">${esc(s.buyer)} · par ${esc(s.seller)} · ${esc(s.date)}</div></div><b class="gold-text">${money(s.price)}</b></div>`).join('') : '<p class="muted">Aucune vente pour le moment.</p>'}</div></div>
         </div>
-        ${me.onduty ? '' : '<p class="muted small" style="margin-top:14px">La vente, la présentation et les essais demandent d\'être en service. Ta tenue de travail est mise automatiquement à la prise de service et tes vêtements te sont rendus à la fin, même après une déconnexion.</p>'}`;
+        ${me.onduty ? '' : `<p class="muted small" style="margin-top:14px">La vente, la présentation et les essais demandent d'être en service. La prise de service ne change pas ta tenue${managed() ? ' : mets ta tenue de travail quand tu veux (onglet Équipe)' : ''}.</p>`}`;
 };
 
 /* ================================================================== */
