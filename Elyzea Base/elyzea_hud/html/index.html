@@ -10,140 +10,227 @@
   :root{
     /* 1 unité = 1 px en 1080p : s'adapte à toutes les résolutions */
     --u: calc(100vh / 1080);
-    --gold:#E7CF9A; --gold-deep:#A8823F; --cream:#FBF1DC; --navy:#0A1426;
-    --health:#FF3346; --armor:#3E86FF; --hunger:#F0A63A; --thirst:#8FD0F5; --voice:#E7CF9A;
+    --gold:#E7CF9A; --gold-deep:#A8823F; --cream:#FBF1DC; --navy:#0A1426; --muted:rgba(251,241,220,.62);
+    --health:#FF3346; --armor:#3E86FF; --hunger:#F0A63A; --thirst:#8FD0F5; --voice:#E7CF9A; --ok:#4CC38A; --warn:#F0A63A;
+    --glass:rgba(8,14,28,.52); --line:rgba(231,207,154,.2);
     /* Position de la mini-carte (remplie par le jeu, valeurs de secours = bas gauche) */
     --mx: 1.4vw; --my: calc(100vh - 3vh - 18.5vh); --mw: 16.65vw; --mh: 18.5vh;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;overflow:hidden;background:transparent;
     font-family:"Rajdhani","Segoe UI",Arial,sans-serif;color:var(--cream);user-select:none}
+  .shadow{text-shadow:0 calc(var(--u)*1) calc(var(--u)*3) rgba(0,0,0,.9)}
   #hud{position:fixed;inset:0;transition:opacity .35s ease}
   #hud.hidden{opacity:0}
 
   /* ================= CADRE DE LA MINI-CARTE ================= */
-  .frame{position:absolute;left:var(--mx);top:var(--my);width:var(--mw);height:var(--mh);pointer-events:none;
-    transition:opacity .3s}
+  .frame{position:absolute;left:var(--mx);top:var(--my);width:var(--mw);height:var(--mh);pointer-events:none;transition:opacity .3s}
   .frame.off{opacity:0}
-  .frame::before{content:"";position:absolute;inset:calc(var(--u)*-3);
-    border:calc(var(--u)*1.5) solid rgba(231,207,154,.55);
-    box-shadow:0 0 0 calc(var(--u)*1) rgba(6,12,24,.85),0 calc(var(--u)*6) calc(var(--u)*18) rgba(0,0,0,.45),inset 0 0 calc(var(--u)*14) rgba(6,12,24,.55)}
+  .frame::before{content:"";position:absolute;inset:calc(var(--u)*-3);border-radius:calc(var(--u)*6);
+    border:calc(var(--u)*1.5) solid rgba(231,207,154,.45);
+    box-shadow:0 0 0 calc(var(--u)*1) rgba(6,12,24,.85),0 calc(var(--u)*6) calc(var(--u)*18) rgba(0,0,0,.45),inset 0 0 calc(var(--u)*14) rgba(6,12,24,.5)}
   .frame.round::before{border-radius:50%}
-  .corner{position:absolute;width:calc(var(--u)*16);height:calc(var(--u)*16);border:calc(var(--u)*2.5) solid var(--gold);
-    filter:drop-shadow(0 0 calc(var(--u)*4) rgba(231,207,154,.6))}
+  .corner{position:absolute;width:calc(var(--u)*14);height:calc(var(--u)*14);border:calc(var(--u)*2) solid var(--gold);opacity:.9}
   .c1{left:calc(var(--u)*-5);top:calc(var(--u)*-5);border-right:none;border-bottom:none}
   .c2{right:calc(var(--u)*-5);top:calc(var(--u)*-5);border-left:none;border-bottom:none}
   .c3{left:calc(var(--u)*-5);bottom:calc(var(--u)*-5);border-right:none;border-top:none}
   .c4{right:calc(var(--u)*-5);bottom:calc(var(--u)*-5);border-left:none;border-top:none}
   .frame.round .corner{display:none}
-  .edge{position:absolute;left:0;right:0;bottom:calc(var(--u)*-6);height:calc(var(--u)*2);
-    background:linear-gradient(90deg,#3E86FF,var(--gold) 50%,#FF3346);opacity:.85}
-  .frame.round .edge{display:none}
 
-  /* ================= STATUTS (collés à droite de la carte) ================= */
-  .status{position:absolute;left:calc(var(--mx) + var(--mw) + var(--u)*14);
+  /* ================= JOUEUR (à droite de la carte) ================= */
+  .player{position:absolute;left:calc(var(--mx) + var(--mw) + var(--u)*16);
     bottom:calc(100vh - var(--my) - var(--mh) - var(--u)*3);
-    width:calc(var(--u)*196);display:flex;flex-direction:column;gap:calc(var(--u)*7)}
+    width:calc(var(--u)*210);display:flex;flex-direction:column;gap:calc(var(--u)*7)}
+  .ident{display:flex;align-items:baseline;gap:calc(var(--u)*8);margin-bottom:calc(var(--u)*2);min-width:0}
+  .ident b{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:calc(var(--u)*15.5);letter-spacing:.03em;color:var(--cream);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .ident b em{font-style:normal;color:var(--gold)}
+  .ident span{flex:none;font-weight:700;font-size:calc(var(--u)*11);color:var(--muted);letter-spacing:.06em;
+    border:calc(var(--u)*1) solid var(--line);border-radius:calc(var(--u)*4);padding:0 calc(var(--u)*5);background:var(--glass)}
+  .rule{height:calc(var(--u)*1);background:linear-gradient(90deg,var(--gold),transparent);opacity:.45;margin:calc(var(--u)*-3) 0 calc(var(--u)*2)}
 
   .bar{display:flex;align-items:center;gap:calc(var(--u)*7);height:calc(var(--u)*16);transition:opacity .3s}
   .bar.off{opacity:.3}
   .ico{flex:none;width:calc(var(--u)*16);height:calc(var(--u)*16);display:grid;place-items:center}
-  .ico svg{width:100%;height:100%;fill:var(--c);filter:drop-shadow(0 0 calc(var(--u)*3) var(--c)) drop-shadow(0 calc(var(--u)*1) calc(var(--u)*1) #000)}
-  .track{flex:1;height:calc(var(--u)*7);position:relative;background:rgba(6,12,24,.7);
-    border:calc(var(--u)*1) solid rgba(231,207,154,.18);border-radius:calc(var(--u)*4);overflow:hidden}
+  .ico svg{width:100%;height:100%;fill:var(--c);filter:drop-shadow(0 0 calc(var(--u)*2) var(--c)) drop-shadow(0 calc(var(--u)*1) calc(var(--u)*1) #000)}
+  .track{flex:1;height:calc(var(--u)*7);position:relative;background:rgba(6,12,24,.65);
+    border:calc(var(--u)*1) solid rgba(231,207,154,.16);border-radius:calc(var(--u)*4);overflow:hidden}
   .fill{position:absolute;inset:0 auto 0 0;width:100%;border-radius:inherit;
-    background:linear-gradient(90deg,var(--c2),var(--c));box-shadow:0 0 calc(var(--u)*8) var(--c);
+    background:linear-gradient(90deg,var(--c2),var(--c));box-shadow:0 0 calc(var(--u)*6) var(--c);
     transition:width .45s cubic-bezier(.2,.8,.2,1)}
-  .val{flex:none;width:calc(var(--u)*26);text-align:right;font-weight:700;font-size:calc(var(--u)*13);
-    font-variant-numeric:tabular-nums;text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
+  .val{flex:none;width:calc(var(--u)*28);text-align:right;font-weight:700;font-size:calc(var(--u)*13);font-variant-numeric:tabular-nums}
   .bar.low .fill{animation:pulse 1s ease-in-out infinite}
   .bar.low .val{color:var(--health)}
   @keyframes pulse{50%{opacity:.35}}
 
   .gauges{display:flex;align-items:center;gap:calc(var(--u)*9);margin-top:calc(var(--u)*2)}
-  .gauge{--p:100;position:relative;width:calc(var(--u)*34);height:calc(var(--u)*34);border-radius:50%;
-    background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(6,12,24,.75) 0);
-    box-shadow:0 0 calc(var(--u)*8) rgba(0,0,0,.5);transition:--p .4s}
+  .gauge{--p:100;position:relative;flex:none;width:calc(var(--u)*34);height:calc(var(--u)*34);border-radius:50%;
+    background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(6,12,24,.7) 0);box-shadow:0 0 calc(var(--u)*8) rgba(0,0,0,.45)}
   .gauge::before{content:"";position:absolute;inset:calc(var(--u)*3);border-radius:50%;
-    background:radial-gradient(circle at 50% 35%,#16274a,var(--navy));border:calc(var(--u)*1) solid rgba(231,207,154,.25)}
-  .gauge svg{position:absolute;inset:0;margin:auto;width:calc(var(--u)*15);height:calc(var(--u)*15);fill:var(--c);
-    filter:drop-shadow(0 0 calc(var(--u)*3) var(--c))}
+    background:radial-gradient(circle at 50% 35%,#16274a,var(--navy));border:calc(var(--u)*1) solid rgba(231,207,154,.22)}
+  .gauge svg{position:absolute;inset:0;margin:auto;width:calc(var(--u)*15);height:calc(var(--u)*15);fill:var(--c);filter:drop-shadow(0 0 calc(var(--u)*2) var(--c))}
   .gauge.low{animation:pulse 1s ease-in-out infinite}
   .gauge.talking::before{border-color:var(--cream);box-shadow:0 0 calc(var(--u)*10) var(--cream)}
   .gauge.radio{--c:#FF3346 !important}
-  .voice-txt{display:flex;flex-direction:column;line-height:1.05}
-  .voice-txt b{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:calc(var(--u)*11.5);letter-spacing:.06em;color:var(--gold);
-    text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
-  .voice-txt span{font-weight:700;font-size:calc(var(--u)*12);font-variant-numeric:tabular-nums;text-shadow:0 calc(var(--u)*1) calc(var(--u)*2) #000}
+  .voice-txt{display:flex;flex-direction:column;line-height:1.05;min-width:0}
+  .voice-txt b{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:calc(var(--u)*11.5);letter-spacing:.06em;color:var(--gold)}
+  .voice-txt span{font-weight:700;font-size:calc(var(--u)*12.5);font-variant-numeric:tabular-nums}
   .pips{display:flex;gap:calc(var(--u)*3);margin-top:calc(var(--u)*3)}
   .pip{width:calc(var(--u)*7);height:calc(var(--u)*3);border-radius:calc(var(--u)*2);background:rgba(231,207,154,.2)}
   .pip.on{background:var(--gold)}
 
-  .brand{position:absolute;right:calc(var(--u)*22);bottom:calc(var(--u)*18);font-weight:600;font-size:calc(var(--u)*15);
-    color:#e6e6e6;opacity:.55;text-shadow:0 0 calc(var(--u)*2) #000}
+  /* ================= VÉHICULE (bas droite) ================= */
+  .veh{position:absolute;right:calc(var(--u)*34);bottom:calc(var(--u)*30);width:calc(var(--u)*250);
+    display:flex;flex-direction:column;align-items:center;transition:opacity .35s, transform .35s}
+  .veh.off{opacity:0;transform:translateY(calc(var(--u)*16));pointer-events:none}
+  .where{display:flex;align-items:center;gap:calc(var(--u)*7);font-weight:700;font-size:calc(var(--u)*13);margin-bottom:calc(var(--u)*4);
+    max-width:calc(var(--u)*330);white-space:nowrap}
+  .where .dir{font-family:"Cinzel",Georgia,serif;color:var(--gold);font-size:calc(var(--u)*14);min-width:calc(var(--u)*22);text-align:center}
+  .where .street{overflow:hidden;text-overflow:ellipsis}
+  .dial{position:relative;width:calc(var(--u)*230);height:calc(var(--u)*214)}
+  .dial svg.arcs{position:absolute;inset:0;width:100%;height:calc(var(--u)*230)}
+  .arc-bg{fill:none;stroke:rgba(6,12,24,.62);stroke-linecap:round}
+  .arc-speed{fill:none;stroke:url(#gSpeed);stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(231,207,154,.55));transition:stroke-dashoffset .12s linear}
+  .arc-rpm{fill:none;stroke:var(--cream);stroke-linecap:round;opacity:.8;transition:stroke-dashoffset .1s linear}
+  .arc-rpm.red{stroke:var(--health);opacity:1}
+  .tick{stroke:rgba(251,241,220,.45)}
+  .tick.major{stroke:rgba(231,207,154,.85)}
+  .tlabel{fill:rgba(251,241,220,.55);font:600 10px Rajdhani,Arial,sans-serif;text-anchor:middle;dominant-baseline:middle}
+  .center{position:absolute;left:0;right:0;top:calc(var(--u)*72);display:flex;flex-direction:column;align-items:center}
+  .speed{font-weight:700;font-size:calc(var(--u)*52);line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .unit{font-family:"Cinzel",Georgia,serif;font-size:calc(var(--u)*11);letter-spacing:.18em;color:var(--gold);margin-top:calc(var(--u)*2)}
+  .gear{margin-top:calc(var(--u)*8);min-width:calc(var(--u)*34);text-align:center;font-weight:700;font-size:calc(var(--u)*17);
+    border:calc(var(--u)*1) solid var(--line);border-radius:calc(var(--u)*6);background:var(--glass);padding:0 calc(var(--u)*6)}
+  .gear.r{color:var(--health);border-color:rgba(255,51,70,.45)}
+  .lamps{position:absolute;left:0;right:0;top:calc(var(--u)*190);display:flex;justify-content:center;gap:calc(var(--u)*8)}
+  .lamp{width:calc(var(--u)*17);height:calc(var(--u)*17);opacity:.2;transition:opacity .2s,filter .2s}
+  .lamp svg{width:100%;height:100%;fill:var(--cream)}
+  .lamp.on{opacity:1}
+  .lamp.on svg{filter:drop-shadow(0 0 calc(var(--u)*4) currentColor)}
+  .lamp.ind{color:var(--ok)} .lamp.ind svg{fill:var(--ok)}
+  .lamp.ind.on{animation:blink .8s steps(1) infinite}
+  .lamp.lights{color:var(--ok)} .lamp.lights.on svg{fill:var(--ok)} .lamp.lights.high svg{fill:#5aa8ff}
+  .lamp.engine.warn{opacity:1;color:var(--warn)} .lamp.engine.warn svg{fill:var(--warn)}
+  .lamp.engine.bad{opacity:1;color:var(--health);animation:pulse 1s ease-in-out infinite} .lamp.engine.bad svg{fill:var(--health)}
+  .lamp.lock.on{color:var(--gold)} .lamp.lock.on svg{fill:var(--gold)}
+  @keyframes blink{50%{opacity:.2}}
+
+  .fuel{display:flex;align-items:center;gap:calc(var(--u)*8);width:calc(var(--u)*210);margin-top:calc(var(--u)*6)}
+  .fuel .ico svg{fill:var(--c)}
+  .fuel .segs{flex:1;display:grid;grid-template-columns:repeat(10,1fr);gap:calc(var(--u)*3)}
+  .seg{height:calc(var(--u)*8);border-radius:calc(var(--u)*2);background:rgba(6,12,24,.62);border:calc(var(--u)*1) solid rgba(231,207,154,.14)}
+  .seg.on{background:var(--c);border-color:transparent;box-shadow:0 0 calc(var(--u)*5) var(--c)}
+  .fuel.low .seg.on{animation:pulse 1s ease-in-out infinite}
+  .fuel .val{width:calc(var(--u)*38)}
+  .fuel.hide{display:none}
+  .altitude{display:none;margin-top:calc(var(--u)*6);font-weight:700;font-size:calc(var(--u)*14)}
+  .altitude.on{display:block}
+  .altitude small{color:var(--gold);font-family:"Cinzel",Georgia,serif;font-size:calc(var(--u)*10);letter-spacing:.12em;margin-left:calc(var(--u)*4)}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-  body.demo{background:radial-gradient(ellipse at 30% 60%,#3b4a3a,#1d2620 60%,#0d120f)}
-  body.demo .frame::after{content:"";position:absolute;inset:0;background:
+  body.demo{background:radial-gradient(ellipse at 30% 60%,#55665a,#2a352d 60%,#121815)}
+  body.demo .frame::after{content:"";position:absolute;inset:0;border-radius:calc(var(--u)*5);background:
     linear-gradient(35deg,transparent 46%,#d9d9d9 46% 49%,transparent 49%),linear-gradient(-50deg,transparent 30%,#cfcfcf 30% 33%,transparent 33%),#9a9a9a}
 </style>
 </head>
 <body>
-<div id="hud">
-  <div class="brand">Elyzea FA</div>
-
+<div id="hud" class="shadow">
   <div class="frame" id="frame">
-    <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i><i class="edge"></i>
+    <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
   </div>
 
-  <div class="status">
-    <div class="bar" id="b-health" style="--c:var(--health);--c2:#8e1420">
+  <!-- Joueur -->
+  <div class="player">
+    <div class="ident"><b id="name">—</b><span id="pid">ID —</span></div>
+    <div class="rule"></div>
+    <div class="bar" id="b-health" style="--c:var(--health);--c2:#8e1420" title="Vie">
       <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4 7 4c2.2 0 3.6 1.2 5 3 1.4-1.8 2.8-3 5-3 4 0 6.1 4.2 4.6 7.7C19.5 16.4 12 21 12 21z"/></svg></div>
       <div class="track"><div class="fill"></div></div><div class="val">100</div>
     </div>
-    <div class="bar" id="b-armor" style="--c:var(--armor);--c2:#1c3f80">
+    <div class="bar" id="b-armor" style="--c:var(--armor);--c2:#1c3f80" title="Bouclier">
       <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5z"/></svg></div>
-      <div class="track"><div class="fill"></div></div><div class="val">100</div>
+      <div class="track"><div class="fill"></div></div><div class="val">0</div>
     </div>
     <div class="gauges">
-      <div class="gauge" id="g-hunger" style="--c:var(--hunger)"><svg viewBox="0 0 24 24"><path d="M7 2v8a2 2 0 0 1-1.5 1.9V22h-2V11.9A2 2 0 0 1 2 10V2h1.5v6h1V2H6v6h1V2zm9 0c2.8 0 4 3 4 7 0 2-1 3.4-2.5 3.8V22h-2.2V2z"/></svg></div>
-      <div class="gauge" id="g-thirst" style="--c:var(--thirst)"><svg viewBox="0 0 24 24"><path d="M12 2s7 7.6 7 13a7 7 0 0 1-14 0c0-5.4 7-13 7-13z"/></svg></div>
-      <div class="gauge" id="g-voice" style="--c:var(--voice)"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5h1.8a7.8 7.8 0 0 1-6.9 7.7V22h-1.8v-2.8a7.8 7.8 0 0 1-6.9-7.7H6a6 6 0 0 0 12 0z"/></svg></div>
+      <div class="gauge" id="g-hunger" style="--c:var(--hunger)" title="Faim"><svg viewBox="0 0 24 24"><path d="M7 2v8a2 2 0 0 1-1.5 1.9V22h-2V11.9A2 2 0 0 1 2 10V2h1.5v6h1V2H6v6h1V2zm9 0c2.8 0 4 3 4 7 0 2-1 3.4-2.5 3.8V22h-2.2V2z"/></svg></div>
+      <div class="gauge" id="g-thirst" style="--c:var(--thirst)" title="Soif"><svg viewBox="0 0 24 24"><path d="M12 2s7 7.6 7 13a7 7 0 0 1-14 0c0-5.4 7-13 7-13z"/></svg></div>
+      <div class="gauge" id="g-voice" style="--c:var(--voice)" title="Voix"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5h1.8a7.8 7.8 0 0 1-6.9 7.7V22h-1.8v-2.8a7.8 7.8 0 0 1-6.9-7.7H6a6 6 0 0 0 12 0z"/></svg></div>
       <div class="voice-txt"><b id="voice-label">Normal</b><span id="voice-dist">8 m</span>
         <div class="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i></div></div>
+    </div>
+  </div>
+
+  <!-- Véhicule -->
+  <div class="veh off" id="veh">
+    <div class="where"><span class="dir" id="dir">N</span><span class="street" id="street"></span></div>
+    <div class="dial">
+      <svg class="arcs" viewBox="0 0 230 230" aria-hidden="true">
+        <defs><linearGradient id="gSpeed" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#A8823F"/><stop offset=".6" stop-color="#E7CF9A"/><stop offset="1" stop-color="#FF3346"/></linearGradient></defs>
+        <g id="ticks"></g>
+        <circle class="arc-bg" cx="115" cy="115" r="96" stroke-width="9"/>
+        <circle class="arc-speed" id="arcSpeed" cx="115" cy="115" r="96" stroke-width="9"/>
+        <circle class="arc-bg" cx="115" cy="115" r="82" stroke-width="3"/>
+        <circle class="arc-rpm" id="arcRpm" cx="115" cy="115" r="82" stroke-width="3"/>
+      </svg>
+      <div class="center">
+        <div class="speed" id="speed">0</div>
+        <div class="unit">KM/H</div>
+        <div class="gear" id="gear">N</div>
+        <div class="altitude" id="alt">0 m<small>ALT.</small></div>
+      </div>
+      <div class="lamps">
+        <span class="lamp ind" id="l-left" title="Clignotant gauche"><svg viewBox="0 0 24 24"><path d="M10 5 3 12l7 7v-4.5h11v-5H10z"/></svg></span>
+        <span class="lamp lights" id="l-lights" title="Phares"><svg viewBox="0 0 24 24"><path d="M13 5c4.4 0 8 3.1 8 7s-3.6 7-8 7c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2zM2 7h7v2H2zm0 4h7v2H2zm0 4h7v2H2z"/></svg></span>
+        <span class="lamp engine" id="l-engine" title="Moteur"><svg viewBox="0 0 24 24"><path d="M7 5h6v2h-2v2h4l2 2h2V9h2v8h-2v-2h-2l-2 3H8l-2-2H4v2H2V9h2v2h2V9h2V7H7z"/></svg></span>
+        <span class="lamp lock" id="l-lock" title="Verrouillage"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z"/></svg></span>
+        <span class="lamp ind" id="l-right" title="Clignotant droit"><svg viewBox="0 0 24 24"><path d="M14 5l7 7-7 7v-4.5H3v-5h11z"/></svg></span>
+      </div>
+    </div>
+    <div class="fuel" id="fuel" style="--c:var(--hunger)" title="Essence">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M5 3h9a1 1 0 0 1 1 1v8h1a2 2 0 0 1 2 2v3a1 1 0 0 0 2 0V9.4l-2.7-2.7 1.4-1.4L22 8.6V17a3 3 0 0 1-6 0v-3h-1v7H4V4a1 1 0 0 1 1-1zm1 2v5h7V5z"/></svg></div>
+      <div class="segs" id="segs"></div>
+      <div class="val" id="fuelVal">100 %</div>
     </div>
   </div>
 </div>
 
 <script>
 (() => {
-  const hud = document.getElementById('hud');
-  const frame = document.getElementById('frame');
-  const root = document.documentElement.style;
+  const $ = (id) => document.getElementById(id);
+  const hud = $('hud'), frame = $('frame'), root = document.documentElement.style;
   const pips = document.querySelectorAll('.pip');
   const NAMES = { 1: 'Chuchoter', 2: 'Normal', 3: 'Crier' };
-  const clamp = (v) => Math.max(0, Math.min(100, Math.round(v ?? 0)));
+  const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, Math.round(v ?? 0)));
 
+  /* ---------- Joueur ---------- */
   function bar(id, value, lowAt = 25) {
-    const el = document.getElementById(id), v = clamp(value);
+    const el = $(id), v = clamp(value);
     el.querySelector('.fill').style.width = v + '%';
     el.querySelector('.val').textContent = v;
     if (id === 'b-armor') el.classList.toggle('off', v === 0);
     else el.classList.toggle('low', v <= lowAt);
   }
   function gauge(id, value, lowAt = 20) {
-    const el = document.getElementById(id), v = clamp(value);
+    const el = $(id), v = clamp(value);
     el.style.setProperty('--p', v);
     el.classList.toggle('low', v <= lowAt);
   }
   function voice(mode = 2, distance, talking, radio) {
-    const g = document.getElementById('g-voice');
+    const g = $('g-voice');
     g.style.setProperty('--p', Math.round(mode / 3 * 100));
     g.classList.toggle('talking', !!talking);
     g.classList.toggle('radio', !!radio);
     pips.forEach((p, i) => p.classList.toggle('on', i < mode));
-    document.getElementById('voice-label').textContent = radio ? 'Radio' : (NAMES[mode] || 'Normal');
-    document.getElementById('voice-dist').textContent = distance != null ? Math.round(distance) + ' m' : '';
+    $('voice-label').textContent = radio ? 'Radio' : (NAMES[mode] || 'Normal');
+    $('voice-dist').textContent = distance != null ? `Portée ${Math.round(distance)} m` : '';
+  }
+  function ident(d) {
+    const first = d.firstname || '', last = (d.lastname || '').toUpperCase();
+    $('name').innerHTML = '';
+    const em = document.createElement('em'); em.textContent = first;
+    $('name').append(em, document.createTextNode(first && last ? ' ' + last : last));
+    if (!first && !last) $('name').textContent = '—';
+    $('pid').textContent = d.id != null ? `ID ${d.id}` : '';
   }
   function setRect(r) {
     if (!r || !(r.w > 0)) return;
@@ -153,6 +240,86 @@
     root.setProperty('--mh', (r.h * 100) + 'vh');
     frame.classList.toggle('round', !!r.round);
   }
+
+  /* ---------- Véhicule ---------- */
+  const R1 = 96, R2 = 82, SWEEP = 0.75;            // arc de 270°
+  const C1 = 2 * Math.PI * R1, C2 = 2 * Math.PI * R2;
+  const arcS = $('arcSpeed'), arcR = $('arcRpm');
+  for (const [el, c] of [[arcS, C1], [arcR, C2]]) {
+    el.setAttribute('stroke-dasharray', `${c * SWEEP} ${c}`);
+    el.setAttribute('transform', 'rotate(135 115 115)');
+  }
+  document.querySelectorAll('.arc-bg').forEach((el) => {
+    const c = 2 * Math.PI * Number(el.getAttribute('r'));
+    el.setAttribute('stroke-dasharray', `${c * SWEEP} ${c}`);
+    el.setAttribute('transform', 'rotate(135 115 115)');
+  });
+  for (let i = 0; i < 10; i++) { const s = document.createElement('i'); s.className = 'seg'; $('segs').appendChild(s); }
+  const segs = document.querySelectorAll('.seg');
+
+  let scaleMax = 0;
+  function drawTicks(max) {
+    if (max === scaleMax) return;
+    scaleMax = max;
+    const g = $('ticks'); g.innerHTML = '';
+    const step = max <= 200 ? 20 : max <= 320 ? 40 : 50;
+    const ns = 'http://www.w3.org/2000/svg';
+    for (let v = 0; v <= max; v += step / 2) {
+      const major = v % step === 0;
+      const a = (135 + (v / max) * 270) * Math.PI / 180;
+      const r0 = 108, r1 = major ? 101 : 104;
+      const l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', 115 + r0 * Math.cos(a)); l.setAttribute('y1', 115 + r0 * Math.sin(a));
+      l.setAttribute('x2', 115 + r1 * Math.cos(a)); l.setAttribute('y2', 115 + r1 * Math.sin(a));
+      l.setAttribute('class', 'tick' + (major ? ' major' : '')); l.setAttribute('stroke-width', major ? 2 : 1);
+      g.appendChild(l);
+      if (major) {
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', 115 + 68 * Math.cos(a)); t.setAttribute('y', 115 + 68 * Math.sin(a));
+        t.setAttribute('class', 'tlabel'); t.textContent = v;
+        g.appendChild(t);
+      }
+    }
+  }
+
+  function vehicle(v) {
+    $('veh').classList.toggle('off', !v);
+    if (!v) return;
+    drawTicks(v.max || 200);
+    const sp = Math.max(0, Math.round(v.speed || 0));
+    $('speed').textContent = sp;
+    arcS.setAttribute('stroke-dashoffset', C1 * SWEEP * (1 - Math.min(1, sp / scaleMax)));
+    const rpm = Math.max(0, Math.min(1, v.rpm || 0));
+    arcR.setAttribute('stroke-dashoffset', C2 * SWEEP * (1 - rpm));
+    arcR.classList.toggle('red', rpm > 0.9);
+    const gear = $('gear');
+    gear.textContent = v.gear ?? 'N';
+    gear.classList.toggle('r', v.gear === 'R');
+    gear.style.display = v.air ? 'none' : '';
+    $('alt').classList.toggle('on', !!v.air);
+    if (v.air) $('alt').firstChild.textContent = `${Math.round(v.altitude || 0)} m`;
+    $('l-left').classList.toggle('on', !!v.left);
+    $('l-right').classList.toggle('on', !!v.right);
+    const lt = $('l-lights'); lt.classList.toggle('on', !!v.lights); lt.classList.toggle('high', !!v.high);
+    const en = $('l-engine');
+    en.classList.toggle('on', !!v.engineOn);
+    en.classList.toggle('warn', v.engine < 60 && v.engine >= 30);
+    en.classList.toggle('bad', v.engine < 30);
+    en.title = `Moteur ${clamp(v.engine)} %`;
+    $('l-lock').classList.toggle('on', !!v.locked);
+    const f = $('fuel');
+    f.classList.toggle('hide', v.fuel == null);
+    if (v.fuel != null) {
+      const fv = clamp(v.fuel), n = Math.ceil(fv / 10);
+      segs.forEach((s, i) => s.classList.toggle('on', i < n));
+      $('fuelVal').textContent = fv + ' %';
+      f.style.setProperty('--c', fv <= 15 ? 'var(--health)' : fv <= 30 ? 'var(--warn)' : 'var(--ok)');
+      f.classList.toggle('low', fv <= 15);
+    }
+    $('dir').textContent = v.dir || '';
+    $('street').textContent = v.street || '';
+  }
+
   function update(d) {
     if ('health' in d) bar('b-health', d.health);
     if ('armor' in d) bar('b-armor', d.armor);
@@ -161,19 +328,24 @@
     if ('voice' in d) voice(d.voice.mode, d.voice.distance, d.talking, d.radio);
     if ('show' in d) hud.classList.toggle('hidden', !d.show);
     if ('map' in d) frame.classList.toggle('off', !d.map);
+    if ('vehicle' in d) vehicle(d.vehicle);
   }
 
   window.addEventListener('message', (e) => {
     const d = e.data || {};
     if (d.action === 'update') update(d);
-    if (d.action === 'rect') setRect(d.rect);
+    else if (d.action === 'vehicle') vehicle(d.vehicle);
+    else if (d.action === 'rect') setRect(d.rect);
+    else if (d.action === 'ident') ident(d);
   });
 
   // ---- Aperçu hors FiveM ----
   if (typeof GetParentResourceName === 'undefined') {
     document.body.classList.add('demo');
-    const s = { health: 82, armor: 46, hunger: 64, thirst: 18 };
-    update({ ...s, map: true, voice: { mode: 2, distance: 8 } });
+    ident({ firstname: 'Lena', lastname: 'Moreau', id: 12 });
+    update({ health: 82, armor: 46, hunger: 64, thirst: 18, map: true, voice: { mode: 2, distance: 8 }, talking: true });
+    vehicle({ speed: 87, max: 240, rpm: 0.62, gear: '3', fuel: 42, engine: 92, engineOn: true, lights: true, left: true, locked: true,
+      dir: 'NE', street: 'Vinewood Blvd · Downtown Vinewood' });
   }
 })();
 </script>

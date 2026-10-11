@@ -1,7 +1,8 @@
 -- =====================================================================
---  ELYZEA HUD : cadre de la mini-carte + statuts collés à sa droite
---  (vie, bouclier, faim, soif, voix). La carte est placée par admin_menu ;
---  sans lui, le HUD la place lui-même en bas à gauche.
+--  ELYZEA HUD : cadre de la mini-carte + identité et statuts collés à sa droite
+--  (nom, vie, bouclier, faim, soif, portée de la voix) ; compteur en véhicule
+--  (vitesse, régime, rapport, essence, moteur, phares, clignotants, verrouillage).
+--  La carte est placée par admin_menu ; sans lui, le HUD la place lui-même en bas à gauche.
 -- =====================================================================
 local hunger, thirst = 100, 100
 local hudVisible = true
@@ -108,9 +109,16 @@ end)
 ------------------------------------------------------------
 -- Faim / soif : base Elyzea (elyzea_core)
 ------------------------------------------------------------
+local function sendIdent(data)
+    local ci = type(data) == 'table' and data.charinfo or nil
+    if not ci then return end
+    SendNUIMessage({ action = 'ident', firstname = ci.firstname, lastname = ci.lastname, id = GetPlayerServerId(PlayerId()) })
+end
+
 local function readNeeds(data)
     local meta = type(data) == 'table' and data.metadata or nil
     if meta then hunger, thirst = tonumber(meta.hunger) or hunger, tonumber(meta.thirst) or thirst end
+    sendIdent(data)
 end
 
 RegisterNetEvent('hud:client:UpdateNeeds', function(newHunger, newThirst)
@@ -122,11 +130,95 @@ RegisterNetEvent('elyzea:client:setPlayerData', readNeeds)
 CreateThread(function()
     if GetResourceState('elyzea_core') ~= 'started' then return end
     readNeeds(exports.elyzea_core:GetPlayerData())
+    -- Nom réaffiché régulièrement (interface rechargée, changement de personnage)
+    while true do
+        Wait(15000)
+        local ok, data = pcall(function() return exports.elyzea_core:GetPlayerData() end)
+        if ok then sendIdent(data) end
+    end
 end)
 
 -- Autre système de besoins : TriggerEvent('elyzea_hud:setNeeds', faim, soif)
 AddEventHandler('elyzea_hud:setNeeds', function(h, t)
     hunger, thirst = h or hunger, t or thirst
+end)
+
+------------------------------------------------------------
+-- Véhicule : compteur
+------------------------------------------------------------
+local DIRS = { 'N', 'NO', 'O', 'SO', 'S', 'SE', 'E', 'NE' }   -- cap GTA : 0 = nord, sens inverse des aiguilles
+local NO_FUEL = { [13] = true }                               -- vélos
+local AIR = { [15] = true, [16] = true }                      -- hélicoptères, avions
+local scaleCache = {}
+
+local function speedScale(veh)
+    local model = GetEntityModel(veh)
+    if not scaleCache[model] then
+        local top = GetVehicleEstimatedMaxSpeed(veh) * 3.6 * 1.15
+        scaleCache[model] = math.max(120, math.min(400, math.ceil(top / 40) * 40))
+    end
+    return scaleCache[model]
+end
+
+local where, whereAt = { dir = '', street = '' }, 0
+local function location(veh)
+    local now = GetGameTimer()
+    if now - whereAt > 800 then
+        whereAt = now
+        local c = GetEntityCoords(veh)
+        local h1, h2 = GetStreetNameAtCoord(c.x, c.y, c.z)
+        local street = GetStreetNameFromHashKey(h1)
+        local cross = h2 ~= 0 and GetStreetNameFromHashKey(h2) or ''
+        local zone = GetLabelText(GetNameOfZone(c.x, c.y, c.z))
+        if zone == 'NULL' then zone = '' end
+        local parts = { street ~= '' and street or nil, cross ~= '' and cross or nil }
+        where.street = (#parts > 0 and table.concat(parts, ' / ') or '') .. (zone ~= '' and ((#parts > 0 and ' · ' or '') .. zone) or '')
+    end
+    where.dir = DIRS[math.floor(((GetEntityHeading(veh) + 22.5) % 360) / 45) + 1]
+    return where
+end
+
+local function vehicleData(veh)
+    local class = GetVehicleClass(veh)
+    local speed = GetEntitySpeed(veh) * 3.6
+    local rpm = GetVehicleCurrentRpm(veh)
+    local running = GetIsVehicleEngineRunning(veh)
+    local gear = GetVehicleCurrentGear(veh)
+    local g
+    if GetEntitySpeedVector(veh, true).y < -0.5 then g = 'R'
+    elseif not running or (speed < 1.0 and rpm <= 0.21) then g = 'N'
+    else g = tostring(math.max(1, gear)) end
+    local fuel = nil
+    if not NO_FUEL[class] then fuel = tonumber(Entity(veh).state.fuel) or GetVehicleFuelLevel(veh) end
+    local _, lightsOn, high = GetVehicleLightsState(veh)
+    local ind = GetVehicleIndicatorLights(veh)
+    local loc = location(veh)
+    return {
+        speed = speed, max = speedScale(veh), rpm = running and math.max(0.0, (rpm - 0.2) / 0.8) or 0.0, gear = g,
+        fuel = fuel, engine = math.max(0, GetVehicleEngineHealth(veh)) / 10, engineOn = running,
+        lights = lightsOn == 1 or high == 1, high = high == 1,
+        left = ind == 1 or ind == 3, right = ind == 2 or ind == 3,
+        locked = GetVehicleDoorLockStatus(veh) >= 2,
+        air = AIR[class] == true, altitude = AIR[class] and GetEntityHeightAboveGround(veh) or nil,
+        dir = loc.dir, street = loc.street,
+    }
+end
+
+local inVehicle = false
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        local veh = GetVehiclePedIsIn(ped, false)
+        local show = hudVisible and not IsPauseMenuActive()
+        if veh ~= 0 and show then
+            inVehicle = true
+            SendNUIMessage({ action = 'vehicle', vehicle = vehicleData(veh) })
+            Wait(80)
+        else
+            if inVehicle then inVehicle = false SendNUIMessage({ action = 'vehicle', vehicle = false }) end
+            Wait(300)
+        end
+    end
 end)
 
 ------------------------------------------------------------

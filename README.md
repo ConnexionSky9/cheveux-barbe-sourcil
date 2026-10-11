@@ -226,6 +226,7 @@ En jeu :
 - [ ] Créer un nouveau personnage
 - [ ] Touche **U** sur son propre véhicule (verrouiller / déverrouiller)
 - [ ] Manger / boire : la faim et la soif remontent dans le HUD
+- [ ] HUD : nom et prénom à droite de la carte ; en véhicule, compteur en bas à droite (vitesse, rapport, essence, moteur, phares, clignotants, verrouillage). `/hud` masque tout
 - [ ] Police : prise de service, armurerie, fouille, amende
 - [ ] Ouvrir un coffre existant : son ancien contenu est là
 - [ ] Concession : achat d'un véhicule, clé reçue, garage

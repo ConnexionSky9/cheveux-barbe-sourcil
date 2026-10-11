@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_hud'
 author 'Elyzea'
-description 'HUD Elyzea : vie, bouclier, faim, soif, voix et mini-carte rectangulaire'
+description 'HUD Elyzea : nom, vie, bouclier, faim, soif, voix, mini-carte et compteur de vitesse en véhicule'
 version '1.0.0'
 
 ui_page 'html/index.html'
