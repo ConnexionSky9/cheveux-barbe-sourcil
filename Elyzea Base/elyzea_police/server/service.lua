@@ -18,10 +18,35 @@ function P.CopsOnDuty(perm)
     return list
 end
 
+-- Santé d'un agent : vie / armure lues par le serveur (OneSync),
+-- « à terre » / « mort » signalé par son client (state bag policeLife)
+function P.AgentHealth(src)
+    local ped = GetPlayerPed(src)
+    local h, max, armor = 0, 200, 0
+    if ped ~= 0 then
+        h, max, armor = GetEntityHealth(ped), GetEntityMaxHealth(ped), GetPedArmour(ped)
+        if not max or max <= 100 then max = 200 end
+    end
+    local hp = math.max(0, math.min(100, math.floor((h - 100) / (max - 100) * 100 + 0.5)))
+    local st = Player(src).state.policeLife
+    local p = P.GetPlayer(src)
+    local md = p and p.PlayerData.metadata or {}
+    local life = 'ok'
+    if st == 'dead' or md.isdead == true then life, hp = 'dead', 0
+    elseif st == 'down' or md.inlaststand == true then life = 'down'
+    elseif hp < 50 then life = 'hurt' end
+    return { hp = hp, armor = math.max(0, math.min(100, armor or 0)), life = life }
+end
+
 function P.AgentInfo(src, withPos)
     local e, g = P.Employee(src), P.Grade(src)
     local info = { id = src, name = P.Name(src), matricule = e and e.matricule or '?', grade = g and g.name or '?', level = g and g.level or 0,
-        status = P.status[src] or 'available' }
+        status = P.status[src] or 'available', duty = P.duty[src] == true }
+    if info.duty then
+        info.health = P.AgentHealth(src)
+        local street = Player(src).state.policeStreet
+        if type(street) == 'string' then info.street = street:sub(1, 80) end
+    end
     if withPos then
         local c = P.Coords(src)
         if c then info.x, info.y = math.floor(c.x * 10) / 10, math.floor(c.y * 10) / 10 end
@@ -109,10 +134,19 @@ P.Actions.agents = { perm = 'agents_view', fn = function()
 end }
 
 -- Positions : calculées par le serveur à la demande (tablette ouverte sur la carte)
+-- Agents connectés : en service = position + santé ; hors service = juste listés (pas de position)
 P.Actions.map = { perm = 'map', fn = function()
-    local agents = {}
-    for _, id in ipairs(P.CopsOnDuty()) do agents[#agents + 1] = P.AgentInfo(id, true) end
-    return { agents = agents, agentAlerts = P.AgentAlertList and P.AgentAlertList() or {},
+    local agents, off = {}, {}
+    for _, s in ipairs(GetPlayers()) do
+        local id = tonumber(s)
+        if P.IsCop(id) then
+            if P.duty[id] then agents[#agents + 1] = P.AgentInfo(id, true)
+            else off[#off + 1] = P.AgentInfo(id) end
+        end
+    end
+    local sort = function(a, b) if a.level ~= b.level then return a.level > b.level end return a.name < b.name end
+    table.sort(agents, sort) table.sort(off, sort)
+    return { agents = agents, offDuty = off, agentAlerts = P.AgentAlertList and P.AgentAlertList() or {},
         interventions = P.GeneralAlertList and P.GeneralAlertList() or {}, now = os.time() }
 end }
 

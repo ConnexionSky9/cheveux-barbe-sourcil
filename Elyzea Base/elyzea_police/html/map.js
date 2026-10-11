@@ -104,13 +104,30 @@
       S.agents.forEach((a) => {
         if (a.x == null) return;
         const x = sx(a.x), y = sy(a.y), sel = S.sel && S.sel.kind === 'agent' && S.sel.id === a.id;
+        const life = (a.health && a.health.life) || 'ok';
+        // À terre : anneau orange pulsant ; mort : anneau rouge pulsant
+        if (life === 'down' || life === 'dead') {
+          const k = (pulse * 0.9) % 1;
+          ctx.beginPath(); ctx.arc(x, y, 7 + k * 16, 0, Math.PI * 2);
+          ctx.strokeStyle = life === 'dead' ? '#ef4444' : '#f59e0b'; ctx.globalAlpha = 1 - k; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+        }
         ctx.beginPath(); ctx.arc(x, y, sel ? 8 : 6, 0, Math.PI * 2);
-        ctx.fillStyle = (opts.statusColor && opts.statusColor(a.status)) || '#3b82f6'; ctx.fill();
+        ctx.fillStyle = life === 'dead' ? '#7f1d1d' : life === 'down' ? '#f59e0b' : (opts.statusColor && opts.statusColor(a.status)) || '#3b82f6'; ctx.fill();
         ctx.lineWidth = sel ? 3 : 2; ctx.strokeStyle = sel ? '#fff' : '#0b1220'; ctx.stroke();
-        const label = a.matricule || a.name;
+        if (life === 'dead') {
+          ctx.strokeStyle = '#fecaca'; ctx.lineWidth = 1.6; ctx.beginPath();
+          ctx.moveTo(x - 3, y - 3); ctx.lineTo(x + 3, y + 3); ctx.moveTo(x + 3, y - 3); ctx.lineTo(x - 3, y + 3); ctx.stroke();
+        }
+        const label = (a.matricule || a.name) + (life === 'dead' ? ' · MORT' : life === 'down' ? ' · À TERRE' : '');
         const tw = ctx.measureText(label).width;
-        ctx.fillStyle = 'rgba(11,18,32,.82)'; ctx.fillRect(x + 10, y - 9, tw + 10, 18);
-        ctx.fillStyle = '#e8eef9'; ctx.fillText(label, x + 15, y);
+        ctx.fillStyle = 'rgba(11,18,32,.82)'; ctx.fillRect(x + 10, y - 9, tw + 10, a.health ? 22 : 18);
+        ctx.fillStyle = life === 'dead' ? '#fca5a5' : life === 'down' ? '#fcd34d' : '#e8eef9'; ctx.fillText(label, x + 15, y);
+        // Barre de vie sous le matricule
+        if (a.health) {
+          const bw = tw, hp = Math.max(0, Math.min(100, a.health.hp || 0)) / 100;
+          ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(x + 15, y + 8, bw, 3);
+          ctx.fillStyle = hp > 0.5 ? '#22c55e' : hp > 0.25 ? '#f59e0b' : '#ef4444'; ctx.fillRect(x + 15, y + 8, bw * hp, 3);
+        }
       });
     }
 

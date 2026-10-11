@@ -255,3 +255,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; }
 
 /* Aperçu hors du jeu */
 body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%); }
+
+/* Santé des agents (carte, liste) */
+.hbars { display: grid; gap: .18rem; margin-top: .3rem; max-width: 9rem; }
+.hbar { height: .28rem; border-radius: 1rem; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.hbar > i { display: block; height: 100%; border-radius: 1rem; transition: width .4s; }
+.agent-row .main small { display: block; }

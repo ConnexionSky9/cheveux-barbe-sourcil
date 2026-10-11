@@ -128,3 +128,32 @@ RegisterCommand('police_debloquer', function()
     Refresh()
     SendNUIMessage({ action = 'closeAll' })
 end, false)
+
+-- ---------------------------------------------------------------------
+-- État de l'agent en service pour la carte de la tablette :
+-- à terre / mort et rue actuelle (envoyés seulement quand ils changent)
+-- ---------------------------------------------------------------------
+CreateThread(function()
+    local lastLife, lastStreet, nextStreet = nil, nil, 0
+    while true do
+        local wait = 3000
+        if C.OnDuty() then
+            wait = 1000
+            local ped, st = PlayerPedId(), LocalPlayer.state
+            local life = 'ok'
+            if IsEntityDead(ped) or IsPedFatallyInjured(ped) or st.isDead or st.dead then life = 'dead'
+            elseif st.inLastStand or st.laststand or st.emsDown or IsPedDeadOrDying(ped, true) then life = 'down' end
+            if life ~= lastLife then lastLife = life st:set('policeLife', life, true) end
+            if GetGameTimer() >= nextStreet then
+                nextStreet = GetGameTimer() + 4000
+                local street = C.Street()
+                if street ~= lastStreet then lastStreet = street st:set('policeStreet', street, true) end
+            end
+        elseif lastLife then
+            lastLife, lastStreet = nil, nil
+            LocalPlayer.state:set('policeLife', nil, true)
+            LocalPlayer.state:set('policeStreet', nil, true)
+        end
+        Wait(wait)
+    end
+end)

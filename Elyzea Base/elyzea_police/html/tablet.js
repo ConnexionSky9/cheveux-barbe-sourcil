@@ -8,6 +8,10 @@
   const body = () => $('#tabBody');
   const can = (p) => !!T.perms[p];
   const statusOf = (id) => APP.statuses.find((s) => s.id === id) || { label: id || '—', color: '#94a3b8' };
+  const LIFE = { ok: ['En vie', 'on'], hurt: ['Blessé', 'warn'], down: ['À terre', 'warn'], dead: ['Mort', 'bad'] };
+  const lifePill = (h) => { const l = LIFE[(h && h.life) || 'ok'] || LIFE.ok; return `<span class="pill ${l[1]}">${l[0]}</span>`; };
+  const bars = (h) => (h ? `<div class="hbars" title="Vie ${h.hp} % · Armure ${h.armor} %"><div class="hbar"><i style="width:${h.hp}%;background:${h.hp > 50 ? 'var(--green)' : h.hp > 25 ? 'var(--orange)' : 'var(--red)'}"></i></div>
+    <div class="hbar"><i style="width:${h.armor}%;background:#60a5fa"></i></div></div>` : '');
   const statusPill = (id) => { const s = statusOf(id); return `<span class="pill plain" style="color:${s.color};border-color:${s.color}55">${esc(s.label)}</span>`; };
   const initials = (n) => String(n || '?').split(' ').map((p) => p[0] || '').join('').slice(0, 2).toUpperCase();
   const lvlColor = (l) => (APP.levels[l] || {}).color || '#3b82f6';
@@ -212,9 +216,9 @@
   PAGES.map = async (g) => {
     body().innerHTML = `<div class="map-wrap">
       <div class="map-box" id="mapBox"><div class="map-tools"><button class="icon-btn" data-m="in" title="Zoomer">+</button><button class="icon-btn" data-m="out" title="Dézoomer">−</button><button class="icon-btn" data-m="fit" title="Tout voir">⤢</button></div>
-        <div class="map-legend"><span><i style="background:#3b82f6"></i>Agent</span>${['low', 'medium', 'high'].map((k) => `<span><i style="background:${lvlColor(k)}"></i>Alerte ${esc(lvlLabel(k).toLowerCase())}</span>`).join('')}<span><i style="background:#f59e0b;border-radius:2px"></i>Intervention</span></div></div>
+        <div class="map-legend"><span><i style="background:#3b82f6"></i>Agent</span><span><i style="background:#f59e0b"></i>À terre</span><span><i style="background:#7f1d1d"></i>Mort</span>${['low', 'medium', 'high'].map((k) => `<span><i style="background:${lvlColor(k)}"></i>Alerte ${esc(lvlLabel(k).toLowerCase())}</span>`).join('')}<span><i style="background:#f59e0b;border-radius:2px"></i>Intervention</span></div></div>
       <div class="map-side"><div class="card" id="mapSel"><h2>Sélection</h2><div class="faint" style="font-size:.85rem">Cliquez sur un agent, une alerte ou une intervention.</div></div>
-        <div class="card" id="mapAgents"><h2>Agents en service</h2></div><div class="card" id="mapAlerts"><h2>Alertes</h2></div></div></div>`;
+        <div class="card" id="mapAgents"><h2>Agents</h2></div><div class="card" id="mapAlerts"><h2>Alertes</h2></div></div></div>`;
     T.map = PoliceMap.create($('#mapBox'), { image: APP.cfg && APP.cfg.map && APP.cfg.map.file ? APP.cfg.map : null, levels: APP.levels,
       statusColor: (s) => statusOf(s).color, onSelect: (s) => { MS.sel = s; renderSel(); } });
     const refresh = async () => {
@@ -223,8 +227,12 @@
       if (d.error) { toast(d.error, false); return; }
       MS.data = d;
       T.map.setData(d.agents, d.agentAlerts, d.interventions);
-      $('#mapAgents').innerHTML = `<h2>Agents en service <span class="faint" style="font-size:.8rem">${d.agents.length}</span></h2>` + (d.agents.length ? d.agents.map((a) => `<div class="list-row click" data-focus="agent:${a.id}">
-        <span style="width:.6rem;height:.6rem;border-radius:50%;flex:none;background:${statusOf(a.status).color}" title="${esc(statusOf(a.status).label)}"></span><div class="main"><b>${esc(a.name)}</b><small><span class="mono">${esc(a.matricule)}</span> · ${esc(a.grade)} · ${esc(statusOf(a.status).label)}</small></div></div>`).join('') : '<div class="empty">Aucun agent en service.</div>');
+      const off = d.offDuty || [];
+      $('#mapAgents').innerHTML = `<h2>Agents en service <span class="faint" style="font-size:.8rem">${d.agents.length}</span></h2>` + (d.agents.length ? d.agents.map((a) => `<div class="list-row click agent-row" data-focus="agent:${a.id}">
+        <span style="width:.6rem;height:.6rem;border-radius:50%;flex:none;background:${statusOf(a.status).color}" title="${esc(statusOf(a.status).label)}"></span><div class="main"><b>${esc(a.name)}</b><small><span class="mono">${esc(a.matricule)}</span> · ${esc(a.grade)} · ${esc(statusOf(a.status).label)}</small>
+        ${a.street ? `<small class="faint">📍 ${esc(a.street)}</small>` : ''}${bars(a.health)}</div>${lifePill(a.health)}</div>`).join('') : '<div class="empty">Aucun agent en service.</div>')
+        + (off.length ? `<h2 style="margin-top:.9rem">Hors service <span class="faint" style="font-size:.8rem">${off.length}</span></h2>` + off.map((a) => `<div class="list-row" style="opacity:.55">
+        <span style="width:.6rem;height:.6rem;border-radius:50%;flex:none;background:#64748b"></span><div class="main"><b>${esc(a.name)}</b><small><span class="mono">${esc(a.matricule)}</span> · ${esc(a.grade)}</small></div><span class="pill off">Hors service</span></div>`).join('') : '');
       $('#mapAlerts').innerHTML = '<h2>Alertes</h2>' + ([...d.agentAlerts.map((a) => `<div class="alert-row click" style="--c:${lvlColor(a.level)};cursor:pointer" data-focus="alert:${a.id}"><div class="t"><span>Alerte ${esc(lvlLabel(a.level).toLowerCase())} · ${esc(a.author)}</span><span class="faint">${ago(a.t)}</span></div><div class="m">${esc(a.street || '')}</div></div>`),
         ...d.interventions.map((i) => `<div class="alert-row" style="--c:var(--orange);cursor:pointer" data-focus="inter:${i.id}"><div class="t"><span>${esc(i.title || i.label)}</span><span class="faint">${ago(i.t)}</span></div><div class="m">${esc(i.street || '')}</div></div>`)].join('') || '<div class="empty">Aucune alerte active.</div>');
       renderSel();
@@ -238,7 +246,12 @@
     const s = MS.sel;
     if (!s) { el.innerHTML = '<h2>Sélection</h2><div class="faint" style="font-size:.85rem">Cliquez sur un agent, une alerte ou une intervention.</div>'; return; }
     const o = s.data;
-    if (s.kind === 'agent') el.innerHTML = `<h2>Agent</h2><div class="kv"><span>Nom</span><b>${esc(o.name)}</b><span>Matricule</span><b class="mono">${esc(o.matricule)}</b><span>Grade</span><b>${esc(o.grade)}</b><span>Statut</span><b>${statusPill(o.status)}</b></div>`;
+    if (s.kind === 'agent') {
+      const h = o.health || { hp: 0, armor: 0, life: 'ok' };
+      el.innerHTML = `<h2>Agent</h2><div class="kv"><span>Nom</span><b>${esc(o.name)}</b><span>Matricule</span><b class="mono">${esc(o.matricule)}</b><span>Grade</span><b>${esc(o.grade)}</b>
+        <span>Service</span><b><span class="pill on">En service</span></b><span>Statut</span><b>${statusPill(o.status)}</b><span>État</span><b>${lifePill(h)}</b>
+        <span>Vie</span><b>${h.hp} %</b><span>Armure</span><b>${h.armor} %</b><span>Position</span><b>${esc(o.street || '—')}</b></div>${bars(h)}`;
+    }
     else if (s.kind === 'alert') el.innerHTML = `<h2>Alerte agent</h2><div class="kv"><span>Niveau</span><b style="color:${lvlColor(o.level)}">${esc(lvlLabel(o.level))}</b><span>Auteur</span><b>${esc(o.author)}</b><span>Matricule</span><b class="mono">${esc(o.matricule || '')}</b><span>Lieu</span><b>${esc(o.street || '—')}</b><span>Heure</span><b>${fmtTime(o.t)}</b></div>`;
     else el.innerHTML = `<h2>Intervention</h2><div class="kv"><span>Type</span><b>${esc(o.label)}</b><span>Titre</span><b>${esc(o.title || '')}</b><span>Lieu</span><b>${esc(o.street || '—')}</b><span>Heure</span><b>${fmtTime(o.t)}</b><span>Sur place</span><b>${esc((o.takers || []).join(', ') || 'Personne')}</b></div>${o.description ? `<p class="muted" style="font-size:.82rem;margin-top:.6rem">${esc(o.description)}</p>` : ''}`;
   }
@@ -252,8 +265,8 @@
     if (d.error) { body().innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
     const st = T.st || {};
     body().innerHTML = `<div class="cols">
-      <div class="card"><h2>Agents en service <span class="faint" style="font-size:.8rem">${d.list.length}</span></h2>${d.list.length ? `<table class="tbl"><tr><th>Agent</th><th>Matricule</th><th>Grade</th><th>Statut</th></tr>
-        ${d.list.map((a) => `<tr><td><b>${esc(a.name)}</b></td><td class="mono">${esc(a.matricule)}</td><td>${esc(a.grade)}</td><td>${statusPill(a.status)}</td></tr>`).join('')}</table>` : '<div class="empty">Aucun agent en service.</div>'}</div>
+      <div class="card"><h2>Agents en service <span class="faint" style="font-size:.8rem">${d.list.length}</span></h2>${d.list.length ? `<table class="tbl"><tr><th>Agent</th><th>Matricule</th><th>Grade</th><th>Statut</th><th>État</th></tr>
+        ${d.list.map((a) => `<tr><td><b>${esc(a.name)}</b>${a.street ? `<br><small class="faint">📍 ${esc(a.street)}</small>` : ''}</td><td class="mono">${esc(a.matricule)}</td><td>${esc(a.grade)}</td><td>${statusPill(a.status)}</td><td>${lifePill(a.health)}${bars(a.health)}</td></tr>`).join('')}</table>` : '<div class="empty">Aucun agent en service.</div>'}</div>
       <div><div class="card"><h2>Ma fiche</h2><div class="kv"><span>Grade</span><b>${esc(st.grade || '')}</b><span>Matricule</span><b class="mono">${esc(st.matricule || '')}</b><span>Service</span><b>${st.duty ? statusPill(st.status) : '<span class="pill off">Hors service</span>'}</b></div>
         <div class="actions-row"><button class="btn danger small" data-resign="1">Quitter la police</button></div></div></div></div>`;
     every(6000, () => { if (T.page === 'agents') PAGES.agents(T.gen); });
