@@ -170,6 +170,7 @@ Config.Permissions = {
     { key = 'trunk_manage',    label = 'Coffres véhicules : emplacements et poids du coffre par catégorie de véhicule', cat = 'Gestion' },
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     -- Illégal (ressource elyzea_illegal)
+    { key = 'drugsale_manage', label = 'Vente de drogue : réglages du mode vente (clients PNJ, prix, vols, appels à la police)', cat = 'Illégal' },
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
     { key = 'wipe_character',  label = 'Wipe : supprimer définitivement un personnage d\'un joueur', cat = 'Gestion' },
     { key = 'view_debts',      label = 'Voir les joueurs en négatif en banque', cat = 'Gestion' },
@@ -529,7 +530,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },

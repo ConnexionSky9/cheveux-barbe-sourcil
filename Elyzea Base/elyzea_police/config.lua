@@ -77,6 +77,8 @@ Config.Alerts = {
         robbery  = { label = 'Braquage',             sprite = 156, color = 1,  auto = false },
         distress = { label = 'Appel de détresse',    sprite = 280, color = 3,  auto = false },
         other    = { label = 'Signalement',          sprite = 280, color = 5,  auto = false },
+        -- Vente de drogue (elyzea_illegal) : position approximative, zone de recherche de « radius » mètres
+        suspect  = { label = 'Activité suspecte',    sprite = 51,  color = 47, auto = false, radius = 150 },
     },
     -- Commande pour appeler la police (tout le monde) : /police <message>
     callCommand = 'police',

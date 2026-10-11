@@ -84,7 +84,7 @@ RegisterNetEvent('police:client:generalUpdate', function(g) if C.OnDuty() then A
 RegisterNetEvent('police:client:generalClosed', function(id)
     local g = general[id]
     if not g then return end
-    RemoveBlipSafe(g.blip)
+    RemoveBlipSafe(g.blip) RemoveBlipSafe(g.zone)
     if g.accepted then ClearGpsPlayerWaypoint() end
     general[id] = nil
     PopQueue('general', id)
@@ -98,10 +98,16 @@ function C.AcceptGeneral(id)
     if r.error then return C.Notify(r.error, 'error') end
     local d = r.alert or g.data
     g.data, g.accepted = d, true
-    RemoveBlipSafe(g.blip)
+    RemoveBlipSafe(g.blip) RemoveBlipSafe(g.zone)
     g.blip = Blip(d.x, d.y, d.z, d.sprite or 280, d.color or 1, ('Intervention · %s'):format(d.label or d.title or ''), 1.1)
     SetBlipRoute(g.blip, true)
     SetBlipRouteColour(g.blip, d.color or 1)
+    -- Alerte approximative (ex. activité suspecte) : zone de recherche autour du point
+    if d.radius and d.radius > 0 then
+        g.zone = AddBlipForRadius(d.x + 0.0, d.y + 0.0, d.z + 0.0, d.radius + 0.0)
+        SetBlipColour(g.zone, d.color or 1)
+        SetBlipAlpha(g.zone, 90)
+    end
     PopQueue('general', id)
     SendNUIMessage({ action = 'generalUpdate', alert = d, accepted = true })
     if r.message then C.Notify(r.message, 'success') end
@@ -178,7 +184,7 @@ end
 -- ---------------------------------------------------------------------
 local function ClearAll()
     for _, v in pairs(agent) do RemoveBlipSafe(v.blip) end
-    for _, v in pairs(general) do RemoveBlipSafe(v.blip) end
+    for _, v in pairs(general) do RemoveBlipSafe(v.blip) RemoveBlipSafe(v.zone) end
     agent, general, queue = {}, {}, {}
     SendNUIMessage({ action = 'alertsClear' })
 end

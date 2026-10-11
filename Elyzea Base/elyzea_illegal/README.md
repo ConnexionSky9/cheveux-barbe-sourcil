@@ -185,3 +185,14 @@ html/                 tablette du groupe
 ## Tests (hors jeu)
 Depuis la racine du dépôt : `lua5.4 tests/run.lua` (serveur : permissions, hiérarchie, argent, isolation des groupes, persistance…),
 `lua5.4 tests/bridge.lua` (pont admin_menu, coffres), `lua5.4 tests/startup.lua` (fichiers manquants), `lua5.4 tests/missions.lua` (missions), `lua5.4 tests/fourgon.lua` (Fourgon Fantôme) et `FIXTURES=/tmp/fx lua5.4 tests/run.lua && FIXTURES=/tmp/fx node tests/ui.js` (rendu des interfaces).
+
+## Vente de drogue (F5 › Vente de drogue)
+
+- Un joueur qui a de la drogue sur lui (par défaut : `weed_pouch`) ouvre **F5** › « Activer le mode vente ». Le F5 s'affiche aussi pour un joueur sans groupe s'il a de la drogue sur lui (sauf si « Réservée aux groupes illégaux » est activé).
+- Des **clients PNJ** arrivent à pied toutes les 25 à 60 s et demandent 1 à 3 pochons (prix par pochon tiré entre un minimum et un maximum). **E** vendre, **G** refuser. Pas de client tant que le vendeur est en véhicule.
+- Issue décidée par le serveur :
+  - **achat** : pochons retirés, paiement en argent sale (ou liquide selon le réglage) ;
+  - **vol** : le client prend 1 à 3 pochons et s'enfuit (point rouge sur la carte). Il faut le **frapper** : il se rend à genoux, puis **ALT › Fouiller** pour récupérer les pochons (celui qui fouille les récupère) ;
+  - **appel à la police** : le client sort son téléphone ; les policiers en service reçoivent une alerte **« Activité suspecte »** avec une **position approximative** (décalée au hasard) et une zone de recherche sur la carte.
+- Le mode vente s'arrête tout seul quand il n'y a plus rien à vendre, à la mort ou à la déconnexion.
+- Tout se règle en jeu : **admin_menu › Vente de drogue** (permission `drugsale_manage`) — activation, réservé aux groupes, policiers minimum, paiement, délais, quantité par client, chances de vol / d'appel, précision de l'alerte, liste des drogues et prix, arrêt de tous les vendeurs. Valeurs par défaut : `Config.DrugSale` (`config.lua`).

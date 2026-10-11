@@ -102,7 +102,7 @@ local function PublicGeneral(g)
     for _, t in pairs(g.takers) do takers[#takers + 1] = t end
     return { id = g.id, type = g.type, label = GA.types[g.type].label, title = g.title, description = g.description,
         x = g.x, y = g.y, z = g.z, street = g.street, t = g.t, count = g.count, takers = takers,
-        sprite = GA.types[g.type].sprite, color = GA.types[g.type].color }
+        sprite = GA.types[g.type].sprite, color = GA.types[g.type].color, radius = g.radius or GA.types[g.type].radius }
 end
 
 function P.GeneralAlertList()
@@ -113,7 +113,7 @@ function P.GeneralAlertList()
 end
 
 -- Crée (ou regroupe) une alerte générale. coords = vector3 / table ; renvoie l'id
-function P.CreateGeneral(kind, coords, title, description, street)
+function P.CreateGeneral(kind, coords, title, description, street, opts)
     if not GA.types[kind] then kind = 'other' end
     local c = vector3(tonumber(coords.x) or 0.0, tonumber(coords.y) or 0.0, tonumber(coords.z) or 0.0)
     local now = os.time()
@@ -133,7 +133,8 @@ function P.CreateGeneral(kind, coords, title, description, street)
     if not id then return nil end
     local pos = Round(c)
     local g = { id = id, type = kind, title = title, description = description, x = pos.x, y = pos.y, z = pos.z, street = street,
-        t = now, created = now, count = 1, takers = {} }
+        t = now, created = now, count = 1, takers = {},
+        radius = type(opts) == 'table' and tonumber(opts.radius) and math.max(0, math.min(2000, tonumber(opts.radius))) or nil }
     P.GeneralAlerts[id] = g
     SendTo(Receivers(), 'police:client:generalAlert', PublicGeneral(g))
     return id

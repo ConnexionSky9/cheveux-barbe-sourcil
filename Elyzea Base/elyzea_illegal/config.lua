@@ -37,6 +37,30 @@ Config.F5 = {
 }
 
 -- ---------------------------------------------------------
+--  Vente de drogue (F5 › Vente de drogue)
+--  Valeurs par défaut : tout se règle en jeu dans admin_menu › Vente de drogue.
+-- ---------------------------------------------------------
+Config.DrugSale = {
+    enabled = true,
+    requireGroup = false,        -- true : seuls les membres d'un groupe illégal peuvent vendre
+    minPolice = 0,               -- policiers en service minimum pour activer le mode vente
+    payment = 'dirty',           -- 'dirty' = argent sale (Config.DirtyMoney), 'clean' = liquide
+    noSaleInVehicle = true,      -- pas de client tant que le vendeur est dans un véhicule
+    interval = { min = 25, max = 60 },   -- secondes entre deux clients
+    waitTime = 45,               -- secondes avant qu'un client lassé reparte
+    maxPerBuyer = 3,             -- un client demande de 1 à N pochons
+    stealChance = 10,            -- % de clients qui volent (1 à stealMax pochons) puis s'enfuient
+    stealMax = 3,
+    policeChance = 10,           -- % de clients qui appellent la police
+    policeRadius = 150,          -- précision de l'alerte police (mètres autour du vendeur)
+    drugs = {
+        { item = 'weed_pouch', label = 'Pochon de weed', min = 80, max = 120 },   -- prix par pochon
+    },
+    models = { 'a_m_y_hipster_01', 'a_m_y_skater_01', 'a_f_y_hipster_02', 'a_m_m_tramp_01', 'a_m_y_stwhi_01', 'a_f_y_tourist_01',
+               'a_m_y_beachvesp_01', 'a_m_o_genstreet_01', 'a_f_y_scdressy_01', 'g_m_y_famca_01' },
+}
+
+-- ---------------------------------------------------------
 --  PNJ des groupes
 -- ---------------------------------------------------------
 Config.Ped = {

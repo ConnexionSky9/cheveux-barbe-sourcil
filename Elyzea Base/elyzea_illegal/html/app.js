@@ -183,17 +183,28 @@ function openF5(d) {
     box.innerHTML = `<div class="q-panel">
         <div class="q-head"><div><strong>Menu</strong><span class="muted">F5 · groupe illégal</span></div>
             <button class="sb-close q-close" data-f5="close" title="Fermer (Échap)">✕</button></div>
-        <div class="q-body"><div class="q-sec"><h3>Ton groupe</h3>
+        <div class="q-body">${d.inGroup !== false && d.label ? `<div class="q-sec"><h3>Ton groupe</h3>
             <button class="q-group" data-f5="open"><span class="q-crest">${esc((d.label || '?').charAt(0).toUpperCase())}</span>
                 <span><strong>${esc(d.label)}</strong><span>${esc(d.grade ? `Grade : ${d.grade}` : '')} · ouvrir la tablette</span></span></button>
-        </div></div></div>`;
+        </div>` : ''}${d.drug ? drugSection(d.drug) : ''}</div></div>`;
     box.classList.remove('hidden');
+}
+function drugSection(g) {
+    const items = (g.items || []).map((i) => `<span class="q-chip">${esc(i.label)} <b>× ${i.count}</b></span>`).join('') || '<span class="muted">Plus rien sur toi.</span>';
+    return `<div class="q-sec"><h3>Vente de drogue</h3>
+        <button class="q-group q-drug ${g.on ? 'on' : ''}" data-f5="drug" data-on="${g.on ? '0' : '1'}" ${!g.on && !g.can ? 'disabled' : ''}>
+            <span class="q-crest">🌿</span>
+            <span><strong>${g.on ? 'Mode vente activé' : 'Activer le mode vente'}</strong>
+            <span>${g.on ? `${g.sales} vendu(s) · ${g.earned} $ · cliquer pour arrêter` : (g.can ? 'Des clients viendront t\'acheter' : esc(g.reason || ''))}</span></span></button>
+        <div class="q-chips">${items}</div>
+        <p class="muted" style="font-size:11.5px;margin:6px 2px 0">[E] vendre · [G] refuser. Attention : certains volent (frappe-les puis fouille-les avec ALT), d'autres appellent la police.</p></div>`;
 }
 function closeF5() { $('#quick').classList.add('hidden'); post('f5close'); }
 $('#quick').addEventListener('click', (e) => {
     const b = e.target.closest('[data-f5]');
     if (e.target.id === 'quick' || (b && b.dataset.f5 === 'close')) return closeF5();
     if (b && b.dataset.f5 === 'open') { $('#quick').classList.add('hidden'); post('f5open'); }
+    if (b && b.dataset.f5 === 'drug' && !b.disabled) { $('#quick').classList.add('hidden'); post('f5drug', { on: b.dataset.on === '1' }); }
 });
 
 function close() { $('#app').classList.add('hidden'); closeModal(); post('close'); }

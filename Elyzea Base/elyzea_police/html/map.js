@@ -94,6 +94,10 @@
       // Interventions (losange orange)
       S.inters.forEach((i) => {
         const x = sx(i.x), y = sy(i.y);
+        if (i.radius) {   // alerte approximative : zone de recherche
+          ctx.beginPath(); ctx.arc(x, y, Math.max(6, i.radius * S.scale), 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(251,146,60,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(251,146,60,.6)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+        }
         ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4);
         ctx.fillStyle = i.takers && i.takers.length ? '#f59e0b' : '#fb923c'; ctx.strokeStyle = '#0b1220'; ctx.lineWidth = 2;
         ctx.fillRect(-6, -6, 12, 12); ctx.strokeRect(-6, -6, 12, 12); ctx.restore();

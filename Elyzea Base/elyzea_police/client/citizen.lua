@@ -166,6 +166,14 @@ function C.CitizenOptions(ctx, out)
         out[#out + 1] = { id = 'trunkExit', label = 'Sortir du coffre', icon = 'out' }
         return
     end
+    if ctx.kind == 'npc' then
+        if GetResourceState('elyzea_illegal') ~= 'started' then return end
+        local ok, isThief, down = pcall(function() return exports.elyzea_illegal:IsDrugThief(ctx.entity) end)
+        if ok and isThief then
+            out[#out + 1] = { id = 'searchThief', label = 'Fouiller', icon = 'search', disabled = not down, desc = not down and 'Frappez-le d\'abord pour qu\'il se rende' or nil }
+        end
+        return
+    end
     if ctx.kind == 'player' and ctx.sid then
         local st = Player(ctx.sid).state
         local busy = st.carriedBy ~= nil or st.escortedBy ~= nil
@@ -196,6 +204,10 @@ function C.CitizenAct(id, ctx)
     if id == 'carry' then C.Do('carry', { target = ctx.sid }) return true end
     if id == 'carryStop' then C.Req('carryStop') return true end
     if id == 'trunkExit' then C.Req('trunkExit') return true end
+    if id == 'searchThief' then
+        if ctx and ctx.entity and DoesEntityExist(ctx.entity) then pcall(function() exports.elyzea_illegal:SearchThief(ctx.entity) end) end
+        return true
+    end
     local veh = ctx and ctx.entity
     if id == 'trunkOpen' then
         if veh and DoesEntityExist(veh) then exports.elyzea_inventory:OpenTrunk(veh) end

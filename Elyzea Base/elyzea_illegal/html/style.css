@@ -376,6 +376,10 @@ input[type=color].input { padding: 3px; height: 38px; }
 
 /* Menu F5 : même panneau que le menu rapide du staff (F9) */
 #quick .q-panel { border-top-color: var(--rank); }
+.q-drug.on { border-color: rgba(79, 179, 169, .7); background: linear-gradient(90deg, rgba(79, 179, 169, .16), var(--panel)); }
+.q-drug:disabled { opacity: .55; cursor: not-allowed; }
+.q-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.q-chip { font-size: 11.5px; padding: 3px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
 .q-group { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; text-align: left;
     background: var(--panel); border: 1px solid var(--line); color: var(--text); }
 .q-group:hover { border-color: var(--signal); background: linear-gradient(90deg, rgba(217, 181, 106, .12), var(--panel)); }

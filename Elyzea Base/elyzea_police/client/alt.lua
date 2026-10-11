@@ -59,6 +59,8 @@ local function Context()
         local d = #(GetEntityCoords(ent) - myPos)
         if IsEntityAPed(ent) and IsPedAPlayer(ent) and d <= D.alt then
             ctx.kind, ctx.entity = 'player', ent
+        elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt and Entity(ent).state.drugThief then
+            ctx.kind, ctx.entity = 'npc', ent      -- voleur de la vente de drogue (elyzea_illegal)
         elseif IsEntityAPed(ent) and IsPedInAnyVehicle(ent, false) and d <= D.vehicle then
             ctx.kind, ctx.entity = 'vehicle', GetVehiclePedIsIn(ent, false)
         elseif IsEntityAVehicle(ent) and d <= D.vehicle then
@@ -133,6 +135,7 @@ end
 local function Title(ctx)
     if ctx.kind == 'player' then return NameOf(ctx.sid) end
     if ctx.kind == 'carry' then return 'Personne portée' end
+    if ctx.kind == 'npc' then return 'Voleur' end
     if ctx.kind == 'trunk' then return 'Dans le coffre' end
     if ctx.kind == 'vehicle' then return ('Véhicule · %s'):format((GetVehicleNumberPlateText(ctx.entity) or ''):gsub('^%s+', ''):gsub('%s+$', '')) end
     return 'Actions'
@@ -169,7 +172,7 @@ local function Start()
             ctx = Context()
             local key = ctx.kind .. ':' .. tostring(ctx.entity or '')
             if key ~= lastKey then opts, lastKey = Options(ctx), key end
-            Outline((ctx.kind == 'player' or ctx.kind == 'vehicle') and #opts > 0 and ctx.entity or nil)
+            Outline((ctx.kind == 'player' or ctx.kind == 'vehicle' or ctx.kind == 'npc') and #opts > 0 and ctx.entity or nil)
             if #opts > 0 then Help(('~INPUT_ATTACK~ %d action(s) : %s'):format(#opts, Title(ctx)))
             else Help('Visez une personne ou un véhicule') end
             if (ctx.kind == 'carry' or ctx.kind == 'trunk') and #opts > 0 then Outline(nil) end

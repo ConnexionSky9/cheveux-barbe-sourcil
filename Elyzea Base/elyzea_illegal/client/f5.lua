@@ -20,15 +20,25 @@ local function closeF5()
     SendNUIMessage({ action = 'f5close' })
 end
 
--- Panneau « Menu › <Nom du groupe> » : même design que le menu rapide du staff
+-- Panneau « Menu » : groupe (si membre) + vente de drogue (si de la drogue sur soi ou mode vente actif)
 local function openF5()
     if IsTabletOpen() or IsNuiFocused() or IsPauseMenuActive() then return end
-    if not Membership.inGroup then return end   -- pas de groupe : F5 reste libre pour le reste du serveur
-    if Config.F5.mode == 'direct' then return OpenGroupTablet() end
+    local ok, drug = pcall(function() return Ely.callback.await('illegal:drug:status', false) end)
+    drug = ok and type(drug) == 'table' and drug or nil
+    local showDrug = drug and drug.enabled and (drug.on or #(drug.items or {}) > 0)
+    if not Membership.inGroup and not showDrug then return end   -- rien à montrer : F5 reste libre pour le reste du serveur
+    if Membership.inGroup and not showDrug and Config.F5.mode == 'direct' then return OpenGroupTablet() end
     f5Open = true
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'f5', data = { label = Membership.label, grade = Membership.grade, color = Membership.color } })
+    SendNUIMessage({ action = 'f5', data = { inGroup = Membership.inGroup == true, label = Membership.label, grade = Membership.grade,
+        color = Membership.color, drug = showDrug and drug or nil } })
 end
+
+RegisterNUICallback('f5drug', function(body, cb)
+    cb('ok')
+    closeF5()
+    TriggerServerEvent('illegal:drug:toggle', body and body.on == true)
+end)
 
 RegisterNUICallback('f5open', function(_, cb)
     cb('ok')
@@ -42,7 +52,7 @@ if Config.F5.enabled then
         name = 'illegal_f5',
         description = 'Menu du groupe illégal',
         defaultKey = Config.F5.key,
-        onReleased = openF5,
+        onReleased = function() CreateThread(openF5) end,
     })
 end
 

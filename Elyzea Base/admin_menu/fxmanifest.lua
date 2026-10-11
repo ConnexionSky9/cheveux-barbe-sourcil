@@ -70,6 +70,7 @@ server_scripts {
     'server/fuel.lua',
     'server/staffjob.lua',
     'server/trunks.lua',
+    'server/drugsale.lua',
 }
 
 ui_page 'html/index.html'
@@ -101,5 +102,6 @@ files {
     'html/fuel.js',
     'html/staffjob.js',
     'html/trunks.js',
+    'html/drugsale.js',
     'html/logo.png',
 }

@@ -10,9 +10,10 @@ exports('HasPermission', function(src, perm) return P.Can(tonumber(src), perm) e
 
 -- Alerte générale depuis un autre script : type = shots | assault | carjack | robbery | distress | other
 -- exports.elyzea_police:SendAlert('robbery', vector3(x, y, z), 'Braquage de la supérette', 'Alarme déclenchée', 'Grove Street')
-exports('SendAlert', function(kind, coords, title, description, street)
+-- opts.radius : alerte approximative, zone de recherche (mètres) autour du point
+exports('SendAlert', function(kind, coords, title, description, street, opts)
     if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return nil end
-    return P.CreateGeneral(kind, coords, title, description, street)
+    return P.CreateGeneral(kind, coords, title, description, street, opts)
 end)
 
 -- Compatibilité avec l'ancien dispatch (elyzea_illegal, éditeur de map) :
