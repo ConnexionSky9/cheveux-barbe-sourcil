@@ -129,7 +129,8 @@ Remplace `mm_radio`, sans ox_lib.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
 ### 3.8 Métiers
-Tous les métiers ont été retirés (police, EMS, entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`). Seul l'**illégal** (`elyzea_illegal`) est conservé.
+Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`) et **illégal** (`elyzea_illegal`). Les autres (EMS, entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
+Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.
@@ -143,6 +144,8 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
+| **F6** · **ALT** | Police : menu rapide · interactions (menotter, escorter, véhicule, amende) | Policiers en service |
+| **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |
 | **N** | Parler (pma-voice) · **²** changer la portée de la voix | Tous |

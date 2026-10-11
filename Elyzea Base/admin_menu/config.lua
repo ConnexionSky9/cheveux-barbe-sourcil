@@ -165,6 +165,7 @@ Config.Permissions = {
     { key = 'event_drops',     label = 'Largage de drops : planifier, régler, lancer, annuler', cat = 'Événements' },
 
     -- Métiers (ressources Elyzea)
+    { key = 'staff_job',       label = 'Métier staff : entrer dans la police, recruter un joueur, donner un grade (direction comprise)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     -- Illégal (ressource elyzea_illegal)
