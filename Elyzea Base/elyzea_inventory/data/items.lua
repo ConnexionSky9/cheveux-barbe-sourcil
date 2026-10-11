@@ -625,13 +625,23 @@ return {
     },
 
     ['empty_evidence_bag'] = {
-        label = 'Empty Evidence Bag',
-        weight = 200,
+        label = 'Sachet de preuve vide',
+        weight = 20,
+        stack = true,
+        description = 'Police scientifique : pour prélever une preuve (douille, sang…)',
     },
 
     ['filled_evidence_bag'] = {
-        label = 'Filled Evidence Bag',
-        weight = 200,
+        label = 'Sachet de preuve scellé',
+        weight = 40,
+        stack = false,
+        description = 'Preuve sous scellé, à déposer au laboratoire',
+    },
+
+    ['kit_gravure'] = {
+        label = 'Kit de gravure',
+        weight = 300,
+        description = 'Grave un texte sur l\'arme en main (une seule fois par arme)',
     },
 
     ['harness'] = {

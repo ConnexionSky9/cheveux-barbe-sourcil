@@ -181,3 +181,12 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() then removeCurrent() end
 end)
+
+-- Kit de gravure : le serveur demande le texte à graver (clavier du jeu)
+RegisterNetEvent('elyzea_inv:askEngraving', function()
+    AddTextEntry('ELY_ENGRAVE', 'Texte à graver sur l\'arme (24 caractères max.)')
+    DisplayOnscreenKeyboard(1, 'ELY_ENGRAVE', '', '', '', '', '', 24)
+    while UpdateOnscreenKeyboard() == 0 do Wait(0) end
+    local text = UpdateOnscreenKeyboard() == 1 and GetOnscreenKeyboardResult() or ''
+    TriggerServerEvent('elyzea_inv:engrave', text or '')
+end)

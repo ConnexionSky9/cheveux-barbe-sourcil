@@ -89,6 +89,7 @@ function UseWeapon(src, slot, item, def)
         return true
     end
     Equipped[src] = { slot = slot, name = item.name, serial = meta.serial }
+    if WeaponRegistry then WeaponRegistry.Handled(src, meta.serial, item.name) end   -- porteur noté (empreintes)
     TriggerClientEvent('elyzea_inv:weapon:equip', src, {
         slot = slot, name = item.name, label = def.label, ammo = tonumber(meta.ammo) or 0,
         ammoname = def.ammoname, components = meta.components, tint = meta.tint,

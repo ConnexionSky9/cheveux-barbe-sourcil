@@ -7,7 +7,7 @@
 local P = Police
 local S = {}
 
-local POINT_KINDS = { duty = true, armory = true, jail = true, release = true }
+local POINT_KINDS = { duty = true, armory = true, jail = true, release = true, lab = true }
 
 local function Num(v, def, min, max)
     v = tonumber(v) or def
@@ -44,7 +44,10 @@ function S.saveJob(src, d)
     j.defaultDuty = P.Bool(d.defaultDuty)
     j.offDutyPay = P.Bool(d.offDutyPay)
     j.grades = grades
-    P.EnsureGradePerms()
+    -- Avec elyzea_jobs : il garde les grades et les accès (gardés pour les grades du même nom)
+    if P.JobsManaged(j.name) then
+        pcall(function() exports.elyzea_jobs:StaffSetGrades(j.name, j.label, grades) end)
+    end
     Changed('job')
     P.Log(src, 'Métier modifié', ('%s · %d grade(s)'):format(j.label, #grades))
     return 'Métier enregistré.'
@@ -67,7 +70,6 @@ function S.savePermGrades(src, d)
     for perm in pairs(P.Settings.permGrades) do
         if d[perm] ~= nil then P.Settings.permGrades[perm] = Num(d[perm], 0, 0, 99) end
     end
-    P.EnsureGradePerms(true)   -- les accès de chaque grade repartent de ces niveaux
     Changed()
     P.Log(src, 'Permissions par grade modifiées')
     return 'Permissions enregistrées.'

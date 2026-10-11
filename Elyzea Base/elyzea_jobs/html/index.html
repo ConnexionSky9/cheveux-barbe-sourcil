@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Elyzea · Métiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: rgba(14,17,24,.96); --line: rgba(255,255,255,.09); --text: #eef1f6; --muted: #98a2b3; --accent: #3b82f6; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: transparent; font-family: Inter, system-ui, sans-serif; color: var(--text); overflow: hidden; height: 100%; user-select: none; }
+.hidden { display: none !important; }
+
+/* Menu ALT */
+#alt { position: fixed; min-width: 230px; max-width: 320px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.55); padding: 6px; animation: pop .12s ease-out; }
+#alt .head { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 7px 10px 6px; display: flex; justify-content: space-between; gap: 10px; }
+#alt .head b { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#alt .grp { font-size: 10.5px; color: var(--muted); padding: 8px 10px 3px; text-transform: uppercase; letter-spacing: .08em; }
+#alt button { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: 500 13.5px Inter, sans-serif; }
+#alt button small { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; margin-top: 1px; }
+#alt button:hover:not(:disabled), #alt button:focus-visible { background: rgba(255,255,255,.07); outline: none; }
+#alt button:disabled { opacity: .4; cursor: not-allowed; }
+@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+
+/* Proposition d'embauche */
+#offer { position: fixed; right: 24px; top: 30%; width: 330px; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 12px; padding: 16px 18px; box-shadow: 0 18px 50px rgba(0,0,0,.5); animation: slide .25s ease-out; }
+#offer .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+#offer h3 { font-size: 18px; margin: 4px 0 6px; }
+#offer p { color: var(--muted); font-size: 13px; line-height: 1.45; }
+#offer p b { color: var(--text); }
+#offer .keys { display: flex; gap: 8px; margin-top: 12px; }
+#offer .keys span { flex: 1; text-align: center; font-size: 12.5px; padding: 7px; border-radius: 8px; background: rgba(255,255,255,.06); }
+#offer .keys kbd { font: 700 12px Inter, sans-serif; background: #fff; color: #111; border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
+#offer .bar { height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+#offer .bar i { display: block; height: 100%; background: var(--accent); width: 100%; transition: width linear; }
+@keyframes slide { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div id="alt" class="hidden" role="menu"></div>
+<div id="offer" class="hidden" role="alertdialog" aria-live="assertive"></div>
+<script>
+const RES = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'elyzea_jobs';
+const post = (n, d = {}) => fetch(`https://${RES}/${n}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).catch(() => {});
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const alt = document.getElementById('alt');
+const offer = document.getElementById('offer');
+
+function showMenu(m) {
+  let html = `<div class="head"><span>Actions</span><b>${esc(m.title)}</b></div>`;
+  let group = null;
+  for (const o of m.options) {
+    if (o.group && o.group !== group) { group = o.group; html += `<div class="grp">${esc(group)}</div>`; }
+    html += `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''}>${esc(o.label)}${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</button>`;
+  }
+  alt.innerHTML = html;
+  alt.classList.remove('hidden');
+  const w = innerWidth, h = innerHeight, r = alt.getBoundingClientRect();
+  alt.style.left = `${Math.min(Math.max(8, m.x * w + 14), w - r.width - 8)}px`;
+  alt.style.top = `${Math.min(Math.max(8, m.y * h - 10), h - r.height - 8)}px`;
+  const first = alt.querySelector('button:not(:disabled)');
+  if (first) first.focus();
+}
+
+alt.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-key]');
+  if (!b || b.disabled) return;
+  alt.classList.add('hidden');
+  post('altSelect', { key: Number(b.dataset.key) });
+});
+document.addEventListener('mousedown', (e) => {
+  if (!alt.classList.contains('hidden') && !alt.contains(e.target)) { alt.classList.add('hidden'); post('altClose'); }
+});
+document.addEventListener('keydown', (e) => {
+  if (alt.classList.contains('hidden')) return;
+  if (e.key === 'Escape' || e.key === 'Alt') { e.preventDefault(); alt.classList.add('hidden'); post('altClose'); return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const list = [...alt.querySelectorAll('button:not(:disabled)')];
+    const i = list.indexOf(document.activeElement);
+    const n = list[(i + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length];
+    if (n) n.focus();
+  }
+});
+
+let offerTimer = null;
+function showOffer(o) {
+  document.documentElement.style.setProperty('--accent', o.color || '#3b82f6');
+  offer.innerHTML = `<div class="k">Proposition d'embauche</div><h3>${esc(o.company)}</h3>
+    <p><b>${esc(o.from)}</b> vous propose de rejoindre l'entreprise au grade <b>${esc(o.grade)}</b>.</p>
+    <div class="keys"><span><kbd>Y</kbd>Accepter</span><span><kbd>L</kbd>Refuser</span></div>
+    <div class="bar"><i></i></div>`;
+  offer.classList.remove('hidden');
+  const bar = offer.querySelector('.bar i');
+  requestAnimationFrame(() => { bar.style.transitionDuration = `${o.timeout}s`; bar.style.width = '0%'; });
+  clearTimeout(offerTimer);
+  offerTimer = setTimeout(() => offer.classList.add('hidden'), (o.timeout + 1) * 1000);
+}
+
+window.addEventListener('message', (e) => {
+  const m = e.data || {};
+  if (m.action === 'altMenu') { if (m.show) showMenu(m); else alt.classList.add('hidden'); }
+  else if (m.action === 'offer') showOffer(m.offer);
+  else if (m.action === 'offerEnd') offer.classList.add('hidden');
+});
+</script>
+</body>
+</html>

@@ -76,6 +76,11 @@ RegisterKeyMapping('police_tablet', 'Police : tablette', 'keyboard', Config.Keys
 -- Dépannage : /police_debloquer range la tablette et rend la main
 RegisterCommand('police_debloquer', function() CloseTablet() end, false)
 
+-- Ouvre la tablette sur une page (ex. « sci » depuis le laboratoire)
+AddEventHandler('police:client:openTabletPage', function(page)
+    if open then SendNUIMessage({ action = 'mdtPage', page = page }) else OpenTablet({ name = page }) end
+end)
+
 RegisterNetEvent('police:client:openProfile', function(cid)
     if open then
         SendNUIMessage({ action = 'mdtProfile', citizenid = cid })

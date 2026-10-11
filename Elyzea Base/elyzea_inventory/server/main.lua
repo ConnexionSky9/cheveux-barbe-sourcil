@@ -84,15 +84,23 @@ local function countOf(st, name, metadata)
     return n
 end
 
--- Métadonnées par défaut (armes : munitions + numéro de série)
-local function defaultMeta(name, metadata)
+-- Métadonnées par défaut (armes : munitions + numéro de série unique enregistré, voir registry.lua)
+-- st = inventaire de destination : un inventaire de joueur (sans « kind ») a pour id le citizenid
+local function defaultMeta(name, metadata, st)
     local d = Items[name]
     if d and d.kind == 'weapon' and not d.throwable then
         metadata = type(metadata) == 'table' and metadata or {}
         metadata.ammo = tonumber(metadata.ammo) or 0
         metadata.durability = metadata.durability or 100
-        metadata.serial = metadata.serial or ('%s%s'):format(math.random(100000, 999999), string.char(math.random(65, 90), math.random(65, 90), math.random(65, 90)))
         metadata.components = metadata.components or {}
+        if not metadata.serial then
+            if WeaponRegistry then
+                metadata.serial = WeaponRegistry.NewSerial()
+                WeaponRegistry.Register(metadata.serial, name, (st and st.kind == nil) and st.id or nil)
+            else
+                metadata.serial = ('%s%s'):format(math.random(100000, 999999), string.char(math.random(65, 90), math.random(65, 90), math.random(65, 90)))
+            end
+        end
     end
     return metadata
 end
@@ -260,7 +268,7 @@ local function addTo(st, name, count, metadata, preferSlot)
         if not plan then return false, 'no_space' end
         local first
         for _, p in ipairs(plan) do
-            st.slots[p.slot] = { name = name, count = 1, metadata = defaultMeta(name, Shared.Copy(metadata)) }
+            st.slots[p.slot] = { name = name, count = 1, metadata = defaultMeta(name, Shared.Copy(metadata), st) }
             first = first or p.slot
         end
         st.dirty = true
@@ -281,7 +289,7 @@ local function addTo(st, name, count, metadata, preferSlot)
 
     for _, p in ipairs(plan) do
         if p.new then
-            st.slots[p.slot] = { name = name, count = p.add, metadata = defaultMeta(name, Shared.Copy(metadata)) }
+            st.slots[p.slot] = { name = name, count = p.add, metadata = defaultMeta(name, Shared.Copy(metadata), st) }
         else
             st.slots[p.slot].count = st.slots[p.slot].count + p.add
         end

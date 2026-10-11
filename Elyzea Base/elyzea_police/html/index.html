@@ -6,6 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="nui://elyzea_jobs/html/ejobs.css">
 </head>
 <body>
     <!-- Appels du dispatch -->
@@ -67,7 +68,10 @@
                         <button data-page="records">Rapports</button>
                         <button data-page="warrants">Avis de recherche</button>
                         <button data-page="jail">Prison</button>
-                        <button data-page="boss" id="navBoss">Patron</button>
+                        <button data-page="ppa" id="navPpa" class="hidden">PPA</button>
+                        <button data-page="sci" id="navSci" class="hidden">Scientifique</button>
+                        <button data-page="team">Équipe</button>
+                        <button data-page="boss" id="navBoss" class="hidden">Patron</button>
                     </nav>
                     <main id="page"></main>
                 </div>
@@ -76,6 +80,8 @@
         </div>
     </div>
 
+    <script src="nui://elyzea_jobs/html/ejobs.js"></script>
     <script src="app.js"></script>
+    <script src="sci.js"></script>
 </body>
 </html>

@@ -48,6 +48,7 @@ const POINTS = [
     { k: 'armory', label: 'Armurerie', help: 'E pour ouvrir la boutique de l\'armurerie (elyzea_inventory).' },
     { k: 'jail', label: 'Prison (cellule)', help: 'Le premier point est utilisé pour les détenus.' },
     { k: 'release', label: 'Sortie de prison', help: 'Où le détenu est relâché. Le premier point est utilisé.' },
+    { k: 'lab', label: 'Laboratoire (police scientifique)', help: 'Réception des preuves et analyses : il faut être à moins de 12 m d\'un de ces points.' },
 ];
 
 const st = { data: null, tab: 'overview', job: null, fines: null, armory: null, policeJobs: null, uniJob: null, trying: false };

@@ -92,37 +92,25 @@ function P.Grade(src)
     return p and p.PlayerData.job.grade and p.PlayerData.job.grade.level or 0
 end
 
--- Accès d'un grade du métier principal (nil si ce n'est pas le métier principal)
-function P.GradePerms(jobName, level)
-    local j = P.Settings.job
-    if not j or jobName ~= j.name then return nil end
-    local g = (j.grades or {})[(tonumber(level) or 0) + 1]
-    if not g then return nil end
-    if g.isboss then return 'all' end
-    return g.perms
+-- Les grades et les accès du LSPD sont gérés par elyzea_jobs (tablette › Patron › Grades).
+-- Sans elyzea_jobs (ou pour un autre métier police, ex. sheriff) : niveaux minimum de permGrades.
+function P.JobsManaged(jobName)
+    if GetResourceState('elyzea_jobs') ~= 'started' then return false end
+    local ok, r = pcall(function() return exports.elyzea_jobs:Manages(jobName) end)
+    return ok and r == true
 end
 
--- Donne à chaque grade ses accès (repris des niveaux minimum quand il n'en a pas encore)
-function P.EnsureGradePerms(reset)
-    local j = P.Settings.job
-    for i, g in ipairs(j and j.grades or {}) do
-        if reset or type(g.perms) ~= 'table' then g.perms = {} end
-        for perm, min in pairs(P.Settings.permGrades or {}) do
-            if g.perms[perm] == nil then g.perms[perm] = (i - 1) >= (tonumber(min) or 0) end
-        end
-    end
-end
-
--- Peut faire l'action « perm » ? (policier, en service sauf pour la tablette, accès du grade)
+-- Peut faire l'action « perm » ? (policier, en service sauf exception, accès du grade)
 function P.Can(src, perm, allowOffDuty)
     if not P.IsCop(src) then return false end
     if not allowOffDuty and not P.OnDuty(src) then return false end
+    local p = P.GetPlayer(src)
+    if P.JobsManaged(p.PlayerData.job.name) then
+        local ok, r = pcall(function() return exports.elyzea_jobs:Can(src, perm) end)
+        return ok and r == true
+    end
     local min = (P.Settings.permGrades or {})[perm]
     if min == nil then return false end
-    local p = P.GetPlayer(src)
-    local gp = P.GradePerms(p.PlayerData.job.name, P.Grade(src))
-    if gp == 'all' then return true end
-    if type(gp) == 'table' then return gp[perm] == true end
     return P.Grade(src) >= min
 end
 
@@ -184,13 +172,11 @@ local function LoadSettings()
         end
     end
     P.Settings = s
-    P.EnsureGradePerms()
     if not raw then P.SaveSettings() end
 end
 
 -- Réglages par défaut tout de suite : aucune erreur si un joueur arrive avant la fin du chargement
 P.Settings = P.Copy(Config.Defaults)
-P.EnsureGradePerms()
 
 -- ---------------------------------------------------------------------
 -- Métier dans elyzea_core
@@ -201,6 +187,12 @@ function P.RegisterJob()
     local grades = {}
     for i, g in ipairs(j.grades or {}) do
         grades[i - 1] = { name = g.name, payment = tonumber(g.payment) or 0, isboss = g.isboss or nil, bankAuth = g.isboss or nil }
+    end
+    -- Géré par elyzea_jobs : il garde les grades (créés / modifiés par le patron). On ne propose
+    -- notre définition que pour la toute première installation.
+    if P.JobsManaged(j.name) then
+        pcall(function() exports.elyzea_jobs:Seed(j.name, { label = j.label, type = (j.type and j.type ~= '') and j.type or nil, grades = grades }) end)
+        return
     end
     local ok, err = pcall(function()
         exports.elyzea_core:CreateJobs({ [j.name] = {
@@ -237,11 +229,9 @@ end
 -- ---------------------------------------------------------------------
 function P.PublicConfig()
     local s = P.Settings
-    local gradePerms = {}
-    for i, g in ipairs(s.job and s.job.grades or {}) do gradePerms[i] = g.isboss and 'all' or g.perms end
     return {
         policeJobs = P.JobSet(), permGrades = s.permGrades, fines = s.fines, points = s.points,
-        jobName = s.job and s.job.name, gradePerms = gradePerms,
+        jobName = s.job and s.job.name, lab = s.lab,
         settings = s.settings, jobLabel = s.job and s.job.label or 'Police',
         hasInventory = GetResourceState('elyzea_inventory') == 'started',
     }
@@ -268,6 +258,12 @@ function P.SetDuty(src, state)
     P.Notify(src, state and 'Vous avez pris votre service.' or 'Vous avez terminé votre service.', state and 'success' or 'inform')
     TriggerClientEvent('police:client:dutyChanged', src, state)
 end
+
+-- Prise / fin de service demandée depuis la tablette (pages communes elyzea_jobs)
+AddEventHandler('elyzea_jobs:setDuty', function(src, job, state)
+    if not P.JobSet()[job] then return end
+    P.SetDuty(src, state == true)
+end)
 
 RegisterNetEvent('police:server:toggleDuty', function(nearPoint)
     local src = source

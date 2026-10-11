@@ -254,11 +254,13 @@ local Requests = {}   -- [joueur] = { ems, kind, expires }
 local Tests = {}      -- [joueur] = { kind, correct = {}, ems, started }
 local Results = {}    -- [citizenid] = { kind, passed, score, total, at }
 
+-- Métiers qui font passer le PPA : EMS (PPA.job) et ceux de PPA.examiners (ex. police depuis sa tablette)
 local function CanEms(src)
     local p = core:GetPlayer(src)
     local job = p and p.PlayerData.job
-    if not job or job.name ~= PPA.job then return false, 'Réservé au personnel médical.' end
-    if (job.grade and job.grade.level or 0) < PPA.minGrade then return false, 'Votre grade ne permet pas de faire passer le PPA.' end
+    local minGrade = job and ((job.name == PPA.job and PPA.minGrade) or (PPA.examiners or {})[job.name])
+    if not job or minGrade == nil then return false, 'Réservé au personnel habilité (EMS, police).' end
+    if (job.grade and job.grade.level or 0) < minGrade then return false, 'Votre grade ne permet pas de faire passer le PPA.' end
     if PPA.requireDuty and Player(src).state.emsDuty ~= true and job.onduty ~= true then return false, 'Vous devez être en service.' end
     return true
 end
@@ -275,30 +277,37 @@ local function Shuffle(t)
     return t
 end
 
--- 1. L'EMS propose le test
-RegisterNetEvent('elyzea_papiers:ppaRequest', function(target, kind)
-    local src = source
+-- 1. L'examinateur (EMS ou police) propose le test. Renvoie ok, message.
+local function StartRequest(src, target, kind)
     local ok, why = CanEms(src)
-    if not ok then return Notify(src, why, 'error') end
+    if not ok then Notify(src, why, 'error') return false, why end
     local t = PPA.types[kind]
-    if not t then return end
+    if not t then return false, 'Type de PPA inconnu.' end
     target, why = ValidPatient(src, target)
-    if not target then return Notify(src, why, 'error') end
+    if not target then Notify(src, why, 'error') return false, why end
     if t.jobs then
         local pj = core:GetPlayer(target).PlayerData.job
         local allowed = false
         for _, j in ipairs(t.jobs) do if pj and pj.name == j then allowed = true end end
-        if not allowed then return Notify(src, ('Le %s est réservé aux forces de l\'ordre.'):format(t.label), 'error') end
+        if not allowed then
+            local msg = ('Le %s est réservé aux forces de l\'ordre.'):format(t.label)
+            Notify(src, msg, 'error') return false, msg
+        end
     end
-    if Tests[target] then return Notify(src, 'Ce patient passe déjà un test.', 'error') end
-    if Requests[target] and Requests[target].expires > os.time() then return Notify(src, 'Une demande est déjà en attente pour ce patient.', 'error') end
+    if Tests[target] then Notify(src, 'Cette personne passe déjà un test.', 'error') return false, 'Cette personne passe déjà un test.' end
+    if Requests[target] and Requests[target].expires > os.time() then
+        Notify(src, 'Une demande est déjà en attente pour cette personne.', 'error')
+        return false, 'Une demande est déjà en attente pour cette personne.'
+    end
     Requests[target] = { ems = src, kind = kind, expires = os.time() + PPA.requestTimeout }
     TriggerClientEvent('elyzea_papiers:ppaOffer', target, {
         label = t.label, price = t.price, ems = core:GetCharName(src), payWith = Config.PayWith, timeout = PPA.requestTimeout,
         questions = math.min(t.questions, #(Config.Questions[kind] or {})), passScore = t.passScore, categories = t.categories,
     })
     Notify(src, ('Demande de %s envoyée (%d $).'):format(t.label, t.price), 'inform')
-end)
+    return true, ('Demande de %s envoyée.'):format(t.label)
+end
+RegisterNetEvent('elyzea_papiers:ppaRequest', function(target, kind) StartRequest(source, target, kind) end)
 
 -- 2. Le joueur accepte (paiement immédiat) ou refuse
 RegisterNetEvent('elyzea_papiers:ppaAnswer', function(accept, method)
@@ -310,7 +319,7 @@ RegisterNetEvent('elyzea_papiers:ppaAnswer', function(accept, method)
     local emsOnline = GetPlayerName(r.ems) ~= nil
     if os.time() > r.expires then return Notify(src, 'La demande a expiré.', 'error') end
     if accept ~= true then
-        if emsOnline then Notify(r.ems, 'Le patient a refusé le test PPA.', 'error') end
+        if emsOnline then Notify(r.ems, 'La personne a refusé le test PPA.', 'error') end
         return
     end
     if not emsOnline or Dist(src, r.ems) > Config.ShowDistance + 8.0 then return Notify(src, 'L\'EMS n\'est plus là.', 'error') end
@@ -361,20 +370,23 @@ RegisterNetEvent('elyzea_papiers:ppaSubmit', function(answers)
     Log(src, 'Test PPA', ('%s · %d/%d · %s'):format(t.label, score, total, passed and 'réussi' or 'échoué'))
 end)
 
--- 4. L'EMS donne le PPA (seulement si le test est réussi et récent)
-RegisterNetEvent('elyzea_papiers:issuePpa', function(target)
-    local src = source
+-- 4. L'examinateur donne le PPA (seulement si le test est réussi et récent). Renvoie ok, message.
+local function Issue(src, target)
     local ok, why = CanEms(src)
-    if not ok then return Notify(src, why, 'error') end
+    if not ok then Notify(src, why, 'error') return false, why end
     target, why = ValidPatient(src, target)
-    if not target then return Notify(src, why, 'error') end
+    if not target then Notify(src, why, 'error') return false, why end
     local p = core:GetPlayer(target)
     local cid = p.PlayerData.citizenid
     local res = Results[cid]
-    if not res or not res.passed then return Notify(src, 'Ce patient n\'a pas réussi le test PPA : impossible de le donner.', 'error') end
+    if not res or not res.passed then
+        Notify(src, 'Cette personne n\'a pas réussi le test PPA : impossible de le donner.', 'error')
+        return false, 'Test PPA non réussi.'
+    end
     if os.time() - res.at > PPA.resultMinutes * 60 then
         Results[cid] = nil
-        return Notify(src, 'Le résultat du test a expiré : le patient doit repasser le test.', 'error')
+        Notify(src, 'Le résultat du test a expiré : la personne doit repasser le test.', 'error')
+        return false, 'Résultat du test expiré.'
     end
     local t = PPA.types[res.kind]
 
@@ -395,7 +407,9 @@ RegisterNetEvent('elyzea_papiers:issuePpa', function(target)
 
     local given, err = GiveItem(target, t.item, meta)
     if not given then
-        return Notify(src, ('Impossible de remettre le PPA (%s).'):format(err == 'no_inventory' and 'inventaire indisponible' or 'inventaire plein'), 'error')
+        local msg = ('Impossible de remettre le PPA (%s).'):format(err == 'no_inventory' and 'inventaire indisponible' or 'inventaire plein')
+        Notify(src, msg, 'error')
+        return false, msg
     end
     Results[cid] = nil
     local lic = p.PlayerData.metadata.licences or {}
@@ -406,6 +420,25 @@ RegisterNetEvent('elyzea_papiers:issuePpa', function(target)
     Notify(src, ('%s %s délivré.'):format(t.label, meta.number), 'success')
     Notify(target, ('Vous avez reçu votre %s.'):format(t.label), 'success')
     Log(src, 'PPA délivré', ('%s %s [%d] · %s · %s'):format(meta.firstname or '', meta.lastname or '', target, t.label, meta.number))
+    return true, ('%s %s délivré.'):format(t.label, meta.number)
+end
+RegisterNetEvent('elyzea_papiers:issuePpa', function(target) Issue(source, target) end)
+
+-- Pour les autres ressources (tablette de police) : même règles que les événements
+exports('PpaRequest', function(src, target, kind) return StartRequest(src, target, kind) end)
+exports('PpaIssue', function(src, target) return Issue(src, target) end)
+-- État de la procédure d'un joueur : offer (demande en attente), test (en cours), passed, failed, none
+exports('PpaState', function(target)
+    target = tonumber(target)
+    if not target or not GetPlayerName(target) then return { state = 'offline' } end
+    if Requests[target] and Requests[target].expires > os.time() then return { state = 'offer', kind = Requests[target].kind } end
+    if Tests[target] then return { state = 'test', kind = Tests[target].kind } end
+    local cid = core:GetCitizenId(target)
+    local r = cid and Results[cid]
+    if r and os.time() - r.at <= PPA.resultMinutes * 60 then
+        return { state = r.passed and 'passed' or 'failed', kind = r.kind, score = r.score, total = r.total }
+    end
+    return { state = 'none' }
 end)
 
 AddEventHandler('playerDropped', function()

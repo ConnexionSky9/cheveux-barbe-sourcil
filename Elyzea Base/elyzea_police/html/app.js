@@ -38,8 +38,10 @@ window.addEventListener('message', (e) => {
             $('#mdtTitle').textContent = m.jobLabel || 'Police';
             $('#mdt').classList.remove('hidden');
             if (m.page && m.page.name === 'profile') return openProfile(m.page.citizenid);
+            if (m.page && m.page.name && PAGES[m.page.name]) return go(m.page.name);
             return go('home');
         case 'mdtHide': return $('#mdt').classList.add('hidden');
+        case 'mdtPage': return PAGES[m.page] ? go(m.page) : null;
         case 'mdtProfile': return openProfile(m.citizenid);
         case 'mdtEvent':
             if (!$('#mdt').classList.contains('hidden') && (S.page === 'calls' || S.page === 'home')) go(S.page, true);
@@ -127,7 +129,7 @@ $('#myFinesBody').addEventListener('click', (e) => {
 const A = { target: null, perms: {}, fines: [], maxJail: 120, view: 'main', picked: new Set() };
 
 function openActions(m) {
-    Object.assign(A, { target: m.target, perms: m.perms || {}, fines: m.fines || [], maxJail: m.maxJail || 120, hasInventory: m.hasInventory, view: 'main' });
+    Object.assign(A, { target: m.target, perms: m.perms || {}, fines: m.fines || [], maxJail: m.maxJail || 120, hasInventory: m.hasInventory, view: m.view || 'main' });
     A.picked = new Set();
     document.body.classList.add('panel-open');
     $('#actions').classList.remove('hidden');
@@ -268,6 +270,7 @@ async function go(page, keep) {
     if (!keep) el.innerHTML = '<p class="lead">Chargement…</p>';
     const html = await (PAGES[page] || PAGES.home)();
     if (S.page !== page) return; // l'agent a changé de page entre-temps
+    if (html === null) return;   // page rendue par un module (Équipe / Patron)
     el.innerHTML = html;
     el.scrollTop = top;
 }
@@ -278,7 +281,9 @@ function updateMe(me) {
     const pill = $('#dutyPill');
     pill.className = `pill ${me.onduty ? 'on' : 'off'}`;
     pill.textContent = me.onduty ? 'En service' : 'Hors service';
-    $('#navBoss').classList.toggle('hidden', !(S.perms.roster || S.perms.boss_money || S.perms.boss_grades));
+    $('#navPpa').classList.toggle('hidden', !S.perms.ppa);
+    $('#navSci').classList.toggle('hidden', !(S.perms.sci_view || S.perms.sci_lab || S.perms.sci_collect));
+    window.EJobs.team().then(() => $('#navBoss').classList.toggle('hidden', !window.EJobs.canBoss()));
 }
 
 const PAGES = {};
@@ -508,109 +513,53 @@ PAGES.jail = async () => {
             ${S.perms.jail ? `<div class="actions"><button class="btn danger" data-confirm="release" data-cid="${esc(j.citizenid)}">Libérer</button></div>` : ''}</div>`).join('')}</div>` : empty('Aucun détenu.')}`;
 };
 
-/* ---------- Patron ---------- */
-const BOSS_TABS = [['money', 'Argent', 'boss_money'], ['staff', 'Employés', 'roster'], ['grades', 'Grades', 'boss_grades']];
-
-async function rosterHtml() {
-    const d = await mdt('roster');
-    if (d.error) return empty(esc(d.error));
-    const myGrade = S.me ? S.me.grade : 0;
-    const opts = (cur) => d.grades.filter((g) => g.level < myGrade || g.level === cur)
-        .map((g) => `<option value="${g.level}" ${g.level === cur ? 'selected' : ''}>${g.level} · ${esc(g.name)}</option>`).join('');
+/* ---------- PPA ---------- */
+const PPA_TAG = { requested: 'blue', test: 'amber', passed: 'green', failed: 'red', issued: 'green', refused: '', revoked: 'red' };
+PAGES.ppa = async () => {
+    const d = await mdt('ppaList');
+    if (d.error) return `<h1>Permis de port d'arme</h1>${empty(esc(d.error))}`;
+    const f = S.ppaForm || {};
     return `
-        <p class="lead">Vous pouvez gérer les agents d'un grade inférieur au vôtre.</p>
-        <div class="card" style="margin-bottom:16px"><div class="grid2" style="grid-template-columns:120px 1fr auto;align-items:end">
-            <label class="field">ID du joueur<input type="number" id="hireId" min="1"></label>
-            <label class="field">Grade<select id="hireGrade">${d.grades.filter((g) => g.level < myGrade).map((g) => `<option value="${g.level}">${g.level} · ${esc(g.name)}</option>`).join('')}</select></label>
-            <button class="btn primary" data-act="hire">Recruter</button></div>
-            <p class="lead" style="margin:8px 0 0">La personne doit être près de vous.</p></div>
-        ${d.list.length ? `<div class="list">${d.list.map((m) => {
-            const can = m.grade < myGrade;
-            return `<div class="row" data-cid="${esc(m.citizenid)}"><div><b>${esc(m.name)}</b>
-                ${m.online ? `<span class="tag ${m.onduty ? 'green' : 'blue'}">${m.onduty ? 'En service' : 'Connecté'}</span>` : '<span class="tag">Hors ligne</span>'}
-                <small>${esc(m.gradeLabel)} · <span class="mono">${esc(m.citizenid)}</span></small></div>
-                ${can ? `<div class="actions"><select class="rgrade" style="width:180px">${opts(m.grade)}</select><button class="btn" data-act="setGrade">Appliquer</button>
-                    <button class="btn danger" data-confirm="fire" data-cid="${esc(m.citizenid)}">Renvoyer</button></div>` : ''}</div>`;
-        }).join('')}</div>` : empty('Aucun agent.')}`;
-}
-
-async function moneyHtml() {
-    const d = await mdt('bossMoney');
-    if (d.error) return empty(esc(d.error));
-    const when = (v) => { const n = Number(v); if (n > 1e11) { const t = new Date(n); return `${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`; } return esc(String(v).slice(0, 16)); };
-    return `
-        <div class="stats" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${money(d.balance)}</b><span>Compte de l'entreprise</span></div>
-            <div class="stat"><b>${money(d.cash)}</b><span>Votre liquide</span></div>
-            <div class="stat"><b>${money(d.bank)}</b><span>Votre banque</span></div></div>
-        <div class="card" style="margin-top:14px"><div class="grid2" style="grid-template-columns:1fr 160px auto auto;align-items:end">
-            <label class="field">Montant<input type="number" id="bossAmount" min="1" placeholder="0"></label>
-            <label class="field">Depuis / vers<select id="bossAccount"><option value="cash">Liquide</option><option value="bank">Banque</option></select></label>
-            <button class="btn primary" data-act="bossDeposit">Déposer</button>
-            <button class="btn" data-act="bossWithdraw">Retirer</button></div></div>
-        <h2>Dernières opérations</h2>
-        ${d.logs.length ? `<div class="list">${d.logs.map((l) => `<div class="row"><div><b>${esc(l.reason || 'Opération')}</b><small>${when(l.date)}</small></div>
-            <span class="mono" style="color:${l.amount >= 0 ? 'var(--green)' : '#ff8a8d'}">${l.amount >= 0 ? '+' : '−'}${money(Math.abs(l.amount))}</span></div>`).join('')}</div>` : empty('Aucune opération.')}`;
-}
-
-function permBoxes(labels, perms, mine, all) {
-    return `<div class="perm-grid">${labels.map((l) => {
-        const on = all || (perms && perms[l.id] === true);
-        const lock = all || !mine[l.id];
-        return `<label class="check ${lock ? 'locked' : ''}" title="${lock && !all ? 'Vous n\'avez pas cet accès vous-même' : ''}"><input type="checkbox" data-gperm="${esc(l.id)}" ${on ? 'checked' : ''} ${lock ? 'disabled' : ''}> ${esc(l.label)}</label>`;
-    }).join('')}</div>`;
-}
-
-async function gradesHtml() {
-    const d = await mdt('bossGrades');
-    if (d.error) return empty(esc(d.error));
-    S.bossG = d;
-    const e = S.gradeEdit;
-    const editor = (g) => `
-        <div class="card grade-edit" data-level="${g ? g.level : 'new'}" style="margin:10px 0">
-            <div class="grid2" style="grid-template-columns:1fr 140px ${g ? '' : '1fr'}">
-                <label class="field">Nom du grade<input type="text" id="gName" maxlength="30" value="${esc(g ? g.name : '')}" placeholder="Ex. : Inspecteur"></label>
-                <label class="field">Salaire ($)<input type="number" id="gPay" min="0" max="${d.maxSalary}" value="${g ? g.payment : 0}"></label>
-                ${g ? '' : `<label class="field">Place<select id="gPos">${d.grades.filter((x) => x.level <= d.myLevel).map((x) => `<option value="${x.level}" ${x.level === d.myLevel ? 'selected' : ''}>Juste en dessous de « ${esc(x.name)} »</option>`).join('')}</select></label>`}
-            </div>
-            <h3 class="sub">Accès</h3>
-            ${permBoxes(d.labels, g ? g.perms : {}, d.mine, false)}
-            <div class="footer-actions" style="margin-top:12px"><button class="btn" data-act="gradeCancel">Annuler</button>
-                <button class="btn primary" data-act="${g ? 'gradeSave' : 'gradeCreate'}">${g ? 'Enregistrer' : 'Créer le grade'}</button></div>
-        </div>`;
-    const rows = [...d.grades].reverse().map((g) => `
-        <div class="row"><div><b>${g.level} · ${esc(g.name)}</b>${g.isboss ? '<span class="tag amber">Patron</span>' : ''}
-            <small>${money(g.payment)} / paie · ${g.members} agent(s) · ${g.perms === 'all' ? 'Tous les accès' : `${d.labels.filter((l) => g.perms[l.id]).length} accès`}</small></div>
-            ${g.editable ? `<div class="actions"><button class="btn" data-act="gradeEdit" data-level="${g.level}">Modifier</button>
-                <button class="btn danger" data-confirm="gradeDelete" data-level="${g.level}" ${g.members ? 'disabled title="Des agents ont ce grade"' : ''}>Supprimer</button></div>` : ''}
-        </div>${e === g.level ? editor(g) : ''}`).join('');
-    return `
-        <p class="lead">Vous pouvez modifier et créer les grades en dessous du vôtre, et ne donner que des accès que vous avez vous-même. ${d.grades.length}/${d.maxGrades} grades.</p>
-        <div class="footer-actions" style="margin-bottom:10px"><span></span><button class="btn primary" data-act="gradeNew" ${d.grades.length >= d.maxGrades ? 'disabled' : ''}>Nouveau grade</button></div>
-        ${e === 'new' ? editor(null) : ''}
-        <div class="list">${rows}</div>`;
-}
-
-PAGES.boss = async () => {
-    const tabs = BOSS_TABS.filter((t) => S.perms[t[2]]);
-    if (!tabs.length) return `<h1>Patron</h1>${empty('Votre grade ne donne pas accès à cette partie.')}`;
-    if (!tabs.some((t) => t[0] === S.bossTab)) S.bossTab = tabs[0][0];
-    const body = S.bossTab === 'money' ? await moneyHtml() : S.bossTab === 'staff' ? await rosterHtml() : await gradesHtml();
-    return `<h1>Patron</h1>
-        <div class="subtabs">${tabs.map((t) => `<button class="${t[0] === S.bossTab ? 'on' : ''}" data-act="bossTab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
-        ${body}`;
+        <h1>Permis de port d'arme</h1>
+        <p class="lead">Saisissez l'identité exacte du citoyen. Il doit être près de vous (moins de ${d.distance} m), accepter la demande, payer et réussir le test. Vous pourrez ensuite lui délivrer le PPA.</p>
+        ${d.papiers ? '' : `<div class="card" style="border-color:rgba(229,72,77,.45);margin-bottom:12px">Le système des papiers (elyzea_papiers) n'est pas démarré : la procédure est indisponible.</div>`}
+        <div class="card"><div class="grid2" style="grid-template-columns:1fr 1fr 170px 170px auto;align-items:end">
+            <label class="field">Nom<input type="text" id="ppaLast" maxlength="40" value="${esc(f.lastname || '')}" autocomplete="off"></label>
+            <label class="field">Prénom<input type="text" id="ppaFirst" maxlength="40" value="${esc(f.firstname || '')}" autocomplete="off"></label>
+            <label class="field">Date de naissance<input type="date" id="ppaBirth" value="${esc(f.birthdate || '')}" title="Seulement si plusieurs personnes portent ce nom"></label>
+            <label class="field">Type<select id="ppaKind"><option value="civil">PPA civil</option><option value="fdo" ${f.kind === 'fdo' ? 'selected' : ''}>PPA forces de l'ordre</option></select></label>
+            <button class="btn primary big-btn" data-act="ppaStart" ${d.papiers ? '' : 'disabled'}>LANCER LE PPA</button>
+        </div><p class="lead" style="margin:8px 0 0">Date de naissance facultative : seulement en cas d'homonymes.</p></div>
+        <h2>Procédures <button class="btn" data-act="ppaRefresh" style="margin-left:auto">Actualiser</button></h2>
+        ${d.list.length ? `<div class="list">${d.list.map((r) => `<div class="row"><div><b>${esc(r.name)}</b>
+            <span class="tag ${PPA_TAG[r.status] || ''}">${esc(r.statusLabel)}</span>${r.details ? `<span class="tag">${esc(r.details)}</span>` : ''}
+            <small>${r.kind === 'fdo' ? 'Forces de l\'ordre' : 'Civil'} · ${esc(r.officer)} · ${fmtTime(r.t)}${r.online ? '' : ' · hors ligne'}</small></div>
+            ${r.status === 'passed' && r.online ? `<div class="actions"><button class="btn primary" data-act="ppaIssue" data-id="${r.id}">Délivrer le PPA</button></div>` : ''}</div>`).join('')}</div>` : empty('Aucune procédure.')}`;
 };
-
-function gradeForm() {
-    const perms = {};
-    document.querySelectorAll('.grade-edit [data-gperm]').forEach((c) => { perms[c.dataset.gperm] = c.checked; });
-    return { name: $('#gName').value.trim(), payment: Number($('#gPay').value), perms };
+function fmtTime(t) {
+    if (!t) return '';
+    const d = new Date(Number(t) * 1000);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+setInterval(() => { if (S.page === 'ppa' && !$('#mdt').classList.contains('hidden') && !document.activeElement.closest('#page input, #page select')) go('ppa', true); }, 6000);
+
+/* ---------- Équipe et Patron (pages communes elyzea_jobs) ---------- */
+PAGES.team = async () => { await window.EJobs.mount($('#page'), 'team', { onClose: () => closePanel('mdt') }); return null; };
+PAGES.boss = async () => { await window.EJobs.mount($('#page'), 'boss', { onClose: () => closePanel('mdt') }); return null; };
 
 /* ================================================================== */
 /* Événements de la tablette                                           */
 /* ================================================================== */
 const Acts = {
     duty: () => run('toggleDuty'),
+    ppaStart: async () => {
+        S.ppaForm = { lastname: $('#ppaLast').value.trim(), firstname: $('#ppaFirst').value.trim(), birthdate: $('#ppaBirth').value, kind: $('#ppaKind').value };
+        const r = await run('ppaStart', S.ppaForm, false);
+        if (!r.error) { S.ppaForm = {}; go('ppa', true); }
+    },
+    ppaRefresh: () => go('ppa', true),
+    ppaIssue: (b) => run('ppaIssue', { id: Number(b.dataset.id) }),
     callsign: () => run('setCallsign', { callsign: $('#callsign').value }),
     searchCitizens: async () => {
         S.citizenQ = $('#citizenQ').value.trim();
@@ -658,24 +607,6 @@ const Acts = {
         S.draftWarrant = null;
         go('warrants');
     },
-    hire: () => run('hire', { target: Number($('#hireId').value), grade: Number($('#hireGrade').value) }),
-    bossTab: (b) => { S.bossTab = b.dataset.tab; S.gradeEdit = null; go('boss'); },
-    bossDeposit: () => run('bossDeposit', { amount: Number($('#bossAmount').value), account: $('#bossAccount').value }),
-    bossWithdraw: () => run('bossWithdraw', { amount: Number($('#bossAmount').value), account: $('#bossAccount').value }),
-    gradeNew: () => { S.gradeEdit = 'new'; go('boss', true); },
-    gradeEdit: (b) => { S.gradeEdit = Number(b.dataset.level); go('boss', true); },
-    gradeCancel: () => { S.gradeEdit = null; go('boss', true); },
-    gradeSave: async () => {
-        const r = await mdt('bossSaveGrade', { level: S.gradeEdit, ...gradeForm() });
-        if (r.error) return toast(r.error, false);
-        toast(r.message); S.gradeEdit = null; go('boss', true);
-    },
-    gradeCreate: async () => {
-        const r = await mdt('bossCreateGrade', { position: Number($('#gPos').value), ...gradeForm() });
-        if (r.error) return toast(r.error, false);
-        toast(r.message); S.gradeEdit = null; go('boss', true);
-    },
-    setGrade: (b) => { const row = b.closest('[data-cid]'); run('setGrade', { citizenid: row.dataset.cid, grade: Number(row.querySelector('.rgrade').value) }); },
 };
 
 function keepRecordInputs() {
@@ -690,8 +621,6 @@ const Confirmed = {
     deleteRecord: (b) => mdt('deleteRecord', { id: Number(b.dataset.id) }).then((r) => { toast(r.error || r.message, !r.error); openProfile(S.profileId); }),
     closeWarrant: (b) => run('closeWarrant', { id: Number(b.dataset.id) }, false).then(() => (S.page === 'profile' ? openProfile(S.profileId) : go(S.page, true))),
     release: (b) => run('release', { citizenid: b.dataset.cid }, false).then(() => (S.page === 'profile' ? openProfile(S.profileId) : go(S.page, true))),
-    fire: (b) => run('fire', { citizenid: b.dataset.cid }),
-    gradeDelete: (b) => run('bossDeleteGrade', { level: Number(b.dataset.level) }),
 };
 
 $('#page').addEventListener('keydown', (e) => {

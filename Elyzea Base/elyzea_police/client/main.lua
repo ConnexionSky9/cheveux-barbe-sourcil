@@ -37,19 +37,15 @@ function C.Grade()
     return job and job.grade and job.grade.level or 0
 end
 
--- Même règle que le serveur (le serveur revérifie toujours)
+-- Même règle que le serveur (le serveur revérifie toujours) : accès publiés par elyzea_jobs
 function C.Can(perm, allowOffDuty)
     if not C.IsCop() then return false end
     if not allowOffDuty and not C.OnDuty() then return false end
-    local min = C.cfg.permGrades[perm]
-    if min == nil then return false end
+    local ej = LocalPlayer.state.ejobs
     local job = C.Job()
-    if C.cfg.jobName and job.name == C.cfg.jobName and C.cfg.gradePerms then
-        local gp = C.cfg.gradePerms[C.Grade() + 1]
-        if gp == 'all' then return true end
-        if type(gp) == 'table' then return gp[perm] == true end
-    end
-    return C.Grade() >= min
+    if ej and job and ej.job == job.name then return ej.perms and ej.perms[perm] == true end
+    local min = C.cfg.permGrades[perm]
+    return min ~= nil and C.Grade() >= min
 end
 
 function C.Street(coords)

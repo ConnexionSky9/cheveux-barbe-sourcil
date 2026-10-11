@@ -1,8 +1,8 @@
 -- =========================================================
 --  TENUES DE SERVICE - CLIENT (tous les joueurs)
---  En service avec un métier qui a une tenue pour son grade :
---  on garde ses vêtements, on enfile la tenue. Fin de service,
---  changement de métier ou de grade sans tenue : on rend les vêtements.
+--  La tenue n'est JAMAIS changée automatiquement (prise / fin de service, métier, grade).
+--  Le joueur la met ou la retire lui-même : bouton « Mettre ma tenue » des tablettes F6
+--  (exports.admin_menu:SetServiceUniform) ou commande /tenue_service.
 -- =========================================================
 local CFG = Config.Uniforms or {}
 local COMPS = CFG.components or { 1, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
@@ -12,8 +12,6 @@ local Uniforms = {}
 local wearing = false      -- tenue de service sur le dos
 local civilian = nil       -- vêtements du joueur avant la tenue
 local preview = nil        -- vêtements avant un essai (staff)
-local lastKey = nil
-local ready = false
 
 local MALE, FEMALE = `mp_m_freemode_01`, `mp_f_freemode_01`
 
@@ -76,79 +74,56 @@ local function takeOff()
     storeCivilian(nil)
 end
 
--- Métier du joueur : nom, grade, en service
+-- Métier du joueur : nom, grade
 local function currentJob()
-    local ok, name, grade, duty = pcall(function()
+    local ok, name, grade = pcall(function()
         local j = (exports.elyzea_core:GetPlayerData() or {}).job
-        if j then return j.name, (j.grade and j.grade.level) or 0, j.onduty == true end
+        if j then return j.name, (j.grade and j.grade.level) or 0 end
     end)
-    if ok then return name, grade or 0, duty end
+    if ok then return name, grade or 0 end
 end
 
-local function check(force)
-    if not ready or CFG.enabled == false then return end
-    if preview then return end -- le staff essaie une tenue : on ne touche à rien
-    local name, grade, duty = currentJob()
-    if not name then return end
-    local g = gender()
-    local key = ('%s|%s|%s|%s'):format(name, grade, tostring(duty), g or '-')
-    if key == lastKey and not force then return end
-    lastKey = key
-
-    local outfit = duty and findOutfit(name, grade, g)
-    if outfit then
-        if not wearing then
-            -- Si une tenue civile est déjà sauvegardée (reconnexion en service), on la garde
-            civilian = storedCivilian() or snapshot()
-            storeCivilian(civilian)
-        end
-        apply(outfit)
-        if not wearing and CFG.notify ~= false then Notify('Tenue de service enfilée.', 'info') end
-        wearing = true
-    elseif wearing then
+-- Mettre (on = true) ou retirer (on = false) la tenue de service, à la demande du joueur
+local function setServiceUniform(on)
+    if CFG.enabled == false then return false, 'Les tenues de service sont désactivées.' end
+    if preview then return false, 'Essai de tenue en cours (staff).' end
+    if not on then
+        if not wearing and not storedCivilian() then return false, 'Vous ne portez pas de tenue de service.' end
         takeOff()
-        if CFG.notify ~= false then Notify('Tu as remis tes vêtements.', 'info') end
-    elseif not duty and storedCivilian() then
-        -- Déconnecté ou crash pendant le service : on rend les vêtements à la prochaine vérification
-        takeOff()
+        return true, 'Vous avez remis vos vêtements.'
     end
+    local name, grade = currentJob()
+    local g = gender()
+    local outfit = name and findOutfit(name, grade, g)
+    if not outfit then return false, 'Aucune tenue de service pour votre grade (à enregistrer dans le menu admin › Métiers › Tenues).' end
+    if not wearing then
+        civilian = storedCivilian() or snapshot()
+        storeCivilian(civilian)
+    end
+    apply(outfit)
+    wearing = true
+    return true, 'Tenue de service enfilée.'
 end
+exports('SetServiceUniform', setServiceUniform)
+exports('IsWearingUniform', function() return wearing end)
+
+RegisterCommand('tenue_service', function()
+    local ok, msg = setServiceUniform(not wearing)
+    Notify(msg, ok and 'success' or 'error')
+end, false)
 
 RegisterNetEvent('adminmenu:uniforms', function(data)
     Uniforms = type(data) == 'table' and data or {}
-    check(true)
 end)
 
--- Réagit tout de suite aux changements de service / métier, et vérifie régulièrement
-for _, ev in ipairs({ 'elyzea:client:setDuty', 'elyzea:client:onJobUpdate' }) do
-    RegisterNetEvent(ev, function() SetTimeout(300, function() check() end) end)
-end
-
-CreateThread(function()
-    while true do
-        Wait(2000)
-        check()
-    end
-end)
-
--- On attend que l'apparence du personnage soit chargée avant de mémoriser ses vêtements
-local function becomeReady(delay)
-    SetTimeout(delay, function()
-        ready = true
-        lastKey = nil
-        check(true)
-    end)
-end
-
+-- Nouveau personnage : on repart de zéro (aucune tenue n'est mise ou retirée automatiquement)
 RegisterNetEvent('elyzea:client:playerLoaded', function()
-    ready, wearing, civilian, lastKey = false, false, nil, nil
-    becomeReady(8000)
+    wearing, civilian = false, nil
 end)
 
 AddEventHandler('onClientResourceStart', function(res)
     if res ~= GetCurrentResourceName() then return end
     TriggerServerEvent('adminmenu:uniforms:request')
-    if NetworkIsPlayerActive(PlayerId()) then becomeReady(3000) end
 end)
 
 -- ---------------------------------------------------------
@@ -172,7 +147,6 @@ end
 
 local function untryUniform()
     if preview then apply(preview) preview = nil end
-    lastKey = nil
     return true
 end
 

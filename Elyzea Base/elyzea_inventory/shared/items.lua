@@ -187,7 +187,7 @@ ImageAlias = {
     weed_pouch = 'weed_baggy.png', weed_leaf = 'weed.png', empty_weed_bag = 'weed_baggy_empty.png',
     coca_leaf = 'cocaineleaf.png', cokebaggy = 'cocaine_baggy.png', xtcbaggy = 'xtc_baggy.png',
     meth_chemicals = 'hydrochloricacid.png', metal_scrap = 'metalscrap.png',
-    empty_evidence_bag = 'evidence.png', filled_evidence_bag = 'evidence.png',
+    empty_evidence_bag = 'evidence.png', filled_evidence_bag = 'evidence.png', kit_gravure = 'cleaningkit.png',
     blood_bag = 'blood_bag_500.png', defibrillator = 'defibrilator.png', painkiller = 'painkillers.png',
     pizza = 'pizza_ham_slice.png', bread = 'WEAPON_BREAD.png', kurkakola = 'cola.png',
     weaponlicense = 'WEAPON_LICENSE.png',

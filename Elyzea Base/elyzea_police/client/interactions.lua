@@ -43,10 +43,12 @@ end
 -- Ouverture du menu
 -- ---------------------------------------------------------------------
 -- targetId : personne choisie (ALT + clic) ; nil = personne la plus proche
-function C.OpenActions(targetId)
+-- view : 'main' (toutes les actions), 'fine' (amende) ou 'jail' (prison)
+function C.OpenActions(targetId, view)
     if menuOpen or C.cuffed or not C.OnDuty() then return end
     selected = targetId
     local t = TargetInfo()
+    if view and view ~= 'main' and not t then return C.Notify("La personne n'est plus à côté de vous.", 'error') end
     menuOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({
@@ -54,7 +56,7 @@ function C.OpenActions(targetId)
         perms = {
             cuff = C.Can('cuff'), search = C.Can('search'), fines = C.Can('fines'), jail = C.Can('jail'),
         },
-        fines = C.cfg.fines, maxJail = C.cfg.settings.maxJail, hasInventory = C.cfg.hasInventory,
+        fines = C.cfg.fines, maxJail = C.cfg.settings.maxJail, hasInventory = C.cfg.hasInventory, view = view or 'main',
     })
 end
 
@@ -71,6 +73,38 @@ end)
 RegisterNUICallback('actionsRefresh', function(_, cb)
     cb({ target = TargetInfo() })
 end)
+
+-- Actions directes (menu ALT) : même code que les boutons du menu
+function C.Interact(kind, targetId, extra)
+    local prev = selected
+    selected = targetId
+    local t = TargetInfo()
+    selected = prev
+    if kind ~= 'outVehicle' and not t then return C.Notify('La personne n\'est plus à côté de vous.', 'error') end
+    if kind == 'cuff' then TriggerServerEvent('police:server:cuff', t.id)
+    elseif kind == 'escort' then TriggerServerEvent('police:server:escort', t.id)
+    elseif kind == 'inVehicle' then
+        local veh = ClosestVehicle(6.0)
+        if not veh then return C.Notify('Aucun véhicule à proximité.', 'error') end
+        TriggerServerEvent('police:server:putInVehicle', t.id, NetworkGetNetworkIdFromEntity(veh))
+    elseif kind == 'outVehicle' then
+        local veh = extra or ClosestVehicle(6.0)
+        if not veh then return C.Notify('Aucun véhicule à proximité.', 'error') end
+        local n = 0
+        for seat = -1, GetVehicleMaxNumberOfPassengers(veh) - 1 do
+            local ped = GetPedInVehicleSeat(veh, seat)
+            if ped ~= 0 and IsPedAPlayer(ped) and ped ~= PlayerPedId() then
+                local sid = GetPlayerServerId(NetworkGetPlayerIndexFromPed(ped))
+                if Player(sid).state.cuffed then TriggerServerEvent('police:server:takeOutVehicle', sid) n = n + 1 end
+            end
+        end
+        if n == 0 then C.Notify('Personne de menotté dans ce véhicule.', 'error') end
+    elseif kind == 'search' then TriggerServerEvent('police:server:search', t.id, t.handsUp)
+    elseif kind == 'id' then TriggerServerEvent('police:server:checkId', t.id)
+    elseif kind == 'ppaRevoke' then TriggerServerEvent('police:server:ppaRevoke', t.id)
+    end
+end
+C.TargetInfoFor = function(sid) local prev = selected selected = sid local t = TargetInfo() selected = prev return t end
 
 RegisterNUICallback('interact', function(body, cb)
     cb('ok')
