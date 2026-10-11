@@ -47,6 +47,7 @@ const post = (n, d = {}) => fetch(`https://${RES}/${n}`, { method: 'POST', heade
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const alt = document.getElementById('alt');
 const offer = document.getElementById('offer');
+let openedAt = 0;   // le clic qui ouvre le menu ne doit pas le refermer
 
 function showMenu(m) {
   let html = `<div class="head"><span>Actions</span><b>${esc(m.title)}</b></div>`;
@@ -57,6 +58,7 @@ function showMenu(m) {
   }
   alt.innerHTML = html;
   alt.classList.remove('hidden');
+  openedAt = Date.now();
   const w = innerWidth, h = innerHeight, r = alt.getBoundingClientRect();
   alt.style.left = `${Math.min(Math.max(8, m.x * w + 14), w - r.width - 8)}px`;
   alt.style.top = `${Math.min(Math.max(8, m.y * h - 10), h - r.height - 8)}px`;
@@ -71,11 +73,14 @@ alt.addEventListener('click', (e) => {
   post('altSelect', { key: Number(b.dataset.key) });
 });
 document.addEventListener('mousedown', (e) => {
-  if (!alt.classList.contains('hidden') && !alt.contains(e.target)) { alt.classList.add('hidden'); post('altClose'); }
+  if (alt.classList.contains('hidden') || alt.contains(e.target) || Date.now() - openedAt < 400) return;
+  alt.classList.add('hidden'); post('altClose');
 });
 document.addEventListener('keydown', (e) => {
   if (alt.classList.contains('hidden')) return;
-  if (e.key === 'Escape' || e.key === 'Alt') { e.preventDefault(); alt.classList.add('hidden'); post('altClose'); return; }
+  // ALT est encore tenu quand le menu s'ouvre (répétition de la touche) : on l'ignore, Échap ferme
+  if (e.key === 'Alt') { e.preventDefault(); return; }
+  if (e.key === 'Escape') { e.preventDefault(); alt.classList.add('hidden'); post('altClose'); return; }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
     const list = [...alt.querySelectorAll('button:not(:disabled)')];
