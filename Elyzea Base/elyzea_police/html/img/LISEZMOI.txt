@@ -1,1 +1,0 @@
-Place ici map.jpg (carte GTA) puis règle Config.MapImage.

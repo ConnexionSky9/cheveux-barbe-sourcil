@@ -1,7 +1,7 @@
 /* =====================================================================
    ELYZEA POLICE - carte de la tablette (canvas)
-   Coordonnées du jeu (x vers l'est, y vers le nord). Fond : image facultative
-   (html/img/map.jpg + bornes dans la config) ou carte tactique dessinée.
+   Coordonnées du jeu (x vers l'est, y vers le nord). Fond : image satellite
+   (html/img/map.jpg + bornes dans Config.MapImage) ou, sans image, carte tactique dessinée.
    ===================================================================== */
 (() => {
   // Contour schématique de l'île de San Andreas (coordonnées du jeu, approximatives)
@@ -50,11 +50,13 @@
     }
 
     function drawBackground() {
-      ctx.fillStyle = '#0a1a2c';
+      ctx.fillStyle = S.img ? '#143d6b' : '#0a1a2c';
       ctx.fillRect(0, 0, W, H);
       if (S.img) {
         const b = S.imgB;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(S.img, sx(b.minX), sy(b.maxY), (b.maxX - b.minX) * S.scale, (b.maxY - b.minY) * S.scale);
+        drawNames('rgba(255,255,255,.7)', true);
         return;
       }
       // Grille (1 km)
@@ -72,13 +74,19 @@
       ctx.beginPath(); ctx.ellipse(sx(150), sy(-1100), 1700 * S.scale, 1500 * S.scale, 0, 0, Math.PI * 2); ctx.fill();
       // Lac
       poly(LAKE); ctx.fillStyle = '#0d2238'; ctx.fill(); ctx.strokeStyle = 'rgba(148,178,230,.25)'; ctx.stroke();
-      // Noms
+      drawNames('rgba(203,213,225,.42)', false);
+    }
+
+    function drawNames(color, shadow) {
+      ctx.save();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (shadow) { ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 4; }
       ZONES.forEach(([n, x, y, k]) => {
         ctx.font = `${k ? 600 : 500} ${Math.max(10, Math.min(15, 11 + S.scale * 40)) * (k || 1)}px Inter, sans-serif`;
-        ctx.fillStyle = 'rgba(203,213,225,.42)';
+        ctx.fillStyle = color;
         ctx.fillText(n.toUpperCase(), sx(x), sy(y));
       });
+      ctx.restore();
     }
 
     function drawMarkers(now) {

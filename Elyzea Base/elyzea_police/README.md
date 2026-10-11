@@ -27,7 +27,8 @@ Toutes les touches se changent dans Échap › Paramètres › Raccourcis › Fi
 - **Service** : on est toujours hors service à la connexion. Hors service = pas d'alerte, pas d'interaction, invisible sur la carte.
 - **Alerte agent** : envoyée avec la position calculée par le serveur à tous les policiers en service. L'alerte rouge demande une confirmation. Anti-spam : `Config.AgentAlerts.cooldown`. Fermeture par l'auteur ou un grade avec `alert_close`, synchronisée chez tout le monde.
 - **Alertes générales** (`Config.Alerts.types`) : tirs et vol de véhicule détectés automatiquement, détresse via `/police`, braquage / agression / autre via les exports. *Valider* = GPS + « pris par X » visible des collègues (plusieurs agents peuvent rejoindre). *Décliner* = masquée pour soi seul.
-- **Tablette** : tableau de bord, rapports (créer, chercher, filtrer, modifier, archiver, historique), carte (agents en service avec position, rue, vie, armure et état En vie / Blessé / À terre / Mort ; agents connectés hors service listés à part, sans position ; alertes ; rafraîchie toutes les 3 s), agents, et Direction : recrutement (joueur le plus proche → Accepter / Refuser), employés (fiche, promouvoir, rétrograder, changer de grade, modifier, renvoyer), grades (créer, modifier, supprimer avec réaffectation), permissions par grade, historique.
+- **Tablette** : tableau de bord, rapports (créer, chercher, filtrer, modifier, archiver, historique), carte (agents en service avec position, rue, vie, armure et état En vie / Blessé / À terre / Mort ; agents connectés hors service listés à part, sans position ; alertes ; rafraîchie toutes les 3 s), agents, et Direction : recrutement (joueur le plus proche → Accepter / Refuser), employés (fiche, promouvoir, rétrograder, changer de grade, modifier, renvoyer), grades (créer, modifier, supprimer avec réaffectation), permissions par grade, **Finance**, historique.
+- **Finance** (permission `finance`, donnée au plus haut grade) : argent de l'entreprise (compte société `police` d'elyzea_core, alimenté par les amendes), mouvements récents, salaire **par heure de service** de chaque grade, liste des employés avec leur temps de service non payé et la somme due (temps × salaire horaire du grade actuel, calculé par le serveur). « Payer » verse la somme depuis l'argent de l'entreprise sur le compte en banque de l'employé (même hors ligne) et remet son temps à zéro. Refusé si l'entreprise n'a pas assez d'argent. Le temps de service est compté de la prise à la fin de service (et enregistré toutes les 30 s). Il n'y a plus de paie automatique du core pour la police.
 - **Sécurité** : chaque action passe par le serveur (permission du grade, service, distance, hiérarchie : impossible d'agir sur soi ou sur un grade égal ou supérieur, ni de donner une permission qu'on n'a pas). Limite de 12 requêtes / seconde.
 - **Déconnexion** : l'agent sort du service, ses menottes / escortes sont libérées, les alertes qu'il a prises sont mises à jour. Contrôle de sécurité toutes les 30 s (pas d'agent fantôme).
 
@@ -43,11 +44,10 @@ exports.elyzea_police:SendDispatch({ ... })      -- compatibilité elyzea_illega
 
 ## Configuration utile (`config.lua`)
 Touches, distances, préfixe de matricule, montant max et liste des amendes, niveaux d'alerte agent, types d'alertes générales, statuts, types de rapports, grades par défaut.
-Carte : par défaut une carte tactique dessinée. Pour une vraie carte, mets une image dans `html/img/map.jpg` et règle ses bornes dans `Config.MapImage`.
+Carte : image satellite `html/img/map.jpg`, calibrée dans `Config.MapImage` (sans image, une carte tactique dessinée est utilisée).
 
 ## Limites connues
 - Non testé en jeu : le code est vérifié (syntaxe Lua / JS) et l'interface a été prévisualisée dans un navigateur, mais pas sur un serveur FiveM.
-- La carte tactique est schématique (pas d'image GTA fournie).
 - Pièces jointes des rapports : liens d'images (URL), pas d'envoi de fichiers.
 - Alertes automatiques : tirs et vols de véhicule seulement ; le reste passe par `/police` et les exports.
 - Dans le menu ALT, les joueurs non policiers apparaissent comme « Personne · ID x » (pas de nom, pour le RP).

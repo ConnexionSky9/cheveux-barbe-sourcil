@@ -6,8 +6,8 @@
 --    limite de fréquence vérifiées ici. Le client ne décide jamais d'un droit.
 -- =====================================================================
 Police = {
-    grades = {},        -- [id] = { id, name, level, salary, perms = {key=true}, isDefault }
-    employees = {},     -- [citizenid] = { citizenid, name, matricule, grade_id, recruited_at, promoted_at, note }
+    grades = {},        -- [id] = { id, name, level, salary ($ par heure de service), perms = {key=true}, isDefault }
+    employees = {},     -- [citizenid] = { citizenid, name, matricule, grade_id, recruited_at, promoted_at, note, service_seconds }
     duty = {},          -- [src] = true
     status = {},        -- [src] = 'available' | ...
     Actions = {},       -- [nom] = { perm, duty, fn(src, data) }
@@ -79,7 +79,8 @@ local function InitDb()
         `grade_id` INT NOT NULL,
         `recruited_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `promoted_at` DATETIME NULL,
-        `note` VARCHAR(255) NULL
+        `note` VARCHAR(255) NULL,
+        `service_seconds` INT NOT NULL DEFAULT 0
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     Q([[CREATE TABLE IF NOT EXISTS `police_admin_log` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -138,6 +139,10 @@ local function InitDb()
         `closed_at` DATETIME NULL,
         INDEX (`status`)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    -- Mise à jour d'une base créée avant la partie Finance
+    local col = MySQL.scalar.await([[SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'police_employees' AND COLUMN_NAME = 'service_seconds']])
+    if tonumber(col) == 0 then MySQL.query.await('ALTER TABLE `police_employees` ADD COLUMN `service_seconds` INT NOT NULL DEFAULT 0') end
     pcall(function() core:ToUtf8mb4({ 'police_grades', 'police_employees', 'police_admin_log', 'police_reports', 'police_report_history', 'police_fines', 'police_alerts' }) end)
 end
 
@@ -199,7 +204,8 @@ function P.SyncCoreJob()
     local grades = {}
     local top = P.TopLevel()
     for _, g in pairs(P.grades) do
-        grades[g.level] = { name = g.name, payment = g.salary, isboss = g.perms.direction == true or g.level == top }
+        -- payment = 0 : pas de paie automatique du core, la direction paie les heures de service (Finance)
+        grades[g.level] = { name = g.name, payment = 0, isboss = g.perms.direction == true or g.level == top }
     end
     if not grades[0] then grades[0] = { name = 'Sans grade', payment = 0 } end
     local ok, err = pcall(function()
@@ -213,7 +219,7 @@ end
 -- ---------------------------------------------------------------------
 function P.LoadEmployees()
     P.employees = {}
-    for _, r in ipairs(MySQL.query.await([[SELECT `citizenid`, `name`, `matricule`, `grade_id`, `note`,
+    for _, r in ipairs(MySQL.query.await([[SELECT `citizenid`, `name`, `matricule`, `grade_id`, `note`, `service_seconds`,
         DATE_FORMAT(`recruited_at`, '%d/%m/%Y') AS recruited, DATE_FORMAT(`promoted_at`, '%d/%m/%Y') AS promoted FROM `police_employees`]]) or {}) do
         P.employees[r.citizenid] = r
     end
@@ -281,7 +287,7 @@ function P.Hire(cid, name, grade)
     if P.employees[cid] then return false, 'Déjà dans la police.' end
     local mat = P.NextMatricule()
     MySQL.insert.await('INSERT INTO `police_employees` (`citizenid`, `name`, `matricule`, `grade_id`) VALUES (?, ?, ?, ?)', { cid, name, mat, grade.id })
-    P.employees[cid] = { citizenid = cid, name = name, matricule = mat, grade_id = grade.id, recruited = os.date('%d/%m/%Y') }
+    P.employees[cid] = { citizenid = cid, name = name, matricule = mat, grade_id = grade.id, recruited = os.date('%d/%m/%Y'), service_seconds = 0 }
     P.applying[cid] = true
     pcall(function() core:AddPlayerToJob(cid, JOB, grade.level) end)
     P.applying[cid] = nil
@@ -410,6 +416,16 @@ CreateThread(function()
         P.LoadGrades()
         if not next(P.grades) then SeedGrades() P.LoadGrades() end
         P.LoadEmployees()
+        -- Nouvelle permission « finance » : donnée au plus haut grade si personne ne l'a encore
+        local has, top = false, nil
+        for _, g in pairs(P.grades) do
+            if g.perms.finance then has = true end
+            if not top or g.level > top.level then top = g end
+        end
+        if not has and top then
+            top.perms.finance = true
+            MySQL.update.await('UPDATE `police_grades` SET `perms` = ? WHERE `id` = ?', { P.EncodePerms(top.perms), top.id })
+        end
     end)
     if not ok then print(('^1[Police] Chargement impossible : %s^0'):format(tostring(err))) return end
     P.SyncCoreJob()

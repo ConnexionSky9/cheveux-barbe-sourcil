@@ -54,13 +54,38 @@ function P.AgentInfo(src, withPos)
     return info
 end
 
+-- ---------------------------------------------------------------------
+-- Temps de service (payé par la direction dans Finance)
+-- P.dutySince[src] = { cid, t } : début du morceau de service pas encore compté
+-- ---------------------------------------------------------------------
+P.dutySince = {}
+
+function P.FlushService(src, stop)
+    local d = P.dutySince[src]
+    if not d then return end
+    local now = os.time()
+    local e = P.employees[d.cid]
+    if e and now > d.t then
+        e.service_seconds = (tonumber(e.service_seconds) or 0) + (now - d.t)
+        MySQL.update('UPDATE `police_employees` SET `service_seconds` = ? WHERE `citizenid` = ?', { e.service_seconds, d.cid })
+    end
+    if stop then P.dutySince[src] = nil else d.t = now end
+end
+
+function P.FlushAllService()
+    for src in pairs(P.dutySince) do P.FlushService(src) end
+end
+
 -- Prise / fin de service. silent : pas de notification (départ, renvoi…)
 function P.SetDuty(src, on, silent)
     on = on == true
     if on then
         P.duty[src] = true
         P.status[src] = P.status[src] or 'available'
+        local cid = P.Cid(src)
+        if cid and not P.dutySince[src] then P.dutySince[src] = { cid = cid, t = os.time() } end
     else
+        P.FlushService(src, true)
         P.duty[src] = nil
         P.status[src] = nil
         if P.ReleaseAll then P.ReleaseAll(src) end
@@ -154,6 +179,7 @@ end }
 -- Déconnexions : jamais d'agent fantôme
 -- ---------------------------------------------------------------------
 local function Gone(src)
+    P.FlushService(src, true)
     if P.duty[src] then
         P.duty[src] = nil
         P.status[src] = nil
@@ -172,12 +198,15 @@ CreateThread(function()
         for src in pairs(P.duty) do
             if not GetPlayerName(src) or not P.IsCop(src) then Gone(src) end
         end
+        -- Temps de service enregistré régulièrement (rien de perdu en cas de crash)
+        P.FlushAllService()
     end
 end)
 
 -- Statut de service perdu côté core (changement de métier, menu admin…) : on suit
 AddEventHandler('elyzea:server:setDuty', function(src, on)
     if not on and P.duty[src] then
+        P.FlushService(src, true)
         P.duty[src] = nil
         P.status[src] = nil
         if P.ReleaseAll then P.ReleaseAll(src) end

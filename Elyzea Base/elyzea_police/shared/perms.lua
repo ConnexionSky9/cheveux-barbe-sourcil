@@ -32,6 +32,7 @@ PolicePerms = {
     { key = 'history_view',   group = 'Direction',  label = 'Consulter l\'historique administratif' },
     { key = 'grades_manage',  group = 'Direction',  label = 'Créer et modifier les grades' },
     { key = 'perms_manage',   group = 'Direction',  label = 'Gérer les permissions des grades' },
+    { key = 'finance',        group = 'Direction',  label = 'Finance : argent de l\'entreprise, salaires horaires, payer les employés' },
 }
 
 PolicePermSet = {}

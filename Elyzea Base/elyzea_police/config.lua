@@ -99,28 +99,29 @@ Config.Reports = {
 
 -- Carte de la tablette : positions envoyées toutes les N ms (seulement tablette ouverte sur la carte)
 Config.MapRefresh = 3000
--- Image facultative : mettre une carte GTA V dans html/img/map.jpg et indiquer ici les coordonnées du jeu
--- qui correspondent aux bords de l'image (sinon une carte tactique dessinée est utilisée).
-Config.MapImage = { file = 'img/map.jpg', minX = -4000, maxX = 6000, minY = -4000, maxY = 8000 }
+-- Carte satellite de la tablette (html/img/map.jpg) : coordonnées du jeu aux bords de l'image.
+-- Calibrée pour l'image fournie ; supprime l'image pour revenir à la carte tactique dessinée.
+Config.MapImage = { file = 'img/map.jpg', minX = -5661.2, maxX = 6694.0, minY = -4058.5, maxY = 8429.3 }
 
 -- Grades du premier démarrage (level : hiérarchie, plus grand = plus haut)
+-- salary : $ par heure de service, versés par la direction (tablette › Finance), modifiable en jeu
 Config.DefaultGrades = {
-    { name = 'Cadet',              level = 1, salary = 50,  default = true,
+    { name = 'Cadet',              level = 1, salary = 400,  default = true,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'alerts_receive', 'alert_agent', 'tablet', 'reports_view' } },
-    { name = 'Gardien de la paix', level = 2, salary = 75,
+    { name = 'Gardien de la paix', level = 2, salary = 500,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'tablet', 'reports_view', 'reports_write', 'map', 'agents_view' } },
-    { name = 'Brigadier',          level = 3, salary = 90,
+    { name = 'Brigadier',          level = 3, salary = 600,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'alert_close', 'tablet', 'reports_view', 'reports_write', 'map', 'agents_view' } },
-    { name = 'Brigadier-chef',     level = 4, salary = 110,
+    { name = 'Brigadier-chef',     level = 4, salary = 700,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'alert_close', 'tablet', 'reports_view', 'reports_write', 'reports_manage', 'map', 'agents_view' } },
-    { name = 'Lieutenant',         level = 5, salary = 130,
+    { name = 'Lieutenant',         level = 5, salary = 850,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'alert_close', 'tablet', 'reports_view', 'reports_write', 'reports_manage', 'map', 'agents_view',
                 'direction', 'recruit', 'employees_view', 'history_view' } },
-    { name = 'Capitaine',          level = 6, salary = 150,
+    { name = 'Capitaine',          level = 6, salary = 1000,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'alert_close', 'tablet', 'reports_view', 'reports_write', 'reports_manage', 'map', 'agents_view',
                 'direction', 'recruit', 'employees_view', 'history_view', 'promote', 'demote' } },
-    { name = 'Commandant',         level = 7, salary = 170,
+    { name = 'Commandant',         level = 7, salary = 1200,
       perms = { 'duty', 'alt', 'cuff', 'escort', 'vehicle', 'fine', 'alerts_receive', 'alert_agent', 'alert_close', 'tablet', 'reports_view', 'reports_write', 'reports_manage', 'map', 'agents_view',
-                'direction', 'recruit', 'employees_view', 'history_view', 'promote', 'demote', 'fire', 'employees_edit', 'grades_manage' } },
-    { name = 'Commissaire',        level = 8, salary = 200, perms = 'all' },
+                'direction', 'recruit', 'employees_view', 'history_view', 'promote', 'demote', 'fire', 'employees_edit', 'grades_manage', 'finance' } },
+    { name = 'Commissaire',        level = 8, salary = 1500, perms = 'all' },
 }

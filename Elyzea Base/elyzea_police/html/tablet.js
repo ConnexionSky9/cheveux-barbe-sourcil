@@ -27,6 +27,7 @@
     { id: 'employees', label: 'Employés', ico: '👥', perm: 'employees_view', group: 'Direction' },
     { id: 'grades', label: 'Grades', ico: '🎖️', perm: 'direction', group: 'Direction' },
     { id: 'perms', label: 'Permissions', ico: '🔐', perm: 'perms_manage', group: 'Direction' },
+    { id: 'finance', label: 'Finance', ico: '💰', perm: 'finance', group: 'Direction' },
     { id: 'history', label: 'Historique', ico: '🕘', perm: 'history_view', group: 'Direction' },
   ];
   const allowed = (n) => can(n.perm) && (!n.group || can('direction'));
@@ -376,16 +377,83 @@
     const list = [...d.list].sort((a, b) => b.level - a.level);
     const ed = GS.edit;
     body().innerHTML = `${d.canGrades ? '' : '<div class="note">Consultation seule : la création et la modification des grades demandent la permission « Créer et modifier les grades ».</div>'}
-      <div class="split"><div class="card" style="padding:.3rem .6rem"><table class="tbl"><tr><th>Niveau</th><th>Grade</th><th>Salaire</th><th>Effectif</th><th></th></tr>
-        ${list.map((gr) => `<tr><td class="mono">${gr.level}</td><td><b>${esc(gr.name)}</b> ${gr.isDefault ? '<span class="tag">Grade des recrues</span>' : ''}</td><td>${money(gr.salary)}</td><td>${gr.members}</td>
+      <div class="split"><div class="card" style="padding:.3rem .6rem"><table class="tbl"><tr><th>Niveau</th><th>Grade</th><th>Effectif</th><th></th></tr>
+        ${list.map((gr) => `<tr><td class="mono">${gr.level}</td><td><b>${esc(gr.name)}</b> ${gr.isDefault ? '<span class="tag">Grade des recrues</span>' : ''}</td><td>${gr.members}</td>
           <td style="text-align:right;white-space:nowrap">${d.canGrades && gr.level < d.myLevel ? `<button class="btn small" data-g="edit" data-id="${gr.id}">Modifier</button> <button class="btn small danger" data-g="del" data-id="${gr.id}">Supprimer</button>` : '<span class="faint" style="font-size:.75rem">—</span>'}</td></tr>`).join('')}</table></div>
         <div class="detail">${d.canGrades ? `<div class="card"><h2>${ed && ed.id ? 'Modifier le grade' : 'Créer un grade'}</h2><div class="form-grid">
           <label class="field full"><span>Nom</span><input class="input" id="gName" maxlength="50" value="${esc(ed ? ed.name : '')}" placeholder="ex : Brigadier-chef"></label>
           <label class="field"><span>Niveau (hiérarchie)</span><input class="input" id="gLevel" type="number" min="1" max="${d.myLevel - 1}" value="${ed ? ed.level : ''}" placeholder="1 à ${d.myLevel - 1}"></label>
-          <label class="field"><span>Salaire ($ / paie)</span><input class="input" id="gSalary" type="number" min="0" value="${ed ? ed.salary : 0}"></label>
           <label class="field full" style="flex-direction:row;align-items:center;gap:.5rem"><input type="checkbox" class="check" id="gDefault" ${ed && ed.isDefault ? 'checked' : ''}><span style="font-size:.85rem;color:var(--text)">Grade donné aux nouvelles recrues</span></label></div>
           <div class="actions-row"><button class="btn primary" data-g="save">${ed && ed.id ? 'Enregistrer' : 'Créer le grade'}</button>${ed ? '<button class="btn" data-g="cancel">Annuler</button>' : ''}</div>
-          <p class="faint" style="font-size:.76rem;margin-top:.7rem">Les permissions d'un grade se règlent dans l'onglet Permissions. Votre niveau : ${d.myLevel}. Vous ne gérez que les grades inférieurs.</p></div>` : ''}</div></div>`;
+          <p class="faint" style="font-size:.76rem;margin-top:.7rem">Les permissions d'un grade se règlent dans l'onglet Permissions, son salaire horaire dans Finance. Votre niveau : ${d.myLevel}. Vous ne gérez que les grades inférieurs.</p></div>` : ''}</div></div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Finance : argent de l'entreprise, salaires horaires, paie            */
+  /* ------------------------------------------------------------------ */
+  const FS = { data: null };
+  const hm = (s) => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`; };
+  PAGES.finance = async (g) => {
+    const d = await req('finance');
+    if (stale(g)) return;
+    if (d.error) { body().innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    FS.data = d;
+    drawFinance();
+    // Rafraîchi tout seul (temps de service qui avance), sauf pendant une saisie
+    every(5000, async () => {
+      if (T.page !== 'finance') return;
+      const a = document.activeElement;
+      if (a && a.matches && a.matches('[data-rate]')) return;
+      const n = await req('finance');
+      if (T.page !== 'finance' || n.error) return;
+      FS.data = n; drawFinance();
+    });
+  };
+  function drawFinance() {
+    const d = FS.data;
+    const onDuty = d.employees.filter((e) => e.duty).length;
+    const totalSec = d.employees.reduce((t, e) => t + e.seconds, 0);
+    const rows = d.employees.map((e) => {
+      const short = e.due > d.balance;
+      return `<tr><td><b>${esc(e.name)}</b><br><small class="mono faint">${esc(e.matricule)}</small></td><td>${esc(e.grade)}</td>
+        <td>${e.duty ? '<span class="pill on">En service</span>' : e.online ? '<span class="pill off">Hors service</span>' : '<span class="pill off">Hors ligne</span>'}</td>
+        <td class="mono nw">${hm(e.seconds)}</td><td class="nw"><b class="mono">${money(e.due)}</b><br><small class="faint">${money(e.rate)} / h</small></td>
+        <td style="text-align:right"><button class="btn small ${e.due > 0 && !short ? 'primary' : ''}" data-fpay="${esc(e.cid)}" ${e.due > 0 && !short ? '' : 'disabled'}
+          title="${e.due <= 0 ? 'Rien à payer' : short ? 'Fonds insuffisants' : 'Verser sur son compte en banque'}">Payer</button></td></tr>`;
+    }).join('');
+    const grades = [...d.grades].sort((a, b) => b.level - a.level).map((gr) => `<div class="list-row"><div class="main"><b>${esc(gr.name)}</b><small class="nw">Niv. ${gr.level} · ${gr.members} empl.</small></div>
+      ${gr.editable ? `<div class="rate"><input class="input" type="number" min="0" step="10" data-rate="${gr.id}" value="${gr.rate}"><span class="faint">$/h</span><button class="btn small" data-frate="${gr.id}">OK</button></div>`
+        : `<b class="mono">${money(gr.rate)}/h</b>`}</div>`).join('');
+    const logs = d.logs.length ? d.logs.map((l) => `<div class="list-row"><div class="main"><b style="font-weight:500">${esc(l.reason || '—')}</b><small>${l.t ? fmtTime(l.t) : ''}</small></div>
+      <b class="mono" style="color:${l.amount < 0 ? '#fca5a5' : 'var(--green)'}">${l.amount < 0 ? '−' : '+'}${money(Math.abs(l.amount))}</b></div>`).join('') : '<div class="empty">Aucun mouvement.</div>';
+    body().innerHTML = `<div class="stats">
+        <div class="stat green"><b>${money(d.balance)}</b><span>Argent de l'entreprise</span></div>
+        <div class="stat ${d.totalDue > d.balance ? 'red' : 'orange'}"><b>${money(d.totalDue)}</b><span>Total des salaires à payer</span></div>
+        <div class="stat blue"><b>${hm(totalSec)}</b><span>Heures de service non payées</span></div>
+        <div class="stat"><b>${onDuty}</b><span>Agent(s) en service</span></div></div>
+      <div class="split"><div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .4rem 0">Employés</h2>
+        ${d.employees.length ? `<table class="tbl"><tr><th>Employé</th><th>Grade</th><th>Service</th><th>Temps non payé</th><th>À payer</th><th></th></tr>${rows}</table>` : '<div class="empty">Aucun employé.</div>'}
+        <p class="faint" style="font-size:.76rem;margin:.6rem .4rem">À payer = temps de service × salaire horaire du grade actuel. « Payer » verse la somme depuis l'argent de l'entreprise sur le compte en banque de l'employé et remet son temps à zéro.</p></div>
+        <div class="detail"><div class="card"><h2>Salaire par grade <span class="faint" style="font-size:.8rem">$ par heure de service</span></h2>${grades}</div>
+          <div class="card"><h2>Mouvements récents</h2>${logs}</div></div></div>`;
+  }
+  async function financeAction(b) {
+    if (b.dataset.fpay) {
+      const e = FS.data.employees.find((x) => x.cid === b.dataset.fpay);
+      if (!e) return;
+      const ok = await confirmBox('Payer le salaire ?', `<div class="kv"><span>Employé</span><b>${esc(e.name)} · ${esc(e.matricule)}</b><span>Grade</span><b>${esc(e.grade)}</b>
+        <span>Temps de service</span><b>${hm(e.seconds)}</b><span>Salaire horaire</span><b>${money(e.rate)}</b><span>Montant</span><b>${money(e.due)}</b></div>
+        <p class="faint" style="margin-top:.6rem">Versé sur son compte en banque depuis l'argent de l'entreprise. Son temps de service repart de zéro.</p>`, `Payer ${money(e.due)}`);
+      if (!ok) return;
+      const r = await call('financePay', { cid: e.cid }, b);
+      if (r.ok || r.error) return PAGES.finance(T.gen);
+      return;
+    }
+    if (b.dataset.frate) {
+      const input = body().querySelector(`[data-rate="${b.dataset.frate}"]`);
+      const r = await call('financeRate', { id: Number(b.dataset.frate), rate: Number(input && input.value) }, b);
+      if (r.ok) return PAGES.finance(T.gen);
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -575,13 +643,15 @@
       }
       return;
     }
+    // Finance
+    if ((b = e.target.closest('[data-fpay],[data-frate]'))) return financeAction(b);
     // Grades
     if ((b = e.target.closest('[data-g]'))) {
       const a = b.dataset.g;
       if (a === 'cancel') { GS.edit = null; return drawGrades(); }
       if (a === 'edit') { GS.edit = GS.data.list.find((x) => String(x.id) === b.dataset.id); return drawGrades(); }
       if (a === 'save') {
-        const data = { id: GS.edit ? GS.edit.id : undefined, name: $('#gName').value, level: Number($('#gLevel').value), salary: Number($('#gSalary').value), isDefault: $('#gDefault').checked };
+        const data = { id: GS.edit ? GS.edit.id : undefined, name: $('#gName').value, level: Number($('#gLevel').value), isDefault: $('#gDefault').checked };
         const r = await call('gradeSave', data, b);
         if (r.ok) { GS.edit = null; return PAGES.grades(T.gen); }
         return;

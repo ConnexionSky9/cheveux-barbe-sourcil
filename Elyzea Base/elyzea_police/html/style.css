@@ -261,3 +261,8 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%
 .hbar { height: .28rem; border-radius: 1rem; background: rgba(255, 255, 255, .08); overflow: hidden; }
 .hbar > i { display: block; height: 100%; border-radius: 1rem; transition: width .4s; }
 .agent-row .main small { display: block; }
+
+/* Finance */
+.rate { display: flex; align-items: center; gap: .35rem; }
+.rate .input { width: 6.5rem; padding: .3rem .5rem; text-align: right; }
+.nw { white-space: nowrap; }

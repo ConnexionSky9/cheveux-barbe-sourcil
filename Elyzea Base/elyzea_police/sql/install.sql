@@ -1,5 +1,6 @@
 -- ELYZEA POLICE - tables (créées aussi automatiquement au démarrage de la ressource)
 -- Les grades par défaut (Config.DefaultGrades) sont insérés au premier démarrage.
+-- Base déjà installée avant la partie Finance : la colonne police_employees.service_seconds est ajoutée toute seule.
 
 CREATE TABLE IF NOT EXISTS `police_grades` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -17,7 +18,8 @@ CREATE TABLE IF NOT EXISTS `police_employees` (
     `grade_id` INT NOT NULL,
     `recruited_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `promoted_at` DATETIME NULL,
-    `note` VARCHAR(255) NULL
+    `note` VARCHAR(255) NULL,
+    `service_seconds` INT NOT NULL DEFAULT 0
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `police_admin_log` (

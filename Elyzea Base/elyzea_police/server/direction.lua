@@ -298,20 +298,19 @@ P.Actions.gradeSave = { perm = 'grades_manage', fn = function(src, d)
     if not name then return { error = e1 } end
     local level, e2 = ValidLevel(src, d.level, id)
     if not level then return { error = e2 } end
-    local salary = P.Int(d.salary, 0, 100000, 0)
     local isDefault = d.isDefault == true
     if g then
         local oldLevel = g.level
-        MySQL.update.await('UPDATE `police_grades` SET `name` = ?, `level` = ?, `salary` = ? WHERE `id` = ?', { name, level, salary, g.id })
-        g.name, g.level, g.salary = name, level, salary
+        MySQL.update.await('UPDATE `police_grades` SET `name` = ?, `level` = ? WHERE `id` = ?', { name, level, g.id })
+        g.name, g.level = name, level
         if oldLevel ~= level then
             -- Les employés de ce grade suivent son nouveau niveau dans elyzea_core
             for cid, e in pairs(P.employees) do if e.grade_id == g.id then P.ApplyGrade(cid, g) end end
         end
     else
-        local newId = MySQL.insert.await('INSERT INTO `police_grades` (`name`, `level`, `salary`, `perms`) VALUES (?, ?, ?, ?)', { name, level, salary, '[]' })
+        local newId = MySQL.insert.await('INSERT INTO `police_grades` (`name`, `level`, `salary`, `perms`) VALUES (?, ?, ?, ?)', { name, level, 0, '[]' })
         if not newId then return { error = 'Enregistrement impossible.' } end
-        g = { id = newId, name = name, level = level, salary = salary, perms = {}, isDefault = false }
+        g = { id = newId, name = name, level = level, salary = 0, perms = {}, isDefault = false }
         P.grades[newId] = g
     end
     if isDefault and not g.isDefault then
@@ -319,7 +318,7 @@ P.Actions.gradeSave = { perm = 'grades_manage', fn = function(src, d)
         for _, o in pairs(P.grades) do o.isDefault = o.id == g.id end
     end
     AfterGradeChange()
-    P.AddLog(src, nil, nil, id and 'Grade modifié' or 'Grade créé', nil, name, ('niveau %d · %d $'):format(level, salary))
+    P.AddLog(src, nil, nil, id and 'Grade modifié' or 'Grade créé', nil, name, ('niveau %d'):format(level))
     return { ok = true, id = g.id, message = id and 'Grade enregistré.' or ('Grade « %s » créé.'):format(name) }
 end }
 

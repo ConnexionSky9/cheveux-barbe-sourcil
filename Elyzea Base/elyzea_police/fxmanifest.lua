@@ -21,6 +21,7 @@ server_scripts {
     'server/alerts.lua',
     'server/reports.lua',
     'server/direction.lua',
+    'server/finance.lua',
     'server/api.lua',
 }
 
