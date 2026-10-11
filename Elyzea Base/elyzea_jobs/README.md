@@ -15,8 +15,8 @@ Gère les grades, les accès, le recrutement, les finances, le service et le men
 2. `server.cfg` : `ensure elyzea_jobs` **juste après** `ensure elyzea_inventory` (avant les ressources des métiers).
 3. Supprimer `elyzea_patron` (dossier et ligne `ensure elyzea_patron`) : remplacé par l'onglet Patron des tablettes.
 4. Les tables sont créées toutes seules au démarrage (rien à importer) :
-   - `elyzea_jobs` (grades et accès de chaque métier), `elyzea_jobs_logs` (journal RH, service, finances), `elyzea_jobs_specialties` (spécialités, ex. police scientifique) ;
-   - police : `police_ppa`, `police_evidence`, `police_evidence_log`, `police_cases`, `police_case_notes`, `police_analyses`, `police_reports`, `police_dna` ;
+   - `elyzea_jobs` (grades et accès de chaque métier), `elyzea_jobs_logs` (journal RH, service, finances), `elyzea_jobs_specialties` (spécialités, aucune par défaut) ;
+   - police : `police_ppa` (historique des retraits de PPA) ;
    - inventaire : `elyzea_weapons` (registre des armes : n° de série, propriétaire, gravure, statut), `elyzea_weapons_history`.
 5. **Premier démarrage** : les grades sont repris du métier existant ; les accès des grades sont mis aux valeurs par défaut
    de `config.lua` (le patron les ajuste ensuite dans la tablette › Patron › Grades et accès).

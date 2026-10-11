@@ -3,7 +3,7 @@ game 'gta5'
 lua54 'yes'
 
 name 'elyzea_police'
-description 'Métier Police complet (base Elyzea) : tablette, dispatch, interactions ALT, amendes, prison, casiers, PPA, police scientifique'
+description 'Métier Police complet (base Elyzea) : tablette, dispatch, interactions ALT, amendes, prison, casiers, retrait du PPA'
 version '1.0.0'
 
 shared_script 'config.lua'
@@ -14,7 +14,6 @@ client_scripts {
     'client/dispatch.lua',
     'client/interactions.lua',
     'client/alt.lua',
-    'client/forensics.lua',
     'client/jail.lua',
     'client/points.lua',
     'client/tablet.lua',
@@ -27,8 +26,6 @@ server_scripts {
     'server/interactions.lua',
     'server/mdt.lua',
     'server/ppa.lua',
-    'server/forensics.lua',
-    'server/lab.lua',
     'server/staff.lua',
 }
 
@@ -37,7 +34,6 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
-    'html/sci.js',
 }
 
 dependencies {

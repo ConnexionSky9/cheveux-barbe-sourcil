@@ -25,11 +25,6 @@ const PERMS = [
     { k: 'records_delete', label: 'Supprimer un rapport', help: 'Effacer une entrée du casier.' },
     { k: 'roster', label: 'Gérer l\'effectif', help: 'Recruter, promouvoir, renvoyer (grades inférieurs au sien).' },
     { k: 'ppa_revoke', label: 'Retirer un PPA', help: 'ALT sur la personne.' },
-    { k: 'sci_view', label: 'Scientifique : consulter', help: 'Affaires, preuves et rapports.' },
-    { k: 'sci_cases', label: 'Scientifique : affaires', help: 'Créer, modifier, clôturer une affaire.' },
-    { k: 'sci_collect', label: 'Scientifique : collecter', help: 'Prélever les preuves (ALT), saisir une arme.' },
-    { k: 'sci_lab', label: 'Scientifique : laboratoire', help: 'Analyses et rapports.' },
-    { k: 'sci_custody', label: 'Scientifique : restitution / destruction', help: 'Fin de la chaîne de conservation.' },
 ];
 
 const SETTINGS = [
@@ -52,7 +47,6 @@ const POINTS = [
     { k: 'armory', label: 'Armurerie', help: 'E pour ouvrir la boutique de l\'armurerie (elyzea_inventory).' },
     { k: 'jail', label: 'Prison (cellule)', help: 'Le premier point est utilisé pour les détenus.' },
     { k: 'release', label: 'Sortie de prison', help: 'Où le détenu est relâché. Le premier point est utilisé.' },
-    { k: 'lab', label: 'Laboratoire (police scientifique)', help: 'Réception des preuves et analyses : il faut être à moins de 12 m d\'un de ces points.' },
 ];
 
 const st = { data: null, tab: 'overview', job: null, fines: null, armory: null, policeJobs: null, uniJob: null, trying: false };
@@ -175,7 +169,7 @@ VIEWS.perms = () => {
     const grades = st.data.settings.job.grades;
     return `
         <h1>Permissions par grade</h1>
-        <p class="lead">Les accès des grades du LSPD se gèrent maintenant dans la tablette de police › Patron › Grades (elyzea_jobs), et la spécialisation « Police scientifique » dans Patron › Employés. Les niveaux ci-dessous ne servent qu\'aux autres métiers police (ex. sheriff) ou si elyzea_jobs n\'est pas démarré.</p>
+        <p class="lead">Les accès des grades du LSPD se gèrent maintenant dans la tablette de police › Patron › Grades (elyzea_jobs). Les niveaux ci-dessous ne servent qu\'aux autres métiers police (ex. sheriff) ou si elyzea_jobs n\'est pas démarré.</p>
         <div class="card settings-list" style="padding:0">
             ${PERMS.map((p) => `<div class="srow"><div><b>${p.label}</b><p>${p.help}</p></div>
                 <select data-perm="${p.k}">${gradeOptions(pg[p.k] ?? 0, grades)}<option value="99" ${pg[p.k] >= 99 ? 'selected' : ''}>Personne</option></select></div>`).join('')}

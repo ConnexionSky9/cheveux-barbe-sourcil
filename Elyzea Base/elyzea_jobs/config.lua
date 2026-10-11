@@ -58,15 +58,6 @@ Config.Companies = {
             { id = 'licenses',       label = 'Donner / retirer des permis',        min = 2 },
             { id = 'records_delete', label = 'Supprimer un rapport',               min = 3 },
             { id = 'ppa_revoke',     label = 'Retirer un PPA',                     min = 2 },
-            { id = 'sci_view',       label = 'Scientifique : consulter affaires et rapports', min = 2 },
-            { id = 'sci_cases',      label = 'Scientifique : créer / modifier des affaires',  min = 3 },
-            { id = 'sci_collect',    label = 'Scientifique : collecter des preuves',          min = 99 },
-            { id = 'sci_lab',        label = 'Scientifique : laboratoire (analyses, rapports)', min = 99 },
-            { id = 'sci_custody',    label = 'Scientifique : restitution / destruction',      min = 99 },
-        },
-        -- Spécialisations : données à un agent (Patron › Employés), elles ajoutent des accès sans changer le grade
-        specialties = {
-            scientifique = { label = 'Police scientifique', perms = { 'sci_view', 'sci_cases', 'sci_collect', 'sci_lab' } },
         },
     },
     ambulance = {

@@ -268,8 +268,12 @@ function J.TopLevel(job)
 end
 
 -- Spécialités d'un joueur dans son métier
+-- Spécialisations d'un employé (seulement celles encore prévues dans la config)
 function J.Specs(cid, job)
-    return (J.specs[cid] or {})[job] or {}
+    local defs = Config.Companies[job] and Config.Companies[job].specialties or {}
+    local out = {}
+    for spec in pairs((J.specs[cid] or {})[job] or {}) do if defs[spec] then out[spec] = true end end
+    return out
 end
 
 function J.Can(src, perm)

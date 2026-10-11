@@ -231,7 +231,7 @@ function P.PublicConfig()
     local s = P.Settings
     return {
         policeJobs = P.JobSet(), permGrades = s.permGrades, fines = s.fines, points = s.points,
-        jobName = s.job and s.job.name, lab = s.lab,
+        jobName = s.job and s.job.name,
         settings = s.settings, jobLabel = s.job and s.job.label or 'Police',
         hasInventory = GetResourceState('elyzea_inventory') == 'started',
     }

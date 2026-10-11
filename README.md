@@ -136,11 +136,7 @@ Remplace `mm_radio`, sans ox_lib.
   - Dans la tablette **F6** de chaque métier : onglet **Équipe** (grade, collègues, service, démission)
     et onglet **Patron** (invisible sans les droits) : employés, **RECRUTER** (la personne la plus proche reçoit une demande à accepter avec **Y** / refuser avec **L**),
     promouvoir / rétrograder, renvoyer, grades et accès, compte de l'entreprise (dépôt / retrait avec motif), historique et journaux.
-  - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
-- **Police scientifique** (LSPD, accès « scientifique » donné dans Patron › Employés, ou patron) :
-  - chaque tir d'une arme de l'inventaire laisse une **douille** au sol ; une balle qui touche un **véhicule** y laisse un **projectile** (point orange sur la carrosserie) ;
-  - **ALT** sur la douille, ou sur le véhicule › « Extraire le projectile » (un **sachet de preuve vide** de l'armurerie de la police est nécessaire) ;
-  - au laboratoire : **ALT › Réceptionner mes scellés**, puis tablette › Scientifique › Preuves › **Balistique** : à la fin de l'analyse, le rapport donne le **numéro de série**, la gravure et le **propriétaire enregistré** de l'arme.
+  - **ALT (maintenir)** : curseur, visez une personne ou un véhicule puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
 - L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
 - **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
   - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
@@ -161,7 +157,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
 | **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, Bahamas) : Équipe et Patron inclus | Une seule s'ouvre : celle de ton métier |
 | **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |
-| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, retrait du PPA, preuves), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
+| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, retrait du PPA), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
 | **ALT** | Couper du bois | Bûcheron, dans une zone de coupe |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux, facture EMS) | Tous |
