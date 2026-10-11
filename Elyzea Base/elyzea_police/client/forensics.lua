@@ -74,10 +74,20 @@ end)
 -- ---------------------------------------------------------------------
 local lastBlood = 0
 AddEventHandler('gameEventTriggered', function(name, args)
-    if not F.enabled or not F.blood or name ~= 'CEventNetworkEntityDamage' then return end
+    if not F.enabled or name ~= 'CEventNetworkEntityDamage' then return end
     local ped = PlayerPedId()
-    if args[1] ~= ped or GetGameTimer() - lastBlood < (F.bloodCooldown or 20) * 1000 then return end
+    if args[1] ~= ped then return end
     local weapon = args[7]
+    -- Touché par l'arme à feu d'un joueur : le serveur relève l'arme du tireur (projectile dans le corps)
+    local attacker = args[2]
+    if attacker and attacker ~= 0 and DoesEntityExist(attacker) and IsPedAPlayer(attacker) and attacker ~= ped then
+        local group = GetWeapontypeGroup(weapon)
+        if group ~= 0 and group ~= `GROUP_MELEE` and group ~= `GROUP_UNARMED` and group ~= `GROUP_THROWN` and group ~= `GROUP_FIREEXTINGUISHER` and group ~= `GROUP_PETROLCAN` then
+            local pl = NetworkGetPlayerIndexFromPed(attacker)
+            if pl and pl ~= -1 then TriggerServerEvent('police:forensic:hit', GetPlayerServerId(pl), weapon) end
+        end
+    end
+    if not F.blood or GetGameTimer() - lastBlood < (F.bloodCooldown or 20) * 1000 then return end
     -- Chutes, noyade, feu, gaz : pas de trace de sang exploitable
     if weapon == `WEAPON_FALL` or weapon == `WEAPON_DROWNING` or weapon == `WEAPON_DROWNING_IN_VEHICLE` or weapon == `WEAPON_FIRE` or weapon == `WEAPON_BZGAS` then return end
     lastBlood = GetGameTimer()
@@ -214,6 +224,15 @@ local function Options(ctx)
             end
         end
     end
+    -- Corps à terre : inspection par la police scientifique (projectile dans le corps)
+    if ctx.kind == 'player' and ctx.serverId and C.Can('sci_collect') then
+        local st = Player(ctx.serverId).state
+        if st.emsDown == true or st.isDead == true or st.dead == true or IsEntityDead(ctx.entity) then
+            local bags = BagCount()
+            out[#out + 1] = { id = 'body:' .. ctx.serverId, label = 'Inspecter le corps', group = 'Police scientifique', order = 39, disabled = busy,
+                desc = bags > 0 and 'Cause de la mort, impacts de balle, extraction d\'un projectile' or 'Cause et impacts (un sachet de preuve vide est nécessaire pour extraire un projectile)' }
+        end
+    end
     -- Projectiles logés dans le véhicule visé
     if ctx.kind == 'vehicle' and ctx.entity then
         local plate = Trim(GetVehicleNumberPlateText(ctx.entity))
@@ -262,6 +281,28 @@ local function Collect(id)
     TriggerServerEvent('police:forensic:collect', id)
 end
 
+-- Inspection d'un corps à terre (accroupi, interruptible)
+local function InspectBody(sid)
+    if busy then return end
+    local target = GetPlayerFromServerId(sid)
+    local tped = target ~= -1 and GetPlayerPed(target) or 0
+    if tped == 0 then return C.Notify('Personne introuvable.', 'error') end
+    busy = true
+    local ped = PlayerPedId()
+    local c = GetEntityCoords(tped)
+    TaskTurnPedToFaceCoord(ped, c.x, c.y, c.z, 600)
+    Wait(600)
+    local okBar, done = pcall(function()
+        return exports.elyzea_core:ProgressBar({ duration = F.bodyInspectTime or 7000, label = 'Inspection du corps… (X pour annuler)', canCancel = true,
+            anim = { dict = 'amb@medic@standing@kneel@base', clip = 'base', flag = 1 },
+            disable = { move = true, car = true, combat = true } })
+    end)
+    if not okBar then done = true Wait(F.bodyInspectTime or 7000) end
+    busy = false
+    if not done then return C.Notify('Inspection annulée.', 'error') end
+    TriggerServerEvent('police:forensic:inspectBody', sid)
+end
+
 local function Select(id)
     local kind, evId = id:match('^(%a+):(%d+)$')
     evId = tonumber(evId)
@@ -270,11 +311,14 @@ local function Select(id)
         if e.type == 'bullet' then
             C.Notify(('%d impact(s) de balle de calibre %s dans la carrosserie (%s) · %s. Extrayez le projectile pour identifier l\'arme.'):format(e.count or 1, e.calibre or '?', e.plate or '?', Ago(e.t)), 'inform')
         elseif e.type == 'casing' then
+            C.Notify(('Douille de calibre %s%s · déposée %s.'):format(e.calibre or '?', (e.count or 1) > 1 and (' (×' .. e.count .. ')') or '', Ago(e.t)), 'inform')
         else
             C.Notify(('Trace de sang%s · %s. À prélever pour une analyse ADN.'):format((e.count or 1) > 1 and (' (×' .. e.count .. ')') or '', Ago(e.t)), 'inform')
         end
     elseif kind == 'collect' then
         Collect(evId)
+    elseif kind == 'body' then
+        InspectBody(evId)
     elseif id == 'receive' then
         TriggerServerEvent('police:forensic:receive')
     elseif id == 'openLab' then

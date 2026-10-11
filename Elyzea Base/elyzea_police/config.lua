@@ -133,6 +133,9 @@ Config.Forensics = {
     mergeDistance = 1.5,         -- mètres : plusieurs douilles d'une même arme au même endroit = une preuve (avec un nombre)
     mergeSeconds = 120,
     bloodCooldown = 20,          -- secondes entre deux traces de sang d'un même blessé
+    bodyBulletChance = 0.6,      -- chance d'extraire un projectile en inspectant un corps tué par balle (0 à 1)
+    bodyWoundMinutes = 60,       -- les blessures par balle plus anciennes ne sont plus exploitables
+    bodyInspectTime = 7000,      -- ms d'animation pour inspecter un corps
     sceneLifetimeHours = 24,     -- une preuve non collectée se dégrade après ce délai
     visibleDistance = 25.0,      -- distance d'affichage des preuves pour les policiers en service
     collectDistance = 2.5,

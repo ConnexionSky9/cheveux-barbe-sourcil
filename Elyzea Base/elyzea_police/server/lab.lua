@@ -73,8 +73,11 @@ Compute.ballistic = function(e, d)
     end
     res.matches = Linked(serial, e.id)
     if e.type == 'casing' or e.type == 'bullet' then
-        local what = e.type == 'bullet' and ('Projectile extrait du véhicule %s'):format(d.plate or '?') or 'Douille'
-        res.plate = d.plate
+        local what = 'Douille'
+        if e.type == 'bullet' then
+            what = d.victim and ('Projectile extrait du corps de %s'):format(d.victim) or ('Projectile extrait du véhicule %s'):format(d.plate or '?')
+        end
+        res.plate, res.victim = d.plate, d.victim
         res.count = d.count or 1
         res.limits = res.identified
             and 'Correspondance établie par le numéro de série relevé lors du tir. Le propriétaire enregistré n\'est pas forcément le tireur.'
@@ -269,7 +272,7 @@ A.sciEvidenceOne = { perm = 'sci_view', offDuty = true, fn = function(src, d)
     -- Données visibles avant analyse : ce que l'œil voit (jamais le numéro relevé au tir ni le profil ADN)
     local visible = { count = data.count }
     if e.type == 'casing' or e.type == 'bullet' then visible.calibre = data.calibre end
-    if e.type == 'bullet' then visible.plate = data.plate end
+    if e.type == 'bullet' then visible.plate, visible.victim = data.plate, data.victim end
     if e.type == 'weapon' then visible.weapon, visible.serial, visible.engraving = data.label, data.serial, data.engraving end
     local log = MySQL.query.await('SELECT `action`, `actor`, `details`, UNIX_TIMESTAMP(`created_at`) AS t FROM `police_evidence_log` WHERE `evidence_id` = ? ORDER BY `id`', { e.id }) or {}
     local analyses = MySQL.query.await('SELECT `id`, `kind`, `status`, `technician`, UNIX_TIMESTAMP(`ends_at`) AS ends FROM `police_analyses` WHERE `evidence_id` = ? ORDER BY `id`', { e.id }) or {}

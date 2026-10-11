@@ -17,7 +17,7 @@ local inv = function() return exports.elyzea_inventory end
 Forensics = { scene = {}, dna = {}, ready = false }
 local Fx = Forensics
 
-local TYPE_LABEL = { casing = 'Douille', bullet = 'Projectile (impact)', blood = 'Trace de sang', weapon = 'Arme saisie' }
+local TYPE_LABEL = { casing = 'Douille', bullet = 'Projectile', blood = 'Trace de sang', weapon = 'Arme saisie' }
 local STATUS_LABEL = {
     scene = 'Sur la scène', collected = 'Collectée (transport)', reception = 'Réception du laboratoire', lab = 'Au laboratoire',
     stored = 'Salle des scellés', returned = 'Restituée', destroyed = 'Détruite', invalid = 'Dégradée (non collectée)',
@@ -407,6 +407,106 @@ RegisterNetEvent('police:forensic:receive', function()
 end)
 
 -- ---------------------------------------------------------------------
+-- Corps à terre : blessures par balle (arme relevée par le serveur au moment du tir)
+-- ---------------------------------------------------------------------
+Fx.wounds = {}             -- [citizenid de la victime] = { { serial, weapon, label, ammo, calibre, t }, ... }
+local lastHit, inspecting = {}, {}
+
+-- La victime signale qui l'a touchée et avec quelle arme ; le serveur vérifie que le tireur
+-- a bien cette arme en main et en relève lui-même le numéro de série.
+RegisterNetEvent('police:forensic:hit', function(attacker, weaponHash)
+    local src = source
+    if not F.enabled or not Fx.ready then return end
+    local now = GetGameTimer()
+    if lastHit[src] and now - lastHit[src] < 250 then return end
+    lastHit[src] = now
+    attacker = tonumber(attacker)
+    if not attacker or attacker == src or not GetPlayerName(attacker) then return end
+    local a, v = PedPos(attacker), PedPos(src)
+    if not a or not v or #(a - v) > 300.0 then return end
+    local w = FirearmOf(attacker)
+    -- Codes d'arme comparés en non signé (le jeu peut les donner négatifs)
+    local function u32(h) h = math.floor(tonumber(h) or 0) return h % 4294967296 end
+    if not w or u32(GetHashKey(w.weapon)) ~= u32(weaponHash) then return end
+    local cid = P.Cid(src)
+    if not cid then return end
+    local list = Fx.wounds[cid] or {}
+    w.t = os.time()
+    list[#list + 1] = w
+    while #list > 8 do table.remove(list, 1) end
+    Fx.wounds[cid] = list
+end)
+
+local CAUSE = { gun = 'blessures par balle', blade = 'arme blanche', melee = 'coups', fall = 'chute', vehicle = 'accident de la route',
+    fire = 'brûlures', explosion = 'explosion', drown = 'noyade', unknown = 'cause indéterminée' }
+
+local function IsDown(target)
+    local st = Player(target).state
+    return st.emsDown == true or st.isDead == true or st.dead == true or GetEntityHealth(GetPlayerPed(target)) <= 0
+end
+
+-- Inspection du corps (ALT) : cause, impacts, et une chance d'extraire un projectile sous scellé
+RegisterNetEvent('police:forensic:inspectBody', function(target)
+    local src = source
+    target = tonumber(target)
+    if not F.enabled or not Fx.ready then return end
+    if not P.Can(src, 'sci_collect') then return P.Notify(src, 'Réservé à la police scientifique (en service).', 'error') end
+    if not target or target == src or not GetPlayerName(target) then return end
+    local me, body = PedPos(src), PedPos(target)
+    if not me or not body or #(me - body) > 3.5 then return P.Notify(src, 'Approchez-vous du corps.', 'error') end
+    if not IsDown(target) then return P.Notify(src, 'Cette personne n\'est pas à terre.', 'error') end
+    if inspecting[target] then return end
+    inspecting[target] = true
+    local cid = P.Cid(target)
+    local death = Player(target).state.emsDeath or {}
+    local limit = os.time() - (F.bodyWoundMinutes or 60) * 60
+    local wounds = {}
+    for _, w in ipairs(Fx.wounds[cid] or {}) do if w.t >= limit then wounds[#wounds + 1] = w end end
+    local name = P.Name(target)
+    if #wounds == 0 then
+        inspecting[target] = nil
+        local cause = CAUSE[death.cause or 'unknown'] or CAUSE.unknown
+        return P.Notify(src, ('Corps de %s : %s. Aucun projectile à extraire.'):format(name, cause), 'inform')
+    end
+    -- Chaque corps ne s'examine qu'une fois pour ces blessures (pas de tirage répété)
+    Fx.wounds[cid] = nil
+    local last = wounds[#wounds]
+    local same = 0
+    for _, w in ipairs(wounds) do if w.serial == last.serial then same = same + 1 end end
+    local intro = ('Corps de %s : %d impact(s) de balle.'):format(name, #wounds)
+    if math.random() > (F.bodyBulletChance or 0.6) then
+        inspecting[target] = nil
+        P.Log(src, 'Corps inspecté', ('%s · %d impact(s) · aucun projectile'):format(name, #wounds))
+        return P.Notify(src, intro .. ' Les balles ont traversé ou sont inexploitables : aucun projectile récupéré.', 'error')
+    end
+    if (tonumber(inv():Search(src, 'count', 'empty_evidence_bag')) or 0) < 1 then
+        Fx.wounds[cid] = wounds   -- rien n'est perdu : il faut juste un sachet
+        inspecting[target] = nil
+        return P.Notify(src, intro .. ' Un projectile est visible, mais il vous faut un sachet de preuve vide.', 'error')
+    end
+    if not inv():CanCarryItem(src, 'filled_evidence_bag', 1, { evidence = 0 }) then
+        Fx.wounds[cid] = wounds
+        inspecting[target] = nil
+        return P.Notify(src, 'Inventaire plein.', 'error')
+    end
+    local data = { weapon = last.weapon, label = last.label, ammo = last.ammo, calibre = last.calibre, serial = last.serial,
+        count = same, victim = name, body = true }
+    local id = MySQL.insert.await([[INSERT INTO `police_evidence` (`type`, `status`, `location`, `x`, `y`, `z`, `ref`, `data`, `holder`, `holder_cid`, `collected_by`, `collected_cid`, `collected_at`)
+        VALUES ('bullet', 'collected', 'Transport', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())]],
+        { body.x, body.y, body.z, last.serial, json.encode(data), P.Name(src), P.Cid(src), P.Name(src), P.Cid(src) })
+    if not id then inspecting[target] = nil return P.Notify(src, 'Enregistrement impossible.', 'error') end
+    local code = Fx.Code('PRJ', id)
+    MySQL.update.await('UPDATE `police_evidence` SET `code` = ? WHERE `id` = ?', { code, id })
+    inv():RemoveItem(src, 'empty_evidence_bag', 1)
+    inv():AddItem(src, 'filled_evidence_bag', 1, { evidence = id, code = code, kind = 'bullet', label = ('Scellé %s'):format(code),
+        description = ('Projectile extrait du corps de %s · %s · %s'):format(name, last.calibre or '?', os.date('%d/%m %H:%M')) })
+    Fx.Log(id, 'Extraction sur le corps', src, ('%s · %d impact(s) · calibre %s'):format(name, #wounds, last.calibre or '?'))
+    P.Log(src, 'Projectile extrait d\'un corps', ('%s · %s'):format(code, name))
+    inspecting[target] = nil
+    P.Notify(src, ('%s Projectile de calibre %s extrait et mis sous scellé (%s). Déposez-le au laboratoire pour identifier l\'arme.'):format(intro, last.calibre or '?', code), 'success')
+end)
+
+-- ---------------------------------------------------------------------
 -- Arme saisie : mise sous scellé depuis l'inventaire de l'agent
 -- ---------------------------------------------------------------------
 function Fx.MyWeapons(src)
@@ -482,5 +582,5 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
-    lastShot[src], lastBlood[src], lastNearby[src], lastImpact[src] = nil, nil, nil, nil
+    lastShot[src], lastBlood[src], lastNearby[src], lastImpact[src], lastHit[src], inspecting[src] = nil, nil, nil, nil, nil, nil
 end)

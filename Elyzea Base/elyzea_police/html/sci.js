@@ -159,6 +159,7 @@ async function sciEvidenceOne() {
                     <div><span>Collecte</span><b>${esc(e.collected_by || '—')}${e.ct ? ' · ' + fmtTime(e.ct) : ''}</b></div>
                     ${v.calibre ? `<div><span>Calibre (visible)</span><b>${esc(v.calibre)}</b></div>` : ''}
                     ${v.plate ? `<div><span>Extrait du véhicule</span><b class="mono">${esc(v.plate)}</b></div>` : ''}
+                    ${v.victim ? `<div><span>Extrait du corps de</span><b>${esc(v.victim)}</b></div>` : ''}
                     ${v.count > 1 ? `<div><span>Quantité</span><b>${v.count}</b></div>` : ''}
                     ${v.weapon ? `<div><span>Arme</span><b>${esc(v.weapon)}</b></div><div><span>N° de série</span><b class="mono">${esc(v.serial || '—')}</b></div>
                         <div><span>Gravure</span><b>${esc(v.engraving || '—')}</b></div>` : ''}
@@ -222,7 +223,8 @@ function reportData(r) {
         if (d.identified) rows.push(['N° de série', d.serial], ['Gravure', d.engraving || 'Aucune'], ['Propriétaire enregistré', d.owner], ['Statut de l\'arme (au moment de l\'analyse)', ws[d.weaponStatus] || d.weaponStatus || '—']);
         else rows.push(['Armes compatibles enregistrées', d.compatible ?? '—']);
         if (d.plate) rows.push(['Véhicule touché', d.plate]);
-        if (d.count) rows.push([d.plate ? 'Impacts relevés' : 'Douilles relevées', d.count]);
+        if (d.victim) rows.push(['Victime', d.victim]);
+        if (d.count) rows.push([d.plate || d.victim ? 'Impacts relevés' : 'Douilles relevées', d.count]);
     } else if (r.kind === 'dna') {
         rows.push(['Profil ADN', d.profile], ['Correspondance', d.match], ['Prélèvements', d.samples]);
     } else if (r.kind === 'prints') {

@@ -139,6 +139,7 @@ Remplace `mm_radio`, sans ox_lib.
   - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
 - **Police scientifique** (LSPD, accès « scientifique » donné dans Patron › Employés, ou patron) :
   - chaque tir d'une arme de l'inventaire laisse une **douille** au sol ; une balle qui touche un **véhicule** y laisse un **projectile** (point orange sur la carrosserie) ;
+  - **Corps à terre** : **ALT** sur la personne › « Inspecter le corps » : cause de la mort, nombre d'impacts de balle, et **60 % de chance** d'extraire un projectile (réglable : `Config.Forensics.bodyBulletChance`), une seule tentative par corps ;
   - **ALT** sur la douille, ou sur le véhicule › « Extraire le projectile » (un **sachet de preuve vide** de l'armurerie de la police est nécessaire) ;
   - au laboratoire : **ALT › Réceptionner mes scellés**, puis tablette › Scientifique › Preuves › **Balistique** : à la fin de l'analyse, le rapport donne le **numéro de série**, la gravure et le **propriétaire enregistré** de l'arme.
 - L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
