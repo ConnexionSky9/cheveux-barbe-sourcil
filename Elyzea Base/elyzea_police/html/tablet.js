@@ -13,7 +13,7 @@
   const bars = (h) => (h ? `<div class="hbars" title="Vie ${h.hp} % · Armure ${h.armor} %"><div class="hbar"><i style="width:${h.hp}%;background:${h.hp > 50 ? 'var(--green)' : h.hp > 25 ? 'var(--orange)' : 'var(--red)'}"></i></div>
     <div class="hbar"><i style="width:${h.armor}%;background:#60a5fa"></i></div></div>` : '');
   const statusPill = (id) => { const s = statusOf(id); return `<span class="pill plain" style="color:${s.color};border-color:${s.color}55">${esc(s.label)}</span>`; };
-  const initials = (n) => String(n || '?').split(' ').map((p) => p[0] || '').join('').slice(0, 2).toUpperCase();
+  const initials = (n) => (String(n || '').split(/\s+/).filter((p) => /^\p{L}/u.test(p)).map((p) => p[0]).join('').slice(0, 2) || '?').toUpperCase();
   const lvlColor = (l) => (APP.levels[l] || {}).color || '#3b82f6';
   const lvlLabel = (l) => (APP.levels[l] || {}).label || l;
   const STATUS_R = { open: 'En cours', done: 'Terminé', archived: 'Archivé' };
@@ -21,6 +21,8 @@
   const NAV = [
     { id: 'dashboard', label: 'Tableau de bord', ico: '◈', perm: 'tablet' },
     { id: 'reports', label: 'Rapports', ico: '📄', perm: 'reports_view' },
+    { id: 'search', label: 'Recherche', ico: '🔎', perm: 'search' },
+    { id: 'wanted', label: 'Recherchés', ico: '🚨', perm: 'wanted_view' },
     { id: 'map', label: 'Carte', ico: '🗺️', perm: 'map' },
     { id: 'agents', label: 'Agents', ico: '👮', perm: 'agents_view' },
     { id: 'recruit', label: 'Recrutement', ico: '➕', perm: 'recruit', group: 'Direction' },
@@ -66,7 +68,7 @@
     if (!nav || !allowed(nav)) page = 'dashboard';
     T.page = page;
     T.gen++;
-    if (!keepSub) { RS.mode = 'list'; ES.cid = null; }
+    if (!keepSub) { RS.mode = 'list'; ES.cid = null; SS.cid = null; }
     renderNav();
     setTitle(NAV.find((n) => n.id === page).label, NAV.find((n) => n.id === page).group);
     body().scrollTop = 0;
@@ -208,6 +210,133 @@
     RS.mode = 'edit';
     if (T.page !== 'reports') return go('reports', true);
     reportEdit();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Recherche de citoyens                                               */
+  /* ------------------------------------------------------------------ */
+  const SS = { q: '', list: null, cid: null };
+  const GENDER = (g) => (Number(g) === 1 ? 'Femme' : 'Homme');
+  const fmtDate = (s) => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : (s || '—'); };
+  const DANGER = { 1: ['Faible', 'on'], 2: ['Moyen', 'warn'], 3: ['Élevé', 'bad'] };
+  const dangerPill = (n) => { const d = DANGER[n] || DANGER[1]; return `<span class="pill ${d[1]}">Danger ${d[0].toLowerCase()}</span>`; };
+
+  PAGES.search = async (g) => {
+    if (SS.cid) return citizenView(g);
+    body().innerHTML = `<div class="toolbar"><input class="input grow" id="cq" placeholder="Nom et/ou prénom du citoyen (2 lettres minimum)" value="${esc(SS.q)}" autocomplete="off">
+        <button class="btn primary" data-cs="go">🔎 Rechercher</button></div><div id="cres"></div>`;
+    const inp = $('#cq'); inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);
+    drawResults();
+  };
+  function drawResults() {
+    const el = $('#cres');
+    if (!el) return;
+    if (!SS.list) { el.innerHTML = '<div class="empty">Recherchez un citoyen par son nom ou son prénom.</div>'; return; }
+    el.innerHTML = SS.list.length ? `<div class="card" style="padding:.3rem .6rem"><table class="tbl"><tr><th>Citoyen</th><th>Né(e) le</th><th>Sexe</th><th>Métier</th><th></th></tr>
+      ${SS.list.map((c) => `<tr class="click" data-cit="${esc(c.cid)}"><td><b>${esc(c.name)}</b>${c.online ? ' <span class="faint" style="font-size:.72rem">· en ville</span>' : ''}</td><td>${esc(fmtDate(c.birthdate))}</td>
+        <td>${GENDER(c.gender)}</td><td class="muted">${esc(c.job || '—')}</td><td style="text-align:right">${c.wanted ? '<span class="pill bad">Recherché</span>' : ''}</td></tr>`).join('')}</table></div>`
+      : '<div class="empty">Aucun citoyen ne correspond.</div>';
+  }
+  async function citizenSearch(btn) {
+    const inp = $('#cq');
+    SS.q = inp ? inp.value.trim() : SS.q;
+    const r = await call('citizenSearch', { q: SS.q }, btn);
+    if (r.error || T.page !== 'search') return;
+    SS.list = r.list; drawResults();
+  }
+  async function openCitizen(cid) {
+    SS.cid = cid;
+    if (T.page !== 'search') return go('search', true);
+    T.gen++; loading(); await citizenView(T.gen);
+  }
+  async function citizenView(g) {
+    const d = await req('citizenGet', { cid: SS.cid });
+    if (stale(g)) return;
+    if (d.error) { toast(d.error, false); SS.cid = null; return PAGES.search(g); }
+    const c = d.citizen;
+    const active = c.wanted.filter((w) => w.status === 'active');
+    const lic = (ok) => (ok ? '<span class="pill on">Oui</span>' : '<span class="pill off">Non</span>');
+    body().innerHTML = `<div class="toolbar"><button class="btn" data-cs="back">← Résultats</button><div style="flex:1"></div>
+        ${can('wanted_manage') ? `<button class="btn danger" data-cs="wanted">🚨 Déclarer recherché</button>` : ''}</div>
+      ${active.length ? `<div class="wanted-banner">🚨 <b>PERSONNE RECHERCHÉE</b> · ${active.map((w) => `${esc(w.reason)} (${DANGER[w.danger] ? DANGER[w.danger][0].toLowerCase() : ''})`).join(' · ')}</div>` : ''}
+      <div class="cols"><div>
+        <div class="card"><h2>Identité</h2><div class="kv">
+          <span>Nom</span><b>${esc(c.lastname || '')}</b><span>Prénom</span><b>${esc(c.firstname || '')}</b>
+          <span>Date de naissance</span><b>${esc(fmtDate(c.birthdate))}</b><span>Sexe</span><b>${GENDER(c.gender)}</b>
+          <span>Nationalité</span><b>${esc(c.nationality || '—')}</b><span>Téléphone</span><b class="mono">${esc(c.phone || '—')}</b>
+          <span>Métier</span><b>${esc(c.job || '—')}${c.jobGrade ? ` · ${esc(c.jobGrade)}` : ''}</b><span>En ville</span><b>${c.online ? '<span class="pill on">Oui</span>' : '<span class="pill off">Non</span>'}</b>
+          <span>Permis de conduire</span><b>${lic(c.licences.driver)}</b><span>Permis port d'arme</span><b>${lic(c.licences.weapon)}</b></div></div>
+        <div class="card"><h2>Amendes <span class="faint" style="font-size:.8rem">${c.unpaid ? `${money(c.unpaid)} non payés` : ''}</span></h2>
+          ${c.fines.length ? `<table class="tbl"><tr><th>Date</th><th>Infraction</th><th>Montant</th><th>Agent</th><th></th></tr>${c.fines.map((f) => `<tr><td class="muted">${fmtTime(f.t)}</td>
+            <td><b>${esc(f.offense)}</b>${f.reason ? `<br><small class="muted">${esc(f.reason)}</small>` : ''}</td><td class="mono nw">${money(f.amount)}</td>
+            <td class="muted">${esc(f.officer_name || '')}<br><small class="mono faint">${esc(f.officer_matricule || '')}</small></td>
+            <td>${f.paid ? '<span class="pill on">Payée</span>' : '<span class="pill warn">Due</span>'}</td></tr>`).join('')}</table>` : '<div class="empty">Aucune amende.</div>'}</div></div>
+      <div>
+        <div class="card"><h2>Avis de recherche</h2>${c.wanted.length ? c.wanted.map((w) => `<div class="alert-row" style="--c:${w.status === 'active' ? 'var(--red)' : 'var(--line-2)'}">
+            <div class="t"><span>${esc(w.reason)}</span><span class="faint">${fmtTime(w.t)}</span></div>
+            <div class="m">${w.status === 'active' ? dangerPill(w.danger) : '<span class="pill off">Levé</span>'} · ${esc(w.author_name || '')} ${esc(w.author_matricule || '')}${w.description ? `<br>${esc(w.description)}` : ''}${w.status !== 'active' && w.closed_by ? `<br><small class="faint">Levé par ${esc(w.closed_by)}${w.close_reason ? ` : ${esc(w.close_reason)}` : ''}</small>` : ''}</div></div>`).join('')
+          : '<div class="empty">Aucun avis de recherche.</div>'}</div>
+        ${c.reports ? `<div class="card"><h2>Rapports où il apparaît</h2>${c.reports.length ? c.reports.map((r) => `<div class="list-row click" data-open-report="${r.id}"><div class="main"><b>${esc(r.title)}</b>
+          <small>${esc(r.type)} · ${fmtTime(r.t)}</small></div><span class="faint mono">#${r.id}</span></div>`).join('') : '<div class="empty">Aucun rapport.</div>'}</div>` : ''}</div></div>`;
+    SS.loaded = c;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Personnes recherchées                                               */
+  /* ------------------------------------------------------------------ */
+  const WS = { status: 'active', q: '', edit: null, data: null };
+  PAGES.wanted = async (g) => {
+    const d = await req('wantedList', { status: WS.status, q: WS.q });
+    if (stale(g)) return;
+    if (d.error) { body().innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    WS.data = d;
+    drawWanted();
+  };
+  function drawWanted() {
+    const d = WS.data, ed = WS.edit, manage = can('wanted_manage');
+    const cards = d.list.map((w) => `<div class="card wanted-card ${w.status === 'active' ? 'd' + w.danger : 'closed'}">
+        ${w.photo ? `<img class="wphoto" src="${esc(w.photo)}" alt="" onerror="this.remove()">` : `<div class="wphoto none">${esc(initials(w.name))}</div>`}
+        <div class="wbody"><div class="wtop"><b class="${w.citizenid && can('search') ? 'link' : ''}" ${w.citizenid && can('search') ? `data-cit="${esc(w.citizenid)}"` : ''}>${esc(w.name)}</b>
+          ${w.status === 'active' ? dangerPill(w.danger) : '<span class="pill off">Levé</span>'}</div>
+          <div class="wreason">${esc(w.reason)}</div>${w.description ? `<div class="muted" style="font-size:.8rem;margin-top:.25rem">${esc(w.description)}</div>` : ''}
+          <div class="faint" style="font-size:.74rem;margin-top:.4rem">#${w.id} · ${fmtTime(w.t)} · ${esc(w.author_name || '')} ${esc(w.author_matricule || '')}${w.status !== 'active' ? ` · levé par ${esc(w.closed_by || '?')}${w.close_reason ? ` : ${esc(w.close_reason)}` : ''}` : ''}</div>
+          ${manage && w.status === 'active' ? `<div class="actions-row" style="margin-top:.5rem"><button class="btn small" data-w="edit" data-id="${w.id}">Modifier</button><button class="btn small danger" data-w="close" data-id="${w.id}">Lever l'avis</button></div>` : ''}</div></div>`).join('');
+    body().innerHTML = `<div class="toolbar"><input class="input grow" id="wq" placeholder="Rechercher : nom, motif…" value="${esc(WS.q)}">
+        <select class="input" id="wst">${[['active', 'Avis actifs'], ['closed', 'Avis levés'], ['all', 'Tous']].map(([v, l]) => `<option value="${v}" ${WS.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <button class="btn" data-w="search">Rechercher</button><span class="pill bad">${d.active} recherché(s)</span></div>
+      <div class="${manage ? 'split' : ''}"><div>${cards || '<div class="empty">Aucune personne recherchée.</div>'}</div>
+      ${manage ? `<div class="detail"><div class="card"><h2>${ed && ed.id ? `Modifier l'avis #${ed.id}` : 'Nouvel avis de recherche'}</h2><div class="form-grid">
+        <label class="field full"><span>Personne recherchée</span><input class="input" id="wName" maxlength="100" value="${esc(ed ? ed.name || '' : '')}" placeholder="Prénom Nom" ${ed && ed.cid ? 'disabled' : ''}></label>
+        ${ed && ed.cid ? `<div class="full faint" style="font-size:.76rem;margin-top:-.5rem">Lié à la fiche du citoyen · <a class="link" data-w="unlink">délier</a></div>` : ''}
+        <label class="field full"><span>Motif</span><input class="input" id="wReason" maxlength="150" value="${esc(ed ? ed.reason || '' : '')}" placeholder="ex : Braquage de la supérette de Grove Street"></label>
+        <label class="field full"><span>Signalement / détails</span><textarea class="input" id="wDesc" rows="3" maxlength="1000" placeholder="Description physique, véhicule, dernière position…">${esc(ed ? ed.description || '' : '')}</textarea></label>
+        <label class="field"><span>Dangerosité</span><select class="input" id="wDanger">${[1, 2, 3].map((n) => `<option value="${n}" ${(ed ? ed.danger : 1) === n ? 'selected' : ''}>${DANGER[n][0]}</option>`).join('')}</select></label>
+        <label class="field"><span>Photo (lien, facultatif)</span><input class="input" id="wPhoto" maxlength="500" value="${esc(ed ? ed.photo || '' : '')}" placeholder="https://…"></label></div>
+        <div class="actions-row"><button class="btn primary" data-w="save">${ed && ed.id ? 'Enregistrer' : 'Publier l\'avis'}</button>${ed ? '<button class="btn" data-w="cancel">Annuler</button>' : ''}</div>
+        <p class="faint" style="font-size:.76rem;margin-top:.7rem">Astuce : depuis l'onglet Recherche, « Déclarer recherché » lie l'avis à la fiche du citoyen. Les agents en service sont prévenus.</p></div></div>` : ''}</div>`;
+  }
+  async function wantedAction(b) {
+    const a = b.dataset.w;
+    if (a === 'search') { WS.q = $('#wq').value.trim(); return go('wanted'); }
+    if (a === 'cancel') { WS.edit = null; return drawWanted(); }
+    if (a === 'unlink') { WS.edit.cid = null; return drawWanted(); }
+    if (a === 'edit') { const w = WS.data.list.find((x) => String(x.id) === b.dataset.id); WS.edit = { ...w, cid: w.citizenid }; return drawWanted(); }
+    if (a === 'save') {
+      const ed = WS.edit || {};
+      const data = { id: ed.id, cid: ed.cid || undefined, name: $('#wName').value, reason: $('#wReason').value, description: $('#wDesc').value,
+        danger: Number($('#wDanger').value), photo: $('#wPhoto').value };
+      const r = await call('wantedSave', data, b);
+      if (r.ok) { WS.edit = null; return PAGES.wanted(T.gen); }
+      return;
+    }
+    if (a === 'close') {
+      const w = WS.data.list.find((x) => String(x.id) === b.dataset.id);
+      const v = await confirmBox('Lever l\'avis de recherche ?', `<b>${esc(w.name)}</b> ne sera plus recherché(e) (${esc(w.reason)}).`, 'Lever l\'avis', true,
+        '<label class="field" style="margin-top:.7rem"><span>Raison (facultatif)</span><input class="input" data-cfv="reason" maxlength="150" placeholder="ex : Interpellé le 12/10"></label>');
+      if (!v) return;
+      const r = await call('wantedClose', { id: w.id, reason: v.reason });
+      if (r.ok) return PAGES.wanted(T.gen);
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -512,10 +641,13 @@
     if (e.target.id === 'rPerson') { e.preventDefault(); return addPerson(); }
     if (e.target.id === 'rAttach') { e.preventDefault(); return addAttach(); }
     if (e.target.dataset.hq !== undefined) { HS.q = e.target.value; return go('history'); }
+    if (e.target.id === 'cq') return citizenSearch();
+    if (e.target.id === 'wq') { WS.q = e.target.value.trim(); return go('wanted'); }
   });
   body().addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset.rf && t.dataset.rf !== 'q') { RS.f[t.dataset.rf] = t.value; return go('reports'); }
+    if (t.id === 'wst') { WS.status = t.value; WS.q = ($('#wq') || {}).value || ''; return go('wanted'); }
     if (t.dataset.ef && t.dataset.ef !== 'q') { ES.f[t.dataset.ef] = t.value; return drawEmployees(); }
     if (t.dataset.pg) {
       const gr = PS.data.list.find((x) => String(x.id) === t.dataset.pg);
@@ -643,6 +775,15 @@
       }
       return;
     }
+    // Recherche / personnes recherchées
+    if ((b = e.target.closest('[data-cit]'))) return openCitizen(b.dataset.cit);
+    if ((b = e.target.closest('[data-cs]'))) {
+      if (b.dataset.cs === 'go') return citizenSearch(b);
+      if (b.dataset.cs === 'back') { SS.cid = null; return go('search'); }
+      if (b.dataset.cs === 'wanted' && SS.loaded) { WS.edit = { cid: SS.loaded.cid, name: SS.loaded.name, danger: 1 }; WS.status = 'active'; return go('wanted'); }
+      return;
+    }
+    if ((b = e.target.closest('[data-w]'))) return wantedAction(b);
     // Finance
     if ((b = e.target.closest('[data-fpay],[data-frate]'))) return financeAction(b);
     // Grades

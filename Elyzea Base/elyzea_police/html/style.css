@@ -266,3 +266,17 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%
 .rate { display: flex; align-items: center; gap: .35rem; }
 .rate .input { width: 6.5rem; padding: .3rem .5rem; text-align: right; }
 .nw { white-space: nowrap; }
+
+/* Recherche / personnes recherchées */
+.link { color: var(--accent-2); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.wanted-banner { margin-bottom: 1rem; padding: .75rem 1rem; border-radius: var(--radius); background: rgba(239, 68, 68, .12); border: 1px solid rgba(239, 68, 68, .45); color: #fecaca; font-size: .88rem; animation: wpulse 2s ease-in-out infinite; }
+@keyframes wpulse { 50% { border-color: rgba(239, 68, 68, .9); } }
+.wanted-card { display: flex; gap: .9rem; align-items: flex-start; border-left: 3px solid var(--line-2); margin-bottom: .7rem; }
+.wanted-card.d1 { border-left-color: var(--green); } .wanted-card.d2 { border-left-color: var(--orange); } .wanted-card.d3 { border-left-color: var(--red); }
+.wanted-card.closed { opacity: .6; }
+.wphoto { width: 4.2rem; height: 4.2rem; border-radius: .6rem; object-fit: cover; flex: none; background: var(--panel-2, rgba(255,255,255,.05)); }
+.wphoto.none { display: grid; place-items: center; font-weight: 700; color: var(--muted); font-size: 1.1rem; }
+.wbody { flex: 1; min-width: 0; }
+.wtop { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.wtop b { font-size: 1rem; }
+.wreason { margin-top: .25rem; font-weight: 600; color: #fca5a5; }

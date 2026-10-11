@@ -88,3 +88,19 @@ CREATE TABLE IF NOT EXISTS `police_alerts` (
     INDEX (`status`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `police_wanted` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `citizenid` VARCHAR(50) NULL,
+    `name` VARCHAR(100) NOT NULL,
+    `reason` VARCHAR(150) NOT NULL,
+    `description` TEXT NULL,
+    `danger` TINYINT NOT NULL DEFAULT 1,
+    `photo` VARCHAR(500) NULL,
+    `status` VARCHAR(10) NOT NULL DEFAULT 'active',
+    `author_cid` VARCHAR(50) NULL, `author_name` VARCHAR(100) NULL, `author_matricule` VARCHAR(20) NULL,
+    `closed_by` VARCHAR(100) NULL, `close_reason` VARCHAR(150) NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `closed_at` DATETIME NULL,
+    INDEX (`citizenid`), INDEX (`status`)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

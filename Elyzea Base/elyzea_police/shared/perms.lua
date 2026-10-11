@@ -21,6 +21,9 @@ PolicePerms = {
     { key = 'reports_manage', group = 'Tablette',   label = 'Modifier et archiver tous les rapports' },
     { key = 'map',            group = 'Tablette',   label = 'Voir la carte des agents' },
     { key = 'agents_view',    group = 'Tablette',   label = 'Voir la liste des agents en service' },
+    { key = 'search',         group = 'Tablette',   label = 'Rechercher un citoyen (fiche, amendes, rapports, avis)' },
+    { key = 'wanted_view',    group = 'Tablette',   label = 'Voir les personnes recherchées' },
+    { key = 'wanted_manage',  group = 'Tablette',   label = 'Créer, modifier et lever un avis de recherche' },
     -- Direction
     { key = 'direction',      group = 'Direction',  label = 'Accéder à la direction' },
     { key = 'recruit',        group = 'Direction',  label = 'Recruter' },

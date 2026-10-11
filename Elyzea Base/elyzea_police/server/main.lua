@@ -161,9 +161,24 @@ local function InitDb()
         `closed_at` DATETIME NULL,
         INDEX (`status`)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    Q([[CREATE TABLE IF NOT EXISTS `police_wanted` (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `citizenid` VARCHAR(50) NULL,
+        `name` VARCHAR(100) NOT NULL,
+        `reason` VARCHAR(150) NOT NULL,
+        `description` TEXT NULL,
+        `danger` TINYINT NOT NULL DEFAULT 1,
+        `photo` VARCHAR(500) NULL,
+        `status` VARCHAR(10) NOT NULL DEFAULT 'active',
+        `author_cid` VARCHAR(50) NULL, `author_name` VARCHAR(100) NULL, `author_matricule` VARCHAR(20) NULL,
+        `closed_by` VARCHAR(100) NULL, `close_reason` VARCHAR(150) NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `closed_at` DATETIME NULL,
+        INDEX (`citizenid`), INDEX (`status`)
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     -- Mise à jour d'une base créée avant la partie Finance
     if HasColumn('police_employees', 'service_seconds') == 0 then MySQL.query.await('ALTER TABLE `police_employees` ADD COLUMN `service_seconds` INT NOT NULL DEFAULT 0') end
-    pcall(function() core:ToUtf8mb4({ 'police_grades', 'police_employees', 'police_admin_log', 'police_reports', 'police_report_history', 'police_fines', 'police_alerts' }) end)
+    pcall(function() core:ToUtf8mb4({ 'police_grades', 'police_employees', 'police_admin_log', 'police_reports', 'police_report_history', 'police_fines', 'police_alerts', 'police_wanted' }) end)
 end
 
 -- ---------------------------------------------------------------------
@@ -205,6 +220,35 @@ function P.LoadGrades()
     P.grades = {}
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `police_grades`') or {}) do
         P.grades[r.id] = { id = r.id, name = r.name, level = r.level, salary = r.salary, perms = DecodePerms(r.perms), isDefault = r.is_default == 1 or r.is_default == true }
+    end
+end
+
+-- Permissions ajoutées après l'installation : si aucun grade ne l'a encore, elle est donnée
+-- aux grades dont le grade par défaut de même niveau l'a dans la config, et au plus haut grade
+local NEW_PERMS = { 'finance', 'search', 'wanted_view', 'wanted_manage' }
+function P.GrantNewPerms()
+    local top = nil
+    for _, g in pairs(P.grades) do if not top or g.level > top.level then top = g end end
+    if not top then return end
+    local changed = {}
+    for _, perm in ipairs(NEW_PERMS) do
+        local has = false
+        for _, g in pairs(P.grades) do if g.perms[perm] then has = true break end end
+        if not has then
+            for _, g in pairs(P.grades) do
+                local give = g == top
+                for _, d in ipairs(Config.DefaultGrades) do
+                    if d.level == g.level then
+                        if d.perms == 'all' then give = true
+                        else for _, k in ipairs(d.perms or {}) do if k == perm then give = true end end end
+                    end
+                end
+                if give then g.perms[perm] = true changed[g.id] = g end
+            end
+        end
+    end
+    for _, g in pairs(changed) do
+        MySQL.update.await('UPDATE `police_grades` SET `perms` = ? WHERE `id` = ?', { P.EncodePerms(g.perms), g.id })
     end
 end
 
@@ -436,16 +480,7 @@ CreateThread(function()
         P.LoadGrades()
         if not next(P.grades) then SeedGrades() P.LoadGrades() end
         P.LoadEmployees()
-        -- Nouvelle permission « finance » : donnée au plus haut grade si personne ne l'a encore
-        local has, top = false, nil
-        for _, g in pairs(P.grades) do
-            if g.perms.finance then has = true end
-            if not top or g.level > top.level then top = g end
-        end
-        if not has and top then
-            top.perms.finance = true
-            MySQL.update.await('UPDATE `police_grades` SET `perms` = ? WHERE `id` = ?', { P.EncodePerms(top.perms), top.id })
-        end
+        P.GrantNewPerms()
     end)
     if not ok then print(('^1[Police] Chargement impossible : %s^0'):format(tostring(err))) return end
     P.SyncCoreJob()
