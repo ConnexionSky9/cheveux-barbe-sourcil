@@ -18,6 +18,7 @@ local function Spawn(model, vtype, zone)
     local t = GetGameTimer()
     while not DoesEntityExist(veh) and GetGameTimer() - t < 4000 do Wait(10) end
     if not DoesEntityExist(veh) then return nil end
+    Entity(veh).state:set('fuel', 100.0, true)   -- véhicule neuf / d'essai : plein fait (elyzea_fuel)
     return veh
 end
 

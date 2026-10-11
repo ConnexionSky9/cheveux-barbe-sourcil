@@ -173,6 +173,7 @@ Config.Permissions = {
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
     { key = 'concessair_staff', label = 'Concession aérienne : gérer tout le métier (grades, zones, permissions, tenues, tablette direction)', cat = 'Métiers' },
     { key = 'entreprises_staff', label = 'Entreprises (Taxi, Burger Shot, Boîte de nuit) : tout gérer', cat = 'Métiers' },
+    { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     { key = 'farm_manage',     label = 'Métiers de farm (bûcheron…) : temps, quantités, prix, zones, tenue', cat = 'Métiers' },
     { key = 'jobs_manage',     label = 'Métiers : paramétrer tous les métiers (grades, salaires, points, véhicules, tenues)', cat = 'Métiers' },
     -- Illégal (ressource elyzea_illegal)
@@ -678,7 +679,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },

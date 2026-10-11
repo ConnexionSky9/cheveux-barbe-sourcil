@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v40 then
+        -- Stations essence : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.fuel_manage = true end
+        meta.v40 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v39 then
         -- Métier staff : Administrateur et SuperAdmin
         for _, r in ipairs({ 'administrateur', 'superadmin' }) do if Ranks[r] then Ranks[r].perms.staff_job = true end end
