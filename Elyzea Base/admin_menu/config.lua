@@ -101,7 +101,6 @@ Config.ReportCooldown = 60
 -- =========================================================
 Config.Permissions = {
     { key = 'noclip',        label = 'Noclip',                         cat = 'Personnel' },
-    { key = 'staff_job',     label = 'Métier staff : prendre n\'importe quel métier / grade et revenir au sien', cat = 'Personnel' },
     { key = 'staff_pm',      label = 'Envoyer un message privé (MP staff) à un joueur', cat = 'Messages' },
     { key = 'staff_chat',    label = 'Discussion entre staffs (message staff)',        cat = 'Messages' },
     { key = 'delete_entity', label = 'Supprimer des véhicules (noclip)', cat = 'Personnel' },
@@ -166,16 +165,8 @@ Config.Permissions = {
     { key = 'event_drops',     label = 'Largage de drops : planifier, régler, lancer, annuler', cat = 'Événements' },
 
     -- Métiers (ressources Elyzea)
-    { key = 'ems_staff',       label = 'Tablette staff EMS (/ems_staff) : configurer tout le métier EMS', cat = 'Métiers' },
-    { key = 'police_staff',    label = 'Tablette staff Police (/police_staff) : configurer tout le métier Police', cat = 'Métiers' },
-    { key = 'lscustom_staff',  label = 'LsCustom : gérer tout le métier (grades, zones, prix, tenues, permissions)', cat = 'Métiers' },
-    { key = 'concess_staff',   label = 'Concession : gérer tout le métier (grades, zones, permissions, tenues, tablette direction)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
-    { key = 'concessair_staff', label = 'Concession aérienne : gérer tout le métier (grades, zones, permissions, tenues, tablette direction)', cat = 'Métiers' },
-    { key = 'entreprises_staff', label = 'Entreprises (Taxi, Burger Shot, Boîte de nuit) : tout gérer', cat = 'Métiers' },
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
-    { key = 'farm_manage',     label = 'Métiers de farm (bûcheron…) : temps, quantités, prix, zones, tenue', cat = 'Métiers' },
-    { key = 'jobs_manage',     label = 'Métiers : paramétrer tous les métiers (grades, salaires, points, véhicules, tenues)', cat = 'Métiers' },
     -- Illégal (ressource elyzea_illegal)
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
     { key = 'wipe_character',  label = 'Wipe : supprimer définitivement un personnage d\'un joueur', cat = 'Gestion' },
@@ -228,56 +219,6 @@ Config.Drops = {
 }
 
 -- =========================================================
---  TABLETTE STAFF EMS (ressource elyzea_ems)
---  Accès donné par la permission « ems_staff » (onglet Grades)
---  ou individuellement (onglet 🚑 Tablette EMS du menu).
--- =========================================================
-Config.Ems = {
-    resource = 'elyzea_ems',            -- dossier de la ressource EMS
-    staffResource = 'elyzea_ems_staff', -- dossier de la tablette staff
-    command = 'ems_staff',              -- commande qui ouvre la tablette staff
-    requireDuty = true,                 -- refuser l'accès en mode RP
-    jobs = { 'ambulance' },             -- métiers EMS (tenues et « Rejoindre ce métier »)
-}
-
--- =========================================================
---  TABLETTE STAFF POLICE (ressource elyzea_police)
---  Accès donné par la permission « police_staff » (onglet Grades)
---  ou individuellement (onglet 🚓 Police du menu, groupe Métiers).
--- =========================================================
-Config.Police = {
-    resource = 'elyzea_police',            -- dossier de la ressource Police (métier + tablette joueur)
-    staffResource = 'elyzea_police_staff', -- dossier de la tablette staff
-    command = 'police_staff',              -- commande qui ouvre la tablette staff
-    requireDuty = true,                    -- refuser l'accès en mode RP
-    jobs = { 'police' },                   -- métiers police (complétés par la liste de elyzea_police)
-}
-
--- =========================================================
---  LSCUSTOM (ressource elyzea_lscustom)
---  Tout se gère dans le menu : Métiers > LsCustom (permission « lscustom_staff »).
--- =========================================================
-Config.LsCustom = {
-    resource = 'elyzea_lscustom',  -- dossier de la ressource
-    jobs = { 'lscustom' },         -- métier (complété par celui de la ressource)
-}
-
--- =========================================================
---  CONCESSION (ressource elyzea_concess)
---  Métiers > Concession (permission « concess_staff »).
--- =========================================================
-Config.Concess = {
-    resource = 'elyzea_concess',  -- dossier de la ressource
-    jobs = { 'cardealer' },       -- métier (complété par celui de la ressource)
-}
-
--- Concession aérienne (ressource elyzea_concess_air) : Métiers > Concession aérienne (permission « concessair_staff »)
-Config.ConcessAir = {
-    resource = 'elyzea_concess_air',
-    jobs = { 'planedealer' },
-}
-
--- =========================================================
 --  ILLEGAL (ressource elyzea_illegal)
 --  Onglet ILLEGAL (permission « illegal_staff »).
 -- =========================================================
@@ -323,99 +264,6 @@ Config.MapColors = {
     { id = 17, label = 'Orange',      hex = '#f5a623' }, { id = 25, label = 'Vert foncé', hex = '#3a8a3a' },
     { id = 27, label = 'Violet vif',  hex = '#a14ad8' }, { id = 29, label = 'Bleu foncé', hex = '#3b6fe0' },
     { id = 40, label = 'Gris',        hex = '#5a5a5a' }, { id = 46, label = 'Or',         hex = '#d9b56a' },
-}
-
--- =========================================================
---  TENUES DE SERVICE (onglets EMS et Police du groupe Métiers)
---  Quand un joueur prend son service, il enfile la tenue de son
---  grade ; il retrouve ses vêtements en terminant son service.
--- =========================================================
-Config.Uniforms = {
-    enabled = true,
-    components = { 1, 3, 4, 5, 6, 7, 8, 9, 10, 11 }, -- masque, bras, jambes, sac, chaussures, accessoires, t-shirt, gilet, badge, haut
-    props = { 0, 1, 2, 6, 7 },                         -- chapeau, lunettes, oreilles, montre, bracelet
-    notify = true,                                     -- message « Tenue de service enfilée »
-
-    -- Tenues créées automatiquement au premier démarrage pour chaque métier de Config.Ems.jobs / Config.Police.jobs
-    -- (vêtements du jeu de base). Format : [composant] = { modèle, texture } ; accessoire -1 = aucun.
-    -- Pour changer une tenue : habille-toi en jeu puis « Enregistrer ma tenue » dans la tablette du métier.
-    defaults = {
-        police = {
-            male = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 41, 0 }, [4] = { 25, 0 }, [5] = { 0, 0 }, [6] = { 25, 0 }, [7] = { 0, 0 },
-                          [8] = { 59, 1 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 55, 0 } },
-                    p = { [0] = { 46, 0 }, [2] = { 2, 0 } },               -- casquette, oreillette
-                },
-                -- Galons sur l'épaule (composant 10) selon le grade
-                grades = { [2] = { [10] = { 8, 1 } }, [3] = { [10] = { 8, 2 } }, [4] = { [10] = { 8, 3 } } },
-            },
-            female = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 44, 0 }, [4] = { 34, 0 }, [5] = { 0, 0 }, [6] = { 27, 0 }, [7] = { 0, 0 },
-                          [8] = { 36, 1 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 48, 0 } },
-                    p = { [0] = { 45, 0 }, [2] = { 2, 0 } },
-                },
-                grades = { [2] = { [10] = { 7, 1 } }, [3] = { [10] = { 7, 2 } }, [4] = { [10] = { 7, 3 } } },
-            },
-        },
-        concess = {
-            -- Costume de vendeur
-            male = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 4, 0 }, [4] = { 10, 0 }, [5] = { 0, 0 }, [6] = { 10, 0 }, [7] = { 0, 0 },
-                          [8] = { 4, 0 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 4, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-            female = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 3, 0 }, [4] = { 6, 0 }, [5] = { 0, 0 }, [6] = { 13, 0 }, [7] = { 0, 0 },
-                          [8] = { 38, 0 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 7, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-        },
-        lscustom = {
-            -- Combinaison de travail
-            male = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 0, 0 }, [4] = { 39, 0 }, [5] = { 0, 0 }, [6] = { 25, 0 }, [7] = { 0, 0 },
-                          [8] = { 15, 0 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 66, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-            female = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 14, 0 }, [4] = { 39, 0 }, [5] = { 0, 0 }, [6] = { 25, 0 }, [7] = { 0, 0 },
-                          [8] = { 14, 0 }, [9] = { 0, 0 }, [10] = { 0, 0 }, [11] = { 60, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-        },
-        ems = {
-            male = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 85, 0 }, [4] = { 96, 0 }, [5] = { 0, 0 }, [6] = { 54, 0 }, [7] = { 0, 0 },
-                          [8] = { 15, 0 }, [9] = { 0, 0 }, [10] = { 58, 0 }, [11] = { 250, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-            female = {
-                base = {
-                    c = { [1] = { 0, 0 }, [3] = { 109, 0 }, [4] = { 99, 0 }, [5] = { 0, 0 }, [6] = { 55, 0 }, [7] = { 0, 0 },
-                          [8] = { 14, 0 }, [9] = { 0, 0 }, [10] = { 66, 0 }, [11] = { 258, 0 } },
-                    p = { [0] = { -1, 0 } },
-                },
-                grades = {},
-            },
-        },
-    },
 }
 
 -- =========================================================

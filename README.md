@@ -104,7 +104,6 @@ Si l'une affiche une erreur au démarrage (`Could not find dependency ox_lib`, `
 |---|---|
 | `No such config file: secrets.cfg` puis `does not have a license key` / `mysql_connection_string est vide` | Mets **`secrets.cfg` dans le même dossier que `server.cfg`** (ex. `D:\txData\Qbox_BE5BF8.base\secrets.cfg`). Sans lui : pas de clé de licence et **pas de base de données** (personnages, inventaires non sauvegardés). |
 | **Écran noir après le loading screen** / à la connexion : « Serveur en maintenance : la base de données n'est pas configurée » | La base n'est pas branchée : `secrets.cfg` est introuvable ou faux (voir la ligne au-dessus). Avant, le joueur restait bloqué sur un écran noir ; maintenant il reçoit ce message et la console serveur dit pourquoi. |
-| `attempt to index a nil value (field 'job')` (elyzea_lscustom, elyzea_concess, elyzea_concess_air) | Corrigé : les réglages par défaut sont chargés tout de suite, même si la base est lente ou absente. |
 | `Incorrect string value: '\xF0\x9F…' for column …` | Une table en utf8 « 3 octets » refuse les emojis (🍔, 🚕…). Corrigé : `elyzea_core` passe les tables Elyzea en **utf8mb4** au démarrage (message « Table … passée en utf8mb4 » dans la console), et les nouvelles tables sont créées directement en utf8mb4. |
 | `Argument count mismatch (passed 1, wanted 2)` | Une tabulation dans `voice.cfg` (`voice_enableSubmix`). Corrigé : remplace ton `voice.cfg`. |
 | `The file myLogo.png must be a 96x96 PNG image` | Remplace `myLogo.png` à côté du server.cfg par celui de `Serveur cfg/` (96 × 96). |
@@ -129,24 +128,8 @@ Remplace `mm_radio`, sans ox_lib.
 - **Brouilleur** (`jammer`) : posé au sol, coupe les radios dans un rayon de 35 m pendant 10 min.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
-### 3.8 Métiers principaux, espace Patron et métier staff
-- **`elyzea_jobs`** gère les 5 métiers principaux : **LSPD** (`police`), **EMS** (`ambulance`), **Burger Shot** (`burgershot`),
-  **Bahamas** (`nightclub`), **AutoExotics** (`cardealer`). Détails : `Elyzea Base/elyzea_jobs/README.md`.
-  - Un personnage n'a **qu'un seul** de ces métiers (vérifié par le serveur). Pour en changer : **Démissionner** (tablette › Équipe).
-  - Dans la tablette **F6** de chaque métier : onglet **Équipe** (grade, collègues, service, démission)
-    et onglet **Patron** (invisible sans les droits) : employés, **RECRUTER** (la personne la plus proche reçoit une demande à accepter avec **Y** / refuser avec **L**),
-    promouvoir / rétrograder, renvoyer, grades et accès, compte de l'entreprise (dépôt / retrait avec motif), historique et journaux.
-  - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
-- **Police scientifique** (LSPD, accès « scientifique » donné dans Patron › Employés, ou patron) :
-  - chaque tir d'une arme de l'inventaire laisse une **douille** au sol ; une balle qui touche un **véhicule** y laisse un **projectile** (point orange sur la carrosserie) ;
-  - **Corps à terre** : **ALT** sur la personne › « Inspecter le corps » : cause de la mort, nombre d'impacts de balle, et **60 % de chance** d'extraire un projectile (réglable : `Config.Forensics.bodyBulletChance`), une seule tentative par corps ;
-  - **ALT** sur la douille, ou sur le véhicule › « Extraire le projectile » (un **sachet de preuve vide** de l'armurerie de la police est nécessaire) ;
-  - au laboratoire : **ALT › Réceptionner mes scellés**, puis tablette › Scientifique › Preuves › **Balistique** : à la fin de l'analyse, le rapport donne le **numéro de série**, la gravure et le **propriétaire enregistré** de l'arme.
-- L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
-- **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
-  - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
-  - Ton vrai métier est gardé dans ton personnage : **↩ Revenir à mon métier d'origine** te le rend, même après une déconnexion.
-  - **Garder ce métier** fait du métier actuel ton métier normal.
+### 3.8 Métiers
+Tous les métiers ont été retirés (police, EMS, entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`). Seul l'**illégal** (`elyzea_illegal`) est conservé.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.
@@ -160,12 +143,8 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
-| **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, Bahamas) : Équipe et Patron inclus | Une seule s'ouvre : celle de ton métier |
-| **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |
-| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, retrait du PPA, preuves), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
-| **ALT** | Couper du bois | Bûcheron, dans une zone de coupe |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
-| **Y** · **L** | Accepter · refuser une demande (animation à deux, facture EMS) | Tous |
+| **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |
 | **N** | Parler (pma-voice) · **²** changer la portée de la voix | Tous |
 | **Verr. Maj** | Parler à la radio | Avec une radio |
 | **F2** · **F9** · **F10** | Noclip · menu rapide · menu admin | Staff |
@@ -229,9 +208,7 @@ En jeu :
 - [ ] Manger / boire : la faim et la soif remontent dans le HUD
 - [ ] Essence : la jauge baisse en roulant, panne à 0 %, **E** dans une station pour faire le plein (menu admin › Stations essence). Détails : `Elyzea Base/elyzea_fuel/README.md`
 - [ ] HUD : nom et prénom à droite de la carte ; en véhicule, compteur en bas à droite (vitesse, rapport, essence, moteur, phares, clignotants, verrouillage). `/hud` masque tout
-- [ ] Police : prise de service, armurerie, fouille, amende
 - [ ] Ouvrir un coffre existant : son ancien contenu est là
-- [ ] Concession : achat d'un véhicule, clé reçue, garage
 - [ ] Téléphone (F1) et tablette illégale (F5)
 
 En cas d'erreur, note la ligne rouge exacte de la console : elle donne la ressource et le fichier.
@@ -362,21 +339,9 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
 3. L'argent va sur le compte d'entreprise `gouvernement` (réglable).
 4. Staff : `/refairecarte [id]` donne une carte gratuite.
 
-### Permis de port d'arme (PPA) : test et remise par les EMS
-| PPA | Objet | Catégories sur la carte | Qui peut le passer |
-|---|---|---|---|
-| Civil | `ppa` | Pistolet | Tout le monde |
-| Forces de l'ordre | `ppa_fdo` | Arme légère, arme lourde | Métiers `police`, `sheriff`, `gendarmerie` (réglable) |
-
-1. L'EMS en service ouvre sa tablette **F6 › PPA** : Nom, Prénom (date de naissance si homonymes), type, **LANCER LE PPA** (la personne doit être à moins de 5 m).
-   Ou : vise le joueur, **Alt** › **Test PPA civil** (ou **forces de l'ordre**).
-2. Le joueur reçoit une **demande avec le prix** : il accepte, il paie tout de suite (banque ou liquide), le test démarre.
-   L'argent va au compte des EMS.
-3. Le test s'affiche sur son écran : **questions** et **mises en situation**, réponses mélangées, corrigées par le serveur
-   (les bonnes réponses ne sont jamais envoyées aux joueurs). L'EMS reçoit le résultat.
-4. Réussi : l'EMS clique **Délivrer le PPA** dans la tablette (ou **Alt › Donner le PPA**) (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
-5. Le PPA enregistre aussi le permis `weapon` dans le personnage (tablette de la police, armureries qui exigent un PPA).
-6. La police ne fait pas passer le PPA : elle peut seulement le **retirer** (**ALT** sur la personne › Retirer le PPA, accès `ppa_revoke`).
+### Permis de port d'arme (PPA)
+Le test et la remise du PPA se faisaient par les EMS : le métier EMS étant retiré, le PPA ne peut plus être passé en jeu
+(le staff peut toujours donner l'objet `ppa` ; les armureries qui exigent un PPA lisent le permis `weapon` du personnage).
 
 ---
 
@@ -393,89 +358,6 @@ Réglages : `elyzea_inventory/config.lua` › `Config.BodyWeapons`.
 **Ajuster la position** (si l'arme rentre dans le corps ou flotte) : en jeu, tape `/positionarme dos x y z rx ry rz`
 ou `/positionarme ceinture x y z rx ry rz`. Le changement est visible tout de suite (pour toi seulement). Quand c'est bien placé,
 recopie la ligne affichée dans la console F8 dans `Config.BodyWeapons`, puis `restart elyzea_inventory`.
-
----
-
-## 10. Métiers : bûcheron, entreprises, concession aérienne
-
-### Bûcheron (`elyzea_farm`) : métier secondaire
-Il se cumule avec le métier principal : un policier peut aller couper du bois sans quitter son métier.
-1. **Menu admin › Éditeur de map › PNJ** : crée un PNJ, coche le rôle **🪓 Métier de farm** et choisis **Bûcheron**.
-2. **Menu admin › Métiers › Métiers de farm › Bûcheron** :
-   - **zones de coupe** (centre et rayon, visibles sur la carte) : on ne peut couper que dedans ;
-   - **points** d'arbres posés à la main si besoin (les arbres de la map sont aussi détectés) ;
-   - **réglages** : temps de coupe, nombre de bûches par coupe (min / max), prix de revente, plafond par heure ;
-   - **tenue** : mets la tenue sur toi, puis « Copier ma tenue actuelle » (homme et femme séparés).
-3. En jeu : **E** sur le PNJ › « Voulez-vous travailler en tant que bûcheron ? » › Oui : la tenue est mise.
-   Devant un arbre, dans une zone : **ALT** pour couper (barre de progression). L'arbre ne disparaît pas.
-4. Retour au PNJ : **vendre les bûches** (`buche_bois`) et **arrêter de travailler** : tu récupères tes vêtements
-   (gardés même après une déconnexion).
-
-### Taxi, Burger Shot, Boîte de nuit (`elyzea_entreprises`)
-Tablette des employés : **F6**.
-| Entreprise | Ce que font les employés |
-|---|---|
-| Taxi | Compteur dans le véhicule, factures, **courses PNJ** (client à prendre puis à déposer, paiement vérifié par le serveur), véhicules de service |
-| Burger Shot | Préparation des recettes (cuisine), achat de fournitures payé par l'entreprise, factures, coffre |
-| Boîte de nuit | Bar (préparation des boissons), entrée payante, factures, coffre |
-
-Toutes ont : prise de service, coffre partagé, factures (banque ou liquide, commission de l'employé).
-Burger Shot et Bahamas : onglets **Équipe** et **Patron** communs (`elyzea_jobs`), **ALT** sur un client : facturer, entrée (Bahamas).
-Taxi : direction dans l'onglet « Entreprise » de sa tablette.
-
-**Staff : Menu admin › Métiers › Taxi / Burger Shot / Boîte de nuit** (permission `entreprises_staff`) :
-activer / désactiver, nom, grades et salaires, permissions par grade (Taxi seulement : Burger Shot et Bahamas se règlent dans la tablette › Patron), zones, carte (prix), recettes, fournitures,
-tarifs du taxi, points de course, réglages. Les positions par défaut sont approximatives : vérifie les zones.
-
-### Borne de commande du Burger Shot
-**Points à poser** (Menu admin › Métiers › Burger Shot › Zones, « Utiliser ma position actuelle ») :
-- **Borne de commande (clients)** : autant que tu veux, devant chaque borne du restaurant ;
-- **Plan de travail** : place-toi **derrière le comptoir, face au client**. Le plateau apparaît devant ce point.
-
-**Côté client** : **E** sur la borne → interface Elyzea Burger Shot : **6 burgers, 6 boissons, 6 desserts**, panier, paiement banque ou liquide.
-La commande part aux employés en service ; le client la suit en direct (burger assemblé couche par couche).
-Elle est remboursée automatiquement si personne ne la prépare à temps, ou si elle est annulée (même s'il s'est déconnecté).
-
-**Côté employé** : une alerte sonne à chaque commande. **F6 › Commandes** (ou **E** au plan de travail) → **Préparer** :
-- l'employé prépare devant le client, avec une animation par produit ;
-- chaque produit est posé sur le plateau, visible par tous ;
-- les ingrédients sont pris dans son inventaire.
-
-Client à moins de 6 m : la commande lui est remise. Sinon, il la récupère au comptoir avec **E**.
-L'argent va à l'entreprise à la fin de la préparation, moins la part de l'employé.
-
-**Staff : Menu admin › Métiers › Burger Shot › 🍔 Borne de commande** :
-- **commandes en cours**, avec bouton d'annulation et remboursement ;
-- **réglages** :
-  - borne ouverte, employé obligatoire, ingrédients consommés, alerte ;
-  - mode de paiement, articles maximum, commandes par client, délai de remboursement ;
-  - part de l'employé, distance de remise directe ;
-  - plateau : modèle, distance, hauteur ;
-  - catégories et animations ;
-- **produits** :
-  - nom, objet donné, prix, temps, description, actif, catégorie ;
-  - couches du burger (de bas en haut, avec aperçu) ou visuel et couleur de la boisson ;
-  - modèle posé sur le plateau ;
-  - ingrédients.
-
-Objets ajoutés (avec images) :
-- **Burgers** : `bs_burger_classic`, `bs_burger_double`, `bs_burger_bacon`, `bs_burger_chicken`, `bs_burger_veggie`, `bs_burger_monster`.
-- **Boissons** : `bs_drink_cola`, `bs_drink_orange`, `bs_drink_lemon`, `bs_drink_icetea`, `bs_drink_shake`, `bs_drink_coffee`.
-- **Desserts** : `bs_dessert_sundae`, `bs_dessert_donut`, `bs_dessert_cookie`, `bs_dessert_pie`, `bs_dessert_cheesecake`, `bs_dessert_muffin`.
-- **Nouveaux ingrédients**, en vente chez le fournisseur : `bs_bacon`, `bs_poulet`, `bs_cafe`, `bs_patisserie`.
-
-Sur un serveur déjà lancé, au premier démarrage, la mise à jour se fait seule :
-- la permission « commandes » est donnée aux grades qui peuvent cuisiner ;
-- les nouveaux ingrédients sont ajoutés au fournisseur ;
-- 2 bornes et 1 plan de travail sont posés (positions approximatives, à vérifier).
-
-### Concession aérienne (`elyzea_concess_air`)
-Même fonctionnement que la concession automobile, avec son propre métier `planedealer` (« Elyzea Aviation ») à LSIA.
-Staff : **Menu admin › Métiers › Concession aérienne**. Détails dans `elyzea_concess_air/README.md`.
-
-### PNJ catalogue (consultation seule)
-**Menu admin › Éditeur de map › PNJ** : rôle **📚 Catalogue**, puis choisis **Concession automobile** ou **Concession aérienne**.
-Les joueurs regardent le catalogue, sans pouvoir acheter (l'achat passe par un vendeur).
 
 ---
 
