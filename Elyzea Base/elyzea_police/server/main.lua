@@ -63,7 +63,29 @@ local function Q(sql)
     if not ok then print(('^1[Police] Table non créée : %s^0'):format(tostring(err))) end
 end
 
+-- Tables du même nom laissées par l'ancienne police (structure différente) :
+-- renommées en « _ancien » (données gardées) pour créer les bonnes tables
+local function HasColumn(tbl, col)
+    return tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ? AND COLUMN_NAME = ?]], { tbl, col })) or 0
+end
+local function TableExists(tbl)
+    return (tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?]], { tbl })) or 0) > 0
+end
+local function MoveOldTable(tbl, col)
+    local ok, err = pcall(function()
+        if not TableExists(tbl) or HasColumn(tbl, col) > 0 then return end
+        local target, n = tbl .. '_ancien', 1
+        while TableExists(target) do n = n + 1 target = ('%s_ancien%d'):format(tbl, n) end
+        MySQL.query.await(('RENAME TABLE `%s` TO `%s`'):format(tbl, target))
+        print(('^3[Police] Ancienne table « %s » (autre structure) renommée en « %s ».^0'):format(tbl, target))
+    end)
+    if not ok then print(('^1[Police] Vérification de « %s » impossible : %s^0'):format(tbl, tostring(err))) end
+end
+
 local function InitDb()
+    MoveOldTable('police_reports', 'title')
+    MoveOldTable('police_fines', 'offense')
     Q([[CREATE TABLE IF NOT EXISTS `police_grades` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `name` VARCHAR(50) NOT NULL UNIQUE,
@@ -140,9 +162,7 @@ local function InitDb()
         INDEX (`status`)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     -- Mise à jour d'une base créée avant la partie Finance
-    local col = MySQL.scalar.await([[SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-        AND TABLE_NAME = 'police_employees' AND COLUMN_NAME = 'service_seconds']])
-    if tonumber(col) == 0 then MySQL.query.await('ALTER TABLE `police_employees` ADD COLUMN `service_seconds` INT NOT NULL DEFAULT 0') end
+    if HasColumn('police_employees', 'service_seconds') == 0 then MySQL.query.await('ALTER TABLE `police_employees` ADD COLUMN `service_seconds` INT NOT NULL DEFAULT 0') end
     pcall(function() core:ToUtf8mb4({ 'police_grades', 'police_employees', 'police_admin_log', 'police_reports', 'police_report_history', 'police_fines', 'police_alerts' }) end)
 end
 
