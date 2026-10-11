@@ -7,7 +7,7 @@
 local P = Police
 local S = {}
 
-local POINT_KINDS = { duty = true, armory = true, jail = true, release = true }
+local POINT_KINDS = { duty = true, armory = true, jail = true, release = true, lab = true }
 
 local function Num(v, def, min, max)
     v = tonumber(v) or def

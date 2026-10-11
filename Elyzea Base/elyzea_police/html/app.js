@@ -281,6 +281,7 @@ function updateMe(me) {
     const pill = $('#dutyPill');
     pill.className = `pill ${me.onduty ? 'on' : 'off'}`;
     pill.textContent = me.onduty ? 'En service' : 'Hors service';
+    $('#navSci').classList.toggle('hidden', !(S.perms.sci_view || S.perms.sci_lab || S.perms.sci_collect));
     window.EJobs.team().then(() => $('#navBoss').classList.toggle('hidden', !window.EJobs.canBoss()));
 }
 
