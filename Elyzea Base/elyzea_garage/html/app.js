@@ -89,7 +89,8 @@ function renderGrid() {
                 <div class="where">${v.status === 'stored' && v.garage ? `Rangé à ${esc(v.garage)}` : v.status === 'lost' ? 'Introuvable en ville : tu peux le ressortir' : esc(v.model)}</div>
                 <div class="bars">${bar('Moteur', v.engine)}${bar('Carrosserie', v.body)}${bar('Réservoir', v.tank)}${bar('Essence', v.fuel)}</div>
                 <div class="damages">${damages(v)}</div>
-                <button class="btn ${can ? 'primary' : ''}" data-out="${esc(v.plate)}" data-model="${esc(v.model)}" ${can ? '' : 'disabled'}>${can ? 'Sortir le véhicule' : why}</button>
+                ${v.status === 'impound' ? `<button class="btn primary" data-impound="${esc(v.plate)}">Payer la fourrière${d.impoundFee ? ` (${Number(d.impoundFee).toLocaleString('fr-FR')} $)` : ''}</button>`
+                    : `<button class="btn ${can ? 'primary' : ''}" data-out="${esc(v.plate)}" data-model="${esc(v.model)}" ${can ? '' : 'disabled'}>${can ? 'Sortir le véhicule' : why}</button>`}
             </div>
         </div>`;
     }).join('');
@@ -100,6 +101,8 @@ document.addEventListener('click', (e) => {
     if (t) { G.tab = t.dataset.tab; return render(); }
     const o = e.target.closest('[data-out]');
     if (o && !o.disabled) { $('#app').classList.add('hidden'); return nui('takeOut', { plate: o.dataset.out, model: o.dataset.model }); }
+    const im = e.target.closest('[data-impound]');
+    if (im && !im.disabled) { im.disabled = true; im.textContent = 'Paiement…'; return nui('impound', { plate: im.dataset.impound }); }
     const s = e.target.closest('[data-store]');
     if (s) { s.disabled = true; s.textContent = 'Rangement…'; return nui('store'); }
 });

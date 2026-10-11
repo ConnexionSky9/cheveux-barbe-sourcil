@@ -64,7 +64,7 @@ end
 local function Send(src)
     local s = Sessions[src]
     if not s then return end
-    TriggerClientEvent('garage:client:data', src, { name = s.name, list = List(src), spots = #(s.spots or {}) })
+    TriggerClientEvent('garage:client:data', src, { name = s.name, list = List(src), spots = #(s.spots or {}), impoundFee = Config.Impound.fee })
 end
 
 -- Appelé par admin_menu quand un joueur parle à un PNJ « Garage public »
@@ -72,7 +72,7 @@ exports('OpenFor', function(src, opts)
     opts = type(opts) == 'table' and opts or {}
     if type(opts.npc) ~= 'table' then return end
     Sessions[src] = { name = (opts.name and opts.name ~= '') and opts.name or 'Garage public', spots = opts.spots or {}, npc = opts.npc }
-    TriggerClientEvent('garage:client:open', src, { name = Sessions[src].name, list = List(src), spots = #Sessions[src].spots })
+    TriggerClientEvent('garage:client:open', src, { name = Sessions[src].name, list = List(src), spots = #Sessions[src].spots, impoundFee = Config.Impound.fee })
 end)
 
 -- Appelé par admin_menu : le joueur est au volant dans une zone de rangement (cercle rouge)
@@ -82,6 +82,30 @@ exports('StoreAt', function(src, opts)
     Sessions[src] = { name = (opts.name and opts.name ~= '') and opts.name or 'Garage public', spots = {}, npc = opts.zone,
         storeRadius = (tonumber(opts.radius) or 4) + 4.0, zoneOnly = true }
     TriggerClientEvent('garage:client:storeNow', src)
+end)
+
+-- Récupérer un véhicule à la fourrière (payant) : il passe « rangé » et peut ressortir
+RegisterNetEvent('garage:server:impound', function(plate)
+    local src = source
+    if not NearNpc(src) then return Notify(src, 'Rapproche-toi du gardien du garage.', 'error') end
+    plate = tostring(plate or '')
+    local row = MySQL.single.await('SELECT vehicle, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
+    if not row or row.state ~= 2 then return Notify(src, 'Ce véhicule n\'est pas à la fourrière.', 'error') end
+    local fee = math.max(0, math.floor(tonumber(Config.Impound.fee) or 0))
+    local p = GetPlayer(src)
+    if not p then return end
+    if fee > 0 then
+        local paid = false
+        for _, acc in ipairs({ 'bank', 'cash' }) do
+            if (p.Functions.GetMoney(acc) or 0) >= fee and p.Functions.RemoveMoney(acc, fee, 'Fourrière ' .. plate) then paid = true break end
+        end
+        if not paid then return Notify(src, ('Il faut %d $ pour récupérer ce véhicule.'):format(fee), 'error') end
+        if Config.Impound.toPolice then pcall(function() exports.elyzea_core:AddSocietyMoney('police', fee, 'Fourrière ' .. plate) end) end
+    end
+    MySQL.update.await('UPDATE player_vehicles SET state = 1 WHERE plate = ? AND state = 2', { plate })
+    Notify(src, fee > 0 and ('Véhicule récupéré à la fourrière (%d $). Tu peux le sortir.'):format(fee) or 'Véhicule récupéré à la fourrière.', 'success')
+    Log(src, 'Fourrière payée', ('%s (%s) · %d $'):format(row.vehicle, plate, fee))
+    Send(src)
 end)
 
 RegisterNetEvent('garage:server:refresh', function() if NearNpc(source) then Send(source) end end)

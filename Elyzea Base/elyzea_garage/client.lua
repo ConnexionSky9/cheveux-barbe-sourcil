@@ -107,6 +107,11 @@ end
 
 RegisterNUICallback('close', function(_, cb) Close() cb('ok') end)
 
+RegisterNUICallback('impound', function(body, cb)
+    cb({})
+    TriggerServerEvent('garage:server:impound', tostring(body.plate or ''))
+end)
+
 RegisterNUICallback('takeOut', function(body, cb)
     cb('ok')
     open = false

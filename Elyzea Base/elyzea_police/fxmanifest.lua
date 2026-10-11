@@ -23,6 +23,7 @@ server_scripts {
     'server/direction.lua',
     'server/finance.lua',
     'server/records.lua',
+    'server/citizen.lua',
     'server/api.lua',
 }
 
@@ -30,6 +31,7 @@ client_scripts {
     'client/main.lua',
     'client/interactions.lua',
     'client/alt.lua',
+    'client/citizen.lua',
     'client/alerts.lua',
     'client/f6.lua',
     'client/tablet.lua',

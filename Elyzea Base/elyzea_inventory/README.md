@@ -298,7 +298,9 @@ Faites ces tests avec un joueur, dans l'ordre. Donnez des objets avec `/egive [i
 **elyzea_inventory (version 3.0.0, autonome)**
 
 - `fxmanifest.lua` : plus aucune dépendance ; nouveaux fichiers chargés.
-- `config.lua` : poids en grammes (18 000 g), sac `vet_sac`, 15 emplacements = rayons d'elyzea_clothing, raccourcis 1 à 5.
+- `config.lua` : poids en grammes (18 000 g), sac `vet_sac`, **100 emplacements** d'inventaire (`Config.Slots`, le poids ne change pas), 15 emplacements = rayons d'elyzea_clothing, raccourcis 1 à 5.
+- **Armes à feu** : clic droit › « Renommer » (2 à 30 caractères, « Nom d'origine » pour revenir au nom de base). Le nom est gardé dans l'objet.
+- **Coffres de véhicules** (`server/trunks.lua`, `Config.Trunks`) : ouverts avec ALT › « Ouvrir le coffre » (véhicule déverrouillé, à 5 m). Un coffre par plaque, sauvegardé pour les véhicules des joueurs ; ceux sans propriétaire gardent leur contenu jusqu'au redémarrage. Emplacements et poids par catégorie de véhicule, réglables en jeu dans le menu admin › **Coffres véhicules** (permission `trunk_manage`).
 - `shared/items.lua` : 15 vêtements `vet_*` à 10 g, `vet_sac` avec bonus de 10 000 g, boutons Porter / Renommer.
 - `shared/ox_items_import.lua` (nouveau) : import optionnel des objets d'ox.
 - `shared/utils.lua` : poids entiers en grammes, comparaison de metadata façon ox.

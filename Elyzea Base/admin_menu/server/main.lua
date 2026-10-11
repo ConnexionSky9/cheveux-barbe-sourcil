@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v41 then
+        -- Coffres véhicules : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.trunk_manage = true end
+        meta.v41 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v40 then
         -- Stations essence : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.fuel_manage = true end

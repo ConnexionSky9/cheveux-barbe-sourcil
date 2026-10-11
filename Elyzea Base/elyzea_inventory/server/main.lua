@@ -128,6 +128,7 @@ local function serialize(it, slot, extra)
         equip = def.clothing, bonus = def.bonus and def.bonus / 1000 or nil,
         buttons = def.buttons and #def.buttons or 0,
         weapon = def.kind == 'weapon' or nil,
+        firearm = (def.kind == 'weapon' and def.ammoname and not def.throwable) and true or nil,
     }
     if extra then for k, v in pairs(extra) do out[k] = v end end
     return out
@@ -387,20 +388,32 @@ local function loadContainer(c)
             end
         end
     end
+    -- Un objet hors de la taille actuelle (coffre réduit par le staff) prend une place libre ;
+    -- sans place libre il est gardé au-delà (rien n'est jamais perdu, il réapparaît si on agrandit)
+    local later = {}
     for _, it in ipairs(data) do
         local name = ResolveItemName(it.name)
-        local slot = int(it.slot, 1, c.size)
-        if name and slot and not c.slots[slot] then
-            c.slots[slot] = { name = name, count = math.max(1, math.floor(it.count or 1)), metadata = it.metadata }
+        local slot = math.floor(tonumber(it.slot) or 0)
+        local entry = name and { name = name, count = math.max(1, math.floor(it.count or 1)), metadata = it.metadata }
+        if entry then
+            if slot >= 1 and slot <= c.size and not c.slots[slot] then c.slots[slot] = entry else later[#later + 1] = { slot = slot, entry = entry } end
         end
+    end
+    for _, l in ipairs(later) do
+        local free
+        for i = 1, c.size do if not c.slots[i] then free = i break end end
+        if not free then
+            free = math.max(c.size, l.slot)
+            while c.slots[free] do free = free + 1 end
+        end
+        c.slots[free] = l.entry
     end
 end
 
 local function saveContainer(c)
     if not c.dirty or c.kind ~= 'stash' or c.temporary then c.dirty = false return end
     local items = {}
-    for i = 1, c.size do
-        local it = c.slots[i]
+    for i, it in pairs(c.slots) do
         if it then items[#items + 1] = { slot = i, name = it.name, count = it.count, metadata = it.metadata } end
     end
     MySQL.query('INSERT INTO `elyzea_stashes` (`id`, `items`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `items` = VALUES(`items`)',
@@ -831,6 +844,26 @@ end)
 
 function Actions.use(src, inv, d)
     return UseSlot(src, int(d.from, 1, inv.size))
+end
+
+-- Renommer une arme à feu (nom personnalisé, gardé dans l'objet)
+function Actions.renameWeapon(src, inv, d)
+    local slot = int(d.slot, 1, inv.size)
+    local item = slot and inv.slots[slot]
+    local def = item and Items[item.name]
+    if not def or def.kind ~= 'weapon' or not def.ammoname or def.throwable then return false, 'Seules les armes à feu peuvent être renommées.' end
+    local name = tostring(d.name or ''):gsub('[%c<>]', ''):gsub('^%s+', ''):gsub('%s+$', ''):gsub('%s+', ' ')
+    if #name > 30 then name = name:sub(1, 30) end
+    item.metadata = type(item.metadata) == 'table' and item.metadata or {}
+    if name == '' then
+        item.metadata.label, item.metadata.custom = nil, nil
+        sync(src, { type = 'success', text = ('Nom d\'origine rendu : %s.'):format(def.label or item.name) })
+    else
+        if #name < 2 then return false, 'Nom trop court (2 caractères minimum).' end
+        item.metadata.label, item.metadata.custom = name, true
+        sync(src, { type = 'success', text = ('Arme renommée : %s.'):format(name) })
+    end
+    return true
 end
 
 -- Donner à un joueur proche

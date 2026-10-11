@@ -1,7 +1,8 @@
 -- =====================================================================
---  ELYZEA POLICE - client : menu ALT
+--  ELYZEA POLICE - client : menu ALT (pour tout le monde)
 --  ALT maintenu : curseur ; la cible s'entoure ; clic : actions possibles.
---  Seulement pour les agents en service avec la permission « alt » (ALT reste libre sinon).
+--  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
+--  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -45,6 +46,8 @@ local function FacingPlayer()
 end
 
 local function Context()
+    if C.IsCarrying and C.IsCarrying() then return { kind = 'carry' } end
+    if C.InTrunk and C.InTrunk() then return { kind = 'trunk' } end
     local me = PlayerPedId()
     local myPos = GetEntityCoords(me)
     local from, dir = CursorRay()
@@ -82,7 +85,10 @@ local function NameOf(sid) return ('Personne · ID %d'):format(sid) end
 -- Actions possibles selon la cible, son état réel et les permissions
 local function Options(ctx)
     local out = {}
-    if ctx.kind == 'player' and ctx.sid then
+    local police = C.OnDuty() and C.Can('alt')
+    if not police then
+        -- rien de la police
+    elseif ctx.kind == 'player' and ctx.sid then
         local st = Player(ctx.sid).state
         local isCuffed = st.cuffed == true
         local me = GetPlayerServerId(PlayerId())
@@ -120,11 +126,14 @@ local function Options(ctx)
             end
         end
     end
+    if C.CitizenOptions then C.CitizenOptions(ctx, out) end
     return out
 end
 
 local function Title(ctx)
     if ctx.kind == 'player' then return NameOf(ctx.sid) end
+    if ctx.kind == 'carry' then return 'Personne portée' end
+    if ctx.kind == 'trunk' then return 'Dans le coffre' end
     if ctx.kind == 'vehicle' then return ('Véhicule · %s'):format((GetVehicleNumberPlateText(ctx.entity) or ''):gsub('^%s+', ''):gsub('%s+$', '')) end
     return 'Actions'
 end
@@ -147,7 +156,7 @@ local function Stop() active = false Outline(nil) end
 
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return end
-    if not C.OnDuty() or not C.Can('alt') or (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) then return end
+    if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy then return end
     active = true
     CreateThread(function()
         local ctx, opts, lastKey = nil, {}, nil
@@ -163,6 +172,7 @@ local function Start()
             Outline((ctx.kind == 'player' or ctx.kind == 'vehicle') and #opts > 0 and ctx.entity or nil)
             if #opts > 0 then Help(('~INPUT_ATTACK~ %d action(s) : %s'):format(#opts, Title(ctx)))
             else Help('Visez une personne ou un véhicule') end
+            if (ctx.kind == 'carry' or ctx.kind == 'trunk') and #opts > 0 then Outline(nil) end
             if IsDisabledControlJustPressed(0, 24) and #opts > 0 then
                 menuCtx, menuOpts = ctx, Options(ctx)
                 Stop()
@@ -187,6 +197,7 @@ RegisterNUICallback('altSelect', function(body, cb)
     if not o or o.disabled or not ctx then return end
     local kind, sid = o.id:match('^(%a+):(%d+)$')
     CreateThread(function()
+        if C.CitizenAct and C.CitizenAct(o.id, ctx) then return end
         if kind then C.Act(kind, tonumber(sid)) else C.Act(o.id, ctx.sid) end
     end)
 end)
@@ -194,7 +205,7 @@ RegisterNUICallback('altClose', function(_, cb) cb({}) CloseMenu() end)
 
 RegisterCommand('+police_alt', Start, false)
 RegisterCommand('-police_alt', Stop, false)
-RegisterKeyMapping('+police_alt', 'Police : interactions (maintenir, clic sur la cible)', 'keyboard', Config.Keys.alt)
+RegisterKeyMapping('+police_alt', 'Interactions : porter, coffre, police (maintenir ALT, clic sur la cible)', 'keyboard', Config.Keys.alt)
 
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() then Outline(nil) end

@@ -313,3 +313,24 @@ AddEventHandler('onResourceStop', function(res)
         Camera.Stop()
     end
 end)
+
+-- ───────── Coffres de véhicules ─────────
+-- Demande d'ouverture (ALT › Ouvrir le coffre) : le serveur vérifie distance, verrou et catégorie
+exports('OpenTrunk', function(veh)
+    if not veh or not DoesEntityExist(veh) or not NetworkGetEntityIsNetworked(veh) then return end
+    TriggerServerEvent('elyzea_inv:openTrunk', NetworkGetNetworkIdFromEntity(veh), GetVehicleClass(veh))
+end)
+
+-- Coffre ouvert : porte du coffre levée et animation, refermée à la fermeture de l'inventaire
+RegisterNetEvent('elyzea_inv:trunkOpened', function(netId)
+    local veh = NetworkGetEntityFromNetworkId(netId)
+    if not veh or veh == 0 then return end
+    local door = GetEntityBoneIndexByName(veh, 'boot') ~= -1 and 5 or 4
+    SetVehicleDoorOpen(veh, door, false, false)
+    CreateThread(function()
+        local t = GetGameTimer() + 1500
+        while not isOpen and GetGameTimer() < t do Wait(50) end
+        while isOpen do Wait(250) end
+        if DoesEntityExist(veh) then SetVehicleDoorShut(veh, door, false) end
+    end)
+end)

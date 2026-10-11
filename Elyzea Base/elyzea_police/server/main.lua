@@ -225,7 +225,7 @@ end
 
 -- Permissions ajoutées après l'installation : si aucun grade ne l'a encore, elle est donnée
 -- aux grades dont le grade par défaut de même niveau l'a dans la config, et au plus haut grade
-local NEW_PERMS = { 'finance', 'search', 'wanted_view', 'wanted_manage' }
+local NEW_PERMS = { 'finance', 'search', 'wanted_view', 'wanted_manage', 'impound' }
 function P.GrantNewPerms()
     local top = nil
     for _, g in pairs(P.grades) do if not top or g.level > top.level then top = g end end

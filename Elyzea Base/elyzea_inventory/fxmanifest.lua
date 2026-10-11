@@ -29,6 +29,7 @@ client_scripts {
 server_scripts {
     '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
+    'server/trunks.lua',
     'server/weapons.lua',
     'server/registry.lua',
     'server/usables.lua',

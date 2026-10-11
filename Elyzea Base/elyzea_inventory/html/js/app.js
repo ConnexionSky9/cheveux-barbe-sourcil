@@ -556,6 +556,36 @@
     else if (src.area === 'container') action('take', { from: src.slot, count: dragCount(src.item, null, src) });
   });
 
+  // Renommer une arme à feu (fenêtre dans l'inventaire)
+  const renameBox = document.createElement('div');
+  renameBox.className = 'rename-box';
+  renameBox.innerHTML = `<div class="rename-card"><h3>Renommer l'arme</h3><p class="rename-sub"></p>
+    <input type="text" maxlength="30" placeholder="Nouveau nom (2 à 30 caractères)">
+    <div class="rename-actions"><button type="button" data-rn="reset">Nom d'origine</button><span></span><button type="button" data-rn="no">Annuler</button><button type="button" data-rn="ok" class="primary">Valider</button></div></div>`;
+  document.body.appendChild(renameBox);
+  const renameInput = renameBox.querySelector('input');
+  let renameSlot = null;
+  const renameOpen = () => renameBox.classList.contains('show');
+  function closeRename() { renameBox.classList.remove('show'); renameSlot = null; }
+  function renameWeapon(slot, it) {
+    renameSlot = slot;
+    renameBox.querySelector('.rename-sub').textContent = `${it.label}${it.metadata && it.metadata.serial ? ` · N° ${it.metadata.serial}` : ''}`;
+    renameInput.value = it.metadata && it.metadata.custom ? it.label : '';
+    renameBox.classList.add('show');
+    setTimeout(() => renameInput.focus(), 20);
+  }
+  function submitRename(reset) {
+    if (renameSlot == null) return closeRename();
+    action('renameWeapon', { slot: renameSlot, name: reset ? '' : renameInput.value.trim() });
+    closeRename();
+  }
+  renameBox.addEventListener('click', e => {
+    const b = e.target.closest('[data-rn]');
+    if (!b) { if (e.target === renameBox) closeRename(); return; }
+    if (b.dataset.rn === 'no') closeRename(); else submitRename(b.dataset.rn === 'reset');
+  });
+  renameInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitRename(false); } });
+
   // Clic droit : menu contextuel (Utiliser + boutons de l'objet, ex. Porter / Renommer)
   const menu = document.createElement('div');
   menu.className = 'ctx-menu';
@@ -580,6 +610,7 @@
         const label = it.wear === 'back' ? (on ? 'Retirer du dos' : 'Mettre dans le dos') : (on ? 'Retirer de la ceinture' : 'Mettre à la ceinture');
         opts.push([label, () => post('wear', { slot: src.slot })]);
       }
+      if (it.weapon && it.firearm) opts.push(['Renommer', () => renameWeapon(src.slot, it)]);
       if (state.data.container && !isShop()) opts.push(['Ranger dans le coffre', () => action('store', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Donner', () => post('give', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Jeter', () => action('drop', { from: src.slot, count: dragCount(it) })]);
@@ -641,6 +672,7 @@
   $('#close').addEventListener('click', () => close(false));
 
   document.addEventListener('keydown', e => {
+    if (renameOpen()) { if (e.key === 'Escape') { e.preventDefault(); closeRename(); } return; }
     if (document.activeElement === qtyEl && e.key !== 'Escape') return;
     if (state.open && (e.key === 'Escape' || e.key === 'F2' || e.key === 'Tab')) {
       e.preventDefault();
@@ -672,6 +704,7 @@
       phone: { label: 'Téléphone', icon: '📱', weight: 200 },
       burger: { label: 'Burger', icon: '🍔', weight: 500, stack: true, max: 20 },
       water: { label: "Bouteille d'eau", icon: '💧', weight: 500, stack: true, max: 20 },
+      WEAPON_PISTOL: { label: 'Pistolet', icon: '🔫', weight: 1100, weapon: true, firearm: true },
       brick: { label: 'Parpaing', icon: '🧱', weight: 4000, stack: true, max: 5, description: 'Lourd : pour tester la limite.' },
     };
     const CL = { vet_haut: ['Haut', 'tops'], vet_tshirt: ['T-shirt', 'undershirts'], vet_pantalon: ['Pantalon', 'pants'], vet_chaussures: ['Chaussures', 'shoes'], vet_sac: ['Sac', 'bags'], vet_chapeau: ['Chapeau', 'hats'], vet_montre: ['Montre', 'watches'] };
@@ -682,19 +715,19 @@
 
     const inv = { slots: {}, worn: { tops: 263, pants: 24, shoes: 10, bags: 45 }, bag: true };
     let ground = [{ name: 'water', count: 2 }];
-    [['phone', 1], ['burger', 5], ['water', 2], ['brick', 4], null, ['vet_haut', 1, 'Veste de mariage'], ['vet_chapeau', 1], ['vet_montre', 1]]
+    [['phone', 1], ['burger', 5], ['water', 2], ['brick', 4], ['WEAPON_PISTOL', 1, 'Le Silencieux'], ['vet_haut', 1, 'Veste de mariage'], ['vet_chapeau', 1], ['vet_montre', 1]]
       .forEach((e, i) => { if (e) inv.slots[i + 1] = { name: e[0], count: e[1], label: e[2] }; });
 
     const ser = (it, slot) => { const d = D[it.name]; return Object.assign({ plain: true, max: d.max || 1 }, d, { slot, name: it.name, count: it.count, label: it.label || d.label, weight: d.weight / 1000 }); };
     const weight = () => Object.values(inv.slots).reduce((s, it) => s + D[it.name].weight * it.count, 0);
     const cap = () => BASE + (inv.bag ? 10000 : 0);
-    const empty = () => { for (let i = 1; i <= 40; i++) if (!inv.slots[i]) return i; return null; };
+    const empty = () => { for (let i = 1; i <= 100; i++) if (!inv.slots[i]) return i; return null; };
     const HEAVY = "Poids maximum atteint : vous n'avez pas assez de place dans votre inventaire.";
 
     function payload() {
       const equipment = {};
       for (const cat in inv.worn) { const n = itemOf[cat]; equipment[cat] = { slot: cat, name: n, count: 1, label: `${D[n].label} n°${inv.worn[cat]}`, image: `${n}.png`, icon: '👕', weight: 0.01, equip: cat }; }
-      return { slots: 40, hotbar: 5, items: Object.entries(inv.slots).map(([s, it]) => ser(it, +s)), equipment,
+      return { slots: 100, hotbar: 5, items: Object.entries(inv.slots).map(([s, it]) => ser(it, +s)), equipment,
         weight: weight() / 1000, capacity: cap() / 1000, baseCapacity: 18, bag: inv.bag,
         ground: ground.length ? { id: 1, items: ground.map((it, i) => ser(it, i + 1)) } : null };
     }

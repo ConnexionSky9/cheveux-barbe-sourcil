@@ -52,7 +52,7 @@ $('#confirm').addEventListener('click', (e) => {
 /* =====================================================================
    Menu ALT
    ===================================================================== */
-const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '🧾' };
+const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '🧾', carry: '🧍', trunk: '🧳', hide: '🫣', impound: '🚛' };
 let altOpenedAt = 0;
 function showAlt(m) {
   const alt = $('#alt');

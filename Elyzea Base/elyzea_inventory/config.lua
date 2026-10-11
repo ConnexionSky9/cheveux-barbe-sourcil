@@ -6,7 +6,7 @@ Config.OpenKey = 'TAB'
 -- ⚖️ Poids : TOUT est en GRAMMES en interne (affiché en KG)
 Config.BaseCapacity = 18000     -- 18 KG sans sac
 Config.BagItem      = 'vet_sac' -- objet sac (son bonus est défini dans shared/items.lua : +10 KG)
-Config.Slots        = 40
+Config.Slots        = 100       -- nombre d'emplacements (le poids maximum ne change pas)
 Config.HotbarSlots  = 5         -- emplacements 1 à 5 = raccourcis rapides (touches 1 à 5)
 Config.DefaultMaxStack = 100
 
@@ -70,6 +70,37 @@ Config.Messages = {
     no_money     = 'Vous n\'avez pas assez d\'argent.',
     no_ammo      = 'Vous n\'avez pas de munitions pour cette arme.',
     no_weapon    = 'Équipez d\'abord une arme compatible.',
+}
+
+-- 🚗 Coffres de véhicules (ouverts avec ALT) : valeurs par défaut par catégorie.
+-- Le staff les modifie en jeu (menu admin › Coffres véhicules) ; slots = 0 ou kg = 0 : pas de coffre.
+Config.Trunks = {
+    distance = 5.0,   -- distance max entre le joueur et le véhicule
+    classes = {
+        [0]  = { label = 'Compactes',            slots = 20, kg = 40 },
+        [1]  = { label = 'Berlines',             slots = 30, kg = 60 },
+        [2]  = { label = 'SUV',                  slots = 40, kg = 90 },
+        [3]  = { label = 'Coupés',               slots = 20, kg = 40 },
+        [4]  = { label = 'Muscle cars',          slots = 20, kg = 45 },
+        [5]  = { label = 'Sportives classiques', slots = 15, kg = 30 },
+        [6]  = { label = 'Sportives',            slots = 15, kg = 30 },
+        [7]  = { label = 'Supersportives',       slots = 10, kg = 20 },
+        [8]  = { label = 'Motos',                slots = 5,  kg = 10 },
+        [9]  = { label = 'Tout-terrain',         slots = 30, kg = 70 },
+        [10] = { label = 'Industriels',          slots = 60, kg = 400 },
+        [11] = { label = 'Utilitaires',          slots = 50, kg = 200 },
+        [12] = { label = 'Fourgons',             slots = 60, kg = 250 },
+        [13] = { label = 'Vélos',                slots = 0,  kg = 0 },
+        [14] = { label = 'Bateaux',              slots = 20, kg = 60 },
+        [15] = { label = 'Hélicoptères',         slots = 20, kg = 60 },
+        [16] = { label = 'Avions',               slots = 30, kg = 120 },
+        [17] = { label = 'Services',             slots = 30, kg = 90 },
+        [18] = { label = 'Urgences',             slots = 30, kg = 90 },
+        [19] = { label = 'Militaires',           slots = 40, kg = 150 },
+        [20] = { label = 'Commerciaux',          slots = 60, kg = 400 },
+        [21] = { label = 'Trains',               slots = 0,  kg = 0 },
+        [22] = { label = 'Monoplaces',           slots = 0,  kg = 0 },
+    },
 }
 
 -- 🔫 Armes

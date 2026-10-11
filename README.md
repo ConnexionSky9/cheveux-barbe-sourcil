@@ -144,7 +144,8 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
-| **F6** · **ALT** | Police : menu rapide · interactions (menotter, escorter, véhicule, amende) | Policiers en service |
+| **ALT** (maintenu) | Interactions : porter une personne, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière | Tous |
+| **F6** | Police : menu rapide | Policiers |
 | **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |

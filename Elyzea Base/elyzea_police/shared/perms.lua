@@ -10,6 +10,7 @@ PolicePerms = {
     { key = 'escort',         group = 'Terrain',    label = 'Escorter une personne' },
     { key = 'vehicle',        group = 'Terrain',    label = 'Mettre / sortir une personne d\'un véhicule' },
     { key = 'fine',           group = 'Terrain',    label = 'Mettre des amendes' },
+    { key = 'impound',        group = 'Terrain',    label = 'Mettre un véhicule en fourrière' },
     -- Alertes
     { key = 'alerts_receive', group = 'Alertes',    label = 'Recevoir les alertes' },
     { key = 'alert_agent',    group = 'Alertes',    label = 'Déclencher une alerte agent' },

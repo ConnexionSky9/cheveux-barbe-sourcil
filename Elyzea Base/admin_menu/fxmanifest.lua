@@ -69,6 +69,7 @@ server_scripts {
     'server/drops.lua',
     'server/fuel.lua',
     'server/staffjob.lua',
+    'server/trunks.lua',
 }
 
 ui_page 'html/index.html'
@@ -99,5 +100,6 @@ files {
     'html/drops.js',
     'html/fuel.js',
     'html/staffjob.js',
+    'html/trunks.js',
     'html/logo.png',
 }

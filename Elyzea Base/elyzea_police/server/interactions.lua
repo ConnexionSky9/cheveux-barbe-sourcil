@@ -53,6 +53,7 @@ P.Actions.escort = { perm = 'escort', duty = true, fn = function(src, d)
     local t, why = Target(src, d.target)
     if not t then return { error = why } end
     if not P.Cuffed[t] then return { error = 'La personne doit être menottée.' } end
+    if P.Carried and P.Carried[t] then return { error = 'Cette personne est portée par quelqu\'un.' } end
     local by = P.Escorted[t]
     if by == src then
         StopEscort(t)
