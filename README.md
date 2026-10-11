@@ -133,11 +133,10 @@ Remplace `mm_radio`, sans ox_lib.
 - **`elyzea_jobs`** gère les 5 métiers principaux : **LSPD** (`police`), **EMS** (`ambulance`), **Burger Shot** (`burgershot`),
   **Bahamas** (`nightclub`), **AutoExotics** (`cardealer`). Détails : `Elyzea Base/elyzea_jobs/README.md`.
   - Un personnage n'a **qu'un seul** de ces métiers (vérifié par le serveur). Pour en changer : **Démissionner** (tablette › Équipe).
-  - Dans la tablette **F6** de chaque métier : onglet **Équipe** (grade, collègues, service, tenue volontaire, démission)
+  - Dans la tablette **F6** de chaque métier : onglet **Équipe** (grade, collègues, service, démission)
     et onglet **Patron** (invisible sans les droits) : employés, **RECRUTER** (la personne la plus proche reçoit une demande à accepter avec **Y** / refuser avec **L**),
     promouvoir / rétrograder, renvoyer, grades et accès, compte de l'entreprise (dépôt / retrait avec motif), historique et journaux.
-  - La **prise de service ne change jamais la tenue** : la tenue de travail se met avec le bouton « Mettre ma tenue ».
-  - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, PPA, soins, facture, entrée du Bahamas, vente…).
+  - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
 - L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
 - **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
   - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
@@ -158,7 +157,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
 | **F6** | Tablette du métier (police, EMS, mécano, concessions, taxi, Burger Shot, Bahamas) : Équipe et Patron inclus | Une seule s'ouvre : celle de ton métier |
 | **G** · **I** | Accepter · ignorer un appel ou une alerte | Police et EMS |
-| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, PPA, preuves), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
+| **ALT** (maintenir, clic sur la cible) | Interactions du métier : police (menottes, escorte, véhicule, amende, retrait du PPA, preuves), EMS (soins), Burger Shot / Bahamas (facture, entrée), AutoExotics (vente) | Employés des 5 métiers principaux |
 | **ALT** | Couper du bois | Bûcheron, dans une zone de coupe |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux, facture EMS) | Tous |
@@ -356,7 +355,7 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
 3. L'argent va sur le compte d'entreprise `gouvernement` (réglable).
 4. Staff : `/refairecarte [id]` donne une carte gratuite.
 
-### Permis de port d'arme (PPA) : test et remise par les EMS ou la police
+### Permis de port d'arme (PPA) : test et remise par les EMS
 | PPA | Objet | Catégories sur la carte | Qui peut le passer |
 |---|---|---|---|
 | Civil | `ppa` | Pistolet | Tout le monde |
@@ -369,8 +368,7 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
    (les bonnes réponses ne sont jamais envoyées aux joueurs). L'EMS reçoit le résultat.
 4. Réussi : l'EMS fait **Alt › Donner le PPA** (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
 5. Le PPA enregistre aussi le permis `weapon` dans le personnage (tablette de la police, armureries qui exigent un PPA).
-6. **Police** : tablette F6 › **PPA** (Nom, Prénom, LANCER LE PPA : la personne doit être à côté et l'identité unique), puis « Délivrer » si le test est réussi.
-   Retrait : **ALT** sur la personne › Retirer le PPA (accès `ppa_revoke`). Réglage des métiers autorisés : `elyzea_papiers/config.lua` › `PPA.examiners`.
+6. La police ne fait pas passer le PPA : elle peut seulement le **retirer** (**ALT** sur la personne › Retirer le PPA, accès `ppa_revoke`).
 
 ---
 
@@ -413,7 +411,7 @@ Tablette des employés : **F6**.
 | Burger Shot | Préparation des recettes (cuisine), achat de fournitures payé par l'entreprise, factures, coffre |
 | Boîte de nuit | Bar (préparation des boissons), entrée payante, factures, coffre |
 
-Toutes ont : prise de service (sans changement de tenue), coffre partagé, factures (banque ou liquide, commission de l'employé).
+Toutes ont : prise de service, coffre partagé, factures (banque ou liquide, commission de l'employé).
 Burger Shot et Bahamas : onglets **Équipe** et **Patron** communs (`elyzea_jobs`), **ALT** sur un client : facturer, entrée (Bahamas).
 Taxi : direction dans l'onglet « Entreprise » de sa tablette.
 

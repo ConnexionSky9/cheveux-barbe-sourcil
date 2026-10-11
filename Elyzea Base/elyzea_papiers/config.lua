@@ -71,9 +71,8 @@ Config.PPA = {
     requestTimeout = 45,        -- secondes pour accepter la demande
     resultMinutes = 30,         -- un test réussi permet de recevoir le PPA pendant X minutes
     licence = 'weapon',         -- permis enregistré dans le personnage (visible par la police)
-    -- Autres métiers qui peuvent faire passer le PPA : [métier] = grade minimum
-    -- (la police le lance depuis sa tablette › PPA, avec l'accès « Lancer une procédure PPA »)
-    examiners = { police = 0 },
+    -- Autres métiers qui peuvent faire passer le PPA : [métier] = grade minimum (aucun : seuls les EMS)
+    examiners = {},
 
     types = {
         civil = {

@@ -195,7 +195,7 @@ VIEWS.dashboard = async () => {
             <div><h3>Équipe en service</h3><div class="card">${d.team.length ? d.team.map((t) => `<div class="list-item"><div><b>${esc(t.name)}</b><div class="muted small">${esc(t.grade)}</div></div><span class="badge green">En service</span></div>`).join('') : '<p class="muted">Personne en service.</p>'}</div></div>
             <div><h3>Dernières ventes</h3><div class="card">${d.lastSales.length ? d.lastSales.map((s) => `<div class="list-item"><div><b>${esc(s.label)}</b><div class="muted small">${esc(s.buyer)} · par ${esc(s.seller)} · ${esc(s.date)}</div></div><b class="gold-text">${money(s.price)}</b></div>`).join('') : '<p class="muted">Aucune vente pour le moment.</p>'}</div></div>
         </div>
-        ${me.onduty ? '' : `<p class="muted small" style="margin-top:14px">La vente, la présentation et les essais demandent d'être en service. La prise de service ne change pas ta tenue${managed() ? ' : mets ta tenue de travail quand tu veux (onglet Équipe)' : ''}.</p>`}`;
+        ${me.onduty ? '' : `<p class="muted small" style="margin-top:14px">La vente, la présentation et les essais demandent d'être en service.</p>`}`;
 };
 
 /* ================================================================== */

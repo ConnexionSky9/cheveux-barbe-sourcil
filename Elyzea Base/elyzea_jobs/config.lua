@@ -57,7 +57,6 @@ Config.Companies = {
             { id = 'warrants',       label = 'Avis de recherche',                  min = 1 },
             { id = 'licenses',       label = 'Donner / retirer des permis',        min = 2 },
             { id = 'records_delete', label = 'Supprimer un rapport',               min = 3 },
-            { id = 'ppa',            label = 'Lancer une procédure PPA',           min = 1 },
             { id = 'ppa_revoke',     label = 'Retirer un PPA',                     min = 2 },
             { id = 'sci_view',       label = 'Scientifique : consulter affaires et rapports', min = 2 },
             { id = 'sci_cases',      label = 'Scientifique : créer / modifier des affaires',  min = 3 },

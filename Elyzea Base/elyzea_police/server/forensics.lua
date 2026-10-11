@@ -29,7 +29,11 @@ Fx.TYPE_LABEL, Fx.STATUS_LABEL, Fx.ANALYSIS_LABEL, Fx.ANALYSES_FOR = TYPE_LABEL,
 -- Base de données
 -- ---------------------------------------------------------------------
 local function InitDb()
-    local q = MySQL.query.await
+    -- Chaque table est créée séparément : une erreur n'empêche pas les autres d'exister
+    local function q(sql)
+        local ok, err = pcall(MySQL.query.await, sql)
+        if not ok then print(('^1[Police] Table de la police scientifique non créée : %s^0'):format(tostring(err))) end
+    end
     q([[CREATE TABLE IF NOT EXISTS `police_evidence` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `code` VARCHAR(20) NULL UNIQUE,
@@ -78,7 +82,7 @@ local function InitDb()
         `status` VARCHAR(20) NOT NULL DEFAULT 'running',
         `technician` VARCHAR(100) NULL, `technician_cid` VARCHAR(50) NULL,
         `started_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `ends_at` TIMESTAMP NOT NULL,
+        `ends_at` DATETIME NULL,
         `result` LONGTEXT NULL,
         INDEX (`evidence_id`), INDEX (`status`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
     q([[CREATE TABLE IF NOT EXISTS `police_reports` (

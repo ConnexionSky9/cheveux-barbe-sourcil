@@ -91,49 +91,6 @@ CreateThread(function()
     end
 end)
 
---================================================================ Tenues de service
-local civilOutfit
-local function readOutfit(ped)
-    local o = {}
-    for _, part in ipairs(EMS_OUTFIT_PARTS) do
-        local k, comp = part[1], part[2]
-        if comp == 'p0' then o[k] = { GetPedPropIndex(ped, 0), math.max(0, GetPedPropTextureIndex(ped, 0)) }
-        else o[k] = { GetPedDrawableVariation(ped, comp), GetPedTextureVariation(ped, comp) } end
-    end
-    return o
-end
-local function wearOutfit(ped, o)
-    for _, part in ipairs(EMS_OUTFIT_PARTS) do
-        local k, comp = part[1], part[2]
-        local v = o[k]
-        if v then
-            if comp == 'p0' then
-                if (v[1] or -1) < 0 then ClearPedProp(ped, 0) else SetPedPropIndex(ped, 0, v[1], v[2] or 0, true) end
-            else SetPedComponentVariation(ped, comp, v[1] or 0, v[2] or 0, 0) end
-        end
-    end
-end
-local function applyServiceOutfit(on)
-    if not S('outfitsEnabled') then return end
-    local ped = PlayerPedId()
-    if on then
-        civilOutfit = civilOutfit or readOutfit(ped)
-        local female = GetEntityModel(ped) == joaat('mp_f_freemode_01')
-        wearOutfit(ped, D.outfits[female and 'female' or 'male'] or {})
-    elseif civilOutfit then
-        wearOutfit(ped, civilOutfit); civilOutfit = nil
-    end
-end
-
--- Tenue de service, seulement à la demande (tablette › Équipe › Mettre ma tenue) : appelée par elyzea_jobs
-function EJobsUniform(on)
-    if not S('outfitsEnabled') then return false, 'Les tenues de service EMS sont désactivées.' end
-    if not isEms() then return false, 'Réservé au personnel médical.' end
-    if not on and not civilOutfit then return false, 'Vous ne portez pas la tenue de service.' end
-    applyServiceOutfit(on)
-    return true, on and 'Tenue de service enfilée.' or 'Vous avez remis vos vêtements.'
-end
-
 --================================================================ Alertes (EMS en service)
 local alerts, order, mineId = {}, {}, nil
 local function removeAlertLocal(id, text)
@@ -206,7 +163,7 @@ CreateThread(function()   -- distances et arrivée sur place
     end
 end)
 
--- La prise / fin de service ne change jamais la tenue (bouton « Mettre ma tenue » de la tablette)
+-- La prise / fin de service ne change pas la tenue
 RegisterNetEvent('elyzea_ems:dutyChanged', function(state)
     if not state then clearAlerts() end
 end)

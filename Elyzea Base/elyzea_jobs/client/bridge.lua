@@ -24,20 +24,3 @@ RegisterNetEvent('elyzea_jobs:res:' .. RES, function(id, result)
     local cb = pending[id]
     if cb then pending[id] = nil cb(result or {}) end
 end)
-
--- Tenue de service : uniquement quand le joueur la demande (jamais à la prise de service).
--- Une ressource peut définir sa propre fonction globale EJobsUniform(on) -> ok, message ;
--- sinon les tenues du menu admin (admin_menu › Métiers › Tenues) sont utilisées.
-RegisterNUICallback('ejobsUniform', function(body, cb)
-    local on = body and body.on == true
-    local ok, msg
-    if type(EJobsUniform) == 'function' then
-        ok, msg = EJobsUniform(on)
-    elseif GetResourceState('admin_menu') == 'started' then
-        local okCall, a, b = pcall(function() return exports.admin_menu:SetServiceUniform(on) end)
-        if okCall then ok, msg = a, b else ok, msg = false, 'Tenues indisponibles.' end
-    else
-        ok, msg = false, 'Aucune tenue de service configurée.'
-    end
-    cb({ ok = ok == true, message = msg })
-end)

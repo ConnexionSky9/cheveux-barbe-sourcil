@@ -24,7 +24,6 @@ const PERMS = [
     { k: 'licenses', label: 'Permis', help: 'Donner ou retirer un permis de conduire ou de port d\'arme.' },
     { k: 'records_delete', label: 'Supprimer un rapport', help: 'Effacer une entrée du casier.' },
     { k: 'roster', label: 'Gérer l\'effectif', help: 'Recruter, promouvoir, renvoyer (grades inférieurs au sien).' },
-    { k: 'ppa', label: 'Lancer une procédure PPA', help: 'Tablette › PPA.' },
     { k: 'ppa_revoke', label: 'Retirer un PPA', help: 'ALT sur la personne.' },
     { k: 'sci_view', label: 'Scientifique : consulter', help: 'Affaires, preuves et rapports.' },
     { k: 'sci_cases', label: 'Scientifique : affaires', help: 'Créer, modifier, clôturer une affaire.' },

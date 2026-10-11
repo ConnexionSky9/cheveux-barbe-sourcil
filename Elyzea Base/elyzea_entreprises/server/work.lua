@@ -33,7 +33,6 @@ RegisterNetEvent('ent:duty', function(fromTablet)
     E.SetDuty(src, c, not p.PlayerData.job.onduty, fromTablet and 'tablette' or 'accueil')
 end)
 
--- Aucune tenue n'est changée : la tenue de travail se met volontairement (tablette › Équipe › Mettre ma tenue)
 function E.SetDuty(src, c, state, from)
     core:SetJobDuty(src, state)
     E.Notify(src, state and 'Tu as pris ton service.' or 'Tu as terminé ton service.', state and 'success' or 'inform')

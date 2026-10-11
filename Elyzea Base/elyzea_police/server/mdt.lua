@@ -222,6 +222,8 @@ RegisterNetEvent('police:server:mdt', function(reqId, action, data)
         result = { error = 'Action inconnue.' }
     elseif not P.IsCop(src) then
         result = { error = "Vous n'êtes pas policier." }
+    elseif tostring(action):sub(1, 3) == 'sci' and not (Forensics and Forensics.ready) then
+        result = { error = 'Police scientifique indisponible : la base de données n\'est pas prête (voir la console du serveur).' }
     elseif not P.Can(src, a.perm, a.offDuty) then
         result = { error = P.OnDuty(src) and "Votre grade ne permet pas cette action." or 'Prenez votre service pour utiliser cette fonction.' }
     else

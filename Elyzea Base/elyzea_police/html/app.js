@@ -281,7 +281,6 @@ function updateMe(me) {
     const pill = $('#dutyPill');
     pill.className = `pill ${me.onduty ? 'on' : 'off'}`;
     pill.textContent = me.onduty ? 'En service' : 'Hors service';
-    $('#navPpa').classList.toggle('hidden', !S.perms.ppa);
     $('#navSci').classList.toggle('hidden', !(S.perms.sci_view || S.perms.sci_lab || S.perms.sci_collect));
     window.EJobs.team().then(() => $('#navBoss').classList.toggle('hidden', !window.EJobs.canBoss()));
 }
@@ -513,36 +512,6 @@ PAGES.jail = async () => {
             ${S.perms.jail ? `<div class="actions"><button class="btn danger" data-confirm="release" data-cid="${esc(j.citizenid)}">Libérer</button></div>` : ''}</div>`).join('')}</div>` : empty('Aucun détenu.')}`;
 };
 
-/* ---------- PPA ---------- */
-const PPA_TAG = { requested: 'blue', test: 'amber', passed: 'green', failed: 'red', issued: 'green', refused: '', revoked: 'red' };
-PAGES.ppa = async () => {
-    const d = await mdt('ppaList');
-    if (d.error) return `<h1>Permis de port d'arme</h1>${empty(esc(d.error))}`;
-    const f = S.ppaForm || {};
-    return `
-        <h1>Permis de port d'arme</h1>
-        <p class="lead">Saisissez l'identité exacte du citoyen. Il doit être près de vous (moins de ${d.distance} m), accepter la demande, payer et réussir le test. Vous pourrez ensuite lui délivrer le PPA.</p>
-        ${d.papiers ? '' : `<div class="card" style="border-color:rgba(229,72,77,.45);margin-bottom:12px">Le système des papiers (elyzea_papiers) n'est pas démarré : la procédure est indisponible.</div>`}
-        <div class="card"><div class="grid2" style="grid-template-columns:1fr 1fr 170px 170px auto;align-items:end">
-            <label class="field">Nom<input type="text" id="ppaLast" maxlength="40" value="${esc(f.lastname || '')}" autocomplete="off"></label>
-            <label class="field">Prénom<input type="text" id="ppaFirst" maxlength="40" value="${esc(f.firstname || '')}" autocomplete="off"></label>
-            <label class="field">Date de naissance<input type="date" id="ppaBirth" value="${esc(f.birthdate || '')}" title="Seulement si plusieurs personnes portent ce nom"></label>
-            <label class="field">Type<select id="ppaKind"><option value="civil">PPA civil</option><option value="fdo" ${f.kind === 'fdo' ? 'selected' : ''}>PPA forces de l'ordre</option></select></label>
-            <button class="btn primary big-btn" data-act="ppaStart" ${d.papiers ? '' : 'disabled'}>LANCER LE PPA</button>
-        </div><p class="lead" style="margin:8px 0 0">Date de naissance facultative : seulement en cas d'homonymes.</p></div>
-        <h2>Procédures <button class="btn" data-act="ppaRefresh" style="margin-left:auto">Actualiser</button></h2>
-        ${d.list.length ? `<div class="list">${d.list.map((r) => `<div class="row"><div><b>${esc(r.name)}</b>
-            <span class="tag ${PPA_TAG[r.status] || ''}">${esc(r.statusLabel)}</span>${r.details ? `<span class="tag">${esc(r.details)}</span>` : ''}
-            <small>${r.kind === 'fdo' ? 'Forces de l\'ordre' : 'Civil'} · ${esc(r.officer)} · ${fmtTime(r.t)}${r.online ? '' : ' · hors ligne'}</small></div>
-            ${r.status === 'passed' && r.online ? `<div class="actions"><button class="btn primary" data-act="ppaIssue" data-id="${r.id}">Délivrer le PPA</button></div>` : ''}</div>`).join('')}</div>` : empty('Aucune procédure.')}`;
-};
-function fmtTime(t) {
-    if (!t) return '';
-    const d = new Date(Number(t) * 1000);
-    const p = (n) => String(n).padStart(2, '0');
-    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-setInterval(() => { if (S.page === 'ppa' && !$('#mdt').classList.contains('hidden') && !document.activeElement.closest('#page input, #page select')) go('ppa', true); }, 6000);
 
 /* ---------- Équipe et Patron (pages communes elyzea_jobs) ---------- */
 PAGES.team = async () => { await window.EJobs.mount($('#page'), 'team', { onClose: () => closePanel('mdt') }); return null; };
@@ -553,13 +522,6 @@ PAGES.boss = async () => { await window.EJobs.mount($('#page'), 'boss', { onClos
 /* ================================================================== */
 const Acts = {
     duty: () => run('toggleDuty'),
-    ppaStart: async () => {
-        S.ppaForm = { lastname: $('#ppaLast').value.trim(), firstname: $('#ppaFirst').value.trim(), birthdate: $('#ppaBirth').value, kind: $('#ppaKind').value };
-        const r = await run('ppaStart', S.ppaForm, false);
-        if (!r.error) { S.ppaForm = {}; go('ppa', true); }
-    },
-    ppaRefresh: () => go('ppa', true),
-    ppaIssue: (b) => run('ppaIssue', { id: Number(b.dataset.id) }),
     callsign: () => run('setCallsign', { callsign: $('#callsign').value }),
     searchCitizens: async () => {
         S.citizenQ = $('#citizenQ').value.trim();

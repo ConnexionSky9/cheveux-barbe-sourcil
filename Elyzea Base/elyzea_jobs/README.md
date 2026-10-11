@@ -29,8 +29,7 @@ Gère les grades, les accès, le recrutement, les finances, le service et le men
   Le grade patron (👑) a tous les accès. Le dernier patron ne peut pas démissionner.
 - **Finances** : dépôt / retrait avec motif (montant max `Config.Finance.maxAmount`), une opération à la fois par joueur, annulée si l'argent ne peut pas être déplacé.
   Historique : auteur, date, motif.
-- **Service** : la prise / fin de service ne change **jamais** la tenue. Boutons « Mettre ma tenue » / « Remettre ma tenue civile » dans l'onglet Équipe
-  (tenue de service enregistrée par le staff dans admin_menu, ou fonction propre au métier).
+- **Service** : prise / fin de service dans l'onglet Équipe (ou au point de service du métier).
 
 ## Accès par métier
 Liste et grade minimum par défaut dans `config.lua` › `Config.Companies[job].perms` (`min = -1` : patron seulement, `99` : patron seulement et non délégable par défaut).

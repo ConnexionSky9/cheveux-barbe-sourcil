@@ -600,7 +600,7 @@ function RPC.duty(src, state)
     return true
 end
 
--- Prise / fin de service depuis les pages communes (elyzea_jobs) : même chose, sans tenue
+-- Prise / fin de service depuis les pages communes (elyzea_jobs)
 AddEventHandler('elyzea_jobs:setDuty', function(src, job, state)
     if job ~= Config.Job then return end
     RPC.duty(src, state == true)

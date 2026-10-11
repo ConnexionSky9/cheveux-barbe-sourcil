@@ -254,12 +254,12 @@ local Requests = {}   -- [joueur] = { ems, kind, expires }
 local Tests = {}      -- [joueur] = { kind, correct = {}, ems, started }
 local Results = {}    -- [citizenid] = { kind, passed, score, total, at }
 
--- Métiers qui font passer le PPA : EMS (PPA.job) et ceux de PPA.examiners (ex. police depuis sa tablette)
+-- Métiers qui font passer le PPA : EMS (PPA.job) et ceux de PPA.examiners (vide par défaut)
 local function CanEms(src)
     local p = core:GetPlayer(src)
     local job = p and p.PlayerData.job
     local minGrade = job and ((job.name == PPA.job and PPA.minGrade) or (PPA.examiners or {})[job.name])
-    if not job or minGrade == nil then return false, 'Réservé au personnel habilité (EMS, police).' end
+    if not job or minGrade == nil then return false, 'Réservé aux EMS.' end
     if (job.grade and job.grade.level or 0) < minGrade then return false, 'Votre grade ne permet pas de faire passer le PPA.' end
     if PPA.requireDuty and Player(src).state.emsDuty ~= true and job.onduty ~= true then return false, 'Vous devez être en service.' end
     return true

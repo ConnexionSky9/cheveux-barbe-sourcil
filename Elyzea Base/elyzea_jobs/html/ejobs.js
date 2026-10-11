@@ -24,13 +24,6 @@
       return await r.json();
     } catch (e) { return { error: 'Connexion au jeu impossible.' }; }
   }
-  async function uniform(on) {
-    if (window.EJobsDemo) return { ok: true, message: on ? 'Tenue mise.' : 'Tenue retirée.' };
-    try {
-      const r = await fetch(`https://${RES}/ejobsUniform`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) });
-      return await r.json();
-    } catch (e) { return { ok: false, message: 'Indisponible.' }; }
-  }
 
   /* ---------- Notifications et confirmations ---------- */
   let toastEl = null, toastT = null;
@@ -93,11 +86,7 @@
       <div class="ej-duty">
         <button class="ej-btn big primary" data-ej="dutyOn" ${duty ? 'disabled' : ''}>Prendre mon service</button>
         <button class="ej-btn big" data-ej="dutyOff" ${duty ? '' : 'disabled'}>Quitter mon service</button>
-        <span class="ej-sep"></span>
-        <button class="ej-btn" data-ej="uniformOn" title="Tenue de service enregistrée par le staff">Mettre ma tenue</button>
-        <button class="ej-btn" data-ej="uniformOff">Remettre ma tenue civile</button>
       </div>
-      <p class="ej-note">La prise de service ne change pas votre tenue : utilisez les boutons de tenue si vous le souhaitez.</p>
       <div class="ej-stats">
         <div class="ej-stat"><b>${t.onDuty.length}</b><span>En service</span></div>
         <div class="ej-stat"><b>${t.total}</b><span>Employés</span></div>
@@ -260,8 +249,6 @@
   const ACTS = {
     dutyOn: () => act('duty', { on: true }),
     dutyOff: () => act('duty', { on: false }),
-    uniformOn: async () => { const r = await uniform(true); toast(r.message || (r.ok ? 'Tenue mise.' : 'Aucune tenue.'), r.ok); },
-    uniformOff: async () => { const r = await uniform(false); toast(r.message || (r.ok ? 'Tenue retirée.' : 'Rien à retirer.'), r.ok); },
     resign: async () => { if (await confirmBox('Démissionner', `Quitter ${S.team.company.label} ? Vous perdrez votre grade et vos accès.`, true, 'Démissionner')) act('resign'); },
     tab: (b) => { S.tab = b.dataset.tab; S.gradeEdit = null; render(); },
     recruit: () => act('recruit', {}, false),

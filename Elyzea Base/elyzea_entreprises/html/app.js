@@ -69,7 +69,7 @@ VIEWS.home = () => {
     return `
         <div class="card duty ${d.onduty ? 'on' : ''}" style="margin-bottom:14px">
             <div><strong>${d.onduty ? 'Tu es en service' : 'Tu es hors service'}</strong>
-                <span>${d.onduty ? (d.managed ? 'Tu peux travailler. Ta tenue de travail se met quand tu veux (onglet Équipe).' : 'Tu peux travailler.') : 'Prends ton service pour travailler (ta tenue ne change pas).'}</span></div>
+                <span>${d.onduty ? 'Tu peux travailler.' : 'Prends ton service pour travailler.'}</span></div>
             <button class="btn ${d.onduty ? '' : 'primary'}" data-a="duty" ${!d.onduty && !d.enabled ? 'disabled' : ''}>${d.onduty ? 'Terminer le service' : 'Prendre le service'}</button>
         </div>
         <div class="card"><h3>Collègues en service (${d.coworkers.length})</h3>

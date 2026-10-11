@@ -7,7 +7,7 @@ local core = exports.elyzea_core
 local A = {}
 local last = {}
 
--- Prise / fin de service : la ressource du métier s'en charge (aucune tenue n'est changée)
+-- Prise / fin de service : la ressource du métier s'en charge
 function J.SetDuty(src, c, on)
     local res = Config.Companies[c.job].resource
     if res and GetResourceState(res) == 'started' then

@@ -1,8 +1,7 @@
 -- =========================================================
 --  TENUES DE SERVICE - CLIENT (tous les joueurs)
 --  La tenue n'est JAMAIS changée automatiquement (prise / fin de service, métier, grade).
---  Le joueur la met ou la retire lui-même : bouton « Mettre ma tenue » des tablettes F6
---  (exports.admin_menu:SetServiceUniform) ou commande /tenue_service.
+--  Une ressource peut la mettre à la demande : exports.admin_menu:SetServiceUniform(on).
 -- =========================================================
 local CFG = Config.Uniforms or {}
 local COMPS = CFG.components or { 1, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
@@ -107,10 +106,6 @@ end
 exports('SetServiceUniform', setServiceUniform)
 exports('IsWearingUniform', function() return wearing end)
 
-RegisterCommand('tenue_service', function()
-    local ok, msg = setServiceUniform(not wearing)
-    Notify(msg, ok and 'success' or 'error')
-end, false)
 
 RegisterNetEvent('adminmenu:uniforms', function(data)
     Uniforms = type(data) == 'table' and data or {}

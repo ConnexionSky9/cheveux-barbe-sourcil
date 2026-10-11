@@ -51,7 +51,6 @@ Config.Defaults = {
         licenses = 2,        -- donner / retirer des permis
         records_delete = 3,  -- supprimer un rapport
         roster = 4,          -- recruter, promouvoir, renvoyer
-        ppa = 1,             -- lancer une procédure PPA
         ppa_revoke = 2,      -- retirer un PPA
         sci_view = 2,        -- police scientifique : consulter
         sci_cases = 3,       -- police scientifique : affaires

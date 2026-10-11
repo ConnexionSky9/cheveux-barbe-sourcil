@@ -66,7 +66,7 @@ T.dashboard = { fn = function(src)
     }
 end }
 
--- Service : aucune tenue n'est changée (la tenue se met volontairement : tablette › Équipe)
+-- Service
 local function SetDuty(src, state, fromJobs)
     local p = C.GetPlayer(src)
     if p.Functions.SetJobDuty then p.Functions.SetJobDuty(state) else pcall(function() exports.elyzea_core:SetJobDuty(src, state) end) end
