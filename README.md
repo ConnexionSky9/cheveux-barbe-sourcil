@@ -137,6 +137,10 @@ Remplace `mm_radio`, sans ox_lib.
     et onglet **Patron** (invisible sans les droits) : employés, **RECRUTER** (la personne la plus proche reçoit une demande à accepter avec **Y** / refuser avec **L**),
     promouvoir / rétrograder, renvoyer, grades et accès, compte de l'entreprise (dépôt / retrait avec motif), historique et journaux.
   - **ALT (maintenir)** : curseur, visez une personne / un véhicule / une preuve puis clic : actions du métier (menottes, amende, retrait du PPA, soins, facture, entrée du Bahamas, vente…).
+- **Police scientifique** (LSPD, accès « scientifique » donné dans Patron › Employés, ou patron) :
+  - chaque tir d'une arme de l'inventaire laisse une **douille** au sol ; une balle qui touche un **véhicule** y laisse un **projectile** (point orange sur la carrosserie) ;
+  - **ALT** sur la douille, ou sur le véhicule › « Extraire le projectile » (un **sachet de preuve vide** de l'armurerie de la police est nécessaire) ;
+  - au laboratoire : **ALT › Réceptionner mes scellés**, puis tablette › Scientifique › Preuves › **Balistique** : à la fin de l'analyse, le rapport donne le **numéro de série**, la gravure et le **propriétaire enregistré** de l'arme.
 - L'ancien menu patron **`elyzea_patron` (F11) est supprimé**. Les autres métiers (mécano, taxi, concession aérienne…) gardent la direction de leur propre tablette.
 - **Métier staff (menu admin › Mes outils › 💼 Métier staff)** : permission `staff_job` (Administrateur et SuperAdmin).
   - Clic sur un grade de n'importe quel métier : tu le prends tout de suite, en service.
@@ -361,12 +365,13 @@ Le permis est remis dès qu'une catégorie est réussie, puis mis à jour à cha
 | Civil | `ppa` | Pistolet | Tout le monde |
 | Forces de l'ordre | `ppa_fdo` | Arme légère, arme lourde | Métiers `police`, `sheriff`, `gendarmerie` (réglable) |
 
-1. L'EMS en service vise le joueur, **Alt** › **Test PPA civil** (ou **forces de l'ordre**).
+1. L'EMS en service ouvre sa tablette **F6 › PPA** : Nom, Prénom (date de naissance si homonymes), type, **LANCER LE PPA** (la personne doit être à moins de 5 m).
+   Ou : vise le joueur, **Alt** › **Test PPA civil** (ou **forces de l'ordre**).
 2. Le joueur reçoit une **demande avec le prix** : il accepte, il paie tout de suite (banque ou liquide), le test démarre.
    L'argent va au compte des EMS.
 3. Le test s'affiche sur son écran : **questions** et **mises en situation**, réponses mélangées, corrigées par le serveur
    (les bonnes réponses ne sont jamais envoyées aux joueurs). L'EMS reçoit le résultat.
-4. Réussi : l'EMS fait **Alt › Donner le PPA** (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
+4. Réussi : l'EMS clique **Délivrer le PPA** dans la tablette (ou **Alt › Donner le PPA**) (dans les 30 minutes, réglable). **Échoué : impossible de donner le PPA**, il faut repasser le test.
 5. Le PPA enregistre aussi le permis `weapon` dans le personnage (tablette de la police, armureries qui exigent un PPA).
 6. La police ne fait pas passer le PPA : elle peut seulement le **retirer** (**ALT** sur la personne › Retirer le PPA, accès `ppa_revoke`).
 

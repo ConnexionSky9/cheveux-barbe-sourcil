@@ -501,6 +501,117 @@ RegisterNetEvent('elyzea_ems:rpc', function(reply, id, name, args)
     TriggerClientEvent(reply, src, id, res)
 end)
 
+--================================================================ PPA (tablette › PPA)
+-- Le test et la délivrance sont ceux d'elyzea_papiers (mêmes règles que le menu ALT).
+-- L'identité est vérifiée par nom + prénom (+ date de naissance si homonymes) ;
+-- la proximité sert seulement à vérifier que la personne est là.
+local PPA_DIST = 5.0
+local ppaLast = {}
+CreateThread(function()
+    Wait(1000)
+    local ok, err = pcall(function()
+        MySQL.query.await([[CREATE TABLE IF NOT EXISTS `ems_ppa` (
+            `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `citizenid` VARCHAR(50) NOT NULL, `name` VARCHAR(100) NOT NULL,
+            `kind` VARCHAR(20) NOT NULL DEFAULT 'civil',
+            `status` VARCHAR(20) NOT NULL,
+            `examiner` VARCHAR(100) NOT NULL, `examiner_cid` VARCHAR(50) NULL,
+            `details` VARCHAR(255) NULL,
+            `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (`citizenid`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
+    end)
+    if not ok then print(('^1[elyzea_ems] Table ems_ppa non créée : %s^0'):format(tostring(err))) end
+end)
+
+local function papiers() return GetResourceState('elyzea_papiers') == 'started' end
+local function norm(s)
+    s = tostring(s or ''):lower():gsub('^%s+', ''):gsub('%s+$', '')
+    for k, v in pairs({ ['é'] = 'e', ['è'] = 'e', ['ê'] = 'e', ['ë'] = 'e', ['à'] = 'a', ['â'] = 'a', ['ä'] = 'a', ['î'] = 'i', ['ï'] = 'i',
+        ['ô'] = 'o', ['ö'] = 'o', ['ù'] = 'u', ['û'] = 'u', ['ü'] = 'u', ['ç'] = 'c' }) do s = s:gsub(k, v) end
+    return s
+end
+local PPA_STATUS = { requested = 'Demande envoyée', test = 'Test en cours', passed = 'Test réussi', failed = 'Test échoué',
+    issued = 'PPA délivré', refused = 'Refusée / expirée' }
+
+-- Statut réel de la procédure (elyzea_papiers)
+local function ppaLive(row)
+    if row.status ~= 'requested' and row.status ~= 'test' and row.status ~= 'passed' then return end
+    local target
+    for s, p in pairs(Core.Functions.GetPlayers()) do if p.PlayerData.citizenid == row.citizenid then target = s end end
+    if not target or not papiers() then return end
+    local ok, st = pcall(function() return exports.elyzea_papiers:PpaState(target) end)
+    if not ok or type(st) ~= 'table' then return end
+    local new = ({ offer = 'requested', test = 'test', passed = 'passed', failed = 'failed' })[st.state] or row.status
+    if st.state == 'none' and row.status ~= 'passed' and os.time() - (tonumber(row.t) or os.time()) > 60 then new = 'refused' end
+    local details = st.score and ('%d/%d'):format(st.score, st.total or 0) or row.details
+    if new ~= row.status or details ~= row.details then
+        row.status, row.details = new, details
+        MySQL.update('UPDATE `ems_ppa` SET `status` = ?, `details` = ? WHERE `id` = ?', { new, details, row.id })
+    end
+end
+
+function RPC.ppa_list(src)
+    if not can(src, 'ppa') then return { error = 'Votre grade ne permet pas de faire passer le PPA.' } end
+    local rows = MySQL.query.await([[SELECT `id`, `citizenid`, `name`, `kind`, `status`, `examiner`, `details`, UNIX_TIMESTAMP(`created_at`) AS t
+        FROM `ems_ppa` ORDER BY `id` DESC LIMIT 30]]) or {}
+    local online = {}
+    for s, p in pairs(Core.Functions.GetPlayers()) do online[p.PlayerData.citizenid] = s end
+    for _, r in ipairs(rows) do
+        ppaLive(r)
+        r.statusLabel = PPA_STATUS[r.status] or r.status
+        r.online = online[r.citizenid] ~= nil
+        r.citizenid = nil
+    end
+    return { list = rows, papiers = papiers(), distance = PPA_DIST }
+end
+
+function RPC.ppa_start(src, d)
+    d = type(d) == 'table' and d or {}
+    if not can(src, 'ppa') then return { error = 'Votre grade ne permet pas de faire passer le PPA.' } end
+    if not papiers() then return { error = 'Le système des papiers (elyzea_papiers) n\'est pas démarré.' } end
+    local now = GetGameTimer()
+    if ppaLast[src] and now - ppaLast[src] < 4000 then return { error = 'Patientez quelques secondes.' } end
+    ppaLast[src] = now
+    local first, last = tostring(d.firstname or ''), tostring(d.lastname or '')
+    if #norm(first) < 2 or #norm(last) < 2 or #first > 40 or #last > 40 then return { error = 'Indiquez le nom et le prénom.' } end
+    local birth = tostring(d.birthdate or ''):match('^%d%d%d%d%-%d%d%-%d%d$')
+    local kind = d.kind == 'fdo' and 'fdo' or 'civil'
+    local found = {}
+    for s, p in pairs(Core.Functions.GetPlayers()) do
+        local ci = p.PlayerData.charinfo or {}
+        if norm(ci.firstname) == norm(first) and norm(ci.lastname) == norm(last) and (not birth or tostring(ci.birthdate or '') == birth) then
+            found[#found + 1] = { src = s, cid = p.PlayerData.citizenid, name = ('%s %s'):format(ci.firstname or '', ci.lastname or '') }
+        end
+    end
+    if #found == 0 then return { error = 'Aucune personne connectée ne porte cette identité.' } end
+    if #found > 1 then return { error = 'Plusieurs personnes portent ce nom : précisez la date de naissance.' } end
+    local t = found[1]
+    if t.src == src then return { error = 'Vous ne pouvez pas lancer votre propre PPA.' } end
+    if distBetween(src, t.src) > PPA_DIST then return { error = ('%s doit être près de vous (moins de %d m).'):format(t.name, PPA_DIST) } end
+    local ok, ret, msg = pcall(function() return exports.elyzea_papiers:PpaRequest(src, t.src, kind) end)
+    if not ok then return { error = 'Le système des papiers ne répond pas.' } end
+    if not ret then return { error = msg or 'Procédure impossible.' } end
+    MySQL.insert.await('INSERT INTO `ems_ppa` (`citizenid`, `name`, `kind`, `status`, `examiner`, `examiner_cid`) VALUES (?, ?, ?, ?, ?, ?)',
+        { t.cid, t.name, kind, 'requested', charName(src), identifier(src) })
+    return { ok = true, message = ('Demande envoyée à %s : il doit accepter, payer puis réussir le test.'):format(t.name) }
+end
+
+function RPC.ppa_issue(src, id)
+    if not can(src, 'ppa') then return { error = 'Votre grade ne permet pas de délivrer le PPA.' } end
+    if not papiers() then return { error = 'Le système des papiers n\'est pas démarré.' } end
+    local row = MySQL.single.await('SELECT `id`, `citizenid`, `name` FROM `ems_ppa` WHERE `id` = ?', { tonumber(id) or 0 })
+    if not row then return { error = 'Procédure introuvable.' } end
+    local target
+    for s, p in pairs(Core.Functions.GetPlayers()) do if p.PlayerData.citizenid == row.citizenid then target = s end end
+    if not target then return { error = ('%s n\'est pas connecté.'):format(row.name) } end
+    local ok, ret, msg = pcall(function() return exports.elyzea_papiers:PpaIssue(src, target) end)
+    if not ok then return { error = 'Le système des papiers ne répond pas.' } end
+    if not ret then return { error = msg or 'Délivrance impossible.' } end
+    MySQL.update.await('UPDATE `ems_ppa` SET `status` = ?, `examiner` = ?, `examiner_cid` = ? WHERE `id` = ?', { 'issued', charName(src), identifier(src), row.id })
+    return { ok = true, message = msg }
+end
+AddEventHandler('playerDropped', function() ppaLast[source] = nil end)
+
 local DAYS = { 'dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.' }
 local function ago(m)
     m = tonumber(m) or 0

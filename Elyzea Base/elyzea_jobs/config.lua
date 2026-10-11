@@ -73,6 +73,7 @@ Config.Companies = {
         label = 'EMS', short = 'EMS', color = '#e5484d', resource = 'elyzea_ems', duty = 'state:emsDuty', recruitGrade = 0,
         perms = {
             { id = 'bill', label = 'Facturer un patient', min = 0 },
+            { id = 'ppa',  label = 'Faire passer le PPA', min = 0 },
         },
     },
     burgershot = {

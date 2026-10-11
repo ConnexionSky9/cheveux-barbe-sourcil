@@ -45,7 +45,7 @@ function EMSData(d)
 end
 
 -- Accès par grade (modifiables par la direction depuis sa tablette)
-EMS_PERMISSIONS = { 'bill', 'staff_view', 'recruit', 'promote', 'fire', 'finance_view', 'deposit', 'withdraw' }
+EMS_PERMISSIONS = { 'bill', 'ppa', 'staff_view', 'recruit', 'promote', 'fire', 'finance_view', 'deposit', 'withdraw' }
 
 -- Accès par défaut, avant que la direction ne les modifie. La direction a toujours tout.
 function EMSDefaultPermissions(bossGrade)
@@ -54,7 +54,7 @@ function EMSDefaultPermissions(bossGrade)
         local chief = g >= bossGrade - 1
         local senior = g >= bossGrade - 2
         m[tostring(g)] = {
-            bill = true, staff_view = true,
+            bill = true, ppa = true, staff_view = true,
             recruit = senior, promote = chief, fire = false,
             finance_view = chief, deposit = chief, withdraw = false,
         }

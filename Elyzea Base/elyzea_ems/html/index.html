@@ -66,7 +66,7 @@ h3:first-child{margin-top:0}
 .chip.red{color:var(--cross);border-color:rgba(232,90,90,.35)}
 .btn{border-radius:10px;padding:11px 20px;cursor:pointer;font:700 14px var(--serif);letter-spacing:.06em;background:linear-gradient(180deg,var(--gold-hi),var(--gold) 60%,var(--gold-lo));color:#1A1206;border:1px solid var(--gold-hi)}
 .btn:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
-input[type=text],input[type=number],select{width:100%;background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:9px 11px;outline:none}
+input[type=date],input[type=text],input[type=number],select{width:100%;background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:9px 11px;outline:none}
 input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(61,134,255,.2)}
 label.l{display:block;font:600 13px var(--cond);color:var(--gold);margin-bottom:5px}
 .empty{color:var(--muted);padding:14px 0}
@@ -97,6 +97,11 @@ kbd{display:inline-block;min-width:26px;text-align:center;padding:1px 7px;border
 .dot{width:8px;height:8px;border-radius:50%;background:#3a4558;flex:none}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .tag{font:600 12px var(--cond);padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.ok{color:var(--ok);border-color:rgba(76,195,138,.4)}.tag.ko{color:var(--cross);border-color:rgba(229,72,77,.4)}.tag.wait{color:var(--gold)}
+.ppaform{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:18px}
+.ppaform .btn{white-space:nowrap}
+.prow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.prow .grow{flex:1;min-width:0}.prow small{color:var(--muted);display:block}
 .tag.duty{color:var(--ok);border-color:rgba(76,195,138,.4)}
 .ghead{display:flex;align-items:baseline;gap:10px;margin:18px 0 8px}
 .ghead:first-child{margin-top:0}
@@ -402,6 +407,7 @@ const PERM_KEYS=PERMS.flatMap(g=>g.items.map(i=>i[0]));
 const PAGES=[
   {id:'home',label:'Accueil',title:'Tableau de bord',desc:'Votre service et les gestes sur le terrain.',min:0},
   {id:'bill',label:'Facturer',title:'Facturer un patient',desc:'Choisissez un patient à proximité et une prestation.',perm:'bill'},
+  {id:'ppa',label:'PPA',title:'Permis de port d\'arme',desc:'Faire passer le test PPA puis délivrer le permis.',perm:'ppa',icon:'search'},
   {id:'team',label:'Équipe',title:'Équipe',desc:'Votre service, vos collègues et la démission.',icon:'staff'},
   {id:'boss',label:'Direction',title:'Direction',desc:'Employés et recrutement, grades et accès, finances, journal.',icon:'access',ej:true,manage:true}
 ];
@@ -447,6 +453,9 @@ async function rpc(name,...args){
     case 'withdraw':if(args[0]>MOCK.balance)return false;MOCK.balance-=args[0];MOCK.logs.unshift({type:'withdraw',label:'Retrait',amount:-args[0],author:'Lena Moreau',ago:'à l\'instant'});return true;
     case 'tablet_data':return mockData();
     case 'set_perms':MOCK.perms=JSON.parse(JSON.stringify(args[0]));return true;
+    case 'ppa_list':return {papiers:true,distance:5,list:[{id:2,name:'Marc Dupont',kind:'civil',status:'passed',statusLabel:'Test réussi',examiner:'Lena Moreau',details:'7/8',t:Date.now()/1000-300,online:true},{id:1,name:'Eva Roux',kind:'civil',status:'refused',statusLabel:'Refusée / expirée',examiner:'Lena Moreau',t:Date.now()/1000-4000,online:false}]};
+    case 'ppa_start':return {ok:true,message:'Demande envoyée.'};
+    case 'ppa_issue':return {ok:true,message:'PPA délivré.'};
   }}
 async function refresh(){const d=await rpc('tablet_data');if(d){D=d;if(IN_GAME&&window.EJobs)await EJobs.team();render()}}
 
@@ -463,7 +472,7 @@ function render(){
   const dut=$('#duty');dut.classList.toggle('on',!!D.me.duty);$('#dutyLab').textContent=D.me.duty?'En service':'Hors service';$('#dutySub').textContent=D.me.duty?'Appuyez pour terminer':'Appuyez pour prendre le service';
   const P=PAGES.find(p=>p.id===page);$('#ptitle').textContent=P.title;$('#pdesc').textContent=P.desc;
   if(page==='team'||page==='boss'){EJobs.mount($('#body'),page,{onClose:closeTablet});return}
-  $('#body').innerHTML=({home:homePage,bill:billPage})[page]();
+  $('#body').innerHTML=({home:homePage,bill:billPage,ppa:ppaPage})[page]();
 }
 function homePage(){const c=D.care||{revive:10,heal:5,inspect:4};
   return `<div class="hero"><div class="crossmark" aria-hidden="true"></div><div><h2>Bonjour ${esc(D.me.name.split(' ')[0])}</h2><p>${esc(gLabel(D.me.grade))} · ${esc(D.label)}</p></div>
@@ -477,6 +486,10 @@ function homePage(){const c=D.care||{revive:10,heal:5,inspect:4};
    </div>
    ${can('staff_view')?`<h3>Collègues en service</h3>${list(D.employees.filter(e=>e.duty).sort((a,b)=>b.grade-a.grade),false)||'<p class="empty">Personne n\'est en service pour le moment.</p>'}`:''}`}
 
+// Liste simple des collègues (accueil)
+function list(arr){if(!arr.length)return '';
+  return `<div class="list">${arr.map(e=>{const self=e.id===D.me.id;return `<div class="row"><span class="dot ${e.online?'on':''}" title="${e.online?'Connecté':'Hors ligne'}"></span>
+   <div class="who"><b>${esc(e.name)}${self?' (vous)':''}</b><small>${esc(gLabel(e.grade))}</small></div>${e.duty?'<span class="tag duty">En service</span>':e.online?'<span class="tag">Hors service</span>':''}</div>`}).join('')}</div>`}
 let bill={target:null,fee:null,custom:'',nearby:null};
 function billPage(){
   if(!bill.nearby){rpc('nearby').then(n=>{bill.nearby=n||[];if(page==='bill')render()});}
@@ -489,14 +502,45 @@ function billPage(){
     <label class="l" for="custom" style="margin-top:14px">Autre montant ($)</label><input type="number" id="custom" min="1" value="${esc(bill.custom)}" placeholder="Montant libre"></div></div>
    <div class="summary"><div class="amt">${money(amt)}</div><p>${tgt?`Facture envoyée à ${esc(tgt.name)}, qui aura ${D.billTimeout||20} s pour payer.`:'Sélectionnez un patient.'}${D.commission?` Vous touchez ${D.commission} %.`:''}</p><button class="btn" id="sendBill" ${tgt&&amt>0?'':'disabled'}>Envoyer la facture</button></div>`}
 
+/* ----- PPA ----- */
+let ppa={data:null,form:{lastname:'',firstname:'',birthdate:'',kind:'civil'},busy:false};
+const PPA_TAG={requested:'wait',test:'wait',passed:'ok',failed:'ko',issued:'ok',refused:''};
+const agoTxt=t=>{const m=Math.floor((Date.now()/1000-(t||0))/60);return m<1?'à l\'instant':m<60?`il y a ${m} min`:m<1440?`il y a ${Math.floor(m/60)} h`:`il y a ${Math.floor(m/1440)} j`};
+function loadPpa(){rpc('ppa_list').then(r=>{ppa.data=r||{list:[]};if(page==='ppa'&&!document.activeElement.closest('#body input,#body select'))render()})}
+function ppaPage(){
+  if(!ppa.data){loadPpa();return '<p class="empty">Chargement…</p>'}
+  const d=ppa.data,f=ppa.form;
+  if(d.error)return `<p class="empty">${esc(d.error)}</p>`;
+  return `<p class="sub">Saisissez l'identité exacte du citoyen. Il doit être près de vous (moins de ${d.distance||5} m), accepter la demande, payer, puis réussir le test. Vous pourrez ensuite lui délivrer le PPA.</p>
+   <div class="ppaform">
+    <div><label class="l" for="ppaLast">Nom</label><input type="text" id="ppaLast" maxlength="40" value="${esc(f.lastname)}" autocomplete="off"></div>
+    <div><label class="l" for="ppaFirst">Prénom</label><input type="text" id="ppaFirst" maxlength="40" value="${esc(f.firstname)}" autocomplete="off"></div>
+    <div><label class="l" for="ppaBirth">Date de naissance <small>(si homonymes)</small></label><input type="date" id="ppaBirth" value="${esc(f.birthdate)}"></div>
+    <div><label class="l" for="ppaKind">Type</label><select id="ppaKind"><option value="civil">PPA civil</option><option value="fdo" ${f.kind==='fdo'?'selected':''}>PPA forces de l'ordre</option></select></div>
+    <button class="btn" id="ppaStart" ${d.papiers&&!ppa.busy?'':'disabled'}>LANCER LE PPA</button>
+   </div>
+   ${d.papiers?'':'<p class="empty">Le système des papiers (elyzea_papiers) n\'est pas démarré.</p>'}
+   <h3 style="display:flex;align-items:center;gap:10px">Procédures <button class="chip" id="ppaRefresh" style="margin-left:auto">Actualiser</button></h3>
+   ${d.list.length?d.list.map(r=>`<div class="prow"><div class="grow"><b>${esc(r.name)}</b><small>${r.kind==='fdo'?'PPA forces de l\'ordre':'PPA civil'} · ${esc(r.examiner)} · ${agoTxt(r.t)}${r.online?'':' · hors ligne'}</small></div>
+     ${r.details?`<span class="tag">${esc(r.details)}</span>`:''}<span class="tag ${PPA_TAG[r.status]||''}">${esc(r.statusLabel)}</span>
+     ${r.status==='passed'&&r.online?`<button class="btn" data-ppaissue="${r.id}">Délivrer le PPA</button>`:''}</div>`).join(''):'<p class="empty">Aucune procédure.</p>'}`}
+setInterval(()=>{if(page==='ppa'&&D&&!$('#stage').classList.contains('hidden'))loadPpa()},6000);
+
 /* ----- Interactions tablette ----- */
-$('#menu').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;page=b.dataset.p;if(page==='bill')bill.nearby=null;render();$('#body').scrollTop=0});
+$('#menu').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;page=b.dataset.p;if(page==='bill')bill.nearby=null;if(page==='ppa')ppa.data=null;render();$('#body').scrollTop=0});
 async function toggleDuty(){const v=!D.me.duty;if(await rpc('duty',v)){D.me.duty=v;D.onDuty+=v?1:-1;const me=D.employees.find(e=>e.id===D.me.id);if(me)me.duty=v;render();toast(v?'Vous êtes en service : vous recevrez les alertes.':'Fin de service.')}}
 $('#duty').onclick=toggleDuty;
 $('#body').addEventListener('input',e=>{const t=e.target;
+  if(t.id==='ppaLast')ppa.form.lastname=t.value;if(t.id==='ppaFirst')ppa.form.firstname=t.value;if(t.id==='ppaBirth')ppa.form.birthdate=t.value;if(t.id==='ppaKind')ppa.form.kind=t.value;
   if(t.id==='custom'){bill.custom=t.value;bill.fee=null;const p=t.selectionStart;render();const n=$('#custom');n.focus();try{n.setSelectionRange(p,p)}catch(_){}}});
 $('#body').addEventListener('click',async e=>{const t=e.target,c=s=>t.closest(s);let b;
   if(c('#dutyBig')){toggleDuty();return}
+  if(c('#ppaRefresh')){loadPpa();return}
+  if(c('#ppaStart')){const f=ppa.form;f.lastname=$('#ppaLast').value.trim();f.firstname=$('#ppaFirst').value.trim();f.birthdate=$('#ppaBirth').value;f.kind=$('#ppaKind').value;
+    ppa.busy=true;render();const r=await rpc('ppa_start',{...f});ppa.busy=false;
+    if(!r||r.error){toast((r&&r.error)||'Le serveur ne répond pas.');render();return}
+    toast(r.message);ppa.form={lastname:'',firstname:'',birthdate:'',kind:'civil'};loadPpa();return}
+  if(b=c('[data-ppaissue]')){b.disabled=true;const r=await rpc('ppa_issue',+b.dataset.ppaissue);toast((r&&(r.error||r.message))||'Le serveur ne répond pas.');loadPpa();return}
   if(b=c('[data-tg]')){bill.target=+b.dataset.tg;render();return}
   if(b=c('[data-fee]')){bill.fee=+b.dataset.fee;bill.custom='';render();return}
   if(c('#near')){bill.nearby=null;render();return}

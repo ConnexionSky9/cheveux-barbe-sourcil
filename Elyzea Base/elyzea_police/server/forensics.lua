@@ -3,6 +3,7 @@
 --  Preuves réelles uniquement :
 --   · douille : créée quand un joueur tire avec une arme de son inventaire. Le serveur relève
 --     lui-même l'arme en main et son numéro de série (le client n'envoie qu'une position) ;
+--   · projectile : balle logée dans un véhicule touché (même arme, même numéro de série relevé) ;
 --   · sang : créée quand un joueur est blessé (profil ADN fictif du personnage) ;
 --   · arme saisie : mise sous scellé depuis l'inventaire d'un agent.
 --  Chaîne de conservation : chaque étape est journalisée (police_evidence_log).
@@ -16,13 +17,13 @@ local inv = function() return exports.elyzea_inventory end
 Forensics = { scene = {}, dna = {}, ready = false }
 local Fx = Forensics
 
-local TYPE_LABEL = { casing = 'Douille', blood = 'Trace de sang', weapon = 'Arme saisie' }
+local TYPE_LABEL = { casing = 'Douille', bullet = 'Projectile (impact)', blood = 'Trace de sang', weapon = 'Arme saisie' }
 local STATUS_LABEL = {
     scene = 'Sur la scène', collected = 'Collectée (transport)', reception = 'Réception du laboratoire', lab = 'Au laboratoire',
     stored = 'Salle des scellés', returned = 'Restituée', destroyed = 'Détruite', invalid = 'Dégradée (non collectée)',
 }
 local ANALYSIS_LABEL = { ballistic = 'Balistique', dna = 'ADN', prints = 'Empreintes digitales' }
-local ANALYSES_FOR = { casing = { 'ballistic' }, blood = { 'dna' }, weapon = { 'ballistic', 'prints' } }
+local ANALYSES_FOR = { casing = { 'ballistic' }, bullet = { 'ballistic' }, blood = { 'dna' }, weapon = { 'ballistic', 'prints' } }
 Fx.TYPE_LABEL, Fx.STATUS_LABEL, Fx.ANALYSIS_LABEL, Fx.ANALYSES_FOR = TYPE_LABEL, STATUS_LABEL, ANALYSIS_LABEL, ANALYSES_FOR
 
 -- ---------------------------------------------------------------------
@@ -137,8 +138,32 @@ end
 
 -- Infos visibles par les policiers sur la scène (jamais le numéro de série ni le profil ADN)
 local function Public(e)
-    return { id = e.id, type = e.type, x = e.x, y = e.y, z = e.z, t = e.t, count = e.data.count or 1,
-        calibre = e.type == 'casing' and e.data.calibre or nil, label = TYPE_LABEL[e.type] }
+    local out = { id = e.id, type = e.type, x = e.x, y = e.y, z = e.z, t = e.t, count = e.data.count or 1,
+        calibre = (e.type == 'casing' or e.type == 'bullet') and e.data.calibre or nil, label = TYPE_LABEL[e.type] }
+    if e.type == 'bullet' then
+        out.net, out.plate, out.ox, out.oy, out.oz = e.data.net, e.data.plate, e.data.ox, e.data.oy, e.data.oz
+    end
+    return out
+end
+
+local function Plate(veh) return (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '') end
+
+-- Véhicule d'un projectile, s'il existe encore (même plaque : un numéro réseau peut être réutilisé)
+function Fx.VehicleOf(e)
+    if e.type ~= 'bullet' or not e.data.net then return nil end
+    local veh = NetworkGetEntityFromNetworkId(tonumber(e.data.net) or 0)
+    if veh and veh ~= 0 and DoesEntityExist(veh) and GetEntityType(veh) == 2 and Plate(veh) == e.data.plate then return veh end
+    return nil
+end
+
+-- Position actuelle d'une preuve (un projectile suit le véhicule)
+function Fx.PosOf(e)
+    local veh = Fx.VehicleOf(e)
+    if veh then
+        local c = GetEntityCoords(veh)
+        e.x, e.y, e.z = c.x, c.y, c.z
+    end
+    return vector3(e.x, e.y, e.z)
 end
 
 function Fx.LabNear(src)
@@ -176,11 +201,11 @@ local function AddScene(kind, pos, ref, data, street)
     local id = MySQL.insert.await('INSERT INTO `police_evidence` (`type`, `status`, `location`, `x`, `y`, `z`, `street`, `ref`, `data`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         { kind, 'scene', 'Scène de crime', pos.x, pos.y, pos.z, street, ref, json.encode(data) })
     if not id then return end
-    local code = Fx.Code(kind == 'casing' and 'DOU' or 'SNG', id)
+    local code = Fx.Code(kind == 'casing' and 'DOU' or kind == 'bullet' and 'PRJ' or 'SNG', id)
     MySQL.update('UPDATE `police_evidence` SET `code` = ? WHERE `id` = ?', { code, id })
     local e = { id = id, code = code, type = kind, x = pos.x, y = pos.y, z = pos.z, t = os.time(), ref = ref, data = data, street = street }
     Fx.scene[id] = e
-    Fx.Log(id, 'Découverte', 'Système', ('%s laissée%s'):format(TYPE_LABEL[kind], street and (' · ' .. street) or ''))
+    Fx.Log(id, 'Découverte', 'Système', ('%s%s%s'):format(TYPE_LABEL[kind], data.plate and (' · véhicule ' .. data.plate) or '', street and (' · ' .. street) or ''))
     Broadcast('police:forensic:add', Public(e))
 end
 
@@ -199,7 +224,18 @@ local function Merge(kind, ref, pos)
     return false
 end
 
-local lastShot, lastBlood = {}, {}
+local lastShot, lastBlood, lastImpact, creatingImpact = {}, {}, {}, {}
+
+-- Arme à feu réellement en main (relevée par le serveur, jamais envoyée par le client)
+local function FirearmOf(src)
+    if GetResourceState('elyzea_inventory') ~= 'started' then return nil end
+    local cur = inv():GetCurrentWeapon(src)
+    if not cur or not cur.metadata or not cur.metadata.serial then return nil end
+    local def = inv():Items(cur.name)
+    if not def or not def.ammoname then return nil end
+    local ammo = inv():Items(def.ammoname)
+    return { weapon = cur.name, label = def.label, ammo = def.ammoname, calibre = ammo and ammo.label or def.ammoname, serial = tostring(cur.metadata.serial) }
+end
 
 -- Le client signale un tir : le serveur vérifie l'arme réellement en main
 RegisterNetEvent('police:forensic:shot', function(x, y, z, street)
@@ -209,19 +245,50 @@ RegisterNetEvent('police:forensic:shot', function(x, y, z, street)
     if lastShot[src] and now - lastShot[src] < 700 then return end
     lastShot[src] = now
     if F.ignoreOnDutyPolice and P.OnDuty(src) then return end
-    if GetResourceState('elyzea_inventory') ~= 'started' then return end
-    local cur = inv():GetCurrentWeapon(src)
-    if not cur or not cur.metadata or not cur.metadata.serial then return end
-    local def = inv():Items(cur.name)
-    if not def or not def.ammoname then return end
+    local w = FirearmOf(src)
+    if not w then return end
     local pos = SafePos(src, x, y, z, 4.0)
     if not pos then return end
-    local serial = tostring(cur.metadata.serial)
-    if Merge('casing', serial, pos) then return end
-    local ammo = inv():Items(def.ammoname)
-    AddScene('casing', pos, serial, {
-        weapon = cur.name, label = def.label, ammo = def.ammoname, calibre = ammo and ammo.label or def.ammoname, serial = serial, count = 1,
-    }, Clean(street, 120))
+    if Merge('casing', w.serial, pos) then return end
+    w.count = 1
+    AddScene('casing', pos, w.serial, w, Clean(street, 120))
+end)
+
+-- Le client signale qu'une de ses balles a touché un véhicule : projectile logé dans la carrosserie
+RegisterNetEvent('police:forensic:impact', function(netId, ox, oy, oz, street)
+    local src = source
+    if not F.enabled or F.impacts == false or not Fx.ready then return end
+    local now = GetGameTimer()
+    if lastImpact[src] and now - lastImpact[src] < 250 then return end
+    lastImpact[src] = now
+    if F.ignoreOnDutyPolice and P.OnDuty(src) then return end
+    local w = FirearmOf(src)
+    if not w then return end
+    local veh = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
+    local shooter = PedPos(src)
+    local vpos = GetEntityCoords(veh)
+    if not shooter or #(shooter - vpos) > (F.impactRange or 200.0) then return end
+    ox, oy, oz = tonumber(ox) or 0.0, tonumber(oy) or 0.0, tonumber(oz) or 0.0
+    if math.abs(ox) > 5 or math.abs(oy) > 8 or math.abs(oz) > 4 then return end
+    local plate = Plate(veh)
+    local key = w.serial .. '|' .. plate
+    if creatingImpact[key] then return end
+    -- Même arme, même véhicule : un seul scellé avec le nombre d'impacts
+    for _, e in pairs(Fx.scene) do
+        if e.type == 'bullet' and e.ref == w.serial and e.data.plate == plate and os.time() - e.t <= 1800 then
+            e.data.count = (e.data.count or 1) + 1
+            e.data.net = netId
+            MySQL.update('UPDATE `police_evidence` SET `data` = ? WHERE `id` = ?', { json.encode(e.data), e.id })
+            Broadcast('police:forensic:update', Public(e))
+            return
+        end
+    end
+    w.count, w.plate, w.net, w.ox, w.oy, w.oz = 1, plate, netId, ox, oy, oz
+    w.model = GetEntityModel(veh)
+    creatingImpact[key] = true
+    AddScene('bullet', vpos, w.serial, w, Clean(street, 120))
+    creatingImpact[key] = nil
 end)
 
 -- Le client signale une blessure : trace de sang avec le profil ADN du personnage
@@ -252,7 +319,7 @@ RegisterNetEvent('police:forensic:nearby', function()
     if not pos then return end
     local out, range = {}, (F.visibleDistance or 25.0) * 2
     for _, e in pairs(Fx.scene) do
-        if #(vector3(e.x, e.y, e.z) - pos) <= range then out[#out + 1] = Public(e) end
+        if #(Fx.PosOf(e) - pos) <= range then out[#out + 1] = Public(e) end
     end
     TriggerClientEvent('police:forensic:nearby', src, out)
 end)
@@ -269,17 +336,19 @@ RegisterNetEvent('police:forensic:collect', function(id)
     if not P.Can(src, 'sci_collect') then return P.Notify(src, 'Prélèvement réservé à la police scientifique (en service).', 'error') end
     if collecting[id] then return end
     local pos = PedPos(src)
-    if not pos or #(pos - vector3(e.x, e.y, e.z)) > (F.collectDistance or 2.5) + 0.5 then return P.Notify(src, 'Approchez-vous de la preuve.', 'error') end
+    local maxDist = (F.collectDistance or 2.5) + (e.type == 'bullet' and 3.5 or 0.5)
+    if not pos or #(pos - Fx.PosOf(e)) > maxDist then return P.Notify(src, e.type == 'bullet' and 'Approchez-vous du véhicule.' or 'Approchez-vous de la preuve.', 'error') end
     if (tonumber(inv():Search(src, 'count', 'empty_evidence_bag')) or 0) < 1 then
         return P.Notify(src, 'Il vous faut un sachet de preuve vide (armurerie de la police).', 'error')
     end
     local meta = { evidence = e.id, code = e.code, kind = e.type, label = ('Scellé %s'):format(e.code),
-        description = ('%s · %s%s'):format(TYPE_LABEL[e.type], os.date('%d/%m %H:%M'), e.street and (' · ' .. e.street) or '') }
+        description = ('%s · %s%s%s'):format(TYPE_LABEL[e.type], os.date('%d/%m %H:%M'), e.data.plate and (' · véhicule ' .. e.data.plate) or '', e.street and (' · ' .. e.street) or '') }
     if not inv():CanCarryItem(src, 'filled_evidence_bag', 1, meta) then return P.Notify(src, 'Inventaire plein.', 'error') end
     collecting[id] = true
     -- Passage scène → collectée : une seule fois (impossible à dupliquer)
     local n = MySQL.update.await([[UPDATE `police_evidence` SET `status` = 'collected', `location` = 'Transport', `collected_by` = ?, `collected_cid` = ?,
-        `holder` = ?, `holder_cid` = ?, `collected_at` = NOW() WHERE `id` = ? AND `status` = 'scene']], { P.Name(src), P.Cid(src), P.Name(src), P.Cid(src), e.id })
+        `holder` = ?, `holder_cid` = ?, `collected_at` = NOW(), `x` = ?, `y` = ?, `z` = ? WHERE `id` = ? AND `status` = 'scene']],
+        { P.Name(src), P.Cid(src), P.Name(src), P.Cid(src), e.x, e.y, e.z, e.id })
     if not n or n < 1 then
         collecting[id] = nil
         Fx.scene[id] = nil
@@ -413,5 +482,5 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
-    lastShot[src], lastBlood[src], lastNearby[src] = nil, nil, nil
+    lastShot[src], lastBlood[src], lastNearby[src], lastImpact[src] = nil, nil, nil, nil
 end)

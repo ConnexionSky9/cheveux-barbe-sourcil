@@ -11,6 +11,7 @@ local Fx = Forensics
 local F = Config.Forensics or {}
 local core = exports.elyzea_core
 local inv = function() return exports.elyzea_inventory end
+PoliceMdtActions = PoliceMdtActions or {}
 local A = PoliceMdtActions
 
 local function Decode(s) local ok, v = pcall(json.decode, s or '') return ok and v or {} end
@@ -71,14 +72,16 @@ Compute.ballistic = function(e, d)
         res.compatible = d.weapon and inv():CountWeaponModel(d.weapon) or 0
     end
     res.matches = Linked(serial, e.id)
-    if e.type == 'casing' then
+    if e.type == 'casing' or e.type == 'bullet' then
+        local what = e.type == 'bullet' and ('Projectile extrait du véhicule %s'):format(d.plate or '?') or 'Douille'
+        res.plate = d.plate
         res.count = d.count or 1
         res.limits = res.identified
             and 'Correspondance établie par le numéro de série relevé lors du tir. Le propriétaire enregistré n\'est pas forcément le tireur.'
             or ('Seul le type d\'arme est déterminé : %d arme(s) de ce modèle sont enregistrées.'):format(res.compatible or 0)
         res.summary = res.identified
-            and ('Douille de calibre %s tirée par l\'arme %s n° %s.'):format(res.calibre or '?', res.weaponType or '?', res.serial)
-            or ('Douille de calibre %s compatible avec une arme de type %s.'):format(res.calibre or '?', res.weaponType or '?')
+            and ('%s : calibre %s, tiré par l\'arme %s n° %s (propriétaire enregistré : %s).'):format(what, res.calibre or '?', res.weaponType or '?', res.serial, res.owner or '?')
+            or ('%s : calibre %s, compatible avec une arme de type %s.'):format(what, res.calibre or '?', res.weaponType or '?')
     else
         res.limits = 'Identité de l\'arme établie par son numéro de série. Les douilles liées partagent ce numéro.'
         res.summary = ('Arme %s n° %s%s.'):format(res.weaponType or '?', res.serial or '?', res.engraving and (' gravée « ' .. res.engraving .. ' »') or '')
@@ -265,7 +268,8 @@ A.sciEvidenceOne = { perm = 'sci_view', offDuty = true, fn = function(src, d)
     local data = Decode(e.data)
     -- Données visibles avant analyse : ce que l'œil voit (jamais le numéro relevé au tir ni le profil ADN)
     local visible = { count = data.count }
-    if e.type == 'casing' then visible.calibre = data.calibre end
+    if e.type == 'casing' or e.type == 'bullet' then visible.calibre = data.calibre end
+    if e.type == 'bullet' then visible.plate = data.plate end
     if e.type == 'weapon' then visible.weapon, visible.serial, visible.engraving = data.label, data.serial, data.engraving end
     local log = MySQL.query.await('SELECT `action`, `actor`, `details`, UNIX_TIMESTAMP(`created_at`) AS t FROM `police_evidence_log` WHERE `evidence_id` = ? ORDER BY `id`', { e.id }) or {}
     local analyses = MySQL.query.await('SELECT `id`, `kind`, `status`, `technician`, UNIX_TIMESTAMP(`ends_at`) AS ends FROM `police_analyses` WHERE `evidence_id` = ? ORDER BY `id`', { e.id }) or {}

@@ -208,13 +208,12 @@ local function openTablet()
         SetNuiFocus(false, false)
         tabletAnim(false)
     end
-    if busy then return feed('~o~Termine ton geste en cours avant d\'ouvrir la tablette.') end
-    if downed then return feed('~r~Impossible d\'ouvrir la tablette dans le coma.') end
     readJob()
     local job, grade = myJob()
-    if job ~= Config.Job then
-        return feed(('~r~Tablette EMS réservée au métier %s.~s~ Ton métier actuel : %s.'):format(Config.Job, tostring(job or 'inconnu')))
-    end
+    -- F6 sert aussi aux autres métiers : rien à afficher si on n'est pas EMS
+    if job ~= Config.Job then return end
+    if busy then return feed('~o~Termine ton geste en cours avant d\'ouvrir la tablette.') end
+    if downed then return feed('~r~Impossible d\'ouvrir la tablette dans le coma.') end
     opening = true
     local data = rpc('tablet_data')
     opening = false
