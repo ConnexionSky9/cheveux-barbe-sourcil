@@ -51,6 +51,32 @@ const TABS = [
 ];
 
 
+/* ---------- Catégories du menu (grandes catégories → sous-catégories) ---------- */
+// Chaque onglet est rangé dans une catégorie par son id ; un onglet inconnu va dans « Autres ».
+const CATS = [
+    { id: 'dash',    ico: '🏠', label: 'Accueil',            tabs: ['home'] },
+    { id: 'mod',     ico: '🛡️', label: 'Modération',         tabs: ['players', 'reports', 'bans', 'debts'] },
+    { id: 'tools',   ico: '🧰', label: 'Mes outils',         tabs: ['self', 'items', 'vehicles', 'staffjob'] },
+    { id: 'server',  ico: '🌍', label: 'Serveur et monde',   tabs: ['announce', 'world', 'events', 'map', 'respawn', 'welcome'] },
+    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis'] },
+    { id: 'illegal', ico: '🩸', label: 'Illégal',            tabs: ['illegal', 'drugsale'] },
+    { id: 'build',   ico: '🏗️', label: 'Construction',       tabs: ['editor'] },
+    { id: 'admin',   ico: '⚙️', label: 'Administration',     tabs: ['staff', 'ranks', 'logs', 'wipe', 'keys'] },
+    { id: 'other',   ico: '📦', label: 'Autres',             tabs: [] },
+];
+const catOf = (id) => CATS.find((c) => c.tabs.includes(id)) || CATS[CATS.length - 1];
+// Onglets visibles d'une catégorie, dans l'ordre de la catégorie (les inconnus à la fin, dans l'ordre d'ajout)
+function catTabs(c) {
+    const vis = TABS.filter((t) => !t.parent && t.show() && catOf(t.id) === c);
+    return vis.sort((a, b) => {
+        const ia = c.tabs.indexOf(a.id), ib = c.tabs.indexOf(b.id);
+        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+}
+let openCats = (() => { try { return new Set(JSON.parse(localStorage.getItem('am_cats') || '[]')); } catch (e) { return new Set(); } })();
+const collapsedCats = new Set();   // catégorie active repliée à la main
+const saveCats = () => { try { localStorage.setItem('am_cats', JSON.stringify([...openCats])); } catch (e) { /* stockage indisponible */ } };
+
 /* ---------- Messages Lua ---------- */
 window.addEventListener('message', (e) => {
     const m = e.data;
@@ -194,23 +220,39 @@ function render() {
     sd.textContent = duty ? '🛡️ En service' : '🎭 Mode RP';
     updateClock();
 
-    let lastGroup = null;
-    // Les onglets « enfants » (ex. EMS, Police… dans Métiers) ne sont pas dans la barre : leur parent s'allume
+    // Les onglets « enfants » (ex. sous-pages d'un onglet) ne sont pas dans la barre : leur parent s'allume
     const curTab = TABS.find((t) => t.id === tab);
     const activeId = curTab && curTab.parent ? curTab.parent : tab;
-    $('#tabs').innerHTML = TABS.filter((t) => !t.parent && t.show()).map((t) => {
-        const c = t.count ? t.count() : 0;
-        const newGroup = lastGroup !== null && t.group !== lastGroup;
-        const title = t.group !== lastGroup && TAB_GROUP_TITLES[t.group] ? `<div class="tab-group">${TAB_GROUP_TITLES[t.group]}</div>` : '';
-        const sep = (newGroup ? '<div class="tab-sep"></div>' : '') + title;
-        lastGroup = t.group;
-        return `${sep}<button class="tab ${t.id === activeId ? 'active' : ''}" data-tab="${t.id}">
-            <span class="ico">${t.ico}</span>${t.label}${c ? `<span class="count">${c}</span>` : ''}</button>`;
+    const activeCat = catOf(activeId);
+    $('#tabs').innerHTML = CATS.map((c) => {
+        const list = catTabs(c);
+        if (!list.length) return '';
+        const btn = (t, sub) => {
+            const n = t.count ? t.count() : 0;
+            return `<button class="tab ${sub ? 'sub' : ''} ${t.id === activeId ? 'active' : ''}" data-tab="${t.id}">
+                <span class="ico">${t.ico}</span>${t.label}${n ? `<span class="count">${n}</span>` : ''}</button>`;
+        };
+        // Catégorie d'un seul onglet : bouton direct
+        if (list.length === 1 && (c.id === 'dash' || c.id === 'build')) return btn(list[0], false);
+        const total = list.reduce((sum, t) => sum + (t.count ? t.count() : 0), 0);
+        const open = c === activeCat ? !collapsedCats.has(c.id) : openCats.has(c.id);
+        return `<div class="cat ${open ? 'open' : ''} ${c === activeCat ? 'has-active' : ''}">
+            <button class="cat-head" data-cat="${c.id}" aria-expanded="${open}"><span class="ico">${c.ico}</span><span class="cat-label">${c.label}</span>
+                ${total ? `<span class="count">${total}</span>` : ''}<span class="chev">${open ? '▾' : '▸'}</span></button>
+            ${open ? `<div class="cat-body">${list.map((t) => btn(t, true)).join('')}</div>` : ''}</div>`;
     }).join('');
+
+    // Raccourcis vers les autres pages de la même catégorie (en haut du contenu)
+    const siblings = catTabs(activeCat);
+    $('#subnav').innerHTML = siblings.length > 1 ? siblings.map((t) => {
+        const n = t.count ? t.count() : 0;
+        return `<button class="subnav-btn ${t.id === activeId ? 'active' : ''}" data-tab-go="${t.id}">${t.ico} ${t.label}${n ? ` <span class="count">${n}</span>` : ''}</button>`;
+    }).join('') : '';
 
     const current = TABS.find((t) => t.id === tab);
     const parent = current && current.parent ? TABS.find((t) => t.id === current.parent) : null;
-    $('#page-title').textContent = current ? (parent ? `${parent.label} › ${current.label}` : current.label) : '';
+    const crumb = current && catTabs(catOf(activeId)).length > 1 ? `${catOf(activeId).label} › ` : '';
+    $('#page-title').textContent = current ? crumb + (parent ? `${parent.label} › ${current.label}` : current.label) : '';
     $('#page-sub').textContent = current ? current.sub : '';
     if (!duty && tab !== 'keys') {
         $('#page-title').textContent = 'Mode RP';
@@ -274,9 +316,41 @@ function updateClock() {
 setInterval(updateClock, 15000);
 
 $('#tabs').addEventListener('click', (e) => {
+    const h = e.target.closest('[data-cat]');
+    if (h) {
+        const c = CATS.find((x) => x.id === h.dataset.cat);
+        if (!c) return;
+        const curTab = TABS.find((t) => t.id === tab);
+        const active = catOf(curTab && curTab.parent ? curTab.parent : tab) === c;
+        if (active) {
+            // Catégorie de la page affichée : on la replie / déplie sans changer de page
+            if (collapsedCats.has(c.id)) collapsedCats.delete(c.id); else collapsedCats.add(c.id);
+        } else if (openCats.has(c.id)) {
+            openCats.delete(c.id);
+        } else {
+            // Ouverture : on affiche directement sa première page
+            openCats.add(c.id);
+            collapsedCats.delete(c.id);
+            const list = catTabs(c);
+            if (list.length) { tab = list[0].id; $('#content').scrollTop = 0; }
+        }
+        saveCats();
+        return render();
+    }
     const b = e.target.closest('[data-tab]');
     if (!b) return;
     tab = b.dataset.tab;
+    render();
+});
+
+// Raccourcis de la catégorie (en haut de la page)
+$('#subnav').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab-go]');
+    if (!b) return;
+    const t = TABS.find((x) => x.id === b.dataset.tabGo);
+    if (!t || !t.show()) return;
+    tab = t.id;
+    $('#content').scrollTop = 0;
     render();
 });
 

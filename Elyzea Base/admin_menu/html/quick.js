@@ -5,7 +5,8 @@
 (() => {
     'use strict';
 
-    const Q = { open: false, nearby: [], idInput: '', selected: null, notFound: null, pm: '', sc: '', ann: '', tpc: '' };
+    const Q = { open: false, nearby: [], idInput: '', selected: null, notFound: null, pm: '', sc: '', ann: '', tpc: '', view: 'main' };
+    const pending = () => ((D && D.reports) || []).filter((r) => !r.claimedBy);
     const box = document.getElementById('quick');
     const self = () => (D && D.self) || {};
     const duty = () => (D && D.self && typeof D.self.duty === 'boolean') ? D.self.duty : true;
@@ -55,6 +56,23 @@
         </div>`;
     }
 
+    // Liste des reports pas encore pris
+    function reportsView() {
+        const list = pending().sort((a, b) => a.id - b.id);
+        return `<div class="q-sec"><button class="btn" data-q="back">← Retour</button></div>
+            <div class="q-sec"><h3>Reports en attente (${list.length})</h3>
+            ${list.length ? list.map((r) => `<div class="q-rep">
+                <div class="q-rep-head"><span>#${r.id} · ${esc(r.name)} <span class="muted">[${r.src}]</span></span><span class="muted">${esc(r.time || '')}</span></div>
+                <div class="q-rep-msg">${esc(r.msg)}</div>
+                ${r.offline ? '<p class="q-hint" style="color:var(--danger)">Joueur déconnecté.</p>' : ''}
+                <div class="btn-row">
+                    <button class="btn primary" data-qr="claim" data-id="${r.id}">✋ Prendre en charge</button>
+                    ${!r.offline && has('goto') ? `<button class="btn" data-qr="goto" data-id="${r.id}" data-src="${r.src}">📍 Aller vers lui</button>` : ''}
+                    ${!r.offline && has('bring') ? `<button class="btn" data-qr="bring" data-id="${r.id}" data-src="${r.src}">🧲 L'amener</button>` : ''}
+                    <button class="btn danger" data-qr="close" data-id="${r.id}">Clôturer</button>
+                </div></div>`).join('') : '<div class="q-empty">Aucun report en attente. 👍</div>'}</div>`;
+    }
+
     function draw() {
         if (!Q.open) return;
         if (!D) { box.innerHTML = '<div class="q-panel"><div class="q-empty">Chargement…</div></div>'; return; }
@@ -81,7 +99,9 @@
                 <button class="sb-close" data-q="close" title="Fermer (Échap)">✕</button>
             </div>
             <div class="q-body">
-            ${!onDuty ? `<div class="q-empty">Tu es en mode RP : reprends ton service pour utiliser les outils staff.</div>` : `
+            ${!onDuty ? `<div class="q-empty">Tu es en mode RP : reprends ton service pour utiliser les outils staff.</div>`
+            : Q.view === 'reports' && has('reports') ? reportsView() : `
+                ${has('reports') ? `<button class="q-reports-btn ${pending().length ? '' : 'none'}" data-q="reports"><span>📨 Reports en attente</span><span class="n">${pending().length}</span></button>` : ''}
                 <div class="q-sec"><h3>Moi</h3><div class="q-grid">${meTiles}</div></div>
 
                 ${has('tp_coords') ? `<div class="q-sec"><h3>Téléportation</h3>
@@ -156,12 +176,22 @@
             }
             return;
         }
-        const t = e.target.closest('[data-q], [data-qp], [data-qa]');
+        const t = e.target.closest('[data-q], [data-qp], [data-qa], [data-qr]');
         if (!t) {
             if (e.target === box) close(); // clic à côté du panneau
             return;
         }
         if (t.dataset.qp) { Q.selected = Number(t.dataset.qp); Q.pm = ''; return draw(); }
+        if (t.dataset.qr) {
+            const id = Number(t.dataset.id), src = Number(t.dataset.src);
+            switch (t.dataset.qr) {
+                case 'claim': return qpost('report_claim', { id });
+                case 'goto': qpost('report_claim', { id }); close(); return qpost('goto', { target: src });
+                case 'bring': qpost('report_claim', { id }); return qpost('bring', { target: src });
+                case 'close': return qpost('report_close', { id });
+            }
+            return;
+        }
         const me = D.me.id;
         if (t.dataset.qa) {
             const id = Q.selected;
@@ -176,6 +206,8 @@
         }
         switch (t.dataset.q) {
             case 'close': return close();
+            case 'reports': Q.view = 'reports'; return draw();
+            case 'back': Q.view = 'main'; return draw();
             case 'pick': return pickId();
             case 'duty': return selfThen('duty');
             case 'tpm': return selfThen('tp_waypoint', null, true);
@@ -226,8 +258,21 @@
     window.addEventListener('message', (ev) => {
         const m = ev.data;
         if (!m) return;
+        if (m.action === 'reportHud') {
+            const el = document.getElementById('reporthud');
+            const n = Number(m.count) || 0;
+            const before = Number(el.dataset.n || 0);
+            el.dataset.n = n;
+            if (n <= 0) { el.classList.add('hidden'); return; }
+            const key = (D && D.keys && (D.keys.find((k) => k.label === 'Menu rapide') || {}).current) || 'F9';
+            el.innerHTML = `📨 ${n} REPORT${n > 1 ? 'S' : ''} EN ATTENTE<small>${esc(typeof keyName === 'function' ? keyName(key) : key)} › Reports</small>`;
+            el.classList.remove('hidden');
+            if (n > before) { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+            return;
+        }
         if (m.action === 'quick') {
             Q.open = !!m.open;
+            if (Q.open) Q.view = m.view === 'reports' ? 'reports' : 'main';
             box.classList.toggle('hidden', !Q.open);
             document.body.classList.toggle('quick-open', Q.open);
             if (Q.open) {

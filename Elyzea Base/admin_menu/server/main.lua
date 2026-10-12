@@ -439,6 +439,23 @@ local function staffOnline(perm)
     return list
 end
 
+-- Compteur rouge en haut de l'écran : reports pas encore pris, pour les staffs EN SERVICE
+-- (0 = caché, aussi pour les staffs en mode RP)
+local function pushReportCount(only)
+    local n = 0
+    for _, r in pairs(Reports) do if not r.claimedBy then n = n + 1 end end
+    local targets = only and { tonumber(only) } or nil
+    if not targets then
+        targets = {}
+        for _, p in ipairs(GetPlayers()) do targets[#targets + 1] = tonumber(p) end
+    end
+    for _, id in ipairs(targets) do
+        if id and GetPlayerName(id) and hasPerm(id, 'reports') then
+            TriggerClientEvent('adminmenu:reportCount', id, onDuty(id) and n or 0)
+        end
+    end
+end
+
 -- ---------------------------------------------------------
 --  Bans
 -- ---------------------------------------------------------
@@ -942,6 +959,7 @@ Actions.report_claim = { perm = 'reports', fn = function(src, d)
         notify(r.src, ('Votre report est pris en charge par %s.'):format(pname(src)), 'success')
     end
     addLog(src, 'Report pris en charge', ('#%d de %s'):format(r.id, r.name))
+    pushReportCount()
 end }
 
 Actions.report_close = { perm = 'reports', fn = function(src, d)
@@ -950,6 +968,7 @@ Actions.report_close = { perm = 'reports', fn = function(src, d)
     Reports[r.id] = nil
     if not r.offline and isOnline(r.src) then notify(r.src, 'Votre report a été clôturé.', 'info') end
     addLog(src, 'Report clôturé', ('#%d de %s'):format(r.id, r.name))
+    pushReportCount()
 end }
 
 -- Véhicules / entités -------------------------------------
@@ -1292,6 +1311,22 @@ RegisterNetEvent('adminmenu:duty', function(on, silent)
     NeedsLock[src] = nil -- nouveau relevé au prochain passage (service) ou fin du gel (mode RP)
     TriggerClientEvent('adminmenu:needsFreeze', src, Duty[src] and Config.StaffNeeds and Config.StaffNeeds.enabled)
     sendData(src)
+    pushReportCount(src)
+end)
+
+-- Le client demande le compteur (connexion, redémarrage de la ressource)
+RegisterNetEvent('adminmenu:reportCount:request', function()
+    local src = source
+    if not rateLimit(src, 'repcount', 3, 5000) then return end
+    pushReportCount(src)
+end)
+
+-- Filet de sécurité : grade donné ou retiré, staff connecté…
+CreateThread(function()
+    while true do
+        Wait(30000)
+        pushReportCount()
+    end
 end)
 
 -- ---------------------------------------------------------
@@ -1428,6 +1463,7 @@ RegisterCommand('report', function(src, args)
     Reports[r.id] = r
     notify(src, 'Report envoyé au staff.', 'success')
     for _, id in ipairs(staffOnline('reports')) do TriggerClientEvent('adminmenu:newReport', id, r) end
+    pushReportCount()
 end, false)
 
 -- Console : setrank <id> <grade|none>   (ex : setrank 1 fondateur)

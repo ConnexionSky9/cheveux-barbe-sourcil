@@ -580,6 +580,18 @@ RegisterNetEvent('adminmenu:newReport', function(r)
     PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
 end)
 
+-- Compteur rouge en haut au milieu : reports pas encore pris (staff en service seulement)
+RegisterNetEvent('adminmenu:reportCount', function(n)
+    SendNUIMessage({ action = 'reportHud', count = tonumber(n) or 0 })
+end)
+CreateThread(function()
+    Wait(5000)
+    TriggerServerEvent('adminmenu:reportCount:request')
+end)
+RegisterNetEvent('elyzea:client:playerLoaded', function()
+    SetTimeout(3000, function() TriggerServerEvent('adminmenu:reportCount:request') end)
+end)
+
 RegisterNetEvent('adminmenu:forceDelete', function(netId)
     if not NetworkDoesNetworkIdExist(netId) then return Notify('Entité introuvable.', 'error') end
     local ent = NetworkGetEntityFromNetworkId(netId)
