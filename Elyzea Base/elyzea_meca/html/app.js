@@ -265,6 +265,7 @@ function wsRender() {
       } else if (it) {
         if (grp.subs) main += `<div class="subtabs">${grp.subs.map((s) => `<button class="${String(W.sub) === s.id ? 'on' : ''}" data-wsub="${esc(s.id)}">${esc(s.label)}</button>`).join('')}</div>`;
         if (grp.subs && W.sub === null) main += '<div class="empty">Choisissez la pièce.</div>';
+        else if (RGB_GROUPS[it.mod]) main += rgbCard(it);
         else if (!W.opts) main += '<div class="empty">Lecture des options…</div>';
         else {
           const inCart = W.cart.find((l) => l.code === it.code && l.slot === slotOf(W.opts[0] && W.opts[0].spec, it));
@@ -287,6 +288,27 @@ function wsRender() {
       <div class="ws-total"><span>Total : <b>${money(cartTotal())}</b></span>
         <span style="display:flex;gap:.4rem;align-items:center"><select class="input" id="wsCustomer" style="width:auto">${customers.length ? customers.map((c) => `<option value="${c.id}" ${String(W.customer) === String(c.id) ? 'selected' : ''}>${c.owner ? `👤 ${esc(c.name || '')} (propriétaire)` : `Personne · ID ${c.id}`}</option>`).join('') : '<option value="">Aucun client à côté</option>'}</select>
         <button class="btn" data-ws="clear" ${W.cart.length ? '' : 'disabled'}>Vider</button><button class="btn primary" data-ws="send" ${W.cart.length && customers.length ? '' : 'disabled'}>Envoyer le devis</button></span></div></div>`}`;
+}
+
+/* ---------- Couleur personnalisée (RVB) : peinture, néons, fumée, xénon ---------- */
+const RGB_GROUPS = { paint: true, neon: true, smoke: true, xenon: true };
+const RGB_FINISH = [[0, 'Normal'], [1, 'Métallisé'], [2, 'Nacré'], [3, 'Mat'], [4, 'Métal'], [5, 'Chrome']];
+const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16) || 0);
+function rgbCard(it) {
+  const prev = W.rgb && W.rgb[it.mod] || { hex: '#d9b56a', finish: 1 };
+  return `<div class="rgb-card"><span>🎨 Couleur personnalisée</span><input type="color" id="wsRgb" value="${esc(prev.hex)}">
+    ${it.mod === 'paint' ? `<select class="input" id="wsRgbFin" style="width:auto">${RGB_FINISH.map(([v, l]) => `<option value="${v}" ${prev.finish === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
+    <button class="btn" data-wrgb="preview">Aperçu</button><button class="btn primary" data-wrgb="add">Ajouter · ${money(it.price)}</button></div>`;
+}
+function rgbSpec(it) {
+  const hex = ($('#wsRgb') || {}).value || '#ffffff', rgb = hexToRgb(hex);
+  const finish = Number(($('#wsRgbFin') || {}).value || 1);
+  W.rgb = W.rgb || {}; W.rgb[it.mod] = { hex, finish };
+  const label = `perso ${hex.toUpperCase()}`;
+  if (it.mod === 'paint') return { spec: { t: 'paint', slot: Number(W.sub) || 1, color: rgb, finish }, label: `${Number(W.sub) === 2 ? 'secondaire' : 'principale'} ${label}` };
+  if (it.mod === 'neon') return { spec: { t: 'neon', on: true, sides: W.sub || '1111', rgb }, label };
+  if (it.mod === 'xenon') return { spec: { t: 'xenon', on: true, rgb }, label };
+  return { spec: { t: 'smoke', rgb }, label };
 }
 
 async function wsLoadOptions() {
@@ -315,6 +337,14 @@ $('#workshop').addEventListener('click', async (e) => {
     const it = W.d.data.items.find((i) => i.code === W.item), o = W.opts[Number(b.dataset.wopt)];
     post('wsPreview', { spec: o.spec });
     return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec: o.spec, preview: o.spec, slot: slotOf(o.spec, it), label: `${it.name} : ${o.label}` });
+  }
+  if ((b = e.target.closest('[data-wrgb]'))) {
+    const it = W.d.data.items.find((i) => i.code === W.item);
+    if (!it) return;
+    const { spec, label } = rgbSpec(it);
+    post('wsPreview', { spec });
+    if (b.dataset.wrgb === 'preview') return;
+    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: slotOf(spec, it), label: `${it.name} : ${label}` });
   }
   if ((b = e.target.closest('[data-wplate]'))) {
     const it = W.d.data.items.find((i) => i.code === W.item);

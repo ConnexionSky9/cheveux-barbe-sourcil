@@ -109,6 +109,10 @@ local function CosmeticPatch(group, s)
         return { neonEnabled = en, neonColor = c }, 'neon'
     elseif group == 'xenon' and t == 'xenon' then
         local on = s.on == true
+        if on and s.rgb ~= nil then
+            local c = RGB(s.rgb) if not c then return nil end
+            return { modXenon = true, xenonColor = -1, customXenon = c }, 'xenon'
+        end
         local v = on and (N(s.v, -1, 12) or -1) or -1
         return { modXenon = on, xenonColor = v }, 'xenon'
     end

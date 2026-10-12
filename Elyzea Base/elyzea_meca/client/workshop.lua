@@ -206,7 +206,11 @@ local function Preview(veh, spec)
     elseif t == 'paint' then
         local p, s = GetVehicleColours(veh)
         local pe, wc = GetVehicleExtraColours(veh)
-        if spec.slot == 1 then ClearVehicleCustomPrimaryColour(veh) SetVehicleModColor_1(veh, spec.finish, 0, 0) SetVehicleColours(veh, spec.color, s)
+        if type(spec.color) == 'table' then   -- couleur personnalisée (RVB)
+            local c = spec.color
+            if spec.slot == 1 then SetVehicleModColor_1(veh, spec.finish or 1, 0, 0) SetVehicleCustomPrimaryColour(veh, c[1], c[2], c[3])
+            else SetVehicleModColor_2(veh, spec.finish or 1, 0) SetVehicleCustomSecondaryColour(veh, c[1], c[2], c[3]) end
+        elseif spec.slot == 1 then ClearVehicleCustomPrimaryColour(veh) SetVehicleModColor_1(veh, spec.finish, 0, 0) SetVehicleColours(veh, spec.color, s)
         else ClearVehicleCustomSecondaryColour(veh) SetVehicleModColor_2(veh, spec.finish, 0) SetVehicleColours(veh, p, spec.color) end
         SetVehicleExtraColours(veh, pe, wc)
     elseif t == 'pearl' then local _, wc = GetVehicleExtraColours(veh) SetVehicleExtraColours(veh, spec.v, wc)
@@ -225,7 +229,10 @@ local function Preview(veh, spec)
         local sides = tostring(spec.sides or '1111')
         for i = 0, 3 do SetVehicleNeonLightEnabled(veh, i, spec.on == true and sides:sub(i + 1, i + 1) == '1') end
         if spec.rgb then SetVehicleNeonLightsColour(veh, spec.rgb[1], spec.rgb[2], spec.rgb[3]) end
-    elseif t == 'xenon' then ToggleVehicleMod(veh, 22, spec.on == true) if spec.on then SetVehicleXenonLightsColor(veh, spec.v or -1) end
+    elseif t == 'xenon' then
+        ToggleVehicleMod(veh, 22, spec.on == true)
+        if spec.on and type(spec.rgb) == 'table' then SetVehicleXenonLightsCustomColor(veh, spec.rgb[1], spec.rgb[2], spec.rgb[3])
+        elseif spec.on then ClearVehicleXenonLightsCustomColor(veh) SetVehicleXenonLightsColor(veh, spec.v or -1) end
     elseif t == 'tint' then SetVehicleWindowTint(veh, spec.v)
     elseif t == 'plate' then SetVehicleNumberPlateTextIndex(veh, spec.v)
     elseif t == 'livery' then if GetNumVehicleMods(veh, 48) > 0 then SetVehicleMod(veh, 48, spec.v, false) else SetVehicleLivery(veh, spec.v) end
@@ -439,6 +446,7 @@ RegisterNUICallback('wsInstall', function(body, cb)
         local line = r.lines[i]
         if line.patch then
             core:SetVehicleProperties(veh, line.patch)
+            if line.patch.modXenon == true and not line.patch.customXenon then ClearVehicleXenonLightsCustomColor(veh) SetVehicleXenonLightsColor(veh, line.patch.xenonColor or -1) end
             if line.patch.modCustomTiresF ~= nil then
                 SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), line.patch.modCustomTiresF == true)
                 if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), line.patch.modCustomTiresR == true) end
