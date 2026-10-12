@@ -1,0 +1,292 @@
+[
+    {
+        "blip": false,
+        "h": 200.451,
+        "model": "bkr_prop_weed_table_01a",
+        "recipes": [
+            {
+                "label": "Pochon de weed",
+                "duration": 6,
+                "output": "weed_pouch",
+                "inputs": [
+                    {
+                        "item": "weed_leaf",
+                        "count": 3
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 1,
+        "x": 4304.59,
+        "y": -4549.635,
+        "z": 3.203,
+        "scenario": "PROP_HUMAN_PARKING_METER",
+        "blipSprite": 140,
+        "name": "Traitement de la weed"
+    },
+    {
+        "blip": false,
+        "h": 15.827,
+        "model": "bkr_prop_coke_table01a",
+        "recipes": [
+            {
+                "label": "Cocaïne",
+                "duration": 8,
+                "output": "cocaine",
+                "inputs": [
+                    {
+                        "item": "coca_leaf",
+                        "count": 4
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 2,
+        "x": 4309.004,
+        "y": -4548.654,
+        "z": 3.198,
+        "scenario": "PROP_HUMAN_PARKING_METER",
+        "blipSprite": 51,
+        "name": "Laboratoire de cocaïne"
+    },
+    {
+        "blip": false,
+        "h": 205.016,
+        "model": "bkr_prop_meth_table01a",
+        "recipes": [
+            {
+                "label": "Méthamphétamine",
+                "duration": 10,
+                "output": "meth",
+                "inputs": [
+                    {
+                        "item": "meth_chemicals",
+                        "count": 3
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 3,
+        "x": 4312.819,
+        "y": -4547.431,
+        "z": 3.195,
+        "scenario": "PROP_HUMAN_PARKING_METER",
+        "blipSprite": 51,
+        "name": "Laboratoire de méth"
+    },
+    {
+        "blip": false,
+        "h": 17.269,
+        "model": "prop_table_03",
+        "recipes": [
+            {
+                "label": "Champignons séchés",
+                "duration": 5,
+                "output": "dried_mushroom",
+                "inputs": [
+                    {
+                        "item": "magic_mushroom",
+                        "count": 2
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 4,
+        "x": 4316.63,
+        "y": -4545.812,
+        "z": 3.598,
+        "scenario": "PROP_HUMAN_PARKING_METER",
+        "blipSprite": 51,
+        "name": "Séchage des champignons"
+    },
+    {
+        "blip": false,
+        "h": 297.686,
+        "model": "prop_tool_bench02",
+        "recipes": [
+            {
+                "label": "Pistolet SNS",
+                "duration": 15,
+                "output": "WEAPON_SNSPISTOL",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 10
+                    },
+                    {
+                        "item": "gun_parts_light",
+                        "count": 2
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "Pistolet",
+                "duration": 20,
+                "output": "WEAPON_PISTOL",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 15
+                    },
+                    {
+                        "item": "gun_parts_light",
+                        "count": 3
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "Pistolet de combat",
+                "duration": 25,
+                "output": "WEAPON_COMBATPISTOL",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 20
+                    },
+                    {
+                        "item": "gun_parts_light",
+                        "count": 4
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 5,
+        "x": 4320.689,
+        "y": -4544.316,
+        "z": 3.203,
+        "scenario": "WORLD_HUMAN_WELDING",
+        "blipSprite": 110,
+        "name": "Établi : armes légères"
+    },
+    {
+        "blip": false,
+        "h": 306.745,
+        "model": "prop_tool_bench02",
+        "recipes": [
+            {
+                "label": "Micro SMG",
+                "duration": 30,
+                "output": "WEAPON_MICROSMG",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 30
+                    },
+                    {
+                        "item": "gun_parts_medium",
+                        "count": 6
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "SMG",
+                "duration": 35,
+                "output": "WEAPON_SMG",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 35
+                    },
+                    {
+                        "item": "gun_parts_medium",
+                        "count": 8
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "Fusil à pompe",
+                "duration": 35,
+                "output": "WEAPON_PUMPSHOTGUN",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 40
+                    },
+                    {
+                        "item": "gun_parts_medium",
+                        "count": 8
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 6,
+        "x": 4325.111,
+        "y": -4542.409,
+        "z": 3.202,
+        "scenario": "WORLD_HUMAN_WELDING",
+        "blipSprite": 110,
+        "name": "Établi : armes moyennes"
+    },
+    {
+        "blip": false,
+        "h": 301.33,
+        "model": "prop_tool_bench02",
+        "recipes": [
+            {
+                "label": "Fusil d'assaut",
+                "duration": 50,
+                "output": "WEAPON_ASSAULTRIFLE",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 60
+                    },
+                    {
+                        "item": "gun_parts_heavy",
+                        "count": 12
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "Carabine",
+                "duration": 50,
+                "output": "WEAPON_CARBINERIFLE",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 60
+                    },
+                    {
+                        "item": "gun_parts_heavy",
+                        "count": 12
+                    }
+                ],
+                "count": 1
+            },
+            {
+                "label": "Mitrailleuse",
+                "duration": 70,
+                "output": "WEAPON_MG",
+                "inputs": [
+                    {
+                        "item": "metal_scrap",
+                        "count": 90
+                    },
+                    {
+                        "item": "gun_parts_heavy",
+                        "count": 20
+                    }
+                ],
+                "count": 1
+            }
+        ],
+        "id": 7,
+        "x": 4329.573,
+        "y": -4540.777,
+        "z": 3.203,
+        "scenario": "WORLD_HUMAN_WELDING",
+        "blipSprite": 110,
+        "name": "Établi : armes lourdes"
+    }
+]

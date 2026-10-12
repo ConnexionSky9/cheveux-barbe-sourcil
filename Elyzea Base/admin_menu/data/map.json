@@ -1,0 +1,255 @@
+{
+    "nextId": 25,
+    "minimapV2": true,
+    "rules": [
+        {
+            "display": "all",
+            "oy": -182.99099731445313,
+            "sprite": 71,
+            "oz": 37.57699966430664,
+            "ox": -813.1649780273438,
+            "id": 1
+        },
+        {
+            "display": "all",
+            "oy": -354.6856994628906,
+            "sprite": 326,
+            "oz": 36.89599609375,
+            "ox": -1265.050537109375,
+            "id": 2
+        },
+        {
+            "display": "all",
+            "oy": -606.7000122070313,
+            "sprite": 121,
+            "oz": 30.29999923706054,
+            "ox": -1393.4000244140626,
+            "id": 3
+        },
+        {
+            "display": "hidden",
+            "id": 5,
+            "sprite": 72,
+            "oz": 54.5040283203125,
+            "ox": 556.2461547851563,
+            "oy": -190.90548706054688
+        },
+        {
+            "display": "hidden",
+            "id": 6,
+            "sprite": 61,
+            "oz": 43.29999923706055,
+            "ox": 307.7000122070313,
+            "oy": -595.2999877929688
+        }
+    ],
+    "minimap": {
+        "blockCommands": [
+            "carte",
+            "minimap"
+        ],
+        "enabled": true,
+        "marginY": 0,
+        "size": 0.155,
+        "position": "bottom-left",
+        "widthAdjust": 160,
+        "hideHealthBars": true,
+        "marginX": 0,
+        "onlyInVehicle": false,
+        "shape": "square"
+    },
+    "custom": [
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 4,
+            "color": 3,
+            "scale": 0.9,
+            "z": 37.1318359375,
+            "sprite": 73,
+            "shortRange": true,
+            "y": -154.0615386962891,
+            "x": -712.2725219726563
+        },
+        {
+            "label": "Hopital",
+            "display": "all",
+            "id": 7,
+            "color": 8,
+            "scale": 0.9,
+            "z": 35.3795166015625,
+            "sprite": 61,
+            "shortRange": true,
+            "y": -1535.3802490234376,
+            "x": 1146.5274658203126
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 8,
+            "color": 3,
+            "scale": 0.9,
+            "z": 18.3106689453125,
+            "sprite": 73,
+            "shortRange": true,
+            "y": -772.6021728515625,
+            "x": -1189.120849609375
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 9,
+            "color": 3,
+            "scale": 0.9,
+            "z": 11.3179931640625,
+            "sprite": 73,
+            "shortRange": true,
+            "y": -1075.6351318359376,
+            "x": -819.6923217773438
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 11,
+            "color": 3,
+            "scale": 0.9,
+            "z": 38.210205078125,
+            "sprite": 73,
+            "shortRange": true,
+            "y": 2706.698974609375,
+            "x": 1199.208740234375
+        },
+        {
+            "label": "Supérette",
+            "display": "all",
+            "id": 12,
+            "color": 2,
+            "scale": 0.9,
+            "z": 12.3121337890625,
+            "sprite": 52,
+            "shortRange": true,
+            "y": -908.3735961914064,
+            "x": -1221.982421875
+        },
+        {
+            "label": "Auto-Ecole",
+            "display": "all",
+            "id": 13,
+            "color": 6,
+            "scale": 0.9,
+            "z": 30.4761962890625,
+            "sprite": 225,
+            "x": 226.58901977539066,
+            "y": -869.063720703125,
+            "shortRange": true
+        },
+        {
+            "label": "MRPD",
+            "display": "all",
+            "id": 14,
+            "color": 46,
+            "scale": 0.9,
+            "z": 30.6951904296875,
+            "sprite": 60,
+            "x": 440.0967102050781,
+            "y": -982.6021728515624,
+            "shortRange": true
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 15,
+            "color": 3,
+            "scale": 0.9,
+            "z": 29.4820556640625,
+            "sprite": 73,
+            "x": 424.3252868652344,
+            "y": -807.7582397460938,
+            "shortRange": true
+        },
+        {
+            "label": "Station Service",
+            "display": "all",
+            "id": 16,
+            "color": 0,
+            "scale": 0.9,
+            "z": 37.23291015625,
+            "sprite": 361,
+            "x": -320.0703430175781,
+            "y": -1472.017578125,
+            "shortRange": true
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 17,
+            "color": 3,
+            "scale": 0.9,
+            "z": 29.3641357421875,
+            "sprite": 73,
+            "x": 77.74945068359375,
+            "y": -1389.86376953125,
+            "shortRange": true
+        },
+        {
+            "label": "Station Service",
+            "display": "all",
+            "id": 18,
+            "color": 0,
+            "scale": 0.9,
+            "z": 35.6995849609375,
+            "sprite": 361,
+            "x": 173.24835205078126,
+            "y": -1560.7384033203126,
+            "shortRange": true
+        },
+        {
+            "label": "Station Service",
+            "display": "all",
+            "id": 19,
+            "color": 0,
+            "scale": 0.9,
+            "z": 23.753173828125,
+            "sprite": 361,
+            "x": -524.5714111328125,
+            "y": -1208.7296142578126,
+            "shortRange": true
+        },
+        {
+            "label": "Station Service",
+            "display": "all",
+            "id": 20,
+            "color": 0,
+            "scale": 0.9,
+            "z": 13.019775390625,
+            "sprite": 361,
+            "x": -2095.318603515625,
+            "y": -319.0945129394531,
+            "shortRange": true
+        },
+        {
+            "label": "Boutique De Vétement",
+            "display": "all",
+            "id": 21,
+            "color": 3,
+            "scale": 0.9,
+            "z": 49.5333251953125,
+            "sprite": 73,
+            "x": -1451.7890625,
+            "y": -235.7010955810547,
+            "shortRange": true
+        },
+        {
+            "label": "Location Vehicule",
+            "display": "all",
+            "id": 22,
+            "color": 40,
+            "scale": 0.9,
+            "z": 20.1640625,
+            "sprite": 225,
+            "x": -1034.6636962890626,
+            "y": -2733.54736328125,
+            "shortRange": true
+        }
+    ]
+}

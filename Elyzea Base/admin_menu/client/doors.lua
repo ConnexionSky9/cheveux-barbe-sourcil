@@ -89,12 +89,24 @@ CreateThread(function()
         Wait(50)
         if nearDoor and LastInteract > lastHandled then
             lastHandled = LastInteract
-            TriggerServerEvent('adminmenu:door:open', nearDoor.id)
+            -- E : ouverture/fermeture directe pour les détenteurs des clés.
+            -- Les visiteurs reçoivent uniquement le pavé de code si un code existe.
+            TriggerServerEvent('adminmenu:door:interact', nearDoor.id)
         elseif LastInteract > lastHandled then
             lastHandled = LastInteract
         end
     end
 end)
+
+-- Les détenteurs des clés peuvent gérer le code invité sans utiliser E.
+-- Utilisation : se placer près de la porte puis taper /codeporte.
+RegisterCommand('codeporte', function()
+    if nearDoor then
+        TriggerServerEvent('adminmenu:door:managecode', nearDoor.id)
+    else
+        Notify('Approche-toi d’une porte pour gérer son code.', 'error')
+    end
+end, false)
 
 RegisterNetEvent('adminmenu:door:panel', function(data)
     doorOpen = true

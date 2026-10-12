@@ -1,0 +1,21 @@
+{
+    "list": [],
+    "settings": {
+        "preMessage": "Un drop va être largué dans {min} minutes. Préparez-vous !",
+        "maxDuration": 45,
+        "blipColor": 1,
+        "endMessage": "Le drop a été récupéré.",
+        "landMessage": "Le drop est à terre ! Sa position est marquée sur ta carte (fumée rouge).",
+        "preTitle": "LARGAGE IMMINENT",
+        "timezone": "paris",
+        "landTitle": "DROP À TERRE",
+        "enabled": true,
+        "alertRadius": 0,
+        "inspectTime": 4,
+        "blipSprite": 478,
+        "shotRadius": 60,
+        "illegalJobs": "",
+        "blipRadius": 90,
+        "cleanupAfter": 5
+    }
+}

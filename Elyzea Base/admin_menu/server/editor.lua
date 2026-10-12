@@ -1928,21 +1928,12 @@ local function sendDoorPanel(src, door)
     })
 end
 
-RegisterNetEvent('adminmenu:door:open', function(id)
-    local src = source
-    if not AM.rateLimit(src, 'door', 5, 1000) then return end
-    local door = doorOf(tonumber(id))
-    if door and nearDoor(src, door) then sendDoorPanel(src, door) end
-end)
-
-RegisterNetEvent('adminmenu:door:toggle', function(id, code)
-    local src = source
-    if not AM.rateLimit(src, 'door', 5, 1000) then return end
-    local door = doorOf(tonumber(id))
-    if not door or not nearDoor(src, door) then return end
+local function toggleDoorFor(src, door, code)
     local role = doorRole(src, door)
     if role == 'visitor' then
-        if not door.codeHash then return AM.notify(src, 'Cette porte est verrouillée.', 'error') end
+        if not door.codeHash then
+            return AM.notify(src, 'Cette porte est verrouillée. Il faut un code invité ou les clés.', 'error')
+        end
         local key = src .. ':' .. door.id
         local t = CodeTries[key]
         if t and t.untilT and t.untilT > os.time() then
@@ -1958,28 +1949,79 @@ RegisterNetEvent('adminmenu:door:toggle', function(id, code)
         CodeTries[key] = nil
     end
     door.locked = not door.locked
-    save('doors') broadcast('doors')
+    save('doors')
+    broadcast('doors')
     AM.notify(src, door.locked and '🔒 Porte verrouillée.' or '🔓 Porte déverrouillée.', 'success')
+end
+
+-- Appui sur E : pas de panneau pour le propriétaire ou le staff.
+RegisterNetEvent('adminmenu:door:interact', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'door', 5, 1000) then return end
+    local door = doorOf(tonumber(id))
+    if not door or not nearDoor(src, door) then return end
+    local role = doorRole(src, door)
+    if role == 'owner' or role == 'admin' then
+        return toggleDoorFor(src, door)
+    end
+    if not door.codeHash then
+        return AM.notify(src, 'Cette porte est verrouillée. Il faut un code invité ou les clés.', 'error')
+    end
     sendDoorPanel(src, door)
+end)
+
+-- Ouvre le panneau uniquement à la demande d'un propriétaire/admin (commande /codeporte).
+RegisterNetEvent('adminmenu:door:managecode', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'door_managecode', 3, 2000) then return end
+    local door = doorOf(tonumber(id))
+    if not door or not nearDoor(src, door) then return end
+    local role = doorRole(src, door)
+    if role ~= 'owner' and role ~= 'admin' then
+        return AM.notify(src, 'Seuls les détenteurs des clés peuvent gérer le code invité.', 'error')
+    end
+    sendDoorPanel(src, door)
+end)
+
+-- Compatibilité avec les anciens appels éventuels.
+RegisterNetEvent('adminmenu:door:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'door', 5, 1000) then return end
+    local door = doorOf(tonumber(id))
+    if door and nearDoor(src, door) then sendDoorPanel(src, door) end
+end)
+
+RegisterNetEvent('adminmenu:door:toggle', function(id, code)
+    local src = source
+    if not AM.rateLimit(src, 'door', 5, 1000) then return end
+    local door = doorOf(tonumber(id))
+    if not door or not nearDoor(src, door) then return end
+    toggleDoorFor(src, door, code)
+    if doorRole(src, door) ~= 'visitor' then sendDoorPanel(src, door) end
 end)
 
 RegisterNetEvent('adminmenu:door:setcode', function(id, code)
     local src = source
     if not AM.rateLimit(src, 'door', 5, 1000) then return end
     local door = doorOf(tonumber(id))
-    if not door or not nearDoor(src, door) or doorRole(src, door) == 'visitor' then return end
+    if not door or not nearDoor(src, door) then return end
+    local role = doorRole(src, door)
+    if role ~= 'owner' and role ~= 'admin' then
+        return AM.notify(src, 'Seuls les détenteurs des clés peuvent modifier le code invité.', 'error')
+    end
     code = tostring(code or '')
     if code == '' then
         door.codeHash = nil
-        AM.notify(src, 'Code supprimé : seuls les propriétaires peuvent ouvrir.', 'success')
+        AM.notify(src, 'Code invité supprimé : seuls les détenteurs des clés peuvent ouvrir.', 'success')
     else
         if not code:match('^%d+$') or #code < Config.Doors.codeMin or #code > Config.Doors.codeMax then
             return AM.notify(src, ('Le code doit faire %d à %d chiffres.'):format(Config.Doors.codeMin, Config.Doors.codeMax), 'error')
         end
         door.codeHash = codeHash(door, code)
-        AM.notify(src, 'Code enregistré. Donne-le aux personnes que tu veux laisser entrer.', 'success')
+        AM.notify(src, 'Code invité enregistré. Donne-le aux personnes autorisées.', 'success')
     end
-    save('doors') broadcast('doors')
+    save('doors')
+    broadcast('doors')
     sendDoorPanel(src, door)
 end)
 

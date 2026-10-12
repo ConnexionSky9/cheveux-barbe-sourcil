@@ -363,6 +363,29 @@ local function notify(src, msg, typ)
     TriggerClientEvent('adminmenu:notify', src, msg, typ or 'info')
 end
 
+
+-- ---------------------------------------------------------
+--  Canne de Lester : Fondateur / SuperAdmin uniquement
+--  Utilise les grades du menu admin (admins.json, owners.json,
+--  Config.Owners et les éventuels grades ACE déjà configurés).
+-- ---------------------------------------------------------
+RegisterCommand('canne', function(source)
+    local src = tonumber(source) or 0
+    if src == 0 then
+        print('[AdminMenu] La commande /canne doit être utilisée en jeu.')
+        return
+    end
+
+    local rank = getRankName(src)
+    if rank ~= Config.OwnerRank and rank ~= 'superadmin' then
+        notify(src, "Tu n'as pas accès à la canne de Lester.", 'error')
+        print(('^1[AdminMenu] %s [%d] a tenté d’utiliser /canne sans autorisation.^7'):format(pname(src), src))
+        return
+    end
+
+    TriggerClientEvent('lester_cane:toggle', src)
+end, false)
+
 -- ---------------------------------------------------------
 --  Logs
 -- ---------------------------------------------------------
