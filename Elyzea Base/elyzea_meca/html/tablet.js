@@ -18,7 +18,8 @@
   const KIND = { service: 'Prestation', perf: 'Performance', cosmetic: 'Esthétique', carplay: 'CarPlay', custom: 'Libre' };
   const PERF = { engine: 'Moteur', brakes: 'Freins', transmission: 'Transmission', suspension: 'Suspension', armor: 'Blindage', turbo: 'Turbo' };
   const COS = { body: 'Carrosserie', paint: 'Peinture', pearl: 'Nacré', livery: 'Livrée', tint: 'Vitres teintées', plate: 'Plaque', wheels: 'Jantes',
-    wheelcolor: 'Couleur des jantes', smoke: 'Fumée des pneus', neon: 'Néons', xenon: 'Xénon', interior: 'Intérieur' };
+    wheelcolor: 'Couleur des jantes', smoke: 'Fumée des pneus', neon: 'Néons', xenon: 'Xénon', interior: 'Intérieur',
+    intcolor: 'Couleur intérieur', dashcolor: 'Couleur tableau de bord', tyres: 'Pneus', extras: 'Éléments optionnels', roofliv: 'Livrée de toit', platetext: 'Plaque personnalisée' };
   const CAT = { invoice: 'Factures clients', refund: 'Remboursements', salary: 'Salaires', other: 'Autre' };
   const METHOD = { bank: 'banque', cash: 'liquide' };
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;

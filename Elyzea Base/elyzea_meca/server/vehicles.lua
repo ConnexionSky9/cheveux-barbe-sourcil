@@ -44,7 +44,10 @@ function P.SaveMods(vehicleId, patch)
     local ok, saved = pcall(json.decode, row.mods or '{}')
     saved = ok and type(saved) == 'table' and saved or {}
     for k, v in pairs(patch) do
-        if k ~= 'plate' and k ~= 'model' then saved[k] = v end
+        if k == 'extras' and type(v) == 'table' then
+            saved.extras = type(saved.extras) == 'table' and saved.extras or {}
+            for id, x in pairs(v) do saved.extras[id] = x end
+        elseif k ~= 'plate' and k ~= 'model' then saved[k] = v end
     end
     MySQL.update.await('UPDATE `player_vehicles` SET `mods` = ? WHERE `id` = ?', { json.encode(saved), vehicleId })
     return true

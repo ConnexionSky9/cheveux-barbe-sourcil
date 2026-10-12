@@ -1299,6 +1299,29 @@ function API.ClearStash(id)
     refreshViewers('stash', c.id)
     return true
 end
+-- Renomme un coffre (ex. plaque d'un véhicule changée) : le contenu suit
+function API.RenameStash(old, new)
+    old, new = tostring(old or ''), tostring(new or '')
+    if old == '' or new == '' or old == new then return false end
+    if (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `elyzea_stashes` WHERE `id` = ?', { new })) or 0) > 0 then return false end
+    local c = Containers[old]
+    if c then
+        for s, v in pairs(Viewing) do
+            if v.kind == 'stash' and v.id == old then TriggerClientEvent('elyzea_inv:forceClose', s) Viewing[s] = nil end
+        end
+        if not c.temporary and c.loaded then
+            local items = {}
+            for i, it in pairs(c.slots) do
+                if it then items[#items + 1] = { slot = i, name = it.name, count = it.count, metadata = it.metadata } end
+            end
+            MySQL.query.await('INSERT INTO `elyzea_stashes` (`id`, `items`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `items` = VALUES(`items`)', { old, json.encode(items) })
+        end
+        Containers[old] = nil
+    end
+    StashDefs[old] = nil
+    MySQL.update.await('UPDATE `elyzea_stashes` SET `id` = ? WHERE `id` = ?', { new, old })
+    return true
+end
 function API.GetStashItems(id)
     local c = Containers[tostring(id)] or (StashDefs[tostring(id)] and getStash(id, nil))
     if not c then return {} end

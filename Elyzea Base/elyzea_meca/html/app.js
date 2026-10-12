@@ -193,6 +193,7 @@ const slotOf = (spec, item) => {
   if (!spec) return `cos:${item.mod}`;
   if (spec.t === 'mod') return `cos:mod${spec.id}`;
   if (spec.t === 'paint') return `cos:paint${spec.slot}`;
+  if (spec.t === 'extra') return `cos:extra${spec.id}`;
   return `cos:${spec.t}`;
 };
 const curPerf = (mod) => Math.max(Number((W.d.live || {})[mod] || 0), Number((W.d.data.savedPerf || {})[mod] || 0));
@@ -254,8 +255,14 @@ function wsRender() {
       const grp = it ? (d.groups || {})[it.mod] || {} : {};
       main = `<div class="subtabs">${list.map((i) => `<button class="${i.code === W.item ? 'on' : ''}" data-witem="${esc(i.code)}" ${(d.groups[i.mod] || {}).empty ? 'disabled title="Rien de compatible avec ce véhicule"' : ''}>${esc(i.name)} · ${money(i.price)}</button>`).join('')}</div>`;
       if (it && it.locked) main += `<div class="empty">${esc(it.reason || 'Indisponible pour votre grade.')}</div>`;
-      else if (it && grp.empty) main += '<div class="empty">Aucune option compatible avec ce véhicule.</div>';
-      else if (it) {
+      else if (it && grp.empty) main += `<div class="empty">${it.mod === 'platetext' ? 'La plaque personnalisée ne se pose que sur un véhicule de joueur (carte grise).' : 'Aucune option compatible avec ce véhicule.'}</div>`;
+      else if (it && grp.text) {
+        const inCart = W.cart.find((l) => l.code === it.code);
+        main += `<div class="lvl-row"><div class="name">Nouvelle plaque<div class="now">Actuelle : <span class="mono">${esc(data.plate)}</span> · 1 à 8 caractères (lettres, chiffres, espaces), unique sur le serveur</div></div></div>
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem"><input class="input mono" id="wsPlate" maxlength="8" style="text-transform:uppercase;max-width:12rem;font-size:1.1rem;letter-spacing:.15em"
+            value="${esc(inCart ? inCart.spec.v : '')}" placeholder="${esc(data.plate)}"><button class="btn primary" data-wplate="1">${inCart ? 'Modifier' : 'Aperçu et ajouter'} · ${money(it.price)}</button></div>
+          <p class="faint" style="font-size:.78rem;margin-top:.6rem">La plaque change à l'installation : carte grise, clés et coffre du véhicule suivent (le contenu du coffre est conservé).</p>`;
+      } else if (it) {
         if (grp.subs) main += `<div class="subtabs">${grp.subs.map((s) => `<button class="${String(W.sub) === s.id ? 'on' : ''}" data-wsub="${esc(s.id)}">${esc(s.label)}</button>`).join('')}</div>`;
         if (grp.subs && W.sub === null) main += '<div class="empty">Choisissez la pièce.</div>';
         else if (!W.opts) main += '<div class="empty">Lecture des options…</div>';
@@ -270,7 +277,7 @@ function wsRender() {
   const customers = data.customers || [];
   $('#workshop').innerHTML = `<div class="ws-head"><div><div class="eyebrow">${esc(data.ws.label)}</div><h2>${esc(d.model)} · <span class="mono">${esc(data.plate)}</span></h2>
       <div class="meta">${data.owned ? `Propriétaire : ${esc(data.owner || 'inconnu')}` : 'Véhicule sans carte grise (rien n\'est sauvegardé après sa disparition)'} · CarPlay : ${data.carplay ? 'oui' : 'non'}</div>
-      <div class="health" style="margin-top:.35rem"><span>Moteur ${d.health.engine}%<i><b style="width:${d.health.engine}%"></b></i></span><span>Carrosserie ${d.health.body}%<i><b style="width:${Math.max(0, d.health.body)}%"></b></i></span></div></div>
+      <div class="health" style="margin-top:.35rem"><span>Moteur ${d.health.engine}%<i><b style="width:${d.health.engine}%"></b></i></span><span>Carrosserie ${d.health.body}%<i><b style="width:${Math.max(0, d.health.body)}%"></b></i></span></div><div class="cam-hint">🖱️ Clic droit maintenu + glisser (hors du panneau) : tourner la caméra · molette : zoom · double-clic : recentrer</div></div>
       <button class="icon-btn" data-ws="close" title="Fermer (Échap)">✕</button></div>
     <div class="ws-body"><div class="ws-cats">${wsCats().map((c) => `<button class="ws-cat ${W.cat === c.id ? 'active' : ''}" data-wcat="${c.id}" ${q ? 'disabled' : ''}>
         <span>${esc(c.label)}</span>${c.n ? `<span class="tag">${c.n}</span>` : ''}</button>`).join('')}</div>
@@ -308,6 +315,15 @@ $('#workshop').addEventListener('click', async (e) => {
     const it = W.d.data.items.find((i) => i.code === W.item), o = W.opts[Number(b.dataset.wopt)];
     post('wsPreview', { spec: o.spec });
     return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec: o.spec, preview: o.spec, slot: slotOf(o.spec, it), label: `${it.name} : ${o.label}` });
+  }
+  if ((b = e.target.closest('[data-wplate]'))) {
+    const it = W.d.data.items.find((i) => i.code === W.item);
+    const v = String(($('#wsPlate') || {}).value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+    if (!v || v.length > 8) return toast('Plaque invalide : 1 à 8 caractères (lettres, chiffres, espaces).', false);
+    if (v === String(W.d.data.plate).toUpperCase()) return toast('C\'est déjà la plaque du véhicule.', false);
+    const spec = { t: 'platetext', v };
+    post('wsPreview', { spec });
+    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: 'cos:platetext', label: `${it.name} : ${v}` });
   }
   if ((b = e.target.closest('[data-perf]'))) {
     const it = W.d.data.items.find((i) => i.code === b.dataset.perf);
@@ -507,3 +523,24 @@ document.addEventListener('keydown', (e) => {
   if (!$('#f6').classList.contains('hidden')) { if (F6.view !== 'main') { F6.view = 'main'; return f6Draw(); } return post('close', { ui: 'f6' }); }
   if (window.Tablet && Tablet.isOpen()) { if (!Tablet.back()) post('close', { ui: 'tablet' }); }
 });
+
+/* ---------- Atelier : caméra (clic droit maintenu + glisser, molette pour zoomer) ---------- */
+(() => {
+  let drag = false, acc = { dx: 0, dy: 0, zoom: 0 }, timer = null;
+  const open = () => !$('#workshop').classList.contains('hidden');
+  const flush = () => { timer = null; if (!acc.dx && !acc.dy && !acc.zoom) return; const a = acc; acc = { dx: 0, dy: 0, zoom: 0 }; post('wsCam', a); };
+  const queue = () => { if (!timer) timer = setTimeout(flush, 33); };
+  document.addEventListener('contextmenu', (e) => { if (open()) e.preventDefault(); });
+  document.addEventListener('mousedown', (e) => { if (open() && e.button === 2) { drag = true; document.body.classList.add('cam-drag'); e.preventDefault(); } });
+  document.addEventListener('mouseup', (e) => { if (e.button === 2 && drag) { drag = false; document.body.classList.remove('cam-drag'); } });
+  document.addEventListener('mousemove', (e) => {
+    if (!drag || !open()) return;
+    if (!(e.buttons & 2)) { drag = false; document.body.classList.remove('cam-drag'); return; }
+    acc.dx += e.movementX; acc.dy += e.movementY; queue();
+  });
+  document.addEventListener('wheel', (e) => {
+    if (!open() || e.target.closest('#workshop')) return;   // molette dans le panneau = défilement normal
+    acc.zoom += e.deltaY > 0 ? 0.6 : -0.6; queue();
+  }, { passive: true });
+  document.addEventListener('dblclick', (e) => { if (open() && !e.target.closest('#workshop')) post('wsCam', { reset: true }); });
+})();

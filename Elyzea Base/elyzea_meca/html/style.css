@@ -360,3 +360,6 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%
 .ws-cat:disabled { opacity: .5; cursor: not-allowed; }
 .ws-cat small, .ws-cat .n { font-size: .72rem; color: var(--faint); }
 .point.sel { background: var(--accent-soft); border-radius: .5rem; padding-left: .5rem; padding-right: .5rem; }
+
+.cam-hint { margin-top: .35rem; font-size: .72rem; color: var(--faint); }
+body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none; }

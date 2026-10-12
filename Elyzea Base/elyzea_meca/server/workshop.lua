@@ -25,10 +25,10 @@ local MOD_KEYS = {
     [25] = 'modPlateHolder', [26] = 'modVanityPlate', [27] = 'modTrimA', [28] = 'modOrnaments', [29] = 'modDashboard', [30] = 'modDial',
     [31] = 'modDoorSpeaker', [32] = 'modSeats', [33] = 'modSteeringWheel', [34] = 'modShifterLeavers', [35] = 'modAPlate', [36] = 'modSpeakers',
     [37] = 'modTrunk', [38] = 'modHydrolic', [39] = 'modEngineBlock', [40] = 'modAirFilter', [41] = 'modStruts', [42] = 'modArchCover',
-    [43] = 'modAerials', [44] = 'modTrimB', [45] = 'modTank', [46] = 'modWindows',
+    [43] = 'modAerials', [44] = 'modTrimB', [45] = 'modTank', [46] = 'modWindows', [47] = 'modDoorR', [49] = 'modLightbar',
 }
 local BODY_IDS = { [0] = true, [1] = true, [2] = true, [3] = true, [4] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true,
-    [10] = true, [14] = true, [37] = true, [38] = true, [39] = true, [40] = true, [41] = true, [42] = true, [43] = true, [44] = true, [45] = true, [46] = true }
+    [10] = true, [14] = true, [37] = true, [38] = true, [39] = true, [40] = true, [41] = true, [42] = true, [43] = true, [44] = true, [45] = true, [46] = true, [47] = true, [49] = true }
 local INTERIOR_IDS = { [25] = true, [26] = true, [27] = true, [28] = true, [29] = true, [30] = true, [31] = true, [32] = true, [33] = true,
     [34] = true, [35] = true, [36] = true }
 local PERF_KEYS = { engine = 'modEngine', brakes = 'modBrakes', transmission = 'modTransmission', suspension = 'modSuspension', armor = 'modArmor' }
@@ -53,7 +53,7 @@ local function CosmeticPatch(group, s)
         if not id or not ids[id] or not v or t ~= 'mod' then return nil end
         return { [MOD_KEYS[id]] = v }, 'mod' .. id
     elseif group == 'wheels' and t == 'wheels' then
-        local wt, v = N(s.wt, 0, 12), N(s.v, -1, 300)
+        local wt, v = N(s.wt, 0, 13), N(s.v, -1, 300)
         if not wt or not v then return nil end
         return { wheels = wt, modFrontWheels = v, modBackWheels = v }, 'wheels'
     elseif group == 'wheelcolor' and t == 'wheelcolor' then
@@ -76,6 +76,22 @@ local function CosmeticPatch(group, s)
     elseif group == 'tint' and t == 'tint' then
         local v = N(s.v, 0, 6) if not v then return nil end
         return { windowTint = v }, 'tint'
+    elseif (group == 'intcolor' or group == 'dashcolor') and t == group then
+        local v = N(s.v, 0, 160) if not v then return nil end
+        return { [group == 'intcolor' and 'interiorColor' or 'dashboardColor'] = v }, group
+    elseif group == 'tyres' and t == 'tyres' then
+        local ct = s.custom == true
+        return { modCustomTiresF = ct, modCustomTiresR = ct, bulletProofTyres = s.bp == true }, 'tyres'
+    elseif group == 'extras' and t == 'extra' then
+        local id = N(s.id, 0, 20) if not id then return nil end
+        return { extras = { [tostring(id)] = s.on == true and 0 or 1 } }, 'extra' .. id
+    elseif group == 'roofliv' and t == 'roofliv' then
+        local v = N(s.v, 0, 30) if not v then return nil end
+        return { modRoofLivery = v }, 'roofliv'
+    elseif group == 'platetext' and t == 'platetext' then
+        local p = exports.elyzea_core:CleanNewPlate(s.v)
+        if not p then return nil end
+        return {}, 'platetext', p
     elseif group == 'plate' and t == 'plate' then
         local v = N(s.v, 0, 5) if not v then return nil end
         return { plateIndex = v }, 'plate'
@@ -86,7 +102,11 @@ local function CosmeticPatch(group, s)
         local on = s.on == true
         local c = on and RGB(s.rgb) or { 255, 255, 255 }
         if not c then return nil end
-        return { neonEnabled = { on, on, on, on }, neonColor = c }, 'neon'
+        local sides = tostring(s.sides or '1111')
+        if not sides:match('^[01][01][01][01]$') then sides = '1111' end
+        local en = {}
+        for i = 1, 4 do en[i] = on and sides:sub(i, i) == '1' end
+        return { neonEnabled = en, neonColor = c }, 'neon'
     elseif group == 'xenon' and t == 'xenon' then
         local on = s.on == true
         local v = on and (N(s.v, -1, 12) or -1) or -1
@@ -310,10 +330,17 @@ local function BuildLines(src, w, list, ctx)
             line.patch = key == 'turbo' and { modTurbo = true } or { [PERF_KEYS[key]] = (it.level or 1) - 1 }
             line.label = it.name
         elseif it.kind == 'cosmetic' then
-            local patch, slot = CosmeticPatch(it.mod, req.spec)
+            local patch, slot, plateText = CosmeticPatch(it.mod, req.spec)
             if not patch then return nil, ('Option invalide pour « %s ».'):format(it.name) end
             if seen['cos:' .. slot] then return nil, 'La même pièce apparaît deux fois dans le devis.' end
             seen['cos:' .. slot] = true
+            if plateText then
+                if not ctx.vehicleId then return nil, 'La plaque personnalisée ne se pose que sur un véhicule de joueur (carte grise).' end
+                if plateText == ctx.plate then return nil, 'C\'est déjà la plaque du véhicule.' end
+                if MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? LIMIT 1', { plateText }) then return nil, ('La plaque « %s » est déjà prise.'):format(plateText) end
+                line.plateText = plateText
+                patch = nil
+            end
             line.patch = patch
             line.label = ('%s : %s'):format(it.name, P.Clean(req.label, 60))
         elseif it.kind == 'carplay' then
@@ -416,7 +443,12 @@ local function Finalize(q, results, actorSrc)
     -- Persistance : modifications sur la carte grise, CarPlay lié au véhicule, historique
     local patch = {}
     for _, line in ipairs(done) do
-        if line.patch then for k, v in pairs(line.patch) do patch[k] = v end end
+        if line.patch then
+            for k, v in pairs(line.patch) do
+                if k == 'extras' then patch.extras = patch.extras or {} for id, x in pairs(v) do patch.extras[id] = x end
+                else patch[k] = v end
+            end
+        end
         if line.kind == 'carplay' and q.vehicleId then
             MySQL.query.await([[INSERT INTO `meca_carplay` (`vehicle_id`, `plate`, `invoice_uid`, `price`, `installed_by`) VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE `invoice_uid` = VALUES(`invoice_uid`), `price` = `price` + VALUES(`price`), `installed_by` = VALUES(`installed_by`), `installed_at` = NOW()]],
@@ -500,7 +532,7 @@ P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(sr
     for i, l in ipairs(q.items) do
         lines[i] = { i = i, label = l.label, kind = l.kind, patch = l.patch }
     end
-    q.installing = { by = src, t = GetGameTimer() }
+    q.installing = { by = src, t = GetGameTimer(), veh = veh }
     return { ok = true, lines = lines }
 end }
 
@@ -512,6 +544,24 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
     for i, l in ipairs(q.items) do
         local ok = type(d.results) == 'table' and d.results[i] == true
         if l.kind == 'service' or l.kind == 'custom' or l.kind == 'carplay' then ok = true end
+        -- Plaque personnalisée : changée par le serveur (carte grise, clés, coffre du véhicule)
+        if l.plateText then
+            local veh = q.installing.veh
+            local old = q.plate
+            local changed, why = exports.elyzea_core:ChangePlate(old, l.plateText, veh and DoesEntityExist(veh) and veh or nil)
+            ok = changed == true
+            if ok then
+                P.ForgetCarPlay(old)
+                q.plate = l.plateText
+                P.History(q.vehicleId, l.plateText, 'Plaque changée', ('%s → %s'):format(old or '?', l.plateText), q.uid, src)
+                if q.customerCid then
+                    local cust = exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
+                    if cust then exports.elyzea_core:GiveKeys(cust, l.plateText) end
+                end
+            else
+                P.Notify(src, why or 'Plaque non changée.', 'error')
+            end
+        end
         results[i] = ok
     end
     local r = Finalize(q, results, src)

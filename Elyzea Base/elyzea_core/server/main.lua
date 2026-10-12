@@ -102,6 +102,8 @@ local api = {
     GiveKeys = GiveKeys,
     RemoveKeys = RemoveKeys,
     HasKeys = HasKeys,
+    ChangePlate = ChangePlate,
+    CleanNewPlate = CleanNewPlate,
     -- divers
     HasPermission = HasPermission,
     GetPermission = GetPermission,

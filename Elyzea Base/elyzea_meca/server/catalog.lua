@@ -17,6 +17,7 @@ P.CATEGORIES = { service = 'Prestations', perf = 'Performances', cosmetic = 'Car
 -- Améliorations de performance gérées (mod GTA) et esthétiques (groupes de pièces)
 P.PERF_MODS = { engine = 11, brakes = 12, transmission = 13, suspension = 15, armor = 16, turbo = 18 }
 P.COSMETIC = { body = true, paint = true, pearl = true, livery = true, tint = true, plate = true, wheels = true, wheelcolor = true,
+    intcolor = true, dashcolor = true, tyres = true, extras = true, roofliv = true, platetext = true,
     smoke = true, neon = true, xenon = true, interior = true }
 -- Permission nécessaire pour vendre / installer chaque type
 P.KIND_PERM = { service = 'quotes', custom = 'quotes', perf = 'perf', cosmetic = 'cosmetic', carplay = 'carplay' }
@@ -32,18 +33,22 @@ function P.LoadCatalog()
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `meca_catalog`') or {}) do P.catalog[r.code] = Row(r) end
 end
 
+-- Ajoute les articles de Config.DefaultCatalog absents de la base (premier démarrage ou nouvelle version) ;
+-- un article déjà en base n'est jamais modifié (prix, activation…).
 local function Seed()
+    local n = 0
     for i, c in ipairs(Config.DefaultCatalog) do
-        MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `sort`, `updated_by`)
+        local id = MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `sort`, `updated_by`)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Installation')]], { c.code, c.name, c.description, c.category, c.kind, c.mod, c.level, c.price,
             c.enabled == false and 0 or 1, c.minLevel or 1, i })
+        if (tonumber(id) or 0) > 0 then n = n + 1 end
     end
-    print('^2[MECA] Catalogue de départ créé.^0')
+    if n > 0 then print(('^2[MECA] Catalogue : %d article(s) ajouté(s).^0'):format(n)) end
 end
 
 P.OnReady = P.OnReady or {}
 P.OnReady[#P.OnReady + 1] = function()
-    if (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `meca_catalog`')) or 0) == 0 then Seed() end
+    Seed()
     P.LoadCatalog()
 end
 

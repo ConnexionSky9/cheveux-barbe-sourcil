@@ -100,6 +100,13 @@ Config.DefaultCatalog = {
     { code = 'cosmetic_neon',     name = 'Néons',                    category = 'lights',   kind = 'cosmetic', mod = 'neon', price = 1500 },
     { code = 'cosmetic_xenon',    name = 'Phares xénon',             category = 'lights',   kind = 'cosmetic', mod = 'xenon', price = 900 },
     { code = 'cosmetic_interior', name = 'Pièce d\'intérieur',       category = 'interior', kind = 'cosmetic', mod = 'interior', price = 450 },
+    { code = 'cosmetic_intcolor', name = 'Couleur de l\'intérieur',   category = 'interior', kind = 'cosmetic', mod = 'intcolor', price = 400 },
+    { code = 'cosmetic_dashcolor', name = 'Couleur du tableau de bord', category = 'interior', kind = 'cosmetic', mod = 'dashcolor', price = 300 },
+    { code = 'cosmetic_roofliv',  name = 'Livrée de toit',           category = 'paint',    kind = 'cosmetic', mod = 'roofliv', price = 900 },
+    { code = 'cosmetic_tyres',    name = 'Pneus (flancs, pare-balles)', category = 'wheels', kind = 'cosmetic', mod = 'tyres', price = 2500 },
+    { code = 'cosmetic_extras',   name = 'Éléments optionnels',      category = 'cosmetic', kind = 'cosmetic', mod = 'extras', price = 250 },
+    { code = 'cosmetic_platetext', name = 'Plaque personnalisée',    category = 'paint',    kind = 'cosmetic', mod = 'platetext', price = 5000,
+      description = 'Texte de plaque au choix (1 à 8 caractères), réservé aux véhicules avec carte grise.' },
     -- CarPlay (téléphone elyzea_aura)
     { code = 'carplay', name = 'Installation CarPlay', category = 'carplay', kind = 'carplay', price = 3500,
       description = 'Rend le véhicule compatible avec ElyzeaCarPlay (tablette F4 et contrôle depuis le téléphone). Liée au véhicule.' },

@@ -17,7 +17,7 @@ local BODY = {
     { id = 8, label = 'Aile gauche' }, { id = 9, label = 'Aile droite' }, { id = 10, label = 'Toit' }, { id = 14, label = 'Klaxon' },
     { id = 37, label = 'Coffre' }, { id = 38, label = 'Hydraulique' }, { id = 39, label = 'Bloc moteur' }, { id = 40, label = 'Filtre à air' },
     { id = 41, label = 'Barres de renfort' }, { id = 42, label = 'Passages de roue' }, { id = 43, label = 'Antennes' }, { id = 44, label = 'Garnitures extérieures' },
-    { id = 45, label = 'Réservoir' }, { id = 46, label = 'Fenêtres' },
+    { id = 45, label = 'Réservoir' }, { id = 46, label = 'Fenêtres' }, { id = 47, label = 'Portes' }, { id = 49, label = 'Rampe lumineuse' },
 }
 local INTERIOR = {
     { id = 25, label = 'Support de plaque' }, { id = 26, label = 'Plaque personnalisée' }, { id = 27, label = 'Garnitures' }, { id = 28, label = 'Ornements' },
@@ -25,22 +25,50 @@ local INTERIOR = {
     { id = 33, label = 'Volant' }, { id = 34, label = 'Levier de vitesse' }, { id = 35, label = 'Plaques décoratives' }, { id = 36, label = 'Sono' },
 }
 local PERF = { engine = 11, brakes = 12, transmission = 13, suspension = 15, armor = 16 }
+-- Palette complète de GTA (0-160) : { index, nom, finition (0 normal, 1 métallisé, 3 mat, 4 métal, 5 chrome) }
 local COLORS = {
-    { 0, 'Noir' }, { 1, 'Graphite' }, { 4, 'Argent' }, { 111, 'Blanc' }, { 27, 'Rouge' }, { 28, 'Rouge Torino' }, { 35, 'Rouge bonbon' }, { 38, 'Orange' },
-    { 88, 'Jaune' }, { 89, 'Jaune course' }, { 53, 'Vert' }, { 55, 'Vert lime' }, { 49, 'Vert foncé' }, { 64, 'Bleu' }, { 70, 'Bleu ultra' }, { 62, 'Bleu foncé' },
-    { 61, 'Bleu nuit' }, { 145, 'Violet' }, { 135, 'Rose vif' }, { 90, 'Bronze' }, { 96, 'Chocolat' }, { 99, 'Beige' }, { 12, 'Noir mat' }, { 13, 'Gris mat' },
-    { 131, 'Blanc mat' }, { 39, 'Rouge mat' }, { 128, 'Vert mat' }, { 83, 'Bleu mat' }, { 117, 'Acier brossé' }, { 118, 'Noir brossé' }, { 119, 'Aluminium brossé' },
-    { 158, 'Or pur' }, { 159, 'Or brossé' }, { 120, 'Chrome' },
+    { 0, 'Noir', 1 }, { 1, 'Noir graphite', 1 }, { 2, 'Noir acier', 1 }, { 3, 'Argent foncé', 1 }, { 4, 'Argent', 1 }, { 5, 'Argent bleuté', 1 },
+    { 6, 'Gris acier', 1 }, { 7, 'Argent ombré', 1 }, { 8, 'Argent pierre', 1 }, { 9, 'Argent minuit', 1 }, { 10, 'Gris canon', 1 }, { 11, 'Gris anthracite', 1 },
+    { 12, 'Noir mat', 3 }, { 13, 'Gris mat', 3 }, { 14, 'Gris clair mat', 3 }, { 15, 'Noir utilitaire', 0 }, { 16, 'Noir utilitaire (poly)', 0 },
+    { 17, 'Argent foncé utilitaire', 0 }, { 18, 'Argent utilitaire', 0 }, { 19, 'Gris canon utilitaire', 0 }, { 20, 'Argent ombré utilitaire', 0 },
+    { 21, 'Noir usé', 0 }, { 22, 'Graphite usé', 0 }, { 23, 'Gris argent usé', 0 }, { 24, 'Argent usé', 0 }, { 25, 'Argent bleuté usé', 0 }, { 26, 'Argent ombré usé', 0 },
+    { 27, 'Rouge', 1 }, { 28, 'Rouge Torino', 1 }, { 29, 'Rouge Formule', 1 }, { 30, 'Rouge flamme', 1 }, { 31, 'Rouge élégant', 1 }, { 32, 'Rouge grenat', 1 },
+    { 33, 'Rouge désert', 1 }, { 34, 'Rouge cabernet', 1 }, { 35, 'Rouge bonbon', 1 }, { 36, 'Orange soleil levant', 1 }, { 37, 'Or classique', 1 }, { 38, 'Orange', 1 },
+    { 39, 'Rouge mat', 3 }, { 40, 'Rouge foncé mat', 3 }, { 41, 'Orange mat', 3 }, { 42, 'Jaune mat', 3 }, { 43, 'Rouge utilitaire', 0 }, { 44, 'Rouge vif utilitaire', 0 },
+    { 45, 'Grenat utilitaire', 0 }, { 46, 'Rouge usé', 0 }, { 47, 'Rouge doré usé', 0 }, { 48, 'Rouge foncé usé', 0 }, { 49, 'Vert foncé', 1 }, { 50, 'Vert course', 1 },
+    { 51, 'Vert océan', 1 }, { 52, 'Vert olive', 1 }, { 53, 'Vert', 1 }, { 54, 'Bleu-vert essence', 1 }, { 55, 'Vert citron mat', 3 }, { 56, 'Vert foncé utilitaire', 0 },
+    { 57, 'Vert utilitaire', 0 }, { 58, 'Vert foncé usé', 0 }, { 59, 'Vert usé', 0 }, { 60, 'Vert d\'eau usé', 0 }, { 61, 'Bleu nuit', 1 }, { 62, 'Bleu foncé', 1 },
+    { 63, 'Bleu Saxe', 1 }, { 64, 'Bleu', 1 }, { 65, 'Bleu marin', 1 }, { 66, 'Bleu port', 1 }, { 67, 'Bleu diamant', 1 }, { 68, 'Bleu surf', 1 },
+    { 69, 'Bleu nautique', 1 }, { 70, 'Bleu vif', 1 }, { 71, 'Bleu violet', 1 }, { 72, 'Bleu spinnaker', 1 }, { 73, 'Bleu ultra', 1 }, { 74, 'Bleu clair', 1 },
+    { 75, 'Bleu foncé utilitaire', 0 }, { 76, 'Bleu nuit utilitaire', 0 }, { 77, 'Bleu utilitaire', 0 }, { 78, 'Bleu écume utilitaire', 0 }, { 79, 'Bleu éclair utilitaire', 0 },
+    { 80, 'Bleu Maui utilitaire', 0 }, { 81, 'Bleu vif utilitaire', 0 }, { 82, 'Bleu foncé mat', 3 }, { 83, 'Bleu mat', 3 }, { 84, 'Bleu nuit mat', 3 },
+    { 85, 'Bleu foncé usé', 0 }, { 86, 'Bleu usé', 0 }, { 87, 'Bleu clair usé', 0 }, { 88, 'Jaune taxi', 1 }, { 89, 'Jaune course', 1 }, { 90, 'Bronze', 1 },
+    { 91, 'Jaune canari', 1 }, { 92, 'Vert lime', 1 }, { 93, 'Champagne', 1 }, { 94, 'Beige pueblo', 1 }, { 95, 'Ivoire foncé', 1 }, { 96, 'Brun chocolat', 1 },
+    { 97, 'Brun doré', 1 }, { 98, 'Brun clair', 1 }, { 99, 'Beige paille', 1 }, { 100, 'Brun mousse', 1 }, { 101, 'Brun bistre', 1 }, { 102, 'Hêtre', 1 },
+    { 103, 'Hêtre foncé', 1 }, { 104, 'Orange chocolat', 1 }, { 105, 'Sable', 1 }, { 106, 'Sable délavé', 1 }, { 107, 'Crème', 1 }, { 108, 'Brun utilitaire', 0 },
+    { 109, 'Brun moyen utilitaire', 0 }, { 110, 'Brun clair utilitaire', 0 }, { 111, 'Blanc', 1 }, { 112, 'Blanc givré', 1 }, { 113, 'Beige miel usé', 0 },
+    { 114, 'Brun usé', 0 }, { 115, 'Brun foncé usé', 0 }, { 116, 'Beige paille usé', 0 }, { 117, 'Acier brossé', 4 }, { 118, 'Acier noir brossé', 4 },
+    { 119, 'Aluminium brossé', 4 }, { 120, 'Chrome', 5 }, { 121, 'Blanc cassé usé', 0 }, { 122, 'Blanc cassé utilitaire', 0 }, { 123, 'Orange usé', 0 },
+    { 124, 'Orange clair usé', 0 }, { 125, 'Vert Securicor', 1 }, { 126, 'Jaune taxi usé', 0 }, { 127, 'Bleu police', 1 }, { 128, 'Vert mat', 3 }, { 129, 'Brun mat', 3 },
+    { 130, 'Orange usé (2)', 0 }, { 131, 'Blanc mat', 3 }, { 132, 'Blanc usé', 0 }, { 133, 'Vert armée usé', 0 }, { 134, 'Blanc pur', 0 }, { 135, 'Rose vif', 1 },
+    { 136, 'Rose saumon', 1 }, { 137, 'Rose vermillon', 1 }, { 138, 'Orange vif', 1 }, { 139, 'Vert vif', 1 }, { 140, 'Bleu vif (2)', 1 }, { 141, 'Noir bleuté', 1 },
+    { 142, 'Noir violacé', 1 }, { 143, 'Noir rougeâtre', 1 }, { 144, 'Vert chasseur', 1 }, { 145, 'Violet', 1 }, { 146, 'Bleu très foncé', 1 }, { 147, 'Noir carbone', 1 },
+    { 148, 'Violet mat', 3 }, { 149, 'Violet foncé mat', 3 }, { 150, 'Rouge lave', 1 }, { 151, 'Vert forêt mat', 3 }, { 152, 'Vert olive mat', 3 },
+    { 153, 'Brun désert mat', 3 }, { 154, 'Beige désert mat', 3 }, { 155, 'Vert feuillage mat', 3 }, { 156, 'Alliage par défaut', 1 }, { 157, 'Bleu Epsilon', 1 },
+    { 158, 'Or pur', 4 }, { 159, 'Or brossé', 4 }, { 160, 'Or secret', 4 },
 }
 local LIGHTS = {
     { 'Blanc', 255, 255, 255 }, { 'Bleu', 2, 21, 255 }, { 'Bleu électrique', 3, 83, 255 }, { 'Vert menthe', 0, 255, 140 }, { 'Vert lime', 94, 255, 1 },
     { 'Jaune', 255, 255, 0 }, { 'Or', 255, 150, 5 }, { 'Orange', 255, 62, 0 }, { 'Rouge', 255, 1, 1 }, { 'Rose', 255, 50, 100 }, { 'Rose vif', 255, 5, 190 }, { 'Violet', 35, 1, 255 },
+    { 'Lumière noire', 15, 3, 255 }, { 'Cyan', 0, 255, 255 }, { 'Turquoise', 0, 200, 150 }, { 'Magenta', 255, 0, 255 }, { 'Corail', 255, 110, 70 }, { 'Ambre', 255, 191, 0 },
+    { 'Bleu ciel', 120, 200, 255 }, { 'Lavande', 180, 140, 255 }, { 'Noir (fumée)', 1, 1, 1 },
 }
+local NEON_LAYOUT = { { '1111', 'Tout le tour' }, { '0011', 'Avant et arrière' }, { '1100', 'Côtés' }, { '0010', 'Avant' }, { '0001', 'Arrière' } }
 local XENON = { 'Blanc', 'Bleu', 'Bleu électrique', 'Vert menthe', 'Vert lime', 'Jaune', 'Or', 'Orange', 'Rouge', 'Rose', 'Rose vif', 'Violet', 'Lumière noire' }
-local TINTS = { { 0, 'Aucune' }, { 3, 'Fumé clair' }, { 2, 'Fumé foncé' }, { 5, 'Limousine' }, { 1, 'Noir pur' }, { 6, 'Vert' } }
+local TINTS = { { 0, 'Aucune' }, { 4, 'Origine' }, { 3, 'Fumé clair' }, { 2, 'Fumé foncé' }, { 5, 'Limousine' }, { 1, 'Noir pur' }, { 6, 'Vert' } }
 local PLATES = { { 0, 'Bleu sur blanc' }, { 3, 'Bleu sur blanc (2)' }, { 4, 'Bleu sur blanc (3)' }, { 1, 'Jaune sur noir' }, { 2, 'Jaune sur bleu' }, { 5, 'North Yankton' } }
 local WHEELTYPES = { { 0, 'Sport' }, { 1, 'Muscle' }, { 2, 'Lowrider' }, { 3, 'SUV' }, { 4, 'Tout-terrain' }, { 5, 'Tuner' }, { 7, 'Haut de gamme' },
-    { 8, "Benny's Original" }, { 9, "Benny's Bespoke" }, { 11, 'Street' }, { 12, 'Track' }, { 6, 'Moto' } }
+    { 8, "Benny's Original" }, { 9, "Benny's Bespoke" }, { 11, 'Street' }, { 12, 'Track' }, { 10, 'Roues F1' }, { 6, 'Moto' } }
 local FINISH = { { 0, 'Normal' }, { 1, 'Métallisé' }, { 2, 'Nacré' }, { 3, 'Mat' }, { 4, 'Métal' }, { 5, 'Chrome' } }
 
 local function ModLabel(veh, mod, i, fallback)
@@ -62,10 +90,18 @@ local function Subs(veh, group)
         end
         return out
     elseif group == 'paint' then return { { id = '1', label = 'Peinture principale' }, { id = '2', label = 'Peinture secondaire' } }
+    elseif group == 'neon' then
+        if not IsThisModelACar(GetEntityModel(veh)) then return {} end
+        local out = {}
+        for _, l in ipairs(NEON_LAYOUT) do out[#out + 1] = { id = l[1], label = l[2] } end
+        return out
     elseif group == 'wheels' then
         local out = {}
+        local bike, f1 = IsThisModelABike(GetEntityModel(veh)), GetVehicleClass(veh) == 22
         for _, w in ipairs(WHEELTYPES) do
-            if (w[1] == 6) == IsThisModelABike(GetEntityModel(veh)) then out[#out + 1] = { id = tostring(w[1]), label = w[2] } end
+            if w[1] == 6 then if bike then out[#out + 1] = { id = '6', label = w[2] } end
+            elseif w[1] == 10 then if f1 then out[#out + 1] = { id = '10', label = w[2] } end
+            elseif not bike and not f1 then out[#out + 1] = { id = tostring(w[1]), label = w[2] } end
         end
         return out
     end
@@ -84,19 +120,39 @@ local function Options(veh, group, sub)
         return out, cur
     elseif group == 'paint' then
         local slot = tonumber(sub) or 1
-        for _, f in ipairs(FINISH) do
-            for _, c in ipairs(COLORS) do
-                if f[1] <= 1 or (f[1] == 3 and c[2]:find('mat')) or f[1] == 5 and c[1] == 120 or f[1] == 4 and c[2]:find('brossé') then
-                    out[#out + 1] = { value = ('%d:%d'):format(c[1], f[1]), label = ('%s · %s'):format(c[2], f[2]), spec = { t = 'paint', slot = slot, color = c[1], finish = f[1] } }
-                end
-            end
+        for _, c in ipairs(COLORS) do
+            out[#out + 1] = { value = c[1], label = c[2], spec = { t = 'paint', slot = slot, color = c[1], finish = c[3] } }
+            -- Les teintes métallisées existent aussi en nacré (finition GTA « perle »)
+            if c[3] == 1 then out[#out + 1] = { value = ('%d:2'):format(c[1]), label = c[2] .. ' · nacré', spec = { t = 'paint', slot = slot, color = c[1], finish = 2 } } end
         end
         local p, s = GetVehicleColours(veh)
-        return out, ('%d:%d'):format(slot == 1 and p or s, slot == 1 and (GetVehicleModColor_1(veh)) or (GetVehicleModColor_2(veh)))
-    elseif group == 'pearl' or group == 'wheelcolor' then
+        return out, slot == 1 and p or s
+    elseif group == 'pearl' or group == 'wheelcolor' or group == 'intcolor' or group == 'dashcolor' then
         for _, c in ipairs(COLORS) do out[#out + 1] = { value = c[1], label = c[2], spec = { t = group, v = c[1] } } end
         local pe, wc = GetVehicleExtraColours(veh)
-        return out, group == 'pearl' and pe or wc
+        local cur = ({ pearl = pe, wheelcolor = wc, intcolor = GetVehicleInteriorColor(veh), dashcolor = GetVehicleDashboardColor(veh) })[group]
+        return out, cur
+    elseif group == 'tyres' then
+        local ct, bp = GetVehicleModVariation(veh, 23), GetVehicleTyresCanBurst(veh) == false
+        local cur = (ct and 1 or 0) + (bp and 2 or 0)
+        for _, o in ipairs({ { 0, 'Pneus d\'origine' }, { 1, 'Pneus personnalisés (flancs)' }, { 2, 'Pneus pare-balles' }, { 3, 'Personnalisés + pare-balles' } }) do
+            out[#out + 1] = { value = o[1], label = o[2], spec = { t = 'tyres', custom = o[1] % 2 == 1, bp = o[1] >= 2 } }
+        end
+        return out, cur
+    elseif group == 'extras' then
+        for i = 0, 20 do
+            if DoesExtraExist(veh, i) then
+                local on = IsVehicleExtraTurnedOn(veh, i)
+                out[#out + 1] = { value = i, label = ('Élément n°%d : %s'):format(i, on and 'retirer' or 'ajouter'), spec = { t = 'extra', id = i, on = not on } }
+            end
+        end
+        return out
+    elseif group == 'roofliv' then
+        local n = GetVehicleRoofLiveryCount(veh)
+        for i = 0, n - 1 do out[#out + 1] = { value = i, label = ('Livrée de toit n°%d'):format(i + 1), spec = { t = 'roofliv', v = i } } end
+        return out, GetVehicleRoofLivery(veh)
+    elseif group == 'platetext' then
+        return out, C.Plate(veh)
     elseif group == 'wheels' then
         local t = tonumber(sub) or GetVehicleWheelType(veh)
         local curT, curM = GetVehicleWheelType(veh), GetVehicleMod(veh, 23)
@@ -111,8 +167,9 @@ local function Options(veh, group, sub)
         return out
     elseif group == 'neon' then
         if not IsThisModelACar(GetEntityModel(veh)) then return out end
+        local sides = tostring(sub or '1111')
         out[#out + 1] = { value = 0, label = 'Éteints', spec = { t = 'neon', on = false } }
-        for i, l in ipairs(LIGHTS) do out[#out + 1] = { value = i, label = l[1], spec = { t = 'neon', on = true, rgb = { l[2], l[3], l[4] } } } end
+        for i, l in ipairs(LIGHTS) do out[#out + 1] = { value = i, label = l[1], spec = { t = 'neon', on = true, sides = sides, rgb = { l[2], l[3], l[4] } } } end
         return out
     elseif group == 'xenon' then
         out[#out + 1] = { value = -2, label = 'Phares normaux', spec = { t = 'xenon', on = false } }
@@ -140,6 +197,7 @@ end
 local MODKEY = {}
 for _, m in ipairs(BODY) do MODKEY[m.id] = true end
 for _, m in ipairs(INTERIOR) do MODKEY[m.id] = true end
+MODKEY[47], MODKEY[49] = true, true
 local function Preview(veh, spec)
     SetVehicleModKit(veh, 0)
     local t = spec.t
@@ -152,10 +210,20 @@ local function Preview(veh, spec)
         else ClearVehicleCustomSecondaryColour(veh) SetVehicleModColor_2(veh, spec.finish, 0) SetVehicleColours(veh, p, spec.color) end
         SetVehicleExtraColours(veh, pe, wc)
     elseif t == 'pearl' then local _, wc = GetVehicleExtraColours(veh) SetVehicleExtraColours(veh, spec.v, wc)
+    elseif t == 'intcolor' then SetVehicleInteriorColor(veh, spec.v)
+    elseif t == 'dashcolor' then SetVehicleDashboardColor(veh, spec.v)
+    elseif t == 'tyres' then
+        SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), spec.custom == true)
+        if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), spec.custom == true) end
+        SetVehicleTyresCanBurst(veh, spec.bp ~= true)
+    elseif t == 'extra' then SetVehicleExtra(veh, spec.id, spec.on ~= true)
+    elseif t == 'roofliv' then SetVehicleRoofLivery(veh, spec.v)
+    elseif t == 'platetext' then SetVehicleNumberPlateText(veh, spec.v)
     elseif t == 'wheelcolor' then local pe = GetVehicleExtraColours(veh) SetVehicleExtraColours(veh, pe, spec.v)
     elseif t == 'smoke' then ToggleVehicleMod(veh, 20, true) SetVehicleTyreSmokeColor(veh, spec.rgb[1], spec.rgb[2], spec.rgb[3])
     elseif t == 'neon' then
-        for i = 0, 3 do SetVehicleNeonLightEnabled(veh, i, spec.on == true) end
+        local sides = tostring(spec.sides or '1111')
+        for i = 0, 3 do SetVehicleNeonLightEnabled(veh, i, spec.on == true and sides:sub(i + 1, i + 1) == '1') end
         if spec.rgb then SetVehicleNeonLightsColour(veh, spec.rgb[1], spec.rgb[2], spec.rgb[3]) end
     elseif t == 'xenon' then ToggleVehicleMod(veh, 22, spec.on == true) if spec.on then SetVehicleXenonLightsColor(veh, spec.v or -1) end
     elseif t == 'tint' then SetVehicleWindowTint(veh, spec.v)
@@ -190,8 +258,15 @@ local function Verify(veh, patch)
     for k, v in pairs(patch) do
         if not IGNORE[k] then
             local got = props[k]
-            if k == 'modXenon' or k == 'modTurbo' or k == 'modSmokeEnabled' then got = props[k] == true end
-            if not Same(got, v) then return false end
+            if k == 'modXenon' or k == 'modTurbo' or k == 'modSmokeEnabled' or k == 'bulletProofTyres' or k == 'modCustomTiresF' or k == 'modCustomTiresR' then
+                got = props[k] == true or props[k] == 1
+                v = v == true or v == 1
+            end
+            if k == 'extras' then
+                for id, val in pairs(v) do if (tonumber((got or {})[tostring(id)]) or -1) ~= tonumber(val) then return false end end
+            elseif k == 'plate' then
+                if C.Plate(veh):upper() ~= tostring(v):upper() then return false end
+            elseif not Same(got, v) then return false end
         end
     end
     return true
@@ -203,6 +278,44 @@ local function Control(veh)
     while not NetworkHasControlOfEntity(veh) and GetGameTimer() < t do NetworkRequestControlOfEntity(veh) Wait(0) end
     return NetworkHasControlOfEntity(veh)
 end
+
+-- ---------------------------------------------------------------------
+-- Caméra : clic droit maintenu + glisser pour tourner autour du véhicule, molette pour zoomer
+-- ---------------------------------------------------------------------
+local CAM = { cam = nil, h = 0.0, p = 12.0, d = 6.0 }
+local function CamUpdate()
+    if not CAM.cam or not WS.veh or not DoesEntityExist(WS.veh) then return end
+    local c = GetEntityCoords(WS.veh) + vector3(0.0, 0.0, 0.4)
+    local h, p = math.rad(CAM.h), math.rad(CAM.p)
+    local pos = c + vector3(-math.sin(h) * math.cos(p) * CAM.d, math.cos(h) * math.cos(p) * CAM.d, math.sin(p) * CAM.d)
+    SetCamCoord(CAM.cam, pos.x, pos.y, pos.z)
+    PointCamAtCoord(CAM.cam, c.x, c.y, c.z)
+end
+local function CamStart(veh)
+    local min, max = GetModelDimensions(GetEntityModel(veh))
+    CAM.d = math.max(4.0, math.min(14.0, #(max - min) * 1.25))
+    CAM.h, CAM.p = GetEntityHeading(veh) + 220.0, 12.0
+    CAM.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamFov(CAM.cam, 50.0)
+    WS.veh = veh
+    CamUpdate()
+    RenderScriptCams(true, true, 600, true, true)
+end
+local function CamStop()
+    if not CAM.cam then return end
+    RenderScriptCams(false, true, 600, true, true)
+    DestroyCam(CAM.cam, false)
+    CAM.cam = nil
+end
+RegisterNUICallback('wsCam', function(body, cb)
+    cb({})
+    if not WS.open or not CAM.cam then return end
+    CAM.h = (CAM.h - (tonumber(body.dx) or 0) * 0.35) % 360
+    CAM.p = math.max(-10.0, math.min(70.0, CAM.p + (tonumber(body.dy) or 0) * 0.25))
+    if tonumber(body.zoom) then CAM.d = math.max(2.5, math.min(16.0, CAM.d + tonumber(body.zoom))) end
+    if body.reset then CAM.h, CAM.p = GetEntityHeading(WS.veh) + 220.0, 12.0 end
+    CamUpdate()
+end)
 
 -- ---------------------------------------------------------------------
 -- Ouverture / fermeture
@@ -220,6 +333,7 @@ local function Close(silent)
     if not WS.keep then Restore() end
     WS.keep = false
     if WS.veh and DoesEntityExist(WS.veh) then FreezeEntityPosition(WS.veh, false) end
+    CamStop()
     C.Focus('workshop', false)
     SendNUIMessage({ action = 'workshop', show = false })
     if not silent then C.Notify('Atelier fermé : aucune modification non installée n\'est restée sur le véhicule.', 'inform') end
@@ -251,10 +365,12 @@ local function Open(w)
         if it.kind == 'cosmetic' and not groups[it.mod] then
             local subs = Subs(veh, it.mod)
             local opts = subs and {} or select(1, Options(veh, it.mod))
-            groups[it.mod] = { subs = subs, empty = (subs and #subs == 0) or (not subs and #opts == 0) }
+            if it.mod == 'platetext' then groups[it.mod] = { text = true, empty = not r.owned }
+            else groups[it.mod] = { subs = subs, empty = (subs and #subs == 0) or (not subs and #opts == 0) } end
         end
     end
     C.Focus('workshop', true)
+    CamStart(veh)
     SendNUIMessage({ action = 'workshop', show = true, data = r, live = live, maxLv = maxLv, groups = groups,
         model = C.ModelLabel(veh), health = { engine = math.floor(GetVehicleEngineHealth(veh) / 10), body = math.floor(GetVehicleBodyHealth(veh) / 10) },
         state = C.VehicleState(veh) })
@@ -315,9 +431,18 @@ RegisterNUICallback('wsInstall', function(body, cb)
     Restore()                         -- on enlève les aperçus : seul le devis est posé
     Control(veh)
     local results = {}
-    for i, line in ipairs(r.lines) do
+    -- Pneus en dernier (la variante « pneus personnalisés » se pose sur la jante finale)
+    local order = {}
+    for i, line in ipairs(r.lines) do if not (line.patch and line.patch.modCustomTiresF ~= nil) then order[#order + 1] = i end end
+    for i, line in ipairs(r.lines) do if line.patch and line.patch.modCustomTiresF ~= nil then order[#order + 1] = i end end
+    for _, i in ipairs(order) do
+        local line = r.lines[i]
         if line.patch then
             core:SetVehicleProperties(veh, line.patch)
+            if line.patch.modCustomTiresF ~= nil then
+                SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), line.patch.modCustomTiresF == true)
+                if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), line.patch.modCustomTiresR == true) end
+            end
             -- Finition d'une couleur d'origine (le core n'applique la finition qu'aux couleurs libres)
             local pt = line.patch
             if pt.paintType1 and type(pt.color1) == 'number' then
