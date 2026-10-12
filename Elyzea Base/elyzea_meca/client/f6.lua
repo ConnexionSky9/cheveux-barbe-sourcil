@@ -10,7 +10,7 @@ local quotes, quotesAt = {}, 0
 
 local function NearWorkshop()
     local pos = GetEntityCoords(PlayerPedId())
-    for _, w in ipairs(Config.Workshops) do
+    for _, w in ipairs(C.Workshops()) do
         if #(pos - w.coords) < 3.0 then return { id = w.id, label = w.label } end
     end
 end

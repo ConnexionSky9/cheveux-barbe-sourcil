@@ -1,7 +1,7 @@
 -- =====================================================================
 --  ELYZEA MÉCANO - serveur : catalogue et tarifs (direction)
 --  · Tous les articles vendus sont en base (meca_catalog) : prix, activation,
---    grade minimum, pièce de stock consommée, compatibilité.
+--    grade minimum, compatibilité.
 --  · Au premier démarrage, Config.DefaultCatalog est copié en base ; ensuite
 --    tout se règle dans la tablette › Direction › Catalogue et tarifs.
 --  · Le prix d'un devis est copié dans le devis : un changement de tarif ne
@@ -24,7 +24,7 @@ P.KIND_PERM = { service = 'quotes', custom = 'quotes', perf = 'perf', cosmetic =
 local function Row(r)
     return { id = r.id, code = r.code, name = r.name, description = r.description, category = r.category, kind = r.kind,
         mod = r.mod_key, level = tonumber(r.level), price = tonumber(r.price) or 0, enabled = r.enabled == 1 or r.enabled == true,
-        minLevel = tonumber(r.min_level) or 1, part = r.part_code, partQty = tonumber(r.part_qty) or 1, compat = r.compat, sort = tonumber(r.sort) or 0 }
+        minLevel = tonumber(r.min_level) or 1, compat = r.compat, sort = tonumber(r.sort) or 0 }
 end
 
 function P.LoadCatalog()
@@ -34,9 +34,9 @@ end
 
 local function Seed()
     for i, c in ipairs(Config.DefaultCatalog) do
-        MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `part_code`, `sort`, `updated_by`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Installation')]], { c.code, c.name, c.description, c.category, c.kind, c.mod, c.level, c.price,
-            c.enabled == false and 0 or 1, c.minLevel or 1, c.part, i })
+        MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `sort`, `updated_by`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Installation')]], { c.code, c.name, c.description, c.category, c.kind, c.mod, c.level, c.price,
+            c.enabled == false and 0 or 1, c.minLevel or 1, i })
     end
     print('^2[MECA] Catalogue de départ créé.^0')
 end
@@ -70,11 +70,9 @@ end
 
 P.Actions.catalog = { perm = 'tablet', fn = function(src)
     local list = P.SortedCatalog()
-    local parts = {}
-    for _, r in ipairs(MySQL.query.await('SELECT `code`, `label`, `qty` FROM `meca_stock` ORDER BY `label`') or {}) do parts[#parts + 1] = r end
     local carplay = MySQL.single.await([[SELECT COUNT(*) AS n,
         (SELECT COALESCE(SUM(`price`), 0) FROM `meca_carplay`) AS total FROM `meca_carplay`]]) or {}
-    return { list = list, categories = P.CATEGORIES, parts = parts, canEdit = P.Can(src, 'catalog_manage'), maxPrice = Config.Catalog.maxPrice,
+    return { list = list, categories = P.CATEGORIES, canEdit = P.Can(src, 'catalog_manage'), maxPrice = Config.Catalog.maxPrice,
         perfMods = P.PERF_MODS, cosmetic = P.COSMETIC, carplay = { count = tonumber(carplay.n) or 0, revenue = tonumber(carplay.total) or 0 },
         grades = (function() local l = {} for _, g in ipairs(P.SortedGrades()) do l[#l + 1] = { level = g.level, name = g.name } end return l end)() }
 end }
@@ -110,23 +108,17 @@ P.Actions.catalogSave = { perm = 'catalog_manage', fn = function(src, d)
             return { error = 'Les articles CarPlay sont fixes (Installation / Réinstallation) : modifiez leur prix.' }
         end
     end
-    local part = d.part and tostring(d.part):lower():gsub('[^%w_]', ''):sub(1, 30) or nil
-    if part == '' then part = nil end
-    if part and (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `meca_stock` WHERE `code` = ?', { part })) or 0) == 0 then
-        return { error = 'Pièce de stock inconnue.' }
-    end
-    local partQty = P.Int(d.partQty, 1, 50, 1)
     local enabled = d.enabled ~= false
     local desc = P.Clean(d.description, 255)
     local compat = P.Clean(d.compat, 120)
     if d.isNew then
-        MySQL.insert.await([[INSERT INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `part_code`, `part_qty`, `compat`, `sort`, `updated_by`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 999, ?)]], { code, name, desc ~= '' and desc or nil, category, kind, mod, level, price, enabled and 1 or 0, minLevel,
-            part, partQty, compat ~= '' and compat or nil, P.Name(src) })
+        MySQL.insert.await([[INSERT INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `compat`, `sort`, `updated_by`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 999, ?)]], { code, name, desc ~= '' and desc or nil, category, kind, mod, level, price, enabled and 1 or 0, minLevel,
+            compat ~= '' and compat or nil, P.Name(src) })
     else
-        MySQL.update.await([[UPDATE `meca_catalog` SET `name` = ?, `description` = ?, `category` = ?, `price` = ?, `enabled` = ?, `min_level` = ?, `part_code` = ?, `part_qty` = ?,
+        MySQL.update.await([[UPDATE `meca_catalog` SET `name` = ?, `description` = ?, `category` = ?, `price` = ?, `enabled` = ?, `min_level` = ?,
             `compat` = ?, `updated_by` = ? WHERE `code` = ?]], { name, desc ~= '' and desc or nil, (kind == 'perf' or kind == 'carplay') and existing.category or category,
-            price, enabled and 1 or 0, minLevel, part, partQty, compat ~= '' and compat or nil, P.Name(src), code })
+            price, enabled and 1 or 0, minLevel, compat ~= '' and compat or nil, P.Name(src), code })
     end
     local old = existing and existing.price
     P.LoadCatalog()

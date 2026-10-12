@@ -359,3 +359,4 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%
 .ws-cat.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
 .ws-cat:disabled { opacity: .5; cursor: not-allowed; }
 .ws-cat small, .ws-cat .n { font-size: .72rem; color: var(--faint); }
+.point.sel { background: var(--accent-soft); border-radius: .5rem; padding-left: .5rem; padding-right: .5rem; }

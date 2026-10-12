@@ -19,7 +19,7 @@
   const PERF = { engine: 'Moteur', brakes: 'Freins', transmission: 'Transmission', suspension: 'Suspension', armor: 'Blindage', turbo: 'Turbo' };
   const COS = { body: 'Carrosserie', paint: 'Peinture', pearl: 'Nacré', livery: 'Livrée', tint: 'Vitres teintées', plate: 'Plaque', wheels: 'Jantes',
     wheelcolor: 'Couleur des jantes', smoke: 'Fumée des pneus', neon: 'Néons', xenon: 'Xénon', interior: 'Intérieur' };
-  const CAT = { invoice: 'Factures clients', refund: 'Remboursements', salary: 'Salaires', parts: 'Achats de pièces', other: 'Autre' };
+  const CAT = { invoice: 'Factures clients', refund: 'Remboursements', salary: 'Salaires', other: 'Autre' };
   const METHOD = { bank: 'banque', cash: 'liquide' };
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
   const lineTotal = (l) => Number(l.total != null ? l.total : (Number(l.price) || 0) * (Number(l.qty) || 1));
@@ -31,7 +31,6 @@
     { id: 'vehicles', label: 'Véhicules clients', ico: '🚗', perm: ['vehicles_view'] },
     { id: 'quotes', label: 'Devis', ico: '📋', perm: ['quotes'] },
     { id: 'invoices', label: 'Factures', ico: '🧾', perm: ['quotes'] },
-    { id: 'stock', label: 'Stock de pièces', ico: '📦', perm: ['stock_view'] },
     { id: 'map', label: 'Carte', ico: '🗺️', perm: ['tablet'] },
     { id: 'stats', label: 'Statistiques', ico: '📊', perm: ['stats_view'] },
     { id: 'recruit', label: 'Recrutement', ico: '➕', perm: ['recruit'], group: 'Direction' },
@@ -40,6 +39,7 @@
     { id: 'perms', label: 'Permissions', ico: '🔐', perm: ['perms_manage'], group: 'Direction' },
     { id: 'history', label: 'Historique', ico: '🕘', perm: ['history_view'], group: 'Direction' },
     { id: 'catalog', label: 'Catalogue et tarifs', ico: '🏷️', perm: ['catalog_manage'], group: 'Direction' },
+    { id: 'workshops', label: 'Points d\'atelier', ico: '📍', perm: ['garage_manage'], group: 'Direction' },
     { id: 'garage', label: 'Garage', ico: '🚛', perm: ['garage_manage'], group: 'Direction' },
     { id: 'finance', label: 'Vue d\'ensemble', ico: '💰', perm: ['finance'], group: 'Finance' },
     { id: 'transactions', label: 'Transactions', ico: '🔁', perm: ['finance'], group: 'Finance' },
@@ -121,8 +121,7 @@
           <div class="actions-row">${can('vehicles_view') ? '<button class="btn small" data-q="vehicles">🚗 Véhicules</button>' : ''}<button class="btn small" data-q="map">🗺️ Carte</button>
             <button class="btn danger small" data-resign="1">Quitter le garage</button></div></div>
         <div class="card"><h2>Aujourd'hui</h2><div class="kv"><span>Demandes de dépannage</span><b>${td.tows}</b><span>Interventions</span><b>${td.interventions}</b>
-          <span>CarPlay installés (total)</span><b>${td.carplay}</b><span>Pièces sous le seuil</span><b style="color:${td.lowStock ? '#fca5a5' : 'inherit'}">${td.lowStock}</b><span>Effectif total</span><b>${d.employees}</b></div>
-          ${td.lowStock && can('stock_view') ? '<div class="actions-row"><button class="btn small" data-q="stock">📦 Voir le stock</button></div>' : ''}</div>
+          <span>CarPlay installés (total)</span><b>${td.carplay}</b><span>Effectif total</span><b>${d.employees}</b></div></div>
       </div></div>`;
     every(6000, () => { if (T.page === 'dashboard' && !typing()) PAGES.dashboard(T.gen); });
   };
@@ -272,56 +271,6 @@
   };
 
   /* ------------------------------------------------------------------ */
-  /* Stock de pièces                                                     */
-  /* ------------------------------------------------------------------ */
-  const SK = { data: null };
-  PAGES.stock = async (g) => {
-    const d = await req('stock');
-    if (stale(g)) return;
-    if (d.error) { body().innerHTML = empty(d.error); return; }
-    SK.data = d;
-    const low = d.list.filter((p) => Number(p.qty) < Number(p.min_qty)).length;
-    body().innerHTML = `<div class="stats"><div class="stat"><b>${d.list.length}</b><span>Références</span></div><div class="stat ${low ? 'red' : 'green'}"><b>${low}</b><span>Sous le seuil</span></div>
-        <div class="stat blue"><b>${money(d.list.reduce((s, p) => s + Number(p.qty) * Number(p.unit_cost), 0))}</b><span>Valeur du stock</span></div><div class="stat green"><b>${money(d.balance)}</b><span>Compte de l'entreprise</span></div></div>
-      <div class="split"><div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .4rem 0">Pièces ${d.canManage ? '<button class="btn small primary" data-sk="new">+ Nouvelle pièce</button>' : ''}</h2>
-        <table class="tbl"><tr><th>Pièce</th><th>En stock</th><th>Seuil</th><th>Coût unitaire</th><th></th></tr>${d.list.map((p) => `<tr>
-          <td><b>${esc(p.label)}</b><br><small class="mono faint">${esc(p.code)}</small></td><td class="mono" style="color:${Number(p.qty) < Number(p.min_qty) ? '#fca5a5' : 'inherit'}"><b>${p.qty}</b></td>
-          <td class="mono muted">${p.min_qty}</td><td class="mono">${money(p.unit_cost)}</td>
-          <td style="text-align:right;white-space:nowrap">${d.canManage ? `<button class="btn small primary" data-sk="order" data-code="${esc(p.code)}">Commander</button> <button class="btn small" data-sk="adjust" data-code="${esc(p.code)}">Corriger</button> <button class="btn small" data-sk="edit" data-code="${esc(p.code)}">✎</button>` : ''}</td></tr>`).join('')}</table>
-        <p class="faint" style="font-size:.76rem;margin:.6rem .4rem">Une commande débite le compte de l'entreprise (transaction « Achats de pièces ») et les pièces sont reçues tout de suite. Les pièces liées au catalogue sont retirées uniquement quand l'installation a réussi.</p></div>
-      <div class="detail"><div class="card"><h2>Mouvements</h2>${d.moves.map((m) => `<div class="list-row"><div class="main"><b style="font-weight:500">${esc(m.label || m.code)} · ${esc(m.reason || '')}</b>
-          <small>${esc(m.actor_name || '')} · ${fmtTime(m.t)}${m.ref ? ` · <span class="mono">${esc(m.ref)}</span>` : ''}${Number(m.cost) ? ` · ${money(m.cost)}` : ''}</small></div>
-          <b class="mono" style="color:${m.delta < 0 ? '#fca5a5' : 'var(--green)'}">${m.delta > 0 ? '+' : ''}${m.delta}</b></div>`).join('') || empty('Aucun mouvement.')}</div></div></div>`;
-  };
-  async function stockAction(b) {
-    const a = b.dataset.sk, p = SK.data.list.find((x) => x.code === b.dataset.code);
-    if (a === 'order') {
-      const v = await confirmBox('Commander des pièces', `<b>${esc(p.label)}</b> · ${money(p.unit_cost)} l'unité · solde de l'entreprise ${money(SK.data.balance)}.`, 'Commander', false,
-        '<label class="field" style="margin-top:.7rem"><span>Quantité</span><input class="input" type="number" min="1" max="1000" value="10" data-cfv="qty"></label>');
-      if (!v) return;
-      const qty = Math.floor(Number(v.qty) || 0);
-      if (!(await confirmBox('Confirmer la commande ?', `${qty} × ${esc(p.label)} = <b>${money(qty * Number(p.unit_cost))}</b> débités du compte de l'entreprise.`, 'Payer et recevoir'))) return;
-      await call('stockOrder', { code: p.code, qty }, b);
-    } else if (a === 'adjust') {
-      const v = await confirmBox('Corriger l\'inventaire', `<b>${esc(p.label)}</b> : ${p.qty} en stock. Aucun argent n'est engagé.`, 'Corriger', false,
-        `<div style="display:flex;flex-direction:column;gap:.6rem;margin-top:.7rem"><label class="field"><span>Nouvelle quantité</span><input class="input" type="number" min="0" value="${p.qty}" data-cfv="qty"></label>
-         <label class="field"><span>Motif (casse, perte, comptage…)</span><input class="input" maxlength="50" data-cfv="reason"></label></div>`);
-      if (!v) return;
-      await call('stockAdjust', { code: p.code, qty: Number(v.qty), reason: v.reason }, b);
-    } else {
-      const isNew = a === 'new', x = p || { code: '', label: '', min_qty: 0, unit_cost: 0 };
-      const v = await confirmBox(isNew ? 'Nouvelle pièce' : 'Modifier la pièce', isNew ? 'Le code sert à lier la pièce au catalogue (lettres, chiffres, _).' : `Code <span class="mono">${esc(x.code)}</span>`, 'Enregistrer', false,
-        `<div style="display:flex;flex-direction:column;gap:.6rem;margin-top:.7rem">${isNew ? '<label class="field"><span>Code</span><input class="input" maxlength="30" data-cfv="code"></label>' : ''}
-         <label class="field"><span>Nom</span><input class="input" maxlength="80" value="${esc(x.label)}" data-cfv="label"></label>
-         <label class="field"><span>Seuil d'alerte</span><input class="input" type="number" min="0" value="${x.min_qty}" data-cfv="min"></label>
-         <label class="field"><span>Coût d'achat unitaire ($)</span><input class="input" type="number" min="0" value="${x.unit_cost}" data-cfv="cost"></label></div>`);
-      if (!v) return;
-      await call('stockPart', { code: isNew ? v.code : x.code, label: v.label, min: Number(v.min), cost: Number(v.cost) }, b);
-    }
-    return PAGES.stock(T.gen);
-  }
-
-  /* ------------------------------------------------------------------ */
   /* Carte                                                               */
   /* ------------------------------------------------------------------ */
   const MS = { sel: null, data: null };
@@ -376,7 +325,7 @@
       <div class="stats"><div class="stat green"><b>${money(t.revenue)}</b><span>Encaissé (${t.invoices || 0} factures)</span></div><div class="stat blue"><b>${t.interventions || 0}</b><span>Interventions</span></div>
         <div class="stat orange"><b>${t.tows || 0}</b><span>Demandes de dépannage</span></div><div class="stat"><b>${t.carplay || 0}</b><span>CarPlay installés</span></div></div>
       <div class="cols even"><div class="card"><h2>Articles les plus vendus</h2><div class="bars-h">${d.top.map((a) => `<div><span>${esc(a.name)}</span><i style="width:${a.n / max * 100}%"></i><b class="mono">${a.n}</b></div>`).join('') || empty('Aucune vente.')}</div>
-          <div class="kv" style="margin-top:1rem"><span>Achats de pièces</span><b class="mono">−${money(t.parts)}</b><span>Salaires versés</span><b class="mono">−${money(t.salaries)}</b><span>Remboursements</span><b class="mono">−${money(t.refunds)}</b></div></div>
+          <div class="kv" style="margin-top:1rem"><span>Salaires versés</span><b class="mono">−${money(t.salaries)}</b><span>Remboursements</span><b class="mono">−${money(t.refunds)}</b></div></div>
         <div><div class="card"><h2>Recettes par type</h2><div class="bars-h">${kinds.map(([k, v]) => `<div><span>${esc(KIND[k] || k)}</span><i style="width:${(Number(v) || 0) / maxK * 100}%"></i><b class="mono">${money(v)}</b></div>`).join('') || empty('Aucune recette.')}</div></div>
           <div class="card"><h2>Interventions par mécanicien</h2>${d.workers.map((a) => `<div class="list-row"><div class="main"><b>${esc(a.name || '—')}</b></div><b class="mono">${a.n}</b></div>`).join('') || empty('Aucune intervention.')}</div></div></div>`;
   };
@@ -551,7 +500,7 @@
     const d = CS.data, ed = CS.edit;
     const list = d.list.filter((x) => !CS.kind || x.kind === CS.kind);
     const ro = d.canEdit ? '' : 'disabled';
-    let form = '<div class="card"><h2>Article</h2><div class="faint" style="font-size:.85rem">Sélectionnez un article pour modifier son prix, son activation, le grade minimum ou la pièce consommée.</div></div>';
+    let form = '<div class="card"><h2>Article</h2><div class="faint" style="font-size:.85rem">Sélectionnez un article pour modifier son prix, son activation ou le grade minimum.</div></div>';
     if (ed) {
       const locked = ed.kind === 'perf' || ed.kind === 'carplay';
       form = `<div class="card"><h2>${ed.isNew ? 'Nouvel article' : esc(ed.name)}</h2><div class="form-grid">
@@ -566,8 +515,6 @@
         <label class="field"><span>Catégorie</span><select class="input" data-ce="category" ${locked || ro ? 'disabled' : ''}>${Object.entries(d.categories).map(([k, l]) => `<option value="${k}" ${ed.category === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         <label class="field"><span>Prix ($)</span><input class="input" type="number" min="0" max="${d.maxPrice}" data-ce="price" value="${ed.price || 0}" ${ro}></label>
         <label class="field"><span>Grade minimum</span><select class="input" data-ce="minLevel" ${ro}>${[...d.grades].sort((a, b) => a.level - b.level).map((gr) => `<option value="${gr.level}" ${(ed.minLevel || 1) === gr.level ? 'selected' : ''}>${esc(gr.name)} (niv. ${gr.level})</option>`).join('')}</select></label>
-        <label class="field"><span>Pièce consommée</span><select class="input" data-ce="part" ${ro}><option value="">Aucune</option>${d.parts.map((p) => `<option value="${esc(p.code)}" ${ed.part === p.code ? 'selected' : ''}>${esc(p.label)} (${p.qty})</option>`).join('')}</select></label>
-        <label class="field"><span>Quantité de pièces</span><input class="input" type="number" min="1" max="50" data-ce="partQty" value="${ed.partQty || 1}" ${ro}></label>
         <label class="field full"><span>Compatibilité (note affichée)</span><input class="input" data-ce="compat" maxlength="120" value="${esc(ed.compat || '')}" placeholder="ex : voitures uniquement" ${ro}></label>
         <label class="field full" style="flex-direction:row;align-items:center;gap:.5rem"><input type="checkbox" class="check" data-ce="enabled" ${ed.enabled !== false ? 'checked' : ''} ${ro}><span style="font-size:.85rem;color:var(--text)">Actif (proposé à l'atelier et dans les devis)</span></label></div>
         ${d.canEdit ? `<div class="actions-row"><button class="btn primary" data-cs="save">${ed.isNew ? 'Ajouter' : 'Enregistrer'}</button><button class="btn" data-cs="cancel">Fermer</button>
@@ -578,9 +525,9 @@
         <div class="stat blue"><b>${d.carplay.count}</b><span>CarPlay installés</span></div><div class="stat orange"><b>${money(d.carplay.revenue)}</b><span>Recettes CarPlay</span></div></div>
       <div class="toolbar">${[['', 'Tous'], ['service', 'Prestations'], ['perf', 'Performances'], ['cosmetic', 'Esthétique'], ['carplay', 'CarPlay'], ['custom', 'Libres']].map(([k, l]) => `<button class="btn small ${CS.kind === k ? 'primary' : ''}" data-ck="${k}">${l}</button>`).join('')}
         <span style="flex:1"></span>${d.canEdit ? '<button class="btn primary small" data-cs="new">+ Nouvel article</button>' : ''}</div>
-      <div class="split"><div class="card" style="padding:.3rem .6rem">${list.length ? `<table class="tbl"><tr><th>Article</th><th>Type</th><th>Prix</th><th>Grade min.</th><th>Pièce</th><th>État</th></tr>${list.map((x) => `<tr class="click ${ed && ed.code === x.code ? 'sel' : ''}" data-citem="${esc(x.code)}" style="${x.enabled ? '' : 'opacity:.55'}">
+      <div class="split"><div class="card" style="padding:.3rem .6rem">${list.length ? `<table class="tbl"><tr><th>Article</th><th>Type</th><th>Prix</th><th>Grade min.</th><th>État</th></tr>${list.map((x) => `<tr class="click ${ed && ed.code === x.code ? 'sel' : ''}" data-citem="${esc(x.code)}" style="${x.enabled ? '' : 'opacity:.55'}">
         <td><b>${esc(x.name)}</b><br><small class="faint">${esc(d.categories[x.category] || x.category)}${x.description ? ` · ${esc(x.description)}` : ''}</small></td><td class="muted">${esc(KIND[x.kind] || x.kind)}${x.level ? ` · niv. ${x.level}` : ''}</td>
-        <td class="mono nw">${money(x.price)}</td><td class="muted">${esc(gradeName(x.minLevel))}</td><td class="muted">${x.part ? `${esc(x.part)} ×${x.partQty}` : '—'}</td><td>${x.enabled ? '<span class="pill on">Actif</span>' : '<span class="pill off">Inactif</span>'}</td></tr>`).join('')}</table>` : empty('Aucun article.')}</div>
+        <td class="mono nw">${money(x.price)}</td><td class="muted">${esc(gradeName(x.minLevel))}</td><td>${x.enabled ? '<span class="pill on">Actif</span>' : '<span class="pill off">Inactif</span>'}</td></tr>`).join('')}</table>` : empty('Aucun article.')}</div>
       <div class="detail">${form}</div></div>`;
   }
   function captureCatalog() {
@@ -588,10 +535,73 @@
     body().querySelectorAll('[data-ce]').forEach((i) => {
       const k = i.dataset.ce;
       if (k === 'enabled') ed.enabled = i.checked;
-      else if (k === 'price' || k === 'minLevel' || k === 'partQty' || k === 'level') ed[k] = Number(i.value);
+      else if (k === 'price' || k === 'minLevel' || k === 'level') ed[k] = Number(i.value);
       else ed[k] = i.value;
     });
-    if (ed.part === '') ed.part = null;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Points d'atelier (touche E) : placés en jeu, autant que voulu        */
+  /* ------------------------------------------------------------------ */
+  const WP = { data: null, edit: null };
+  PAGES.workshops = async (g) => {
+    const d = await req('workshopList');
+    if (stale(g)) return;
+    if (d.error) { body().innerHTML = empty(d.error); return; }
+    WP.data = d;
+    if (WP.edit && WP.edit.id) WP.edit = d.list.find((x) => x.id === WP.edit.id) ? { ...d.list.find((x) => x.id === WP.edit.id) } : null;
+    drawWorkshops();
+  };
+  const coordTxt = (c) => (c ? `${Number(c.x).toFixed(1)}, ${Number(c.y).toFixed(1)}, ${Number(c.z).toFixed(1)}` : null);
+  function drawWorkshops() {
+    const d = WP.data, ed = WP.edit;
+    const cards = d.list.map((w) => {
+      const ready = w.coords && w.vehicle;
+      return `<div class="point ${ed && ed.id === w.id ? 'sel' : ''}"><div style="min-width:0"><b>${esc(w.label)}</b> ${ready ? '<span class="pill on">Actif</span>' : '<span class="pill off">Emplacement du véhicule à placer</span>'}
+          <br><small class="faint">${(w.categories || []).map((c) => esc(d.categories[c] || c)).join(' · ')} · grade ${esc(gradeOf(w.minLevel))} · ${w.radius || d.defaults.radius} m${w.distance != null ? ` · à ${w.distance} m de vous` : ''}${w.quotes ? ` · ${w.quotes} devis en cours` : ''}</small>
+          <br><small class="faint mono">Mécanicien : ${esc(coordTxt(w.coords) || 'non placé')} · Véhicule : ${esc(coordTxt(w.vehicle) || 'non placé')}</small></div>
+        <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn small" data-wp="mechanic" data-id="${esc(w.id)}" title="Là où vous vous tenez">🧍 Mécanicien ici</button>
+          <button class="btn small ${w.vehicle ? '' : 'primary'}" data-wp="vehicle" data-id="${esc(w.id)}" title="Votre position, ou celle du véhicule si vous êtes dedans">🚗 Véhicule ici</button>
+          ${w.coords ? `<button class="btn small" data-gps="${w.coords.x},${w.coords.y}">📍</button>` : ''}
+          <button class="btn small" data-wp="edit" data-id="${esc(w.id)}">✎</button><button class="btn small danger" data-wp="del" data-id="${esc(w.id)}">✕</button></div></div>`;
+    }).join('');
+    const e = ed || { label: '', categories: d.defaults.categories, minLevel: d.defaults.minLevel, radius: d.defaults.radius };
+    const form = `<div class="card"><h2>${ed && ed.id ? 'Modifier le point' : 'Nouveau point'}</h2><div class="form-grid">
+        <label class="field full"><span>Nom</span><input class="input" id="wpLabel" maxlength="40" value="${esc(e.label || '')}" placeholder="ex : Banc moteur, Peinture 1"></label>
+        <div class="field full"><span>Rubriques proposées à ce point</span><div class="chips">${Object.entries(d.categories).map(([k, l]) => `<label class="extra" style="padding:.15rem .3rem"><input type="checkbox" class="check" data-wpc="${k}" ${(e.categories || []).includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div></div>
+        <label class="field"><span>Grade minimum</span><select class="input" id="wpLevel">${[...d.grades].sort((a, b) => a.level - b.level).map((gr) => `<option value="${gr.level}" ${(e.minLevel || 1) === gr.level ? 'selected' : ''}>${esc(gr.name)} (niv. ${gr.level})</option>`).join('')}</select></label>
+        <label class="field"><span>Tolérance de l'emplacement (m)</span><input class="input" id="wpRadius" type="number" min="1.5" max="8" step="0.5" value="${e.radius || d.defaults.radius}"></label></div>
+      <div class="actions-row"><button class="btn primary" data-wp="save">${ed && ed.id ? 'Enregistrer' : '📍 Créer ici'}</button>${ed ? '<button class="btn" data-wp="cancel">Annuler</button>' : ''}</div>
+      <p class="faint" style="font-size:.76rem;margin-top:.6rem">${ed && ed.id ? 'Les positions se déplacent avec les boutons « Mécanicien ici » et « Véhicule ici ».' : '« Créer ici » place le point du mécanicien (touche E) là où vous vous tenez. Ensuite, garez le véhicule (ou placez-vous) au centre de l\'emplacement et cliquez « Véhicule ici ».'}</p></div>`;
+    body().innerHTML = `<div class="note">Posez autant de points que vous voulez (${d.max} maximum), n'importe où. Chaque point = l'endroit où se tient le mécanicien (touche <b>E</b>) + l'emplacement du véhicule (moins de 15 m). Un point n'est actif qu'une fois les deux placés. Changements appliqués tout de suite à tous les mécaniciens.</div>
+      <div class="split"><div class="card"><h2>Points <span class="faint" style="font-size:.8rem">${d.list.length} / ${d.max}</span></h2>${cards || empty('Aucun point : créez le premier à votre position.')}</div>
+        <div class="detail">${form}</div></div>`;
+  }
+  const gradeOf = (lvl) => { const gs = (WP.data && WP.data.grades) || []; const gr = gs.filter((x) => x.level <= (lvl || 1)).sort((a, b) => b.level - a.level)[0] || gs[0]; return gr ? gr.name : `niv. ${lvl}`; };
+  async function workshopAction(b) {
+    const a = b.dataset.wp, w = WP.data.list.find((x) => x.id === b.dataset.id);
+    if (a === 'cancel') { WP.edit = null; return drawWorkshops(); }
+    if (a === 'edit') { WP.edit = { ...w }; return drawWorkshops(); }
+    if (a === 'mechanic' || a === 'vehicle') {
+      if (!(await confirmBox(a === 'vehicle' ? 'Placer l\'emplacement du véhicule ?' : 'Placer le point du mécanicien ?',
+        a === 'vehicle' ? `<b>${esc(w.label)}</b> : centre de l'emplacement = votre position (ou celle du véhicule si vous êtes au volant).` : `<b>${esc(w.label)}</b> : la touche E se fera là où vous vous tenez.`, 'Placer'))) return;
+      await call('workshopPlace', { id: w.id, kind: a }, b);
+      return PAGES.workshops(T.gen);
+    }
+    if (a === 'del') {
+      if (!(await confirmBox('Supprimer ce point ?', `« <b>${esc(w.label)}</b> » ne sera plus utilisable.`, 'Supprimer', true))) return;
+      await call('workshopDelete', { id: w.id }, b);
+      if (WP.edit && WP.edit.id === w.id) WP.edit = null;
+      return PAGES.workshops(T.gen);
+    }
+    if (a === 'save') {
+      const data = { id: WP.edit && WP.edit.id, label: $('#wpLabel').value, minLevel: Number($('#wpLevel').value), radius: Number($('#wpRadius').value),
+        categories: [...body().querySelectorAll('[data-wpc]')].filter((i) => i.checked).map((i) => i.dataset.wpc) };
+      if (!data.id && !(await confirmBox('Créer le point ici ?', `« <b>${esc(data.label)}</b> » : le point du mécanicien sera placé à votre position actuelle.`, 'Créer'))) return;
+      const r = await call('workshopSave', data, b);
+      if (r.ok) { WP.edit = null; return PAGES.workshops(T.gen); }
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -610,8 +620,8 @@
     const s = GA.data.settings, lv = GA.data.levels;
     const pt = (k, label, desc) => { const p = s[k]; return `<div class="point"><div><b>${label}</b><br><small class="faint">${p ? `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}${p.h != null ? ` · cap ${p.h}°` : ''}` : desc}</small></div>
       <div style="display:flex;gap:.4rem"><button class="btn small primary" data-gp="${k}">📍 Placer ici</button>${p ? `<button class="btn small danger" data-gpr="${k}">Retirer</button>` : ''}</div></div>`; };
-    body().innerHTML = `<div class="note">Les points sont placés à <b>votre position actuelle</b> dans le jeu. La place de sortie utilise aussi votre orientation. Les points d'atelier (touche E) se règlent dans config.lua (Config.Workshops, aide : /meca_pos).</div>
-      <div class="cols even"><div class="card"><h2>Points</h2>${pt('garage', 'Garage', 'Non placé : on y choisit le véhicule de service')}${pt('spawn', 'Place de sortie', 'Non placée : là où le véhicule apparaît')}${pt('pharmacy', 'Coffre d\'atelier', 'Non placé : coffre partagé (outils, pièces physiques)')}</div>
+    body().innerHTML = `<div class="note">Les points sont placés à <b>votre position actuelle</b> dans le jeu. La place de sortie utilise aussi votre orientation. Les points d'atelier (touche E) se placent dans Direction › Points d'atelier.</div>
+      <div class="cols even"><div class="card"><h2>Points</h2>${pt('garage', 'Garage', 'Non placé : on y choisit le véhicule de service')}${pt('spawn', 'Place de sortie', 'Non placée : là où le véhicule apparaît')}${pt('pharmacy', 'Coffre d\'atelier', 'Non placé : coffre partagé de l\'atelier')}</div>
         <div class="card"><h2>Véhicules de service</h2><table class="tbl"><tr><th>Modèle</th><th>Nom affiché</th><th>Type</th><th>Grade min.</th><th></th></tr>
           ${s.vehicles.map((v, i) => `<tr data-vrow="${i}"><td><input class="input" data-v="model" value="${esc(v.model)}" maxlength="30"></td><td><input class="input" data-v="label" value="${esc(v.label)}" maxlength="40"></td>
             <td><select class="input" data-v="type">${VTYPES.map(([k, l]) => `<option value="${k}" ${v.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
@@ -648,7 +658,7 @@
   function drawFinance() {
     const d = FS.data, sm = (k) => (d.sums[k] || { total: 0, n: 0 });
     const income = sm('in:invoice').total;
-    const expense = sm('out:salary').total + sm('out:refund').total + sm('out:parts').total;
+    const expense = sm('out:salary').total + sm('out:refund').total;
     const rows = d.employees.map((e) => `<tr><td><b>${esc(e.name)}</b><br><small class="mono faint">${esc(e.matricule)}</small></td><td>${esc(e.grade)}</td>
       <td>${e.duty ? '<span class="pill on">En service</span>' : '<span class="pill off">Hors service</span>'}</td><td class="mono nw">${dur(e.seconds)}</td><td class="mono nw">${dur(e.total)}</td>
       <td class="nw"><b class="mono">${money(e.due)}</b></td>
@@ -666,7 +676,6 @@
           ${d.employees.length ? `<table class="tbl"><tr><th>Employé</th><th>Grade</th><th>Service</th><th>Non payé</th><th>Total</th><th>À payer</th><th></th></tr>${rows}</table>` : empty('Aucun employé.')}
           <p class="faint" style="font-size:.76rem;margin:.6rem .4rem">Chaque période est comptée au taux et au grade qu'elle avait : un changement de taux ou une promotion n'est jamais rétroactif. « Payer » recalcule le montant, vérifie le solde, débite le compte de l'entreprise puis crédite la banque de l'employé (même hors ligne) ; seul le temps payé est retiré.</p></div>
         <div class="cols even"><div class="card"><h2>Détail sur 7 jours</h2><div class="kv"><span>Factures clients</span><b class="mono">+${money(sm('in:invoice').total)} <span class="faint">(${sm('in:invoice').n})</span></b>
-            <span>Achats de pièces</span><b class="mono">−${money(sm('out:parts').total)} <span class="faint">(${sm('out:parts').n})</span></b>
             <span>Salaires</span><b class="mono">−${money(sm('out:salary').total)} <span class="faint">(${sm('out:salary').n})</span></b><span>Remboursements</span><b class="mono">−${money(sm('out:refund').total)} <span class="faint">(${sm('out:refund').n})</span></b>
             <span>Devis en attente</span><b class="mono">${d.pendingQuotes.n} · ${money(d.pendingQuotes.total)}</b></div></div>
           <div class="card"><h2>Recettes par type (7 jours)</h2><div class="kv">${Object.entries(KIND).map(([k, l]) => `<span>${l}</span><b class="mono">${money(sp[k] || 0)}</b>`).join('')}</div></div></div>
@@ -796,8 +805,6 @@
       if (r.ok) return go('invoices');
       return;
     }
-    // Stock
-    if ((b = e.target.closest('[data-sk]'))) return stockAction(b);
     // Carte
     if ((b = e.target.closest('[data-m]')) && T.map) { const m = b.dataset.m; if (m === 'in') T.map.zoom(1.4); else if (m === 'out') T.map.zoom(0.7); else T.map.fit(); return; }
     if ((b = e.target.closest('[data-focus]')) && T.map && MS.data) {
@@ -912,7 +919,7 @@
     if ((b = e.target.closest('[data-citem]'))) { const it = CS.data.list.find((x) => x.code === b.dataset.citem); CS.edit = it ? { ...it } : null; return drawCatalog(); }
     if ((b = e.target.closest('[data-cs]'))) {
       const a = b.dataset.cs;
-      if (a === 'new') { CS.edit = { isNew: true, kind: 'custom', category: 'service', price: 0, minLevel: 1, enabled: true, partQty: 1 }; return drawCatalog(); }
+      if (a === 'new') { CS.edit = { isNew: true, kind: 'custom', category: 'service', price: 0, minLevel: 1, enabled: true }; return drawCatalog(); }
       if (a === 'cancel') { CS.edit = null; return drawCatalog(); }
       if (a === 'del') {
         if (!(await confirmBox('Supprimer l\'article ?', `« <b>${esc(CS.edit.name)}</b> » sera retiré du catalogue. Les anciennes factures le gardent.`, 'Supprimer', true))) return;
@@ -930,6 +937,8 @@
       }
       return;
     }
+    // Points d'atelier
+    if ((b = e.target.closest('[data-wp]'))) return workshopAction(b);
     // Garage
     if ((b = e.target.closest('[data-gp]'))) {
       if (!(await confirmBox('Placer le point ici ?', 'Le point sera enregistré à votre position actuelle.', 'Placer'))) return;
@@ -983,6 +992,7 @@
       if (T.page === 'employees' && ES.cid) { ES.cid = null; ES.emp = null; drawEmployees(); return true; }
       if (T.page === 'grades' && GS.edit) { GS.edit = null; drawGrades(); return true; }
       if (T.page === 'catalog' && CS.edit) { CS.edit = null; drawCatalog(); return true; }
+      if (T.page === 'workshops' && WP.edit) { WP.edit = null; drawWorkshops(); return true; }
       if (T.page === 'tows' && TW.sel) { TW.sel = null; TW.info = null; drawTows(); return true; }
       return false;
     },

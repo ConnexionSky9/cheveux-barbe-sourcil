@@ -95,9 +95,123 @@ local function CosmeticPatch(group, s)
     return nil
 end
 
-local function Workshop(id)
-    for _, w in ipairs(Config.Workshops) do if w.id == id then return w end end
+-- ---------------------------------------------------------------------
+-- Points d'atelier : placés en jeu par la direction (tablette › Direction › Points d'atelier)
+-- Gardés dans meca_settings (clé 'workshops'), publiés aux clients par GlobalState.mecaWorkshops.
+-- ---------------------------------------------------------------------
+local WD = Config.WorkshopDefaults
+local function Vec(t) return type(t) == 'table' and tonumber(t.x) and vector3(t.x + 0.0, t.y + 0.0, t.z + 0.0) or nil end
+local function Pos(src)
+    local ped = GetPlayerPed(src)
+    local veh = GetVehiclePedIsIn(ped, false)
+    local c = GetEntityCoords(veh ~= 0 and veh or ped)
+    return { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor(c.z * 100) / 100 }
 end
+
+function P.WorkshopList()
+    local list = {}
+    for _, w in ipairs(P.GetSetting('workshops', {})) do
+        if type(w) == 'table' and w.id then list[#list + 1] = w end
+    end
+    return list
+end
+local function Publish()
+    local pub = {}
+    for _, w in ipairs(P.WorkshopList()) do
+        if w.coords and w.vehicle then
+            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, vehicle = w.vehicle, radius = w.radius, categories = w.categories, minLevel = w.minLevel }
+        end
+    end
+    GlobalState.mecaWorkshops = pub
+end
+P.PublishWorkshops = Publish
+P.OnReady = P.OnReady or {}
+P.OnReady[#P.OnReady + 1] = Publish
+
+local function Workshop(id)
+    for _, w in ipairs(P.WorkshopList()) do
+        if w.id == id and w.coords and w.vehicle then
+            return { id = w.id, label = w.label, coords = Vec(w.coords), vehicle = Vec(w.vehicle), radius = tonumber(w.radius) or WD.radius,
+                categories = w.categories or {}, minLevel = tonumber(w.minLevel) or 1 }
+        end
+    end
+end
+
+P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
+    local grades = {}
+    for _, g in ipairs(P.SortedGrades()) do grades[#grades + 1] = { level = g.level, name = g.name } end
+    local list = {}
+    for _, w in ipairs(P.WorkshopList()) do
+        local n = 0
+        for _, q in pairs(P.quotes) do if q.workshop == w.id then n = n + 1 end end
+        local c = w.coords and P.Coords(src)
+        list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, vehicle = w.vehicle, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
+            quotes = n, distance = c and math.floor(#(c - Vec(w.coords))) or nil }
+    end
+    return { list = list, categories = P.CATEGORIES, grades = grades, max = Config.WorkshopMax, defaults = WD }
+end }
+
+local function Find(list, id) for i, w in ipairs(list) do if w.id == id then return w, i end end end
+
+-- Créer (au point où se tient la direction) ou modifier le nom, les rubriques, le grade et la tolérance
+P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
+    local list = P.WorkshopList()
+    local w = d.id and Find(list, tostring(d.id)) or nil
+    if d.id and not w then return { error = 'Point introuvable.' } end
+    local label = P.Clean(d.label, 40)
+    if #label < 2 then return { error = 'Nom trop court.' } end
+    local cats, seen = {}, {}
+    for _, c in ipairs(type(d.categories) == 'table' and d.categories or {}) do
+        c = tostring(c)
+        if P.CATEGORIES[c] and not seen[c] then seen[c] = true cats[#cats + 1] = c end
+    end
+    if #cats == 0 then return { error = 'Choisissez au moins une rubrique.' } end
+    local minLevel = P.Int(d.minLevel, 1, 99, 1)
+    local radius = math.max(1.5, math.min(8.0, tonumber(d.radius) or WD.radius))
+    if not w then
+        if #list >= Config.WorkshopMax then return { error = ('%d points maximum.'):format(Config.WorkshopMax) } end
+        if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return { error = 'Descendez du véhicule : le point est créé là où vous vous tenez.' } end
+        w = { id = P.Uid('WS'), coords = Pos(src) }
+        list[#list + 1] = w
+    end
+    w.label, w.categories, w.minLevel, w.radius = label, cats, minLevel, math.floor(radius * 10) / 10
+    P.SetSetting('workshops', list)
+    Publish()
+    P.AddLog(src, nil, nil, d.id and 'Point d\'atelier modifié' or 'Point d\'atelier créé', nil, label, nil)
+    return { ok = true, id = w.id, message = d.id and ('« %s » enregistré.'):format(label)
+        or ('« %s » créé à votre position. Placez maintenant l\'emplacement du véhicule.'):format(label) }
+end }
+
+-- Déplacer : 'mechanic' = là où se tient la direction ; 'vehicle' = centre de l'emplacement (votre position, ou celle du véhicule si vous êtes dedans)
+P.Actions.workshopPlace = { perm = 'garage_manage', fn = function(src, d)
+    local list = P.WorkshopList()
+    local w = Find(list, tostring(d.id or ''))
+    if not w then return { error = 'Point introuvable.' } end
+    local kind = d.kind == 'vehicle' and 'vehicle' or 'mechanic'
+    if kind == 'mechanic' and GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return { error = 'Descendez du véhicule pour placer le point du mécanicien.' } end
+    local pos = Pos(src)
+    local other = kind == 'vehicle' and Vec(w.coords) or Vec(w.vehicle)
+    if other and #(other - Vec(pos)) > 15.0 then return { error = 'Le point du mécanicien et l\'emplacement du véhicule doivent être à moins de 15 m.' } end
+    if kind == 'vehicle' then w.vehicle = pos else w.coords = pos end
+    P.SetSetting('workshops', list)
+    Publish()
+    P.AddLog(src, nil, nil, 'Point d\'atelier déplacé', nil, w.label, kind == 'vehicle' and 'emplacement du véhicule' or 'point du mécanicien')
+    return { ok = true, message = kind == 'vehicle' and 'Emplacement du véhicule placé.' or 'Point du mécanicien placé.' }
+end }
+
+P.Actions.workshopDelete = { perm = 'garage_manage', fn = function(src, d)
+    local list = P.WorkshopList()
+    local w, i = Find(list, tostring(d.id or ''))
+    if not w then return { error = 'Point introuvable.' } end
+    for _, q in pairs(P.quotes) do
+        if q.workshop == w.id then return { error = 'Un devis est en cours sur ce point : terminez-le ou annulez-le d\'abord.' } end
+    end
+    table.remove(list, i)
+    P.SetSetting('workshops', list)
+    Publish()
+    P.AddLog(src, nil, nil, 'Point d\'atelier supprimé', nil, w.label, nil)
+    return { ok = true, message = ('« %s » supprimé.'):format(w.label) }
+end }
 local function Allowed(w, item)
     if not w then return item.kind == 'service' or item.kind == 'custom' end   -- devis hors atelier (F6) : prestations seulement
     for _, c in ipairs(w.categories) do if c == item.category then return true end end
@@ -162,9 +276,8 @@ P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     for _, it in ipairs(P.SortedCatalog()) do
         if it.enabled and Allowed(w, it) then
             local can, reason = P.CanSell(src, it)
-            local stock = it.part and P.StockQty(it.part) or nil
             items[#items + 1] = { code = it.code, name = it.name, description = it.description, category = it.category, kind = it.kind, mod = it.mod,
-                level = it.level, price = it.price, part = it.part, partQty = it.partQty, stock = stock, locked = not can, reason = reason }
+                level = it.level, price = it.price, locked = not can, reason = reason }
         end
     end
     local saved = {}
@@ -190,7 +303,7 @@ local function BuildLines(src, w, list, ctx)
         local can, why = P.CanSell(src, it)
         if not can then return nil, why end
         if not Allowed(w, it) then return nil, ('« %s » ne s\'installe pas à ce point.'):format(it.name) end
-        local line = { code = it.code, name = it.name, kind = it.kind, price = it.price, qty = 1, part = it.part, partQty = it.partQty }
+        local line = { code = it.code, name = it.name, kind = it.kind, price = it.price, qty = 1 }
         if it.kind == 'perf' then
             local key = it.mod
             if seen['perf:' .. key] then return nil, ('Une seule amélioration « %s » par devis.'):format(key) end
@@ -388,9 +501,7 @@ P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(sr
     if P.CleanPlate(GetVehicleNumberPlateText(veh)) ~= q.plate then return { error = 'Ce n\'est pas le véhicule du devis.' } end
     local lines = {}
     for i, l in ipairs(q.items) do
-        local needOk = true
-        if l.part and Config.Stock.requireParts then needOk = P.StockQty(l.part) >= (l.partQty or 1) * (l.qty or 1) end
-        lines[i] = { i = i, label = l.label, kind = l.kind, patch = l.patch, partOk = needOk }
+        lines[i] = { i = i, label = l.label, kind = l.kind, patch = l.patch }
     end
     q.installing = { by = src, t = GetGameTimer() }
     return { ok = true, lines = lines }
@@ -404,12 +515,6 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
     for i, l in ipairs(q.items) do
         local ok = type(d.results) == 'table' and d.results[i] == true
         if l.kind == 'service' or l.kind == 'custom' or l.kind == 'carplay' then ok = true end
-        -- Pièces : retirées seulement pour ce qui est posé ; sans pièce (si exigée) la ligne échoue
-        if ok and l.part then
-            local need = { [l.part] = (l.partQty or 1) * (l.qty or 1) }
-            local consumed = P.ConsumeParts(need, l.label, q.uid, P.Name(src), not Config.Stock.requireParts)
-            if not consumed then ok = false end
-        end
         results[i] = ok
     end
     local r = Finalize(q, results, src)

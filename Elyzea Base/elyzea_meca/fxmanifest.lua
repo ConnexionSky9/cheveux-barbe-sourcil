@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_meca'
 author 'Elyzea FA'
-description 'Métier Mécano Elyzea : réparations ALT, points d\'atelier, catalogue et tarifs, devis et factures, CarPlay vendu (elyzea_aura), stock de pièces, dépannage, tablette (direction, finance, paie au taux horaire)'
+description 'Métier Mécano Elyzea : réparations ALT, points d\'atelier, catalogue et tarifs, devis et factures, CarPlay vendu (elyzea_aura), dépannage, tablette (direction, finance, paie au taux horaire)'
 version '1.0.0'
 
 shared_scripts {
@@ -18,7 +18,6 @@ server_scripts {
     'server/main.lua',
     'server/service.lua',
     'server/finance.lua',
-    'server/stock.lua',
     'server/catalog.lua',
     'server/vehicles.lua',
     'server/repair.lua',

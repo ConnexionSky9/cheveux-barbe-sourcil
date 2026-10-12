@@ -321,25 +321,21 @@ RegisterNUICallback('wsInstall', function(body, cb)
     local results = {}
     for i, line in ipairs(r.lines) do
         if line.patch then
-            if line.partOk == false then
-                results[i] = false
-            else
-                core:SetVehicleProperties(veh, line.patch)
-                -- Finition d'une couleur d'origine (le core n'applique la finition qu'aux couleurs libres)
-                local pt = line.patch
-                if pt.paintType1 and type(pt.color1) == 'number' then
-                    local _, s2 = GetVehicleColours(veh)
-                    SetVehicleModColor_1(veh, pt.paintType1, pt.color1, 0) SetVehicleColours(veh, pt.color1, s2)
-                end
-                if pt.paintType2 and type(pt.color2) == 'number' then
-                    local p1 = GetVehicleColours(veh)
-                    SetVehicleModColor_2(veh, pt.paintType2, pt.color2) SetVehicleColours(veh, p1, pt.color2)
-                end
-                Wait(80)
-                results[i] = Verify(veh, line.patch)
+            core:SetVehicleProperties(veh, line.patch)
+            -- Finition d'une couleur d'origine (le core n'applique la finition qu'aux couleurs libres)
+            local pt = line.patch
+            if pt.paintType1 and type(pt.color1) == 'number' then
+                local _, s2 = GetVehicleColours(veh)
+                SetVehicleModColor_1(veh, pt.paintType1, pt.color1, 0) SetVehicleColours(veh, pt.color1, s2)
             end
+            if pt.paintType2 and type(pt.color2) == 'number' then
+                local p1 = GetVehicleColours(veh)
+                SetVehicleModColor_2(veh, pt.paintType2, pt.color2) SetVehicleColours(veh, p1, pt.color2)
+            end
+            Wait(80)
+            results[i] = Verify(veh, line.patch)
         else
-            results[i] = line.partOk ~= false
+            results[i] = true
         end
     end
     local done = C.Req('quoteInstallDone', { uid = body.uid, results = results })
@@ -369,7 +365,7 @@ CreateThread(function()
         local sleep = 1000
         if C.OnDuty() and C.Can('workshop') and not WS.open then
             local pos = GetEntityCoords(PlayerPedId())
-            for _, w in ipairs(Config.Workshops) do
+            for _, w in ipairs(C.Workshops()) do
                 local d = #(pos - w.coords)
                 if d < 25.0 then
                     sleep = 0

@@ -27,11 +27,6 @@ P.Actions.repStart = { perm = 'duty', duty = true, fn = function(src, d)
     if not P.Can(src, PERM[kind]) then return { error = 'Votre grade ne permet pas cette action.' } end
     local veh, why = Vehicle(src, d.net)
     if not veh then return { error = why } end
-    local need = R.parts and R.parts[kind]
-    if need and next(need) and not R.allowWithoutStock then
-        local ok, miss = P.HasParts(need)
-        if not ok then return { error = ('Pièce manquante en stock : %s.'):format(miss) } end
-    end
     pending[src] = { kind = kind, net = tonumber(d.net), t = GetGameTimer() }
     return { ok = true, duration = cfg.duration, label = cfg.label }
 end }
@@ -47,11 +42,6 @@ P.Actions.repFinish = { perm = 'duty', duty = true, fn = function(src, d)
     local veh, why = Vehicle(src, pd.net)
     if not veh then return { error = why } end
     local plate = P.CleanPlate(GetVehicleNumberPlateText(veh))
-    local need = R.parts and R.parts[pd.kind]
-    if need and next(need) then
-        local ok, miss = P.ConsumeParts(need, cfg.label, plate, P.Name(src), R.allowWithoutStock)
-        if not ok then return { error = ('Pièce manquante en stock : %s.'):format(miss) } end
-    end
     TriggerClientEvent('meca:client:repairApply', src, pd.net, pd.kind)
     local row = P.VehicleRow(plate)
     P.History(row and row.id, plate, cfg.label, nil, nil, src)

@@ -3,7 +3,7 @@
 --  Ce fichier contient les mêmes requêtes, pour une installation manuelle.
 --  Une ancienne table `meca_*` d'une autre structure est renommée en `*_ancien`
 --  par la ressource au démarrage : rien n'est supprimé.
---  Le catalogue, les pièces et les grades de départ sont créés par la ressource
+--  Le catalogue et les grades de départ sont créés par la ressource
 --  (config.lua) au premier démarrage.
 -- =====================================================================
 
@@ -86,8 +86,6 @@ CREATE TABLE IF NOT EXISTS `meca_catalog` (
     `price` INT NOT NULL DEFAULT 0,
     `enabled` TINYINT(1) NOT NULL DEFAULT 1,
     `min_level` INT NOT NULL DEFAULT 1,
-    `part_code` VARCHAR(30) NULL,
-    `part_qty` INT NOT NULL DEFAULT 1,
     `compat` VARCHAR(120) NULL,
     `sort` INT NOT NULL DEFAULT 0,
     `updated_by` VARCHAR(100) NULL,
@@ -147,24 +145,6 @@ CREATE TABLE IF NOT EXISTS `meca_carplay` (
     `price` INT NOT NULL DEFAULT 0,
     `installed_by` VARCHAR(100) NULL,
     `installed_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `meca_stock` (
-    `code` VARCHAR(30) NOT NULL PRIMARY KEY,
-    `label` VARCHAR(80) NOT NULL,
-    `qty` INT NOT NULL DEFAULT 0,
-    `min_qty` INT NOT NULL DEFAULT 0,
-    `unit_cost` INT NOT NULL DEFAULT 0 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `meca_stock_moves` (
-    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `code` VARCHAR(30) NOT NULL,
-    `delta` INT NOT NULL,
-    `reason` VARCHAR(60) NOT NULL,
-    `ref` VARCHAR(40) NULL,
-    `cost` INT NOT NULL DEFAULT 0,
-    `actor_name` VARCHAR(100) NULL,
-    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX (`code`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `meca_tow` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

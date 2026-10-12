@@ -76,7 +76,7 @@ function P.Refund(cid, amount, method, reason)
     return P.PayBank(cid, amount, reason)
 end
 
--- Journal : type 'in' | 'out', catégorie 'invoice' | 'refund' | 'salary' | 'parts' | 'other'
+-- Journal : type 'in' | 'out', catégorie 'invoice' | 'refund' | 'salary' | 'other'
 function P.Tx(t)
     local txid = t.txid or P.Uid('TX')
     MySQL.insert.await([[INSERT INTO `meca_transactions` (`txid`, `type`, `category`, `amount`, `reason`, `actor_cid`, `actor_name`, `target_cid`, `target_name`, `seconds`, `ref`)

@@ -2,7 +2,7 @@
 --  ELYZEA MÉCANO - configuration
 --  Les tarifs, le catalogue, les grades, les permissions et les taux horaires
 --  se gèrent EN JEU dans la tablette › Direction (ils sont gardés en base).
---  Ici : les points d'atelier, les durées, les limites et les valeurs de départ.
+--  Les points d'atelier se placent aussi en jeu. Ici : les durées, les limites et les valeurs de départ.
 -- =====================================================================
 Config = {}
 
@@ -35,28 +35,15 @@ Config.Repair = {
     full   = { label = 'Réparation complète',    duration = 20000 },
     clean  = { label = 'Nettoyer le véhicule',   duration = 8000 },
     flip   = { label = 'Retourner le véhicule',  duration = 6000 },
-    -- Pièces de stock consommées par chaque réparation (code de pièce = quantité). {} = aucune
-    parts = { engine = { engine_parts = 1 }, body = { body_parts = 1 }, tyres = { tyre = 1 }, full = { engine_parts = 1, body_parts = 1, tyre = 1 } },
-    -- Une réparation sans pièce en stock est-elle autorisée ? (false = refusée tant que le stock manque)
-    allowWithoutStock = true,
 }
 
 -- ---------------------------------------------------------------------
--- Points d'atelier (touche E). Ajoutez, retirez, déplacez librement.
---  coords  : position où se place le mécanicien (à pied)
---  vehicle : centre de l'emplacement du véhicule ; radius : tolérance
---  categories : 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'carplay', 'service'
---  minLevel : niveau de grade minimum ; label : nom affiché
---  Astuce : /meca_pos en jeu affiche votre position au format à copier ici.
+-- Points d'atelier (touche E) : placés EN JEU par la direction
+-- (tablette › Direction › Points d'atelier), autant que vous voulez.
+-- Rubriques possibles : 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'carplay', 'service'
 -- ---------------------------------------------------------------------
-Config.Workshops = {
-    { id = 'lsc_perf', label = 'Banc performances', coords = vector3(-337.36, -136.86, 39.01), vehicle = vector3(-339.45, -132.0, 39.01), radius = 3.5,
-      categories = { 'perf' }, minLevel = 2 },
-    { id = 'lsc_body', label = 'Atelier carrosserie', coords = vector3(-323.8, -132.6, 39.01), vehicle = vector3(-325.6, -137.4, 39.01), radius = 3.5,
-      categories = { 'cosmetic', 'paint', 'wheels', 'lights', 'interior' }, minLevel = 1 },
-    { id = 'lsc_carplay', label = 'Installation CarPlay', coords = vector3(-347.3, -133.4, 39.01), vehicle = vector3(-345.6, -128.6, 39.01), radius = 3.5,
-      categories = { 'carplay', 'service' }, minLevel = 1 },
-}
+Config.WorkshopDefaults = { radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'carplay', 'service' }, minLevel = 1 }
+Config.WorkshopMax = 30
 Config.WorkshopMarker = true      -- marqueur au sol pour les mécaniciens en service
 
 -- ---------------------------------------------------------------------
@@ -82,10 +69,10 @@ Config.DefaultCatalog = {
     { code = 'flip',          name = 'Remise sur roues',         category = 'service', kind = 'service', price = 300 },
     { code = 'tow',           name = 'Remorquage / déplacement', category = 'service', kind = 'service', price = 400 },
     -- Performances (un article par niveau)
-    { code = 'engine_1', name = 'Moteur niveau 1', category = 'perf', kind = 'perf', mod = 'engine', level = 1, price = 2500, part = 'engine_parts' },
-    { code = 'engine_2', name = 'Moteur niveau 2', category = 'perf', kind = 'perf', mod = 'engine', level = 2, price = 4500, part = 'engine_parts' },
-    { code = 'engine_3', name = 'Moteur niveau 3', category = 'perf', kind = 'perf', mod = 'engine', level = 3, price = 7500, part = 'engine_parts', minLevel = 2 },
-    { code = 'engine_4', name = 'Moteur niveau 4', category = 'perf', kind = 'perf', mod = 'engine', level = 4, price = 11000, part = 'engine_parts', minLevel = 3 },
+    { code = 'engine_1', name = 'Moteur niveau 1', category = 'perf', kind = 'perf', mod = 'engine', level = 1, price = 2500 },
+    { code = 'engine_2', name = 'Moteur niveau 2', category = 'perf', kind = 'perf', mod = 'engine', level = 2, price = 4500 },
+    { code = 'engine_3', name = 'Moteur niveau 3', category = 'perf', kind = 'perf', mod = 'engine', level = 3, price = 7500, minLevel = 2 },
+    { code = 'engine_4', name = 'Moteur niveau 4', category = 'perf', kind = 'perf', mod = 'engine', level = 4, price = 11000, minLevel = 3 },
     { code = 'brakes_1', name = 'Freins niveau 1', category = 'perf', kind = 'perf', mod = 'brakes', level = 1, price = 1500 },
     { code = 'brakes_2', name = 'Freins niveau 2', category = 'perf', kind = 'perf', mod = 'brakes', level = 2, price = 2800 },
     { code = 'brakes_3', name = 'Freins niveau 3', category = 'perf', kind = 'perf', mod = 'brakes', level = 3, price = 4200 },
@@ -98,7 +85,7 @@ Config.DefaultCatalog = {
     { code = 'suspension_4', name = 'Suspension niveau 4', category = 'perf', kind = 'perf', mod = 'suspension', level = 4, price = 3400 },
     { code = 'armor_1', name = 'Blindage 20 %', category = 'perf', kind = 'perf', mod = 'armor', level = 1, price = 3000, enabled = false },
     { code = 'armor_2', name = 'Blindage 40 %', category = 'perf', kind = 'perf', mod = 'armor', level = 2, price = 5000, enabled = false },
-    { code = 'turbo', name = 'Turbo', category = 'perf', kind = 'perf', mod = 'turbo', level = 1, price = 6000, part = 'turbo_kit' },
+    { code = 'turbo', name = 'Turbo', category = 'perf', kind = 'perf', mod = 'turbo', level = 1, price = 6000 },
     -- Esthétique : un prix par pièce installée dans chaque rubrique
     { code = 'cosmetic_body',     name = 'Pièce de carrosserie',     category = 'cosmetic', kind = 'cosmetic', mod = 'body', price = 750 },
     { code = 'cosmetic_paint',    name = 'Peinture',                 category = 'paint',    kind = 'cosmetic', mod = 'paint', price = 900 },
@@ -113,21 +100,11 @@ Config.DefaultCatalog = {
     { code = 'cosmetic_xenon',    name = 'Phares xénon',             category = 'lights',   kind = 'cosmetic', mod = 'xenon', price = 900 },
     { code = 'cosmetic_interior', name = 'Pièce d\'intérieur',       category = 'interior', kind = 'cosmetic', mod = 'interior', price = 450 },
     -- CarPlay (téléphone elyzea_aura)
-    { code = 'carplay', name = 'Installation CarPlay', category = 'carplay', kind = 'carplay', price = 3500, part = 'carplay_kit',
+    { code = 'carplay', name = 'Installation CarPlay', category = 'carplay', kind = 'carplay', price = 3500,
       description = 'Rend le véhicule compatible avec ElyzeaCarPlay (tablette F4 et contrôle depuis le téléphone). Liée au véhicule.' },
     { code = 'carplay_reinstall', name = 'Réinstallation CarPlay', category = 'carplay', kind = 'carplay', price = 1000, enabled = false,
       description = 'Remplacement sur un véhicule déjà équipé (désactivé par défaut).' },
 }
-
--- Stock de pièces de l'entreprise (quantités en base, commandes payées par le compte société)
-Config.DefaultParts = {
-    { code = 'engine_parts', label = 'Pièces moteur',      cost = 250, min = 10 },
-    { code = 'body_parts',   label = 'Pièces carrosserie', cost = 150, min = 10 },
-    { code = 'tyre',         label = 'Pneu',               cost = 60,  min = 16 },
-    { code = 'turbo_kit',    label = 'Kit turbo',          cost = 2500, min = 2 },
-    { code = 'carplay_kit',  label = 'Kit CarPlay',        cost = 900, min = 3 },
-}
-Config.Stock = { requireParts = true }   -- false : les pièces sont décomptées mais une installation reste possible à 0
 
 -- ---------------------------------------------------------------------
 -- Dépannage : demandes des joueurs (app Urgences du téléphone › Dépannage, ou /depannage)
@@ -171,13 +148,13 @@ Config.DefaultGrades = {
     { name = 'Apprenti',            level = 1, salary = 350, default = true,
       perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'tow', 'tablet', 'vehicles_view' } },
     { name = 'Mécanicien',          level = 2, salary = 500,
-      perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'tow', 'tablet', 'vehicles_view', 'stock_view' } },
+      perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'tow', 'tablet', 'vehicles_view' } },
     { name = 'Mécanicien confirmé', level = 3, salary = 650,
       perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'tow', 'tow_manage', 'tablet',
-                'vehicles_view', 'stock_view', 'stats_view', 'garage' } },
+                'vehicles_view', 'stats_view', 'garage' } },
     { name = 'Chef d\'atelier',     level = 4, salary = 850,
       perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'quotes_manage', 'tow', 'tow_manage',
-                'tablet', 'vehicles_view', 'stock_view', 'stock_manage', 'stats_view', 'garage', 'direction', 'recruit', 'employees_view', 'promote',
+                'tablet', 'vehicles_view', 'stats_view', 'garage', 'direction', 'recruit', 'employees_view', 'promote',
                 'demote', 'history_view' } },
     { name = 'Directeur',           level = 5, salary = 1100, perms = 'all' },
 }

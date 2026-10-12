@@ -200,11 +200,10 @@ P.Actions.stats = { perm = 'stats_view', fn = function(_, d)
         (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS revenue,
         (SELECT COUNT(*) FROM `meca_carplay` WHERE `installed_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS carplay,
         (SELECT COUNT(*) FROM `meca_tow` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS tows,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'parts' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS parts,
         (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'salary' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS salaries,
         (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'refund' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS refunds,
         (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS interventions]],
-        { days, days, days, days, days, days, days, days }) or {}
+        { days, days, days, days, days, days, days }) or {}
     local top, byKind = {}, {}
     for _, r in ipairs(MySQL.query.await([[SELECT `items` FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)]], { days }) or {}) do
         local ok, items = pcall(json.decode, r.items or '[]')

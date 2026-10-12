@@ -172,8 +172,6 @@ P.Tables = {
         `price` INT NOT NULL DEFAULT 0,
         `enabled` TINYINT(1) NOT NULL DEFAULT 1,
         `min_level` INT NOT NULL DEFAULT 1,
-        `part_code` VARCHAR(30) NULL,
-        `part_qty` INT NOT NULL DEFAULT 1,
         `compat` VARCHAR(120) NULL,
         `sort` INT NOT NULL DEFAULT 0,
         `updated_by` VARCHAR(100) NULL,
@@ -229,22 +227,6 @@ P.Tables = {
         `price` INT NOT NULL DEFAULT 0,
         `installed_by` VARCHAR(100) NULL,
         `installed_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ) ]],
-    meca_stock = [[ (
-        `code` VARCHAR(30) NOT NULL PRIMARY KEY,
-        `label` VARCHAR(80) NOT NULL,
-        `qty` INT NOT NULL DEFAULT 0,
-        `min_qty` INT NOT NULL DEFAULT 0,
-        `unit_cost` INT NOT NULL DEFAULT 0 ) ]],
-    meca_stock_moves = [[ (
-        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        `code` VARCHAR(30) NOT NULL,
-        `delta` INT NOT NULL,
-        `reason` VARCHAR(60) NOT NULL,
-        `ref` VARCHAR(40) NULL,
-        `cost` INT NOT NULL DEFAULT 0,
-        `actor_name` VARCHAR(100) NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX (`code`) ) ]],
     meca_tow = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `source` VARCHAR(20) NOT NULL,
@@ -268,7 +250,7 @@ P.Tables = {
         INDEX (`tow_id`) ) ]],
 }
 P.TableOrder = { 'meca_settings', 'meca_grades', 'meca_employees', 'meca_admin_log', 'meca_sessions', 'meca_rates', 'meca_transactions',
-    'meca_catalog', 'meca_quotes', 'meca_invoices', 'meca_vehicle_history', 'meca_carplay', 'meca_stock', 'meca_stock_moves', 'meca_tow', 'meca_tow_log' }
+    'meca_catalog', 'meca_quotes', 'meca_invoices', 'meca_vehicle_history', 'meca_carplay', 'meca_tow', 'meca_tow_log' }
 
 local function InitDb()
     for _, name in ipairs(P.TableOrder) do pcall(CheckTable, name) end
@@ -563,9 +545,7 @@ end)
 P.Actions.init = { perm = false, fn = function()
     local statuses = {}
     for _, s in ipairs(Config.Statuses) do statuses[#statuses + 1] = s end
-    local workshops = {}
-    for _, w in ipairs(Config.Workshops) do workshops[#workshops + 1] = { id = w.id, label = w.label, categories = w.categories } end
-    return { perms = MecaPerms, statuses = statuses, towStatuses = Config.Tow.statuses, workshops = workshops,
+    return { perms = MecaPerms, statuses = statuses, towStatuses = Config.Tow.statuses,
         map = Config.MapImage, mapRefresh = Config.MapRefresh, job = Config.Job.label, repair = Config.Repair, towCommand = Config.Tow.command }
 end }
 

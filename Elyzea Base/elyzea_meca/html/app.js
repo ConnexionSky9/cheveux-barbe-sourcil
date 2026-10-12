@@ -113,7 +113,7 @@ function f6Render() {
   b += item('vehicles', '🚗', `Véhicules${quotes.length ? ` (${quotes.length})` : ''}`, 'Atelier, devis, historique', { chev: true, disabled: !duty });
   if (p.quotes) b += item('clients', '🧾', 'Clients', 'Devis, factures, paiements', { attrs: 'data-page="quotes"' });
   if (p.tow) b += item('tows', '🚚', `Dépannage${tows.length ? ` (${tows.length})` : ''}`, duty ? 'Demandes, GPS, statut' : 'Prenez votre service', { chev: true, disabled: !duty });
-  if (p.tablet) b += item('tablet', '📱', 'Ouvrir la tablette', 'Véhicules clients, stock, statistiques');
+  if (p.tablet) b += item('tablet', '📱', 'Ouvrir la tablette', 'Véhicules clients, devis, statistiques');
   if (p.direction) b += item('direction', '🏛️', 'Direction', 'Personnel, catalogue et tarifs, finance', { attrs: 'data-page="employees"' });
   return `${head}<div class="f6-list">${b}</div><div class="f6-foot"><span><span class="kbd">ALT</span> véhicule</span><span><span class="kbd">E</span> atelier</span><span><span class="kbd">Échap</span> fermer</span></div>`;
 }
@@ -232,13 +232,13 @@ function wsRender() {
         const inCart = W.cart.find((l) => l.slot === `perf:${m}`);
         const lv = list.filter((i) => i.mod === m).sort((a, b) => a.level - b.level);
         return `<div class="lvl-row"><div class="name">${esc(PERF_LABEL[m] || m)}<div class="now">Actuel : ${m === 'turbo' ? (cur ? 'installé' : 'aucun') : `niveau ${cur}`} · ${max ? `${max} niveau(x) possible(s)` : 'non compatible'}</div></div>
-          <div class="steps">${lv.map((i) => { const bad = i.locked || i.level <= cur || i.level > max || (i.part && i.stock !== null && i.stock < i.partQty);
-            return `<button class="opt ${inCart && inCart.code === i.code ? 'on' : ''}" data-perf="${esc(i.code)}" ${bad ? 'disabled' : ''} title="${esc(i.reason || '')}">${esc(m === 'turbo' ? 'Turbo' : `Niv. ${i.level}`)}<small>${money(i.price)}${i.part && i.stock !== null && i.stock < i.partQty ? ' · rupture' : ''}</small></button>`; }).join('')}</div></div>`;
+          <div class="steps">${lv.map((i) => { const bad = i.locked || i.level <= cur || i.level > max;
+            return `<button class="opt ${inCart && inCart.code === i.code ? 'on' : ''}" data-perf="${esc(i.code)}" ${bad ? 'disabled' : ''} title="${esc(i.reason || '')}">${esc(m === 'turbo' ? 'Turbo' : `Niv. ${i.level}`)}<small>${money(i.price)}</small></button>`; }).join('')}</div></div>`;
       }).join('');
     } else if (W.cat === 'carplay') {
       main = `<h2 style="margin-bottom:.4rem">CarPlay</h2><p class="lead">${data.carplay ? '✅ Ce véhicule est déjà équipé du CarPlay.' : '❌ Ce véhicule n\'a pas le CarPlay.'}
         ${!data.owned ? '<br>Le CarPlay ne s\'installe que sur un véhicule de joueur (carte grise).' : ''}</p>` + list.map((i) => {
-        const bad = i.locked || !data.owned || (i.code === 'carplay' ? data.carplay : !data.carplay) || (i.part && i.stock !== null && i.stock < i.partQty);
+        const bad = i.locked || !data.owned || (i.code === 'carplay' ? data.carplay : !data.carplay);
         const inCart = W.cart.find((l) => l.code === i.code);
         return `<div class="lvl-row"><div class="name">${esc(i.name)}<div class="now">${esc(i.description || '')}</div></div>
           <button class="btn ${inCart ? 'success' : 'primary'}" data-cp="${esc(i.code)}" ${bad ? 'disabled' : ''}>${inCart ? '✓ Ajouté' : `${money(i.price)} · Ajouter`}</button></div>`;

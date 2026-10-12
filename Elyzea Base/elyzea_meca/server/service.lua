@@ -193,14 +193,13 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
         (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `created_at` >= CURDATE()) AS interventions,
         (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= CURDATE()) AS revenue,
         (SELECT COUNT(*) FROM `meca_quotes` WHERE `status` IN ('pending', 'accepted')) AS openQuotes,
-        (SELECT COUNT(*) FROM `meca_carplay`) AS carplay,
-        (SELECT COUNT(*) FROM `meca_stock` WHERE `qty` < `min_qty`) AS lowStock]]) or {}
+        (SELECT COUNT(*) FROM `meca_carplay`) AS carplay]]) or {}
     return {
         me = me, perms = perms, crew = crew, dutyCount = #crew, employees = total,
         tows = P.TowList and P.TowList(src) or {},
         quotes = P.OpenQuotes and P.OpenQuotes() or {},
         today = { tows = tonumber(today.tows) or 0, interventions = tonumber(today.interventions) or 0, revenue = tonumber(today.revenue) or 0,
-            openQuotes = tonumber(today.openQuotes) or 0, carplay = tonumber(today.carplay) or 0, lowStock = tonumber(today.lowStock) or 0 },
+            openQuotes = tonumber(today.openQuotes) or 0, carplay = tonumber(today.carplay) or 0 },
         now = os.time(),
     }
 end }
