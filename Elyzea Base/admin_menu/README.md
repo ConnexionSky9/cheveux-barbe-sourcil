@@ -595,14 +595,21 @@ ligne (solde de la base), découvert total, recherche. Liste recalculée en arri
 Éditeur de map › Portes › **Gérer** une porte › **📏 Distance d'ouverture** : curseur de 0,8 à 15 m (portail de garage,
 grande grille…), « Défaut » pour revenir à `Config.Doors.interactDistance`. La distance s'affiche sur chaque porte de la liste.
 
-## 🚗 Véhicules › Personnalisation (permission `vehicle_custom`)
-Au volant de ton véhicule staff, onglet **Véhicules › Personnalisation** : comme en concession / chez LsCustom, mais
-**gratuit et appliqué tout de suite** : performance (moteur, freins, transmission, suspension, blindage, turbo),
-carrosserie, jantes (par type), couleur des jantes, fumée des pneus, peintures (couleurs prêtes ou **couleur libre** avec
-finition), nacrage, livrées, vitres, plaques, néons (dont 🌈 arc-en-ciel et ✨ Elyzea animés si `elyzea_lscustom` tourne),
-xénon, intérieur. Boutons : ⚡ Performances max, 🔧 Réparer, ↺ Annuler mes changements, 💾 Enregistrer sur le véhicule
-(garde la personnalisation dans `player_vehicles` : le véhicule ressort tel quel des garages ; nécessite ox_lib et oxmysql).
-Donnée au SuperAdmin par défaut.
+## 🚗 Véhicules › Personnalisation (SuperAdmin et Fondateur uniquement)
+Monte dans un véhicule — le tien ou **celui d'un joueur**, au volant ou passager — puis onglet **Véhicules › Personnalisation** :
+**gratuit et appliqué tout de suite**. Réservé aux SuperAdmins et Fondateurs (vérifié par le serveur, même si la permission
+`vehicle_custom` est donnée à un autre grade).
+- Performance, carrosserie (toutes les pièces GTA, portes, rampe lumineuse, éléments optionnels), jantes (dont roues F1),
+  pneus (flancs, pare-balles), fumée, palette GTA complète (0-160) ou **couleur libre**, nacrage, livrées (dont toit),
+  vitres, style de plaque, couleurs d'intérieur et de tableau de bord.
+- **Néons** : couleurs, couleur libre ou 🌈 **arc-en-ciel animé**. **Xénon** : 13 couleurs GTA, couleur libre ou
+  🌈 **multicolore animé**. **Plaque animée multicolore** : l'écriture change de style en boucle.
+- **Texte de la plaque** : aussi sur le véhicule d'un joueur. Sa carte grise, ses clés et le coffre du véhicule (contenu
+  conservé) suivent la nouvelle plaque ; le joueur est prévenu s'il est connecté.
+- 💾 Enregistrer : garde tout sur la carte grise (`player_vehicles.mods`), effets animés compris (remis automatiquement
+  quand le véhicule ressort du garage).
+- Limite : GTA ne permet pas une couleur libre pour l'écriture des plaques. L'animation fait défiler les styles de plaque
+  du jeu (bleu/blanc, jaune/noir, jaune/bleu, North Yankton), pas un arc-en-ciel RVB.
 
 ## 🛏️ Réapparition (permission `manage_respawn`)
 Où réapparaissent les joueurs morts **qui n'ont pas été réanimés**, avec une animation de réveil.

@@ -586,6 +586,7 @@ local function buildAndSend(src)
         me = {
             id = src, rank = rn, label = Ranks[rn].label, color = Ranks[rn].color,
             level = getLevel(src), perms = Ranks[rn].perms, duty = onDuty(src), isOwner = rn == Config.OwnerRank,
+            topStaff = rn == Config.OwnerRank or (Ranks.superadmin ~= nil and (Ranks[rn].level or 0) >= (Ranks.superadmin.level or 40)),
         },
         world = World,
         ranks = Ranks,
@@ -1005,54 +1006,103 @@ Actions.vehicle_tool = { perm = 'vehicle_tools', noRefresh = true, fn = function
     TriggerClientEvent('adminmenu:vehicleTool', src, d.tool)
 end }
 
--- Personnalisation du véhicule du staff
-Actions.vehcustom_neonfx = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
-    local veh = NetworkGetEntityFromNetworkId(tonumber(d.netId) or 0)
-    if not veh or veh == 0 or not DoesEntityExist(veh) then return end
-    if GetPedInVehicleSeat(veh, -1) ~= GetPlayerPed(src) then return end
-    local fx = (d.fx == 'rainbow' or d.fx == 'elyzea') and d.fx or nil
-    Entity(veh).state:set('neonFx', fx, true)
+-- Personnalisation de véhicules (staff, véhicule de joueur compris) : SuperAdmin et Fondateur uniquement
+local function topStaff(src)
+    local rn = getRankName(src)
+    if not rn or not Ranks[rn] then return false end
+    if rn == Config.OwnerRank then return true end
+    return Ranks.superadmin ~= nil and (Ranks[rn].level or 0) >= (Ranks.superadmin.level or 40)
+end
+local function staffVehicle(src, netId)
+    if not topStaff(src) then notify(src, 'Réservé aux SuperAdmins et Fondateurs.', 'error') return nil end
+    local veh = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) then notify(src, 'Véhicule introuvable.', 'error') return nil end
+    if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= veh then notify(src, 'Monte dans le véhicule.', 'error') return nil end
+    return veh
+end
+local function cleanPlate(p) return (tostring(p or ''):gsub('^%s+', ''):gsub('%s+$', '')):upper() end
+
+-- Effets animés (néons arc-en-ciel, xénon arc-en-ciel, plaque animée) : état du véhicule visible par tous,
+-- gardés sur la carte grise (mods._elyFx) et remis automatiquement quand le véhicule ressort du garage.
+local FX_KINDS = { neon = true, xenon = true, plate = true }
+local FxByPlate = {}   -- [PLAQUE] = { neon = 'rainbow', ... }
+CreateThread(function()
+    Wait(3000)
+    local ok, rows = pcall(function() return MySQL.query.await("SELECT `plate`, `mods` FROM `player_vehicles` WHERE `mods` LIKE '%_elyFx%'") end)
+    for _, r in ipairs(ok and rows or {}) do
+        local okj, m = pcall(json.decode, r.mods or '{}')
+        if okj and type(m) == 'table' and type(m._elyFx) == 'table' and next(m._elyFx) then FxByPlate[cleanPlate(r.plate)] = m._elyFx end
+    end
+    while true do
+        Wait(4000)
+        if next(FxByPlate) then
+            for _, veh in ipairs(GetAllVehicles()) do
+                local fx = FxByPlate[cleanPlate(GetVehicleNumberPlateText(veh))]
+                if fx and not Entity(veh).state.elyFxInit then
+                    Entity(veh).state:set('elyFxInit', true, true)
+                    Entity(veh).state:set('elyFx', fx, true)
+                end
+            end
+        end
+    end
+end)
+
+Actions.vehcustom_fx = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
+    local veh = staffVehicle(src, d.netId)
+    if not veh then return end
+    local fx = {}
+    for k, v in pairs(Entity(veh).state.elyFx or {}) do fx[k] = v end
+    if d.clear == true then fx = {}
+    elseif FX_KINDS[d.kind] then fx[d.kind] = (d.fx == 'rainbow') and 'rainbow' or nil end
+    Entity(veh).state:set('elyFx', next(fx) and fx or nil, true)
 end }
 
 -- Texte de la plaque (8 caractères max : lettres, chiffres, espaces)
+-- Véhicule de joueur : changée par elyzea_core (carte grise, clés, coffre du véhicule : le contenu suit)
 Actions.vehcustom_plate = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
-    local veh = NetworkGetEntityFromNetworkId(tonumber(d.netId) or 0)
-    if not veh or veh == 0 or not DoesEntityExist(veh) then return notify(src, 'Véhicule introuvable.', 'error') end
-    if GetPedInVehicleSeat(veh, -1) ~= GetPlayerPed(src) then return notify(src, 'Tu dois être au volant.', 'error') end
-    local text = tostring(d.text or ''):upper():gsub('[^A-Z0-9 ]', ''):gsub('^%s+', ''):gsub('%s+$', ''):sub(1, 8)
-    if text == '' then return notify(src, 'Plaque vide : lettres et chiffres uniquement (8 maximum).', 'error') end
-    local old = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    local veh = staffVehicle(src, d.netId)
+    if not veh then return end
+    local old = cleanPlate(GetVehicleNumberPlateText(veh))
+    local okc, text = pcall(function() return exports.elyzea_core:CleanNewPlate(d.text) end)
+    if not okc or not text then return notify(src, 'Plaque invalide : 1 à 8 caractères (lettres, chiffres, espaces).', 'error') end
     if old == text then return notify(src, 'La plaque est déjà « ' .. text .. ' ».', 'info') end
-    -- Véhicule d'un joueur : sa plaque est liée à sa carte grise, ses clés et son coffre → on n'y touche pas
-    local ok, owned = pcall(function() return MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ? OR plate = ? LIMIT 1', { old, ' ' .. old }) end)
-    if ok and owned then
-        return notify(src, 'Ce véhicule appartient à un joueur : sa plaque est liée à sa carte grise, ses clés et son coffre, elle ne peut pas être changée ici.', 'error')
-    end
-    local ok2, taken = pcall(function() return MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ? LIMIT 1', { text }) end)
-    if ok2 and taken then return notify(src, ('La plaque « %s » est déjà celle d\'un véhicule de joueur.'):format(text), 'error') end
-    SetVehicleNumberPlateText(veh, text)
+    local owner = MySQL.scalar.await('SELECT `citizenid` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { old, ' ' .. old })
+    local ok, why = exports.elyzea_core:ChangePlate(old, text, veh)
+    if not ok then return notify(src, why or 'Plaque non changée.', 'error') end
+    if FxByPlate[old] then FxByPlate[text], FxByPlate[old] = FxByPlate[old], nil end
     pcall(function() exports.elyzea_core:GiveKeys(src, text) end)
-    notify(src, ('Plaque changée : %s → %s.'):format(old, text), 'success')
-    addLog(src, 'Plaque de véhicule', ('%s → %s'):format(old, text))
+    if owner then
+        local os_ = exports.elyzea_core:GetSourceByCitizenId(owner)
+        if os_ then
+            pcall(function() exports.elyzea_core:GiveKeys(os_, text) end)
+            notify(os_, ('La plaque de ton véhicule %s est maintenant %s (carte grise et coffre mis à jour).'):format(old, text), 'info')
+        end
+    end
+    notify(src, ('Plaque changée : %s → %s%s.'):format(old, text, owner and ' (carte grise du joueur mise à jour)' or ''), 'success')
+    addLog(src, 'Plaque de véhicule', ('%s → %s%s'):format(old, text, owner and ' · véhicule de joueur' or ''))
 end }
 
 Actions.vehcustom_save = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
-    local plate = tostring(d.plate or ''):sub(1, 16)
-    if plate == '' or type(d.props) ~= 'table' then return end
-    local function db(method, query, params) return MySQL[method].await(query, params) end
-    local ok, row = pcall(db, 'single', 'SELECT mods FROM player_vehicles WHERE plate = ?', { plate })
-    if not ok or not row then
+    local veh = staffVehicle(src, d.netId)
+    if not veh or type(d.props) ~= 'table' then return end
+    local plate = cleanPlate(GetVehicleNumberPlateText(veh))
+    local row = MySQL.single.await('SELECT `id`, `mods`, `citizenid` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { plate, ' ' .. plate })
+    local fx = Entity(veh).state.elyFx
+    if not row then
         return notify(src, 'Ce véhicule n\'appartient à personne : les changements restent sur ce véhicule tant qu\'il existe.', 'info')
     end
     -- On garde l'état mécanique enregistré, on remplace l'esthétique et les performances
-    local saved = json.decode(row.mods or '{}') or {}
+    local okj, saved = pcall(json.decode, row.mods or '{}')
+    saved = okj and type(saved) == 'table' and saved or {}
     for k, v in pairs(d.props) do
-        if k ~= 'bodyHealth' and k ~= 'engineHealth' and k ~= 'tankHealth' and k ~= 'fuelLevel' and k ~= 'plate' then saved[k] = v end
+        if k ~= 'bodyHealth' and k ~= 'engineHealth' and k ~= 'tankHealth' and k ~= 'fuelLevel' and k ~= 'plate' and k:sub(1, 1) ~= '_' then saved[k] = v end
     end
-    saved._neonFx = d.props._neonFx
-    db('update', 'UPDATE player_vehicles SET mods = ? WHERE plate = ?', { json.encode(saved), plate })
-    notify(src, ('Personnalisation enregistrée sur le véhicule %s.'):format(plate), 'success')
-    addLog(src, 'Personnalisation de véhicule', plate)
+    saved._neonFx = nil
+    saved._elyFx = type(fx) == 'table' and next(fx) and fx or nil
+    FxByPlate[plate] = saved._elyFx
+    MySQL.update.await('UPDATE `player_vehicles` SET `mods` = ? WHERE `id` = ?', { json.encode(saved), row.id })
+    notify(src, ('Personnalisation enregistrée sur la carte grise du véhicule %s.'):format(plate), 'success')
+    addLog(src, 'Personnalisation de véhicule', plate .. (row.citizenid and (' · véhicule de joueur ' .. row.citizenid) or ''))
 end }
 
 Actions.delete_vehicle = { perm = 'vehicle_tools', noRefresh = true, fn = function(src, d)

@@ -9,7 +9,7 @@
         { id: 'perf', label: 'Performance' }, { id: 'body', label: 'Carrosserie' }, { id: 'wheels', label: 'Roues' },
         { id: 'paint', label: 'Peinture et vitres' }, { id: 'lights', label: 'Lumières' }, { id: 'interior', label: 'Intérieur' },
     ];
-    const CUSTOM = { paint1: 'paint', paint2: 'paint', neon: 'light', smoke: 'light' };
+    const CUSTOM = { paint1: 'paint', paint2: 'paint', neon: 'light', smoke: 'light', xenon: 'light' };
     const FINISHES = [{ id: 0, label: 'Normal' }, { id: 1, label: 'Métallisé' }, { id: 2, label: 'Nacré' }, { id: 3, label: 'Mat' }, { id: 4, label: 'Métal' }, { id: 5, label: 'Chrome' }];
     const bump = () => { VC.version += 1; render(); };
 
@@ -89,11 +89,12 @@
 
     /* ---------- Écran ---------- */
     function customView() {
+        if (!(D.me && D.me.topStaff)) return '<div class="empty" style="padding:40px">🔒 La personnalisation des véhicules est réservée aux SuperAdmins et aux Fondateurs.</div>';
         if (!VC.info && !VC.loading) { VC.loading = true; setTimeout(loadInfo, 0); }
         if (!VC.info) return '<div class="empty">Lecture du véhicule…</div>';
         const i = VC.info;
         if (!i.inVehicle) {
-            return `<div class="empty" style="padding:40px">🚗 Monte au volant du véhicule à personnaliser, puis
+            return `<div class="empty" style="padding:40px">🚗 Monte dans le véhicule à personnaliser (le tien ou celui d'un joueur, au volant ou passager), puis
                 <button class="btn primary" data-vca="reload" style="margin-left:8px">Actualiser</button></div>`;
         }
         const cats = i.cats;
@@ -102,7 +103,7 @@
         const catLabel = VC.cat ? (cats.find((c) => c.key === VC.cat) || {}).label : '';
         return `
             <div class="duty-bar" style="margin-bottom:14px"><span>🚗 <b>${esc(i.label)}</b> <span class="keycap">${esc(i.plate)}</span>
-                · gratuit, appliqué tout de suite sur ton véhicule</span>
+                · gratuit, appliqué tout de suite${i.control ? '' : ' · <b style="color:var(--danger,#e5534b)">contrôle du véhicule non obtenu : prends le volant</b>'}</span>
                 <span class="btn-row" style="margin:0">
                     <button class="btn" data-vca="max">⚡ Performances max</button>
                     <button class="btn" data-vtool="repair">🔧 Réparer</button>
@@ -115,7 +116,7 @@
                 <input class="input" id="vcPlate" maxlength="8" style="max-width:170px;text-transform:uppercase;font-family:monospace;letter-spacing:.12em"
                     value="${esc(VC.plateDraft !== undefined ? VC.plateDraft : i.plate)}" placeholder="8 caractères">
                 <button class="btn primary" data-vca="plate">Changer la plaque</button>
-                <span class="muted" style="font-size:12px">Lettres, chiffres et espaces, 8 maximum. Impossible sur le véhicule d'un joueur (carte grise, clés, coffre).</span>
+                <span class="muted" style="font-size:12px">Lettres, chiffres et espaces, 8 maximum, unique. Véhicule d'un joueur : carte grise, clés et coffre suivent la nouvelle plaque. Écriture animée : catégorie « Plaque animée multicolore ».</span>
             </div>
             <div style="display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start">
                 <div class="card" style="padding:8px;max-height:calc(100vh - 330px);overflow-y:auto">
@@ -195,11 +196,11 @@
                 if (VC.cat) return loadOptions(VC.cat, VC.wheelType);
                 return;
             }
-            if (a === 'save') { await post('vc_save'); return; }
+            if (a === 'save') { if (!(await confirmBox('Enregistrer sur la carte grise ?', 'Les modifications et effets animés restent sur ce véhicule, même après un passage au garage.'))) return; await post('vc_save'); return; }
             if (a === 'plate') {
                 const text = String((document.getElementById('vcPlate') || {}).value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim().slice(0, 8);
                 if (!text) return toast('Écris le texte de la plaque (lettres et chiffres).', 'error');
-                if (!(await confirmBox('Changer la plaque ?', `La plaque deviendra <b>${esc(text)}</b>. Tu reçois les clés de la nouvelle plaque.`))) return;
+                if (!(await confirmBox('Changer la plaque ?', `La plaque deviendra <b>${esc(text)}</b>. Si c'est le véhicule d'un joueur, sa carte grise, ses clés et son coffre suivent. Tu reçois aussi les clés.`))) return;
                 await post('vc_plate', { text });
                 VC.plateDraft = undefined;
                 setTimeout(loadInfo, 700);

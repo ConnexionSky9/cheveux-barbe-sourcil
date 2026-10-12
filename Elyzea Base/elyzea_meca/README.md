@@ -33,6 +33,17 @@ Les points sont gardés en base (`meca_settings`, clé `workshops`). Le serveur 
 
 Déroulé : le mécanicien prend la voiture du client, la conduit sur le point et appuie sur **E** au volant (le véhicule est immobilisé pendant l'intervention) → l'atelier affiche le véhicule, son état et le catalogue compatible (seules les pièces qui existent sur ce modèle sont proposées) → aperçu en direct sur le véhicule (annulable) → ajout au devis → choix du client (le propriétaire est proposé en premier) → **Envoyer le devis**. Le client voit les lignes et le total, accepte ou refuse. Fermer l'atelier sans installer remet le véhicule tel qu'il était et **ne facture rien**.
 
+## Atelier : caméra et modifications
+
+- **Caméra** : clic droit maintenu + glisser (hors du panneau) pour tourner autour du véhicule, molette pour zoomer, double-clic pour recentrer.
+- **Modifications** : toutes les pièces GTA du modèle (carrosserie, intérieur, portes, rampe lumineuse), palette complète (0-160, nacré),
+  couleurs d'intérieur et de tableau de bord, jantes (dont roues F1), pneus (flancs, pare-balles), fumée, néons par côté, xénon, vitres,
+  style de plaque, livrées (dont toit), éléments optionnels.
+- **Plaque personnalisée** (catalogue, 5 000 $ par défaut) : 1 à 8 caractères, unique, seulement sur un véhicule avec carte grise.
+  Le serveur change la plaque à l'installation (`elyzea_core:ChangePlate`) : carte grise, clés, coffre du véhicule (le contenu suit).
+  Si la plaque est prise entre-temps, la ligne n'est pas posée et elle est remboursée.
+- Les nouveaux articles du catalogue de `config.lua` s'ajoutent automatiquement aux bases déjà installées.
+
 ## Devis, paiement, factures
 
 - Il n'existe pas de système de factures différées sur le serveur : le client **paie au moment où il accepte** (banque, puis liquide). L'argent va sur le compte société `mechanic` (elyzea_core).
