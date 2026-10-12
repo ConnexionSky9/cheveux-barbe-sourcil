@@ -3,7 +3,8 @@
 --  ALT maintenu : curseur ; la cible s'entoure ; clic : actions possibles.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
---  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA (exports AltOptions / AltSelect).
+--  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
+--  Mécano en service (elyzea_meca) : réparer, nettoyer, retourner, historique, devis (exports AltOptions / AltSelect).
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -85,6 +86,12 @@ end
 
 local function NameOf(sid) return ('Personne · ID %d'):format(sid) end
 
+-- Ressources métier qui ajoutent leurs actions au menu ALT (exports AltOptions / AltSelect)
+local ALT_PROVIDERS = {
+    { res = 'elyzea_ems', prefix = 'ems:' },
+    { res = 'elyzea_meca', prefix = 'meca:' },
+}
+
 -- Actions possibles selon la cible, son état réel et les permissions
 local function Options(ctx)
     local out = {}
@@ -130,15 +137,17 @@ local function Options(ctx)
         end
     end
     if C.CitizenOptions then C.CitizenOptions(ctx, out) end
-    -- Actions EMS (elyzea_ems) : options fournies par l'EMS, préfixées « ems: »
-    if GetResourceState('elyzea_ems') == 'started' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
-        local ok, list = pcall(function()
-            return exports.elyzea_ems:AltOptions({ kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
-        end)
-        if ok and type(list) == 'table' then
-            for _, o in ipairs(list) do
-                if type(o) == 'table' and o.id then
-                    out[#out + 1] = { id = 'ems:' .. tostring(o.id), label = o.label, icon = o.icon, desc = o.desc, disabled = o.disabled }
+    -- Actions des métiers (EMS, mécano) : options fournies par leur ressource, préfixées « ems: » / « meca: »
+    for _, prov in ipairs(ALT_PROVIDERS) do
+        if GetResourceState(prov.res) == 'started' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
+            local ok, list = pcall(function()
+                return exports[prov.res]:AltOptions({ kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
+            end)
+            if ok and type(list) == 'table' then
+                for _, o in ipairs(list) do
+                    if type(o) == 'table' and o.id then
+                        out[#out + 1] = { id = prov.prefix .. tostring(o.id), label = o.label, icon = o.icon, desc = o.desc, disabled = o.disabled }
+                    end
                 end
             end
         end
@@ -212,12 +221,14 @@ RegisterNUICallback('altSelect', function(body, cb)
     local ctx = menuCtx
     CloseMenu()
     if not o or o.disabled or not ctx then return end
-    if o.id:sub(1, 4) == 'ems:' then
-        local id = o.id:sub(5)
-        pcall(function()
-            exports.elyzea_ems:AltSelect(id, { kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
-        end)
-        return
+    for _, prov in ipairs(ALT_PROVIDERS) do
+        if o.id:sub(1, #prov.prefix) == prov.prefix then
+            local id = o.id:sub(#prov.prefix + 1)
+            pcall(function()
+                exports[prov.res]:AltSelect(id, { kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
+            end)
+            return
+        end
     end
     local kind, sid = o.id:match('^(%a+):(%d+)$')
     CreateThread(function()

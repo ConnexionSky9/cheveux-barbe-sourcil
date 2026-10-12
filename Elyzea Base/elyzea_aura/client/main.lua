@@ -1484,8 +1484,14 @@ local function OpenCarPlay()
     if not SeatAllowed(veh, ped) then
         SendNUIMessage({ action = 'toast', data = { app = 'carplay', key = 'cpSeat' } }); return
     end
-    if isOpen then ClosePhone() end
     if not NetworkGetEntityIsNetworked(veh) then NetworkRegisterEntityAsNetworked(veh) end
+    -- Le serveur vérifie que le CarPlay est installé sur ce véhicule (vendu par les mécaniciens)
+    local check = ServerCallback('carplayCheck', { netId = VehToNet(veh) }) or {}
+    if not check.ok then
+        SendNUIMessage({ action = 'toast', data = { app = 'carplay', title = 'ElyzeaCarPlay', text = check.error or 'CarPlay indisponible sur ce véhicule.' } })
+        return
+    end
+    if isOpen then ClosePhone() end
     cpOpen, cpVeh = true, veh
     local intro = Config.CarPlay.Intro and (Config.CarPlay.IntroEveryTime or not introDoneFor[veh])
     introDoneFor[veh] = true

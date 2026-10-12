@@ -13,8 +13,9 @@ local KEY = 'staffPrevJob'   -- métier d'origine, gardé dans le personnage
 local JOBS = {
     police = { res = 'elyzea_police', job = 'police', label = 'Police' },
     ems    = { res = 'elyzea_ems', job = 'ambulance', label = 'EMS' },
+    meca   = { res = 'elyzea_meca', job = 'mechanic', label = 'Mécano' },
 }
-local ORDER = { 'police', 'ems' }
+local ORDER = { 'police', 'ems', 'meca' }
 
 local function available(J) return J ~= nil and GetResourceState(J.res) == 'started' end
 local function call(J, fn, ...)

@@ -300,6 +300,10 @@ Config.CarPlay = {
     ClosedWindowsFactor = 0.55,  -- volume entendu dehors quand toutes les vitres sont fermées
     SummonDistance = 350.0,      -- « Venir à moi » : distance maximale pour que la voiture vienne seule
     SummonSpeed = 14.0,          -- vitesse de la conduite autonome (m/s, ~50 km/h)
+    -- CarPlay vendu par les mécaniciens (elyzea_meca) : seul un véhicule équipé peut l'utiliser
+    -- (tablette F4, contrôle et « Venir à moi » depuis le téléphone). false = tous les véhicules, comme avant.
+    RequireInstall = true,
+    InstallResource = 'elyzea_meca',
     -- Couleurs proposées pour les LED (néons)
     NeonColors = {
         { 124, 108, 255 }, { 111, 231, 242 }, { 255, 111, 158 }, { 255, 181, 71 }, { 79, 224, 176 }, { 255, 255, 255 }, { 255, 59, 59 },

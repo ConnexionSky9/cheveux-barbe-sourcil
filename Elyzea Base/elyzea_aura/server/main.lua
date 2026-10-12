@@ -2039,12 +2039,33 @@ local function OwnsPlate(src, me, plate)
     return c.plates[plate] == true
 end
 
+-- CarPlay installé par un mécanicien ? (vérifié ici, côté serveur, avant toute action)
+local function CarPlayInstalled(veh)
+    if not Config.CarPlay.RequireInstall then return true end
+    local res = Config.CarPlay.InstallResource or 'elyzea_meca'
+    if GetResourceState(res) ~= 'started' then return false, 'Installation CarPlay indisponible (garage fermé)' end
+    local ok, has = pcall(function() return exports[res]:HasCarPlay(CleanPlate(GetVehicleNumberPlateText(veh))) end)
+    if ok and has then return true end
+    return false, 'Ce véhicule n\'a pas le CarPlay : faites-le installer par un mécanicien'
+end
+
 -- Dans la voiture : la tablette marche. À distance : seulement pour les véhicules qu'on possède.
+-- Dans tous les cas : seulement si le CarPlay est installé sur le véhicule.
 local function CanControl(src, me, veh, remote)
     if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return false end
-    if not remote and GetVehiclePedIsIn(GetPlayerPed(src), false) == veh then return true end
-    return OwnsPlate(src, me, CleanPlate(GetVehicleNumberPlateText(veh)))
+    local inside = not remote and GetVehiclePedIsIn(GetPlayerPed(src), false) == veh
+    if not inside and not OwnsPlate(src, me, CleanPlate(GetVehicleNumberPlateText(veh))) then return false end
+    local ok, why = CarPlayInstalled(veh)
+    if not ok then return false, why end
+    return true
 end
+
+-- Ouverture de la tablette F4 : le client demande d'abord si le véhicule est équipé
+Register('carplayCheck', function(src, me, args)
+    local veh = NetworkGetEntityFromNetworkId(tonumber(args.netId) or 0)
+    local ok, why = CanControl(src, me, veh, false)
+    return { ok = ok == true, error = why or (not ok and 'Vous ne pouvez pas contrôler ce véhicule') or nil }
+end)
 
 local function CarState(veh)
     local st = Entity(veh).state
@@ -2062,7 +2083,8 @@ end
 
 Register('carplayState', function(src, me, args)
     local veh = NetworkGetEntityFromNetworkId(tonumber(args.netId) or 0)
-    if not CanControl(src, me, veh, args.remote) then return { ok = false, error = 'Vous ne pouvez pas contrôler ce véhicule' } end
+    local can, why = CanControl(src, me, veh, args.remote)
+    if not can then return { ok = false, error = why or 'Vous ne pouvez pas contrôler ce véhicule' } end
     local pos = GetEntityCoords(veh)
     return { ok = true, state = CarState(veh), x = pos.x, y = pos.y, plate = CleanPlate(GetVehicleNumberPlateText(veh)),
         distance = math.floor(#(GetEntityCoords(GetPlayerPed(src)) - pos)), colors = Config.CarPlay.NeonColors }
@@ -2075,7 +2097,8 @@ Register('carplayAction', function(src, me, args)
     if (CarRate[src] or 0) > now then return { ok = false, error = 'Doucement !' } end
     CarRate[src] = now + 150
     local veh = NetworkGetEntityFromNetworkId(tonumber(args.netId) or 0)
-    if not CanControl(src, me, veh, args.remote) then return { ok = false, error = 'Vous ne pouvez pas contrôler ce véhicule' } end
+    local can, why = CanControl(src, me, veh, args.remote)
+    if not can then return { ok = false, error = why or 'Vous ne pouvez pas contrôler ce véhicule' } end
     local st, a, v = Entity(veh).state, args.action, args.value
     local cur = CarState(veh)
 
@@ -2138,7 +2161,7 @@ Register('carplayFleet', function(src, me)
     local world, list = WorldVehicles(), {}
     for _, v in ipairs(OwnedVehicles(me)) do
         local veh = world[v.plate]
-        if veh and DoesEntityExist(veh) then
+        if veh and DoesEntityExist(veh) and CarPlayInstalled(veh) then
             local pos = GetEntityCoords(veh)
             local st = CarState(veh)
             local open = 0
@@ -2158,7 +2181,7 @@ Register('carplayLockAll', function(src, me, args)
     local world, count = WorldVehicles(), 0
     for _, v in ipairs(OwnedVehicles(me)) do
         local veh = world[v.plate]
-        if veh and DoesEntityExist(veh) then
+        if veh and DoesEntityExist(veh) and CarPlayInstalled(veh) then
             local st = Entity(veh).state
             st:set('cp_locked', args.lock == true, true)
             SetVehicleDoorsLocked(veh, args.lock == true and 2 or 1)
@@ -2172,7 +2195,8 @@ end)
 -- « Venir à moi » : le serveur vérifie que la voiture m'appartient et qu'elle est vide
 Register('carplaySummonCheck', function(src, me, args)
     local veh = NetworkGetEntityFromNetworkId(tonumber(args.netId) or 0)
-    if not CanControl(src, me, veh, true) then return { ok = false, error = 'Vous ne pouvez pas contrôler ce véhicule' } end
+    local can, why = CanControl(src, me, veh, true)
+    if not can then return { ok = false, error = why or 'Vous ne pouvez pas contrôler ce véhicule' } end
     if GetPedInVehicleSeat(veh, -1) ~= 0 then return { ok = false, error = 'Quelqu\'un est au volant de ce véhicule' } end
     if #(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(veh)) > Config.CarPlay.SummonDistance then
         return { ok = false, error = 'Trop loin pour venir seule : rapprochez-vous' }
@@ -2195,6 +2219,14 @@ Register('sendAlert', function(src, me, args)
     local message = trim(args.message, 200)
     if message == '' then message = 'Demande d\'intervention' end
     local coords = GetEntityCoords(GetPlayerPed(src))
+
+    -- Dépannage : géré par le métier mécano (elyzea_meca) s'il est démarré (suivi, statuts, historique)
+    if service.id == 'mechanic' and GetResourceState('elyzea_meca') == 'started' then
+        local ok, id, n = pcall(function()
+            return exports.elyzea_meca:CreateTowRequest(src, message, coords, { phone = me.number, source = 'telephone' })
+        end)
+        if ok and id then return { ok = true, count = tonumber(n) or 0 } end
+    end
 
     local count = 0
     for _, id in ipairs(GetPlayers()) do
