@@ -39,7 +39,7 @@
                 <p class="hint">Choisis combien de gardes reçoivent l'ordre (les plus proches de toi). Pour « Prenez un véhicule », « Braquer », « Tirer », « Menotter » : le menu se ferme et une <b>flèche</b> apparaît au-dessus de ce que tu regardes ;
                     <span class="keycap">E</span> ou clic gauche pour choisir, clic droit pour annuler. Joueur ou PNJ. Les gardes déjà dans un véhicule ne bougent pas quand tu ordonnes de monter dans un véhicule.</p>
                 <ul class="hint" style="line-height:1.7;margin-left:18px">
-                    <li><b>À pied</b> : suivez-moi, restez ici, revenez, protéger la zone 10 à 50 m (surveillance sans tirer), mode défense (tir sur toute personne dans le rayon : joueurs et PNJ, même en véhicule), supprimer.</li>
+                    <li><b>À pied</b> : suivez-moi, restez ici, revenez, protéger la zone 10 à 50 m (cercle autour de toi : qui entre est braqué, abattu s'il avance de 5 m dans le cercle ; « Autoriser » à la flèche pour laisser entrer quelqu'un), mode défense (tir sur toute personne dans le rayon : joueurs et PNJ, même en véhicule), supprimer.</li>
                     <li><b>Véhicules</b> : montez dans mon véhicule, prenez le véhicule visé (le 1er au volant), allez à mon point GPS, suivez en convoi, descendez ; conduite normale ou grande vitesse (feux grillés, dépassements).</li>
                     <li><b>Cible</b> (choisie à la flèche) : braquer sans tirer, tirer, menotter, démenotter (joueur ou PNJ).</li>
                     <li><b>Équipement</b> : même tenue que moi (à l'identique), armes en main ou rangées.</li>
@@ -79,7 +79,9 @@
                 <div class="gm-cible"><span>🎯 Cible et véhicule : choisis-les <b>après</b> le clic, avec la flèche (E / clic gauche · clic droit pour annuler).</span></div>
                 <div class="gm-sec"><h3>À pied</h3><div class="gm-grid">
                     ${btn('follow', '🚶 Suivez-moi')}${btn('stay', '✋ Restez ici')}${btn('come', '↩️ Revenez')}${btn('exitveh', '🚪 Descendez')}
-                </div><div class="gm-row" style="margin-top:6px"><span class="gm-lbl">🛡️ Protéger la zone :</span>${[10, 20, 30, 40, 50].map((r) => btn('zone', `${r} m`, r, 'sm')).join('')}</div>
+                </div><div class="gm-row" style="margin-top:6px"><span class="gm-lbl">🛡️ Protéger la zone :</span>${[10, 20, 30, 40, 50].map((r) => btn('zone', `${r} m`, r, `sm ${d.zone === r ? 'on' : ''}`)).join('')}</div>
+                <div class="gm-row" style="margin-top:6px">${btn('allow', '✅ Autoriser une personne (flèche)', undefined, 'sm')}${btn('allowClear', `Retirer les autorisations${d.allowed ? ` (${d.allowed})` : ''}`, undefined, 'sm')}</div>
+                ${d.zone ? `<p class="gm-tip" style="margin-top:4px">Zone de ${d.zone} m : qui entre est braqué ; à ${5} m dans le cercle sans autorisation, il est abattu.</p>` : ''}
                 <div class="gm-row" style="margin-top:6px"><span class="gm-lbl">⚔️ Mode défense :</span>${[5, 8, 12, 20].map((r) => btn('defense', `${r} m`, r, `sm ${d.defense === r ? 'on' : ''}`)).join('')}${btn('defense', 'Couper', 'off', `sm ${d.defense ? '' : 'on'}`)}</div></div>
                 <div class="gm-sec"><h3>Cible</h3><div class="gm-grid">
                     ${btn('aim', '🔫 Braquer (sans tirer)')}${btn('attack', '💥 Tirer sur…', undefined, 'danger')}${btn('cuff', '⛓️ Menotter', 'on')}${btn('cuff', '🔓 Démenotter', 'off')}

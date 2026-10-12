@@ -8,7 +8,11 @@ local GC = Config.Guards
 local Guards = {}          -- liste de { ped, netId, mode, veh, target, post }
 local Defense = { on = false, radius = GC.defendRadius }
 local DriveMode = 'normal'
-local DefenseTargets = nil   -- personnes dans le rayon de défense (recalculé à chaque tour)
+local DefenseTargets = nil
+local ZoneIntruders = nil
+local Zone = nil            -- { center, r } : zone protégée en cours
+local Allowed = {}          -- [ped] = true : personnes autorisées à entrer dans la zone
+local ZONE_FIRE = 5.0       -- au-delà de X m à l'intérieur du cercle, les gardes abattent l'intrus   -- personnes dans le rayon de défense (recalculé à chaque tour)
 local REL = nil
 
 local function Rel()
@@ -209,11 +213,26 @@ function Orders.zone(list, r)
         local x, y = c.x + math.cos(a) * r, c.y + math.sin(a) * r
         local ok, z = GetGroundZFor_3dCoord(x, y, c.z + 5.0, false)
         g.mode, g.post = 'zone', { x = x, y = y, z = ok and z or c.z, h = math.deg(a) - 90.0, center = c, arrived = false }
+        g.zoneAct, g.zoneTarget = nil, nil
         SetBlockingOfNonTemporaryEvents(g.ped, true)
         if IsPedInAnyVehicle(g.ped, false) then TaskLeaveVehicle(g.ped, GetVehiclePedIsIn(g.ped, false), 0) end
         TaskFollowNavMeshToCoord(g.ped, x, y, g.post.z, 2.0, -1, 1.0, true, 0)
     end
-    return ('%d garde(s) protègent la zone (%d m, sans tirer).'):format(#list, r)
+    Zone = { center = c, r = r }
+    return ('%d garde(s) en cercle autour de toi (%d m) : ils braquent qui entre, et tirent si la personne avance de %d m dans le cercle.'):format(#list, r, ZONE_FIRE)
+end
+
+-- Autoriser une personne à entrer dans la zone protégée (choisie à la flèche)
+function Orders.allow(_, _, target)
+    if not target or not DoesEntityExist(target) then return nil, 'Aucune personne choisie.' end
+    Allowed[target] = true
+    for _, g in ipairs(Guards) do if g.zoneTarget == target then g.zoneAct, g.zoneTarget = 'back', nil end end
+    return 'Personne autorisée : tes gardes la laissent entrer.'
+end
+
+function Orders.allowClear()
+    Allowed = {}
+    return 'Autorisations retirées : plus personne n\'entre dans la zone.'
 end
 
 function Orders.defense(_, r)
@@ -520,6 +539,25 @@ CreateThread(function()
                     end
                 end
             end
+            -- Zone protégée : intrus (ni moi, ni garde, ni autorisé)
+            ZoneIntruders = nil
+            local inZone = false
+            for _, g in ipairs(Guards) do if Alive(g) and g.mode == 'zone' then inZone = true break end end
+            if not inZone then Zone = nil end
+            if Zone then
+                local nearest, nearestD, deepest, deepestD
+                for _, p in ipairs(GetGamePool('CPed')) do
+                    if p ~= me and not IsGuard(p) and not Allowed[p] and not IsPedDeadOrDying(p, true) then
+                        local pp = GetEntityCoords(p)
+                        local d = #(vector3(pp.x, pp.y, 0.0) - vector3(Zone.center.x, Zone.center.y, 0.0))
+                        if d < Zone.r and math.abs(pp.z - Zone.center.z) < 15.0 then
+                            if not nearestD or d < nearestD then nearest, nearestD = p, d end
+                            if d < Zone.r - ZONE_FIRE and (not deepestD or d < deepestD) then deepest, deepestD = p, d end
+                        end
+                    end
+                end
+                if nearest then ZoneIntruders = { aim = nearest, shoot = deepest } end
+            end
             DefenseTargets = nil
             if Defense.on then
                 DefenseTargets = {}
@@ -546,7 +584,31 @@ CreateThread(function()
                         end
                     elseif g.mode == 'zone' and g.post then
                         local p = g.post
-                        if not p.arrived and #(pc - vector3(p.x, p.y, p.z)) < 2.0 then
+                        local intr = ZoneIntruders
+                        local shoot = intr and intr.shoot
+                        local aim = intr and intr.aim
+                        if shoot then
+                            -- Intrus à plus de 5 m dans le cercle : tir
+                            if g.zoneAct ~= 'shoot' or g.zoneTarget ~= shoot then
+                                g.zoneAct, g.zoneTarget = 'shoot', shoot
+                                ClearPedTasks(g.ped)
+                                Shoot(g, shoot)
+                            end
+                        elseif aim then
+                            -- Intrus dans le cercle : tout le monde le braque
+                            if g.zoneAct ~= 'aim' or g.zoneTarget ~= aim then
+                                g.zoneAct, g.zoneTarget = 'aim', aim
+                                ClearPedTasks(g.ped)
+                                if g.weapon then SetCurrentPedWeapon(g.ped, g.weapon, true) TaskAimGunAtEntity(g.ped, aim, -1, false)
+                                else TaskTurnPedToFaceEntity(g.ped, aim, -1) end
+                            end
+                        elseif g.zoneAct then
+                            -- Plus personne : retour au poste
+                            g.zoneAct, g.zoneTarget = nil, nil
+                            p.arrived = false
+                            ClearPedTasks(g.ped)
+                            TaskFollowNavMeshToCoord(g.ped, p.x, p.y, p.z, 2.0, -1, 1.0, true, 0)
+                        elseif not p.arrived and #(pc - vector3(p.x, p.y, p.z)) < 2.0 then
                             p.arrived = true
                             SetEntityHeading(g.ped, p.h)
                             TaskStartScenarioInPlace(g.ped, 'WORLD_HUMAN_GUARD_STAND', 0, true)
@@ -686,7 +748,9 @@ local function Describe()
     end
     local holstered = 0
     for _, g in ipairs(Guards) do if Alive(g) and g.holster then holstered = holstered + 1 end end
-    return { holstered = holstered, alive = alive, inVehicle = inVeh, drivers = drivers, max = GC.max,
+    local allowed = 0
+    for p in pairs(Allowed) do if DoesEntityExist(p) then allowed = allowed + 1 else Allowed[p] = nil end end
+    return { allowed = allowed, zone = Zone and Zone.r or false, holstered = holstered, alive = alive, inVehicle = inVeh, drivers = drivers, max = GC.max,
         defense = Defense.on and Defense.radius or false, drive = DriveMode, inMyVeh = IsPedInAnyVehicle(Me(), false), waypoint = WaypointCoords() ~= nil }
 end
 
@@ -717,14 +781,14 @@ RegisterNUICallback('guardsOrder', function(body, cb)
     if order == 'gps' or order == 'convoy' then list = Pick(n, function(g) return DriverOf(g) ~= nil end)
     elseif order == 'takeveh' or order == 'myveh' then list = Pick(n, function(g) return not IsPedInAnyVehicle(g.ped, false) end)   -- ceux déjà en véhicule ne bougent pas
     else list = Pick(n) end
-    if #list == 0 and body.order ~= 'defense' and body.order ~= 'drivemode' then
+    if #list == 0 and body.order ~= 'defense' and body.order ~= 'drivemode' and body.order ~= 'allow' and body.order ~= 'allowClear' then
         local why = (order == 'takeveh' or order == 'myveh') and 'Aucun garde à pied disponible.' or 'Aucun garde disponible.'
         Note(why, 'error')
         return cb({ error = why })
     end
     -- Ordres qui demandent de choisir un véhicule ou une personne : le menu se ferme, flèche sur la cible
     local SELECT = { takeveh = { 'vehicle', 'Véhicule à prendre' }, aim = { 'ped', 'Personne à braquer' }, attack = { 'ped', 'Personne à abattre' },
-        cuff = { 'ped', body.opt == 'off' and 'Personne à démenotter' or 'Personne à menotter' } }
+        cuff = { 'ped', body.opt == 'off' and 'Personne à démenotter' or 'Personne à menotter' }, allow = { 'ped', 'Personne à autoriser dans la zone' } }
     local sel = SELECT[order]
     if sel then
         cb({ ok = true, closed = true })
