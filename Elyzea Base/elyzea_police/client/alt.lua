@@ -3,6 +3,7 @@
 --  ALT maintenu : curseur ; la cible s'entoure ; clic : actions possibles.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
+--  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA (exports AltOptions / AltSelect).
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -129,6 +130,19 @@ local function Options(ctx)
         end
     end
     if C.CitizenOptions then C.CitizenOptions(ctx, out) end
+    -- Actions EMS (elyzea_ems) : options fournies par l'EMS, préfixées « ems: »
+    if GetResourceState('elyzea_ems') == 'started' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
+        local ok, list = pcall(function()
+            return exports.elyzea_ems:AltOptions({ kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
+        end)
+        if ok and type(list) == 'table' then
+            for _, o in ipairs(list) do
+                if type(o) == 'table' and o.id then
+                    out[#out + 1] = { id = 'ems:' .. tostring(o.id), label = o.label, icon = o.icon, desc = o.desc, disabled = o.disabled }
+                end
+            end
+        end
+    end
     return out
 end
 
@@ -159,7 +173,7 @@ local function Stop() active = false Outline(nil) end
 
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return end
-    if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy then return end
+    if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy or LocalPlayer.state.emsDown then return end
     active = true
     CreateThread(function()
         local ctx, opts, lastKey = nil, {}, nil
@@ -198,6 +212,13 @@ RegisterNUICallback('altSelect', function(body, cb)
     local ctx = menuCtx
     CloseMenu()
     if not o or o.disabled or not ctx then return end
+    if o.id:sub(1, 4) == 'ems:' then
+        local id = o.id:sub(5)
+        pcall(function()
+            exports.elyzea_ems:AltSelect(id, { kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
+        end)
+        return
+    end
     local kind, sid = o.id:match('^(%a+):(%d+)$')
     CreateThread(function()
         if C.CitizenAct and C.CitizenAct(o.id, ctx) then return end

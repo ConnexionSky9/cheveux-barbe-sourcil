@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Écran de coma (tous les joueurs) -->
+  <div id="death" class="hidden" aria-live="polite"></div>
+
+  <!-- Barre de progression d'un acte médical -->
+  <div id="progress" class="hidden" role="progressbar"></div>
+
+  <!-- Menu rapide F6 -->
+  <aside id="f6" class="hidden" aria-label="Menu EMS"></aside>
+
+  <!-- Notifications d'appels et de soutien -->
+  <div id="notifs" aria-live="polite"></div>
+
+  <!-- Toasts de l'interface -->
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- Examen -->
+  <div id="exam" class="modal-wrap hidden"><div class="modal" role="dialog" aria-modal="true"></div></div>
+
+  <!-- Facture -->
+  <div id="bill" class="modal-wrap hidden"><div class="modal" role="dialog" aria-modal="true"></div></div>
+
+  <!-- PPA -->
+  <div id="ppa" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+
+  <!-- Garage -->
+  <div id="garage" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+
+  <!-- Proposition de recrutement -->
+  <div id="offer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <!-- Tablette -->
+  <div id="tablet" class="hidden">
+    <div class="tab-frame">
+      <nav class="tab-nav" id="tabNav" aria-label="Sections de la tablette"></nav>
+      <main class="tab-main">
+        <header class="tab-head">
+          <div><div class="eyebrow" id="tabEyebrow">SAMS</div><h1 id="tabTitle">Tableau de bord</h1></div>
+          <div class="tab-head-right"><span class="pill" id="tabDuty">Hors service</span><span class="clock" id="tabClock">--:--</span>
+            <button class="icon-btn" id="tabClose" aria-label="Fermer la tablette" title="Fermer (Échap)">✕</button></div>
+        </header>
+        <section class="tab-body" id="tabBody" tabindex="-1"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Confirmation -->
+  <div id="confirm" class="modal-wrap hidden top"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <script src="app.js"></script>
+  <script src="map.js"></script>
+  <script src="tablet.js"></script>
+</body>
+</html>

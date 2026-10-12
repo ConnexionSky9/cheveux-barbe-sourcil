@@ -1,0 +1,53 @@
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+
+name 'elyzea_ems'
+author 'Elyzea FA'
+description 'Métier EMS / SAMS Elyzea : coma, soins, réanimation, appels, soutien, facturation, PPA, dossiers médicaux, comptes rendus, garage, tablette (direction, finance, paie au taux horaire)'
+version '1.0.0'
+
+shared_scripts {
+    '@elyzea_core/lib/ely.lua',
+    'config.lua',
+    'shared/perms.lua',
+}
+
+server_scripts {
+    '@elyzea_core/lib/MySQL.lua',
+    'server/main.lua',
+    'server/service.lua',
+    'server/finance.lua',
+    'server/death.lua',
+    'server/calls.lua',
+    'server/medical.lua',
+    'server/billing.lua',
+    'server/ppa.lua',
+    'server/records.lua',
+    'server/direction.lua',
+    'server/garage.lua',
+    'server/api.lua',
+}
+
+client_scripts {
+    'client/main.lua',
+    'client/death.lua',
+    'client/calls.lua',
+    'client/medical.lua',
+    'client/f6.lua',
+    'client/tablet.lua',
+    'client/garage.lua',
+}
+
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/app.js',
+    'html/tablet.js',
+    'html/map.js',
+    'html/img/*',
+}
+
+dependencies { 'elyzea_core' }

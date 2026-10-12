@@ -370,6 +370,45 @@ RegisterNetEvent('elyzea_papiers:ppaSubmit', function(answers)
     Log(src, 'Test PPA', ('%s · %d/%d · %s'):format(t.label, score, total, passed and 'réussi' or 'échoué'))
 end)
 
+-- Remise du PPA (papier, numéro, licence). Utilisé après un test réussi, ou par elyzea_ems (GivePpa).
+-- Renvoie ok, message, numéro
+local function Deliver(src, target, kind, score)
+    local t = PPA.types[kind]
+    if not t then return false, 'Type de PPA inconnu.' end
+    local p = core:GetPlayer(target)
+    if not p then return false, 'Patient introuvable.' end
+    local meta = Holder(p)
+    meta.kind = kind
+    meta.categories = t.categories
+    meta.number = Number(kind == 'fdo' and 'FDO' or 'PPA')
+    meta.issued = os.date('%d/%m/%Y')
+    meta.doctor = core:GetCharName(src)
+    meta.score = score
+    if (t.validDays or 0) > 0 then
+        meta.expiresAt = os.time() + t.validDays * 86400
+        meta.expires = os.date('%d/%m/%Y', meta.expiresAt)
+    end
+    meta.label = kind == 'fdo' and 'PPA · Forces de l\'ordre' or 'PPA · Civil'
+    meta.description = ('%s %s · %s · n° %s%s'):format(meta.firstname or '', meta.lastname or '', table.concat(t.categories, ', '),
+        meta.number, meta.expires and (' · valide jusqu\'au ' .. meta.expires) or '')
+
+    local given, err = GiveItem(target, t.item, meta)
+    if not given then
+        local msg = ('Impossible de remettre le PPA (%s).'):format(err == 'no_inventory' and 'inventaire indisponible' or 'inventaire plein')
+        Notify(src, msg, 'error')
+        return false, msg
+    end
+    local lic = p.PlayerData.metadata.licences or {}
+    lic[PPA.licence] = true
+    if kind == 'fdo' then lic.weapon_fdo = true end
+    core:SetMetadata(target, 'licences', lic)
+
+    Notify(src, ('%s %s délivré.'):format(t.label, meta.number), 'success')
+    Notify(target, ('Vous avez reçu votre %s.'):format(t.label), 'success')
+    Log(src, 'PPA délivré', ('%s %s [%d] · %s · %s'):format(meta.firstname or '', meta.lastname or '', target, t.label, meta.number))
+    return true, ('%s %s délivré.'):format(t.label, meta.number), meta.number
+end
+
 -- 4. L'examinateur donne le PPA (seulement si le test est réussi et récent). Renvoie ok, message.
 local function Issue(src, target)
     local ok, why = CanEms(src)
@@ -388,45 +427,29 @@ local function Issue(src, target)
         Notify(src, 'Le résultat du test a expiré : la personne doit repasser le test.', 'error')
         return false, 'Résultat du test expiré.'
     end
-    local t = PPA.types[res.kind]
-
-    local meta = Holder(p)
-    meta.kind = res.kind
-    meta.categories = t.categories
-    meta.number = Number(res.kind == 'fdo' and 'FDO' or 'PPA')
-    meta.issued = os.date('%d/%m/%Y')
-    meta.doctor = core:GetCharName(src)
-    meta.score = ('%d/%d'):format(res.score, res.total)
-    if (t.validDays or 0) > 0 then
-        meta.expiresAt = os.time() + t.validDays * 86400
-        meta.expires = os.date('%d/%m/%Y', meta.expiresAt)
-    end
-    meta.label = res.kind == 'fdo' and 'PPA · Forces de l\'ordre' or 'PPA · Civil'
-    meta.description = ('%s %s · %s · n° %s%s'):format(meta.firstname or '', meta.lastname or '', table.concat(t.categories, ', '),
-        meta.number, meta.expires and (' · valide jusqu\'au ' .. meta.expires) or '')
-
-    local given, err = GiveItem(target, t.item, meta)
-    if not given then
-        local msg = ('Impossible de remettre le PPA (%s).'):format(err == 'no_inventory' and 'inventaire indisponible' or 'inventaire plein')
-        Notify(src, msg, 'error')
-        return false, msg
-    end
-    Results[cid] = nil
-    local lic = p.PlayerData.metadata.licences or {}
-    lic[PPA.licence] = true
-    if res.kind == 'fdo' then lic.weapon_fdo = true end
-    core:SetMetadata(target, 'licences', lic)
-
-    Notify(src, ('%s %s délivré.'):format(t.label, meta.number), 'success')
-    Notify(target, ('Vous avez reçu votre %s.'):format(t.label), 'success')
-    Log(src, 'PPA délivré', ('%s %s [%d] · %s · %s'):format(meta.firstname or '', meta.lastname or '', target, t.label, meta.number))
-    return true, ('%s %s délivré.'):format(t.label, meta.number)
+    local ok2, msg = Deliver(src, target, res.kind, ('%d/%d'):format(res.score, res.total))
+    if ok2 then Results[cid] = nil end
+    return ok2, msg
 end
 RegisterNetEvent('elyzea_papiers:issuePpa', function(target) Issue(source, target) end)
 
 -- Pour les autres ressources (tablette de police) : même règles que les événements
 exports('PpaRequest', function(src, target, kind) return StartRequest(src, target, kind) end)
 exports('PpaIssue', function(src, target) return Issue(src, target) end)
+-- Remise directe sans test (elyzea_ems : la tablette EMS vérifie grade, service, conditions et paiement).
+-- Renvoie ok, message, numéro. Aucun paiement ici.
+exports('GivePpa', function(src, target, kind)
+    src, target = tonumber(src), tonumber(target)
+    if not src or not target or not GetPlayerName(target) then return false, 'Patient introuvable.' end
+    return Deliver(src, target, kind, 'délivrance directe')
+end)
+-- Le joueur a-t-il déjà ce PPA sur lui ?
+exports('HasPpa', function(target, kind)
+    local t = PPA.types[kind]
+    if not t then return false end
+    local ok, n = pcall(function() return inv:Search(tonumber(target), 'count', t.item) end)
+    return ok and (tonumber(n) or 0) > 0
+end)
 -- État de la procédure d'un joueur : offer (demande en attente), test (en cours), passed, failed, none
 exports('PpaState', function(target)
     target = tonumber(target)

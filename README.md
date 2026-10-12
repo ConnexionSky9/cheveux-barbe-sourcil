@@ -129,7 +129,7 @@ Remplace `mm_radio`, sans ox_lib.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
 ### 3.8 Métiers
-Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`) et **illégal** (`elyzea_illegal`). Les autres (EMS, entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
+Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`), **EMS / SAMS** (`elyzea_ems`, nouveau, voir `Elyzea Base/elyzea_ems/README.md` — non testé en jeu) et **illégal** (`elyzea_illegal`). Les autres (entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
 Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
