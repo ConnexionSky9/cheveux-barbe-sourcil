@@ -268,8 +268,40 @@ P.Tables = {
 P.TableOrder = { 'ems_settings', 'ems_grades', 'ems_employees', 'ems_admin_log', 'ems_sessions', 'ems_rates', 'ems_transactions',
     'ems_calls', 'ems_call_log', 'ems_support', 'ems_treatments', 'ems_invoices', 'ems_ppa', 'ems_patients', 'ems_reports', 'ems_report_history' }
 
+-- Colonnes d'une définition : { { nom, définition complète } } (la première est la clé de la table)
+local function Columns(def)
+    local list = {}
+    for line in def:gmatch('[^\n]+') do
+        for part in (line .. ','):gmatch('(.-),') do
+            local name = part:match('^%s*%(?%s*`([%w_]+)`')
+            if name then
+                local col = part:gsub('^%s*%(%s*', ''):gsub('%s*%)%s*$', '')
+                list[#list + 1] = { name, (col:gsub('%s*PRIMARY KEY', ''):gsub('%s*UNIQUE', ''):gsub('%s*AUTO_INCREMENT', '')) }
+            end
+        end
+    end
+    return list
+end
+
+-- Table déjà présente (autre version, autre script) :
+--  · sans la colonne clé : renommée en « _ancien » (rien n'est supprimé) puis recréée ;
+--  · avec la clé mais des colonnes manquantes : colonnes ajoutées.
+local function CheckTable(name)
+    local cols = Columns(P.Tables[name])
+    if not cols[1] or not TableExists(name) then return end
+    MoveOldTable(name, cols[1][1])
+    if not TableExists(name) then return end
+    for i = 2, #cols do
+        if HasColumn(name, cols[i][1]) == 0 then
+            local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` ADD COLUMN %s'):format(name, cols[i][2]))
+            if ok then print(('^3[EMS] Colonne « %s » ajoutée à « %s ».^0'):format(cols[i][1], name))
+            else print(('^1[EMS] Colonne « %s » impossible à ajouter à « %s » : %s^0'):format(cols[i][1], name, tostring(err))) end
+        end
+    end
+end
+
 local function InitDb()
-    MoveOldTable('ems_ppa', 'uid')
+    for _, name in ipairs(P.TableOrder) do pcall(CheckTable, name) end
     for _, name in ipairs(P.TableOrder) do
         Q(('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
     end
