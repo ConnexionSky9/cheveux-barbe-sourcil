@@ -414,6 +414,7 @@ VIEWS.self = () => {
                 ${tog('player_ids', 'showIds', 'Noms et IDs', 'Au-dessus des joueurs')}
             </div>
         </div>
+        ${window.guardsSection ? window.guardsSection() : ''}
         ${any('revive', 'revive_area') ? `<div class="section">
             <h2>Réanimation</h2>
             ${has('revive_area') ? `<p class="hint">Choisis un rayon : la zone s'affiche au sol autour de toi et les joueurs à terre sont signalés.

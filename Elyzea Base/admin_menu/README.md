@@ -863,8 +863,8 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
 
 ## Gardes du corps (Mes outils, permission `guards` : SuperAdmin et Fondateur)
 
-- **Mes outils › Gardes du corps** : 1 à 30 PNJ (tenue, arme, gilet, invincibles), qui apparaissent autour du staff, le suivent et ripostent si on l'attaque. Supprimés à sa déconnexion. Réglages : `Config.Guards` (`config.lua`).
-- **F11** (touche modifiable) : panneau des ordres. Viser la personne ou le véhicule **avant** d'appuyer sur F11 (sinon : la personne / le véhicule le plus proche devant soi). Choisir le nombre de gardes (« Tous » ou les N plus proches).
+- **Mes outils** (section « Gardes du corps ») : 1 à 30 PNJ (tenue, arme, gilet, invincibles), qui apparaissent autour du staff, le suivent et ripostent si on l'attaque. Supprimés à sa déconnexion. Réglages : `Config.Guards` (`config.lua`).
+- **F11** (touche modifiable) : panneau des ordres. La touche et la commande ne sont enregistrées que chez les staffs qui ont la permission : pour les autres joueurs, F11 ne fait rien et n'apparaît pas dans leurs raccourcis. Viser la personne ou le véhicule **avant** d'appuyer sur F11 (sinon : la personne / le véhicule le plus proche devant soi). Choisir le nombre de gardes (« Tous » ou les N plus proches).
   - À pied : suivez-moi, restez ici, revenez, descendez, protéger la zone 10/20/30/40/50 m (ils s'écartent en cercle et surveillent sans tirer), mode défense 5/8/12/20 m (tir sur quiconque approche) ou coupé.
   - Cible : braquer sans tirer, tirer, menotter, démenotter (joueur : via elyzea_police ; PNJ : menottes et animation).
   - Véhicules : montez dans mon véhicule (places passagers), prenez le véhicule visé (le premier au volant), allez à mon point GPS (conducteurs), suivez en convoi (chaque véhicule suit le précédent ; le premier suit mon véhicule ou le conducteur parti au GPS, ou moi à pied), conduite normale ou grande vitesse (feux grillés, à fond, dépassements).

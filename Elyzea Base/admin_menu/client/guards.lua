@@ -572,3 +572,11 @@ AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for _, g in ipairs(Guards) do if DoesEntityExist(g.ped) then DeleteEntity(g.ped) end end
 end)
+
+-- Touche F11 : enregistrée uniquement chez un staff qui a la permission « guards »
+-- (pour les autres joueurs, la commande et la touche n'existent pas)
+CreateThread(function()
+    while not HasPerm('guards') do Wait(5000) end
+    RegisterCommand('admin_guards', function() if HasPerm('guards') then OpenGuardsMenu() end end, false)
+    RegisterKeyMapping('admin_guards', 'Staff - Ordres aux gardes du corps', 'keyboard', GC.key or 'F11')
+end)

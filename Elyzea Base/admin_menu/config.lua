@@ -28,7 +28,6 @@ Config.Keys = {
     { cmd = 'admin_revive_me', label = 'Me réanimer',          mapper = 'keyboard', key = '' },
     { cmd = 'admin_revive_area', label = 'Réanimer autour de moi', mapper = 'keyboard', key = '' },
     { cmd = 'admin_human',     label = 'Reprendre ma forme humaine', mapper = 'keyboard', key = '' },
-    { cmd = 'admin_guards',    label = 'Ordres aux gardes du corps', mapper = 'keyboard', key = 'F11' },
 }
 
 -- Touches actives uniquement pendant le noclip (défauts AZERTY)
@@ -859,6 +858,7 @@ end
 -- =========================================================
 Config.Guards = {
     max = 30,                 -- gardes maximum par staff
+    key = 'F11',              -- touche du menu des ordres (enregistrée seulement chez les staffs qui ont la permission)
     defendRadius = 8.0,       -- mode défense par défaut : tir si quelqu'un approche à moins de X m
     models = {
         { id = 's_m_y_blackops_01',   label = 'Commando (noir)' },

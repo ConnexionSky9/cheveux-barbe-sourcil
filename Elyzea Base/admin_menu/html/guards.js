@@ -4,11 +4,8 @@
    Touche F11 : panneau des ordres (le client exécute, le serveur autorise).
    ========================================================= */
 (() => {
-    TABS.push({
-        id: 'guards', group: 2, label: 'Gardes du corps', ico: '🛡️',
-        sub: 'Fais apparaître des PNJ armés qui te protègent, puis donne-leur des ordres avec F11.',
-        show: () => has('guards') && !!(D && D.guards),
-    });
+    // Section affichée dans la page « Mes outils » (SuperAdmin et Fondateur)
+    window.guardsSection = () => (has('guards') && D && D.guards && (D.me.level || 0) >= 40 ? VIEWS.guards() : '');
 
     const G = { count: 4, model: '', weapon: 'WEAPON_CARBINERIFLE', armor: true, invincible: false };
     const send = (name, data = {}) => action('guards', { name, data });
@@ -18,11 +15,12 @@
         if (!G.model) G.model = (d.models[0] || {}).id || '';
         const free = d.max - d.count;
         return `
+            <div class="section"><h2>🛡️ Gardes du corps</h2></div>
             <div class="stats">
                 <div class="stat"><b>${d.count} / ${d.max}</b><span>Gardes à tes côtés</span></div>
                 <div class="stat"><b><span class="keycap">F11</span></b><span>Ordres (touche modifiable : Échap › Paramètres › Raccourcis › FiveM)</span></div>
             </div>
-            <div class="section"><h2>🛡️ Faire apparaître des gardes</h2>
+            <div class="section"><h2>Faire apparaître des gardes</h2>
                 <p class="hint">Ils apparaissent autour de toi et te suivent. Ils ripostent si on t'attaque. Ils disparaissent à ta déconnexion.</p>
                 <div class="form-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1100px">
                     <div class="field"><label>Nombre (1 à ${free > 0 ? free : 0})</label><input class="input" type="number" min="1" max="${Math.max(1, free)}" data-gdf="count" value="${G.count}"></div>
@@ -50,7 +48,7 @@
     document.addEventListener('input', (e) => { if (e.target.dataset && e.target.dataset.gdf === 'count') G.count = Number(e.target.value); });
     document.addEventListener('change', (e) => { const k = e.target.dataset && e.target.dataset.gdf; if (k && k !== 'count') G[k] = e.target.value; });
     document.addEventListener('click', async (e) => {
-        if (!isOpen || tab !== 'guards') return;
+        if (!isOpen || tab !== 'self') return;
         let n;
         if ((n = e.target.closest('[data-gdb]'))) { G[n.dataset.gdb] = !G[n.dataset.gdb]; return render(); }
         if (!(n = e.target.closest('[data-gda]')) || n.disabled) return;
