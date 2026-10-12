@@ -43,6 +43,7 @@ client_scripts {
     'client/garage.lua',
     'client/drops.lua',
     'client/guards.lua',
+    'client/dynasty.lua',
 }
 
 server_scripts {
@@ -106,5 +107,6 @@ files {
     'html/trunks.js',
     'html/drugsale.js',
     'html/guards.js',
+    'html/dynasty.js',
     'html/logo.png',
 }

@@ -45,6 +45,7 @@ local function List(src)
         local status
         if r.state == 1 then status = 'stored'
         elseif r.state == 2 then status = 'impound'
+        elseif r.state == 3 then status = 'property'   -- rangé dans le garage d'une propriété (elyzea_dynasty)
         else status = FindOut(r.plate) and 'out' or 'lost' end   -- sorti mais introuvable : on peut le ressortir
         list[#list + 1] = {
             plate = r.plate, model = r.vehicle, status = status, image = Config.ImageUrl:format(r.vehicle),
@@ -135,6 +136,7 @@ RegisterNetEvent('garage:server:takeOut', function(plate, vtype)
     local row = MySQL.single.await('SELECT vehicle, mods, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
     if not row then return Notify(src, 'Ce véhicule ne t\'appartient pas.', 'error') end
     if row.state == 2 then return Notify(src, 'Ce véhicule est à la fourrière.', 'error') end
+    if row.state == 3 then return Notify(src, 'Ce véhicule est rangé dans le garage d\'une propriété : sortez-le de là-bas.', 'error') end
     if FindOut(plate) then return Notify(src, 'Ce véhicule est déjà en circulation.', 'error') end
     local spot = FreeSpot(s.spots)
     if not spot then
@@ -173,8 +175,9 @@ RegisterNetEvent('garage:server:store', function(netId, props)
     end
     if #(Coords(src) - GetEntityCoords(veh)) > 12.0 then return Notify(src, 'Tu es trop loin du véhicule.', 'error') end
     local plate = PlateOf(veh)
-    local row = MySQL.single.await('SELECT vehicle FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
+    local row = MySQL.single.await('SELECT vehicle, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
     if not row then return Notify(src, 'Ce véhicule ne t\'appartient pas : impossible de le ranger.', 'error') end
+    if row.state == 3 then return Notify(src, 'Ce véhicule est enregistré dans une propriété.', 'error') end
     local ped = GetPlayerPed(src)
     for seat = -1, 6 do
         local occ = GetPedInVehicleSeat(veh, seat)

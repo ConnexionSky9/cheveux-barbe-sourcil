@@ -882,3 +882,11 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
 - **Armes** : « Armes en main » ou « Ranger les armes » (F11), ou « Armes rangées » à l'apparition. En combat, ils sortent leur arme.
 - **Monter avec ses gardes** : « Prenez un véhicule » déverrouille le véhicule et te donne ses clés ; si tu es à pied, la place passager avant reste libre pour toi. Près d'un véhicule de tes gardes, **F** te fait monter à la première place libre (passager avant d'abord) au lieu d'essayer de sortir le conducteur.
 - **Zombies** (événement du menu staff) : les gardes les considèrent comme ennemis et tirent d'office sur ceux à moins de 60 m, même sans mode défense.
+
+## 🏠 Gestion immobilière Dynasty 8 (Métiers, permission `property_manage` : SuperAdmin et Fondateur)
+
+- Onglet **Gestion immobilière** : bouton qui ferme le menu et ouvre le panneau de la ressource `elyzea_dynasty` (aussi `/d8admin`).
+- Le panneau crée et configure les biens (appartements, maisons, villas, garages), les intérieurs, les points (placés à la position du staff), les garages et leurs places, et donne accès aux contrats et coffres archivés.
+- `elyzea_dynasty` revérifie la permission à chaque action via l'export `HasPermission`.
+- **Métier staff** propose aussi **Dynasty 8** (job `realestate`).
+- Détails et tests à faire : `elyzea_dynasty/README.md`. Non testé en jeu.

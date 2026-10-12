@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v44 then
+        -- Gestion immobilière Dynasty 8 : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.property_manage = true end
+        meta.v44 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v43 then
         -- Gardes du corps : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.guards = true end

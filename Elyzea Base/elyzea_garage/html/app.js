@@ -11,9 +11,10 @@ const STATUS = {
     out: { label: 'En circulation', cls: 'blue' },
     lost: { label: 'Introuvable', cls: 'warn' },
     impound: { label: 'Fourrière', cls: 'red' },
+    property: { label: 'Dans une propriété', cls: 'warn' },
 };
 const TABS = [
-    { id: 'stored', label: 'Au garage', match: (v) => v.status === 'stored' || v.status === 'lost' },
+    { id: 'stored', label: 'Au garage', match: (v) => v.status === 'stored' || v.status === 'lost' || v.status === 'property' },
     { id: 'out', label: 'En circulation', match: (v) => v.status === 'out' },
     { id: 'impound', label: 'Fourrière', match: (v) => v.status === 'impound' },
     { id: 'all', label: 'Tous', match: () => true },
@@ -81,12 +82,12 @@ function renderGrid() {
     $('#grid').innerHTML = list.map((v, i) => {
         const st = STATUS[v.status] || STATUS.stored;
         const can = (v.status === 'stored' || v.status === 'lost') && d.spots > 0;
-        const why = v.status === 'out' ? 'Déjà en circulation' : v.status === 'impound' ? 'À la fourrière' : d.spots ? '' : 'Aucune place de sortie ici';
+        const why = v.status === 'property' ? 'Rangé dans le garage d\'une propriété' : v.status === 'out' ? 'Déjà en circulation' : v.status === 'impound' ? 'À la fourrière' : d.spots ? '' : 'Aucune place de sortie ici';
         return `<div class="card" style="animation-delay:${Math.min(i, 12) * 25}ms">
             <div class="img">${img(v.image)}<span class="badge ${st.cls} status">${st.label}</span><span class="plate">${esc(v.plate)}</span></div>
             <div class="body">
                 <div class="name">${esc(v.label)}</div>
-                <div class="where">${v.status === 'stored' && v.garage ? `Rangé à ${esc(v.garage)}` : v.status === 'lost' ? 'Introuvable en ville : tu peux le ressortir' : esc(v.model)}</div>
+                <div class="where">${(v.status === 'stored' || v.status === 'property') && v.garage ? `Rangé à ${esc(v.garage)}` : v.status === 'lost' ? 'Introuvable en ville : tu peux le ressortir' : esc(v.model)}</div>
                 <div class="bars">${bar('Moteur', v.engine)}${bar('Carrosserie', v.body)}${bar('Réservoir', v.tank)}${bar('Essence', v.fuel)}</div>
                 <div class="damages">${damages(v)}</div>
                 ${v.status === 'impound' ? `<button class="btn primary" data-impound="${esc(v.plate)}">Payer la fourrière${d.impoundFee ? ` (${Number(d.impoundFee).toLocaleString('fr-FR')} $)` : ''}</button>`
