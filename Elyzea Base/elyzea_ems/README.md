@@ -18,9 +18,9 @@ Intégrations facultatives (détectées au démarrage, rien ne casse si elles ma
 2. `server.cfg` : `ensure elyzea_ems` (déjà ajouté, juste après `elyzea_police`).
 3. Base de données : tables créées **automatiquement** au démarrage. `sql/install.sql` contient les mêmes requêtes.
    Si une ancienne table `ems_ppa` (ancien EMS, autre structure) existe, elle est **renommée** `ems_ppa_ancien` : rien n'est supprimé.
-4. Premier démarrage : grades de `Config.DefaultGrades` créés (Stagiaire → Direction), métier `ambulance` déclaré dans le core
+4. Premier démarrage : grades de `Config.DefaultGrades` créés (Stagiaire → Directeur ; un ancien grade « Direction » est renommé « Directeur »), métier `ambulance` déclaré dans le core
    (un grade du core par niveau, **salaire du core = 0** : la paie passe par la tablette › Finance).
-5. Nommer la première direction : menu admin (F10) › **Métier staff** › onglet **EMS** › joueur › grade 👑 › *Recruter*.
+5. Nommer la première direction : menu admin (F10) › **Métier staff** › onglet **EMS** › joueur › grade 👑 Directeur › *Recruter*.
 6. Placer le garage : tablette › Direction › **Garage** › *Placer ici* (garage, place de sortie, pharmacie). Modèles de véhicules
    modifiables au même endroit (par défaut `ambulance` ; ajoutez les noms de modèles de vos packs, ex. gayaems, une fois installés).
 

@@ -175,6 +175,24 @@ RegisterNUICallback('minimap_conflicts', function(_, cb)
     cb({ list = Blocked })
 end)
 
+-- Connexion / choix du personnage : la mini-carte est cachée puis réaffichée (multichar, fondu, caméra).
+-- Une position posée pendant qu'elle est cachée n'est pas prise en compte par GTA (carte trop grande,
+-- mal cadrée) : on la repose dès qu'elle redevient visible à l'écran.
+CreateThread(function()
+    local wasVisible = false
+    while true do
+        local visible = not IsRadarHidden() and IsScreenFadedIn() and not GetIsLoadingScreenActive()
+            and not IsPlayerSwitchInProgress() and not IsBigmapActive()
+        if visible and not wasVisible and not preview then
+            apply()
+            SetTimeout(600, function() if not preview and not IsBigmapActive() then apply() end end)
+            SetTimeout(2500, function() if not preview and not IsBigmapActive() then apply() end end)
+        end
+        wasVisible = visible
+        Wait(visible and 1000 or 200)
+    end
+end)
+
 -- Le changement de résolution déplace la mini-carte : on la repose de temps en temps
 CreateThread(function()
     local lastRes = nil

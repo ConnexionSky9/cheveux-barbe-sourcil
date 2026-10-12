@@ -166,15 +166,14 @@ RegisterCommand('elyzea_reload', function()
 end, false)
 RegisterKeyMapping('elyzea_reload', 'Recharger l\'arme depuis l\'inventaire', 'keyboard', 'R')
 
--- Pas d'armes sans l'inventaire : TAB et la roue des armes ne donnent rien d'autre
+-- Pas d'armes sans l'inventaire : la roue des armes de GTA (TAB) n'apparaît jamais
 CreateThread(function()
     while true do
         Wait(0)
-        if current or IsPedArmed(PlayerPedId(), 6) then
-            DisableControlAction(0, 37, true)   -- roue des armes
-        else
-            Wait(250)
-        end
+        DisableControlAction(0, 37, true)   -- roue des armes
+        HideHudComponentThisFrame(19)       -- roue des armes
+        HideHudComponentThisFrame(20)       -- statistiques de la roue
+        HideHudComponentThisFrame(22)       -- sélection d'arme
     end
 end)
 

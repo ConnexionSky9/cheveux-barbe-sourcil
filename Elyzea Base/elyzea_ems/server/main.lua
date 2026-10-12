@@ -330,6 +330,30 @@ local function SeedGrades()
     print('^2[EMS] Grades par défaut créés.^0')
 end
 
+-- Grade « Directeur » toujours présent : l'ancien grade « Direction » est renommé,
+-- sinon un grade Directeur (toutes les permissions) est créé au-dessus des autres.
+local function EnsureDirecteur()
+    for _, g in pairs(P.grades) do if g.name == 'Directeur' then return end end
+    for _, g in pairs(P.grades) do
+        if g.name == 'Direction' then
+            MySQL.update.await('UPDATE `ems_grades` SET `name` = ? WHERE `id` = ?', { 'Directeur', g.id })
+            g.name = 'Directeur'
+            print('^2[EMS] Grade « Direction » renommé « Directeur ».^0')
+            return
+        end
+    end
+    local set = {}
+    for _, p in ipairs(EmsPerms) do set[p.key] = true end
+    local level = P.TopLevel() + 1
+    local id = MySQL.insert.await('INSERT INTO `ems_grades` (`name`, `level`, `salary`, `perms`, `is_default`) VALUES (?, ?, ?, ?, 0)',
+        { 'Directeur', level, 1400, P.EncodePerms(set) })
+    if id then
+        MySQL.insert.await('INSERT INTO `ems_rates` (`grade_id`, `grade_name`, `rate`, `actor_name`) VALUES (?, ?, ?, ?)', { id, 'Directeur', 1400, 'Installation' })
+        P.grades[id] = { id = id, name = 'Directeur', level = level, salary = 1400, perms = set, isDefault = false }
+        print(('^2[EMS] Grade « Directeur » créé (niveau %d).^0'):format(level))
+    end
+end
+
 -- Métier d'elyzea_core : un grade du core par niveau ; payment = 0 (la direction paie les heures dans Finance)
 function P.SyncCoreJob()
     local grades = {}
@@ -553,6 +577,7 @@ CreateThread(function()
         end
         P.LoadGrades()
         if not next(P.grades) then SeedGrades() P.LoadGrades() end
+        EnsureDirecteur()
         P.LoadEmployees()
     end)
     if not ok then print(('^1[EMS] Chargement impossible : %s^0'):format(tostring(err))) return end

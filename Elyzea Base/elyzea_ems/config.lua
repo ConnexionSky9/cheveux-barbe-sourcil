@@ -171,5 +171,5 @@ Config.DefaultGrades = {
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
                 'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view',
                 'direction', 'recruit', 'employees_view', 'promote', 'demote', 'history_view' } },
-    { name = 'Direction',     level = 6, salary = 1400, perms = 'all' },
+    { name = 'Directeur',     level = 6, salary = 1400, perms = 'all' },
 }
