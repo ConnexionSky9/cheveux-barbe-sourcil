@@ -910,3 +910,6 @@ body.quick-open #reporthud, #app:not(.hidden) ~ #reporthud { display: none; }
 .subnav-btn:hover { color: var(--text); }
 .subnav-btn.active { color: var(--text); border-color: var(--signal); background: var(--panel); }
 .subnav-btn .count { background: var(--danger); color: #fff; font-size: 10px; padding: 0 6px; border-radius: 8px; }
+
+.tag-preview { font-family: var(--display); font-weight: 700; font-size: 18px; padding: 4px 12px; border-radius: 6px; background: rgba(0, 0, 0, .45);
+    text-shadow: 0 0 2px #000, 0 0 2px #000; min-width: 80px; text-align: center; }

@@ -338,3 +338,12 @@ RegisterNUICallback('vc_save', function(_, cb)
     end
     cb('ok')
 end)
+
+-- Texte de la plaque : appliqué par le serveur (refusé sur un véhicule de joueur)
+RegisterNUICallback('vc_plate', function(body, cb)
+    local veh = myVehicle()
+    if veh then
+        TriggerServerEvent('adminmenu:action', 'vehcustom_plate', { netId = NetworkGetNetworkIdFromEntity(veh), text = tostring(body and body.text or '') })
+    end
+    cb('ok')
+end)

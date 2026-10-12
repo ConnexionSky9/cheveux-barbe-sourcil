@@ -110,6 +110,13 @@
                     ${i.canSave ? '<button class="btn primary" data-vca="save">💾 Enregistrer sur le véhicule</button>' : ''}
                     <button class="btn" data-vca="reload" title="Après avoir changé de véhicule">↻</button>
                 </span></div>
+            <div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <strong>🔤 Plaque d'immatriculation</strong>
+                <input class="input" id="vcPlate" maxlength="8" style="max-width:170px;text-transform:uppercase;font-family:monospace;letter-spacing:.12em"
+                    value="${esc(VC.plateDraft !== undefined ? VC.plateDraft : i.plate)}" placeholder="8 caractères">
+                <button class="btn primary" data-vca="plate">Changer la plaque</button>
+                <span class="muted" style="font-size:12px">Lettres, chiffres et espaces, 8 maximum. Impossible sur le véhicule d'un joueur (carte grise, clés, coffre).</span>
+            </div>
             <div style="display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start">
                 <div class="card" style="padding:8px;max-height:calc(100vh - 330px);overflow-y:auto">
                     ${GROUPS.map((g) => {
@@ -149,6 +156,13 @@
         pickAt(e);
     });
     document.addEventListener('mousemove', (e) => { if (drag) pickAt(e); });
+    document.addEventListener('input', (e) => {
+        if (e.target.id !== 'vcPlate') return;
+        const pos = e.target.selectionStart;
+        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 8);
+        e.target.setSelectionRange(pos, pos);
+        VC.plateDraft = e.target.value;
+    });
     document.addEventListener('mouseup', () => { if (drag) { drag = null; applyPicker(true); } });
 
     document.addEventListener('click', async (e) => {
@@ -182,6 +196,15 @@
                 return;
             }
             if (a === 'save') { await post('vc_save'); return; }
+            if (a === 'plate') {
+                const text = String((document.getElementById('vcPlate') || {}).value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim().slice(0, 8);
+                if (!text) return toast('Écris le texte de la plaque (lettres et chiffres).', 'error');
+                if (!(await confirmBox('Changer la plaque ?', `La plaque deviendra <b>${esc(text)}</b>. Tu reçois les clés de la nouvelle plaque.`))) return;
+                await post('vc_plate', { text });
+                VC.plateDraft = undefined;
+                setTimeout(loadInfo, 700);
+                return;
+            }
         }
     });
 })();

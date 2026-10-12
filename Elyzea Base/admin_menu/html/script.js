@@ -343,6 +343,27 @@ $('#tabs').addEventListener('click', (e) => {
     render();
 });
 
+// Tag des grades (fondateur)
+document.addEventListener('input', (e) => {
+    if (e.target.id !== 'rankTag' && e.target.id !== 'rankTagColor') return;
+    const pv = document.getElementById('rankTagPreview');
+    if (rankDraft) { rankDraft.tagDraft = document.getElementById('rankTag').value; rankDraft.tagColorDraft = document.getElementById('rankTagColor').value; }
+    if (!pv) return;
+    pv.textContent = (document.getElementById('rankTag').value || 'Aperçu');
+    pv.style.color = document.getElementById('rankTagColor').value;
+});
+document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-ranktag]');
+    if (!b || !rankDraft) return;
+    if (b.dataset.ranktag === 'clear') {
+        if (!(await confirmBox('Retirer le tag ?', `Le grade ${esc(rankDraft.label)} n'aura plus de tag au-dessus de la tête.`))) return;
+        rankDraft.tagDraft = undefined;
+        return action('rank_tag', { name: rankDraft.name, tag: '' });
+    }
+    action('rank_tag', { name: rankDraft.name, tag: document.getElementById('rankTag').value, color: document.getElementById('rankTagColor').value });
+    rankDraft.tagDraft = undefined; rankDraft.tagColorDraft = undefined;
+});
+
 // Raccourcis de la catégorie (en haut de la page)
 $('#subnav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab-go]');
@@ -936,6 +957,17 @@ function rankEditor() {
                         <input type="checkbox" data-perm="${p.key}" ${r.perms[p.key] ? 'checked' : ''} ${locked ? 'disabled' : ''}>${esc(p.label)}</label>`;
                 }).join('')}
             </div></div>`).join('')}
+        ${D.me.isOwner && !r.isNew && original ? `<div class="perm-cat"><h3>🏷️ Tag au-dessus de la tête (fondateur)</h3>
+            <p class="hint" style="margin-bottom:8px">Affiché au-dessus des membres de ce grade quand ils sont en service. Vide = pas de tag.</p>
+            <div class="form-grid">
+                <div><label class="muted">Texte du tag</label><input class="input" id="rankTag" maxlength="24" value="${esc(r.tagDraft !== undefined ? r.tagDraft : (original.tag || ''))}" placeholder="ex : [ADMIN]"></div>
+                <div><label class="muted">Couleur du tag</label><input class="input" type="color" id="rankTagColor" value="${esc(r.tagColorDraft || original.tagColor || original.color || '#ffffff')}"></div>
+            </div>
+            <div class="btn-row" style="margin-top:8px;align-items:center">
+                <span class="tag-preview" id="rankTagPreview" style="color:${esc(r.tagColorDraft || original.tagColor || original.color || '#ffffff')}">${esc((r.tagDraft !== undefined ? r.tagDraft : original.tag) || 'Aperçu')}</span>
+                <button class="btn primary" data-ranktag="save">Enregistrer le tag</button>
+                ${original.tag ? '<button class="btn danger" data-ranktag="clear">Retirer le tag</button>' : ''}
+            </div></div>` : ''}
         ${editable ? `<div class="btn-row" style="margin-top:8px">
             <button class="btn primary" data-act="save_rank">${r.isNew ? 'Créer le grade' : 'Enregistrer'}</button>
             ${!r.isNew ? '<button class="btn danger" data-act="delete_rank">Supprimer le grade</button>' : ''}

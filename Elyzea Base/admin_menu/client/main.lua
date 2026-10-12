@@ -672,3 +672,61 @@ AddEventHandler('onResourceStop', function(res)
     if IsScreenFadedOut() or IsScreenFadingOut() then DoScreenFadeIn(0) end
 end)
 
+
+-- ---------------------------------------------------------
+--  Tag du staff au-dessus de la tête (grade choisi par le fondateur)
+--  Posé par le serveur (state bag « staffTag ») seulement quand le staff est en service.
+-- ---------------------------------------------------------
+local function hexRgb(h)
+    h = tostring(h or ''):gsub('#', '')
+    if #h ~= 6 then return 255, 255, 255 end
+    return tonumber(h:sub(1, 2), 16) or 255, tonumber(h:sub(3, 4), 16) or 255, tonumber(h:sub(5, 6), 16) or 255
+end
+
+CreateThread(function()
+    local near = {}
+    local nextScan = 0
+    while true do
+        local now = GetGameTimer()
+        if now >= nextScan then
+            nextScan = now + 500
+            near = {}
+            local myPos = GetEntityCoords(PlayerPedId())
+            for _, pl in ipairs(GetActivePlayers()) do
+                if pl ~= PlayerId() then
+                    local tag = Player(GetPlayerServerId(pl)).state.staffTag
+                    if type(tag) == 'table' and tag.t then
+                        local ped = GetPlayerPed(pl)
+                        if #(GetEntityCoords(ped) - myPos) < 25.0 then
+                            local r, g, b = hexRgb(tag.c)
+                            near[#near + 1] = { ped = ped, text = tag.t, r = r, g = g, b = b }
+                        end
+                    end
+                end
+            end
+        end
+        if #near == 0 then
+            Wait(500)
+        else
+            local myPos = GetEntityCoords(PlayerPedId())
+            for _, n in ipairs(near) do
+                if DoesEntityExist(n.ped) and IsEntityVisible(n.ped) and HasEntityClearLosToEntity(PlayerPedId(), n.ped, 17) then
+                    local c = GetPedBoneCoords(n.ped, 31086, 0.0, 0.0, 0.0)   -- tête
+                    local d = #(c - myPos)
+                    local scale = math.max(0.28, 0.42 - d * 0.006)
+                    SetDrawOrigin(c.x, c.y, c.z + 0.42, 0)
+                    SetTextFont(4)
+                    SetTextScale(scale, scale)
+                    SetTextColour(n.r, n.g, n.b, 255)
+                    SetTextOutline()
+                    SetTextCentre(true)
+                    BeginTextCommandDisplayText('STRING')
+                    AddTextComponentSubstringPlayerName(n.text)
+                    EndTextCommandDisplayText(0.0, 0.0)
+                    ClearDrawOrigin()
+                end
+            end
+            Wait(0)
+        end
+    end
+end)

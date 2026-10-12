@@ -416,10 +416,29 @@ end
 -- ---------------------------------------------------------
 --  Synchronisation des permissions vers les clients
 -- ---------------------------------------------------------
+-- Tag au-dessus de la tête (choisi par le fondateur pour chaque grade), visible de tous quand le staff est en service
+local DutyRef = {}   -- rempli plus bas (onDuty n'est pas encore déclaré ici)
+local function pushTag(id)
+    id = tonumber(id)
+    if not id or not GetPlayerName(id) then return end
+    local r = getRankName(id)
+    local rk = r and Ranks[r]
+    local tag = rk and type(rk.tag) == 'string' and rk.tag ~= '' and rk.tag or nil
+    local want = nil
+    if tag and (not DutyRef.onDuty or DutyRef.onDuty(id)) then
+        want = { t = tag, c = (type(rk.tagColor) == 'string' and rk.tagColor:match('^#%x%x%x%x%x%x$')) and rk.tagColor or rk.color or '#ffffff' }
+    end
+    local cur = Player(id).state.staffTag
+    if (cur == nil) ~= (want == nil) or (cur and want and (cur.t ~= want.t or cur.c ~= want.c)) then
+        Player(id).state:set('staffTag', want, true)
+    end
+end
+
 local function pushPerms(id)
     id = tonumber(id)
     local r = getRankName(id)
     TriggerClientEvent('adminmenu:setPerms', id, r, r and Ranks[r].perms or {}, r and Ranks[r].level or 0)
+    pushTag(id)
 end
 
 local function pushPermsAll()
@@ -429,6 +448,7 @@ end
 -- Service staff : false = mode RP (fonctions staff coupées). Inconnu = en service.
 local Duty = {}
 local function onDuty(src) return Duty[tonumber(src)] ~= false end
+DutyRef.onDuty = onDuty
 
 local function staffOnline(perm)
     local list = {}
@@ -565,7 +585,7 @@ local function buildAndSend(src)
     local data = {
         me = {
             id = src, rank = rn, label = Ranks[rn].label, color = Ranks[rn].color,
-            level = getLevel(src), perms = Ranks[rn].perms, duty = onDuty(src),
+            level = getLevel(src), perms = Ranks[rn].perms, duty = onDuty(src), isOwner = rn == Config.OwnerRank,
         },
         world = World,
         ranks = Ranks,
@@ -994,6 +1014,28 @@ Actions.vehcustom_neonfx = { perm = 'vehicle_custom', noRefresh = true, fn = fun
     Entity(veh).state:set('neonFx', fx, true)
 end }
 
+-- Texte de la plaque (8 caractères max : lettres, chiffres, espaces)
+Actions.vehcustom_plate = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
+    local veh = NetworkGetEntityFromNetworkId(tonumber(d.netId) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) then return notify(src, 'Véhicule introuvable.', 'error') end
+    if GetPedInVehicleSeat(veh, -1) ~= GetPlayerPed(src) then return notify(src, 'Tu dois être au volant.', 'error') end
+    local text = tostring(d.text or ''):upper():gsub('[^A-Z0-9 ]', ''):gsub('^%s+', ''):gsub('%s+$', ''):sub(1, 8)
+    if text == '' then return notify(src, 'Plaque vide : lettres et chiffres uniquement (8 maximum).', 'error') end
+    local old = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    if old == text then return notify(src, 'La plaque est déjà « ' .. text .. ' ».', 'info') end
+    -- Véhicule d'un joueur : sa plaque est liée à sa carte grise, ses clés et son coffre → on n'y touche pas
+    local ok, owned = pcall(function() return MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ? OR plate = ? LIMIT 1', { old, ' ' .. old }) end)
+    if ok and owned then
+        return notify(src, 'Ce véhicule appartient à un joueur : sa plaque est liée à sa carte grise, ses clés et son coffre, elle ne peut pas être changée ici.', 'error')
+    end
+    local ok2, taken = pcall(function() return MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ? LIMIT 1', { text }) end)
+    if ok2 and taken then return notify(src, ('La plaque « %s » est déjà celle d\'un véhicule de joueur.'):format(text), 'error') end
+    SetVehicleNumberPlateText(veh, text)
+    pcall(function() exports.elyzea_core:GiveKeys(src, text) end)
+    notify(src, ('Plaque changée : %s → %s.'):format(old, text), 'success')
+    addLog(src, 'Plaque de véhicule', ('%s → %s'):format(old, text))
+end }
+
 Actions.vehcustom_save = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
     local plate = tostring(d.plate or ''):sub(1, 16)
     if plate == '' or type(d.props) ~= 'table' then return end
@@ -1186,11 +1228,28 @@ Actions.save_rank = { perm = 'manage_ranks', fn = function(src, d)
     local label = tostring(d.label or ''):sub(1, 32)
     if label == '' then label = name end
 
-    Ranks[name] = { label = label, level = level, color = color, perms = perms }
+    Ranks[name] = { label = label, level = level, color = color, perms = perms,
+        tag = existing and existing.tag or nil, tagColor = existing and existing.tagColor or nil }
     Storage.save('ranks', Ranks)
     pushPermsAll()
     notify(src, ('Grade %s enregistré.'):format(label), 'success')
     addLog(src, existing and 'Grade modifié' or 'Grade créé', ('%s (niveau %d)'):format(label, level))
+end }
+
+-- Tag d'un grade : réservé au fondateur (tous les grades, le sien compris)
+Actions.rank_tag = { perm = 'manage_ranks', fn = function(src, d)
+    if getRankName(src) ~= Config.OwnerRank then return notify(src, 'Seul le fondateur choisit les tags des grades.', 'error') end
+    local r = Ranks[tostring(d.name or '')]
+    if not r then return notify(src, 'Grade introuvable.', 'error') end
+    local tag = tostring(d.tag or ''):gsub('[<>~^]', ''):gsub('^%s+', ''):gsub('%s+$', ''):sub(1, 24)
+    local color = tostring(d.color or '')
+    if not color:match('^#%x%x%x%x%x%x$') then color = r.color end
+    r.tag = tag ~= '' and tag or nil
+    r.tagColor = color
+    Storage.save('ranks', Ranks)
+    pushPermsAll()
+    notify(src, r.tag and ('Tag du grade %s : « %s ».'):format(r.label, r.tag) or ('Tag du grade %s retiré.'):format(r.label), 'success')
+    addLog(src, 'Tag de grade', ('%s → %s'):format(r.label, r.tag or 'aucun'))
 end }
 
 Actions.delete_rank = { perm = 'manage_ranks', fn = function(src, d)
@@ -1312,6 +1371,7 @@ RegisterNetEvent('adminmenu:duty', function(on, silent)
     TriggerClientEvent('adminmenu:needsFreeze', src, Duty[src] and Config.StaffNeeds and Config.StaffNeeds.enabled)
     sendData(src)
     pushReportCount(src)
+    pushTag(src)
 end)
 
 -- Le client demande le compteur (connexion, redémarrage de la ressource)
