@@ -611,7 +611,9 @@ CreateThread(function()
                         elseif not p.arrived and #(pc - vector3(p.x, p.y, p.z)) < 2.0 then
                             p.arrived = true
                             SetEntityHeading(g.ped, p.h)
-                            TaskStartScenarioInPlace(g.ped, 'WORLD_HUMAN_GUARD_STAND', 0, true)
+                            -- Pas d'animation : debout, arme à la main, tourné vers l'extérieur
+                            if g.weapon then SetCurrentPedWeapon(g.ped, g.weapon, true) end
+                            TaskStandStill(g.ped, -1)
                         end
                     elseif g.mode == 'attack' then
                         if not g.target or not DoesEntityExist(g.target) or IsPedDeadOrDying(g.target, true) then
@@ -630,7 +632,7 @@ CreateThread(function()
                     end
                     -- Armes en main ou rangées (hors combat)
                     if g.weapon and (g.mode == 'follow' or g.mode == 'stay' or g.mode == 'zone') and not IsPedInCombat(g.ped, 0) then
-                        local want = g.holster and `WEAPON_UNARMED` or g.weapon
+                        local want = (g.holster and g.mode ~= 'zone') and `WEAPON_UNARMED` or g.weapon   -- en zone : toujours arme à la main
                         if GetSelectedPedWeapon(g.ped) ~= want then SetCurrentPedWeapon(g.ped, want, true) end
                     end
                     -- Mode défense : chaque garde (sauf conducteurs et surveillance de zone) tire sur
