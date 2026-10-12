@@ -18,6 +18,10 @@ local function Rel()
     SetRelationshipBetweenGroups(1, REL, `PLAYER`)
     SetRelationshipBetweenGroups(1, `PLAYER`, REL)
     SetRelationshipBetweenGroups(0, REL, REL)
+    -- Zombies (événement du menu staff) : ennemis des gardes
+    local zombie = joaat('AM_ZOMBIE')
+    SetRelationshipBetweenGroups(5, REL, zombie)
+    SetRelationshipBetweenGroups(5, zombie, REL)
     return REL
 end
 
@@ -347,14 +351,25 @@ function Orders.aim(list, _, target)
     return ('%d garde(s) braquent la cible (sans tirer).'):format(n)
 end
 
+local function Shoot(g, t)
+    if not Alive(g) or not t or not DoesEntityExist(t) or t == g.ped or IsGuard(t) then return end
+    if g.weapon then SetCurrentPedWeapon(g.ped, g.weapon, true) end
+    SetPedKeepTask(g.ped, true)
+    TaskCombatPed(g.ped, t, 0, 16)
+end
+
 function Orders.attack(list, _, target)
     local t, err = TargetOk(target)
     if not t then return nil, err end
+    if t == Me() then return nil, 'Tu ne peux pas te viser toi-même.' end
     for _, g in ipairs(list) do
         Reset(g)
         g.mode, g.target = 'attack', t
-        TaskCombatPed(g.ped, t, 0, 16)
     end
+    CreateThread(function()
+        Wait(0)
+        for _, g in ipairs(list) do Shoot(g, t) Wait(0) end
+    end)
     return ('%d garde(s) ouvrent le feu sur la cible.'):format(#list)
 end
 
@@ -458,7 +473,7 @@ local function Engage(attacker)
         if Alive(g) and (g.mode == 'follow' or g.mode == 'stay') and g.target ~= attacker then
             g.prevMode = g.prevMode or g.mode
             g.mode, g.target = 'attack', attacker
-            TaskCombatPed(g.ped, attacker, 0, 16)
+            Shoot(g, attacker)
         end
     end
 end
@@ -468,7 +483,7 @@ AddEventHandler('gameEventTriggered', function(name, args)
     if name ~= 'CEventNetworkEntityDamage' or #Guards == 0 then return end
     local victim, attacker = args[1], args[2]
     if victim == Me() or IsGuard(victim) then
-        if attacker and attacker ~= 0 and IsEntityAPed(attacker) then Engage(attacker) end
+        if attacker and attacker ~= 0 and attacker ~= -1 and DoesEntityExist(attacker) and IsEntityAPed(attacker) then Engage(attacker) end
     end
 end)
 
@@ -480,6 +495,31 @@ CreateThread(function()
             local me = Me()
             local mc = GetEntityCoords(me)
             local dead = {}
+            -- Zombies à moins de 60 m : attaqués d'office (même sans mode défense)
+            local zombies = {}
+            local zh = joaat('AM_ZOMBIE')
+            for _, p in ipairs(GetGamePool('CPed')) do
+                if GetPedRelationshipGroupHash(p) == zh and not IsPedDeadOrDying(p, true) and #(GetEntityCoords(p) - mc) < 60.0 then zombies[#zombies + 1] = p end
+            end
+            if #zombies > 0 then
+                -- Relation remise à chaque fois (le groupe des zombies peut être créé après mes gardes)
+                SetRelationshipBetweenGroups(5, Rel(), zh)
+                SetRelationshipBetweenGroups(5, zh, Rel())
+                table.sort(zombies, function(x, y) return #(GetEntityCoords(x) - mc) < #(GetEntityCoords(y) - mc) end)
+                for _, g in ipairs(Guards) do
+                    if Alive(g) and (g.mode == 'follow' or g.mode == 'stay' or (g.mode == 'vehicle' and not DriverOf(g))) then
+                        local best, bestN
+                        for _, z in ipairs(zombies) do
+                            local n = 0
+                            for _, o in ipairs(Guards) do if o.target == z then n = n + 1 end end
+                            if not bestN or n < bestN then best, bestN = z, n end
+                        end
+                        g.prevMode = g.mode
+                        g.mode, g.target = 'attack', best
+                        Shoot(g, best)
+                    end
+                end
+            end
             DefenseTargets = nil
             if Defense.on then
                 DefenseTargets = {}
@@ -545,7 +585,7 @@ CreateThread(function()
                             end
                             g.prevMode = g.mode
                             g.mode, g.target = 'attack', best
-                            TaskCombatPed(g.ped, best, 0, 16)
+                            Shoot(g, best)
                         end
                     end
                 end
@@ -612,9 +652,9 @@ local function SelectEntity(kind, verb)
             end
         end
         if best ~= outlined then
-            if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
+            if outlined and DoesEntityExist(outlined) and kind == 'vehicle' then SetEntityDrawOutline(outlined, false) end
             outlined = best
-            if best then SetEntityDrawOutlineColor(217, 181, 106, 255) SetEntityDrawOutline(best, true) end
+            if best and kind == 'vehicle' then SetEntityDrawOutlineColor(217, 181, 106, 255) SetEntityDrawOutline(best, true) end
         end
         DisableControlAction(0, 24, true) DisableControlAction(0, 25, true) DisableControlAction(0, 257, true)
         DisableControlAction(0, 140, true) DisableControlAction(0, 141, true) DisableControlAction(0, 142, true)
@@ -631,7 +671,7 @@ local function SelectEntity(kind, verb)
         if IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 177) then break end
         Wait(0)
     end
-    if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
+    if outlined and DoesEntityExist(outlined) and kind == 'vehicle' then SetEntityDrawOutline(outlined, false) end
     return chosen
 end
 
