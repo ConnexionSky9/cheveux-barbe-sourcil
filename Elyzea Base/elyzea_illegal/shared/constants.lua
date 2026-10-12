@@ -81,10 +81,11 @@ Illegal.Tabs = {
     { key = 'finances', label = 'Finances' },
     { key = 'orders',   label = 'Commandes' },
     { key = 'missions', label = 'Missions' },
+    { key = 'map',      label = 'Map (territoires)' },
     { key = 'settings', label = 'Paramètres' },
 }
 -- Onglets ajoutés après coup : actifs par défaut pour les groupes et PNJ déjà configurés
-Illegal.NewTabs = { missions = true }
+Illegal.NewTabs = { missions = true, map = true }
 Illegal.TabSet = {}
 for _, t in ipairs(Illegal.Tabs) do Illegal.TabSet[t.key] = true end
 

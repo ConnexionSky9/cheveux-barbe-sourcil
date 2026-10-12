@@ -196,3 +196,12 @@ Depuis la racine du dépôt : `lua5.4 tests/run.lua` (serveur : permissions, hi�
   - **appel à la police** : le client sort son téléphone ; les policiers en service reçoivent une alerte **« Activité suspecte »** avec une **position approximative** (décalée au hasard) et une zone de recherche sur la carte.
 - Le mode vente s'arrête tout seul quand il n'y a plus rien à vendre, à la mort ou à la déconnexion.
 - Tout se règle en jeu : **admin_menu › Vente de drogue** (permission `drugsale_manage`) — activation, réservé aux groupes, policiers minimum, paiement, délais, quantité par client, chances de vol / d'appel, précision de l'alerte, liste des drogues et prix, arrêt de tous les vendeurs. Valeurs par défaut : `Config.DrugSale` (`config.lua`).
+
+## Territoires (vente de drogue)
+
+- **Créer un territoire** : admin_menu › Éditeur de map › Zones › type **« Territoire (drogue) »** (ou case « Territoire de vente » sur une zone existante), puis dessiner la zone (forme libre ou cercle).
+- **Vente** : avec `territoryOnly` (activé par défaut), le mode vente ne s'active et les clients ne viennent **que dans un territoire**. Hors territoire, le vendeur est prévenu et aucun client ne vient.
+- **Contrôle en %** : une zone neutre est **blanche**. Le premier groupe qui y vend prend **100 %**. Ensuite, chaque pochon vendu par un membre d'un groupe lui donne `territoryGain` % (2 % par défaut), pris aux autres groupes au prorata (ex. : les Jamaïcains vendent 10 pochons chez les Mexicains → 80 % / 20 %). Le groupe qui a le plus de % possède la zone et lui donne sa couleur. Un vendeur sans groupe ne change rien.
+- **F5 › tablette › Map** : carte satellite avec tous les territoires colorés, et pour chacun le propriétaire et la part de chaque groupe. Bouton ⟳ pour actualiser. L'onglet se coupe/active comme les autres (admin_menu › ILLEGAL › groupe › onglets).
+- **Staff** : admin_menu › Vente de drogue › Territoires (voir les parts, remettre une zone ou toutes à neutre ; régler le gain par pochon et « Seulement dans les territoires »).
+- Parts sauvegardées dans la table `illegal_territories` (créée automatiquement).

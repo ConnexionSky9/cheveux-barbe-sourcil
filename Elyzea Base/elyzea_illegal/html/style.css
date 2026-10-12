@@ -447,3 +447,22 @@ input[type=color].input { padding: 3px; height: 38px; }
 #missionhud .mh-row.alert.a3 b { color: var(--danger); }
 #missionhud .mh-row.time b { font-variant-numeric: tabular-nums; }
 #missionhud .mh-row.time.low b { color: var(--danger); }
+
+/* Map des territoires */
+.t-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; height: calc(100% - 4px); min-height: 520px; }
+.t-map { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #143d6b; min-height: 520px; cursor: grab; }
+.t-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.t-tools { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; }
+.t-tools .btn { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; font-size: 16px; }
+.t-legend { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 12px; padding: 6px 10px; border-radius: 8px; background: rgba(10, 13, 22, .82); font-size: 12px; }
+.t-legend i, .t-shares i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(255, 255, 255, .25); }
+.t-side { overflow-y: auto; padding-right: 4px; }
+.t-row { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); margin-bottom: 8px; cursor: pointer; }
+.t-row:hover, .t-row.sel { border-color: var(--signal); }
+.t-head { display: flex; align-items: center; gap: 8px; }
+.t-head b { flex: 1; }
+.t-head .muted { font-size: 12px; }
+.t-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .35); flex: none; }
+.t-bar { display: flex; height: 7px; border-radius: 5px; overflow: hidden; margin: 8px 0 6px; background: rgba(255, 255, 255, .06); }
+.t-bar i { display: block; height: 100%; }
+.t-shares { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }

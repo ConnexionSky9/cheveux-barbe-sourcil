@@ -112,6 +112,7 @@ function Tablet.build(src)
     data.requests = requests
 
     if grade.boss or perms.settings then data.logs = Cache.logs(g) end
+    if Territory then data.territories = Territory.list(g.id) end
     if Missions and Missions.ready then data.missions = Missions.tabletData(ctx) end
     return data
 end
@@ -152,6 +153,12 @@ RegisterNetEvent('illegal:server:open', function(via, pedGroupId)
 end)
 
 RegisterNetEvent('illegal:server:close', function() Sessions[source] = nil end)
+
+-- Onglet Map : actualiser les territoires
+RegisterNetEvent('illegal:server:refresh', function()
+    local src = source
+    if Sessions[src] and Players.rateLimit(src, 'refresh', 2, 3000) then Tablet.push(src) end
+end)
 
 -- ---------------------------------------------------------
 --  Actions

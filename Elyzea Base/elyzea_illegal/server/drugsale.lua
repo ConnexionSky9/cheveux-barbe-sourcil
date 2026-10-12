@@ -36,6 +36,8 @@ local function sanitize(d, base)
     d = type(d) == 'table' and d or {}
     local o = copy(base or Config.DrugSale)
     if d.enabled ~= nil then o.enabled = d.enabled == true end
+    if d.territoryOnly ~= nil then o.territoryOnly = d.territoryOnly == true end
+    o.territoryGain = math.floor(clampNum(d.territoryGain, 0, 100, o.territoryGain or 2) * 10 + 0.5) / 10
     if d.requireGroup ~= nil then o.requireGroup = d.requireGroup == true end
     if d.noSaleInVehicle ~= nil then o.noSaleInVehicle = d.noSaleInVehicle == true end
     if d.payment == 'clean' or d.payment == 'dirty' then o.payment = d.payment end
@@ -115,6 +117,11 @@ local function canSell(src)
     if S.requireGroup and not inGroup(src) then return false, 'Il faut faire partie d\'un groupe illégal pour vendre.' end
     if #owned(src) == 0 then return false, 'Tu n\'as rien à vendre.' end
     if policeOnDuty() < S.minPolice then return false, ('Trop calme en ville : il faut au moins %d policier(s) en service.'):format(S.minPolice) end
+    if S.territoryOnly then
+        if not Territory.any() then return false, 'Aucun territoire de vente n\'existe pour le moment.' end
+        local ped = GetPlayerPed(src)
+        if ped == 0 or not Territory.at(GetEntityCoords(ped)) then return false, 'Tu dois être dans un territoire de vente (F5 › tablette › Map).' end
+    end
     return true
 end
 
@@ -229,7 +236,12 @@ RegisterNetEvent('illegal:drug:answer', function(id, accept, netId)
     s.sales, s.earned = s.sales + qty, s.earned + total
     finish(src, s)
     TriggerClientEvent('illegal:drug:result', src, b.id, 'sold')
-    Players.notify(src, ('Vendu : %d × %s pour %d $%s.'):format(qty, b.label, total, S.payment == 'dirty' and ' (argent sale)' or ''), 'success')
+    -- Territoire : la vente d'un membre de groupe augmente la part de son groupe
+    local zone = Territory.at(GetEntityCoords(ped))
+    local g = Cache.membership(Players.cid(src))
+    local pct = zone and g and Territory.onSale(zone, g.id, qty, S.territoryGain)
+    Players.notify(src, ('Vendu : %d × %s pour %d $%s.%s'):format(qty, b.label, total, S.payment == 'dirty' and ' (argent sale)' or '',
+        pct and (' %s : %s %% pour %s.'):format(zone.name, pct, g.label) or ''), 'success')
     Log(Players.actor(src), nil, 'Vente de drogue', ('%d × %s · %d $'):format(qty, b.item, total))
     if #owned(src) == 0 then stop(src, 'Tu as tout vendu : mode vente désactivé.', 'success') end
 end)
@@ -279,7 +291,14 @@ CreateThread(function()
                 if now - s.buyer.t > S.waitTime + 90 then finish(src, s) end   -- client perdu côté joueur
             elseif now >= s.next then
                 if S.noSaleInVehicle and GetVehiclePedIsIn(ped, false) ~= 0 then s.next = now + 5
-                else newBuyer(src, s) end
+                elseif S.territoryOnly and not Territory.at(GetEntityCoords(ped)) then
+                    -- Hors territoire : pas de client (prévenu une fois)
+                    s.next = now + 5
+                    if not s.outWarned then s.outWarned = true Players.notify(src, 'Tu es hors territoire : aucun client ne viendra ici.', 'error') end
+                else
+                    s.outWarned = nil
+                    newBuyer(src, s)
+                end
             end
         end
         for id, st in pairs(Stolen) do if now - st.t > 600 then Stolen[id] = nil end end
@@ -297,13 +316,17 @@ exports('DrugSaleAdminData', function()
     for src, s in pairs(Sellers) do
         active[#active + 1] = { id = src, name = GetPlayerName(src), sales = s.sales, earned = s.earned }
     end
+    local territories = {}
+    for _, t in ipairs(Territory.list(nil)) do
+        territories[#territories + 1] = { id = t.id, name = t.name, shares = t.shares }
+    end
     local items = {}
     local ok, list = pcall(function() return exports.elyzea_inventory:GetItemList() end)
     if ok and type(list) == 'table' then
         for name, it in pairs(list) do items[#items + 1] = { name = name, label = it.label or name } end
         table.sort(items, function(a, b) return tostring(a.label):lower() < tostring(b.label):lower() end)
     end
-    return { available = true, settings = S, active = active, police = policeOnDuty(), items = items }
+    return { available = true, settings = S, active = active, police = policeOnDuty(), items = items, territories = territories }
 end)
 
 exports('DrugSaleAdminAction', function(src, name, d)
@@ -323,6 +346,10 @@ exports('DrugSaleAdminAction', function(src, name, d)
         S = sanitize({}, Config.DrugSale)
         save()
         return true, 'Réglages par défaut remis.'
+    elseif name == 'resetTerritory' then
+        local id = tonumber(d.id)
+        Territory.reset(id)
+        return true, id and 'Territoire remis à neutre.' or 'Tous les territoires sont remis à neutre.'
     elseif name == 'stopAll' then
         local n = 0
         for s in pairs(Sellers) do stop(s, 'Le staff a arrêté les ventes de drogue.') n = n + 1 end

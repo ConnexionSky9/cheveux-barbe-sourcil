@@ -45,6 +45,7 @@ server_scripts {
     'server/missions/core.lua',
     'server/missions/colis.lua',
     'server/missions/fourgon.lua',
+    'server/territories.lua',
     'server/drugsale.lua',
     'server/tablet.lua',
     'server/admin.lua',
@@ -58,6 +59,7 @@ files {
     'html/style.css',
     'html/app.js',
     'html/logo.png',
+    'html/img/map.jpg',
 }
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }

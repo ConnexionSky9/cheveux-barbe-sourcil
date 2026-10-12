@@ -94,6 +94,7 @@ end
 
 local pendingBroadcast = {}
 local function broadcast(kind, target)
+    if kind == 'zones' and not target then TriggerEvent('adminmenu:territoriesChanged') end
     if target then
         TriggerLatentClientEvent('adminmenu:editor:sync', target, 200000, kind, publicList(kind))
         return
@@ -741,6 +742,8 @@ local function zoneSettings(d, base)
         -- Icône sur la carte : n° de blip GTA (0 = automatique : bouclier si safe zone, sinon point)
         blipSprite  = math.floor(num(d.blipSprite, 0, 2000, base.blipSprite or 0)),
         blipScale   = num(d.blipScale, 0.4, 1.6, base.blipScale or 0.8),
+        -- Territoire : seul endroit où l'on peut vendre de la drogue (elyzea_illegal), contrôlé par les groupes
+        territory   = bool(d.territory, base.territory),
     }
     if z.name == '' then z.name = 'Zone' end
     return z
@@ -2123,6 +2126,16 @@ AM.EditorPeds = {
 --  Exports pour d'autres ressources (multichar, ely_creator…)
 -- ---------------------------------------------------------
 exports('GetSpawnPoints', function() return Data.spawns end)
+-- Territoires (zones de l'éditeur cochées « Territoire de vente ») pour elyzea_illegal
+exports('GetTerritories', function()
+    local out = {}
+    for _, z in ipairs(Data.zones or {}) do
+        if z.territory then
+            out[#out + 1] = { id = z.id, name = z.name, shape = z.shape, points = z.points, center = z.center, radius = z.radius, minZ = z.minZ, maxZ = z.maxZ }
+        end
+    end
+    return out
+end)
 exports('GetNewcomerSpawn', function()
     for _, s in ipairs(Data.spawns) do if s.newcomer then return s end end
 end)

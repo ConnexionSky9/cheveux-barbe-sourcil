@@ -49,6 +49,7 @@
                     ${tog('enabled', s.enabled ? 'Vente de drogue activée' : 'Vente de drogue coupée', 'Coupée : impossible d\'activer le mode vente.')}
                     ${tog('requireGroup', 'Réservée aux groupes illégaux', 'Sinon, tout joueur avec de la drogue peut vendre.')}
                     ${tog('noSaleInVehicle', 'Pas de client en véhicule', 'Les clients n\'arrivent que si le vendeur est à pied.')}
+                    ${tog('territoryOnly', 'Seulement dans les territoires', 'Zones de l\'éditeur de map cochées « Territoire de vente ».')}
                 </div>
                 <div class="form-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1100px">
                     <div class="field"><label>Paiement</label><select class="input" data-dsf="payment">${Object.entries(PAY).map(([k, v]) => `<option value="${k}" ${s.payment === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
@@ -61,6 +62,7 @@
                     ${num('stealMax', 'Pochons volés (max)', 'min="1" max="50"')}
                     ${num('policeChance', 'Chance d\'appel à la police (%)', 'min="0" max="100"')}
                     ${num('policeRadius', 'Précision de l\'alerte police (m)', 'min="0" max="1000"')}
+                    ${num('territoryGain', 'Contrôle gagné par pochon vendu (%)', 'min="0" max="100" step="0.5"')}
                 </div>
                 <p class="hint" style="margin-top:8px">Sur 100 clients : environ <b>${buyPct}</b> achètent, <b>${Number(s.stealChance || 0)}</b> volent, <b>${Number(s.policeChance || 0)}</b> appellent la police.</p>
             </div>
@@ -73,6 +75,15 @@
             </div>
             <div class="section"><div class="btn-row"><button class="btn primary" data-dsa="save">Enregistrer</button><button class="btn" data-dsa="cancel">Annuler les modifications</button>
                 <button class="btn" data-dsa="reset">Valeurs par défaut</button><button class="btn danger" data-dsa="stopAll" ${(d.active || []).length ? '' : 'disabled'}>Arrêter tous les vendeurs</button></div></div>
+            <div class="section"><h2>🗺️ Territoires</h2>
+                <p class="hint">Les territoires se créent dans l'<b>éditeur de map › Zones</b> (type « Territoire (drogue) » ou case « Territoire de vente »). Zone neutre (blanche) : le premier groupe qui y vend prend 100 %.
+                    Ensuite, chaque pochon vendu par un membre d'un autre groupe lui fait gagner ${Number(s.territoryGain || 0)} % (pris aux autres au prorata). Les joueurs voient tout dans F5 › tablette › Map.</p>
+                <table class="loot wide"><tr><th>Territoire</th><th>Contrôle</th><th style="width:150px"></th></tr>
+                    ${(d.territories || []).map((t) => `<tr><td><strong>${esc(t.name)}</strong></td>
+                        <td>${t.shares.length ? t.shares.map((x) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><i style="width:10px;height:10px;border-radius:3px;background:${esc(x.color)};display:inline-block"></i>${esc(x.label)} <b>${x.pct} %</b></span>`).join('') : '<span class="muted">Neutre</span>'}</td>
+                        <td style="text-align:right"><button class="btn" data-dsa="resetTerritory" data-id="${t.id}" ${t.shares.length ? '' : 'disabled'}>Remettre neutre</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Aucun territoire : crée une zone dans l\'éditeur de map.</td></tr>'}</table>
+                ${(d.territories || []).some((t) => t.shares.length) ? '<div class="btn-row" style="margin-top:10px"><button class="btn danger" data-dsa="resetTerritory">Tout remettre neutre</button></div>' : ''}
+            </div>
             ${active ? `<div class="section"><h2>Vendeurs en ce moment</h2><table class="loot wide"><tr><th>Joueur</th><th style="width:140px">Pochons vendus</th><th style="width:160px">Gains</th></tr>${active}</table></div>` : ''}`;
     };
 
@@ -108,6 +119,11 @@
             case 'save': send('save', G.draft); G.draft = null; return;
             case 'cancel': G.draft = null; return render();
             case 'reset': if (await confirmBox('Valeurs par défaut ?', 'Tous les réglages de la vente de drogue reviennent à ceux du fichier config.lua.')) { G.draft = null; send('reset'); } return;
+            case 'resetTerritory': {
+                const id = n.dataset.id ? Number(n.dataset.id) : undefined;
+                if (await confirmBox(id ? 'Remettre ce territoire neutre ?' : 'Tout remettre neutre ?', id ? 'Plus aucun groupe ne le contrôlera.' : 'Tous les territoires redeviennent neutres (blancs).')) send('resetTerritory', { id });
+                return;
+            }
             case 'stopAll': if (await confirmBox('Arrêter tous les vendeurs ?', 'Le mode vente sera coupé pour tous les joueurs qui vendent en ce moment.')) send('stopAll'); return;
         }
     });

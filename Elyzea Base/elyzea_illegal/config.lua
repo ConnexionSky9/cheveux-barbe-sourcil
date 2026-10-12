@@ -53,6 +53,8 @@ Config.DrugSale = {
     stealMax = 3,
     policeChance = 10,           -- % de clients qui appellent la police
     policeRadius = 150,          -- précision de l'alerte police (mètres autour du vendeur)
+    territoryOnly = true,        -- vente seulement dans les territoires (éditeur de map › zone « Territoire de vente »)
+    territoryGain = 2,           -- % de contrôle du territoire gagné par pochon vendu (pris aux autres groupes)
     drugs = {
         { item = 'weed_pouch', label = 'Pochon de weed', min = 80, max = 120 },   -- prix par pochon
     },

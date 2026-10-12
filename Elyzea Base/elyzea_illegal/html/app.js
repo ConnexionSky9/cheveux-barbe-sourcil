@@ -51,6 +51,8 @@ const TABS = [
         show: () => true, count: () => (can('orders_validate') ? D.requests.filter((r) => r.status === 'pending').length : 0) },
     { id: 'missions', label: 'Missions', ico: '🎯', sub: () => 'Missions du groupe : XP, niveaux et récompenses versées au coffre.',
         show: () => !!D.missions, count: () => (D.missions && D.missions.active ? 1 : 0) },
+    { id: 'map', label: 'Map', ico: '🗺️', sub: () => 'Territoires de vente de drogue : à qui ils appartiennent et à combien de %.',
+        show: () => !!D.territories, count: () => 0 },
     { id: 'settings', label: 'Paramètres', ico: '⚙️', sub: () => 'Nom, description et couleur du groupe.', show: () => can('settings') },
 ];
 const visibleTabs = () => TABS.filter((t) => D.tabs && D.tabs[t.id] && t.show());
@@ -241,8 +243,10 @@ function render() {
     $('#page-sub').textContent = cur.sub();
     const content = $('#content');
     const top = content.scrollTop;
+    if (TMap.inst && tab !== 'map') TMap.destroy();
     content.innerHTML = VIEWS[tab]();
     content.scrollTop = top;
+    if (tab === 'map') TMap.mount();
 }
 
 $('#tabs').addEventListener('click', (e) => {
@@ -251,6 +255,144 @@ $('#tabs').addEventListener('click', (e) => {
 });
 
 const VIEWS = {};
+
+/* ---------- Map des territoires ---------- */
+const MAP_BOUNDS = { minX: -5661.2, maxX: 6694.0, minY: -4058.5, maxY: 8429.3 };   // image satellite html/img/map.jpg
+const TMap = { inst: null, sel: null, view: null };
+const NEUTRAL = '#ecf0f8';
+function hexA(hex, a) {
+    const h = String(hex || NEUTRAL).replace('#', '');
+    const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6), 16) || 0;
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+const zoneColor = (z) => (z.owner ? z.owner.color : NEUTRAL);
+function zoneCenter(z) {
+    if (z.shape === 'circle') return { x: z.center.x, y: z.center.y };
+    const p = z.points || [];
+    return { x: p.reduce((a, q) => a + q.x, 0) / (p.length || 1), y: p.reduce((a, q) => a + q.y, 0) / (p.length || 1) };
+}
+function shareBar(z) {
+    if (!z.shares.length) return '<div class="t-bar"><i style="width:100%;background:rgba(236,240,248,.25)"></i></div>';
+    return `<div class="t-bar">${z.shares.map((s) => `<i style="width:${s.pct}%;background:${esc(s.color)}" title="${esc(s.label)} ${s.pct} %"></i>`).join('')}</div>`;
+}
+VIEWS.map = () => {
+    const list = D.territories || [];
+    const mine = list.filter((z) => z.owner && z.owner.id === D.group.id).length;
+    const rows = list.map((z) => `<div class="t-row ${TMap.sel === z.id ? 'sel' : ''}" data-tzone="${z.id}">
+        <div class="t-head"><span class="t-dot" style="background:${esc(zoneColor(z))}"></span><b>${esc(z.name)}</b>
+            <span class="muted">${z.owner ? `${esc(z.owner.label)} · ${z.owner.pct} %` : 'Neutre'}</span></div>
+        ${shareBar(z)}
+        ${z.shares.length ? `<div class="t-shares">${z.shares.map((s) => `<span><i style="background:${esc(s.color)}"></i>${esc(s.label)} <b>${s.pct} %</b></span>`).join('')}</div>` : '<div class="t-shares muted">Personne ne contrôle cette zone.</div>'}
+    </div>`).join('');
+    return `<div class="t-wrap">
+        <div class="t-map" id="tmap"><canvas></canvas>
+            <div class="t-tools"><button class="btn" data-tmap="in">+</button><button class="btn" data-tmap="out">−</button><button class="btn" data-tmap="fit">⤢</button><button class="btn" data-tmap="refresh" title="Actualiser">⟳</button></div>
+            <div class="t-legend"><span><i style="background:${NEUTRAL}"></i>Neutre</span><span><i style="background:${esc(D.group.color)}"></i>${esc(D.group.label)}</span><span class="muted">Autres couleurs : groupes rivaux</span></div></div>
+        <div class="t-side">
+            <div class="stats" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+                <div class="stat"><b>${list.length}</b><span>Territoire(s)</span></div>
+                <div class="stat"><b>${mine}</b><span>Contrôlé(s) par ${esc(D.group.label)}</span></div></div>
+            <p class="muted" style="font-size:12px;margin:0 0 8px">On ne vend de la drogue (F5 › Vente de drogue) que dans ces zones. Chaque pochon vendu par un membre fait gagner du % à son groupe, pris aux autres.</p>
+            ${rows || '<div class="empty">Aucun territoire n\'a encore été créé par le staff.</div>'}
+        </div></div>`;
+};
+TMap.destroy = () => { if (TMap.inst) { TMap.inst.dead = true; window.removeEventListener('mouseup', TMap.inst.up); window.removeEventListener('mousemove', TMap.inst.move); } TMap.inst = null; };
+TMap.mount = () => {
+    TMap.destroy();
+    const box = document.getElementById('tmap');
+    if (!box) return;
+    const canvas = box.querySelector('canvas'), ctx = canvas.getContext('2d');
+    const img = TMap.img || (TMap.img = Object.assign(new Image(), { src: 'img/map.jpg' }));
+    const S = TMap.view || { cx: 300, cy: 600, scale: 0 };
+    const I = { dead: false };
+    TMap.inst = I;
+    let W = 0, H = 0, dpr = 1;
+    const sx = (x) => (x - S.cx) * S.scale + W / 2, sy = (y) => -(y - S.cy) * S.scale + H / 2;
+    const wx = (px) => (px - W / 2) / S.scale + S.cx, wy = (py) => -(py - H / 2) / S.scale + S.cy;
+    function size() { const r = box.getBoundingClientRect(); dpr = window.devicePixelRatio || 1; W = r.width; H = r.height; canvas.width = W * dpr; canvas.height = H * dpr; }
+    function fit() {
+        size();
+        const zs = D.territories || [];
+        let b = { minX: -3500, maxX: 4000, minY: -3800, maxY: 7500 };
+        if (zs.length) {
+            b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+            zs.forEach((z) => (z.shape === 'circle' ? [{ x: z.center.x - z.radius, y: z.center.y - z.radius }, { x: z.center.x + z.radius, y: z.center.y + z.radius }] : z.points)
+                .forEach((p) => { b.minX = Math.min(b.minX, p.x); b.maxX = Math.max(b.maxX, p.x); b.minY = Math.min(b.minY, p.y); b.maxY = Math.max(b.maxY, p.y); }));
+            const pad = Math.max(300, (b.maxX - b.minX) * 0.25);
+            b.minX -= pad; b.maxX += pad; b.minY -= pad; b.maxY += pad;
+        }
+        S.scale = Math.min(W / (b.maxX - b.minX), H / (b.maxY - b.minY));
+        S.cx = (b.minX + b.maxX) / 2; S.cy = (b.minY + b.maxY) / 2;
+    }
+    function shape(z) {
+        ctx.beginPath();
+        if (z.shape === 'circle') ctx.arc(sx(z.center.x), sy(z.center.y), z.radius * S.scale, 0, Math.PI * 2);
+        else z.points.forEach((p, i) => (i ? ctx.lineTo(sx(p.x), sy(p.y)) : ctx.moveTo(sx(p.x), sy(p.y))));
+        ctx.closePath();
+    }
+    function frame() {
+        if (I.dead) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = '#143d6b'; ctx.fillRect(0, 0, W, H);
+        if (img.complete && img.naturalWidth) {
+            const b = MAP_BOUNDS;
+            ctx.drawImage(img, sx(b.minX), sy(b.maxY), (b.maxX - b.minX) * S.scale, (b.maxY - b.minY) * S.scale);
+        }
+        (D.territories || []).forEach((z) => {
+            const c = zoneColor(z), sel = TMap.sel === z.id;
+            shape(z);
+            ctx.fillStyle = hexA(c, sel ? 0.5 : 0.35); ctx.fill();
+            ctx.lineWidth = sel ? 3 : 2; ctx.strokeStyle = hexA(c, 0.95); ctx.stroke();
+            const ce = zoneCenter(z);
+            ctx.font = '700 13px Barlow, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 4; ctx.fillStyle = '#fff';
+            ctx.fillText(z.name, sx(ce.x), sy(ce.y) - 8);
+            ctx.font = '600 11.5px Barlow, sans-serif'; ctx.fillStyle = z.owner ? hexA(c, 1) : '#dfe6f2';
+            ctx.fillText(z.owner ? `${z.owner.label} ${z.owner.pct} %` : 'Neutre', sx(ce.x), sy(ce.y) + 8);
+            ctx.shadowBlur = 0;
+        });
+        requestAnimationFrame(frame);
+    }
+    function zoomAt(f, px = W / 2, py = H / 2) { const bx = wx(px), by = wy(py); S.scale = Math.max(0.02, Math.min(3, S.scale * f)); S.cx = bx - (px - W / 2) / S.scale; S.cy = by + (py - H / 2) / S.scale; }
+    let drag = null;
+    canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY, cx: S.cx, cy: S.cy, moved: false }; });
+    I.move = (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; S.cx = drag.cx - dx / S.scale; S.cy = drag.cy + dy / S.scale; };
+    I.up = (e) => {
+        if (!drag) return;
+        const moved = drag.moved; drag = null;
+        if (moved || !box.isConnected) return;
+        const r = canvas.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+        const hit = (D.territories || []).find((z) => { shape(z); return ctx.isPointInPath(px * dpr, py * dpr); });
+        if (hit) selectZone(hit.id, false);
+    };
+    window.addEventListener('mousemove', I.move);
+    window.addEventListener('mouseup', I.up);
+    canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.offsetX, e.offsetY); }, { passive: false });
+    I.zoom = zoomAt;
+    I.fit = fit;
+    I.focus = (z) => { const c = zoneCenter(z); S.cx = c.x; S.cy = c.y; S.scale = Math.max(S.scale, 0.35); };
+    if (!S.scale) fit(); else size();
+    TMap.view = S;
+    requestAnimationFrame(frame);
+};
+function selectZone(id, focus) {
+    TMap.sel = TMap.sel === id && !focus ? null : id;
+    const z = (D.territories || []).find((x) => x.id === id);
+    if (focus && z && TMap.inst) TMap.inst.focus(z);
+    document.querySelectorAll('.t-row').forEach((el) => el.classList.toggle('sel', Number(el.dataset.tzone) === TMap.sel));
+    const row = document.querySelector(`.t-row[data-tzone="${id}"]`);
+    if (row && !focus) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+document.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-tzone]');
+    if (r) return selectZone(Number(r.dataset.tzone), true);
+    const t = e.target.closest('[data-tmap]');
+    if (!t || !TMap.inst) return;
+    if (t.dataset.tmap === 'in') TMap.inst.zoom(1.3);
+    else if (t.dataset.tmap === 'out') TMap.inst.zoom(0.77);
+    else if (t.dataset.tmap === 'fit') TMap.inst.fit();
+    else if (t.dataset.tmap === 'refresh') post('refresh');
+});
 
 /* ---------- Informations ---------- */
 VIEWS.home = () => {

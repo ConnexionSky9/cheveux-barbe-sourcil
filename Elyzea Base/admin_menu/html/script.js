@@ -2239,6 +2239,8 @@ const ZONE_PRESETS = [
         enterMsg: 'Vous entrez dans le quartier latino', exitMsg: '' } },
     { id: 'message', icon: '📢', label: 'Message seul', s: { name: 'Zone', color: 'gold', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
         enterMsg: 'Bienvenue', exitMsg: '' } },
+    { id: 'territory', icon: '🌿', label: 'Territoire (drogue)', s: { name: 'Territoire', color: 'white', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
+        territory: true, enterMsg: '', exitMsg: '' } },
     { id: 'slow', icon: '🚸', label: 'Zone 30 km/h', s: { name: 'Zone piétonne', color: 'blue', safe: true, noWeapons: false, invincible: false, exemptPolice: true, speedLimit: 30, blip: true, showBorder: false,
         enterMsg: 'Zone limitée à 30 km/h', exitMsg: '' } },
 ];
@@ -2253,6 +2255,7 @@ const zoneSettingsOf = (z) => ({
     safe: !!z.safe, noWeapons: !!z.noWeapons, invincible: !!z.invincible, exemptPolice: !!z.exemptPolice,
     speedLimit: Number(z.speedLimit) || 0, blip: !!z.blip, showBorder: !!z.showBorder,
     blipSprite: Math.max(0, Math.floor(Number(z.blipSprite) || 0)), blipScale: Number(z.blipScale) || 0.8,
+    territory: !!z.territory,
 });
 // Icônes de zone : celle choisie, ou l'icône automatique
 let zoneIconSearch = '';
@@ -2295,6 +2298,7 @@ function zoneBadges(z) {
     if (z.safe && z.exemptPolice) b.push('👮 Sauf police');
     if (z.blip) b.push(`${zoneIconOf(z).emoji} Carte : ${esc(zoneIconOf(z).label)}`);
     if (z.showBorder) b.push('👁️ Limites visibles');
+    if (z.territory) b.push('🌿 Territoire de vente');
     return b.map((x) => `<span class="zbadge">${x}</span>`).join('');
 }
 function edZones() {
@@ -2321,6 +2325,7 @@ function edZones() {
             ${tog('safe', '🛡️ Safe zone', 'Règles de sécurité')}
             ${tog('blip', '📍 Sur la carte', 'Zone colorée + nom')}
             ${tog('showBorder', '👁️ Limites visibles', 'Murs colorés pour tous')}
+            ${tog('territory', '🌿 Territoire de vente', 'Drogue vendable ici · contrôlé par les groupes (F5 › Map)')}
         </div>
         ${z.blip ? zoneIconPicker(z) : ''}
         ${z.safe ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">Règles de la safe zone</h3>

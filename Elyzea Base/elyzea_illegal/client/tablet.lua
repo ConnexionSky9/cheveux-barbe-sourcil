@@ -57,3 +57,9 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() and open then SetNuiFocus(false, false) end
 end)
+
+-- Onglet Map : actualiser les territoires
+RegisterNUICallback('refresh', function(_, cb)
+    cb('ok')
+    TriggerServerEvent('illegal:server:refresh')
+end)
