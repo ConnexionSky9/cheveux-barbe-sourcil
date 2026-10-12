@@ -8,7 +8,6 @@ local GC = Config.Guards
 local Guards = {}          -- liste de { ped, netId, mode, veh, target, post }
 local Defense = { on = false, radius = GC.defendRadius }
 local DriveMode = 'normal'
-local Captured = { ped = nil, veh = nil }
 local REL = nil
 
 local function Rel()
@@ -62,8 +61,47 @@ local function Drive() return GC.driving[DriveMode] or GC.driving.normal end
 -- ---------------------------------------------------------
 --  Apparition
 -- ---------------------------------------------------------
+-- Copie de ma tenue (vêtements, accessoires, coiffure) : même modèle de personnage requis
+local function CopyOutfit(ped)
+    local me = Me()
+    for c = 0, 11 do SetPedComponentVariation(ped, c, GetPedDrawableVariation(me, c), GetPedTextureVariation(me, c), GetPedPaletteVariation(me, c)) end
+    for pr = 0, 7 do
+        local idx = GetPedPropIndex(me, pr)
+        if idx == -1 then ClearPedProp(ped, pr) else SetPedPropIndex(ped, pr, idx, GetPedPropTextureIndex(me, pr), true) end
+    end
+    SetPedHairColor(ped, GetPedHairColor(me), GetPedHairHighlightColor(me))
+end
+
+local function Setup(ped, cfg)
+    SetEntityAsMissionEntity(ped, true, true)
+    local netId = NetworkGetNetworkIdFromEntity(ped)
+    SetNetworkIdCanMigrate(netId, false)
+    SetPedRelationshipGroupHash(ped, Rel())
+    SetPedFleeAttributes(ped, 0, false)
+    SetPedCombatAttributes(ped, 46, true)   -- se bat toujours
+    SetPedCombatAttributes(ped, 5, true)
+    SetPedCombatAbility(ped, 2)
+    SetPedCombatRange(ped, 2)
+    SetPedAccuracy(ped, 65)
+    SetPedKeepTask(ped, true)
+    SetPedDropsWeaponsWhenDead(ped, false)
+    SetPedCanRagdollFromPlayerImpact(ped, false)
+    SetPedSuffersCriticalHits(ped, false)
+    SetPedConfigFlag(ped, 281, true)        -- pas d'écriture « blessé » au sol
+    if cfg.armor then SetPedArmour(ped, 100) end
+    if cfg.invincible then SetEntityInvincible(ped, true) end
+    local weapon = (cfg.weapon and cfg.weapon ~= '') and joaat(cfg.weapon) or nil
+    if weapon then
+        GiveWeaponToPed(ped, weapon, 9999, false, true)
+        SetCurrentPedWeapon(ped, cfg.holster and `WEAPON_UNARMED` or weapon, true)
+    end
+    return netId, weapon
+end
+
 RegisterNetEvent('adminmenu:guards:spawn', function(cfg)
-    local h = LoadModel(cfg.model)
+    local mine = cfg.model == '__me__'
+    local h = mine and GetEntityModel(Me()) or LoadModel(cfg.model)
+    if mine then h = LoadModel(h) end
     if not h then return Note(('Modèle « %s » introuvable.'):format(tostring(cfg.model)), 'error') end
     local me = Me()
     local base, heading = GetEntityCoords(me), GetEntityHeading(me)
@@ -75,25 +113,10 @@ RegisterNetEvent('adminmenu:guards:spawn', function(cfg)
         local ok, z = GetGroundZFor_3dCoord(x, y, base.z + 2.0, false)
         local ped = CreatePed(4, h, x, y, ok and z or base.z, heading, true, true)
         if DoesEntityExist(ped) then
-            SetEntityAsMissionEntity(ped, true, true)
-            local netId = NetworkGetNetworkIdFromEntity(ped)
-            SetNetworkIdCanMigrate(netId, false)
-            SetPedRelationshipGroupHash(ped, Rel())
-            SetPedFleeAttributes(ped, 0, false)
-            SetPedCombatAttributes(ped, 46, true)   -- se bat toujours
-            SetPedCombatAttributes(ped, 5, true)
-            SetPedCombatAbility(ped, 2)
-            SetPedCombatRange(ped, 2)
-            SetPedAccuracy(ped, 65)
-            SetPedKeepTask(ped, true)
-            SetPedDropsWeaponsWhenDead(ped, false)
-            SetPedCanRagdollFromPlayerImpact(ped, false)
-            SetPedSuffersCriticalHits(ped, false)
-            SetPedConfigFlag(ped, 281, true)        -- pas d'écriture « blessé » au sol
-            if cfg.armor then SetPedArmour(ped, 100) end
-            if cfg.invincible then SetEntityInvincible(ped, true) end
-            if cfg.weapon and cfg.weapon ~= '' then GiveWeaponToPed(ped, joaat(cfg.weapon), 9999, false, true) end
-            Guards[#Guards + 1] = { ped = ped, netId = netId, mode = 'follow', armed = cfg.weapon ~= '' }
+            if mine then CopyOutfit(ped) end
+            local netId, weapon = Setup(ped, cfg)
+            Guards[#Guards + 1] = { ped = ped, netId = netId, mode = 'follow', armed = weapon ~= nil, weapon = weapon, holster = cfg.holster == true,
+                cfg = { weapon = cfg.weapon, armor = cfg.armor, invincible = cfg.invincible } }
             added[#added + 1] = netId
         end
     end
@@ -215,9 +238,8 @@ function Orders.myveh(list)
     return ('%d garde(s) montent dans ton véhicule.'):format(n)
 end
 
-function Orders.takeveh(list)
-    local veh = Captured.veh
-    if not veh or not DoesEntityExist(veh) then return nil, 'Vise un véhicule (ou approche-toi d\'un véhicule) avant d\'ouvrir le menu F11.' end
+function Orders.takeveh(list, _, veh)
+    if not veh or not DoesEntityExist(veh) then return nil, 'Aucun véhicule choisi.' end
     local seats = FreeSeats(veh)
     table.sort(seats)   -- conducteur (-1) d'abord
     local n = 0
@@ -295,19 +317,19 @@ function Orders.drivemode(_, mode)
     return DriveMode == 'fast' and 'Conduite : grande vitesse (feux grillés, dépassements).' or 'Conduite : normale (code de la route).'
 end
 
-local function TargetOk()
-    local t = Captured.ped
-    if not t or not DoesEntityExist(t) or IsPedDeadOrDying(t, true) then return nil, 'Vise une personne (ou mets-toi face à elle) avant d\'ouvrir le menu F11.' end
+local function TargetOk(t)
+    if not t or not DoesEntityExist(t) or IsPedDeadOrDying(t, true) then return nil, 'Aucune personne choisie.' end
     return t
 end
 
-function Orders.aim(list)
-    local t, err = TargetOk()
+function Orders.aim(list, _, target)
+    local t, err = TargetOk(target)
     if not t then return nil, err end
     local n = 0
     for _, g in ipairs(list) do
         if g.armed then
             Reset(g)
+            SetCurrentPedWeapon(g.ped, g.weapon, true)
             g.mode, g.target = 'aim', t
             SetBlockingOfNonTemporaryEvents(g.ped, true)
             if IsPedInAnyVehicle(g.ped, false) then TaskLeaveVehicle(g.ped, GetVehiclePedIsIn(g.ped, false), 0) end
@@ -319,8 +341,8 @@ function Orders.aim(list)
     return ('%d garde(s) braquent la cible (sans tirer).'):format(n)
 end
 
-function Orders.attack(list)
-    local t, err = TargetOk()
+function Orders.attack(list, _, target)
+    local t, err = TargetOk(target)
     if not t then return nil, err end
     for _, g in ipairs(list) do
         Reset(g)
@@ -331,8 +353,8 @@ function Orders.attack(list)
 end
 
 -- Menotter / démenotter : le garde le plus proche s'en charge
-function Orders.cuff(list, on)
-    local t, err = TargetOk()
+function Orders.cuff(list, on, target)
+    local t, err = TargetOk(target)
     if not t then return nil, err end
     local g = list[1]
     if not g then return nil, 'Aucun garde disponible.' end
@@ -376,6 +398,44 @@ function Orders.cuff(list, on)
         Follow(g)
     end)
     return on and 'Un garde va menotter la cible.' or 'Un garde va démenotter la cible.'
+end
+
+-- Même tenue que moi, à l'identique : un garde d'un autre modèle est remplacé par mon modèle
+function Orders.outfit(list)
+    local me = Me()
+    local model = GetEntityModel(me)
+    if not LoadModel(model) then return nil, 'Ton modèle de personnage est introuvable.' end
+    local added, removed = {}, {}
+    for _, g in ipairs(list) do
+        if GetEntityModel(g.ped) == model then
+            CopyOutfit(g.ped)
+        elseif not IsPedInAnyVehicle(g.ped, false) then
+            local c, h = GetEntityCoords(g.ped), GetEntityHeading(g.ped)
+            local ped = CreatePed(4, model, c.x, c.y, c.z - 1.0, h, true, true)
+            if DoesEntityExist(ped) then
+                CopyOutfit(ped)
+                local netId = Setup(ped, { weapon = g.cfg and g.cfg.weapon, armor = g.cfg and g.cfg.armor, invincible = g.cfg and g.cfg.invincible, holster = g.holster })
+                removed[#removed + 1] = g.netId
+                DeleteEntity(g.ped)
+                g.ped, g.netId = ped, netId
+                added[#added + 1] = netId
+                Follow(g)
+            end
+        end
+    end
+    SetModelAsNoLongerNeeded(model)
+    if #added > 0 or #removed > 0 then Register(added, removed) end
+    return ('%d garde(s) portent ta tenue (les gardes en véhicule d\'un autre modèle sont ignorés).'):format(#list)
+end
+
+-- Armes en main ou rangées
+function Orders.weapons(list, opt)
+    local holster = opt == 'holster'
+    for _, g in ipairs(list) do
+        g.holster = holster
+        if g.weapon then SetCurrentPedWeapon(g.ped, holster and `WEAPON_UNARMED` or g.weapon, true) end
+    end
+    return holster and ('%d garde(s) rangent leur arme.'):format(#list) or ('%d garde(s) gardent l\'arme en main.'):format(#list)
 end
 
 function Orders.delete(list)
@@ -448,6 +508,11 @@ CreateThread(function()
                             TaskAimGunAtEntity(g.ped, g.target, -1, false)
                         end
                     end
+                    -- Armes en main ou rangées (hors combat)
+                    if g.weapon and (g.mode == 'follow' or g.mode == 'stay' or g.mode == 'zone') and not IsPedInCombat(g.ped, 0) then
+                        local want = g.holster and `WEAPON_UNARMED` or g.weapon
+                        if GetSelectedPedWeapon(g.ped) ~= want then SetCurrentPedWeapon(g.ped, want, true) end
+                    end
                     -- Mode défense : tir sur quiconque approche (gardes à pied qui suivent ou restent en poste)
                     if Defense.on and (g.mode == 'follow' or g.mode == 'stay') and g.armed and not IsPedInAnyVehicle(g.ped, false) then
                         for _, p in ipairs(GetGamePool('CPed')) do
@@ -477,53 +542,77 @@ end)
 -- ---------------------------------------------------------
 local menuOpen = false
 
-local function Capture()
-    Captured.ped, Captured.veh = nil, nil
-    local me = Me()
-    local ok, ent = GetEntityPlayerIsFreeAimingAt(PlayerId())
-    if ok and ent and ent ~= 0 then
-        if IsEntityAPed(ent) and not IsGuard(ent) then Captured.ped = ent end
-        if IsEntityAVehicle(ent) then Captured.veh = ent end
+-- Sélection à la flèche : regarder la cible, E ou clic gauche pour choisir, clic droit / Retour pour annuler
+local function Help(text)
+    BeginTextCommandDisplayHelp('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandDisplayHelp(0, false, false, -1)
+end
+
+local function RayDir()
+    local rot = GetFinalRenderedCamRot(2)
+    local rx, rz = math.rad(rot.x), math.rad(rot.z)
+    return vector3(-math.sin(rz) * math.cos(rx), math.cos(rz) * math.cos(rx), math.sin(rx))
+end
+
+local function NameOf(ent)
+    if IsEntityAVehicle(ent) then
+        return ('%s · %s'):format(GetLabelText(GetDisplayNameFromVehicleModel(GetEntityModel(ent))), (GetVehicleNumberPlateText(ent) or ''):gsub('^%s+', ''):gsub('%s+$', ''))
     end
-    local mc, fwd = GetEntityCoords(me), GetEntityForwardVector(me)
-    if not Captured.ped then
+    if IsPedAPlayer(ent) then
+        local pid = NetworkGetPlayerIndexFromPed(ent)
+        return ('%s [%d]'):format(GetPlayerName(pid), GetPlayerServerId(pid))
+    end
+    return ('PNJ à %d m'):format(math.floor(#(GetEntityCoords(ent) - GetEntityCoords(Me()))))
+end
+
+-- kind = 'vehicle' ou 'ped' ; renvoie l'entité choisie ou nil
+local function SelectEntity(kind, verb)
+    local me = Me()
+    local myVeh = GetVehiclePedIsIn(me, false)
+    local chosen, outlined = nil, nil
+    local untilT = GetGameTimer() + 45000
+    while GetGameTimer() < untilT do
+        local from, dir = GetFinalRenderedCamCoord(), RayDir()
         local best, bestScore
-        for _, p in ipairs(GetGamePool('CPed')) do
-            if p ~= me and not IsGuard(p) and not IsPedDeadOrDying(p, true) and GetPedType(p) ~= 28 then
-                local v = GetEntityCoords(p) - mc
-                local d = #v
-                if d < 25.0 then
-                    local facing = (v.x * fwd.x + v.y * fwd.y) / math.max(d, 0.01)
-                    local score = d - facing * 6.0 - (IsPedAPlayer(p) and 3.0 or 0.0)
-                    if facing > 0.2 and (not bestScore or score < bestScore) then best, bestScore = p, score end
+        for _, e in ipairs(kind == 'vehicle' and GetGamePool('CVehicle') or GetGamePool('CPed')) do
+            local ok = kind == 'vehicle' and e ~= myVeh
+                or (kind == 'ped' and e ~= me and not IsGuard(e) and not IsPedDeadOrDying(e, true) and GetPedType(e) ~= 28)
+            if ok then
+                local v = GetEntityCoords(e) - from
+                local t = v.x * dir.x + v.y * dir.y + v.z * dir.z
+                if t > 1.0 and t < 120.0 then
+                    local perp = #(v - dir * t)
+                    local tol = (kind == 'vehicle' and 2.8 or 1.2) + t * 0.02
+                    if perp < tol and (not bestScore or perp + t * 0.01 < bestScore) then best, bestScore = e, perp + t * 0.01 end
                 end
             end
         end
-        Captured.ped = best
-    end
-    if not Captured.veh then
-        local mine = GetVehiclePedIsIn(me, false)
-        local best, bestD
-        for _, v in ipairs(GetGamePool('CVehicle')) do
-            local d = #(GetEntityCoords(v) - mc)
-            if v ~= mine and d < 20.0 and (not bestD or d < bestD) then best, bestD = v, d end
+        if best ~= outlined then
+            if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
+            outlined = best
+            if best then SetEntityDrawOutlineColor(217, 181, 106, 255) SetEntityDrawOutline(best, true) end
         end
-        Captured.veh = best
+        DisableControlAction(0, 24, true) DisableControlAction(0, 25, true) DisableControlAction(0, 257, true)
+        DisableControlAction(0, 140, true) DisableControlAction(0, 141, true) DisableControlAction(0, 142, true)
+        DisablePlayerFiring(PlayerId(), true)
+        if best then
+            local c = GetEntityCoords(best)
+            local top = kind == 'vehicle' and 2.2 or 1.4
+            DrawMarker(0, c.x, c.y, c.z + top, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.6, 0.6, 217, 181, 106, 220, true, true, 2, false, nil, nil, false)
+            Help(('%s : ~y~%s~s~~n~~INPUT_CONTEXT~ / clic gauche : choisir · clic droit : annuler'):format(verb, NameOf(best)))
+            if IsControlJustPressed(0, 38) or IsDisabledControlJustPressed(0, 24) then chosen = best break end
+        else
+            Help(('%s : regarde %s~n~clic droit : annuler'):format(verb, kind == 'vehicle' and 'un véhicule' or 'une personne'))
+        end
+        if IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 177) then break end
+        Wait(0)
     end
+    if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
+    return chosen
 end
 
 local function Describe()
-    local t, v = Captured.ped, Captured.veh
-    local tLabel
-    if t and DoesEntityExist(t) then
-        if IsPedAPlayer(t) then
-            local pid = NetworkGetPlayerIndexFromPed(t)
-            tLabel = ('%s [%d]'):format(GetPlayerName(pid), GetPlayerServerId(pid))
-        else
-            tLabel = ('PNJ à %d m'):format(math.floor(#(GetEntityCoords(t) - GetEntityCoords(Me()))))
-        end
-    end
-    local vLabel = v and DoesEntityExist(v) and ('%s · %s'):format(GetLabelText(GetDisplayNameFromVehicleModel(GetEntityModel(v))), (GetVehicleNumberPlateText(v) or ''):gsub('^%s+', ''):gsub('%s+$', '')) or nil
     local alive, inVeh, drivers = 0, 0, 0
     for _, g in ipairs(Guards) do
         if Alive(g) then
@@ -532,7 +621,9 @@ local function Describe()
             if DriverOf(g) then drivers = drivers + 1 end
         end
     end
-    return { target = tLabel, vehicle = vLabel, alive = alive, inVehicle = inVeh, drivers = drivers, max = GC.max,
+    local holstered = 0
+    for _, g in ipairs(Guards) do if Alive(g) and g.holster then holstered = holstered + 1 end end
+    return { holstered = holstered, alive = alive, inVehicle = inVeh, drivers = drivers, max = GC.max,
         defense = Defense.on and Defense.radius or false, drive = DriveMode, inMyVeh = IsPedInAnyVehicle(Me(), false), waypoint = WaypointCoords() ~= nil }
 end
 
@@ -540,7 +631,6 @@ function OpenGuardsMenu()
     if not HasPerm('guards') then return end
     if menuOpen then return end
     if #Guards == 0 then return Note('Aucun garde du corps : fais-en apparaître dans le menu (Mes outils › Gardes du corps).', 'error') end
-    Capture()
     menuOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'guardsMenu', show = true, data = Describe() })
@@ -560,8 +650,30 @@ RegisterNUICallback('guardsOrder', function(body, cb)
     if not fn then return cb({ error = 'Ordre inconnu.' }) end
     local n = math.floor(tonumber(body.count) or 0)
     local order = tostring(body.order)
-    local list = (order == 'gps' or order == 'convoy') and Pick(n, function(g) return DriverOf(g) ~= nil end) or Pick(n)
-    if #list == 0 and body.order ~= 'defense' and body.order ~= 'drivemode' then return cb({ error = 'Aucun garde disponible.' }) end
+    local list
+    if order == 'gps' or order == 'convoy' then list = Pick(n, function(g) return DriverOf(g) ~= nil end)
+    elseif order == 'takeveh' or order == 'myveh' then list = Pick(n, function(g) return not IsPedInAnyVehicle(g.ped, false) end)   -- ceux déjà en véhicule ne bougent pas
+    else list = Pick(n) end
+    if #list == 0 and body.order ~= 'defense' and body.order ~= 'drivemode' then
+        local why = (order == 'takeveh' or order == 'myveh') and 'Aucun garde à pied disponible.' or 'Aucun garde disponible.'
+        Note(why, 'error')
+        return cb({ error = why })
+    end
+    -- Ordres qui demandent de choisir un véhicule ou une personne : le menu se ferme, flèche sur la cible
+    local SELECT = { takeveh = { 'vehicle', 'Véhicule à prendre' }, aim = { 'ped', 'Personne à braquer' }, attack = { 'ped', 'Personne à abattre' },
+        cuff = { 'ped', body.opt == 'off' and 'Personne à démenotter' or 'Personne à menotter' } }
+    local sel = SELECT[order]
+    if sel then
+        cb({ ok = true, closed = true })
+        CloseGuardsMenu()
+        CreateThread(function()
+            local ent = SelectEntity(sel[1], sel[2])
+            if not ent then return Note('Ordre annulé.', 'inform') end
+            local m, e = fn(list, body.opt, ent)
+            if e then Note(e, 'error') else Note(m, 'success') end
+        end)
+        return
+    end
     local msg, err = fn(list, body.opt)
     if err then Note(err, 'error') else Note(msg, 'success') end
     cb({ ok = err == nil, data = Describe() })

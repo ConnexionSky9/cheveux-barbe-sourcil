@@ -35,7 +35,7 @@ function A.spawn(src, d)
     if not MODELS[model] and not model:match('^[%w_]+$') then return AM.notify(src, 'Modèle invalide.', 'error') end
     local weapon = tostring(d.weapon or '')
     if not WEAPONS[weapon] then weapon = '' end
-    TriggerClientEvent('adminmenu:guards:spawn', src, { count = n, model = model, weapon = weapon, armor = d.armor == true, invincible = d.invincible == true })
+    TriggerClientEvent('adminmenu:guards:spawn', src, { count = n, model = model, weapon = weapon, armor = d.armor == true, invincible = d.invincible == true, holster = d.holster == true })
     AM.addLog(src, 'Gardes du corps', ('%d × %s · %s'):format(n, model, weapon ~= '' and weapon or 'sans arme'))
 end
 
