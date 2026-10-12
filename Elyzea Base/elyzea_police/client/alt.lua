@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA POLICE - client : menu ALT (pour tout le monde)
---  ALT maintenu : curseur ; la cible s'entoure ; clic : actions possibles.
+--  ALT maintenu : curseur ; clic sur la cible : actions possibles (pas de surbrillance : elle faisait planter le jeu).
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
@@ -9,15 +9,8 @@
 -- =====================================================================
 local C = PoliceC
 local D = Config.Distances
-local active, menuOpen, outlined = false, false, nil
+local active, menuOpen = false, false
 local menuCtx, menuOpts = nil, nil
-
-local function Outline(ent)
-    if outlined == ent then return end
-    if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
-    outlined = ent
-    if ent then SetEntityDrawOutlineColor(96, 165, 250, 220) SetEntityDrawOutline(ent, true) end
-end
 
 local function CursorRay()
     local sx, sy = GetControlNormal(0, 239), GetControlNormal(0, 240)
@@ -178,7 +171,7 @@ local function CloseMenu()
 end
 C.ui.alt = { close = CloseMenu }
 
-local function Stop() active = false Outline(nil) end
+local function Stop() active = false end
 
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return end
@@ -195,10 +188,8 @@ local function Start()
             ctx = Context()
             local key = ctx.kind .. ':' .. tostring(ctx.entity or '')
             if key ~= lastKey then opts, lastKey = Options(ctx), key end
-            Outline((ctx.kind == 'player' or ctx.kind == 'vehicle' or ctx.kind == 'npc') and #opts > 0 and ctx.entity or nil)
             if #opts > 0 then Help(('~INPUT_ATTACK~ %d action(s) : %s'):format(#opts, Title(ctx)))
             else Help('Visez une personne ou un véhicule') end
-            if (ctx.kind == 'carry' or ctx.kind == 'trunk') and #opts > 0 then Outline(nil) end
             if IsDisabledControlJustPressed(0, 24) and #opts > 0 then
                 menuCtx, menuOpts = ctx, Options(ctx)
                 Stop()
@@ -242,6 +233,3 @@ RegisterCommand('+police_alt', Start, false)
 RegisterCommand('-police_alt', Stop, false)
 RegisterKeyMapping('+police_alt', 'Interactions : porter, coffre, police (maintenir ALT, clic sur la cible)', 'keyboard', Config.Keys.alt)
 
-AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() then Outline(nil) end
-end)

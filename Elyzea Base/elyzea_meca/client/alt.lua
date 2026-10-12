@@ -31,20 +31,25 @@ end
 
 local function Can(perm) return C.OnDuty() and C.Can(perm) end
 
+-- Actions mécano : toujours proposées (réparer, nettoyer, retourner) ; l'état du véhicule est indiqué
+local function Pct(v) return math.max(0, math.min(100, math.floor(v / 10))) end
 local function Options(veh)
     local out = {}
-    if not DoesEntityExist(veh) or IsPedInAnyVehicle(PlayerPedId(), false) then return out end
-    local st = C.VehicleState(veh)
-    if st.flipped and Can('flip') then out[#out + 1] = { id = 'flip', label = R.flip.label, icon = 'out' } end
-    if not st.flipped then
-        if Can('repair') then
-            if st.engine then out[#out + 1] = { id = 'engine', label = R.engine.label, icon = 'repair' } end
-            if st.body then out[#out + 1] = { id = 'body', label = R.body.label, icon = 'repair' } end
-            if st.tyres then out[#out + 1] = { id = 'tyres', label = R.tyres.label, icon = 'repair' } end
-        end
-        if Can('repair_full') and (st.engine or st.body or st.tyres) then out[#out + 1] = { id = 'full', label = R.full.label, icon = 'repair' } end
-        if st.dirty and Can('clean') then out[#out + 1] = { id = 'clean', label = R.clean.label, icon = 'clean' } end
+    if not DoesEntityExist(veh) then return out end
+    if IsPedInAnyVehicle(PlayerPedId(), false) then
+        return { { id = 'none', label = 'Descendez du véhicule', icon = 'out', disabled = true } }
     end
+    local st = C.VehicleState(veh)
+    local eng, body = Pct(GetVehicleEngineHealth(veh)), Pct(GetVehicleBodyHealth(veh))
+    local onFlip = st.flipped and 'Retournez d\'abord le véhicule' or nil
+    if Can('repair') then
+        out[#out + 1] = { id = 'engine', label = R.engine.label, icon = 'engine', desc = onFlip or ('Moteur %d %%'):format(eng), disabled = st.flipped }
+        out[#out + 1] = { id = 'body', label = R.body.label, icon = 'body', desc = onFlip or ('Carrosserie %d %%'):format(body), disabled = st.flipped }
+        out[#out + 1] = { id = 'tyres', label = R.tyres.label, icon = 'tyres', desc = onFlip or (st.tyres and 'Pneu(s) crevé(s)' or 'Pneus en bon état'), disabled = st.flipped }
+    end
+    if Can('repair_full') then out[#out + 1] = { id = 'full', label = R.full.label, icon = 'repair', desc = onFlip, disabled = st.flipped } end
+    if Can('clean') then out[#out + 1] = { id = 'clean', label = R.clean.label, icon = 'clean', desc = st.dirty and 'Véhicule sale' or 'Déjà propre' } end
+    if Can('flip') then out[#out + 1] = { id = 'flip', label = R.flip.label, icon = 'flip', desc = st.flipped and 'Véhicule sur le toit / sur le côté' or 'Remettre sur ses roues' } end
     if Can('vehicles_view') then out[#out + 1] = { id = 'history', label = 'Historique du véhicule', icon = 'record' } end
     if Can('quotes') then out[#out + 1] = { id = 'quote', label = 'Créer un devis (prestations)', icon = 'fine' } end
     return out
@@ -128,10 +133,13 @@ end)
 -- Exports pour le menu ALT (elyzea_police/client/alt.lua)
 -- ---------------------------------------------------------------------
 function C.AltOptions(ctx)
-    if type(ctx) ~= 'table' or not C.OnDuty() or C.IsDown() then return {} end
+    if type(ctx) ~= 'table' or not C.IsMeca() or C.IsDown() then return {} end
     local veh = ctx.kind == 'vehicle' and ctx.entity or nil
     if not veh or not DoesEntityExist(veh) then return {} end
-    if #(GetEntityCoords(veh) - GetEntityCoords(PlayerPedId())) > Config.Distances.vehicle + 1.0 then return {} end
+    if #(GetEntityCoords(veh) - GetEntityCoords(PlayerPedId())) > Config.Distances.vehicle + 2.0 then
+        return { { id = 'none', label = 'Mécano : approchez-vous du véhicule', icon = 'repair', disabled = true } }
+    end
+    if not C.OnDuty() then return { { id = 'none', label = 'Mécano : prenez votre service (F6)', icon = 'repair', disabled = true } } end
     return Options(veh)
 end
 
