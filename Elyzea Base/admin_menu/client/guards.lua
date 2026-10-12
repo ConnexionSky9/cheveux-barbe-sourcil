@@ -242,13 +242,18 @@ function Orders.takeveh(list, _, veh)
     if not veh or not DoesEntityExist(veh) then return nil, 'Aucun véhicule choisi.' end
     local seats = FreeSeats(veh)
     table.sort(seats)   -- conducteur (-1) d'abord
+    -- À pied : la place passager avant reste libre pour moi (s'il y a plus d'une place)
+    if not IsPedInAnyVehicle(Me(), false) and #seats > 1 then
+        for i, st in ipairs(seats) do if st == 0 then table.remove(seats, i) break end end
+    end
+    -- Déverrouillé par le serveur (clés comprises) pour que je puisse monter aussi
+    TriggerServerEvent('adminmenu:action', 'guards', { name = 'unlock', data = { netId = NetworkGetNetworkIdFromEntity(veh) } })
     local n = 0
     for _, g in ipairs(list) do
         local seat = table.remove(seats, 1)
         if not seat then break end
         Reset(g)
         g.mode, g.veh, g.seat = 'vehicle', veh, seat
-        SetVehicleDoorsLocked(veh, 1)
         TaskEnterVehicle(g.ped, veh, 20000, seat, 2.0, 1, 0)
         n = n + 1
     end
@@ -683,6 +688,42 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for _, g in ipairs(Guards) do if DoesEntityExist(g.ped) then DeleteEntity(g.ped) end end
+end)
+
+-- Monter dans un véhicule de mes gardes : F (entrer) prend la première place libre
+-- (passager avant d'abord) au lieu d'essayer de sortir le garde au volant
+CreateThread(function()
+    while true do
+        local wait = 1000
+        if #Guards > 0 and not IsPedInAnyVehicle(Me(), false) then
+            wait = 0
+            if IsControlJustPressed(0, 23) then
+                local me = Me()
+                local mc = GetEntityCoords(me)
+                local best, bestD
+                for _, g in ipairs(Guards) do
+                    local v = Alive(g) and (IsPedInAnyVehicle(g.ped, false) and GetVehiclePedIsIn(g.ped, false) or (g.mode == 'vehicle' and g.veh)) or nil
+                    if v and DoesEntityExist(v) then
+                        local d = #(GetEntityCoords(v) - mc)
+                        if d < 6.0 and (not bestD or d < bestD) then best, bestD = v, d end
+                    end
+                end
+                if best then
+                    local seat
+                    if IsVehicleSeatFree(best, 0) then seat = 0
+                    else for st = 1, GetVehicleMaxNumberOfPassengers(best) - 1 do if IsVehicleSeatFree(best, st) then seat = st break end end end
+                    if not seat and IsVehicleSeatFree(best, -1) then seat = -1 end
+                    if seat then
+                        ClearPedTasks(me)
+                        TaskEnterVehicle(me, best, 8000, seat, 2.0, 1, 0)
+                    else
+                        Note('Plus de place dans ce véhicule.', 'error')
+                    end
+                end
+            end
+        end
+        Wait(wait)
+    end
 end)
 
 -- Touche F11 : enregistrée uniquement chez un staff qui a la permission « guards »

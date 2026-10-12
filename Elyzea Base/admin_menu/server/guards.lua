@@ -73,6 +73,16 @@ function A.cuff(src, d)
     end
 end
 
+-- Véhicule pris par mes gardes : déverrouillé et clés données au staff (pour monter et conduire)
+function A.unlock(src, d)
+    local veh = NetworkGetEntityFromNetworkId(tonumber(d.netId) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
+    if #(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(veh)) > 150.0 then return end
+    SetVehicleDoorsLocked(veh, 1)
+    Entity(veh).state:set('elyLocked', false, true)
+    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
+end
+
 AM.Actions.guards = { perm = 'guards', minLevel = 40, noRefresh = true, fn = function(src, d)
     local fn = A[tostring(d.name or '')]
     if fn then fn(src, type(d.data) == 'table' and d.data or {}) end

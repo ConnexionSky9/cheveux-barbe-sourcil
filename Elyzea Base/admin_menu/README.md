@@ -873,3 +873,4 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
 - **Monter dans un véhicule** (« Montez dans mon véhicule », « Prenez un véhicule ») : seuls les gardes **à pied** sont pris ; ceux déjà dans un véhicule ne bougent pas.
 - **Tenue** : à l'apparition, « Ma tenue (identique à moi) » ; dans F11, « Même tenue que moi » (un garde d'un autre modèle est remplacé par ton modèle de personnage avec tes vêtements, accessoires et coiffure ; le visage n'est pas copié).
 - **Armes** : « Armes en main » ou « Ranger les armes » (F11), ou « Armes rangées » à l'apparition. En combat, ils sortent leur arme.
+- **Monter avec ses gardes** : « Prenez un véhicule » déverrouille le véhicule et te donne ses clés ; si tu es à pied, la place passager avant reste libre pour toi. Près d'un véhicule de tes gardes, **F** te fait monter à la première place libre (passager avant d'abord) au lieu d'essayer de sortir le conducteur.
