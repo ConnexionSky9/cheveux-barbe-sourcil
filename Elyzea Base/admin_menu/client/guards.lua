@@ -8,6 +8,7 @@ local GC = Config.Guards
 local Guards = {}          -- liste de { ped, netId, mode, veh, target, post }
 local Defense = { on = false, radius = GC.defendRadius }
 local DriveMode = 'normal'
+local DefenseTargets = nil   -- personnes dans le rayon de défense (recalculé à chaque tour)
 local REL = nil
 
 local function Rel()
@@ -214,7 +215,7 @@ end
 function Orders.defense(_, r)
     if r == 'off' then Defense.on = false return 'Mode défense coupé.' end
     Defense.on, Defense.radius = true, tonumber(r) or GC.defendRadius
-    return ('Mode défense : tir si quelqu\'un approche à moins de %d m.'):format(Defense.radius)
+    return ('Mode défense : tir sur toute personne (joueur ou PNJ, même en véhicule) à moins de %d m.'):format(Defense.radius)
 end
 
 function Orders.myveh(list)
@@ -479,6 +480,16 @@ CreateThread(function()
             local me = Me()
             local mc = GetEntityCoords(me)
             local dead = {}
+            DefenseTargets = nil
+            if Defense.on then
+                DefenseTargets = {}
+                for _, p in ipairs(GetGamePool('CPed')) do
+                    if p ~= me and not IsGuard(p) and not IsPedDeadOrDying(p, true) and #(GetEntityCoords(p) - mc) < Defense.radius then
+                        DefenseTargets[#DefenseTargets + 1] = p
+                    end
+                end
+                table.sort(DefenseTargets, function(x, y) return #(GetEntityCoords(x) - mc) < #(GetEntityCoords(y) - mc) end)
+            end
             for i, g in ipairs(Guards) do
                 if not DoesEntityExist(g.ped) then
                     dead[#dead + 1] = i
@@ -504,7 +515,9 @@ CreateThread(function()
                         if not g.target or not DoesEntityExist(g.target) or IsPedDeadOrDying(g.target, true) then
                             local back = g.prevMode
                             g.prevMode = nil
-                            if back == 'stay' then Reset(g) g.mode = 'stay' TaskGuardCurrentPosition(g.ped, 6.0, 6.0, true) else Follow(g) end
+                            if back == 'stay' then Reset(g) g.mode = 'stay' TaskGuardCurrentPosition(g.ped, 6.0, 6.0, true)
+                            elseif back == 'vehicle' and IsPedInAnyVehicle(g.ped, false) then g.mode, g.target = 'vehicle', nil
+                            else Follow(g) end
                         end
                     elseif g.mode == 'aim' then
                         if not g.target or not DoesEntityExist(g.target) then Follow(g)
@@ -518,16 +531,21 @@ CreateThread(function()
                         local want = g.holster and `WEAPON_UNARMED` or g.weapon
                         if GetSelectedPedWeapon(g.ped) ~= want then SetCurrentPedWeapon(g.ped, want, true) end
                     end
-                    -- Mode défense : tir sur quiconque approche (gardes à pied qui suivent ou restent en poste)
-                    if Defense.on and (g.mode == 'follow' or g.mode == 'stay') and g.armed and not IsPedInAnyVehicle(g.ped, false) then
-                        for _, p in ipairs(GetGamePool('CPed')) do
-                            if p ~= me and not IsGuard(p) and not IsPedDeadOrDying(p, true) and not IsPedInAnyVehicle(p, false)
-                                and GetPedType(p) ~= 28 and #(GetEntityCoords(p) - mc) < Defense.radius then
-                                g.prevMode = g.mode
-                                g.mode, g.target = 'attack', p
-                                TaskCombatPed(g.ped, p, 0, 16)
-                                break
+                    -- Mode défense : chaque garde (sauf conducteurs et surveillance de zone) tire sur
+                    -- toute personne dans le rayon : joueurs et PNJ, à pied ou en véhicule
+                    if Defense.on and (g.mode == 'follow' or g.mode == 'stay' or (g.mode == 'vehicle' and not DriverOf(g))) then
+                        local t = DefenseTargets and DefenseTargets[1]
+                        if t then
+                            -- La cible la moins visée, pour se répartir les menaces
+                            local best, bestN
+                            for _, p in ipairs(DefenseTargets) do
+                                local n = 0
+                                for _, o in ipairs(Guards) do if o.target == p then n = n + 1 end end
+                                if not bestN or n < bestN then best, bestN = p, n end
                             end
+                            g.prevMode = g.mode
+                            g.mode, g.target = 'attack', best
+                            TaskCombatPed(g.ped, best, 0, 16)
                         end
                     end
                 end

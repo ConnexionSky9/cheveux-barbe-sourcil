@@ -39,7 +39,7 @@
                 <p class="hint">Choisis combien de gardes reçoivent l'ordre (les plus proches de toi). Pour « Prenez un véhicule », « Braquer », « Tirer », « Menotter » : le menu se ferme et une <b>flèche</b> apparaît au-dessus de ce que tu regardes ;
                     <span class="keycap">E</span> ou clic gauche pour choisir, clic droit pour annuler. Joueur ou PNJ. Les gardes déjà dans un véhicule ne bougent pas quand tu ordonnes de monter dans un véhicule.</p>
                 <ul class="hint" style="line-height:1.7;margin-left:18px">
-                    <li><b>À pied</b> : suivez-moi, restez ici, revenez, protéger la zone 10 à 50 m (surveillance sans tirer), mode défense (tir si quelqu'un approche), supprimer.</li>
+                    <li><b>À pied</b> : suivez-moi, restez ici, revenez, protéger la zone 10 à 50 m (surveillance sans tirer), mode défense (tir sur toute personne dans le rayon : joueurs et PNJ, même en véhicule), supprimer.</li>
                     <li><b>Véhicules</b> : montez dans mon véhicule, prenez le véhicule visé (le 1er au volant), allez à mon point GPS, suivez en convoi, descendez ; conduite normale ou grande vitesse (feux grillés, dépassements).</li>
                     <li><b>Cible</b> (choisie à la flèche) : braquer sans tirer, tirer, menotter, démenotter (joueur ou PNJ).</li>
                     <li><b>Équipement</b> : même tenue que moi (à l'identique), armes en main ou rangées.</li>
