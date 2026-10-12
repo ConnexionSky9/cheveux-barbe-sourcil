@@ -28,6 +28,7 @@ Config.Keys = {
     { cmd = 'admin_revive_me', label = 'Me réanimer',          mapper = 'keyboard', key = '' },
     { cmd = 'admin_revive_area', label = 'Réanimer autour de moi', mapper = 'keyboard', key = '' },
     { cmd = 'admin_human',     label = 'Reprendre ma forme humaine', mapper = 'keyboard', key = '' },
+    { cmd = 'admin_guards',    label = 'Ordres aux gardes du corps', mapper = 'keyboard', key = 'F11' },
 }
 
 -- Touches actives uniquement pendant le noclip (défauts AZERTY)
@@ -165,6 +166,7 @@ Config.Permissions = {
     { key = 'event_drops',     label = 'Largage de drops : planifier, régler, lancer, annuler', cat = 'Événements' },
 
     -- Métiers (ressources Elyzea)
+    { key = 'guards',          label = 'Gardes du corps : faire apparaître 1 à 30 PNJ armés et leur donner des ordres (F11)', cat = 'Mes outils' },
     { key = 'staff_job',       label = 'Métier staff : entrer dans la police, recruter un joueur, donner un grade (direction comprise)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
     { key = 'trunk_manage',    label = 'Coffres véhicules : emplacements et poids du coffre par catégorie de véhicule', cat = 'Gestion' },
@@ -530,7 +532,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },
@@ -850,6 +852,40 @@ end
 -- =========================================================
 --  ZONES (safe zones, quartiers, zones à message)
 -- =========================================================
+-- =========================================================
+--  GARDES DU CORPS (Mes outils, permission « guards » : SuperAdmin et Fondateur)
+--  F11 : menu des ordres. Les PNJ appartiennent au staff qui les a créés
+--  et sont supprimés à sa déconnexion.
+-- =========================================================
+Config.Guards = {
+    max = 30,                 -- gardes maximum par staff
+    defendRadius = 8.0,       -- mode défense par défaut : tir si quelqu'un approche à moins de X m
+    models = {
+        { id = 's_m_y_blackops_01',   label = 'Commando (noir)' },
+        { id = 's_m_m_highsec_01',    label = 'Garde du corps (costume)' },
+        { id = 's_m_y_swat_01',       label = 'SWAT' },
+        { id = 's_m_m_marine_01',     label = 'Militaire' },
+        { id = 'mp_m_securoguard_01', label = 'Agent de sécurité' },
+        { id = 's_m_m_bouncer_01',    label = 'Videur' },
+        { id = 'g_m_m_chicold_01',    label = 'Gangster' },
+        { id = 'g_m_y_mexgoon_01',    label = 'Cartel' },
+    },
+    weapons = {
+        { id = '',                    label = 'Sans arme' },
+        { id = 'WEAPON_PISTOL',       label = 'Pistolet' },
+        { id = 'WEAPON_COMBATPISTOL', label = 'Pistolet de combat' },
+        { id = 'WEAPON_SMG',          label = 'SMG' },
+        { id = 'WEAPON_CARBINERIFLE', label = 'Carabine' },
+        { id = 'WEAPON_PUMPSHOTGUN',  label = 'Fusil à pompe' },
+        { id = 'WEAPON_SNIPERRIFLE',  label = 'Sniper' },
+    },
+    -- Conduite : normal = respecte le code ; rapide = grille les feux, roule à fond, double
+    driving = {
+        normal = { speed = 22.0, style = 786603 },
+        fast   = { speed = 60.0, style = 1074528293 },
+    },
+}
+
 Config.Zones = {
     height = 80.0,   -- hauteur couverte au-dessus du point le plus haut de la zone
     depth  = 15.0,   -- profondeur couverte sous le point le plus bas

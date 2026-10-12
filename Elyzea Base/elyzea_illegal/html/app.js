@@ -282,6 +282,7 @@ VIEWS.map = () => {
         <div class="t-head"><span class="t-dot" style="background:${esc(zoneColor(z))}"></span><b>${esc(z.name)}</b>
             <span class="muted">${z.owner ? `${esc(z.owner.label)} · ${z.owner.pct} %` : 'Neutre'}</span></div>
         ${shareBar(z)}
+        ${TMap.sel === z.id ? `<div class="t-go"><button class="btn primary" data-tgo="${z.id}">📍 Y aller (point GPS)</button></div>` : ''}
         ${z.shares.length ? `<div class="t-shares">${z.shares.map((s) => `<span><i style="background:${esc(s.color)}"></i>${esc(s.label)} <b>${s.pct} %</b></span>`).join('')}</div>` : '<div class="t-shares muted">Personne ne contrôle cette zone.</div>'}
     </div>`).join('');
     return `<div class="t-wrap">
@@ -347,7 +348,7 @@ TMap.mount = () => {
             ctx.font = '700 13px Barlow, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 4; ctx.fillStyle = '#fff';
             ctx.fillText(z.name, sx(ce.x), sy(ce.y) - 8);
-            ctx.font = '600 11.5px Barlow, sans-serif'; ctx.fillStyle = z.owner ? hexA(c, 1) : '#dfe6f2';
+            ctx.font = '600 11.5px Barlow, sans-serif'; ctx.fillStyle = '#fff';
             ctx.fillText(z.owner ? `${z.owner.label} ${z.owner.pct} %` : 'Neutre', sx(ce.x), sy(ce.y) + 8);
             ctx.shadowBlur = 0;
         });
@@ -379,11 +380,21 @@ function selectZone(id, focus) {
     TMap.sel = TMap.sel === id && !focus ? null : id;
     const z = (D.territories || []).find((x) => x.id === id);
     if (focus && z && TMap.inst) TMap.inst.focus(z);
-    document.querySelectorAll('.t-row').forEach((el) => el.classList.toggle('sel', Number(el.dataset.tzone) === TMap.sel));
+    const side = document.querySelector('.t-side');
+    const keep = side ? side.scrollTop : 0;
+    if (tab === 'map') { const c = $('#content'); const old = TMap.inst; c.querySelector('.t-side').outerHTML = new DOMParser().parseFromString(VIEWS.map(), 'text/html').querySelector('.t-side').outerHTML; if (old) TMap.inst = old; }
+    const side2 = document.querySelector('.t-side');
+    if (side2) side2.scrollTop = keep;
     const row = document.querySelector(`.t-row[data-tzone="${id}"]`);
     if (row && !focus) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 document.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-tgo]');
+    if (go) {
+        const z = (D.territories || []).find((x) => x.id === Number(go.dataset.tgo));
+        if (z) { const c = zoneCenter(z); post('zoneGps', { x: c.x, y: c.y, name: z.name }); }
+        return;
+    }
     const r = e.target.closest('[data-tzone]');
     if (r) return selectZone(Number(r.dataset.tzone), true);
     const t = e.target.closest('[data-tmap]');

@@ -86,3 +86,17 @@ exports('AdminDuty', function(target, on)
     P.SetDuty(target, on == true)
     return true, on and 'En service.' or 'Hors service.'
 end)
+
+-- Menottes posées par autre chose qu'un agent (ex. gardes du corps du staff, admin_menu)
+-- Le contrôle d'accès est fait par la ressource appelante.
+exports('SetCuffed', function(target, on, byName)
+    target = tonumber(target)
+    if not target or not GetPlayerName(target) then return false end
+    on = on == true
+    if not on and P.StopEscort then P.StopEscort(target) end
+    if P.Carried and P.Carried[target] and P.StopCarry then P.StopCarry(target) end
+    P.SetCuffed(target, on, 0)
+    P.Log(0, on and 'Menottage (staff)' or 'Démenottage (staff)', ('%s [%d] · %s'):format(P.Name(target), target, tostring(byName or '?')))
+    return true
+end)
+exports('IsCuffed', function(target) return P.Cuffed[tonumber(target) or -1] ~= nil end)

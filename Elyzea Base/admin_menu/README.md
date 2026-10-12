@@ -860,3 +860,12 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
   concerne que celles qui sont proches.
 - Une erreur dans un module du menu est affichée dans la console (une fois par minute) au lieu d'être ignorée.
 - Les boucles « à chaque image » (godmode, wallhack, noms, safe zone, prison, PNJ, butins…) ne tournent que lorsqu'elles servent.
+
+## Gardes du corps (Mes outils, permission `guards` : SuperAdmin et Fondateur)
+
+- **Mes outils › Gardes du corps** : 1 à 30 PNJ (tenue, arme, gilet, invincibles), qui apparaissent autour du staff, le suivent et ripostent si on l'attaque. Supprimés à sa déconnexion. Réglages : `Config.Guards` (`config.lua`).
+- **F11** (touche modifiable) : panneau des ordres. Viser la personne ou le véhicule **avant** d'appuyer sur F11 (sinon : la personne / le véhicule le plus proche devant soi). Choisir le nombre de gardes (« Tous » ou les N plus proches).
+  - À pied : suivez-moi, restez ici, revenez, descendez, protéger la zone 10/20/30/40/50 m (ils s'écartent en cercle et surveillent sans tirer), mode défense 5/8/12/20 m (tir sur quiconque approche) ou coupé.
+  - Cible : braquer sans tirer, tirer, menotter, démenotter (joueur : via elyzea_police ; PNJ : menottes et animation).
+  - Véhicules : montez dans mon véhicule (places passagers), prenez le véhicule visé (le premier au volant), allez à mon point GPS (conducteurs), suivez en convoi (chaque véhicule suit le précédent ; le premier suit mon véhicule ou le conducteur parti au GPS, ou moi à pied), conduite normale ou grande vitesse (feux grillés, à fond, dépassements).
+- Exemple de convoi : 4 gardes › viser un véhicule › « Prenez le véhicule visé » ; « Montez dans mon véhicule » pour un autre groupe ; viser un 2e véhicule › 4 autres gardes › « Prenez le véhicule visé » ; poser un point GPS › « Allez à mon point GPS » (pour le conducteur de tête) puis « Suivez en convoi ».

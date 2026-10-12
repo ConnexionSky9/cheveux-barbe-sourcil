@@ -30,6 +30,8 @@ local function StopEscort(target)
     end
 end
 
+P.SetCuffed, P.StopEscort = SetCuffed, StopEscort
+
 -- Un agent quitte le service ou le serveur : il lâche ceux qu'il escorte
 function P.ReleaseAll(cop)
     for target, by in pairs(P.Escorted) do if by == cop then StopEscort(target) end end

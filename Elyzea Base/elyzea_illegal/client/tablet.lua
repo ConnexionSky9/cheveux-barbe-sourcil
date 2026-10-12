@@ -63,3 +63,12 @@ RegisterNUICallback('refresh', function(_, cb)
     cb('ok')
     TriggerServerEvent('illegal:server:refresh')
 end)
+
+-- Onglet Map › « Y aller » : point GPS au centre du territoire (purement local)
+RegisterNUICallback('zoneGps', function(body, cb)
+    cb('ok')
+    local x, y = tonumber(body and body.x), tonumber(body and body.y)
+    if not x or not y then return end
+    SetNewWaypoint(x + 0.0, y + 0.0)
+    Notify(('Point GPS posé : %s.'):format(tostring(body.name or 'territoire')), 'success')
+end)

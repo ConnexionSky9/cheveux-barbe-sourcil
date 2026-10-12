@@ -42,6 +42,7 @@ client_scripts {
     'client/gunshop.lua',
     'client/garage.lua',
     'client/drops.lua',
+    'client/guards.lua',
 }
 
 server_scripts {
@@ -71,6 +72,7 @@ server_scripts {
     'server/staffjob.lua',
     'server/trunks.lua',
     'server/drugsale.lua',
+    'server/guards.lua',
 }
 
 ui_page 'html/index.html'
@@ -103,5 +105,6 @@ files {
     'html/staffjob.js',
     'html/trunks.js',
     'html/drugsale.js',
+    'html/guards.js',
     'html/logo.png',
 }

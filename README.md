@@ -152,6 +152,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **N** | Parler (pma-voice) · **²** changer la portée de la voix | Tous |
 | **Verr. Maj** | Parler à la radio | Avec une radio |
 | **F2** · **F9** · **F10** | Noclip · menu rapide · menu admin | Staff |
+| **F11** | Ordres aux gardes du corps | SuperAdmin, Fondateur |
 | **Suppr** · **Début** · **Fin** · **Inser** · **M** | Noclip : supprimer le véhicule · éditeur : hauteur à zéro · coller au sol · côté de l'aimant · aimant | Staff, dans ces modes |
 
 - **Changements :**

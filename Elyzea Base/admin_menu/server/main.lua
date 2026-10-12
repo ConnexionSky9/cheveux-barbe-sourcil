@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v43 then
+        -- Gardes du corps : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.guards = true end
+        meta.v43 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v42 then
         -- Vente de drogue : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.drugsale_manage = true end

@@ -303,6 +303,7 @@ local KEY_ACTIONS = {
     admin_repair    = function() TriggerServerEvent('adminmenu:action', 'vehicle_tool', { tool = 'repair' }) end,
     admin_revive_me = function() TriggerServerEvent('adminmenu:action', 'revive', { target = GetPlayerServerId(PlayerId()) }) end,
     admin_revive_area = function() StartRevivePreview(Config.ReviveAreaRadius) end,
+    admin_guards    = function() if OpenGuardsMenu then OpenGuardsMenu() end end,
 }
 
 for _, k in ipairs(Config.Keys) do

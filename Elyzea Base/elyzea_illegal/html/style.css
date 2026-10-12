@@ -466,3 +466,5 @@ input[type=color].input { padding: 3px; height: 38px; }
 .t-bar { display: flex; height: 7px; border-radius: 5px; overflow: hidden; margin: 8px 0 6px; background: rgba(255, 255, 255, .06); }
 .t-bar i { display: block; height: 100%; }
 .t-shares { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+.t-go { margin: 8px 0 4px; }
+.t-go .btn { width: 100%; justify-content: center; }
