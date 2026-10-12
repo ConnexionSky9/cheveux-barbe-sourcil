@@ -16,22 +16,22 @@
 |---|---|
 | **F6** | Menu rapide : service et temps, statut, véhicules (devis de prestations, historique), clients (devis, factures), dépannage, tablette, direction |
 | **ALT** (menu d'interaction de elyzea_police) sur un véhicule | Réparer moteur / carrosserie / pneus, réparation complète, nettoyer, retourner. Seules les actions utiles à l'état du véhicule sont proposées |
-| **E** sur un point d'atelier | Ouvre l'atelier pour le véhicule posé sur l'emplacement |
+| **E** au volant, sur un point d'atelier | Ouvre l'atelier pour ce véhicule |
 | **G / I** | Accepter / refuser la dernière demande de dépannage |
 | `/depannage <message>` | Tout le monde : demander un dépanneur |
 | `/meca_pos` | Affiche votre position et le cap dans la console (aide) |
 
 ## Points d'atelier (placés en jeu)
 
-Tablette › Direction › **Points d'atelier** (permission « Garage et points d'atelier ») : autant de points que vous voulez (30 au maximum, réglable par `Config.WorkshopMax`), n'importe où sur la carte.
+Tablette › Direction › **Points d'atelier** (permission « Garage et points d'atelier ») : autant de points que vous voulez (30 au maximum, `Config.WorkshopMax`), n'importe où.
 
-1. Placez-vous là où le mécanicien appuiera sur **E**, donnez un nom, cochez les rubriques (performances, carrosserie, peinture, roues, éclairage, intérieur, CarPlay, prestations), le grade minimum et la tolérance, puis **Créer ici**.
-2. Garez le véhicule au centre de l'emplacement (ou placez-vous-y) et cliquez **Véhicule ici** (moins de 15 m du point du mécanicien).
-3. Le point est actif tout de suite pour tous les mécaniciens. Il se déplace (« Mécanicien ici » / « Véhicule ici »), se modifie ou se supprime de la même page ; un point qui a un devis en cours ne peut pas être supprimé.
+- Placez-vous (à pied ou au volant) à l'endroit voulu, donnez un nom, cochez les rubriques (performances, carrosserie, peinture, roues, éclairage, intérieur, CarPlay, prestations), le grade minimum et la taille de la zone, puis **Créer ici**.
+- « Déplacer ici », modifier et supprimer depuis la même page ; un point avec un devis en cours ne peut pas être supprimé.
+- **Seuls les mécaniciens voient les points** (zone orange au sol). Changements appliqués tout de suite, sans redémarrage.
 
-Les points sont gardés en base (`meca_settings`, clé `workshops`). Le serveur vérifie la distance du mécanicien et du véhicule à chaque action. Valeurs par défaut du formulaire : `Config.WorkshopDefaults`.
+Les points sont gardés en base (`meca_settings`, clé `workshops`). Le serveur vérifie à chaque action que le véhicule est sur le point et que le mécanicien est avec lui.
 
-Déroulé : véhicule vide sur l'emplacement → **E** → l'atelier affiche le véhicule, son état et le catalogue compatible (seules les pièces qui existent sur ce modèle sont proposées) → aperçu en direct sur le véhicule (annulable) → ajout au devis → choix du client (le propriétaire est proposé en premier) → **Envoyer le devis**. Le client voit les lignes et le total, accepte ou refuse. Fermer l'atelier sans installer remet le véhicule tel qu'il était et **ne facture rien**.
+Déroulé : le mécanicien prend la voiture du client, la conduit sur le point et appuie sur **E** au volant (le véhicule est immobilisé pendant l'intervention) → l'atelier affiche le véhicule, son état et le catalogue compatible (seules les pièces qui existent sur ce modèle sont proposées) → aperçu en direct sur le véhicule (annulable) → ajout au devis → choix du client (le propriétaire est proposé en premier) → **Envoyer le devis**. Le client voit les lignes et le total, accepte ou refuse. Fermer l'atelier sans installer remet le véhicule tel qu'il était et **ne facture rien**.
 
 ## Devis, paiement, factures
 
@@ -95,7 +95,7 @@ Les grades n'ont pas de salaire : le taux horaire est réglé dans Finance et ch
 1. Démarrage : console `[MECA] Prêt`, tables créées, grades et catalogue de départ.
 2. admin_menu › Métier staff › Mécano : se mettre Directeur ; F6 › prendre son service.
 3. ALT sur un véhicule abîmé : actions proposées, barre de progression, historique du véhicule.
-4. Tablette › Points d'atelier : créer 2 ou 3 points, placer les véhicules, déplacer, supprimer ; vérifier qu'un autre mécanicien les voit sans redémarrage ; E sur un point : aperçu, annuler, fermer (véhicule remis à l'état d'origine).
+4. Tablette › Points d'atelier : créer 2 ou 3 points, déplacer, supprimer ; vérifier qu'un autre mécanicien les voit sans redémarrage et qu'un civil ne les voit pas ; arriver au volant sur un point, E : aperçu, annuler, fermer (véhicule remis à l'état d'origine et débloqué).
 5. Devis avec un 2ᵉ joueur : refus, puis acceptation (argent débité, compte société crédité), installation, facture, rangement au garage et ressortie (mods conservés).
 6. Installation partielle (une pièce esthétique qui ne se pose pas) : remboursement de la différence.
 7. CarPlay : refusé avant installation (F4 et téléphone), installé, fonctionne, toujours actif après vente du véhicule et redémarrage ; second achat refusé.

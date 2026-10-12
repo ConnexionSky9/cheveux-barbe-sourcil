@@ -219,29 +219,25 @@ local function Close(silent)
     WS.open = false
     if not WS.keep then Restore() end
     WS.keep = false
+    if WS.veh and DoesEntityExist(WS.veh) then FreezeEntityPosition(WS.veh, false) end
     C.Focus('workshop', false)
     SendNUIMessage({ action = 'workshop', show = false })
     if not silent then C.Notify('Atelier fermé : aucune modification non installée n\'est restée sur le véhicule.', 'inform') end
 end
 C.ui.workshop = { close = function() Close(false) end }
 
-local function VehicleOn(w)
-    local best, bestD
-    for _, veh in ipairs(GetGamePool('CVehicle')) do
-        local d = #(GetEntityCoords(veh) - w.vehicle)
-        if d <= (w.radius or 3.5) and (not bestD or d < bestD) then best, bestD = veh, d end
-    end
-    return best
-end
-
+-- Le mécanicien amène le véhicule du client sur le point, au volant, et appuie sur E
 local function Open(w)
-    local veh = VehicleOn(w)
-    if not veh then return C.Notify('Placez le véhicule du client sur l\'emplacement.', 'error') end
-    if GetPedInVehicleSeat(veh, -1) ~= 0 then return C.Notify('Le véhicule doit être vide pendant l\'intervention.', 'error') end
+    local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped, false)
+    if veh == 0 or GetPedInVehicleSeat(veh, -1) ~= ped then return C.Notify('Amenez le véhicule du client sur le point, au volant.', 'error') end
+    if GetEntitySpeed(veh) > 1.0 then return C.Notify('Arrêtez le véhicule.', 'error') end
     local r = C.Req('wsOpen', { ws = w.id, net = VehToNet(veh) })
     if r.error then return C.Notify(r.error, 'error') end
     if not Control(veh) then return C.Notify('Impossible de prendre la main sur le véhicule, réessayez.', 'error') end
     WS.open, WS.ws, WS.veh, WS.data, WS.keep = true, w, veh, r, false
+    SetVehicleEngineOn(veh, false, true, true)
+    FreezeEntityPosition(veh, true)              -- le véhicule reste sur le point pendant l'intervention
     WS.snapshot = core:GetVehicleProperties(veh)
     -- Niveaux actuels (véhicule) et pièces disponibles par rubrique
     local live = {}
@@ -266,7 +262,7 @@ local function Open(w)
     CreateThread(function()
         while WS.open do
             Wait(500)
-            if not DoesEntityExist(veh) or #(GetEntityCoords(PlayerPedId()) - w.coords) > 6.0 or #(GetEntityCoords(veh) - w.vehicle) > (w.radius or 3.5) + 2.0
+            if not DoesEntityExist(veh) or #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(veh)) > 6.0 or #(GetEntityCoords(veh) - w.coords) > (w.radius or 3.5) + 2.0
                 or C.IsDown() or not C.OnDuty() then
                 Close(false)
             end
@@ -360,22 +356,29 @@ local function Help(text)
     EndTextCommandDisplayHelp(0, false, false, -1)
 end
 
+-- Seuls les mécaniciens voient les points (marqueur au sol) ; E au volant ouvre l'atelier
 CreateThread(function()
     while true do
         local sleep = 1000
-        if C.OnDuty() and C.Can('workshop') and not WS.open then
-            local pos = GetEntityCoords(PlayerPedId())
+        if C.IsMeca() and C.Can('workshop') and not WS.open then
+            local ped = PlayerPedId()
+            local pos = GetEntityCoords(ped)
             for _, w in ipairs(C.Workshops()) do
                 local d = #(pos - w.coords)
-                if d < 25.0 then
+                if d < 30.0 then
                     sleep = 0
+                    local r = w.radius or 3.5
                     if Config.WorkshopMarker then
-                        DrawMarker(27, w.coords.x, w.coords.y, w.coords.z - 0.97, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 245, 158, 11, 160, false, false, 2, false, nil, nil, false)
-                        DrawMarker(1, w.vehicle.x, w.vehicle.y, w.vehicle.z - 1.0, 0, 0, 0, 0, 0, 0, (w.radius or 3.5) * 2, (w.radius or 3.5) * 2, 0.15, 245, 158, 11, 50, false, false, 2, false, nil, nil, false)
+                        DrawMarker(1, w.coords.x, w.coords.y, w.coords.z - 1.0, 0, 0, 0, 0, 0, 0, r * 2, r * 2, 0.25, 245, 158, 11, 70, false, false, 2, false, nil, nil, false)
+                        DrawMarker(36, w.coords.x, w.coords.y, w.coords.z + 1.2, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 245, 158, 11, 180, true, true, 2, false, nil, nil, false)
                     end
-                    if d < 1.4 and not IsPedInAnyVehicle(PlayerPedId(), false) and not C.AnyOpen() then
+                    local veh = GetVehiclePedIsIn(ped, false)
+                    if d < r + 0.5 and veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped and not C.AnyOpen() then
+                        DisableControlAction(0, 86, true)     -- E = klaxon en véhicule
                         Help(('~INPUT_CONTEXT~ %s'):format(w.label))
-                        if IsControlJustPressed(0, Config.Keys.workshop) then Open(w) end
+                        if IsDisabledControlJustPressed(0, 86) or IsControlJustPressed(0, Config.Keys.workshop) then
+                            if not C.OnDuty() then C.Notify('Prenez votre service (F6) pour utiliser l\'atelier.', 'error') else Open(w) end
+                        end
                     end
                 end
             end
@@ -384,4 +387,9 @@ CreateThread(function()
     end
 end)
 
-AddEventHandler('onResourceStop', function(res) if res == GetCurrentResourceName() and WS.open then Restore() end end)
+AddEventHandler('onResourceStop', function(res)
+    if res == GetCurrentResourceName() and WS.open then
+        Restore()
+        if WS.veh and DoesEntityExist(WS.veh) then FreezeEntityPosition(WS.veh, false) end
+    end
+end)

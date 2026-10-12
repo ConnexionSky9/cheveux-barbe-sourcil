@@ -18,7 +18,8 @@ Config.Keys = {
 
 Config.Distances = {
     vehicle = 4.0,                -- réparer / nettoyer / retourner : distance au véhicule
-    quote = 6.0,                  -- envoyer un devis : distance du client
+    quote = 6.0,                  -- envoyer un devis de prestations (F6) : distance du client
+    workshopCustomer = 25.0,      -- atelier : distance entre le client et son véhicule sur le point
 }
 
 Config.Matricule = { prefix = 'MECA-', digits = 3 }

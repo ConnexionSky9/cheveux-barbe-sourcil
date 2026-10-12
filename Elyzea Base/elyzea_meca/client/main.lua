@@ -207,9 +207,9 @@ function C.Workshops()
     if pub ~= wsSrc then
         wsSrc, wsCache = pub, {}
         for _, w in ipairs(type(pub) == 'table' and pub or {}) do
-            if w.coords and w.vehicle then
+            if w.coords then
                 wsCache[#wsCache + 1] = { id = w.id, label = w.label, radius = tonumber(w.radius) or 3.5, categories = w.categories, minLevel = tonumber(w.minLevel) or 1,
-                    coords = vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0), vehicle = vector3(w.vehicle.x + 0.0, w.vehicle.y + 0.0, w.vehicle.z + 0.0) }
+                    coords = vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0) }
             end
         end
     end

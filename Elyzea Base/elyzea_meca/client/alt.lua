@@ -20,13 +20,12 @@ local ANIMS = {
 function C.VehicleState(veh)
     local tyres = false
     for i = 0, 7 do if IsVehicleTyreBurst(veh, i, false) then tyres = true break end end
-    local up = GetEntityUpVector(veh)
     return {
         engine = GetVehicleEngineHealth(veh) < 990.0,
         body = GetVehicleBodyHealth(veh) < 990.0 or IsVehicleDamaged(veh),
         tyres = tyres,
         dirty = GetVehicleDirtLevel(veh) > 1.0,
-        flipped = up.z < 0.4,
+        flipped = IsEntityUpsidedown(veh) or math.abs(GetEntityRoll(veh)) > 75.0,
     }
 end
 

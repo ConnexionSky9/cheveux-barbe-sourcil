@@ -111,15 +111,19 @@ end
 function P.WorkshopList()
     local list = {}
     for _, w in ipairs(P.GetSetting('workshops', {})) do
-        if type(w) == 'table' and w.id then list[#list + 1] = w end
+        if type(w) == 'table' and w.id then
+            -- Ancien format (point du mécanicien + emplacement) : on garde l'emplacement du véhicule
+            if w.vehicle then w.coords, w.vehicle = w.vehicle, nil end
+            list[#list + 1] = w
+        end
     end
     return list
 end
 local function Publish()
     local pub = {}
     for _, w in ipairs(P.WorkshopList()) do
-        if w.coords and w.vehicle then
-            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, vehicle = w.vehicle, radius = w.radius, categories = w.categories, minLevel = w.minLevel }
+        if w.coords then
+            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel }
         end
     end
     GlobalState.mecaWorkshops = pub
@@ -130,8 +134,8 @@ P.OnReady[#P.OnReady + 1] = Publish
 
 local function Workshop(id)
     for _, w in ipairs(P.WorkshopList()) do
-        if w.id == id and w.coords and w.vehicle then
-            return { id = w.id, label = w.label, coords = Vec(w.coords), vehicle = Vec(w.vehicle), radius = tonumber(w.radius) or WD.radius,
+        if w.id == id and w.coords then
+            return { id = w.id, label = w.label, coords = Vec(w.coords), radius = tonumber(w.radius) or WD.radius,
                 categories = w.categories or {}, minLevel = tonumber(w.minLevel) or 1 }
         end
     end
@@ -145,7 +149,7 @@ P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
         local n = 0
         for _, q in pairs(P.quotes) do if q.workshop == w.id then n = n + 1 end end
         local c = w.coords and P.Coords(src)
-        list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, vehicle = w.vehicle, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
+        list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
             quotes = n, distance = c and math.floor(#(c - Vec(w.coords))) or nil }
     end
     return { list = list, categories = P.CATEGORIES, grades = grades, max = Config.WorkshopMax, defaults = WD }
@@ -170,7 +174,6 @@ P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
     local radius = math.max(1.5, math.min(8.0, tonumber(d.radius) or WD.radius))
     if not w then
         if #list >= Config.WorkshopMax then return { error = ('%d points maximum.'):format(Config.WorkshopMax) } end
-        if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return { error = 'Descendez du véhicule : le point est créé là où vous vous tenez.' } end
         w = { id = P.Uid('WS'), coords = Pos(src) }
         list[#list + 1] = w
     end
@@ -179,24 +182,19 @@ P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
     Publish()
     P.AddLog(src, nil, nil, d.id and 'Point d\'atelier modifié' or 'Point d\'atelier créé', nil, label, nil)
     return { ok = true, id = w.id, message = d.id and ('« %s » enregistré.'):format(label)
-        or ('« %s » créé à votre position. Placez maintenant l\'emplacement du véhicule.'):format(label) }
+        or ('« %s » créé à votre position.'):format(label) }
 end }
 
--- Déplacer : 'mechanic' = là où se tient la direction ; 'vehicle' = centre de l'emplacement (votre position, ou celle du véhicule si vous êtes dedans)
+-- Déplacer le point à votre position (ou celle du véhicule si vous êtes dedans)
 P.Actions.workshopPlace = { perm = 'garage_manage', fn = function(src, d)
     local list = P.WorkshopList()
     local w = Find(list, tostring(d.id or ''))
     if not w then return { error = 'Point introuvable.' } end
-    local kind = d.kind == 'vehicle' and 'vehicle' or 'mechanic'
-    if kind == 'mechanic' and GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return { error = 'Descendez du véhicule pour placer le point du mécanicien.' } end
-    local pos = Pos(src)
-    local other = kind == 'vehicle' and Vec(w.coords) or Vec(w.vehicle)
-    if other and #(other - Vec(pos)) > 15.0 then return { error = 'Le point du mécanicien et l\'emplacement du véhicule doivent être à moins de 15 m.' } end
-    if kind == 'vehicle' then w.vehicle = pos else w.coords = pos end
+    w.coords = Pos(src)
     P.SetSetting('workshops', list)
     Publish()
-    P.AddLog(src, nil, nil, 'Point d\'atelier déplacé', nil, w.label, kind == 'vehicle' and 'emplacement du véhicule' or 'point du mécanicien')
-    return { ok = true, message = kind == 'vehicle' and 'Emplacement du véhicule placé.' or 'Point du mécanicien placé.' }
+    P.AddLog(src, nil, nil, 'Point d\'atelier déplacé', nil, w.label, nil)
+    return { ok = true, message = ('« %s » déplacé à votre position.'):format(w.label) }
 end }
 
 P.Actions.workshopDelete = { perm = 'garage_manage', fn = function(src, d)
@@ -224,12 +222,11 @@ local function CheckWorkshop(src, w, net)
     local g = P.Grade(src)
     if not g or g.level < (w.minLevel or 1) then return nil, 'Votre grade ne permet pas d\'utiliser ce point.' end
     if not P.Can(src, 'workshop') then return nil, 'Votre grade ne permet pas d\'utiliser les points d\'atelier.' end
-    local c = P.Coords(src)
-    if not c or #(c - w.coords) > 3.0 then return nil, 'Placez-vous au point d\'atelier.' end
-    if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return nil, 'Descendez du véhicule.' end
     local veh = NetworkGetEntityFromNetworkId(tonumber(net) or 0)
-    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return nil, 'Aucun véhicule sur l\'emplacement.' end
-    if #(GetEntityCoords(veh) - w.vehicle) > (w.radius or 3.5) then return nil, 'Le véhicule n\'est pas sur l\'emplacement prévu.' end
+    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return nil, 'Amenez le véhicule du client sur le point.' end
+    if #(GetEntityCoords(veh) - w.coords) > (w.radius or 3.5) + 1.0 then return nil, 'Le véhicule n\'est pas sur le point d\'atelier.' end
+    local c = P.Coords(src)
+    if not c or #(c - GetEntityCoords(veh)) > 6.0 then return nil, 'Restez avec le véhicule.' end
     return veh
 end
 
@@ -240,7 +237,7 @@ local function NearbyCustomers(src, veh, ownerCid)
         local id = tonumber(s)
         if id ~= src then
             local c = P.Coords(id)
-            if c and #(c - vc) <= Config.Distances.quote + 4.0 then
+            if c and #(c - vc) <= Config.Distances.workshopCustomer then
                 local isOwner = ownerCid ~= nil and P.Cid(id) == ownerCid
                 list[#list + 1] = { id = id, owner = isOwner, name = isOwner and P.Name(id) or nil }
             end
@@ -354,7 +351,7 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     if not cust or cust == src or not GetPlayerName(cust) or not P.GetPlayer(cust) then return { error = 'Choisissez le client.' } end
     local ref = veh and GetEntityCoords(veh) or P.Coords(src)
     local cc = P.Coords(cust)
-    if not cc or not ref or #(cc - ref) > Config.Distances.quote + 4.0 then return { error = 'Le client doit être à côté.' } end
+    if not cc or not ref or #(cc - ref) > (w and Config.Distances.workshopCustomer or Config.Distances.quote + 4.0) then return { error = 'Le client doit être à côté.' } end
     local row = plate and P.VehicleRow(plate) or nil
     local ok, mods = pcall(json.decode, row and row.mods or '{}')
     mods = ok and type(mods) == 'table' and mods or {}

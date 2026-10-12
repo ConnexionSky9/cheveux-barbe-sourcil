@@ -556,13 +556,11 @@
   function drawWorkshops() {
     const d = WP.data, ed = WP.edit;
     const cards = d.list.map((w) => {
-      const ready = w.coords && w.vehicle;
-      return `<div class="point ${ed && ed.id === w.id ? 'sel' : ''}"><div style="min-width:0"><b>${esc(w.label)}</b> ${ready ? '<span class="pill on">Actif</span>' : '<span class="pill off">Emplacement du véhicule à placer</span>'}
+      return `<div class="point ${ed && ed.id === w.id ? 'sel' : ''}"><div style="min-width:0"><b>${esc(w.label)}</b>
           <br><small class="faint">${(w.categories || []).map((c) => esc(d.categories[c] || c)).join(' · ')} · grade ${esc(gradeOf(w.minLevel))} · ${w.radius || d.defaults.radius} m${w.distance != null ? ` · à ${w.distance} m de vous` : ''}${w.quotes ? ` · ${w.quotes} devis en cours` : ''}</small>
-          <br><small class="faint mono">Mécanicien : ${esc(coordTxt(w.coords) || 'non placé')} · Véhicule : ${esc(coordTxt(w.vehicle) || 'non placé')}</small></div>
+          <br><small class="faint mono">${esc(coordTxt(w.coords) || 'non placé')}</small></div>
         <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn small" data-wp="mechanic" data-id="${esc(w.id)}" title="Là où vous vous tenez">🧍 Mécanicien ici</button>
-          <button class="btn small ${w.vehicle ? '' : 'primary'}" data-wp="vehicle" data-id="${esc(w.id)}" title="Votre position, ou celle du véhicule si vous êtes dedans">🚗 Véhicule ici</button>
+          <button class="btn small" data-wp="move" data-id="${esc(w.id)}" title="Votre position, ou celle du véhicule si vous êtes dedans">📍 Déplacer ici</button>
           ${w.coords ? `<button class="btn small" data-gps="${w.coords.x},${w.coords.y}">📍</button>` : ''}
           <button class="btn small" data-wp="edit" data-id="${esc(w.id)}">✎</button><button class="btn small danger" data-wp="del" data-id="${esc(w.id)}">✕</button></div></div>`;
     }).join('');
@@ -571,10 +569,10 @@
         <label class="field full"><span>Nom</span><input class="input" id="wpLabel" maxlength="40" value="${esc(e.label || '')}" placeholder="ex : Banc moteur, Peinture 1"></label>
         <div class="field full"><span>Rubriques proposées à ce point</span><div class="chips">${Object.entries(d.categories).map(([k, l]) => `<label class="extra" style="padding:.15rem .3rem"><input type="checkbox" class="check" data-wpc="${k}" ${(e.categories || []).includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div></div>
         <label class="field"><span>Grade minimum</span><select class="input" id="wpLevel">${[...d.grades].sort((a, b) => a.level - b.level).map((gr) => `<option value="${gr.level}" ${(e.minLevel || 1) === gr.level ? 'selected' : ''}>${esc(gr.name)} (niv. ${gr.level})</option>`).join('')}</select></label>
-        <label class="field"><span>Tolérance de l'emplacement (m)</span><input class="input" id="wpRadius" type="number" min="1.5" max="8" step="0.5" value="${e.radius || d.defaults.radius}"></label></div>
+        <label class="field"><span>Taille de la zone (rayon, m)</span><input class="input" id="wpRadius" type="number" min="1.5" max="8" step="0.5" value="${e.radius || d.defaults.radius}"></label></div>
       <div class="actions-row"><button class="btn primary" data-wp="save">${ed && ed.id ? 'Enregistrer' : '📍 Créer ici'}</button>${ed ? '<button class="btn" data-wp="cancel">Annuler</button>' : ''}</div>
-      <p class="faint" style="font-size:.76rem;margin-top:.6rem">${ed && ed.id ? 'Les positions se déplacent avec les boutons « Mécanicien ici » et « Véhicule ici ».' : '« Créer ici » place le point du mécanicien (touche E) là où vous vous tenez. Ensuite, garez le véhicule (ou placez-vous) au centre de l\'emplacement et cliquez « Véhicule ici ».'}</p></div>`;
-    body().innerHTML = `<div class="note">Posez autant de points que vous voulez (${d.max} maximum), n'importe où. Chaque point = l'endroit où se tient le mécanicien (touche <b>E</b>) + l'emplacement du véhicule (moins de 15 m). Un point n'est actif qu'une fois les deux placés. Changements appliqués tout de suite à tous les mécaniciens.</div>
+      <p class="faint" style="font-size:.76rem;margin-top:.6rem">${ed && ed.id ? 'Pour changer l\'endroit : « Déplacer ici » sur le point.' : '« Créer ici » place le point à votre position (ou à celle du véhicule si vous êtes au volant).'}</p></div>`;
+    body().innerHTML = `<div class="note">Posez autant de points que vous voulez (${d.max} maximum), n'importe où. Le mécanicien amène le véhicule du client sur le point, <b>au volant</b>, et appuie sur <b>E</b> : l'atelier s'ouvre. Seuls les mécaniciens voient les points. Changements appliqués tout de suite.</div>
       <div class="split"><div class="card"><h2>Points <span class="faint" style="font-size:.8rem">${d.list.length} / ${d.max}</span></h2>${cards || empty('Aucun point : créez le premier à votre position.')}</div>
         <div class="detail">${form}</div></div>`;
   }
@@ -583,10 +581,9 @@
     const a = b.dataset.wp, w = WP.data.list.find((x) => x.id === b.dataset.id);
     if (a === 'cancel') { WP.edit = null; return drawWorkshops(); }
     if (a === 'edit') { WP.edit = { ...w }; return drawWorkshops(); }
-    if (a === 'mechanic' || a === 'vehicle') {
-      if (!(await confirmBox(a === 'vehicle' ? 'Placer l\'emplacement du véhicule ?' : 'Placer le point du mécanicien ?',
-        a === 'vehicle' ? `<b>${esc(w.label)}</b> : centre de l'emplacement = votre position (ou celle du véhicule si vous êtes au volant).` : `<b>${esc(w.label)}</b> : la touche E se fera là où vous vous tenez.`, 'Placer'))) return;
-      await call('workshopPlace', { id: w.id, kind: a }, b);
+    if (a === 'move') {
+      if (!(await confirmBox('Déplacer le point ici ?', `<b>${esc(w.label)}</b> sera placé à votre position (ou à celle du véhicule si vous êtes au volant).`, 'Déplacer'))) return;
+      await call('workshopPlace', { id: w.id }, b);
       return PAGES.workshops(T.gen);
     }
     if (a === 'del') {
@@ -598,7 +595,7 @@
     if (a === 'save') {
       const data = { id: WP.edit && WP.edit.id, label: $('#wpLabel').value, minLevel: Number($('#wpLevel').value), radius: Number($('#wpRadius').value),
         categories: [...body().querySelectorAll('[data-wpc]')].filter((i) => i.checked).map((i) => i.dataset.wpc) };
-      if (!data.id && !(await confirmBox('Créer le point ici ?', `« <b>${esc(data.label)}</b> » : le point du mécanicien sera placé à votre position actuelle.`, 'Créer'))) return;
+      if (!data.id && !(await confirmBox('Créer le point ici ?', `« <b>${esc(data.label)}</b> » sera placé à votre position actuelle.`, 'Créer'))) return;
       const r = await call('workshopSave', data, b);
       if (r.ok) { WP.edit = null; return PAGES.workshops(T.gen); }
     }
