@@ -39,8 +39,11 @@ Déroulé : le mécanicien gare la voiture du client sur le cercle et appuie sur
 
 - **Caméra** : clic droit maintenu + glisser (hors du panneau) pour tourner autour du véhicule, molette pour zoomer, double-clic pour recentrer.
 - **Modifications** : toutes les pièces GTA du modèle (carrosserie, intérieur, portes, rampe lumineuse), palette complète (0-160, nacré),
-  couleurs d'intérieur et de tableau de bord, jantes (dont roues F1), pneus (flancs, pare-balles), fumée, néons par côté, xénon, vitres,
+  couleurs d'intérieur et de tableau de bord, jantes (dont roues F1), pneus (flancs), fumée, néons par côté, xénon, vitres,
   style de plaque, livrées (dont toit), éléments optionnels.
+- **Plus de pneus pare-balles** à l'atelier. **Couleur libre (RVB)** : peinture et fumée seulement. Néons : palette fixe
+  (`Config.Lights`, vérifiée par le serveur) ; xénon : 13 couleurs GTA. Les couleurs libres et effets **multicolores animés**
+  des néons, phares, plaques et peintures sont **réservés au staff** (admin_menu › Véhicules › Personnalisation).
 - **Plaque personnalisée** (catalogue, 5 000 $ par défaut) : 1 à 8 caractères, unique, seulement sur un véhicule avec carte grise.
   Le serveur change la plaque à l'installation (`elyzea_core:ChangePlate`) : carte grise, clés, coffre du véhicule (le contenu suit).
   Si la plaque est prise entre-temps, la ligne n'est pas posée et elle est remboursée.

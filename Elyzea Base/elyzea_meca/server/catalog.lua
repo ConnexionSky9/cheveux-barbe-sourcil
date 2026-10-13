@@ -44,6 +44,8 @@ local function Seed()
         if (tonumber(id) or 0) > 0 then n = n + 1 end
     end
     if n > 0 then print(('^2[MECA] Catalogue : %d article(s) ajouté(s).^0'):format(n)) end
+    -- Pneus pare-balles retirés de l'atelier : ancien nom corrigé (prix et activation conservés)
+    MySQL.update.await("UPDATE `meca_catalog` SET `name` = 'Pneus (flancs)' WHERE `code` = 'cosmetic_tyres' AND `name` = 'Pneus (flancs, pare-balles)'")
 end
 
 P.OnReady = P.OnReady or {}

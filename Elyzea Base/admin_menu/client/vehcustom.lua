@@ -54,7 +54,7 @@ local CATS = {
     { key = 'wheels', label = 'Jantes', group = 'wheels', kind = 'wheels' },
     { key = 'wheelcolor', label = 'Couleur des jantes', group = 'wheels', kind = 'wheelcolor' },
     { key = 'smoke', label = 'Fumée des pneus', group = 'wheels', kind = 'smoke' },
-    { key = 'tyres', label = 'Pneus (flancs, pare-balles)', group = 'wheels', kind = 'tyres' },
+    { key = 'tyres', label = 'Pneus (flancs)', group = 'wheels', kind = 'tyres' },
     -- Peinture
     { key = 'paint1', label = 'Peinture principale', group = 'paint', kind = 'paint' },
     { key = 'paint2', label = 'Peinture secondaire', group = 'paint', kind = 'paint' },
@@ -170,6 +170,7 @@ local function current(veh, c)
     elseif k == 'toggle' then return IsToggleModOn(veh, c.mod) and 1 or 0
     elseif k == 'wheels' then return ('%d:%d'):format(GetVehicleWheelType(veh), GetVehicleMod(veh, 23))
     elseif k == 'paint' then
+        if fxOf(veh)[c.key] then return 'fx:rainbow' end
         if c.key == 'paint1' and GetIsVehiclePrimaryColourCustom(veh) then
             local r, g, b = GetVehicleCustomPrimaryColour(veh)
             return ('rgb:%d,%d,%d:%d'):format(r, g, b, (GetVehicleModColor_1(veh)))
@@ -198,7 +199,7 @@ local function current(veh, c)
     elseif k == 'intcolor' then return GetVehicleInteriorColor(veh)
     elseif k == 'dashcolor' then return GetVehicleDashboardColor(veh)
     elseif k == 'roofliv' then return GetVehicleRoofLivery(veh)
-    elseif k == 'tyres' then return (GetVehicleModVariation(veh, 23) and 1 or 0) + (GetVehicleTyresCanBurst(veh) == false and 2 or 0)
+    elseif k == 'tyres' then return GetVehicleModVariation(veh, 23) and 1 or 0
     elseif k == 'extras' then return nil
     elseif k == 'tint' then return GetVehicleWindowTint(veh)
     elseif k == 'plate' then return GetVehicleNumberPlateTextIndex(veh)
@@ -222,6 +223,10 @@ local function apply(veh, c, v)
         SetVehicleMod(veh, 23, tonumber(i), false)
         if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, tonumber(i), false) end
     elseif k == 'paint' then
+        -- Multicolore animé : état du véhicule posé par le serveur, animé chez tous les joueurs
+        local fx = tostring(v):match('^fx:(%w+)$')
+        setFx(veh, c.key, fx ~= nil)
+        if fx then return end
         local r, g, b, finish = parseRgb(v)
         local pearl, wheel = GetVehicleExtraColours(veh)
         if r then
@@ -261,7 +266,6 @@ local function apply(veh, c, v)
         local n = tonumber(v) or 0
         SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), n % 2 == 1)
         if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), n % 2 == 1) end
-        SetVehicleTyresCanBurst(veh, n < 2)
     elseif k == 'extras' then
         local id = tonumber(v)
         if id and DoesExtraExist(veh, id) then SetVehicleExtra(veh, id, IsVehicleExtraTurnedOn(veh, id)) end
@@ -307,10 +311,11 @@ local function options(veh, c, wheelType)
         SetVehicleMod(veh, 23, curM, false)
         return out, t
     elseif k == 'paint' or k == 'pearl' or k == 'wheelcolor' or k == 'intcolor' or k == 'dashcolor' then
+        if k == 'paint' then out[#out + 1] = { value = 'fx:rainbow', label = '🌈 Multicolore animé' } end
         for _, x in ipairs(COLORS) do out[#out + 1] = { value = x[1], label = ('%s · %s'):format(x[2], FIN[x[3]] or '') } end
     elseif k == 'platefx' then out = { { value = 0, label = 'Fixe' }, { value = 1, label = '🌈 Animée multicolore' } }
     elseif k == 'roofliv' then for i = 0, GetVehicleRoofLiveryCount(veh) - 1 do out[#out + 1] = { value = i, label = ('Livrée de toit n°%d'):format(i + 1) } end
-    elseif k == 'tyres' then out = { { value = 0, label = 'Pneus d\'origine' }, { value = 1, label = 'Pneus personnalisés' }, { value = 2, label = 'Pare-balles' }, { value = 3, label = 'Personnalisés + pare-balles' } }
+    elseif k == 'tyres' then out = { { value = 0, label = 'Pneus d\'origine' }, { value = 1, label = 'Pneus personnalisés' } }
     elseif k == 'extras' then
         for i = 0, 20 do
             if DoesExtraExist(veh, i) then out[#out + 1] = { value = i, label = ('Élément n°%d : %s'):format(i, IsVehicleExtraTurnedOn(veh, i) and 'présent (retirer)' or 'absent (ajouter)') } end
@@ -424,7 +429,7 @@ end)
 
 -- ---------------------------------------------------------
 --  Effets animés visibles par tous (état « elyFx » posé par le serveur)
---  Néons et xénon : arc-en-ciel RVB. Plaque : GTA ne permet pas une couleur libre
+--  Néons, xénon, peinture principale et secondaire : arc-en-ciel RVB. Plaque : GTA ne permet pas une couleur libre
 --  pour l'écriture des plaques ; l'animation passe par les styles de plaque du jeu.
 -- ---------------------------------------------------------
 local PLATE_CYCLE = { 0, 2, 1, 5, 3, 4 }
@@ -454,6 +459,8 @@ CreateThread(function()
                 local veh, fx = e.veh, e.fx
                 if DoesEntityExist(veh) then
                     if fx.neon then SetVehicleNeonLightsColour(veh, r, g, b) end
+                    if fx.paint1 then SetVehicleCustomPrimaryColour(veh, r, g, b) end
+                    if fx.paint2 then local r2, g2, b2 = hue(now + 3000) SetVehicleCustomSecondaryColour(veh, r2, g2, b2) end
                     if fx.xenon then
                         if not IsToggleModOn(veh, 22) then ToggleVehicleMod(veh, 22, true) end
                         SetVehicleXenonLightsCustomColor(veh, r, g, b)

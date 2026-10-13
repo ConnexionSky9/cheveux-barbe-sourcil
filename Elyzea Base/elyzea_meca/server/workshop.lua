@@ -41,6 +41,12 @@ local function RGB(t)
     return { r, g, b }
 end
 
+-- Néons : uniquement les couleurs de la palette de l'atelier (Config.Lights)
+local function IsLight(c)
+    for _, l in ipairs(Config.Lights) do if l[2] == c[1] and l[3] == c[2] and l[4] == c[3] then return true end end
+    return false
+end
+
 -- Spécification esthétique envoyée par le client → propriétés elyzea_core (validées ici)
 -- Renvoie patch, clé d'unicité
 local function CosmeticPatch(group, s)
@@ -81,7 +87,7 @@ local function CosmeticPatch(group, s)
         return { [group == 'intcolor' and 'interiorColor' or 'dashboardColor'] = v }, group
     elseif group == 'tyres' and t == 'tyres' then
         local ct = s.custom == true
-        return { modCustomTiresF = ct, modCustomTiresR = ct, bulletProofTyres = s.bp == true }, 'tyres'
+        return { modCustomTiresF = ct, modCustomTiresR = ct }, 'tyres'   -- pneus pare-balles retirés de l'atelier
     elseif group == 'extras' and t == 'extra' then
         local id = N(s.id, 0, 20) if not id then return nil end
         return { extras = { [tostring(id)] = s.on == true and 0 or 1 } }, 'extra' .. id
@@ -102,6 +108,7 @@ local function CosmeticPatch(group, s)
         local on = s.on == true
         local c = on and RGB(s.rgb) or { 255, 255, 255 }
         if not c then return nil end
+        if on and not IsLight(c) then return nil end   -- couleur libre / multicolore : staff seulement
         local sides = tostring(s.sides or '1111')
         if not sides:match('^[01][01][01][01]$') then sides = '1111' end
         local en = {}
@@ -109,10 +116,7 @@ local function CosmeticPatch(group, s)
         return { neonEnabled = en, neonColor = c }, 'neon'
     elseif group == 'xenon' and t == 'xenon' then
         local on = s.on == true
-        if on and s.rgb ~= nil then
-            local c = RGB(s.rgb) if not c then return nil end
-            return { modXenon = true, xenonColor = -1, customXenon = c }, 'xenon'
-        end
+        if on and s.rgb ~= nil then return nil end     -- couleur libre des phares : staff seulement (admin_menu)
         local v = on and (N(s.v, -1, 12) or -1) or -1
         return { modXenon = on, xenonColor = v }, 'xenon'
     end

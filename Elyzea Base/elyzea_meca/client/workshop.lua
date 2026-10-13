@@ -60,12 +60,7 @@ local COLORS = {
     { 153, 'Brun désert mat', 3 }, { 154, 'Beige désert mat', 3 }, { 155, 'Vert feuillage mat', 3 }, { 156, 'Alliage par défaut', 1 }, { 157, 'Bleu Epsilon', 1 },
     { 158, 'Or pur', 4 }, { 159, 'Or brossé', 4 }, { 160, 'Or secret', 4 },
 }
-local LIGHTS = {
-    { 'Blanc', 255, 255, 255 }, { 'Bleu', 2, 21, 255 }, { 'Bleu électrique', 3, 83, 255 }, { 'Vert menthe', 0, 255, 140 }, { 'Vert lime', 94, 255, 1 },
-    { 'Jaune', 255, 255, 0 }, { 'Or', 255, 150, 5 }, { 'Orange', 255, 62, 0 }, { 'Rouge', 255, 1, 1 }, { 'Rose', 255, 50, 100 }, { 'Rose vif', 255, 5, 190 }, { 'Violet', 35, 1, 255 },
-    { 'Lumière noire', 15, 3, 255 }, { 'Cyan', 0, 255, 255 }, { 'Turquoise', 0, 200, 150 }, { 'Magenta', 255, 0, 255 }, { 'Corail', 255, 110, 70 }, { 'Ambre', 255, 191, 0 },
-    { 'Bleu ciel', 120, 200, 255 }, { 'Lavande', 180, 140, 255 }, { 'Noir (fumée)', 1, 1, 1 },
-}
+local LIGHTS = Config.Lights   -- palette fixe (config.lua)
 local NEON_LAYOUT = { { '1111', 'Tout le tour' }, { '0011', 'Avant et arrière' }, { '1100', 'Côtés' }, { '0010', 'Avant' }, { '0001', 'Arrière' } }
 local XENON = { 'Blanc', 'Bleu', 'Bleu électrique', 'Vert menthe', 'Vert lime', 'Jaune', 'Or', 'Orange', 'Rouge', 'Rose', 'Rose vif', 'Violet', 'Lumière noire' }
 local TINTS = { { 0, 'Aucune' }, { 4, 'Origine' }, { 3, 'Fumé clair' }, { 2, 'Fumé foncé' }, { 5, 'Limousine' }, { 1, 'Noir pur' }, { 6, 'Vert' } }
@@ -136,10 +131,9 @@ local function Options(veh, group, sub)
         local cur = ({ pearl = pe, wheelcolor = wc, intcolor = GetVehicleInteriorColor(veh), dashcolor = GetVehicleDashboardColor(veh) })[group]
         return out, cur
     elseif group == 'tyres' then
-        local ct, bp = GetVehicleModVariation(veh, 23), GetVehicleTyresCanBurst(veh) == false
-        local cur = (ct and 1 or 0) + (bp and 2 or 0)
-        for _, o in ipairs({ { 0, 'Pneus d\'origine' }, { 1, 'Pneus personnalisés (flancs)' }, { 2, 'Pneus pare-balles' }, { 3, 'Personnalisés + pare-balles' } }) do
-            out[#out + 1] = { value = o[1], label = o[2], spec = { t = 'tyres', custom = o[1] % 2 == 1, bp = o[1] >= 2 } }
+        local cur = GetVehicleModVariation(veh, 23) and 1 or 0
+        for _, o in ipairs({ { 0, 'Pneus d\'origine' }, { 1, 'Pneus personnalisés (flancs)' } }) do
+            out[#out + 1] = { value = o[1], label = o[2], spec = { t = 'tyres', custom = o[1] == 1 } }
         end
         return out, cur
     elseif group == 'extras' then
@@ -222,7 +216,6 @@ local function Preview(veh, spec)
     elseif t == 'tyres' then
         SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), spec.custom == true)
         if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), spec.custom == true) end
-        SetVehicleTyresCanBurst(veh, spec.bp ~= true)
     elseif t == 'extra' then SetVehicleExtra(veh, spec.id, spec.on ~= true)
     elseif t == 'roofliv' then SetVehicleRoofLivery(veh, spec.v)
     elseif t == 'platetext' then SetVehicleNumberPlateText(veh, spec.v)

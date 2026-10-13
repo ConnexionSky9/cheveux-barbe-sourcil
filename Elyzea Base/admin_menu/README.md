@@ -600,7 +600,8 @@ Monte dans un véhicule — le tien ou **celui d'un joueur**, au volant ou passa
 **gratuit et appliqué tout de suite**. Réservé aux SuperAdmins et Fondateurs (vérifié par le serveur, même si la permission
 `vehicle_custom` est donnée à un autre grade).
 - Performance, carrosserie (toutes les pièces GTA, portes, rampe lumineuse, éléments optionnels), jantes (dont roues F1),
-  pneus (flancs, pare-balles), fumée, palette GTA complète (0-160) ou **couleur libre**, nacrage, livrées (dont toit),
+  pneus (flancs ; plus de pneus pare-balles), fumée, palette GTA complète (0-160), **couleur libre** ou 🌈 **multicolore animé**
+  pour la peinture principale et la secondaire (décalées), nacrage, livrées (dont toit),
   vitres, style de plaque, couleurs d'intérieur et de tableau de bord.
 - **Néons** : couleurs, couleur libre ou 🌈 **arc-en-ciel animé**. **Xénon** : 13 couleurs GTA, couleur libre ou
   🌈 **multicolore animé**. **Plaque animée multicolore** : l'écriture change de style en boucle.

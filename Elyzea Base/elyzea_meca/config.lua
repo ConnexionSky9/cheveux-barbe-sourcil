@@ -103,7 +103,7 @@ Config.DefaultCatalog = {
     { code = 'cosmetic_intcolor', name = 'Couleur de l\'intérieur',   category = 'interior', kind = 'cosmetic', mod = 'intcolor', price = 400 },
     { code = 'cosmetic_dashcolor', name = 'Couleur du tableau de bord', category = 'interior', kind = 'cosmetic', mod = 'dashcolor', price = 300 },
     { code = 'cosmetic_roofliv',  name = 'Livrée de toit',           category = 'paint',    kind = 'cosmetic', mod = 'roofliv', price = 900 },
-    { code = 'cosmetic_tyres',    name = 'Pneus (flancs, pare-balles)', category = 'wheels', kind = 'cosmetic', mod = 'tyres', price = 2500 },
+    { code = 'cosmetic_tyres',    name = 'Pneus (flancs)', category = 'wheels', kind = 'cosmetic', mod = 'tyres', price = 2500 },
     { code = 'cosmetic_extras',   name = 'Éléments optionnels',      category = 'cosmetic', kind = 'cosmetic', mod = 'extras', price = 250 },
     { code = 'cosmetic_platetext', name = 'Plaque personnalisée',    category = 'paint',    kind = 'cosmetic', mod = 'platetext', price = 5000,
       description = 'Texte de plaque au choix (1 à 8 caractères), réservé aux véhicules avec carte grise.' },
@@ -165,4 +165,13 @@ Config.DefaultGrades = {
                 'tablet', 'vehicles_view', 'stats_view', 'garage', 'direction', 'recruit', 'employees_view', 'promote',
                 'demote', 'history_view' } },
     { name = 'Directeur',           level = 5, salary = 1100, perms = 'all' },
+}
+
+-- Couleurs de néons / fumée proposées par l'atelier (les néons n'acceptent QUE ces couleurs :
+-- les couleurs libres et les effets multicolores des néons, phares et plaques sont réservés au staff, admin_menu)
+Config.Lights = {
+    { 'Blanc', 255, 255, 255 }, { 'Bleu', 2, 21, 255 }, { 'Bleu électrique', 3, 83, 255 }, { 'Vert menthe', 0, 255, 140 }, { 'Vert lime', 94, 255, 1 },
+    { 'Jaune', 255, 255, 0 }, { 'Or', 255, 150, 5 }, { 'Orange', 255, 62, 0 }, { 'Rouge', 255, 1, 1 }, { 'Rose', 255, 50, 100 }, { 'Rose vif', 255, 5, 190 }, { 'Violet', 35, 1, 255 },
+    { 'Lumière noire', 15, 3, 255 }, { 'Cyan', 0, 255, 255 }, { 'Turquoise', 0, 200, 150 }, { 'Magenta', 255, 0, 255 }, { 'Corail', 255, 110, 70 }, { 'Ambre', 255, 191, 0 },
+    { 'Bleu ciel', 120, 200, 255 }, { 'Lavande', 180, 140, 255 }, { 'Noir (fumée)', 1, 1, 1 },
 }

@@ -1030,7 +1030,7 @@ local function cleanPlate(p) return (tostring(p or ''):gsub('^%s+', ''):gsub('%s
 
 -- Effets animés (néons arc-en-ciel, xénon arc-en-ciel, plaque animée) : état du véhicule visible par tous,
 -- gardés sur la carte grise (mods._elyFx) et remis automatiquement quand le véhicule ressort du garage.
-local FX_KINDS = { neon = true, xenon = true, plate = true }
+local FX_KINDS = { neon = true, xenon = true, plate = true, paint1 = true, paint2 = true }
 local FxByPlate = {}   -- [PLAQUE] = { neon = 'rainbow', ... }
 CreateThread(function()
     Wait(3000)

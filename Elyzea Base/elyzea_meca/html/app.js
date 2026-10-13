@@ -292,7 +292,8 @@ function wsRender() {
 }
 
 /* ---------- Couleur personnalisée (RVB) : peinture, néons, fumée, xénon ---------- */
-const RGB_GROUPS = { paint: true, neon: true, smoke: true, xenon: true };
+// Couleur libre : peinture et fumée. Néons et phares : palette fixe (couleur libre et multicolore réservés au staff)
+const RGB_GROUPS = { paint: true, smoke: true };
 const RGB_FINISH = [[0, 'Normal'], [1, 'Métallisé'], [2, 'Nacré'], [3, 'Mat'], [4, 'Métal'], [5, 'Chrome']];
 const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16) || 0);
 function rgbCard(it) {
