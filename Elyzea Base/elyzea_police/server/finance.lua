@@ -34,6 +34,7 @@ P.Actions.finance = { perm = 'finance', fn = function(src)
     for _, g in ipairs(P.SortedGrades()) do
         grades[#grades + 1] = { id = g.id, name = g.name, level = g.level, rate = tonumber(g.salary) or 0, members = members[g.id] or 0, editable = CanEditRate(src, g) }
     end
+    for _, gr in ipairs(grades) do local v = P.CommissionView(src, P.grades[gr.id]) gr.commission, gr.commissionEditable = v.commission, v.commissionEditable end
     local list, totalDue = {}, 0
     for cid, e in pairs(P.employees) do
         local g = P.grades[e.grade_id]

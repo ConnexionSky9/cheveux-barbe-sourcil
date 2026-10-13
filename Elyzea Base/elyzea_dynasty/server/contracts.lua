@@ -177,6 +177,7 @@ local function Assign(o, pr)
         payerName = o.clientName, employee = o.agentName, status = 'paid' })
     P.Tx({ txid = o.uid, type = 'in', category = o.kind, amount = o.price, reason = ('%s · %s%s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name,
         o.kind == 'rent' and (' · %d j'):format(o.days) or ''), actorCid = o.agentCid, actorName = o.agentName, targetCid = o.clientCid, targetName = o.clientName, ref = ('#%d'):format(pr.id) })
+    P.Commission(o.agentCid, o.price, ('%s %s · %s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name, o.uid), o.uid)
     -- 4. Bien attribué, accès configurés, visites closes
     pr.contractId = cid
     pr.status = o.kind == 'sale' and 'sold' or 'rented'

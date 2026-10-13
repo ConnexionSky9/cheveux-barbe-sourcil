@@ -144,6 +144,7 @@ P.Actions.fine = { perm = 'fine', duty = true, fn = function(src, d)
     if paidWith then
         MySQL.update.await('UPDATE `police_fines` SET `paid` = 1 WHERE `id` = ?', { id })
         ToSociety(amount)
+        if Config.Fines.toSociety then P.Commission(P.Cid(src), amount, ('Amende %s'):format(name), tostring(id)) end
         P.Notify(t, ('Amende de %d $ (%s) prélevée %s. Motif : %s.'):format(amount, o.label, paidWith == 'bank' and 'sur votre compte' or 'en liquide', reason), 'inform')
     else
         P.Notify(t, ('Amende de %d $ (%s) : fonds insuffisants, elle reste due. Payez-la avec /amendes.'):format(amount, o.label), 'error')
@@ -168,12 +169,13 @@ RegisterNetEvent('police:server:payFine', function(id)
     if paying[src] then return end
     paying[src] = true
     local cid = P.Cid(src)
-    local f = cid and MySQL.single.await('SELECT `id`, `amount` FROM `police_fines` WHERE `id` = ? AND `citizenid` = ? AND `paid` = 0', { tonumber(id) or 0, cid })
+    local f = cid and MySQL.single.await('SELECT `id`, `amount`, `officer_cid`, `name` FROM `police_fines` WHERE `id` = ? AND `citizenid` = ? AND `paid` = 0', { tonumber(id) or 0, cid })
     if f then
         local n = MySQL.update.await('UPDATE `police_fines` SET `paid` = 1 WHERE `id` = ? AND `paid` = 0', { f.id })
         if n and n > 0 then
             if Collect(src, f.amount) then
                 ToSociety(f.amount)
+                if Config.Fines.toSociety and f.officer_cid then P.Commission(f.officer_cid, f.amount, ('Amende %s'):format(f.name or ''), tostring(f.id)) end
                 P.Notify(src, ('Amende payée : %d $.'):format(f.amount), 'success')
             else
                 MySQL.update.await('UPDATE `police_fines` SET `paid` = 0 WHERE `id` = ?', { f.id })

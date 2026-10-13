@@ -121,6 +121,7 @@ P.Actions.billSend = { perm = 'billing', duty = true, fn = function(src, d)
         end
         P.Notify(t, ('Facture médicale %s : %d $ payés (%s).'):format(uid, c.total, method == 'cash' and 'liquide' or 'banque'), 'inform')
         P.Log(src, 'Facture médicale', ('%s · %d $ · %s'):format(P.Name(t), c.total, uid))
+        P.Commission(P.Cid(src), c.total, ('Facture %s · %s'):format(uid, P.Name(t)), uid)
         return { ok = true, uid = uid, message = ('Facture %s payée : %d $.'):format(uid, c.total) }
     end)
     billing[cid] = nil

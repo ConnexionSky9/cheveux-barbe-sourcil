@@ -18,6 +18,7 @@ server_scripts {
     'server/main.lua',
     'server/service.lua',
     'server/finance.lua',
+    'server/commission.lua',
     'server/properties.lua',
     'server/access.lua',
     'server/contracts.lua',

@@ -20,7 +20,7 @@
   const COS = { body: 'Carrosserie', paint: 'Peinture', pearl: 'Nacré', livery: 'Livrée', tint: 'Vitres teintées', plate: 'Plaque', wheels: 'Jantes',
     wheelcolor: 'Couleur des jantes', smoke: 'Fumée des pneus', neon: 'Néons', xenon: 'Xénon', interior: 'Intérieur',
     intcolor: 'Couleur intérieur', dashcolor: 'Couleur tableau de bord', tyres: 'Pneus', extras: 'Éléments optionnels', roofliv: 'Livrée de toit', platetext: 'Plaque personnalisée' };
-  const CAT = { invoice: 'Factures clients', refund: 'Remboursements', salary: 'Salaires', other: 'Autre' };
+  const CAT = { invoice: 'Factures clients', refund: 'Remboursements', salary: 'Salaires', commission: 'Commissions', other: 'Autre' };
   const METHOD = { bank: 'banque', cash: 'liquide' };
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
   const lineTotal = (l) => Number(l.total != null ? l.total : (Number(l.price) || 0) * (Number(l.qty) || 1));
@@ -656,13 +656,16 @@
   function drawFinance() {
     const d = FS.data, sm = (k) => (d.sums[k] || { total: 0, n: 0 });
     const income = sm('in:invoice').total;
-    const expense = sm('out:salary').total + sm('out:refund').total;
+    const expense = sm('out:salary').total + sm('out:refund').total + sm('out:commission').total;
     const rows = d.employees.map((e) => `<tr><td><b>${esc(e.name)}</b><br><small class="mono faint">${esc(e.matricule)}</small></td><td>${esc(e.grade)}</td>
       <td>${e.duty ? '<span class="pill on">En service</span>' : '<span class="pill off">Hors service</span>'}</td><td class="mono nw">${dur(e.seconds)}</td><td class="mono nw">${dur(e.total)}</td>
       <td class="nw"><b class="mono">${money(e.due)}</b></td>
       <td style="text-align:right">${d.canPay ? `<button class="btn small ${e.due > 0 ? 'primary' : ''}" data-fpay="${esc(e.cid)}" ${e.due > 0 ? '' : 'disabled'}>Payer</button>` : ''}</td></tr>`).join('');
+    // Commission (%) du grade sur ce que l'employé fait encaisser
+    const comBox = (gr) => `<div class="rate" title="Commission">${gr.commissionEditable ? `<input class="input" type="number" min="0" max="50" step="1" data-com="${gr.id}" value="${gr.commission || 0}"><span class="faint">%</span><button class="btn small" data-fcom="${gr.id}">OK</button>`
+      : `<b class="mono">${gr.commission || 0} %</b>`}</div>`;
     const grades = [...d.grades].sort((a, b) => b.level - a.level).map((gr) => `<div class="list-row"><div class="main"><b>${esc(gr.name)}</b><small>Niv. ${gr.level} · ${gr.members} empl.</small></div>
-      ${gr.editable ? `<div class="rate"><input class="input" type="number" min="0" step="10" data-rate="${gr.id}" value="${gr.rate}"><span class="faint">$/h</span><button class="btn small" data-frate="${gr.id}">OK</button></div>` : `<b class="mono">${money(gr.rate)}/h</b>`}</div>`).join('');
+      ${gr.editable ? `<div class="rate"><input class="input" type="number" min="0" step="10" data-rate="${gr.id}" value="${gr.rate}"><span class="faint">$/h</span><button class="btn small" data-frate="${gr.id}">OK</button></div>` : `<b class="mono">${money(gr.rate)}/h</b>`}${comBox(gr)}</div>`).join('');
     const sp = d.split || {};
     body().innerHTML = `<div class="stats">
         <div class="stat green"><b>${money(d.balance)}</b><span>Compte de l'entreprise</span></div>
@@ -674,11 +677,11 @@
           ${d.employees.length ? `<table class="tbl"><tr><th>Employé</th><th>Grade</th><th>Service</th><th>Non payé</th><th>Total</th><th>À payer</th><th></th></tr>${rows}</table>` : empty('Aucun employé.')}
           <p class="faint" style="font-size:.76rem;margin:.6rem .4rem">Chaque période est comptée au taux et au grade qu'elle avait : un changement de taux ou une promotion n'est jamais rétroactif. « Payer » recalcule le montant, vérifie le solde, débite le compte de l'entreprise puis crédite la banque de l'employé (même hors ligne) ; seul le temps payé est retiré.</p></div>
         <div class="cols even"><div class="card"><h2>Détail sur 7 jours</h2><div class="kv"><span>Factures clients</span><b class="mono">+${money(sm('in:invoice').total)} <span class="faint">(${sm('in:invoice').n})</span></b>
-            <span>Salaires</span><b class="mono">−${money(sm('out:salary').total)} <span class="faint">(${sm('out:salary').n})</span></b><span>Remboursements</span><b class="mono">−${money(sm('out:refund').total)} <span class="faint">(${sm('out:refund').n})</span></b>
+            <span>Salaires</span><b class="mono">−${money(sm('out:salary').total)} <span class="faint">(${sm('out:salary').n})</span></b><span>Commissions</span><b class="mono">−${money(sm('out:commission').total)} <span class="faint">(${sm('out:commission').n})</span></b><span>Remboursements</span><b class="mono">−${money(sm('out:refund').total)} <span class="faint">(${sm('out:refund').n})</span></b>
             <span>Devis en attente</span><b class="mono">${d.pendingQuotes.n} · ${money(d.pendingQuotes.total)}</b></div></div>
           <div class="card"><h2>Recettes par type (7 jours)</h2><div class="kv">${Object.entries(KIND).map(([k, l]) => `<span>${l}</span><b class="mono">${money(sp[k] || 0)}</b>`).join('')}</div></div></div>
       </div><div class="detail">
-        <div class="card"><h2>Taux horaire par grade</h2>${grades}<p class="faint" style="font-size:.74rem;margin-top:.5rem">Appliqué à partir de maintenant.</p></div>
+        <div class="card"><h2>Taux horaire et commission</h2>${grades}<p class="faint" style="font-size:.74rem;margin-top:.5rem">$/h : salaire par heure de service. % : commission sur le montant final des devis installés, versée par l'entreprise. Appliqué à partir de maintenant.</p></div>
         <div class="card"><h2>Historique des taux</h2>${FS.rates.slice(0, 15).map((r) => `<div class="list-row"><div class="main"><b>${esc(r.grade_name)} · ${money(r.rate)}/h</b><small>${esc(r.actor_name || '')} · ${fmtTime(r.t)}</small></div></div>`).join('') || empty('Aucun changement.')}</div>
         <div class="card"><h2>Compte société : derniers mouvements</h2>${d.logs.map((l) => `<div class="list-row"><div class="main"><b style="font-weight:500">${esc(l.reason || '—')}</b><small>${l.t ? fmtTime(l.t) : ''}</small></div>
           <b class="mono" style="color:${l.amount < 0 ? '#fca5a5' : 'var(--green)'}">${l.amount < 0 ? '−' : '+'}${money(Math.abs(l.amount))}</b></div>`).join('') || empty('Aucun mouvement.')}</div></div></div>`;
@@ -699,6 +702,15 @@
       if (!ok) return;
       await call('financePayAll', {}, b);
       return PAGES.finance(T.gen);
+    }
+    if (b.dataset.fcom) {
+      const input = body().querySelector(`[data-com="${b.dataset.fcom}"]`);
+      const gr = FS.data.grades.find((x) => String(x.id) === b.dataset.fcom);
+      const pct = Number(input && input.value);
+      if (!(await confirmBox('Changer la commission ?', `<b>${esc(gr ? gr.name : '')}</b> : ${gr ? gr.commission || 0 : 0} % → <b>${pct} %</b> sur le montant final des devis installés.<br>Versée depuis le compte de l'entreprise à chaque encaissement, à partir de maintenant.`, 'Appliquer'))) return;
+      const r = await call('financeCommission', { id: Number(b.dataset.fcom), pct }, b);
+      if (r.ok) return PAGES.finance(T.gen);
+      return;
     }
     if (b.dataset.frate) {
       const input = body().querySelector(`[data-rate="${b.dataset.frate}"]`);
@@ -960,7 +972,7 @@
       return;
     }
     // Finance
-    if ((b = e.target.closest('[data-fpay],[data-frate],[data-fpayall]'))) return financeAction(b);
+    if ((b = e.target.closest('[data-fpay],[data-frate],[data-fcom],[data-fpayall]'))) return financeAction(b);
     if ((b = e.target.closest('[data-ts]'))) { TS.q = ($('#tq') || {}).value || ''; return go('transactions'); }
   });
 

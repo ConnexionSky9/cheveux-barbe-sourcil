@@ -446,6 +446,8 @@ local function Finalize(q, results, actorSrc)
         MySQL.insert.await([[INSERT INTO `meca_invoices` (`uid`, `quote_uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `txid`, `note`)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)]], { invoiceUid, q.uid, q.customerCid, q.customerName, q.vehicleId, q.plate, q.mechanicName,
             json.encode(done), amount, q.method, q.txid, refundNote })
+        -- Commission du mécanicien sur le montant final (lignes réellement posées)
+        P.Commission(q.mechanicCid, amount, ('Devis %s · %s'):format(q.uid, q.customerName or ''), invoiceUid)
     end
     Save(q, ', `invoice_uid` = ?, `note` = ?', { invoiceUid, refundNote })
     -- Persistance : modifications sur la carte grise, CarPlay lié au véhicule, historique

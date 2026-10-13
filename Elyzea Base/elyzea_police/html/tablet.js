@@ -550,9 +550,12 @@
         <td style="text-align:right"><button class="btn small ${e.due > 0 && !short ? 'primary' : ''}" data-fpay="${esc(e.cid)}" ${e.due > 0 && !short ? '' : 'disabled'}
           title="${e.due <= 0 ? 'Rien à payer' : short ? 'Fonds insuffisants' : 'Verser sur son compte en banque'}">Payer</button></td></tr>`;
     }).join('');
+    // Commission (%) du grade sur ce que l'employé fait encaisser
+    const comBox = (gr) => `<div class="rate" title="Commission">${gr.commissionEditable ? `<input class="input" type="number" min="0" max="50" step="1" data-com="${gr.id}" value="${gr.commission || 0}"><span class="faint">%</span><button class="btn small" data-fcom="${gr.id}">OK</button>`
+      : `<b class="mono">${gr.commission || 0} %</b>`}</div>`;
     const grades = [...d.grades].sort((a, b) => b.level - a.level).map((gr) => `<div class="list-row"><div class="main"><b>${esc(gr.name)}</b><small class="nw">Niv. ${gr.level} · ${gr.members} empl.</small></div>
       ${gr.editable ? `<div class="rate"><input class="input" type="number" min="0" step="10" data-rate="${gr.id}" value="${gr.rate}"><span class="faint">$/h</span><button class="btn small" data-frate="${gr.id}">OK</button></div>`
-        : `<b class="mono">${money(gr.rate)}/h</b>`}</div>`).join('');
+        : `<b class="mono">${money(gr.rate)}/h</b>`}${comBox(gr)}</div>`).join('');
     const logs = d.logs.length ? d.logs.map((l) => `<div class="list-row"><div class="main"><b style="font-weight:500">${esc(l.reason || '—')}</b><small>${l.t ? fmtTime(l.t) : ''}</small></div>
       <b class="mono" style="color:${l.amount < 0 ? '#fca5a5' : 'var(--green)'}">${l.amount < 0 ? '−' : '+'}${money(Math.abs(l.amount))}</b></div>`).join('') : '<div class="empty">Aucun mouvement.</div>';
     body().innerHTML = `<div class="stats">
@@ -563,7 +566,7 @@
       <div class="split"><div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .4rem 0">Employés</h2>
         ${d.employees.length ? `<table class="tbl"><tr><th>Employé</th><th>Grade</th><th>Service</th><th>Temps non payé</th><th>À payer</th><th></th></tr>${rows}</table>` : '<div class="empty">Aucun employé.</div>'}
         <p class="faint" style="font-size:.76rem;margin:.6rem .4rem">À payer = temps de service × salaire horaire du grade actuel. « Payer » verse la somme depuis l'argent de l'entreprise sur le compte en banque de l'employé et remet son temps à zéro.</p></div>
-        <div class="detail"><div class="card"><h2>Salaire par grade <span class="faint" style="font-size:.8rem">$ par heure de service</span></h2>${grades}</div>
+        <div class="detail"><div class="card"><h2>Salaire et commission par grade <span class="faint" style="font-size:.8rem">$/h de service · % sur les amendes payées</span></h2>${grades}</div>
           <div class="card"><h2>Mouvements récents</h2>${logs}</div></div></div>`;
   }
   async function financeAction(b) {
@@ -576,6 +579,15 @@
       if (!ok) return;
       const r = await call('financePay', { cid: e.cid }, b);
       if (r.ok || r.error) return PAGES.finance(T.gen);
+      return;
+    }
+    if (b.dataset.fcom) {
+      const input = body().querySelector(`[data-com="${b.dataset.fcom}"]`);
+      const gr = FS.data.grades.find((x) => String(x.id) === b.dataset.fcom);
+      const pct = Number(input && input.value);
+      if (!(await confirmBox('Changer la commission ?', `<b>${esc(gr ? gr.name : '')}</b> : ${gr ? gr.commission || 0 : 0} % → <b>${pct} %</b> sur les amendes payées.<br>Versée depuis le compte de l'entreprise à chaque encaissement, à partir de maintenant.`, 'Appliquer'))) return;
+      const r = await call('financeCommission', { id: Number(b.dataset.fcom), pct }, b);
+      if (r.ok) return PAGES.finance(T.gen);
       return;
     }
     if (b.dataset.frate) {
@@ -785,7 +797,7 @@
     }
     if ((b = e.target.closest('[data-w]'))) return wantedAction(b);
     // Finance
-    if ((b = e.target.closest('[data-fpay],[data-frate]'))) return financeAction(b);
+    if ((b = e.target.closest('[data-fpay],[data-frate],[data-fcom]'))) return financeAction(b);
     // Grades
     if ((b = e.target.closest('[data-g]'))) {
       const a = b.dataset.g;

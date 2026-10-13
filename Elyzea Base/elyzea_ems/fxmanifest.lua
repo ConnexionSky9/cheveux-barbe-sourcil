@@ -18,6 +18,7 @@ server_scripts {
     'server/main.lua',
     'server/service.lua',
     'server/finance.lua',
+    'server/commission.lua',
     'server/death.lua',
     'server/calls.lua',
     'server/medical.lua',
