@@ -25,11 +25,11 @@
 
 ## Configuration (staff)
 
-1. **Modèles** › « + Ajouter » : recherche dans la liste réelle des modèles chargés par le jeu (`GetAllVehicleModels`, véhicules ajoutés compris), ou nom de spawn exact puis « Vérifier dans le jeu ». Un modèle qui n'existe pas ou n'est pas un véhicule est refusé ; un nom saisi seul n'est jamais accepté. Fiche : nom commercial, marque, catégorie, description, image, prix de référence, actif, vente autorisée, exposition autorisée.
+1. **Modèles** › « + Ajouter un véhicule » (aussi depuis l'onglet « Modèles et prix » d'une concession) : recherche dans la liste réelle des modèles chargés par le jeu (`GetAllVehicleModels`, véhicules ajoutés compris), ou nom de spawn exact puis « Vérifier dans le jeu ». Un modèle qui n'existe pas ou n'est pas un véhicule est refusé ; un nom saisi seul n'est jamais accepté. Puis **catégorie et prix de vente (obligatoires)**, nom commercial, marque, description, image, actif, vente autorisée, exposition autorisée. Le véhicule est **ajouté directement, à ce prix, dans toutes les concessions où sa catégorie est activée** (même chose quand on change sa catégorie).
 2. **Catégories** : 13 catégories proposées au départ, toutes modifiables (nom, icône, image, ordre, active), association / retrait de modèles, liste des concessions qui l'utilisent.
 3. **Concessions** › « + Nouvelle » : nom, adresse, métier (créé dans elyzea_core), compte de société, préfixe des matricules, service obligatoire, remise maximale, blip. Créée **fermée**, avec 4 grades (Employé, Commercial, Responsable, Directeur).
 4. Pour chaque concession, indépendamment des autres :
-   - **Catégories** : activée / visible / vendable / ordre ; « + Tous ses modèles » ajoute la catégorie entière au prix de référence ;
+   - **Catégories** : activée / visible / vendable / ordre. **Activer une catégorie ajoute directement tous ses véhicules** au prix de référence (ceux désactivés auparavant sont réactivés ; les prix propres déjà réglés ne changent pas). « + Tous ses modèles » fait la même chose en un clic ;
    - **Modèles et prix** : activé / visible / vendable / exposable / prix propre (vide = prix de référence). La colonne « Résultat » montre l'effet réel (règles globales comprises) ;
    - **Réglages et points** : consultation du catalogue (clients), aperçu du véhicule, point de gestion (employés), places de sortie (plusieurs, orientation comprise). Rayon, orientation, activation, suppression, « Aller ». « Aperçu en jeu » affiche tous les points ;
    - **Exposition** : emplacements (nom, position, orientation, activation) ;

@@ -134,7 +134,7 @@
     }).join('');
     const n = Object.keys(A.dirtyC).length;
     return `<div class="adm-section"><h3>Catégories de cette concession</h3>
-      <div class="note">Activée = proposée par la concession · Visible = affichée dans le catalogue client · Vendable = les employés peuvent vendre ses modèles. Indépendant des autres concessions.</div>
+      <div class="note">Activée = proposée par la concession · Visible = affichée dans le catalogue client · Vendable = les employés peuvent vendre ses modèles. Indépendant des autres concessions.<br><b>Activer une catégorie ajoute directement tous ses véhicules</b> (au prix de référence) ; les véhicules ajoutés plus tard à cette catégorie arrivent aussi automatiquement.</div>
       <table class="tbl"><tr><th>Catégorie</th><th>Activée</th><th>Visible</th><th>Vendable</th><th>Ordre</th><th></th></tr>${rows}</table>
       <div class="actions-row"><button class="btn primary" data-ccsave="1" ${n ? '' : 'disabled'}>Enregistrer (${n})</button></div></div>`;
   }
@@ -156,7 +156,7 @@
     return `<div class="adm-section"><h3>Modèles de cette concession</h3>
       <div class="toolbar"><input class="input grow" data-amq placeholder="Rechercher un modèle" value="${esc(A.mq)}">
         <select class="input" data-amcat><option value="">Toutes catégories</option>${cats().map((c) => `<option value="${c.id}" ${A.mcat === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
-        <button class="btn primary" data-mmsave="1" ${n ? '' : 'disabled'}>Enregistrer (${n})</button></div>
+        <button class="btn primary" data-mmsave="1" ${n ? '' : 'disabled'}>Enregistrer (${n})</button><button class="btn" data-amgo="1">+ Ajouter un véhicule</button></div>
       <div class="note">Activé = proposé · Visible = dans le catalogue client · Vendable = vente autorisée · Exposable = exposition autorisée · Prix propre à CETTE concession (vide = prix de référence). Le statut tient compte des réglages globaux et de la catégorie.</div>
       ${list.length ? `<table class="tbl"><tr><th>Modèle</th><th>Activé</th><th>Visible</th><th>Vendable</th><th>Exposable</th><th>Prix ($)</th><th>Résultat</th></tr>${rows}</table>` : empty('Aucun modèle dans le catalogue global : ajoutez-en dans l\'onglet Modèles.')}</div>`;
   }
@@ -170,7 +170,7 @@
     const items = list.map((m) => `<button class="adm-item ${A.model === m.id ? 'on' : ''}" data-amod="${m.id}" style="${m.removed ? 'opacity:.45' : ''}"><b>${esc(m.label)}</b>
       <small><span class="mono">${esc(m.model)}</span> · ${esc(m.category || 'sans catégorie')}${m.removed ? ' · retiré' : !m.enabled ? ' · désactivé' : ''}</small></button>`).join('');
     const m = A.model === 'new' ? null : A.data.models.find((x) => x.id === A.model);
-    return `<div class="adm-list"><div style="display:flex;gap:.4rem;margin-bottom:.5rem"><input class="input grow" data-amq placeholder="Rechercher" value="${esc(A.mq)}"><button class="btn small primary" data-amnew="1">+ Ajouter</button></div>
+    return `<div class="adm-list"><div style="display:flex;gap:.4rem;margin-bottom:.5rem"><input class="input grow" data-amq placeholder="Rechercher" value="${esc(A.mq)}"><button class="btn small primary" data-amnew="1">+ Ajouter un véhicule</button></div>
         ${items || empty('Aucun modèle.')}</div>
       <div class="adm-main">${A.model === 'new' ? addModel() : m ? modelForm(m) : '<div class="note">Le catalogue global contient les modèles autorisés sur le serveur. Chaque concession choisit ensuite ceux qu\'elle propose, affiche, vend et expose, avec ses propres prix.</div>'}</div>`;
   }
@@ -185,16 +185,18 @@
         <div style="display:flex;gap:.4rem;max-width:34rem;margin-top:.6rem"><input class="input grow mono" data-amodel placeholder="ou saisir le nom de spawn exact" value="${esc(c ? c.model : '')}"><button class="btn" data-acheck="1">Vérifier dans le jeu</button></div>
         ${c ? (c.ok ? `<div class="note" style="margin-top:.6rem">✅ <b>${esc(c.model)}</b> existe : ${esc(c.label)}${c.brand ? ` · ${esc(c.brand)}` : ''} · classe ${c.class} · ${c.seats} place(s).</div>`
           : `<div class="warn-box" style="margin-top:.6rem">${esc(c.error)}</div>`) : ''}</div>
-      ${c && c.ok ? `<div class="adm-section"><h3>2. Fiche du modèle</h3>${modelFields({ label: c.label, brand: c.brand, commercial: true, displayable: true, enabled: true })}
-        <div class="actions-row"><button class="btn primary" data-amsave="1">Ajouter au catalogue global</button></div></div>` : ''}`;
+      ${c && c.ok ? `<div class="adm-section"><h3>2. Catégorie, prix et fiche</h3>${modelFields({ label: c.label, brand: c.brand, commercial: true, displayable: true, enabled: true }, true)}
+        <p class="faint" style="font-size:.76rem;margin-top:.4rem">Le véhicule est ajouté directement, à ce prix, dans toutes les concessions où sa catégorie est activée. Chaque concession peut ensuite fixer son propre prix.</p>
+        <div class="actions-row"><button class="btn primary" data-amsave="1">Ajouter le véhicule</button></div></div>` : ''}`;
   }
 
-  function modelFields(m) {
+  function modelFields(m, isNew) {
+    const catOpts = cats().map((c) => `<option value="${c.id}" ${m.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}${c.enabled ? '' : ' (désactivée)'}</option>`).join('');
     return `<div class="form-grid">
+      <label class="field"><span>Catégorie${isNew ? ' *' : ''}</span><select class="input" data-mf="categoryId">${isNew ? '<option value="">— Choisir la catégorie —</option>' : '<option value="">— Sans catégorie (non proposé) —</option>'}${catOpts}</select></label>
+      <label class="field"><span>${isNew ? 'Prix de vente ($) *' : 'Prix de vente de référence ($)'}</span><input class="input" type="number" min="${isNew ? 1 : 0}" data-mf="refPrice" value="${m.refPrice ?? ''}" placeholder="ex. 85000"></label>
       <label class="field"><span>Nom commercial</span><input class="input" data-mf="label" maxlength="80" value="${esc(m.label || '')}"></label>
       <label class="field"><span>Marque</span><input class="input" data-mf="brand" maxlength="50" value="${esc(m.brand || '')}"></label>
-      <label class="field"><span>Catégorie</span><select class="input" data-mf="categoryId"><option value="">— Sans catégorie (non proposé) —</option>${cats().map((c) => `<option value="${c.id}" ${m.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}${c.enabled ? '' : ' (désactivée)'}</option>`).join('')}</select></label>
-      <label class="field"><span>Prix de référence ($, facultatif)</span><input class="input" type="number" min="0" data-mf="refPrice" value="${m.refPrice ?? ''}"></label>
       <label class="field full"><span>Image (adresse web, facultatif : sinon image du jeu de base)</span><input class="input" data-mf="image" maxlength="255" value="${esc(m.image || '')}"></label>
       <label class="field full"><span>Description</span><textarea class="input" data-mf="description" maxlength="500">${esc(m.description || '')}</textarea></label>
       <label class="extra"><input type="checkbox" class="check" data-mf="enabled" ${m.enabled !== false ? 'checked' : ''}> Actif (désactivé : plus vendable nulle part)</label>
@@ -349,6 +351,7 @@
     }
     // Modèles
     if ((b = e.target.closest('[data-amod]'))) { A.model = Number(b.dataset.amod); return draw(); }
+    if (e.target.closest('[data-amgo]')) { A.tab = 'models'; A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if (e.target.closest('[data-amnew]')) { A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if ((b = e.target.closest('[data-asearch]'))) {
       A.rq = val('[data-arq]') || '';
@@ -361,7 +364,11 @@
     if (e.target.closest('[data-acheck]')) { A.check = await post('admVehCheck', { model: val('[data-amodel]') || '' }); return draw(); }
     if ((b = e.target.closest('[data-amsave]'))) {
       const d = modelData();
-      if (A.model === 'new') { d.model = A.check.model; d.check = A.check; } else d.id = A.model;
+      if (A.model === 'new') {
+        if (!d.categoryId) return toast('Choisissez la catégorie du véhicule.', false);
+        if (!(Number(d.refPrice) >= 1)) return toast('Indiquez le prix de vente.', false);
+        d.model = A.check.model; d.check = A.check;
+      } else d.id = A.model;
       const r = await run('modelSave', d, b);
       if (r.ok) { A.model = r.id; A.check = null; A.results = null; await reload(); }
       return;

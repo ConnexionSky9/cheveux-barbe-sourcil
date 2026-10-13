@@ -127,6 +127,7 @@ P.Admin.catAssign = { fn = function(src, d)
             if target ~= m.categoryId then
                 MySQL.update.await('UPDATE `cd_models` SET `category_id` = ? WHERE `id` = ?', { target, m.id })
                 m.categoryId = target
+                if target then P.AddModelToShops(src, m) end
                 n = n + 1
             end
         end
@@ -157,6 +158,12 @@ P.Admin.modelSave = { fn = function(src, d)
     local cat = d.categoryId ~= nil and d.categoryId ~= '' and tonumber(d.categoryId) or nil
     if cat and not P.cats[cat] then return { error = 'Catégorie introuvable.' } end
     local ref = d.refPrice ~= nil and d.refPrice ~= '' and P.Int(d.refPrice, 0, Config.Sale.maxPrice, nil) or nil
+    if not m then
+        -- Nouveau véhicule : catégorie et prix obligatoires (il est ajouté directement aux concessions de cette catégorie)
+        if not cat then return { error = 'Choisissez la catégorie du véhicule.' } end
+        if not ref or ref < 1 then return { error = ('Prix de vente invalide (1 à %d $).'):format(Config.Sale.maxPrice) } end
+    end
+    local oldCat = m and m.categoryId
     local brand, desc, image = P.Clean(d.brand, 50), P.Clean(d.description, 500), P.Clean(d.image, 255)
     local commercial, displayable, enabled = d.commercial ~= false, d.displayable ~= false, d.enabled ~= false
     if m then
@@ -187,8 +194,14 @@ P.Admin.modelSave = { fn = function(src, d)
         P.modelByName[model] = id
         CatalogLog(src, 'Modèle ajouté', ('%s (%s) · vérifié en jeu'):format(label, model), { model = id })
     end
+    -- Nouveau véhicule ou changement de catégorie : ajouté à chaque concession où sa catégorie est activée
+    local names = {}
+    if cat and (not m or oldCat ~= cat) then names = P.AddModelToShops(src, P.models[id]) end
     P.Touch()
-    return { ok = true, id = id, message = 'Modèle enregistré dans le catalogue global.' }
+    local msg = m and 'Modèle enregistré dans le catalogue global.' or ('%s ajouté (%s, %s $).'):format(label, P.cats[cat].name, ref)
+    if #names > 0 then msg = msg .. (' En vente dans : %s.'):format(table.concat(names, ', '))
+    elseif not m then msg = msg .. ' Aucune concession n\'a encore cette catégorie activée.' end
+    return { ok = true, id = id, message = msg }
 end }
 
 -- Retirer du catalogue (ou remettre) : jamais de suppression des véhicules achetés ni des ventes
@@ -448,17 +461,56 @@ local function UpsertModel(src, D, m, f)
     return v
 end
 
+-- Ajoute à la concession tous les véhicules (non retirés) d'une catégorie, au prix de référence.
+-- all = true (catégorie qui vient d'être activée) : réactive aussi ceux désactivés auparavant.
+-- Les prix propres déjà réglés ne sont jamais modifiés.
+local function AddCategoryModels(src, D, catId, all)
+    local n = 0
+    for _, m in pairs(P.models) do
+        if m.categoryId == catId and not m.removed then
+            local cur = P.ShopModel(D, m.id)
+            if not cur or (all and not cur.enabled) then
+                UpsertModel(src, D, m, { enabled = true, visible = true, sellable = true })
+                n = n + 1
+            end
+        end
+    end
+    return n
+end
+
+-- Un véhicule (nouveau ou changé de catégorie) rejoint chaque concession où sa catégorie est activée
+function P.AddModelToShops(src, m)
+    local names = {}
+    if not m or not m.categoryId or m.removed then return names end
+    for _, D in pairs(P.shops) do
+        local sc = not D.deleted and P.ShopCat(D, m.categoryId)
+        if sc and sc.enabled then
+            local cur = P.ShopModel(D, m.id)
+            if not cur or not cur.enabled then UpsertModel(src, D, m, { enabled = true, visible = true, sellable = true }) end
+            names[#names + 1] = D.name
+        end
+    end
+    table.sort(names)
+    return names
+end
+
 P.Admin.shopCats = { fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D or D.deleted then return { error = 'Concession introuvable.' } end
-    local n = 0
+    local n, added = 0, 0
     for _, f in ipairs(type(d.list) == 'table' and d.list or {}) do
         local cid = tonumber(f.id)
-        if cid and P.cats[cid] then UpsertCat(D, cid, f) n = n + 1 end
+        if cid and P.cats[cid] then
+            local before = P.ShopCat(D, cid)
+            local v = UpsertCat(D, cid, f)
+            -- Catégorie validée : tous ses véhicules sont ajoutés directement
+            if v.enabled then added = added + AddCategoryModels(src, D, cid, not (before and before.enabled)) end
+            n = n + 1
+        end
     end
-    CatalogLog(src, 'Catégories de la concession', ('%s · %d catégorie(s) réglée(s)'):format(D.name, n), { shop = D.id })
+    CatalogLog(src, 'Catégories de la concession', ('%s · %d catégorie(s) réglée(s) · %d véhicule(s) ajouté(s)'):format(D.name, n, added), { shop = D.id })
     P.Touch()
-    return { ok = true, message = ('%d catégorie(s) enregistrée(s) pour %s.'):format(n, D.name) }
+    return { ok = true, message = ('%d catégorie(s) enregistrée(s) pour %s, %d véhicule(s) ajouté(s) au catalogue.'):format(n, D.name, added) }
 end }
 
 P.Admin.shopModels = { fn = function(src, d)
@@ -484,10 +536,7 @@ P.Admin.shopAddCategory = { fn = function(src, d)
     local c = P.cats[tonumber(d.cat) or 0]
     if not D or D.deleted or not c then return { error = 'Concession ou catégorie introuvable.' } end
     UpsertCat(D, c.id, { enabled = true })
-    local n = 0
-    for _, m in pairs(P.models) do
-        if m.categoryId == c.id and not m.removed and not P.ShopModel(D, m.id) then UpsertModel(src, D, m, { enabled = true }) n = n + 1 end
-    end
+    local n = AddCategoryModels(src, D, c.id, true)
     CatalogLog(src, 'Catégorie ajoutée à la concession', ('%s · %s · %d modèle(s)'):format(D.name, c.name, n), { shop = D.id, cat = c.id })
     P.Touch()
     return { ok = true, message = ('%s : catégorie « %s » activée, %d modèle(s) ajouté(s) au prix de référence.'):format(D.name, c.name, n) }
