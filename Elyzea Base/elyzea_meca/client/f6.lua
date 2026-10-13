@@ -11,7 +11,7 @@ local quotes, quotesAt = {}, 0
 local function NearWorkshop()
     local pos = GetEntityCoords(PlayerPedId())
     for _, w in ipairs(C.Workshops()) do
-        if #(pos - w.coords) < (w.radius or 3.5) + 1.0 then return { id = w.id, label = w.label } end
+        if #(pos - w.coords) < (w.radius or 3.5) + 6.0 then return { id = w.id, label = w.label } end
     end
 end
 
@@ -75,7 +75,7 @@ RegisterNUICallback('f6', function(body, cb)
         return cb(Payload(false))
     elseif a == 'workshop' then
         Close() cb({})
-        return C.Notify('Amenez le véhicule du client sur un point d\'atelier, au volant, puis appuyez sur E.', 'inform')
+        return C.OpenWorkshopNear()
     elseif a == 'serviceQuote' then
         Close() cb({})
         return C.OpenServiceQuote(C.NearVehicle())

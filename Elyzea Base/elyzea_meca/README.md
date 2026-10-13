@@ -16,7 +16,7 @@
 |---|---|
 | **F6** | Menu rapide : service et temps, statut, véhicules (devis de prestations, historique), clients (devis, factures), dépannage, tablette, direction |
 | **ALT** (menu d'interaction de elyzea_police) sur un véhicule | Réparer moteur / carrosserie / pneus, réparation complète, nettoyer, retourner. Seules les actions utiles à l'état du véhicule sont proposées |
-| **E** au volant, sur un point d'atelier | Ouvre l'atelier pour ce véhicule |
+| **E** au volant sur un point d'atelier, ou à pied à côté du véhicule garé dessus, ou **F6 › Catalogue d'amélioration** près du point | Ouvre l'atelier pour ce véhicule |
 | **G / I** | Accepter / refuser la dernière demande de dépannage |
 | `/depannage <message>` | Tout le monde : demander un dépanneur |
 | `/meca_pos` | Affiche votre position et le cap dans la console (aide) |
@@ -31,7 +31,9 @@ Tablette › Direction › **Points d'atelier** (permission « Garage et points 
 
 Les points sont gardés en base (`meca_settings`, clé `workshops`). Le serveur vérifie à chaque action que le véhicule est sur le point et que le mécanicien est avec lui.
 
-Déroulé : le mécanicien prend la voiture du client, la conduit sur le point et appuie sur **E** au volant (le véhicule est immobilisé pendant l'intervention) → l'atelier affiche le véhicule, son état et le catalogue compatible (seules les pièces qui existent sur ce modèle sont proposées) → aperçu en direct sur le véhicule (annulable) → ajout au devis → choix du client (le propriétaire est proposé en premier) → **Envoyer le devis**. Le client voit les lignes et le total, accepte ou refuse. Fermer l'atelier sans installer remet le véhicule tel qu'il était et **ne facture rien**.
+Repérage : les points d'atelier ont un **blip** sur la carte et un **texte 3D** (mécaniciens seulement) ; le cercle est **orange** quand il est libre et **vert** quand un véhicule y est garé.
+
+Déroulé : le mécanicien gare la voiture du client sur le cercle et appuie sur **E** (au volant, ou à pied à côté) — le véhicule est immobilisé, **moteur, phares et néons allumés** pendant l'intervention → l'atelier affiche le véhicule, son état et le catalogue compatible → chaque option cliquée **s'affiche tout de suite** sur le véhicule et s'ajoute au devis (re-cliquer la retire) ; la couleur personnalisée et la plaque s'affichent **pendant** qu'on les choisit / tape → choix du client (le propriétaire est proposé en premier) → **Envoyer le devis**. Le client voit les lignes et le total, accepte ou refuse. **Quitter l'atelier retire toujours tout ce qui n'a pas été payé et installé** : le véhicule revient à son état d'ouverture (ou à l'état de la dernière installation réussie), phares remis en automatique, véhicule débloqué. Rien n'est facturé sans acceptation du client.
 
 ## Atelier : caméra et modifications
 

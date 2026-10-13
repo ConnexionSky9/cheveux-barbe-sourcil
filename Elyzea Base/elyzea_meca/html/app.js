@@ -223,7 +223,7 @@ function wsRender() {
         ${q.status === 'pending' || q.status === 'accepted' ? '<button class="btn danger" data-ws="cancelQuote">Annuler le devis</button>' : ''}
         ${!['pending', 'accepted'].includes(q.status) ? '<button class="btn" data-ws="newQuote">Nouveau devis</button>' : ''}</div>`;
   } else if (!W.cat) {
-    main = '<div class="empty">Choisissez une rubrique à gauche. Chaque option est d\'abord un aperçu sur le véhicule : rien n\'est installé ni facturé tant que le client n\'a pas accepté le devis.</div>';
+    main = '<div class="empty">Choisissez une rubrique à gauche : chaque option s\'affiche tout de suite sur le véhicule et s\'ajoute au devis (re-cliquez pour la retirer). Rien n\'est facturé tant que le client n\'a pas payé, et tout ce qui n\'est pas payé et installé est retiré en quittant l\'atelier.</div>';
   } else {
     const list = data.items.filter((i) => i.category === W.cat);
     if (W.cat === 'perf') {
@@ -260,7 +260,8 @@ function wsRender() {
         const inCart = W.cart.find((l) => l.code === it.code);
         main += `<div class="lvl-row"><div class="name">Nouvelle plaque<div class="now">Actuelle : <span class="mono">${esc(data.plate)}</span> · 1 à 8 caractères (lettres, chiffres, espaces), unique sur le serveur</div></div></div>
           <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem"><input class="input mono" id="wsPlate" maxlength="8" style="text-transform:uppercase;max-width:12rem;font-size:1.1rem;letter-spacing:.15em"
-            value="${esc(inCart ? inCart.spec.v : '')}" placeholder="${esc(data.plate)}"><button class="btn primary" data-wplate="1">${inCart ? 'Modifier' : 'Aperçu et ajouter'} · ${money(it.price)}</button></div>
+            value="${esc(inCart ? inCart.spec.v : '')}" placeholder="${esc(data.plate)}"><button class="btn primary" data-wplate="1">${inCart ? 'Modifier' : 'Ajouter au devis'} · ${money(it.price)}</button></div>
+          <p class="faint" style="font-size:.78rem;margin-top:.4rem">La plaque s'affiche sur le véhicule pendant que vous tapez.</p>
           <p class="faint" style="font-size:.78rem;margin-top:.6rem">La plaque change à l'installation : carte grise, clés et coffre du véhicule suivent (le contenu du coffre est conservé).</p>`;
       } else if (it) {
         if (grp.subs) main += `<div class="subtabs">${grp.subs.map((s) => `<button class="${String(W.sub) === s.id ? 'on' : ''}" data-wsub="${esc(s.id)}">${esc(s.label)}</button>`).join('')}</div>`;
@@ -298,7 +299,7 @@ function rgbCard(it) {
   const prev = W.rgb && W.rgb[it.mod] || { hex: '#d9b56a', finish: 1 };
   return `<div class="rgb-card"><span>🎨 Couleur personnalisée</span><input type="color" id="wsRgb" value="${esc(prev.hex)}">
     ${it.mod === 'paint' ? `<select class="input" id="wsRgbFin" style="width:auto">${RGB_FINISH.map(([v, l]) => `<option value="${v}" ${prev.finish === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
-    <button class="btn" data-wrgb="preview">Aperçu</button><button class="btn primary" data-wrgb="add">Ajouter · ${money(it.price)}</button></div>`;
+    <button class="btn primary" data-wrgb="add">Ajouter au devis · ${money(it.price)}</button><span class="faint" style="font-size:.76rem">Visible en direct sur le véhicule</span></div>`;
 }
 function rgbSpec(it) {
   const hex = ($('#wsRgb') || {}).value || '#ffffff', rgb = hexToRgb(hex);
@@ -327,14 +328,27 @@ function wsAdd(line) {
   wsRender();
 }
 const wsReapply = () => post('wsReapply', { specs: W.cart.map((l) => l.preview).filter(Boolean) });
+// Aperçu « en direct » pas encore ajouté au devis : retiré dès qu'on change de rubrique
+const dropLive = () => { if (W.live) { W.live = false; wsReapply(); } };
+let liveTimer = null, livePending = null;
+function livePreview(spec) {
+  W.live = true; livePending = spec;
+  if (liveTimer) return;
+  liveTimer = setTimeout(() => { liveTimer = null; post('wsPreview', { spec: livePending }); }, 60);
+}
 
 $('#workshop').addEventListener('click', async (e) => {
   let b;
+  if ((b = e.target.closest('[data-wcat],[data-witem],[data-wsub]'))) dropLive();
   if ((b = e.target.closest('[data-wcat]'))) { W.cat = b.dataset.wcat; W.item = null; W.sub = null; W.opts = null; wsRender(); if (!['perf', 'carplay', 'service'].includes(W.cat)) wsLoadOptions(); return; }
   if ((b = e.target.closest('[data-witem]'))) { W.item = b.dataset.witem; W.sub = null; W.opts = null; return wsLoadOptions(); }
   if ((b = e.target.closest('[data-wsub]'))) { W.sub = b.dataset.wsub; return wsLoadOptions(); }
   if ((b = e.target.closest('[data-wopt]'))) {
     const it = W.d.data.items.find((i) => i.code === W.item), o = W.opts[Number(b.dataset.wopt)];
+    const slot = slotOf(o.spec, it), inCart = W.cart.find((l) => l.slot === slot);
+    W.live = false;
+    // Re-cliquer l'option déjà choisie la retire du devis et du véhicule
+    if (inCart && JSON.stringify(inCart.spec) === JSON.stringify(o.spec)) { W.cart = W.cart.filter((l) => l !== inCart); wsReapply(); return wsRender(); }
     post('wsPreview', { spec: o.spec });
     return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec: o.spec, preview: o.spec, slot: slotOf(o.spec, it), label: `${it.name} : ${o.label}` });
   }
@@ -343,7 +357,7 @@ $('#workshop').addEventListener('click', async (e) => {
     if (!it) return;
     const { spec, label } = rgbSpec(it);
     post('wsPreview', { spec });
-    if (b.dataset.wrgb === 'preview') return;
+    W.live = false;
     return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: slotOf(spec, it), label: `${it.name} : ${label}` });
   }
   if ((b = e.target.closest('[data-wplate]'))) {
@@ -353,11 +367,14 @@ $('#workshop').addEventListener('click', async (e) => {
     if (v === String(W.d.data.plate).toUpperCase()) return toast('C\'est déjà la plaque du véhicule.', false);
     const spec = { t: 'platetext', v };
     post('wsPreview', { spec });
+    W.live = false;
     return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: 'cos:platetext', label: `${it.name} : ${v}` });
   }
   if ((b = e.target.closest('[data-perf]'))) {
     const it = W.d.data.items.find((i) => i.code === b.dataset.perf);
     const spec = { t: 'perf', mod: it.mod, level: it.level };
+    const inCart = W.cart.find((l) => l.slot === `perf:${it.mod}`);
+    if (inCart && inCart.code === it.code) { W.cart = W.cart.filter((l) => l !== inCart); wsReapply(); return wsRender(); }
     post('wsPreview', { spec });
     return wsAdd({ code: it.code, name: it.name, kind: 'perf', category: 'perf', price: it.price, preview: spec, slot: `perf:${it.mod}`, label: it.name, current: curPerf(it.mod) });
   }
@@ -406,7 +423,21 @@ $('#workshop').addEventListener('click', async (e) => {
     if (a === 'newQuote') { W.quote = null; W.result = null; W.cart = []; return wsRender(); }
   }
 });
-$('#workshop').addEventListener('change', (e) => { if (e.target.id === 'wsCustomer') W.customer = e.target.value; });
+$('#workshop').addEventListener('change', (e) => {
+  if (e.target.id === 'wsCustomer') W.customer = e.target.value;
+  if (e.target.id === 'wsRgbFin') { const it = W.d.data.items.find((i) => i.code === W.item); if (it) livePreview(rgbSpec(it).spec); }
+});
+// Aperçu en direct : couleur choisie dans le sélecteur, plaque tapée
+$('#workshop').addEventListener('input', (e) => {
+  const it = W.d && W.d.data.items.find((i) => i.code === W.item);
+  if (!it) return;
+  if (e.target.id === 'wsRgb') return livePreview(rgbSpec(it).spec);
+  if (e.target.id === 'wsPlate') {
+    const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+    if (v && v.length <= 8) return livePreview({ t: 'platetext', v });
+    return dropLive();
+  }
+});
 
 /* =====================================================================
    Devis reçu (client)
@@ -524,7 +555,7 @@ window.addEventListener('message', (e) => {
     case 'alertsClear': [...notifEls.keys()].forEach((k) => { const [kind, id] = k.split(':'); removeNotif(kind, id); }); return;
     case 'workshop':
       if (m.show) {
-        Object.assign(W, { d: m, cat: null, item: null, sub: null, opts: null, cart: [], customer: (m.data.customers[0] || {}).id, quote: m.data.quote || null, result: null });
+        Object.assign(W, { d: m, cat: null, item: null, sub: null, opts: null, cart: [], customer: (m.data.customers[0] || {}).id, quote: m.data.quote || null, result: null, live: false });
         show('#workshop', true); wsRender();
       } else show('#workshop', false);
       return;
