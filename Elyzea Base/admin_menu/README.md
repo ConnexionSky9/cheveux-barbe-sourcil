@@ -891,3 +891,11 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
 - `elyzea_dynasty` revérifie la permission à chaque action via l'export `HasPermission`.
 - **Métier staff** propose aussi **Dynasty 8** (job `realestate`).
 - Détails et tests à faire : `elyzea_dynasty/README.md`. Non testé en jeu.
+
+## 🚘 Administration automobile (Métiers, permission `dealer_manage` : SuperAdmin et Fondateur)
+
+- Onglet **Administration automobile** : ouvre le panneau de la ressource `elyzea_concess` (aussi `/concessadmin`).
+- Catalogue global des véhicules (ajout vérifié dans le jeu), catégories, concessions (métier, compte de société, points,
+  sorties, emplacements d'exposition) et catalogue propre à chaque concession (activé / visible / vendable / exposable / prix).
+- Le PNJ « Catalogue concession » de l'éditeur de map ouvre le catalogue de la concession la plus proche.
+- Détails, tests à faire et limites : `elyzea_concess/README.md`. Non testé en jeu.

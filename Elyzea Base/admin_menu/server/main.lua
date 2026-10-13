@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v45 then
+        -- Administration automobile (concessions) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.dealer_manage = true end
+        meta.v45 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v44 then
         -- Gestion immobilière Dynasty 8 : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.property_manage = true end
