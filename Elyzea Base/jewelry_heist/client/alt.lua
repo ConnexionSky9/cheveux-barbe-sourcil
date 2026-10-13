@@ -16,8 +16,11 @@ local function target(ent)
     if bag then return { kind = 'bag', id = bag, entity = ent } end
 end
 
+-- Sac de billets (braquage de banque) : se ramasse, ne s'ouvre pas (encaissement à un point de dépôt)
+local function isBankBag(id) local b = (GlobalState.jhBags or {})[id] return b ~= nil and b.kind == 'bank' end
+
 local function titleOf(t)
-    if t.kind == 'bag' then return 'Sac de butin' end
+    if t.kind == 'bag' then return isBankBag(t.id) and 'Sac de billets' or 'Sac de butin' end
     return t.def and t.def.name or (t.kind == 'shop' and 'Bijoutier' or 'Racheteur')
 end
 
@@ -51,7 +54,7 @@ local function options(t)
     if t.kind == 'bag' then
         out[#out + 1] = { id = 'pickup', label = 'Ramasser le sac', icon = 'bag', disabled = carrying or IsPedInAnyVehicle(PlayerPedId(), false),
             desc = carrying and 'Vous portez déjà un sac' or nil }
-        out[#out + 1] = { id = 'open', label = 'Ouvrir le sac', icon = 'open' }
+        if not isBankBag(t.id) then out[#out + 1] = { id = 'open', label = 'Ouvrir le sac', icon = 'open' } end
     elseif t.kind == 'shop' and t.def then
         local heist = (GlobalState.jhHeists or {})[t.id]
         if t.def.buy then out[#out + 1] = { id = 'buy', label = 'Acheter des bijoux', icon = 'buy', disabled = heist ~= nil } end

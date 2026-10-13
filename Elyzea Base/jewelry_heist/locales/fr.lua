@@ -39,4 +39,5 @@ JH.Locales.fr = {
     police_title = 'Braquage de bijouterie en cours',
     police_desc = '%s · %s · %s',
     no_perm = 'Permission refusée.',
+    bag_bank = 'Un sac de billets ne s\'ouvre pas ici : il s\'encaisse à un point de dépôt.',
 }

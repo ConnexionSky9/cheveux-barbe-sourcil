@@ -18,14 +18,15 @@ local function now() return os.time() end
 -- Persistance
 -- ---------------------------------------------------------------------
 function P.SaveBag(b)
-    MySQL.query([[INSERT INTO `jh_bags` (`id`, `shop_id`, `owner_cid`, `owner_name`, `holder_cid`, `state`, `x`, `y`, `z`, `money`, `money_type`, `gems`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `holder_cid` = VALUES(`holder_cid`), `state` = VALUES(`state`), `x` = VALUES(`x`),
+    MySQL.query([[INSERT INTO `jh_bags` (`id`, `shop_id`, `owner_cid`, `owner_name`, `holder_cid`, `state`, `x`, `y`, `z`, `money`, `money_type`, `gems`, `kind`, `capacity`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `holder_cid` = VALUES(`holder_cid`), `state` = VALUES(`state`), `x` = VALUES(`x`),
         `y` = VALUES(`y`), `z` = VALUES(`z`), `money` = VALUES(`money`), `gems` = VALUES(`gems`)]],
-        { b.id, b.shop, b.ownerCid, b.ownerName, b.holderCid, b.state, b.x, b.y, b.z, b.money, b.moneyType, json.encode(b.gems) })
+        { b.id, b.shop, b.ownerCid, b.ownerName, b.holderCid, b.state, b.x, b.y, b.z, b.money, b.moneyType, json.encode(b.gems), b.kind or 'jewel', b.capacity })
 end
 local function deleteBagRow(id) MySQL.query('DELETE FROM `jh_bags` WHERE `id` = ?', { id }) end
 
 local function isEmpty(b)
+    if b.kind == 'bank' then return false end   -- un sac de billets vide reste un sac (rempli plus tard)
     if b.money > 0 then return false end
     for _, q in pairs(b.gems) do if q > 0 then return false end end
     return true
@@ -41,25 +42,34 @@ end
 function P.PublishBags()
     local pub = {}
     for id, b in pairs(P.bags) do
-        if b.state == 'ground' then pub[id] = { x = b.x, y = b.y, z = b.z } end
+        if b.state == 'ground' then pub[id] = { x = b.x, y = b.y, z = b.z, kind = b.kind or 'jewel' } end
     end
     GlobalState.jhBags = pub
 end
+
+-- Infos du sac porté envoyées à son seul porteur (affichage du montant pour les sacs de billets)
+local function bagInfo(b)
+    return b and { id = b.id, kind = b.kind or 'jewel', money = b.money, capacity = b.capacity, moneyType = b.moneyType } or nil
+end
+local function pushInfo(src, b) if src and GetPlayerPing(src) > 0 then TriggerClientEvent('jh:client:bagInfo', src, bagInfo(b)) end end
 
 local function setCarry(src, b)
     if b then
         P.carry[src] = b.id
         b.state, b.holderSrc, b.holderCid = 'carried', src, Adapters.Perms.CitizenId(src)
         Player(src).state:set('jhBag', b.id, true)
+        pushInfo(src, b)
     else
         P.carry[src] = nil
         Player(src).state:set('jhBag', nil, true)
+        pushInfo(src, nil)
     end
 end
 
 function P.CreateBag(t)
     local b = { id = P.Uid('BAG'), shop = t.shop, ownerCid = t.ownerCid, ownerName = t.ownerName, holderCid = nil, holderSrc = nil, state = 'ground',
-        x = t.x + 0.0, y = t.y + 0.0, z = t.z + 0.0, money = math.max(0, math.floor(t.money or 0)), moneyType = t.moneyType or 'cash', gems = {}, since = now() }
+        x = t.x + 0.0, y = t.y + 0.0, z = t.z + 0.0, money = math.max(0, math.floor(t.money or 0)), moneyType = t.moneyType or 'cash', gems = {}, since = now(),
+        kind = t.kind or 'jewel', capacity = t.capacity }
     for gid, q in pairs(t.gems or {}) do if P.S.gems[gid] and q > 0 then b.gems[gid] = math.floor(q) end end
     P.bags[b.id] = b
     P.SaveBag(b)
@@ -89,7 +99,7 @@ function P.LoadBags()
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `jh_bags`') or {}) do
         local b = { id = r.id, shop = r.shop_id, ownerCid = r.owner_cid, ownerName = r.owner_name, holderCid = r.holder_cid, state = r.state,
             x = tonumber(r.x) or 0.0, y = tonumber(r.y) or 0.0, z = tonumber(r.z) or 0.0, money = tonumber(r.money) or 0, moneyType = r.money_type or 'cash',
-            gems = json.decode(r.gems or '{}') or {}, since = now() }
+            gems = json.decode(r.gems or '{}') or {}, since = now(), kind = r.kind or 'jewel', capacity = tonumber(r.capacity) }
         if isEmpty(b) then deleteBagRow(b.id)
         else
             P.bags[b.id] = b
@@ -170,6 +180,7 @@ P.Req.bagOpen = function(src, d)
     local seize = P.S.bag.policeSeize and Adapters.Police.IsOnDuty(src)
     if not canOpen(src, b) and not seize then return { error = JH.T('bag_owner') } end
     if b.viewer and b.viewer ~= src and GetPlayerPing(b.viewer) > 0 and (b.viewUntil or 0) > now() then return { error = JH.T('bag_inuse') } end
+    if b.kind == 'bank' then return { error = JH.T('bag_bank') } end
     b.viewer, b.viewUntil = src, now() + 120
     return { ok = true, bag = view(b, src) }
 end
@@ -184,6 +195,7 @@ end
 P.Req.bagTake = function(src, d)
     local b = P.bags[tostring(d.bag or '')]
     if not b or b.state ~= 'ground' then return { error = JH.T('bag_taken') } end
+    if b.kind == 'bank' then return { error = JH.T('bag_bank') } end
     if b.viewer ~= src then return { error = JH.T('bag_inuse') } end
     if not nearBag(src, b) then return { error = JH.T('too_far') } end
     if not canOpen(src, b) then return { error = JH.T('bag_owner') } end
@@ -321,4 +333,55 @@ AddEventHandler('onResourceStop', function(res)
         end
         Player(src).state:set('jhBag', nil, true)
     end
+end)
+
+-- =====================================================================
+--  API pour les autres ressources (bank_heist) : sacs de billets
+--  Le contenu reste géré ici (un seul système de sac) : porter, poser (E), ramasser (ALT),
+--  mort, déconnexion, redémarrage et nettoyage fonctionnent comme pour la bijouterie.
+-- =====================================================================
+local function carried(src) local id = P.carry[src] return id and P.bags[id] or nil end
+
+-- Crée un sac porté directement par le joueur (il ne doit pas déjà porter un sac)
+exports('CreateCarriedBag', function(src, opts)
+    opts = type(opts) == 'table' and opts or {}
+    if P.carry[src] then return nil, 'already' end
+    local pos = P.PedPos(src)
+    if not pos then return nil, 'nopos' end
+    local b = P.CreateBag({ shop = opts.ref, ownerCid = Adapters.Perms.CitizenId(src), ownerName = Adapters.Perms.Name(src), x = pos.x, y = pos.y, z = pos.z,
+        money = 0, moneyType = opts.moneyType or 'cash', gems = {}, kind = opts.kind or 'bank', capacity = math.floor(tonumber(opts.capacity) or 0), heist = opts.ref })
+    setCarry(src, b)
+    P.SaveBag(b)
+    P.PublishBags()
+    return b.id
+end)
+
+exports('GetCarriedBag', function(src) return bagInfo(carried(src)) end)
+exports('GetBagInfo', function(id) return bagInfo(P.bags[id]) end)
+
+-- Ajoute de l'argent dans le sac porté (plafonné par la capacité). Retourne le montant réellement ajouté.
+exports('AddBagMoney', function(src, id, amount)
+    local b = carried(src)
+    amount = math.floor(tonumber(amount) or 0)
+    if not b or b.id ~= id or amount <= 0 then return 0 end
+    if not P.Lock('bag:' .. b.id) then return 0 end
+    local room = b.capacity and b.capacity > 0 and math.max(0, b.capacity - b.money) or amount
+    local add = math.min(amount, room)
+    b.money = b.money + add
+    P.SaveBag(b)
+    P.Unlock('bag:' .. b.id)
+    pushInfo(src, b)
+    return add
+end)
+
+-- Vide et supprime le sac porté (encaissement à un point de dépôt). Retourne le montant, l'id.
+exports('CashOutCarriedBag', function(src, kind)
+    local b = carried(src)
+    if not b or (kind and (b.kind or 'jewel') ~= kind) then return 0 end
+    if not P.Lock('bag:' .. b.id) then return 0 end
+    local amount, id = b.money, b.id
+    b.money = 0
+    removeBag(b, ('encaissé (%s)'):format(JH.Money(amount)), src)
+    P.Unlock('bag:' .. id)
+    return amount, id
 end)

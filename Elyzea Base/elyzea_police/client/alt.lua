@@ -46,6 +46,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_ems', prefix = 'ems:' },
     { res = 'elyzea_meca', prefix = 'meca:' },
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
+    { res = 'bank_heist', prefix = 'bank:', target = true },
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre

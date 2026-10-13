@@ -180,6 +180,17 @@ Items.sapphire = { label = 'Saphir',    weight = 20, stack = true, image = 'sapp
 Items.emerald  = { label = 'Émeraude',  weight = 20, stack = true, image = 'emerald.png',  icon = '💎', description = 'Émeraude verte, taille à degrés. Se revend à un receleur.' }
 Items.amethyst = { label = 'Améthyste', weight = 20, stack = true, image = 'amethyst.png', icon = '💎', description = 'Améthyste violette, taille poire. Se revend à un receleur.' }
 
+-- ───────── Braquage de banque (ressource bank_heist) ─────────
+-- Images : html/img/bank_laptop.png, bank_bag.png, bank_c4.png (256 × 256, fond transparent)
+-- L'ordinateur n'est pas empilable : chacun a un numéro de série (métadonnée « serial »)
+-- et ses tentatives de piratage sont enregistrées sur le serveur (table bh_laptops).
+Items.bank_laptop = { label = 'Ordinateur de piratage', weight = 2500, stack = false, image = 'bank_laptop.png', icon = '💻',
+    description = 'Ordinateur modifié pour pirater un coffre de banque. 3 tentatives par ordinateur.' }
+Items.bank_bag    = { label = 'Sac de braqueur', weight = 800, stack = true, max = 5, image = 'bank_bag.png', icon = '🎒',
+    description = 'Sac vide pour ramasser les billets d\'un coffre de banque.' }
+Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5, image = 'bank_c4.png', icon = '🧨',
+    description = 'Charge explosive pour forcer un coffre quand le piratage a échoué.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

@@ -75,6 +75,7 @@ server_scripts {
     'server/trunks.lua',
     'server/drugsale.lua',
     'server/jewelry.lua',
+    'server/bankheist.lua',
     'server/guards.lua',
 }
 
@@ -112,5 +113,6 @@ files {
     'html/dynasty.js',
     'html/dealer.js',
     'html/jewelry.js',
+    'html/bankheist.js',
     'html/logo.png',
 }

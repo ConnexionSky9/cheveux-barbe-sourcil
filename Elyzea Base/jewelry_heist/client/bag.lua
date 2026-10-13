@@ -177,7 +177,8 @@ CreateThread(function()
     while true do
         local sleep = 500
         local cfg = C.Cfg()
-        if cfg and LocalPlayer.state.jhBag and not C.ui and not busy then
+        -- jhNoDrop : posé par une autre ressource (ex. point de dépôt de bank_heist, où E sert à encaisser)
+        if cfg and LocalPlayer.state.jhBag and not C.ui and not busy and not LocalPlayer.state.jhNoDrop then
             local ped = PlayerPedId()
             if not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
                 sleep = 0

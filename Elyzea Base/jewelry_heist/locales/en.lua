@@ -39,4 +39,5 @@ JH.Locales.en = {
     police_title = 'Jewelry store robbery in progress',
     police_desc = '%s · %s · %s',
     no_perm = 'Permission denied.',
+    bag_bank = 'A cash bag cannot be opened here: cash it in at a drop-off point.',
 }
