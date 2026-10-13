@@ -172,6 +172,14 @@ end
 Items.vet_sac.bonus = 10000 -- +10 KG de capacité quand il est porté
 Items.vet_sac.description = 'Sac : +10 KG de capacité une fois porté.'
 
+-- ───────── Pierres précieuses (ressource jewelry_heist : braquage de bijouterie, racheteurs) ─────────
+-- Images : html/img/diamond.png, ruby.png, sapphire.png, emerald.png, amethyst.png (256 × 256, fond transparent)
+Items.diamond  = { label = 'Diamant',   weight = 20, stack = true, image = 'diamond.png',  icon = '💎', description = 'Diamant taillé, pur et brillant. Se revend à un receleur.' }
+Items.ruby     = { label = 'Rubis',     weight = 20, stack = true, image = 'ruby.png',     icon = '💎', description = 'Rubis rouge intense, taille coussin. Se revend à un receleur.' }
+Items.sapphire = { label = 'Saphir',    weight = 20, stack = true, image = 'sapphire.png', icon = '💎', description = 'Saphir bleu profond, taille ovale. Se revend à un receleur.' }
+Items.emerald  = { label = 'Émeraude',  weight = 20, stack = true, image = 'emerald.png',  icon = '💎', description = 'Émeraude verte, taille à degrés. Se revend à un receleur.' }
+Items.amethyst = { label = 'Améthyste', weight = 20, stack = true, image = 'amethyst.png', icon = '💎', description = 'Améthyste violette, taille poire. Se revend à un receleur.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

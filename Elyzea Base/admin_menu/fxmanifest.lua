@@ -74,6 +74,7 @@ server_scripts {
     'server/staffjob.lua',
     'server/trunks.lua',
     'server/drugsale.lua',
+    'server/jewelry.lua',
     'server/guards.lua',
 }
 
@@ -110,5 +111,6 @@ files {
     'html/guards.js',
     'html/dynasty.js',
     'html/dealer.js',
+    'html/jewelry.js',
     'html/logo.png',
 }

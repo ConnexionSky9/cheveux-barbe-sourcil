@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v46 then
+        -- Braquage de bijouterie (jewelry_heist) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.heist_manage = true end
+        meta.v46 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v45 then
         -- Administration automobile (concessions) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.dealer_manage = true end

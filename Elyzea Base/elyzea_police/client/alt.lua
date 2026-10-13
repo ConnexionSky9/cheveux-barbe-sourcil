@@ -40,6 +40,32 @@ local function FacingPlayer()
     return best
 end
 
+-- Ressources métier qui ajoutent leurs actions au menu ALT (exports AltOptions / AltSelect)
+-- target = true : la ressource a ses propres cibles (PNJ, objets) via AltTarget(entité) / AltNearby()
+local ALT_PROVIDERS = {
+    { res = 'elyzea_ems', prefix = 'ems:' },
+    { res = 'elyzea_meca', prefix = 'meca:' },
+    { res = 'jewelry_heist', prefix = 'jewel:', target = true },
+}
+
+-- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre
+local function ExtTarget(ent)
+    for _, prov in ipairs(ALT_PROVIDERS) do
+        if prov.target and GetResourceState(prov.res) == 'started' then
+            local ok, title = pcall(function() return exports[prov.res]:AltTarget(ent) end)
+            if ok and title then return prov.res, title end
+        end
+    end
+end
+local function ExtNearby()
+    for _, prov in ipairs(ALT_PROVIDERS) do
+        if prov.target and GetResourceState(prov.res) == 'started' then
+            local ok, ent, title = pcall(function() return exports[prov.res]:AltNearby() end)
+            if ok and ent then return prov.res, ent, title end
+        end
+    end
+end
+
 local function Context()
     if C.IsCarrying and C.IsCarrying() then return { kind = 'carry' } end
     if C.InTrunk and C.InTrunk() then return { kind = 'trunk' } end
@@ -56,6 +82,9 @@ local function Context()
             ctx.kind, ctx.entity = 'player', ent
         elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt and Entity(ent).state.drugThief then
             ctx.kind, ctx.entity = 'npc', ent      -- voleur de la vente de drogue (elyzea_illegal)
+        elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt + 1.5 and ExtTarget(ent) then
+            ctx.kind, ctx.entity = 'ext', ent
+            ctx.provider, ctx.title = ExtTarget(ent)
         elseif IsEntityAPed(ent) and IsPedInAnyVehicle(ent, false) and d <= D.vehicle then
             ctx.kind, ctx.entity = 'vehicle', GetVehiclePedIsIn(ent, false)
         elseif IsEntityAVehicle(ent) and d <= D.vehicle then
@@ -65,6 +94,11 @@ local function Context()
     if ctx.kind == 'none' then
         local f = FacingPlayer()
         if f then ctx.kind, ctx.entity = 'player', f end
+    end
+    if ctx.kind == 'none' then
+        -- rien de visé : cible proche d'une ressource (sac posé au sol, PNJ)
+        local res, ent, title = ExtNearby()
+        if res then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title end
     end
     if ctx.kind == 'player' then
         if IsPedInAnyVehicle(ctx.entity, false) then
@@ -78,12 +112,6 @@ local function Context()
 end
 
 local function NameOf(sid) return ('Personne · ID %d'):format(sid) end
-
--- Ressources métier qui ajoutent leurs actions au menu ALT (exports AltOptions / AltSelect)
-local ALT_PROVIDERS = {
-    { res = 'elyzea_ems', prefix = 'ems:' },
-    { res = 'elyzea_meca', prefix = 'meca:' },
-}
 
 -- Actions possibles selon la cible, son état réel et les permissions
 local function Options(ctx)
@@ -129,10 +157,10 @@ local function Options(ctx)
             end
         end
     end
-    if C.CitizenOptions then C.CitizenOptions(ctx, out) end
+    if C.CitizenOptions and ctx.kind ~= 'ext' then C.CitizenOptions(ctx, out) end
     -- Actions des métiers (EMS, mécano) : options fournies par leur ressource, préfixées « ems: » / « meca: »
     for _, prov in ipairs(ALT_PROVIDERS) do
-        if GetResourceState(prov.res) == 'started' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
+        if GetResourceState(prov.res) == 'started' and (((ctx.kind == 'player' or ctx.kind == 'vehicle') and not prov.target) or (ctx.kind == 'ext' and ctx.provider == prov.res)) then
             local ok, list = pcall(function()
                 return exports[prov.res]:AltOptions({ kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
             end)
@@ -153,6 +181,7 @@ local function Title(ctx)
     if ctx.kind == 'carry' then return 'Personne portée' end
     if ctx.kind == 'npc' then return 'Voleur' end
     if ctx.kind == 'trunk' then return 'Dans le coffre' end
+    if ctx.kind == 'ext' then return ctx.title or 'Actions' end
     if ctx.kind == 'vehicle' then return ('Véhicule · %s'):format((GetVehicleNumberPlateText(ctx.entity) or ''):gsub('^%s+', ''):gsub('%s+$', '')) end
     return 'Actions'
 end

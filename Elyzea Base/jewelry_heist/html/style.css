@@ -1,0 +1,66 @@
+:root {
+  --bg: rgba(12, 14, 22, .96); --panel: #151a28; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .14);
+  --text: #eef1f8; --muted: #a3acc2; --faint: #6f7891; --gold: #e7c26b; --gold-2: #f6dd9a; --red: #ef4444; --green: #22c55e;
+  --shadow: 0 24px 60px rgba(0, 0, 0, .55);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: transparent; font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: var(--text); overflow: hidden; user-select: none; }
+.hidden { display: none !important; }
+
+#panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 92vw); max-height: 86vh; display: flex; flex-direction: column;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; animation: pop .18s ease-out; }
+#panel.small { width: 340px; }
+@keyframes pop { from { opacity: 0; transform: translate(-50%, -48%) scale(.98); } }
+.head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(231, 194, 107, .16), transparent 60%); }
+.head .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(231, 194, 107, .14); font-size: 20px; }
+.head h1 { font-size: 17px; font-weight: 700; }
+.head small { display: block; color: var(--faint); font-size: 12px; margin-top: 2px; }
+.head .x { margin-left: auto; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--muted); cursor: pointer; font-size: 15px; }
+.head .x:hover { color: var(--text); border-color: var(--gold); }
+.body { padding: 14px 16px 16px; overflow-y: auto; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.tab { flex: 1; padding: 9px; border-radius: 9px; border: 1px solid var(--line-2); background: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+.tab.on { background: rgba(231, 194, 107, .14); border-color: rgba(231, 194, 107, .55); color: var(--gold-2); }
+
+.opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 13px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, .02);
+  color: var(--text); cursor: pointer; text-align: left; margin-bottom: 7px; font-size: 14px; font-weight: 600; }
+.opt:hover:not(:disabled) { border-color: rgba(231, 194, 107, .6); background: rgba(231, 194, 107, .08); }
+.opt:disabled { opacity: .45; cursor: not-allowed; }
+.opt .oi { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, .05); font-size: 16px; flex: none; }
+.opt small { display: block; color: var(--faint); font-weight: 500; font-size: 12px; margin-top: 2px; }
+.opt.danger .oi { background: rgba(239, 68, 68, .16); }
+
+.gem { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .025); margin-bottom: 8px; }
+.gem .pic { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 60%, rgba(231, 194, 107, .16), transparent 70%), #0d1120; }
+.gem .pic img { width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .5)); }
+.gem b { font-size: 14.5px; }
+.gem .meta, .money .meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.money b { font-size: 14.5px; }
+.gem .meta .p { color: var(--gold-2); font-weight: 700; }
+.gem .act { display: flex; align-items: center; gap: 6px; }
+.qty { display: flex; align-items: center; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.qty button { width: 28px; height: 32px; border: none; background: rgba(255, 255, 255, .05); color: var(--text); cursor: pointer; font-size: 15px; }
+.qty input { width: 46px; height: 32px; border: none; background: transparent; color: var(--text); text-align: center; font-size: 14px; outline: none; }
+.qty input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.btn { height: 34px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, .04); color: var(--text); font-weight: 600; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--gold); }
+.btn.gold { background: linear-gradient(135deg, #d6ab4f, #f1d38a); border-color: transparent; color: #241a05; }
+.btn.red { background: rgba(239, 68, 68, .18); border-color: rgba(239, 68, 68, .5); color: #fecaca; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.total { font-size: 12px; color: var(--faint); text-align: right; margin-top: 3px; min-height: 14px; }
+.money { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, .3);
+  background: rgba(34, 197, 94, .06); margin-bottom: 8px; }
+.money .pic { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center; font-size: 28px; background: #0d1a14; }
+.foot { display: flex; gap: 8px; justify-content: flex-end; padding-top: 6px; }
+.empty { text-align: center; color: var(--faint); padding: 26px 10px; font-size: 13.5px; }
+.note { font-size: 12px; color: var(--faint); margin-top: 8px; }
+
+#progress { position: fixed; left: 50%; bottom: 9vh; transform: translateX(-50%); width: min(420px, 80vw); padding: 12px 14px; border-radius: 12px; background: var(--bg);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow); }
+#progress .lbl { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+#progress .bar { height: 8px; border-radius: 8px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+#progress .bar i { display: block; height: 100%; width: 0; border-radius: 8px; background: var(--gold); }
+#progress .time { font-size: 12px; color: var(--muted); text-align: right; margin-top: 5px; font-variant-numeric: tabular-nums; }
