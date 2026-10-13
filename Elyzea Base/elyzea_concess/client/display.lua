@@ -9,6 +9,37 @@ local shown = {}     -- [clé] = { veh, key, x, y, z, label }
 
 local function Key(d) return ('%d:%d:%s:%s:%s:%s'):format(d.shop, d.slot, d.model, tostring(d.h), tostring(d.c1), tostring(d.c2)) end
 
+-- Pose le véhicule sur le sol : on attend que le sol (collision) soit chargé autour, on cherche
+-- la hauteur réelle du sol sous l'emplacement (la position enregistrée est celle du staff, ~1 m
+-- au-dessus du sol), puis on cale les roues avant de figer le véhicule.
+local function PlaceOnGround(veh, d)
+    local x, y, z = d.x + 0.0, d.y + 0.0, d.z + 0.0
+    FreezeEntityPosition(veh, true)
+    local t = GetGameTimer() + 5000
+    repeat
+        RequestCollisionAtCoord(x, y, z)
+        Wait(50)
+    until HasCollisionLoadedAroundEntity(veh) or GetGameTimer() > t
+    local gz
+    for _, start in ipairs({ z + 1.0, z + 2.5, z + 0.3 }) do
+        local ok, g = GetGroundZFor_3dCoord(x, y, start, false)
+        if ok and math.abs(g - z) < 4.0 then gz = g break end
+    end
+    if gz then SetEntityCoordsNoOffset(veh, x, y, gz + 0.5, false, false, false) end
+    SetEntityHeading(veh, (d.h or 0.0) + 0.0)
+    for _ = 1, 10 do
+        if SetVehicleOnGroundProperly(veh) then break end
+        Wait(100)
+    end
+    if not gz then
+        -- Sol introuvable (intérieur mal chargé) : on laisse tomber le véhicule une seconde sur le sol réel
+        FreezeEntityPosition(veh, false)
+        local t2 = GetGameTimer() + 1500
+        while GetGameTimer() < t2 do Wait(100) end
+        SetVehicleOnGroundProperly(veh)
+    end
+end
+
 local function Spawn(d)
     local hash = joaat(d.model)
     if not IsModelInCdimage(hash) or not IsModelAVehicle(hash) then return nil end
@@ -20,7 +51,7 @@ local function Spawn(d)
     SetModelAsNoLongerNeeded(hash)
     if not DoesEntityExist(veh) then return nil end
     SetEntityAsMissionEntity(veh, true, true)
-    SetVehicleOnGroundProperly(veh)
+    PlaceOnGround(veh, d)
     FreezeEntityPosition(veh, true)
     SetEntityInvincible(veh, true)
     SetVehicleDoorsLocked(veh, 2)
