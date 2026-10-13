@@ -19,12 +19,17 @@ local function current() return preview or saved end
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
 local maskTxd, maskOn = nil, false
 local function SharpMask(on)
+    -- Désactivé par défaut (Config.Minimap.sharpMask) : le masque de GTA découpe toujours la carte
+    if not (Config.Minimap and Config.Minimap.sharpMask == true) then on = false end
     if on == maskOn then return end
     if on then
         if not maskTxd then
             maskTxd = CreateRuntimeTxd('elyzea_minimap')
             CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
         end
+        -- Texture réellement chargée ? Sinon on garde le masque de GTA (sinon la carte n'est plus découpée)
+        local res = GetTextureResolution('elyzea_minimap', 'radarmasksm')
+        if not res or res.x < 8 then return end
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
     else
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')

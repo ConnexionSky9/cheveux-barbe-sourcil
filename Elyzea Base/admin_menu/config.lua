@@ -247,6 +247,10 @@ Config.Minimap = {
     marginY = 0.030,          -- écart avec le bord haut / bas
     hideHealthBars = true,    -- cacher les barres de vie / armure de GTA sous la carte
     onlyInVehicle = false,    -- mini-carte seulement en véhicule
+    -- Masque net (minimap/radarmask.png) à la place de celui de GTA. Désactivé : sur certains PC la
+    -- texture remplacée ne découpe plus la carte, qui déborde alors sur tout le coin de l'écran.
+    -- Le masque de GTA découpe toujours la carte correctement (bords légèrement flous).
+    sharpMask = false,
     -- Commandes d'autres scripts qui déplacent la mini-carte : désactivées (la position est celle du staff)
     blockCommands = { 'carte', 'minimap' },
 }

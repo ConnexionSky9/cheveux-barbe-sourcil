@@ -31,6 +31,7 @@ client_scripts {
     'client/ui.lua',
     'client/vehicle.lua',
     'client/keys.lua',
+    'client/world.lua',
 }
 
 ui_page 'html/index.html'
