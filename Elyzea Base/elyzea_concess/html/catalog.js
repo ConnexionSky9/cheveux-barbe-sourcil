@@ -6,7 +6,8 @@
    débite jamais rien : seul le serveur crée une vente, après acceptation du client.
    ===================================================================== */
 (() => {
-  const CS = { open: false, data: null, cat: 'all', q: '', sort: 'cat', onlySell: false, sel: null, stats: null, preview: false };
+  const PAGE = 48; // véhicules affichés par tranche (les suivants arrivent en descendant)
+  const CS = { open: false, data: null, cat: 'all', q: '', sort: 'cat', onlySell: false, sel: null, stats: null, preview: false, limit: PAGE };
   const root = () => $('#catalog');
 
   const sorters = {
@@ -21,9 +22,11 @@
       && (!q || `${i.label} ${i.brand || ''} ${i.category}`.toLowerCase().includes(q)) && (!CS.onlySell || i.sellable))
       .sort(sorters[CS.sort] || sorters.cat);
   }
+  const PH = '<span class="ph">🚘<small>Image indisponible</small></span>';
+  window.cdImgErr = (el) => { el.outerHTML = PH; };
   const photo = (it, cls = 'img') => {
     const src = imgOf(it);
-    return `<div class="${cls}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🚘'}))">` : '<span class="ph">🚘</span>'}</div>`;
+    return `<div class="${cls}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="cdImgErr(this)">` : PH}</div>`;
   };
   const badges = (it) => `${it.sellable ? '' : '<span class="badge no">Non disponible à la vente</span>'}${it.displayed ? `<span class="badge expo">En exposition${it.displayed > 1 ? ` ×${it.displayed}` : ''}</span>` : ''}`;
 
@@ -45,14 +48,41 @@
           <label class="extra"><input type="checkbox" class="check" data-conly ${CS.onlySell ? 'checked' : ''}> Vendables uniquement</label>
           <span style="flex:1"></span><span class="faint" style="font-size:.8rem">${list.length} véhicule(s)</span>
           <button class="icon-btn" data-cclose="1" title="Fermer (Échap)">✕</button></div>
-        <div class="cat-grid">${list.map((it) => `<div class="car" data-cit="${it.id}">${photo(it)}<div class="body"><div class="name">${esc(it.label)}</div>
-          <div class="sub">${esc(it.brand ? `${it.brand} · ` : '')}${esc(it.category)}</div>
-          <div class="row"><span class="price">${money(it.price)}</span><span>${badges(it)}</span></div></div></div>`).join('') || empty('Aucun véhicule ne correspond.')}</div>`;
+        <div class="cat-scroll">${gridHtml(list)}</div>`;
     }
     root().innerHTML = side + `<div class="cat-main">${main}</div>`;
     root().classList.toggle('previewing', CS.preview);
+    watchMore();
   }
   const empty = (t) => `<div class="empty" style="grid-column:1/-1">${esc(t)}</div>`;
+  const card = (it) => `<div class="car" data-cit="${it.id}" title="${esc(it.label)}">${photo(it)}<div class="body"><div class="name">${esc(it.label)}</div>
+    <div class="sub">${esc(it.brand ? `${it.brand} · ` : '')}${esc(it.category)}</div>
+    <div class="row"><span class="price">${money(it.price)}</span><span>${badges(it)}</span></div></div></div>`;
+  // « Tous » trié par catégorie : une section par catégorie. Affichage par tranches de PAGE.
+  function gridHtml(list) {
+    if (!list.length) return `<div class="cat-grid">${empty('Aucun véhicule ne correspond.')}</div>`;
+    const shown = list.slice(0, CS.limit);
+    let html = '';
+    if (CS.cat === 'all' && CS.sort === 'cat') {
+      let cur = null, buf = [];
+      const flush = () => { if (buf.length) html += `<div class="cat-sec">${esc(cur)}</div><div class="cat-grid">${buf.join('')}</div>`; buf = []; };
+      shown.forEach((it) => { if (it.category !== cur) { flush(); cur = it.category; } buf.push(card(it)); });
+      flush();
+    } else html = `<div class="cat-grid">${shown.map(card).join('')}</div>`;
+    if (list.length > shown.length) html += `<div class="cat-more"><button class="btn" data-cmore="1">Afficher plus (${list.length - shown.length} restant(s))</button></div>`;
+    return html;
+  }
+  function more() {
+    const sc = root().querySelector('.cat-scroll');
+    const top = sc ? sc.scrollTop : 0;
+    CS.limit += PAGE; draw();
+    const n = root().querySelector('.cat-scroll'); if (n) n.scrollTop = top;
+  }
+  // Tranche suivante chargée automatiquement en arrivant en bas de la liste
+  function watchMore() {
+    const sc = root().querySelector('.cat-scroll');
+    if (sc) sc.onscroll = () => { if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 300 && root().querySelector('[data-cmore]')) more(); };
+  }
 
   function bar(label, v, max, txt) {
     const pct = Math.max(3, Math.min(100, (Number(v) || 0) / max * 100));
@@ -124,7 +154,8 @@
   root().addEventListener('click', async (e) => {
     let b;
     if (e.target.closest('[data-cclose]')) return post('close', { ui: 'catalog' });
-    if ((b = e.target.closest('[data-ccat]'))) { CS.cat = b.dataset.ccat; CS.sel = null; return draw(); }
+    if ((b = e.target.closest('[data-ccat]'))) { CS.cat = b.dataset.ccat; CS.sel = null; CS.limit = PAGE; return draw(); }
+    if (e.target.closest('[data-cmore]')) return more();
     if ((b = e.target.closest('[data-cit]'))) return select(Number(b.dataset.cit));
     if (e.target.closest('[data-cback]')) return Catalog.back();
     if ((b = e.target.closest('[data-cprev]'))) {
@@ -141,14 +172,14 @@
   });
   root().addEventListener('input', (e) => {
     if (e.target.dataset.cq === undefined) return;
-    CS.q = e.target.value;
+    CS.q = e.target.value; CS.limit = PAGE;
     const pos = e.target.selectionStart;
     draw();
     const n = root().querySelector('[data-cq]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
   });
   root().addEventListener('change', (e) => {
-    if (e.target.dataset.csort !== undefined) { CS.sort = e.target.value; draw(); }
-    if (e.target.dataset.conly !== undefined) { CS.onlySell = e.target.checked; draw(); }
+    if (e.target.dataset.csort !== undefined) { CS.sort = e.target.value; CS.limit = PAGE; draw(); }
+    if (e.target.dataset.conly !== undefined) { CS.onlySell = e.target.checked; CS.limit = PAGE; draw(); }
   });
 
   // Caméra de l'aperçu : clic droit maintenu + glisser hors du panneau, molette
@@ -165,7 +196,7 @@
   document.addEventListener('wheel', (e) => { if (CS.preview && !e.target.closest('#catalog')) post('catCam', { zoom: e.deltaY > 0 ? 0.6 : -0.6 }); }, { passive: true });
 
   window.Catalog = {
-    open(data) { Object.assign(CS, { open: true, data, cat: 'all', q: '', sel: null, stats: null, preview: false }); root().classList.remove('hidden'); draw(); },
+    open(data) { Object.assign(CS, { open: true, data, cat: 'all', q: '', sel: null, stats: null, preview: false, limit: PAGE }); root().classList.remove('hidden'); draw(); },
     hide() { CS.open = false; CS.preview = false; drag = null; root().classList.add('hidden'); root().classList.remove('previewing'); },
     isOpen: () => CS.open,
     back() {

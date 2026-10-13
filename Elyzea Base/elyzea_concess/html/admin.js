@@ -9,13 +9,14 @@
    ===================================================================== */
 (() => {
   const A = { open: false, data: null, tab: 'shops', shop: null, sd: null, sub: 'setup', mq: '', mcat: '', dirtyM: {}, dirtyC: {}, model: null, check: null, results: null, rq: '',
-    cat: null, preview: false, log: null, gcat: '' };
+    cat: null, preview: false, log: null, gcat: '', mlimit: 80 };
   const root = () => $('#admin');
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
   const yesNo = (v) => (v ? '<span class="pill on">Oui</span>' : '<span class="pill off">Non</span>');
   const xyz = (p) => (p ? `${Number(p.x).toFixed(1)}, ${Number(p.y).toFixed(1)}, ${Number(p.z).toFixed(1)} · ${Math.round(p.h || 0)}°` : '');
   const val = (sel) => { const el = root().querySelector(sel); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
   const cats = () => (A.data ? A.data.categories : []);
+  const thumb = (m) => { const src = imgOf(m); return `<span class="vthumb">${src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`; };
   const catName = (id) => { const c = cats().find((x) => x.id === id); return c ? c.name : '—'; };
 
   async function run(action, data, btn) { return act(adm(action, data), btn); }
@@ -168,8 +169,10 @@
     const q = A.mq.trim().toLowerCase();
     const list = A.data.models.filter((m) => (!q || `${m.label} ${m.model} ${m.brand || ''}`.toLowerCase().includes(q))
       && (!A.gcat || (A.gcat === 'none' ? !m.categoryId : String(m.categoryId) === A.gcat)));
-    const items = list.map((m) => `<button class="adm-item ${A.model === m.id ? 'on' : ''}" data-amod="${m.id}" style="${m.removed ? 'opacity:.45' : ''}"><b>${esc(m.label)}</b>
-      <small><span class="mono">${esc(m.model)}</span> · ${esc(m.category || 'sans catégorie')} · ${m.refPrice != null ? money(m.refPrice) : 'sans prix'}${m.removed ? ' · retiré' : !m.enabled ? ' · désactivé' : ''}</small></button>`).join('');
+    const shown = list.slice(0, A.mlimit);
+    const items = shown.map((m) => `<button class="adm-item adm-veh ${A.model === m.id ? 'on' : ''}" data-amod="${m.id}" style="${m.removed ? 'opacity:.45' : ''}">${thumb(m)}<span class="t"><b>${esc(m.label)}</b>
+      <small><span class="mono">${esc(m.model)}</span> · ${esc(m.category || 'sans catégorie')}</small><small>${m.refPrice != null ? money(m.refPrice) : 'sans prix'}${m.removed ? ' · retiré' : !m.enabled ? ' · désactivé' : ''}</small></span></button>`).join('')
+      + (list.length > shown.length ? `<button class="btn small" style="width:100%;margin-top:.3rem" data-ammore="1">Afficher plus (${list.length - shown.length})</button>` : '');
     const m = A.model === 'new' ? null : A.data.models.find((x) => x.id === A.model);
     return `<div class="adm-list"><div style="display:flex;gap:.4rem;margin-bottom:.5rem"><input class="input grow" data-amq placeholder="Rechercher" value="${esc(A.mq)}"><button class="btn small primary" data-amnew="1">+ Ajouter un véhicule</button></div>
         <div style="display:flex;gap:.4rem;margin-bottom:.5rem"><select class="input grow" data-agcat><option value="">Toutes catégories (${A.data.models.length})</option>${cats().map((c) => `<option value="${c.id}" ${A.gcat === String(c.id) ? 'selected' : ''}>${esc(c.name)} (${c.models})</option>`).join('')}<option value="none" ${A.gcat === 'none' ? 'selected' : ''}>Sans catégorie</option></select>
@@ -210,6 +213,7 @@
   function modelForm(m) {
     return `<div class="adm-section"><h3>${esc(m.label)} <span class="mono faint" style="text-transform:none;letter-spacing:0">${esc(m.model)}</span></h3>
         <p class="faint" style="font-size:.8rem;margin-bottom:.5rem">Vérifié en jeu par ${esc(m.validatedBy || '—')} · classe ${m.vclass ?? '—'} · ${m.seats ?? '—'} place(s) · proposé par : ${m.shops.length ? m.shops.map(esc).join(', ') : 'aucune concession'}</p>
+        <div class="adm-hero">${imgOf(m) ? `<img src="${esc(imgOf(m))}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'Image indisponible : renseignez une adresse d\u2019image ci-dessous'}))">` : '<span>Pas d\u2019image : renseignez une adresse ci-dessous</span>'}</div>
         ${modelFields(m)}
         <div class="actions-row"><button class="btn primary" data-amsave="1">Enregistrer</button>
           <button class="btn ${m.removed ? 'success' : 'danger'}" data-amrem="${m.removed ? 'restore' : 'remove'}">${m.removed ? 'Remettre au catalogue' : 'Retirer du catalogue'}</button>
@@ -262,8 +266,8 @@
   const keepInput = (sel, fn) => { const el = root().querySelector(sel); const pos = el ? el.selectionStart : 0; fn(); const n = root().querySelector(sel); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   root().addEventListener('input', (e) => {
     const t = e.target;
-    if (t.dataset.agcat !== undefined) { A.gcat = t.value; return draw(); }
-    if (t.dataset.amq !== undefined) { A.mq = t.value; return keepInput('[data-amq]', draw); }
+    if (t.dataset.agcat !== undefined) { A.gcat = t.value; A.mlimit = 80; return draw(); }
+    if (t.dataset.amq !== undefined) { A.mq = t.value; A.mlimit = 80; return keepInput('[data-amq]', draw); }
   });
   root().addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -362,6 +366,7 @@
       if (r && r.error) toast(r.error, false); else if (r && r.message) toast(r.message);
       return reload();
     }
+    if (e.target.closest('[data-ammore]')) { A.mlimit += 80; return draw(); }
     if (e.target.closest('[data-amgo]')) { A.tab = 'models'; A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if (e.target.closest('[data-amnew]')) { A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if ((b = e.target.closest('[data-asearch]'))) {
