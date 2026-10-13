@@ -18,10 +18,56 @@ local function Close()
 end
 C.ui.admin = { close = Close }
 
+-- Import de tous les véhicules chargés par le jeu (base + ressources) vers le catalogue global.
+-- Le jeu fournit classe, nom, marque, places et performances ; le serveur choisit la catégorie
+-- (classe GTA) et le prix (classe + rang de performance dans la classe : score de 0 à 1).
+local importing = false
+local function ImportGame()
+    if importing then return { error = 'Import déjà en cours.' } end
+    importing = true
+    local ok, list = pcall(GetAllVehicleModels)
+    local items, byClass = {}, {}
+    for _, name in ipairs(ok and list or {}) do
+        name = tostring(name):lower()
+        local hash = joaat(name)
+        if IsModelInCdimage(hash) and IsModelAVehicle(hash) then
+            local make = GetMakeNameFromVehicleModel(hash)
+            local brand = make and make ~= '' and GetLabelText(make) or ''
+            if brand == 'NULL' then brand = make or '' end
+            local it = { model = name, label = C.LabelOf(hash), brand = brand, class = GetVehicleClassFromName(hash), seats = GetVehicleModelNumberOfSeats(hash),
+                perf = (GetVehicleModelEstimatedMaxSpeed(hash) or 0.0) + (GetVehicleModelAcceleration(hash) or 0.0) * 100.0 }
+            items[#items + 1] = it
+            byClass[it.class] = byClass[it.class] or {}
+            table.insert(byClass[it.class], it)
+        end
+    end
+    for _, l in pairs(byClass) do
+        table.sort(l, function(a, c) return a.perf < c.perf end)
+        for i, it in ipairs(l) do it.score = #l > 1 and (i - 1) / (#l - 1) or 0.5 it.perf = nil end
+    end
+    if #items == 0 then importing = false return { error = 'Aucun véhicule trouvé dans le jeu.' } end
+    local res
+    for i = 1, #items, 50 do
+        local chunk = {}
+        for j = i, math.min(i + 49, #items) do chunk[#chunk + 1] = items[j] end
+        res = C.Adm('importGame', { list = chunk, first = i == 1, last = i + 50 > #items })
+        if res.error then break end
+    end
+    importing = false
+    return res
+end
+
 local function Open()
     if isOpen then return Close() end
     local r = C.Adm('data')
     if r.error then return C.Notify(r.error, 'error') end
+    if r.needImport then
+        C.Notify('Premier lancement : import automatique de tous les véhicules du jeu…', 'inform')
+        local ir = ImportGame()
+        C.Show(ir)
+        r = C.Adm('data')
+        if r.error then return C.Notify(r.error, 'error') end
+    end
     isOpen = true
     C.Focus('admin', true)
     SendNUIMessage({ action = 'admin', show = true, data = r, preview = preview ~= nil })
@@ -39,6 +85,8 @@ local function Info(name)
     if brand == 'NULL' then brand = make or '' end
     return { model = name:lower(), label = C.LabelOf(hash), brand = brand, class = GetVehicleClassFromName(hash), seats = GetVehicleModelNumberOfSeats(hash) }
 end
+
+RegisterNUICallback('admImport', function(_, cb) cb(ImportGame()) end)
 
 local allModels = nil
 RegisterNUICallback('admVehSearch', function(body, cb)

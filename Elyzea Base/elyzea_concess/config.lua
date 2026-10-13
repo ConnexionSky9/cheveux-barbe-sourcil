@@ -61,3 +61,46 @@ Config.DefaultCategories = {
 
 -- Classe GTA → type de véhicule pour CreateVehicleServerSetter
 Config.ClassType = { [8] = 'bike', [13] = 'bike', [14] = 'boat', [15] = 'heli', [16] = 'plane', [21] = 'train' }
+
+-- ---------------------------------------------------------------------
+-- Import automatique des véhicules du jeu
+-- À la première ouverture de l'administration automobile par un staff, TOUS les véhicules
+-- chargés par le jeu (base + ajoutés par des ressources) sont ajoutés au catalogue global,
+-- triés par catégorie selon leur classe GTA, avec un prix calculé (classe + performances).
+-- Tout reste modifiable ensuite (catégorie, prix, nom, retrait). Le bouton « Synchroniser
+-- avec le jeu » ajoute plus tard les nouveaux véhicules sans toucher aux modèles existants.
+-- ---------------------------------------------------------------------
+Config.Import = {
+    auto = true,
+    -- Classe GTA → catégorie (nom exact). Classe absente = non importée
+    -- (14 bateaux, 15 hélicoptères, 16 avions, 17 services, 18 urgences, 19 militaire, 21 trains, 22 monoplaces)
+    classes = {
+        [0] = 'Compactes', [1] = 'Berlines', [2] = 'SUV', [3] = 'Coupés', [4] = 'Muscle', [5] = 'Véhicules anciens',
+        [6] = 'Sportives', [7] = 'Supercars', [8] = 'Motos', [9] = 'Tout-terrain', [10] = 'Utilitaires', [11] = 'Utilitaires',
+        [12] = 'Utilitaires', [13] = 'Vélos', [20] = 'Utilitaires',
+    },
+    -- Catégories créées si elles n'existent pas encore
+    newCategories = { { name = 'Muscle', icon = '💪' }, { name = 'Vélos', icon = '🚲' } },
+    -- Prix moyen par classe : le prix va de 60 % (moins performant de la classe) à 150 % (plus performant), arrondi à 500 $
+    basePrice = {
+        [0] = 18000, [1] = 32000, [2] = 60000, [3] = 75000, [4] = 55000, [5] = 160000, [6] = 190000, [7] = 950000,
+        [8] = 22000, [9] = 45000, [10] = 140000, [11] = 40000, [12] = 38000, [13] = 900, [20] = 95000,
+    },
+    -- Ces modèles vont dans une autre catégorie que celle de leur classe
+    override = {
+        ['Véhicules électriques'] = { 'voltic', 'raiden', 'cyclone', 'cyclone2', 'tezeract', 'neon', 'imorgon', 'khamelion', 'surge', 'dilettante',
+            'iwagen', 'omnisegt', 'virtue', 'powersurge', 'buffalo5' },
+        ['Luxe'] = { 'cognoscenti', 'cognoscenti2', 'cog55', 'cog552', 'superd', 'windsor', 'windsor2', 'stafford', 'deity', 'jubilee',
+            'schafter3', 'schafter4', 'schafter5', 'schafter6', 'exemplar', 'stretch', 'patriot2', 'baller5', 'baller6', 'xls', 'xls2' },
+    },
+    -- Jamais importés (armés, arène, missions, véhicules spéciaux)
+    exclude = {
+        'oppressor', 'oppressor2', 'deluxo', 'scramjet', 'vigilante', 'stromberg', 'toreador', 'ruiner2', 'ruiner3', 'voltic2', 'technical', 'technical2',
+        'technical3', 'insurgent', 'insurgent2', 'insurgent3', 'nightshark', 'halftrack', 'apc', 'khanjali', 'rhino', 'dune2', 'dune3', 'dune4', 'dune5',
+        'blazer5', 'boxville5', 'tampa3', 'menacer', 'caracara', 'marshall', 'monster', 'rcbandito', 'minitank', 'chernobog', 'trailersmall2',
+        'bruiser', 'bruiser2', 'bruiser3', 'brutus', 'brutus2', 'brutus3', 'cerberus', 'cerberus2', 'cerberus3', 'deathbike', 'deathbike2', 'deathbike3',
+        'dominator4', 'dominator5', 'dominator6', 'impaler2', 'impaler3', 'impaler4', 'imperator', 'imperator2', 'imperator3', 'issi4', 'issi5', 'issi6',
+        'monster3', 'monster4', 'monster5', 'scarab', 'scarab2', 'scarab3', 'slamvan4', 'slamvan5', 'slamvan6', 'zr380', 'zr3802', 'zr3803',
+        'speedo2', 'pbus2', 'zhaba', 'veto', 'veto2', 'kart',
+    },
+}

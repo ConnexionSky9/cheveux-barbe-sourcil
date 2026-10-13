@@ -71,7 +71,94 @@ P.Admin.data = { fn = function()
     table.sort(models, function(a, c) return a.label < c.label end)
     for _, D in pairs(P.shops) do shops[#shops + 1] = ShopView(D) end
     table.sort(shops, function(a, c) return a.id < c.id end)
-    return { categories = cats, models = models, shops = shops, imageUrl = Config.ImageUrl, maxPrice = Config.Sale.maxPrice }
+    return { categories = cats, models = models, shops = shops, imageUrl = Config.ImageUrl, maxPrice = Config.Sale.maxPrice,
+        needImport = Config.Import.auto and not P.GetSetting('vehiclesImported', false) or nil }
+end }
+
+-- ---------------------------------------------------------------------
+-- Import des véhicules du jeu. La liste vient du jeu du staff (GetAllVehicleModels : le serveur
+-- FiveM ne connaît pas les modèles chargés) et arrive par paquets. Seuls les modèles absents du
+-- catalogue sont ajoutés : un modèle déjà présent (même modifié ou retiré) n'est jamais touché.
+-- ---------------------------------------------------------------------
+local importSets = nil
+local function ImportSets()
+    if importSets then return importSets end
+    importSets = { exclude = {}, override = {} }
+    for _, m in ipairs(Config.Import.exclude or {}) do importSets.exclude[m:lower()] = true end
+    for cat, list in pairs(Config.Import.override or {}) do for _, m in ipairs(list) do importSets.override[m:lower()] = cat end end
+    return importSets
+end
+
+local function CatIdByName(name)
+    for id, c in pairs(P.cats) do if c.name == name then return id end end
+end
+
+local function EnsureImportCats()
+    local sort = 0
+    for _, c in pairs(P.cats) do if c.sort > sort then sort = c.sort end end
+    for _, c in ipairs(Config.Import.newCategories or {}) do
+        if not CatIdByName(c.name) then
+            sort = sort + 10
+            local id = MySQL.insert.await('INSERT IGNORE INTO `cd_categories` (`name`, `icon`, `sort`) VALUES (?, ?, ?)', { c.name, c.icon, sort })
+            if id and id > 0 then P.cats[id] = { id = id, name = c.name, icon = c.icon, sort = sort, enabled = true } end
+        end
+    end
+end
+
+local importStats = {}
+P.Admin.importGame = { fn = function(src, d)
+    local list = type(d.list) == 'table' and d.list or {}
+    if #list > 100 then return { error = 'Paquet trop grand.' } end
+    if d.first then importStats[src] = { added = 0, skipped = 0, shops = {} } EnsureImportCats() end
+    local st = importStats[src] or { added = 0, skipped = 0, shops = {} }
+    importStats[src] = st
+    local sets, who = ImportSets(), P.Name(src)
+    local rows, args, added = {}, {}, {}
+    for _, v in ipairs(list) do
+        local model = type(v) == 'table' and tostring(v.model or ''):lower():gsub('[^%w_%-]', ''):sub(1, 50) or ''
+        local class = type(v) == 'table' and P.Int(v.class, 0, 30, nil)
+        local catName = model ~= '' and not sets.exclude[model] and (sets.override[model] or (class and Config.Import.classes[class]))
+        local catId = catName and CatIdByName(catName)
+        if not catId or P.modelByName[model] then st.skipped = st.skipped + 1
+        else
+            local score = math.max(0, math.min(1, tonumber(v.score) or 0.5))
+            local base = Config.Import.basePrice[class] or 50000
+            local price = math.max(500, math.floor(base * (0.6 + 0.9 * score) / 500 + 0.5) * 500)
+            local label = P.Clean(v.label, 80)
+            if #label < 2 then label = model end
+            local brand = P.Clean(v.brand, 50)
+            -- valeurs absentes écrites NULL directement (pas de trou dans les paramètres)
+            local vals, ph = { model, label, brand ~= '' and brand or false, catId, math.min(price, Config.Sale.maxPrice), class or false, P.Int(v.seats, 0, 64, false), who, who }, {}
+            for i = 1, #vals do
+                if vals[i] == false then ph[i] = 'NULL' else ph[i] = '?' args[#args + 1] = vals[i] end
+            end
+            rows[#rows + 1] = ('(%s, %s, %s, %s, %s, 1, 1, 1, %s, %s, %s, %s)'):format(table.unpack(ph))
+            added[#added + 1] = model
+            P.modelByName[model] = -1 -- réservé (doublon dans le paquet)
+        end
+    end
+    if #rows > 0 then
+        MySQL.query.await([[INSERT IGNORE INTO `cd_models` (`model`, `label`, `brand`, `category_id`, `ref_price`, `commercial`, `displayable`, `enabled`,
+            `vclass`, `seats`, `validated_by`, `created_by`) VALUES ]] .. table.concat(rows, ', '), args)
+        local names, ph = added, {}
+        for i = 1, #names do ph[i] = '?' end
+        for _, r in ipairs(MySQL.query.await('SELECT * FROM `cd_models` WHERE `model` IN (' .. table.concat(ph, ', ') .. ')', names) or {}) do
+            local m = P.AddModelRow(r)
+            st.added = st.added + 1
+            for _, n in ipairs(P.AddModelToShops(src, m)) do st.shops[n] = true end
+        end
+        for _, n in ipairs(names) do if P.modelByName[n] == -1 then P.modelByName[n] = nil end end
+    end
+    if not d.last then return { ok = true } end
+    importStats[src] = nil
+    P.SetSetting('vehiclesImported', true)
+    local shops = {}
+    for n in pairs(st.shops) do shops[#shops + 1] = n end
+    table.sort(shops)
+    CatalogLog(src, 'Import des véhicules du jeu', ('%d véhicule(s) ajouté(s), %d ignoré(s) (déjà présents, exclus ou classe non vendue)'):format(st.added, st.skipped), {})
+    P.Touch()
+    return { ok = true, added = st.added, message = ('%d véhicule(s) ajouté(s) et triés par catégorie (%d ignoré(s) : déjà présents, exclus ou non vendus).%s'):format(st.added, st.skipped,
+        #shops > 0 and (' Déjà en vente dans : ' .. table.concat(shops, ', ') .. '.') or '') }
 end }
 
 P.Admin.log = { fn = function(_, d)

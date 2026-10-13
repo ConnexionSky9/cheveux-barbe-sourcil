@@ -24,17 +24,20 @@ P.shopModels = {}    -- [shop][model] = { enabled, visible, sellable, displayabl
 
 local function b(v) return v == 1 or v == true end
 
+function P.AddModelRow(r)
+    P.models[r.id] = { id = r.id, model = r.model, label = r.label, brand = r.brand, categoryId = r.category_id, description = r.description, image = r.image,
+        refPrice = tonumber(r.ref_price), commercial = b(r.commercial), displayable = b(r.displayable), enabled = b(r.enabled), removed = b(r.removed),
+        vclass = tonumber(r.vclass), seats = tonumber(r.seats), validatedBy = r.validated_by }
+    P.modelByName[r.model:lower()] = r.id
+    return P.models[r.id]
+end
+
 function P.LoadCatalog()
     P.cats, P.models, P.modelByName, P.shopCats, P.shopModels = {}, {}, {}, {}, {}
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `cd_categories`') or {}) do
         P.cats[r.id] = { id = r.id, name = r.name, description = r.description, icon = r.icon, image = r.image, sort = tonumber(r.sort) or 0, enabled = b(r.enabled) }
     end
-    for _, r in ipairs(MySQL.query.await('SELECT * FROM `cd_models`') or {}) do
-        P.models[r.id] = { id = r.id, model = r.model, label = r.label, brand = r.brand, categoryId = r.category_id, description = r.description, image = r.image,
-            refPrice = tonumber(r.ref_price), commercial = b(r.commercial), displayable = b(r.displayable), enabled = b(r.enabled), removed = b(r.removed),
-            vclass = tonumber(r.vclass), seats = tonumber(r.seats), validatedBy = r.validated_by }
-        P.modelByName[r.model:lower()] = r.id
-    end
+    for _, r in ipairs(MySQL.query.await('SELECT * FROM `cd_models`') or {}) do P.AddModelRow(r) end
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `cd_shop_categories`') or {}) do
         P.shopCats[r.shop_id] = P.shopCats[r.shop_id] or {}
         P.shopCats[r.shop_id][r.category_id] = { enabled = b(r.enabled), visible = b(r.visible), sellable = b(r.sellable), sort = tonumber(r.sort) or 0 }

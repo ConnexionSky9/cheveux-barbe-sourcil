@@ -9,7 +9,7 @@
    ===================================================================== */
 (() => {
   const A = { open: false, data: null, tab: 'shops', shop: null, sd: null, sub: 'setup', mq: '', mcat: '', dirtyM: {}, dirtyC: {}, model: null, check: null, results: null, rq: '',
-    cat: null, preview: false, log: null };
+    cat: null, preview: false, log: null, gcat: '' };
   const root = () => $('#admin');
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
   const yesNo = (v) => (v ? '<span class="pill on">Oui</span>' : '<span class="pill off">Non</span>');
@@ -166,13 +166,16 @@
   /* ------------------------------------------------------------------ */
   function modelsTab() {
     const q = A.mq.trim().toLowerCase();
-    const list = A.data.models.filter((m) => !q || `${m.label} ${m.model} ${m.brand || ''}`.toLowerCase().includes(q));
+    const list = A.data.models.filter((m) => (!q || `${m.label} ${m.model} ${m.brand || ''}`.toLowerCase().includes(q))
+      && (!A.gcat || (A.gcat === 'none' ? !m.categoryId : String(m.categoryId) === A.gcat)));
     const items = list.map((m) => `<button class="adm-item ${A.model === m.id ? 'on' : ''}" data-amod="${m.id}" style="${m.removed ? 'opacity:.45' : ''}"><b>${esc(m.label)}</b>
-      <small><span class="mono">${esc(m.model)}</span> · ${esc(m.category || 'sans catégorie')}${m.removed ? ' · retiré' : !m.enabled ? ' · désactivé' : ''}</small></button>`).join('');
+      <small><span class="mono">${esc(m.model)}</span> · ${esc(m.category || 'sans catégorie')} · ${m.refPrice != null ? money(m.refPrice) : 'sans prix'}${m.removed ? ' · retiré' : !m.enabled ? ' · désactivé' : ''}</small></button>`).join('');
     const m = A.model === 'new' ? null : A.data.models.find((x) => x.id === A.model);
     return `<div class="adm-list"><div style="display:flex;gap:.4rem;margin-bottom:.5rem"><input class="input grow" data-amq placeholder="Rechercher" value="${esc(A.mq)}"><button class="btn small primary" data-amnew="1">+ Ajouter un véhicule</button></div>
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem"><select class="input grow" data-agcat><option value="">Toutes catégories (${A.data.models.length})</option>${cats().map((c) => `<option value="${c.id}" ${A.gcat === String(c.id) ? 'selected' : ''}>${esc(c.name)} (${c.models})</option>`).join('')}<option value="none" ${A.gcat === 'none' ? 'selected' : ''}>Sans catégorie</option></select>
+          <button class="btn small" data-aimport="1" title="Ajoute les véhicules du jeu absents du catalogue (véhicules ajoutés par des ressources compris). Les modèles existants ne sont pas modifiés.">⟳ Synchroniser avec le jeu</button></div>
         ${items || empty('Aucun modèle.')}</div>
-      <div class="adm-main">${A.model === 'new' ? addModel() : m ? modelForm(m) : '<div class="note">Le catalogue global contient les modèles autorisés sur le serveur. Chaque concession choisit ensuite ceux qu\'elle propose, affiche, vend et expose, avec ses propres prix.</div>'}</div>`;
+      <div class="adm-main">${A.model === 'new' ? addModel() : m ? modelForm(m) : '<div class="note">Tous les véhicules du jeu sont importés automatiquement et triés par catégorie selon leur classe, avec un prix calculé selon la classe et les performances. Cliquez sur un véhicule pour modifier sa catégorie, son prix, son nom ou le retirer. « Synchroniser avec le jeu » ajoute les véhicules installés plus tard. Chaque concession peut ensuite fixer ses propres prix.</div>'}</div>`;
   }
 
   function addModel() {
@@ -259,6 +262,7 @@
   const keepInput = (sel, fn) => { const el = root().querySelector(sel); const pos = el ? el.selectionStart : 0; fn(); const n = root().querySelector(sel); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   root().addEventListener('input', (e) => {
     const t = e.target;
+    if (t.dataset.agcat !== undefined) { A.gcat = t.value; return draw(); }
     if (t.dataset.amq !== undefined) { A.mq = t.value; return keepInput('[data-amq]', draw); }
   });
   root().addEventListener('keydown', (e) => {
@@ -351,6 +355,13 @@
     }
     // Modèles
     if ((b = e.target.closest('[data-amod]'))) { A.model = Number(b.dataset.amod); return draw(); }
+    if ((b = e.target.closest('[data-aimport]'))) {
+      if (!(await confirmBox('Synchroniser avec le jeu ?', 'Les véhicules chargés par le jeu et absents du catalogue sont ajoutés et triés par catégorie avec un prix calculé. Les véhicules déjà présents (modifiés ou retirés) ne changent pas.', 'Synchroniser'))) return;
+      b.disabled = true; b.textContent = 'Import en cours…';
+      const r = await post('admImport', {});
+      if (r && r.error) toast(r.error, false); else if (r && r.message) toast(r.message);
+      return reload();
+    }
     if (e.target.closest('[data-amgo]')) { A.tab = 'models'; A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if (e.target.closest('[data-amnew]')) { A.model = 'new'; A.check = null; A.results = null; return draw(); }
     if ((b = e.target.closest('[data-asearch]'))) {
