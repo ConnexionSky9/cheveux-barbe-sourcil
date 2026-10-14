@@ -11,6 +11,7 @@
       Inventory.AddItem(src, item, count, meta)    → boolean (true UNIQUEMENT si ajouté)
       Inventory.RemoveItem(src, item, count, meta) → boolean (true UNIQUEMENT si retiré)
       Inventory.CanCarry(src, item, count)         → boolean
+      Inventory.ItemInfo(item)                     → { label, image, stack } | nil (objet inconnu)
 ]]
 
 Inventory = {}
@@ -80,6 +81,13 @@ function Inventory.CanCarry(src, item, count)
     if provider() == 'devtest' then return true end
     local ok, r = call('CanCarry', src, item, count)
     return ok and r == true
+end
+
+function Inventory.ItemInfo(item)
+    if type(item) ~= 'string' or item == '' then return nil end
+    if provider() == 'devtest' then return { label = item, image = item .. '.png', stack = true } end
+    local ok, r = call('ItemInfo', item)
+    return ok and type(r) == 'table' and r or nil
 end
 
 CreateThread(function()

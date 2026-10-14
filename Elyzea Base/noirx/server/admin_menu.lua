@@ -18,6 +18,7 @@
       updateIntel { id, …champs }   deleteIntel { id }   toggleIntel { id, enabled }
       cancelLaunder { id, refund = true|false }
       cancelMerc { id, refund = true|false }   (contrat de mercenaires en cours)
+      marketRemove { id, returnItems }   marketBan { owner, banned, reason }   (Dark Market)
       setSetting { path, value }    resetSetting { path }
       resolvePayout { id, status = 'paid'|'pending' }
       revokeIdentity { handle }
@@ -67,6 +68,12 @@ local SETTINGS = {
     { 'Ratline.askCooldownSeconds', 'Délai entre deux questions (s)', 'Informateurs' },
     { 'Burner.price', 'Prix d\'un burner', 'Burner' },
     { 'Burner.maxActive', 'Burners actifs max', 'Burner' },
+    { 'Market.feePercent', 'Commission sur les ventes (%)', 'Dark Market' },
+    { 'Market.listingFee', 'Frais de publication', 'Dark Market' },
+    { 'Market.maxActiveListings', 'Annonces actives par vendeur', 'Dark Market' },
+    { 'Market.maxPendingOffers', 'Offres en attente par acheteur', 'Dark Market' },
+    { 'Market.offerHours', 'Validité d\'une offre (h)', 'Dark Market' },
+    { 'Market.maxPrice', 'Prix unitaire maximum', 'Dark Market' },
     { 'Mercs.tiers.1.price', 'Prix : 1 mercenaire', 'Mercenaires' },
     { 'Mercs.tiers.2.price', 'Prix : 3 mercenaires', 'Mercenaires' },
     { 'Mercs.tiers.3.price', 'Prix : 5 mercenaires', 'Mercenaires' },
@@ -149,6 +156,7 @@ local function adminData(src)
         apps = apps,
         symbol = Config.Money.symbol,
         mercs = mercsView(),
+        market = Market and Market.AdminData() or nil,
         audit = DB.Query('SELECT id, actor, action, details, created_at FROM noirx_audit ORDER BY id DESC LIMIT 40', {}),
     }
 end
@@ -218,6 +226,15 @@ A.cancelMerc = function(src, d)
     local ok, info = Mercs.AdminCancel(d.id, d.refund == true, staffName(src))
     if not ok then return false, 'Ce contrat n\'est plus en cours.' end
     return true, d.refund and ('Contrat annulé, %s%d remboursés au commanditaire.'):format(Config.Money.symbol, info) or 'Contrat annulé sans remboursement.'
+end
+
+A.marketRemove = function(src, d)
+    if not Market.AdminRemove(d.id, d.returnItems == true, staffName(src)) then return false, 'Cette annonce n\'est plus active.' end
+    return true, d.returnItems and 'Annonce retirée, objets rendus au vendeur (colis).' or 'Annonce retirée, marchandise confisquée.'
+end
+A.marketBan = function(src, d)
+    if not Market.AdminBan(d.owner, d.banned == true, d.reason, staffName(src)) then return false, 'Vendeur invalide.' end
+    return true, d.banned and 'Vendeur exclu du marché (ses annonces sont retirées).' or 'Vendeur réintégré.'
 end
 
 A.resolvePayout = function(src, d)

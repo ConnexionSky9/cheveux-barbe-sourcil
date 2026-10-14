@@ -93,6 +93,24 @@
     'mercs.quote': (a) => (a.target.trim().split(/\s+/).length < 2 ? fail('not_found', 'Aucune cible localisable sous ce nom.')
       : ok({ quote: 'q1', targetName: a.target.trim(), tier: a.tier, label: a.tier === 'solo' ? 'Tireur isolé' : a.tier === 'team' ? 'Équipe' : 'Escouade', size: a.tier === 'solo' ? 1 : a.tier === 'team' ? 3 : 5, price: a.tier === 'solo' ? 15000 : a.tier === 'team' ? 40000 : 75000, currency: 'dirty', validity: 1200, deployDelay: 60, quoteExpires: 60 })),
     'mercs.order': () => { db.mercs = [{ id: 7, targetName: 'Marco Rossi', label: 'Équipe', tier: 'team', size: 3, price: 40000, currency: 'dirty', status: 'engaged', createdAt: Date.now() / 1000 - 300, deployIn: 0, expiresIn: 900, engagedAt: Date.now() / 1000 - 40, engageLeft: 440, alive: 2 }]; return ok({ contract: db.mercs[0] }); },
+    'market.browse': () => ok({
+      rules: { categories: [{ id: 'drugs', label: 'Stupéfiants' }, { id: 'heist', label: 'Matériel de braquage' }, { id: 'valuables', label: 'Objets de valeur' }], currencies: ['dirty', 'clean'], durations: [21600, 86400, 259200], feePercent: 10, listingFee: 0, offerHours: 24, symbol: '$' },
+      listings: [
+        { id: 3, item: 'thermite', label: 'Thermite', category: 'heist', categoryLabel: 'Matériel de braquage', image: '', quantity: 4, initial: 5, price: 6500, currency: 'dirty', note: 'Livraison discrète.', seller: 'corvus_07', mine: false, rep: { sales: 12, up: 9, down: 1 }, expiresIn: 51000 },
+        { id: 2, item: 'cokebaggy', label: 'Pochon de cocaïne', category: 'drugs', categoryLabel: 'Stupéfiants', image: '', quantity: 40, initial: 50, price: 320, currency: 'dirty', note: null, seller: 'nyx', mine: false, rep: { sales: 3, up: 2, down: 0 }, expiresIn: 7300 },
+        { id: 1, item: 'goldbar', label: 'Lingot d\'or', category: 'valuables', categoryLabel: 'Objets de valeur', image: '', quantity: 2, initial: 2, price: 18000, currency: 'clean', note: null, seller: 'Toi', mine: true, rep: null, expiresIn: 200000 },
+      ],
+    }),
+    'market.sellable': () => ok({ alias: 'corvus_07', rules: { currencies: ['dirty', 'clean'], durations: [21600, 86400, 259200], feePercent: 10, listingFee: 0, symbol: '$' },
+      items: [{ item: 'weed_pouch', label: 'Pochon de weed', category: 'drugs', count: 35, image: '' }, { item: 'lockpick', label: 'Crochet', category: 'tools', count: 3, image: '' }] }),
+    'market.mine': () => ok({
+      rules: { currencies: ['dirty', 'clean'], durations: [21600, 86400, 259200], feePercent: 10, listingFee: 0, symbol: '$' },
+      profile: { alias: 'corvus_07', rep: { sales: 12, up: 9, down: 1 }, purchases: 4, volume: 81000, banned: false },
+      pickups: [{ id: 1, label: 'Thermite', quantity: 1, reason: 'purchase', image: '', at: Date.now() / 1000 - 120 }],
+      incoming: [{ id: 5, listing: 1, from: 'nyx', quantity: 1, unit: 16000, total: 16000, currency: 'clean', label: 'Lingot d\'or', image: '', listPrice: 18000, expiresIn: 70000 }],
+      listings: [{ id: 1, label: 'Lingot d\'or', quantity: 2, initial: 2, price: 18000, currency: 'clean', status: 'active', expiresIn: 200000, image: '', mine: true, categoryLabel: 'Objets de valeur', seller: 'corvus_07' }],
+      sent: [], history: [{ id: 9, bought: true, other: 'nyx', label: 'Thermite', quantity: 1, total: 6500, fee: 0, currency: 'dirty', canRate: true, image: '', at: Date.now() / 1000 - 3600 }],
+    }),
     'contacts.list': () => ok({ contacts: [] }),
     'chat.list': () => ok({ conversations: [] }),
   };

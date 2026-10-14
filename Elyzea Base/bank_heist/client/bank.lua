@@ -1,6 +1,7 @@
 -- =====================================================================
 --  BANK HEIST - client : décor de la banque (synchronisé par l'état publié par le serveur)
---  · Porte du coffre : objet de la carte, tourné de « openOffset » degrés quand le coffre est ouvert.
+--  · Porte du coffre : objet de la carte, maintenu FERMÉ (closedHeading) et figé ; tourné de « openOffset »
+--    degrés quand le coffre est ouvert (piratage réussi ou C4), refermé à la fin du braquage.
 --  · Chariots de billets (objets locaux) dans le coffre ouvert : pleins, puis vides quand il n'y a plus rien.
 --  · Charge C4 posée : objet + bips jusqu'à l'explosion. L'explosion (sans dégâts) est créée par un
 --    seul client choisi par le serveur et synchronisée pour tous par le jeu.
@@ -52,7 +53,12 @@ CreateThread(function()
                     local d = doors[b.id]
                     if not d or not DoesEntityExist(d.obj) then
                         local obj = GetClosestObjectOfType(b.door.x + 0.0, b.door.y + 0.0, b.door.z + 0.0, 4.0, joaat(b.door.model), false, false, false)
-                        if obj ~= 0 then d = { obj = obj, base = GetEntityHeading(obj) } doors[b.id] = d end
+                        if obj ~= 0 then
+                            local closed = tonumber(b.door.closedHeading) or -1
+                            d = { obj = obj, base = closed >= 0 and closed or GetEntityHeading(obj), orig = GetEntityHeading(obj) }
+                            FreezeEntityPosition(obj, true)
+                            doors[b.id] = d
+                        end
                     end
                     if d and DoesEntityExist(d.obj) then
                         local target = st.open and (d.base + (b.door.openOffset or -90.0)) % 360.0 or d.base
@@ -112,5 +118,5 @@ AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for id in pairs(trolleys) do clearTrolleys(id) end
     for _, o in pairs(charges) do if DoesEntityExist(o) then DeleteEntity(o) end end
-    for _, d in pairs(doors) do if DoesEntityExist(d.obj) then SetEntityHeading(d.obj, d.base) end end
+    for _, d in pairs(doors) do if DoesEntityExist(d.obj) then SetEntityHeading(d.obj, d.orig or d.base) end end
 end)

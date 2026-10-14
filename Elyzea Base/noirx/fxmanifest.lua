@@ -38,6 +38,7 @@ server_scripts {
     'server/apps/ratline.lua',
     'server/apps/launder.lua',
     'server/apps/mercs.lua',
+    'server/apps/market.lua',
     -- administration
     'server/admin_api.lua',
     'server/admin_menu.lua',

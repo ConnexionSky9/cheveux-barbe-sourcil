@@ -278,3 +278,16 @@
 .merc-pill--bad { color: #ff6b78; }
 .merc-pill--dim { color: var(--dim); }
 .lrow__side .merc-pill { margin-bottom: 4px; }
+
+/* ── Dark Market ──────────────────────────────────────────────── */
+.mk-img { width: 40px; height: 40px; flex: none; object-fit: contain; border-radius: 10px; background: var(--void); box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
+.mk-row { gap: 12px; }
+.mk-price { font-size: 13px; font-weight: 600; color: #d6b65a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mk-head { display: flex; gap: 14px; align-items: center; }
+.mk-head .mk-img { width: 56px; height: 56px; }
+.mk-head__t { font-size: 16px; font-weight: 600; color: var(--ice); }
+.mk-actions { flex-direction: row; gap: 6px; }
+.mk-actions .chip { padding: 6px 10px; font-size: 12px; }
+.mk-profile { margin-bottom: 6px; }
+.mk-list .lrow__sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips + .card, .field + .chips { margin-top: 10px; }

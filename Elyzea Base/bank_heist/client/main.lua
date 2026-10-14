@@ -42,6 +42,13 @@ end
 function C.Help(text) BeginTextCommandDisplayHelp('STRING') AddTextComponentSubstringPlayerName(text) EndTextCommandDisplayHelp(0, false, false, -1) end
 function C.Vec(p) return vector3(p.x + 0.0, p.y + 0.0, p.z + 0.0) end
 function C.Dist(p) return #(GetEntityCoords(PlayerPedId()) - C.Vec(p)) end
+-- E sert à autre chose ici (encaisser, acheter, braquer) : le sac de jewelry_heist ne se pose pas avec E.
+local noDrop = {}
+function C.NoDrop(reason, on)
+    noDrop[reason] = on or nil
+    local any = next(noDrop) ~= nil
+    if (LocalPlayer.state.jhNoDrop == true) ~= any then LocalPlayer.state:set('jhNoDrop', any, false) end
+end
 function C.Armed() local w = GetSelectedPedWeapon(PlayerPedId()) return w ~= 0 and w ~= joaat('WEAPON_UNARMED') end
 
 -- Objet tenu en main (ordinateur, C4)

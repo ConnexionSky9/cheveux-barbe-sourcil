@@ -171,6 +171,42 @@ Config.Laundering = {
 }
 
 -- ─────────────────────────────────────────────────────────────
+--  DARK MARKET (place de marché entre joueurs)
+--  Les objets mis en vente quittent l'inventaire du vendeur (séquestre) ; l'acheteur paie, reçoit
+--  un colis, le vendeur est payé par la file de paiements (exactement une fois). Objets invendus,
+--  annonces annulées ou expirées : rendus en colis à récupérer dans l'application.
+-- ─────────────────────────────────────────────────────────────
+Config.Market = {
+    currencies = { 'dirty', 'clean' },  -- devises proposées au vendeur
+    feePercent = 10,                    -- commission du réseau sur chaque vente (retenue au vendeur)
+    listingFee = 0,                     -- frais fixes de publication (devise de l'annonce), 0 = gratuit
+    durations = { 21600, 86400, 259200 },   -- durées de publication proposées (s) : 6 h, 24 h, 72 h
+    maxActiveListings = 5,              -- annonces actives par vendeur
+    maxPendingOffers = 5,               -- offres en attente par acheteur
+    offerHours = 24,                    -- durée de validité d'une offre privée
+    minPrice = 1, maxPrice = 10000000,  -- prix unitaire
+    maxQuantity = 9999,
+    requireIdentity = true,             -- vendre exige un pseudo Ghostline (profil vendeur)
+    categories = {
+        drugs = 'Stupéfiants', heist = 'Matériel de braquage', tools = 'Outillage',
+        valuables = 'Objets de valeur', other = 'Divers',
+    },
+    -- Objets autorisés à la vente (empilables uniquement) → catégorie
+    items = {
+        weed_pouch = 'drugs', weed_leaf = 'drugs', cokebaggy = 'drugs', crack_baggy = 'drugs', xtcbaggy = 'drugs',
+        meth = 'drugs', oxy = 'drugs', coke_brick = 'drugs', coke_small_brick = 'drugs', coca_leaf = 'drugs', meth_chemicals = 'drugs',
+        weed_ak47 = 'drugs', weed_skunk = 'drugs', weed_amnesia = 'drugs', ['weed_og-kush'] = 'drugs',
+        ['weed_white-widow'] = 'drugs', ['weed_purple-haze'] = 'drugs',
+        weed_ak47_seed = 'drugs', weed_skunk_seed = 'drugs', weed_amnesia_seed = 'drugs',
+        thermite = 'heist', trojan_usb = 'heist', bank_c4 = 'heist', bank_bag = 'heist', drill = 'heist',
+        lockpick = 'tools', advancedlockpick = 'tools', electronickit = 'tools',
+        goldbar = 'valuables', rolex = 'valuables', goldchain = 'valuables',
+        diamond = 'valuables', ruby = 'valuables', sapphire = 'valuables', emerald = 'valuables', amethyst = 'valuables',
+    },
+    imagePath = 'nui://elyzea_inventory/html/img/%s',
+}
+
+-- ─────────────────────────────────────────────────────────────
 --  MERCENAIRES (contrats de PNJ armés contre un joueur connecté)
 --  Le serveur décide de tout : cible, prix, nombre de PNJ, armes, durée, remboursement.
 --  Les PNJ sont créés par le serveur (OneSync) et pilotés par le jeu du joueur le plus proche.
@@ -221,7 +257,7 @@ Config.Mercs = {
 Config.Database = {
     driver = 'auto',          -- 'auto' : elyzea_core, puis oxmysql, puis mysql-async
     autoInstall = true,       -- crée les tables au démarrage (CREATE TABLE IF NOT EXISTS, rejouable)
-    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql', 'sql/004_noirx_mercs.sql' },
+    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql', 'sql/004_noirx_mercs.sql', 'sql/005_noirx_market.sql' },
 }
 Config.Identity = {
     provider = 'elyzea',      -- 'elyzea' : citizenid du personnage · 'license' : licence Rockstar

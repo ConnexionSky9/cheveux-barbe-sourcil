@@ -90,9 +90,10 @@ Config.Defaults = {
             start = { x = 150.27, y = -1040.23, z = 29.37 },
             clerk = { model = 'u_m_m_bankman', x = 149.47, y = -1042.08, z = 29.37, h = 340.0 },
             vault = { x = 147.04, y = -1044.89, z = 29.37, h = 245.0 },
-            -- porte du coffre (objet de la carte) : cherchée près de x, y, z ; son orientation d'origine = fermée,
-            -- ouverte = fermée + openOffset (degrés). Mettez -90 ou 90 selon le sens d'ouverture.
-            door = { enabled = true, model = 'v_ilev_gb_vaultdr', x = 148.03, y = -1044.36, z = 29.51, openOffset = -90.0 },
+            -- porte du coffre (objet de la carte) : cherchée près de x, y, z. Elle est FERMÉE (orientation closedHeading)
+            -- tant que le coffre n'est pas ouvert, puis tourne de openOffset degrés après un piratage réussi ou la C4.
+            -- closedHeading = -1 : orientation d'origine de l'objet sur la carte.
+            door = { enabled = true, model = 'v_ilev_gb_vaultdr', x = 148.03, y = -1044.36, z = 29.51, closedHeading = 250.0, openOffset = -90.0 },
             cash = { { x = 149.43, y = -1050.42, z = 29.35, h = 340.0 }, { x = 147.12, y = -1049.82, z = 29.35, h = 340.0 } },
             minCops = 3, minRobbers = 2, maxRobbers = 6, cooldown = 90,
             hours = { from = 0, to = 0 },           -- heures autorisées (0 -> 0 = toute la journée ; ex. 18 -> 4)

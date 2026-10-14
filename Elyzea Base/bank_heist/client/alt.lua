@@ -24,16 +24,17 @@ local function nearest()
         local d = C.Dist(p)
         if d <= max and (not bd or d < bd) then best, bd = t, d end
     end
-    local D = cfg.general.interactDistance
+    -- distances un peu plus larges qu'avant (le serveur accepte jusqu'à distance + 1 m)
+    local D = math.max(cfg.general.interactDistance, 2.5)
     for _, b in ipairs(cfg.banks) do
         if b.enabled then
-            consider({ kind = 'start', bank = b.id, title = b.name }, b.start, D)
+            consider({ kind = 'start', bank = b.id, title = 'Braquer · ' .. b.name }, b.start, D)
             consider({ kind = 'vault', bank = b.id, title = 'Coffre · ' .. b.name }, b.vault, 2.0)
             for i, p in ipairs(b.cash or {}) do consider({ kind = 'cash', bank = b.id, spot = i, title = 'Billets · ' .. b.name }, p, 1.8) end
             consider({ kind = 'clerk', bank = b.id, title = 'Employé · ' .. b.name }, b.clerk, 3.0)
         end
     end
-    for _, m in ipairs(cfg.merchants) do if m.enabled then consider({ kind = 'merchant', id = m.id, title = m.name }, m.ped, m.interactDistance) end end
+    for _, m in ipairs(cfg.merchants) do if m.enabled then consider({ kind = 'merchant', id = m.id, title = m.name }, m.ped, math.max(m.interactDistance, 2.5)) end end
     return best
 end
 
@@ -126,17 +127,36 @@ RegisterNUICallback('menuSelect', function(body, cb)
     if t and body and body.id then CreateThread(function() select(tostring(body.id), t) end) end
 end)
 
--- Rappel à l'écran
+-- Interaction directe : E = action principale (acheter, braquer, menacer, pirater, C4, ramasser),
+-- ALT = toutes les actions. Fonctionne même si le menu ALT ne trouve pas la cible.
+local busy = false
+local function mainOption(opts)
+    for _, o in ipairs(opts) do if not o.disabled then return o end end
+end
 CreateThread(function()
     while true do
         local sleep = 700
-        if not C.ui then
+        local blocking = false
+        if not C.ui and not busy and not IsPedInAnyVehicle(PlayerPedId(), false) then
             local t = nearest()
-            if t and #options(t) > 0 then
+            local opts = t and options(t) or {}
+            if #opts > 0 then
                 sleep = 0
-                C.Help(('~INPUT_CHARACTER_WHEEL~ %s'):format(t.title))
+                local main = mainOption(opts)
+                if main then
+                    blocking = true
+                    C.Help(('~INPUT_CONTEXT~ %s~n~~INPUT_CHARACTER_WHEEL~ %s'):format(main.label, t.title))
+                    if IsControlJustReleased(0, 38) then
+                        busy = true
+                        CreateThread(function() select(main.id, t) Wait(800) busy = false end)
+                    end
+                else
+                    local why = opts[1].desc or opts[1].label
+                    C.Help(('%s~n~%s'):format(t.title, why))
+                end
             end
         end
+        C.NoDrop('alt', blocking)
         Wait(sleep)
     end
 end)

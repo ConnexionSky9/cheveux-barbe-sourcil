@@ -62,7 +62,7 @@ CreateThread(function()
             end
         end
         -- près d'un dépôt, E encaisse au lieu de poser le sac (système de sac de jewelry_heist)
-        if (nearDp ~= nil) ~= blocking then blocking = nearDp ~= nil LocalPlayer.state:set('jhNoDrop', blocking, false) end
+        if (nearDp ~= nil) ~= blocking then blocking = nearDp ~= nil C.NoDrop('deposit', blocking) end
         if nearDp and not C.ui then
             sleep = 0
             C.Help((cfg.general.depositKey == 38 and '~INPUT_CONTEXT~' or ('[' .. cfg.general.depositKeyLabel .. ']')) .. (' Encaisser le sac (%s)'):format(BH.Money(bag.money)))

@@ -13,7 +13,7 @@
 
     const G = { sub: 'informants', inf: 0 };
     const send = (name, data = {}) => action('noirx', { name, data });
-    const SUBS = [['informants', 'A. Informateurs'], ['intel', 'B. Informations'], ['launders', 'C. Blanchiments'], ['mercs', 'Mercenaires'], ['settings', 'D. Réglages'],
+    const SUBS = [['informants', 'A. Informateurs'], ['intel', 'B. Informations'], ['launders', 'C. Blanchiments'], ['mercs', 'Mercenaires'], ['market', 'Dark Market'], ['settings', 'D. Réglages'],
         ['payouts', 'E. Paiements bloqués'], ['identity', 'F. Identités'], ['audit', 'G. Journal']];
     const CUR = { dirty: 'Argent sale', clean: 'Argent propre' };
     const arr = (v) => (Array.isArray(v) ? v : []);
@@ -86,6 +86,26 @@
                 ${rec || '<tr><td colspan="9" class="muted">Aucun.</td></tr>'}</table>`);
     }
 
+    function vMarket() {
+        const m = N().market || {};
+        const rows = arr(m.listings).map((l) => `<tr><td>#${l.id}</td><td><strong>${esc(l.label)}</strong><div class="muted">${esc(l.categoryLabel)}</div>${l.note ? `<div class="muted">« ${esc(l.note)} »</div>` : ''}</td>
+            <td>${esc(l.seller)}<div class="muted mono">${esc(l.sellerId || '')}</div></td><td>${l.quantity} / ${l.initial}</td><td>${money(l.price)}<div class="muted">${CUR[l.currency] || esc(l.currency)}</div></td>
+            <td>${dur(l.expiresIn)}</td>
+            <td style="text-align:right;white-space:nowrap"><button class="btn" data-nx="mkRemove" data-id="${l.id}" data-ret="1">Retirer (rendre)</button>
+            <button class="btn danger" data-nx="mkRemove" data-id="${l.id}" data-ret="0">Retirer + confisquer</button>
+            <button class="btn danger" data-nx="mkBan" data-owner="${esc(l.sellerId || '')}" data-alias="${esc(l.seller)}">Exclure</button></td></tr>`).join('');
+        const tx = arr(m.tx).map((t) => `<tr><td>#${t.id}</td><td>${date(Number(t.created_at))}</td><td>${esc(t.seller_alias)}</td><td>${esc(t.buyer_alias)}</td><td>${Number(t.quantity)} × ${esc(t.label)}</td>
+            <td>${money(t.total)}<div class="muted">${CUR[t.currency] || esc(t.currency)}</div></td><td>${money(t.fee)}</td></tr>`).join('');
+        const bans = arr(m.bans).map((b) => `<tr><td>${esc(b.alias || '—')}</td><td class="mono">${esc(b.owner)}</td><td class="muted">${esc(b.ban_reason || '')}</td>
+            <td style="text-align:right"><button class="btn" data-nx="mkUnban" data-owner="${esc(b.owner)}">Réintégrer</button></td></tr>`).join('');
+        return sec('Annonces actives', `<table class="loot wide"><tr><th>N°</th><th>Objet</th><th>Vendeur</th><th>Stock</th><th>Prix unitaire</th><th>Expire</th><th></th></tr>
+                ${rows || '<tr><td colspan="7" class="muted">Aucune annonce.</td></tr>'}</table>`,
+            'Retirer (rendre) : les objets restants reviennent au vendeur en colis. Confisquer : ils sont supprimés. Les offres en attente sont remboursées dans les deux cas.')
+            + sec('Dernières ventes', `<table class="loot wide"><tr><th>N°</th><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>Objet</th><th>Total</th><th>Commission</th></tr>${tx || '<tr><td colspan="7" class="muted">Aucune.</td></tr>'}</table>`)
+            + sec('Vendeurs exclus', `<table class="loot wide"><tr><th>Pseudo</th><th>Personnage</th><th>Raison</th><th></th></tr>${bans || '<tr><td colspan="4" class="muted">Aucun.</td></tr>'}</table>`,
+                'Objets autorisés et catégories : noirx/config.lua › Config.Market.items. Commission, frais et limites : onglet D. Réglages, catégorie Dark Market.');
+    }
+
     function vSettings() {
         const cats = {};
         arr(N().settings).forEach((s) => { (cats[s.category] = cats[s.category] || []).push(s); });
@@ -127,7 +147,7 @@
         if (n.loading) return '<div class="section"><p class="muted">Chargement des données NOIR X…</p></div>';
         if (n.noDatabase) return '<div class="protect">⚠️ <span>NOIR X n\'a pas accès à la base de données (voir la console serveur).</span></div>';
         const s = n.stats || {};
-        const body = { informants: vInformants, intel: vIntel, launders: vLaunders, mercs: vMercs, settings: vSettings, payouts: vPayouts, identity: vIdentity, audit: vAudit }[G.sub]();
+        const body = { informants: vInformants, intel: vIntel, launders: vLaunders, mercs: vMercs, market: vMarket, settings: vSettings, payouts: vPayouts, identity: vIdentity, audit: vAudit }[G.sub]();
         return `<div class="stats"><div class="stat"><b>${s.informants || 0}</b><span>Informateur(s)</span></div><div class="stat"><b>${s.intel || 0}</b><span>Information(s)</span></div>
                 <div class="stat"><b>${s.launders || 0}</b><span>Blanchiment(s) en cours</span></div><div class="stat"><b>${money(s.launderedTotal)}</b><span>Blanchi au total (${s.launderedCount || 0})</span></div>
                 <div class="stat"><b>${money(s.stolenTotal)}</b><span>Volé par piratage</span></div><div class="stat"><b>${s.stuckPayouts || 0}</b><span>Paiement(s) bloqué(s)</span></div></div>
@@ -189,6 +209,17 @@
                 if (await confirmBox('Annuler ce blanchiment ?', refund ? 'L\'argent sale est rendu au joueur.' : 'Le joueur perd la somme engagée.')) send('cancelLaunder', { id: n.dataset.id, refund });
                 return;
             }
+            case 'mkRemove': {
+                const ret = n.dataset.ret === '1';
+                if (await confirmBox(`Retirer l'annonce #${id} ?`, ret ? 'Les objets restants reviennent au vendeur en colis.' : 'Les objets restants sont CONFISQUÉS (supprimés).')) send('marketRemove', { id, returnItems: ret });
+                return;
+            }
+            case 'mkBan': {
+                const v = await formModal(`Exclure « ${n.dataset.alias} » du marché`, [{ name: 'reason', label: 'Raison (visible par le joueur)', value: '' }], 'Exclure', true);
+                if (v) send('marketBan', { owner: n.dataset.owner, banned: true, reason: v.reason });
+                return;
+            }
+            case 'mkUnban': send('marketBan', { owner: n.dataset.owner, banned: false }); return;
             case 'cancelMerc': {
                 const refund = n.dataset.refund === '1';
                 if (await confirmBox(`Annuler le contrat #${id} ?`, refund ? 'L\'équipe se retire et le commanditaire est remboursé en totalité.' : 'L\'équipe se retire, aucun remboursement.')) send('cancelMerc', { id, refund });

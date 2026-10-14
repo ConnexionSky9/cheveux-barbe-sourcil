@@ -57,6 +57,14 @@ function InventoryCustom.CanCarry(src, itemName, count)
     return inv():CanCarryItem(src, itemName, count) == true
 end
 
+--- Définition d'un objet (exports.elyzea_inventory:Items(nom)) : libellé, image, empilable.
+function InventoryCustom.ItemInfo(itemName)
+    if not ready() then return nil end
+    local def = inv():Items(itemName)
+    if type(def) ~= 'table' then return nil end
+    return { label = tostring(def.label or itemName), image = tostring(def.image or (itemName .. '.png')), stack = def.stack ~= false }
+end
+
 -- ─── Item utilisable : noirphone ─────────────────────────────────
 -- Enregistré par NOIR X lui-même : rien à modifier dans elyzea_inventory/server/usables.lua.
 -- Retour false = l'objet n'est PAS consommé (le téléphone reste dans l'inventaire).

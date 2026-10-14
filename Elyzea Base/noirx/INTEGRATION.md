@@ -115,3 +115,12 @@ Exemple, placé sur le champ de weed :
 - Cible « à terre » = `Player(src).state.emsDown` (elyzea_ems) ou santé à 0.
 - Nécessite OneSync (les PNJ sont créés par le serveur).
 - Test hors jeu : `lua5.4 tests/mercs_spec.lua`.
+
+## Application Dark Market (ajoutée)
+
+- Fichiers : `server/apps/market.lua`, `html/js/apps/market.js`, `sql/005_noirx_market.sql` (tables créées au démarrage).
+- Réglages : `Config.Market` (objets autorisés → catégories, devises, durées, commission, limites).
+  Seuls les objets empilables de la liste se vendent (pas d'armes ni d'objets à numéro de série).
+- Profil vendeur = pseudo Ghostline (obligatoire pour vendre si `requireIdentity = true`).
+- Modération : admin_menu › Illégal › NOIR X › Dark Market (retrait avec restitution ou confiscation, exclusion d'un vendeur).
+- Test hors jeu (SQLite) : voir tests/market_spec.lua.
