@@ -1,0 +1,14 @@
+-- ═══════════════════════════════════════════════════════════════════
+--  NOIR X — objet à déclarer dans elyzea_inventory
+-- ═══════════════════════════════════════════════════════════════════
+-- 1. Ouvre elyzea_inventory/shared/items.lua
+-- 2. Dans la table « Items = { … } », juste sous la ligne « phone = { … } », colle :
+
+    noirphone = { label = 'NOIR X', weight = 180, stack = false, description = 'Terminal clandestin sécurisé. Accès au réseau privé NOIR X.' },
+
+-- 3. Copie install/elyzea_inventory/html/img/noirphone.png dans elyzea_inventory/html/img/
+-- 4. restart elyzea_inventory   puis   ensure noirx
+--
+-- Rien d'autre à faire : NOIR X enregistre lui-même l'objet comme utilisable
+-- (exports.elyzea_inventory:RegisterUsableItem) et il n'est jamais consommé.
+-- Le donner :  /egive [id] noirphone 1

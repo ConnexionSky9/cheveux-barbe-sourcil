@@ -1,0 +1,98 @@
+/* NOIR X — données simulées pour l'APERÇU HORS JEU (ouverture de html/index.html au navigateur).
+ * Ignoré en jeu. Sert uniquement à visualiser l'interface ; la logique réelle est côté serveur. */
+(function () {
+  'use strict';
+  if (NX.inGame) return;
+
+  const db = {
+    wallet: { dirty: 48250, clean: 12900, pending: { clean: 0, dirty: 0 } },
+    identities: [{ id: 1, handle: 'corvus_07', kind: 'main', reputation: 4, expiresAt: null }],
+    informants: [
+      { id: 1, name: 'Le Fermier', tagline: 'Connaît chaque champ du comté', greeting: 'Ouais ? Fais vite.' },
+      { id: 2, name: 'Silk', tagline: 'Les rues, les vendeurs, les rumeurs', greeting: 'Nouvelle tête. Tu cherches quoi ?' },
+    ],
+    intel: {
+      1: [
+        { id: 11, category: 'weed', categoryLabel: 'Champs', title: 'Où pousse la weed ?', price: 1500, currency: 'dirty', reliability: 'fiable', purchased: false, hasGps: true,
+          answer: 'Derrière les serres de Grapeseed, côté est. Je te mets le point.', gps: { x: 2220, y: 5577, z: 53 } },
+        { id: 12, category: 'weed', categoryLabel: 'Champs', title: 'Un coin plus discret ?', price: 2500, currency: 'dirty', reliability: 'rumeur', purchased: false, hasGps: true,
+          answer: 'Près de Sandy Shores. Ça bouge souvent, vérifie avant.', gps: { x: 1700, y: 3300, z: 41 } },
+      ],
+      2: [
+        { id: 21, category: 'dealer', categoryLabel: 'Revendeurs', title: 'Qui vend à Grove Street ?', price: 1000, currency: 'dirty', reliability: 'fiable', purchased: false, hasGps: true,
+          answer: 'Un type en survêt vert près du terrain de basket. Weed et pochons, cash.', gps: { x: 105, y: -1940, z: 20 } },
+        { id: 22, category: 'rumor', categoryLabel: 'Rumeurs', title: 'Des nouvelles ?', price: 0, currency: 'dirty', reliability: 'probable', purchased: false, hasGps: false,
+          answer: 'Patrouilles doublées à Davis cette semaine. Évite.' },
+      ],
+    },
+    log: { 1: [], 2: [] },
+    launderJob: null,
+    history: [],
+    cooldownUntil: 0,
+    burners: [],
+  };
+
+  const ok = (o) => Promise.resolve(Object.assign({ ok: true }, o));
+  const fail = (code, message) => Promise.resolve({ ok: false, error: code, message });
+
+  const handlers = {
+    'wallet.get': () => ok(Object.assign({ linked: { inventory: true, economy: true } }, db.wallet)),
+    'ghost.me': () => ok({ identities: db.identities, rules: { min: 3, max: 20 } }),
+    'ghost.create': (a) => { db.identities = [{ id: 1, handle: a.handle || 'corvus_07', kind: 'main', reputation: 0, expiresAt: null }]; return ok({ identities: db.identities }); },
+
+    'ratline.list': () => ok({ informants: db.informants.map(i => ({ id: i.id, name: i.name, tagline: i.tagline, last: (db.log[i.id].slice(-1)[0] || null) && { body: db.log[i.id].slice(-1)[0].body, at: db.log[i.id].slice(-1)[0].at, mine: db.log[i.id].slice(-1)[0].mine } })) }),
+    'ratline.open': (a) => { const inf = db.informants.find(i => i.id === a.informant); return ok({ informant: inf, topics: db.intel[a.informant], history: db.log[a.informant], symbol: '$' }); },
+    'ratline.ask': (a) => {
+      const t = db.intel[a.informant].find(x => x.id === a.intel);
+      if (!t) return fail('not_found', 'Plus rien là-dessus.');
+      if (!t.purchased && t.price > 0) { if (db.wallet.dirty < t.price) return fail('funds', 'Fonds insuffisants.'); db.wallet.dirty -= t.price; }
+      t.purchased = true;
+      db.log[a.informant].push({ mine: true, body: t.title, at: Date.now() / 1000 }, { mine: false, body: t.answer, at: Date.now() / 1000, intel: t.id, gps: t.hasGps });
+      return ok({ answer: t.answer, intel: t.id, gps: t.gps, charged: t.price, currency: t.currency, delay: 900 });
+    },
+    'ratline.say': (a) => {
+      const topics = db.intel[a.informant];
+      const low = a.text.toLowerCase();
+      const m = topics.filter(t => low.includes('weed') && t.category === 'weed' || low.includes('vend') && t.category === 'dealer' || low.includes('news') || low.includes('nouvel'));
+      return ok(m.length ? { reply: 'Ça, je peux t\'en parler.', suggestions: m, delay: 800 } : { reply: 'Connais pas. Essaie plutôt ça :', suggestions: topics.slice(0, 2), delay: 800 });
+    },
+    'ratline.gps': (a) => { for (const k in db.intel) { const t = db.intel[k].find(x => x.id === a.intel); if (t && t.gps) return ok({ gps: t.gps }); } return fail('not_found', 'Indisponible.'); },
+
+    'launder.state': () => ok({
+      rules: { min: 1000, max: 100000, feePercent: 30, baseSeconds: 60, secondsPer1000: 6, maxSeconds: 900, symbol: '$' },
+      dirty: db.wallet.dirty, job: db.launderJob, cooldown: Math.max(0, db.cooldownUntil - Date.now() / 1000), history: db.history,
+    }),
+    'launder.start': (a) => {
+      if (db.launderJob) return fail('busy', 'Déjà en cours.');
+      if (a.amount > db.wallet.dirty) return fail('funds', 'Pas assez d\'argent sale.');
+      db.wallet.dirty -= a.amount;
+      const fee = Math.floor(a.amount * 0.3), net = a.amount - fee;
+      const total = Math.min(900, 60 + Math.ceil(a.amount / 1000) * 6);
+      db.launderJob = { id: 1, amount: a.amount, fee, net, stolen: 0, payout: net, remaining: total, total, underAttack: false };
+      // aperçu : déclenche un duel de démonstration à mi-parcours
+      setTimeout(() => { if (db.launderJob) { db.launderJob.underAttack = true; NX.emit('duel:start', { attack: 99, role: 'defender', line: 'inject --node raven-21 --key 4f8a2c --relay 7731', remainingMs: 25000, windowMs: 25000, npc: true }); } }, 6000);
+      setTimeout(() => { db.history.unshift({ id: 1, amount: a.amount, net, stolen: db.launderJob ? db.launderJob.stolen : 0, payout: net, status: 'done', at: Date.now() / 1000 }); db.wallet.clean += net; db.launderJob = null; db.cooldownUntil = Date.now() / 1000 + 120; NX.emit('launder:done', { payout: net, stolen: 0 }); }, total * 1000);
+      return ok({ job: db.launderJob });
+    },
+    'duel.submit': (a) => {
+      if (a.text && a.text.length > 5) { setTimeout(() => { if (db.launderJob) db.launderJob.underAttack = false; NX.emit('duel:end', { attack: a.attack, role: 'defender', won: true, loss: 0 }); }, 300); return ok({ correct: true }); }
+      return ok({ correct: false });
+    },
+    'duel.active': () => ok({ duel: null }),
+
+    'burner.list': () => ok({ burners: db.burners, offer: { price: 2500, currency: 'clean', durations: [3600, 21600, 86400], maxActive: 1, symbol: '$' } }),
+    'burner.create': (a) => { const id = 100 + db.burners.length; const dur = [3600, 21600, 86400][a.duration - 1]; const handle = a.handle || ('burn-' + Math.random().toString(36).slice(2, 7)); db.burners.unshift({ id, handle, kind: 'burner', reputation: 0, active: true, revoked: false, remaining: dur }); db.wallet.clean -= 2500; return ok({ identity: id, handle }); },
+    'burner.revoke': (a) => { const b = db.burners.find(x => x.id === a.identity); if (b) { b.active = false; b.revoked = true; } return ok(); },
+
+    'contacts.list': () => ok({ contacts: [] }),
+    'chat.list': () => ok({ conversations: [] }),
+  };
+
+  NX.mock = {
+    call(name, args) {
+      const fn = handlers[name];
+      if (fn) return fn(args);
+      return fail('offline', 'Aperçu : « ' + name + ' » non simulé.');
+    },
+  };
+})();

@@ -76,6 +76,7 @@ server_scripts {
     'server/drugsale.lua',
     'server/jewelry.lua',
     'server/bankheist.lua',
+    'server/noirx.lua',
     'server/guards.lua',
 }
 
@@ -114,5 +115,6 @@ files {
     'html/dealer.js',
     'html/jewelry.js',
     'html/bankheist.js',
+    'html/noirx.js',
     'html/logo.png',
 }

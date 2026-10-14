@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900"><defs>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#8e0f1c" stop-opacity=".35"/><stop offset="1" stop-color="#8e0f1c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".06"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+  <defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c1c21"/><stop offset="1" stop-color="#050506"/></linearGradient>
+  <pattern id="kev" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="8" fill="#0e0e11"/><rect x="4" width="4" height="8" fill="#0a0a0c"/></pattern></defs>
+  <rect width="900" height="900" fill="#050506"/>
+  <!-- face -->
+  <rect x="90" y="110" width="320" height="680" rx="46" fill="url(#body)" stroke="#2a2a30" stroke-width="3"/>
+  <rect x="104" y="124" width="292" height="652" rx="36" fill="#000"/>
+  <rect x="215" y="138" width="70" height="20" rx="10" fill="#0b0b0d"/>
+  <g transform="translate(205 380) scale(0.9)" fill="none" stroke-linecap="square"><path d="M18 4 H82 L96 18 V82 L82 96 H18 L4 82 V18 Z" stroke="#2a2a30" stroke-width="2"/><path d="M73 27 L27 73" stroke="#c4162a" stroke-width="7"/><path d="M27 27 L44.5 44.5 M55.5 55.5 L73 73" stroke="#e9edf2" stroke-width="7"/></g>
+  <rect x="410" y="250" width="5" height="70" rx="2" fill="#8e0f1c"/>
+  <rect x="85" y="230" width="5" height="44" rx="2" fill="#2a2a30"/><rect x="85" y="290" width="5" height="70" rx="2" fill="#2a2a30"/>
+  <!-- dos -->
+  <rect x="490" y="110" width="320" height="680" rx="46" fill="url(#kev)" stroke="#2a2a30" stroke-width="3"/>
+  <rect x="490" y="110" width="320" height="680" rx="46" fill="url(#sheen)"/>
+  <rect x="518" y="138" width="110" height="110" rx="26" fill="#08080a" stroke="#2a2a30" stroke-width="2"/>
+  <circle cx="553" cy="173" r="18" fill="#000" stroke="#222" stroke-width="3"/><circle cx="593" cy="213" r="18" fill="#000" stroke="#222" stroke-width="3"/>
+  <circle cx="598" cy="166" r="5" fill="#c4162a"/>
+  <g transform="translate(590 390) scale(1.2)" fill="none" stroke-linecap="square"><path d="M18 4 H82 L96 18 V82 L82 96 H18 L4 82 V18 Z" stroke="#8e0f1c" stroke-width="2"/><path d="M73 27 L27 73" stroke="#c4162a" stroke-width="7"/><path d="M27 27 L44.5 44.5 M55.5 55.5 L73 73" stroke="#e9edf2" stroke-width="7"/></g>
+  <g transform="translate(600 700) scale(0.3)" fill="none" stroke-linejoin="miter" stroke-miterlimit="1.5" stroke-linecap="square">
+    <path d="M0 60 V0 L40 60 V0 M64 6 Q64 0 70 0 H98 Q104 0 104 6 V54 Q104 60 98 60 H70 Q64 60 64 54 Z M128 0 V60 M152 60 V0 H180 Q194 0 194 15 Q194 30 180 30 H152 M176 30 L196 60" stroke="#8a8f98" stroke-width="7"/>
+    <path d="M228 0 L268 60 M268 0 L228 60" stroke="#c4162a" stroke-width="7"/>
+  </g>
+  <text x="250" y="840" text-anchor="middle" fill="#8a8f98" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="5">FACE</text>
+  <text x="650" y="840" text-anchor="middle" fill="#8a8f98" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="5">DOS · FIBRE ARAMIDE</text></svg>

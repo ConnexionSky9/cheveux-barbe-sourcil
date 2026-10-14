@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOIR X</title>
+  <link rel="stylesheet" href="css/phone.css">
+  <link rel="stylesheet" href="css/apps.css">
+</head>
+<body>
+  <!-- Notifications visibles même téléphone rangé -->
+  <div id="peek" class="peek" aria-live="polite"></div>
+
+  <div id="stage" class="stage" hidden>
+    <div id="device" class="device">
+      <div class="device__rail device__rail--left"></div>
+      <div class="device__rail device__rail--right"></div>
+      <div class="screen" id="screen">
+        <div class="island"></div>
+
+        <header class="statusbar" id="statusbar">
+          <span class="statusbar__time" id="sb-time">00:00</span>
+          <span class="statusbar__right">
+            <span class="sb-net" title="Réseau chiffré">NX</span>
+            <span class="sb-icon" data-icon="signal"></span>
+            <span class="battery" id="sb-battery"><span class="battery__fill"></span></span>
+          </span>
+        </header>
+
+        <div class="wallpaper" id="wallpaper"></div>
+
+        <!-- Écran d'accueil -->
+        <section class="view view--home is-active" id="view-home">
+          <div class="home__clock">
+            <div class="home__time" id="home-time">00:00</div>
+            <div class="home__sub"><span class="dot"></span><span id="home-sub">Canal sécurisé</span></div>
+          </div>
+          <button class="wallet" id="wallet" aria-label="Portefeuille">
+            <span class="wallet__item wallet__item--dirty">
+              <span class="wallet__label">Sale</span>
+              <span class="wallet__value" id="wallet-dirty">—</span>
+            </span>
+            <span class="wallet__sep"></span>
+            <span class="wallet__item">
+              <span class="wallet__label">Propre</span>
+              <span class="wallet__value" id="wallet-clean">—</span>
+            </span>
+            <span class="wallet__pending" id="wallet-pending" hidden></span>
+          </button>
+          <div class="grid" id="app-grid"></div>
+          <div class="home__brand"><img src="assets/wordmark.svg" alt="NOIR X"></div>
+        </section>
+
+        <!-- Conteneur d'application -->
+        <section class="view view--app" id="view-app">
+          <div class="appbar">
+            <button class="appbar__back" id="btn-back" aria-label="Retour"><span data-icon="back"></span></button>
+            <h1 class="appbar__title" id="app-title"></h1>
+            <button class="appbar__action" id="app-action" aria-label="Action" hidden><span data-icon="plus"></span></button>
+          </div>
+          <div class="app-body" id="app-body"></div>
+        </section>
+
+        <!-- Feuilles modales -->
+        <div class="sheet-host" id="sheet-host"></div>
+
+        <!-- Duel de piratage -->
+        <div class="duel" id="duel" hidden></div>
+
+        <!-- Notifications in-app -->
+        <div class="toasts" id="toasts"></div>
+
+        <!-- Démarrage -->
+        <div class="boot" id="boot" hidden>
+          <img class="boot__emblem" src="assets/emblem.svg" alt="">
+          <img class="boot__word" src="assets/wordmark.svg" alt="NOIR X">
+          <div class="boot__bar"><span></span></div>
+          <div class="boot__line" id="boot-line">Initialisation</div>
+        </div>
+
+        <button class="homebar" id="btn-home" aria-label="Accueil"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/identity.js"></script>
+  <script src="js/duel.js"></script>
+  <script src="js/apps/settings.js"></script>
+  <script src="js/apps/pending.js"></script>
+  <script src="js/apps/darkchat.js"></script>
+  <script src="js/apps/ghostline.js"></script>
+  <script src="js/apps/burner.js"></script>
+  <script src="js/apps/ratline.js"></script>
+  <script src="js/apps/launder.js"></script>
+  <script src="js/mock.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

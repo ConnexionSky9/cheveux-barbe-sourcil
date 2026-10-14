@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#8e0f1c" stop-opacity=".35"/><stop offset="1" stop-color="#8e0f1c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".06"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+  <defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d1d22"/><stop offset="1" stop-color="#060607"/></linearGradient></defs>
+  <ellipse cx="256" cy="270" rx="230" ry="220" fill="url(#glow)"/>
+  <g transform="rotate(-12 256 256)">
+    <rect x="156" y="56" width="200" height="400" rx="34" fill="url(#body)" stroke="#2a2a30" stroke-width="3"/>
+    <rect x="156" y="56" width="200" height="400" rx="34" fill="url(#sheen)"/>
+    <rect x="170" y="70" width="172" height="372" rx="24" fill="#050506"/>
+    <rect x="226" y="80" width="60" height="10" rx="5" fill="#0b0b0d"/>
+    <g transform="translate(201 190) scale(1.1)" fill="none" stroke-linecap="square"><path d="M18 4 H82 L96 18 V82 L82 96 H18 L4 82 V18 Z" stroke="#2a2a30" stroke-width="2"/><path d="M73 27 L27 73" stroke="#c4162a" stroke-width="7"/><path d="M27 27 L44.5 44.5 M55.5 55.5 L73 73" stroke="#e9edf2" stroke-width="7"/></g>
+    <path d="M206 360 H306" stroke="#2a2a30" stroke-width="2"/>
+    <rect x="356" y="160" width="5" height="46" rx="2" fill="#8e0f1c"/>
+  </g></svg>

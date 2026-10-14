@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844"><defs>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#8e0f1c" stop-opacity=".35"/><stop offset="1" stop-color="#8e0f1c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".06"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+  <rect width="390" height="844" fill="#000"/>
+  <ellipse cx="195" cy="390" rx="200" ry="200" fill="url(#glow)"/>
+  <g transform="translate(135 330) scale(1.2)" fill="none" stroke-linecap="square"><path d="M18 4 H82 L96 18 V82 L82 96 H18 L4 82 V18 Z" stroke="#2a2a30" stroke-width="2"/><path d="M73 27 L27 73" stroke="#c4162a" stroke-width="7"/><path d="M27 27 L44.5 44.5 M55.5 55.5 L73 73" stroke="#e9edf2" stroke-width="7"/></g>
+  <g transform="translate(128 490) scale(0.3333333333333333)" fill="none" stroke-linejoin="miter" stroke-miterlimit="1.5" stroke-linecap="square">
+    <path d="M0 60 V0 L40 60 V0 M64 6 Q64 0 70 0 H98 Q104 0 104 6 V54 Q104 60 98 60 H70 Q64 60 64 54 Z M128 0 V60 M152 60 V0 H180 Q194 0 194 15 Q194 30 180 30 H152 M176 30 L196 60" stroke="#e9edf2" stroke-width="7"/>
+    <path d="M228 0 L268 60 M268 0 L228 60" stroke="#c4162a" stroke-width="7"/>
+  </g>
+  <rect x="145" y="560" width="100" height="2" fill="#2a2a30"/><rect x="145" y="560" width="38" height="2" fill="#c4162a"/></svg>

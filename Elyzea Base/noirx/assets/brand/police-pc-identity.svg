@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420">
+  <rect width="900" height="420" fill="#0a1220"/>
+  <rect x="0" y="0" width="900" height="6" fill="#4f8fe0"/>
+  <g transform="translate(70 110) scale(2)" fill="none">
+    <path d="M50 4 L92 18 V50 Q92 80 50 98 Q8 80 8 50 V18 Z" stroke="#4f8fe0" stroke-width="3"/>
+    <path d="M50 16 L80 26 V50 Q80 72 50 86 Q20 72 20 50 V26 Z" stroke="#3a5a86" stroke-width="1.5"/>
+    <circle cx="50" cy="50" r="13" stroke="#dfe7f2" stroke-width="2.5"/>
+    <path d="M50 30 V37 M50 63 V70 M30 50 H37 M63 50 H70" stroke="#dfe7f2" stroke-width="2.5"/>
+  </g>
+  <text x="300" y="180" fill="#dfe7f2" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="44" font-weight="700" letter-spacing="10">SECTION CYBER</text>
+  <text x="302" y="222" fill="#4f8fe0" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="16" letter-spacing="6">UNITÉ D'ENQUÊTE NUMÉRIQUE</text>
+  <path d="M302 250 H830" stroke="#1b2a40" stroke-width="2"/>
+  <text x="302" y="290" fill="#7f93ad" font-family="'JetBrains Mono', Consolas, monospace" font-size="14" letter-spacing="2">TERMINAL D'INVESTIGATION · ACCÈS RESTREINT</text>
+  <g font-family="Inter, Arial, sans-serif" font-size="11" letter-spacing="2">
+    <rect x="302" y="320" width="96" height="40" fill="#0a1220" stroke="#1b2a40"/><text x="302" y="378" fill="#7f93ad">#0A1220</text><rect x="408" y="320" width="96" height="40" fill="#1b2a40" stroke="#1b2a40"/><text x="408" y="378" fill="#7f93ad">#1B2A40</text><rect x="514" y="320" width="96" height="40" fill="#3a5a86" stroke="#1b2a40"/><text x="514" y="378" fill="#7f93ad">#3A5A86</text><rect x="620" y="320" width="96" height="40" fill="#4f8fe0" stroke="#1b2a40"/><text x="620" y="378" fill="#7f93ad">#4F8FE0</text><rect x="726" y="320" width="96" height="40" fill="#dfe7f2" stroke="#1b2a40"/><text x="726" y="378" fill="#7f93ad">#DFE7F2</text>
+  </g></svg>

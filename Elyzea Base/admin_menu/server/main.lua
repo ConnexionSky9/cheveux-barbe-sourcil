@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v48 then
+        -- Téléphone clandestin NOIR X (noirx) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.noirx_staff = true end
+        meta.v48 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v47 then
         -- Braquage de banque (bank_heist) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.bankheist_manage = true end

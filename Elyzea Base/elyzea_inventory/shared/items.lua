@@ -191,6 +191,11 @@ Items.bank_bag    = { label = 'Sac de braqueur', weight = 800, stack = true, max
 Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5, image = 'bank_c4.png', icon = '🧨',
     description = 'Charge explosive pour forcer un coffre quand le piratage a échoué.' }
 
+-- Téléphone clandestin NOIR X (ressource noirx) · image : html/img/noirphone.png
+-- noirx l'enregistre lui-même comme utilisable ; il n'est jamais consommé.
+Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noirphone.png', icon = '📱',
+    description = 'Terminal clandestin sécurisé. Accès au réseau privé NOIR X.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

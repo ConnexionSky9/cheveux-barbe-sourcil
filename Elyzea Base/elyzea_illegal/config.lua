@@ -196,7 +196,12 @@ Config.Missions = {
 -- Notification « téléphone » : lb-phone est détecté automatiquement, sinon notification elyzea_core.
 -- Pour un autre téléphone, remplace cette fonction (côté client) :
 --   Config.PhoneNotify = function(title, message) exports['mon-phone']:Notify(title, message) end
-Config.PhoneNotify = nil
+-- NOIR X (ressource noirx) : le message s'affiche sur le téléphone clandestin si le joueur l'a sur lui,
+-- sinon en notification normale. Si noirx n'est pas démarré, retour à lb-phone / notification.
+Config.PhoneNotify = function(title, message)
+    if GetResourceState('noirx') ~= 'started' then error('noirx absent') end
+    exports.noirx:PhoneNotify(title, message)
+end
 
 -- ---------------------------------------------------------
 --  Types de groupes
