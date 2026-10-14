@@ -37,6 +37,7 @@ server_scripts {
     'server/apps/darkchat.lua',
     'server/apps/ratline.lua',
     'server/apps/launder.lua',
+    'server/apps/mercs.lua',
     -- administration
     'server/admin_api.lua',
     'server/admin_menu.lua',
@@ -45,6 +46,7 @@ server_scripts {
 client_scripts {
     'client/phone.lua',
     'client/rpc.lua',
+    'client/mercs.lua',
 }
 
 ui_page 'html/index.html'

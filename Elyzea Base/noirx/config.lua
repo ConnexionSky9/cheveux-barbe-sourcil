@@ -171,12 +171,57 @@ Config.Laundering = {
 }
 
 -- ─────────────────────────────────────────────────────────────
+--  MERCENAIRES (contrats de PNJ armés contre un joueur connecté)
+--  Le serveur décide de tout : cible, prix, nombre de PNJ, armes, durée, remboursement.
+--  Les PNJ sont créés par le serveur (OneSync) et pilotés par le jeu du joueur le plus proche.
+-- ─────────────────────────────────────────────────────────────
+Config.Mercs = {
+    currency = 'dirty',             -- 'dirty' (argent sale) ou 'clean' (argent propre)
+    -- Formules (1, 3 ou 5 mercenaires). accuracy : précision 0-100 · armour : gilet 0-100 · health : 100-400
+    tiers = {
+        { id = 'solo',  label = 'Tireur isolé', size = 1, price = 15000, accuracy = 30, armour = 25,  health = 200,
+          weapons = { 'WEAPON_PISTOL50', 'WEAPON_HEAVYPISTOL' } },
+        { id = 'team',  label = 'Équipe',       size = 3, price = 40000, accuracy = 35, armour = 50,  health = 200,
+          weapons = { 'WEAPON_MICROSMG', 'WEAPON_SMG', 'WEAPON_PISTOL50' } },
+        { id = 'squad', label = 'Escouade',     size = 5, price = 75000, accuracy = 40, armour = 100, health = 250,
+          weapons = { 'WEAPON_CARBINERIFLE', 'WEAPON_SMG', 'WEAPON_PUMPSHOTGUN' } },
+    },
+    models = { 's_m_y_blackops_01', 's_m_y_blackops_02', 'g_m_m_chicold_01', 'g_m_y_lost_02', 'mp_g_m_pros_01' },
+    vehicle = { enabled = true, models = { 'granger', 'baller', 'cavalcade2' }, seats = 4 },   -- arrivée en véhicule (4 par véhicule)
+
+    deployDelaySeconds = 60,        -- délai entre la commande et l'arrivée de l'équipe
+    validityMinutes = 20,           -- l'équipe doit avoir trouvé la cible avant ce délai, sinon contrat expiré
+    engageSeconds = 480,            -- durée maximale du combat une fois la cible trouvée
+    engageDistance = 70.0,          -- distance (m) à laquelle la cible est considérée « trouvée »
+    spawnDistance = { 140, 240 },   -- distance d'apparition autour de la cible (m)
+    leaveSeconds = 45,              -- après la mission, les PNJ s'en vont puis sont supprimés
+
+    -- Anti-abus
+    cooldownMinutes = 30,           -- délai entre deux commandes d'un même commanditaire
+    maxActivePerBuyer = 1,
+    maxActiveGlobal = 3,
+    targetCooldownMinutes = 60,     -- délai minimum entre deux contrats contre la même cible
+    maxPerTargetPerDay = 2,         -- contrats max contre une même cible sur 24 h
+    minPolice = 0,                  -- policiers en service requis (elyzea_police), 0 = aucun
+    protectedAce = 'noirx.protected',   -- joueurs intouchables (add_ace identifier.xxx noirx.protected allow)
+    protectStaffOnDuty = true,      -- staff admin_menu en service intouchable
+    protectedJobs = {},             -- métiers intouchables EN SERVICE, ex. { 'police', 'ambulance' }
+    quoteSeconds = 60,              -- validité d'un devis
+
+    -- Remboursement (% du prix) selon la fin du contrat
+    refund = { expired = 100, target_left = 75, failed = 0, timeout = 0 },
+
+    policeAlert = true,             -- alerte « Coups de feu » à la police quand l'équipe engage la cible
+    hostileToAll = false,           -- false : les PNJ ne s'en prennent qu'à la cible (et à ceux qui les attaquent)
+}
+
+-- ─────────────────────────────────────────────────────────────
 --  BASE DE DONNÉES / IDENTITÉ / ADMIN
 -- ─────────────────────────────────────────────────────────────
 Config.Database = {
     driver = 'auto',          -- 'auto' : elyzea_core, puis oxmysql, puis mysql-async
     autoInstall = true,       -- crée les tables au démarrage (CREATE TABLE IF NOT EXISTS, rejouable)
-    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql' },
+    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql', 'sql/004_noirx_mercs.sql' },
 }
 Config.Identity = {
     provider = 'elyzea',      -- 'elyzea' : citizenid du personnage · 'license' : licence Rockstar

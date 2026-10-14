@@ -13,7 +13,7 @@
 
     const G = { sub: 'informants', inf: 0 };
     const send = (name, data = {}) => action('noirx', { name, data });
-    const SUBS = [['informants', 'A. Informateurs'], ['intel', 'B. Informations'], ['launders', 'C. Blanchiments'], ['settings', 'D. Réglages'],
+    const SUBS = [['informants', 'A. Informateurs'], ['intel', 'B. Informations'], ['launders', 'C. Blanchiments'], ['mercs', 'Mercenaires'], ['settings', 'D. Réglages'],
         ['payouts', 'E. Paiements bloqués'], ['identity', 'F. Identités'], ['audit', 'G. Journal']];
     const CUR = { dirty: 'Argent sale', clean: 'Argent propre' };
     const arr = (v) => (Array.isArray(v) ? v : []);
@@ -66,6 +66,26 @@
             ${rows || '<tr><td colspan="8" class="muted">Aucun blanchiment en cours.</td></tr>'}</table>`);
     }
 
+    const MSTATUS = { pending: '⏳ En préparation', deploying: '🚙 En route', engaged: '🔴 Au contact', success: '✅ Rempli', failed: '💀 Équipe éliminée',
+        expired: '⌛ Expiré', timeout: '⌛ Abandonné', target_left: '🚪 Cible déconnectée', cancelled: '✖ Annulé (staff)' };
+    function vMercs() {
+        const m = N().mercs || {};
+        const act = arr(m.active).map((c) => `<tr><td>#${c.id}</td><td>${esc(c.buyerName || '')}<div class="muted mono">${esc(c.buyer || '')}</div></td>
+            <td><strong>${esc(c.targetName)}</strong><div class="muted mono">${esc(c.target || '')}</div></td><td>${esc(c.label)} · ${c.size}${c.alive != null ? ` (${c.alive} debout)` : ''}</td>
+            <td>${money(c.price)}<div class="muted">${CUR[c.currency] || esc(c.currency)}</div></td><td>${MSTATUS[c.status] || esc(c.status)}${c.waiting ? '<div class="muted">cible injoignable</div>' : ''}</td>
+            <td>${dur(c.status === 'pending' && c.deployIn > 0 ? c.deployIn : c.expiresIn)}</td>
+            <td style="text-align:right;white-space:nowrap"><button class="btn" data-nx="cancelMerc" data-id="${c.id}" data-refund="1">Annuler + rembourser</button>
+            <button class="btn danger" data-nx="cancelMerc" data-id="${c.id}" data-refund="0">Annuler sans rembourser</button></td></tr>`).join('');
+        const rec = arr(m.recent).map((c) => `<tr><td>#${c.id}</td><td>${esc(c.buyer_name || c.buyer)}</td><td>${esc(c.target_name)}</td><td>${c.size}</td>
+            <td>${money(c.price)}</td><td>${MSTATUS[c.status] || esc(c.status)}</td><td>${Number(c.refund) > 0 ? money(c.refund) : '—'}</td><td>${date(Number(c.finished_at) || Number(c.created_at))}</td>
+            <td class="muted">${esc(c.note || '')}</td></tr>`).join('');
+        return sec('Contrats de mercenaires en cours', `<table class="loot wide"><tr><th>N°</th><th>Commanditaire</th><th>Cible</th><th>Équipe</th><th>Prix</th><th>État</th><th>Reste</th><th></th></tr>
+                ${act || '<tr><td colspan="8" class="muted">Aucun contrat en cours.</td></tr>'}</table>`,
+            'Annuler supprime l\'équipe (elle se retire puis disparaît). Prix, délais et limites : onglet D. Réglages, catégorie Mercenaires.')
+            + sec('Derniers contrats terminés', `<table class="loot wide"><tr><th>N°</th><th>Commanditaire</th><th>Cible</th><th>Taille</th><th>Prix</th><th>Fin</th><th>Remboursé</th><th>Date</th><th>Note</th></tr>
+                ${rec || '<tr><td colspan="9" class="muted">Aucun.</td></tr>'}</table>`);
+    }
+
     function vSettings() {
         const cats = {};
         arr(N().settings).forEach((s) => { (cats[s.category] = cats[s.category] || []).push(s); });
@@ -107,7 +127,7 @@
         if (n.loading) return '<div class="section"><p class="muted">Chargement des données NOIR X…</p></div>';
         if (n.noDatabase) return '<div class="protect">⚠️ <span>NOIR X n\'a pas accès à la base de données (voir la console serveur).</span></div>';
         const s = n.stats || {};
-        const body = { informants: vInformants, intel: vIntel, launders: vLaunders, settings: vSettings, payouts: vPayouts, identity: vIdentity, audit: vAudit }[G.sub]();
+        const body = { informants: vInformants, intel: vIntel, launders: vLaunders, mercs: vMercs, settings: vSettings, payouts: vPayouts, identity: vIdentity, audit: vAudit }[G.sub]();
         return `<div class="stats"><div class="stat"><b>${s.informants || 0}</b><span>Informateur(s)</span></div><div class="stat"><b>${s.intel || 0}</b><span>Information(s)</span></div>
                 <div class="stat"><b>${s.launders || 0}</b><span>Blanchiment(s) en cours</span></div><div class="stat"><b>${money(s.launderedTotal)}</b><span>Blanchi au total (${s.launderedCount || 0})</span></div>
                 <div class="stat"><b>${money(s.stolenTotal)}</b><span>Volé par piratage</span></div><div class="stat"><b>${s.stuckPayouts || 0}</b><span>Paiement(s) bloqué(s)</span></div></div>
@@ -167,6 +187,11 @@
             case 'cancelLaunder': {
                 const refund = n.dataset.refund === '1';
                 if (await confirmBox('Annuler ce blanchiment ?', refund ? 'L\'argent sale est rendu au joueur.' : 'Le joueur perd la somme engagée.')) send('cancelLaunder', { id: n.dataset.id, refund });
+                return;
+            }
+            case 'cancelMerc': {
+                const refund = n.dataset.refund === '1';
+                if (await confirmBox(`Annuler le contrat #${id} ?`, refund ? 'L\'équipe se retire et le commanditaire est remboursé en totalité.' : 'L\'équipe se retire, aucun remboursement.')) send('cancelMerc', { id, refund });
                 return;
             }
             case 'setSetting': {

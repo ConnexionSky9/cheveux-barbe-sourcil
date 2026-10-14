@@ -1644,6 +1644,8 @@ end)
 -- Exports pour d'autres ressources
 exports('HasPermission', function(src, perm) return hasPerm(src, perm) end)
 exports('GetRank', function(src) return getRankName(src) end)
+-- Staff en service (pas en mode RP) : protections des autres ressources (ex. noirx)
+exports('IsStaffOnDuty', function(src) src = tonumber(src) return src ~= nil and getRankName(src) ~= nil and onDuty(src) end)
 -- Logs du menu (console + onglet Logs + Discord) pour les ressources liées (tablettes staff)
 exports('AddLog', function(src, action, details) addLog(src, tostring(action or ''), details and tostring(details) or '') end)
 

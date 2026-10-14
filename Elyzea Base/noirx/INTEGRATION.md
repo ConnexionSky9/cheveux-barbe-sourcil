@@ -104,3 +104,14 @@ Exemple, placé sur le champ de weed :
 - [ ] Blanchiment : l'argent sale part au lancement, l'argent propre arrive à la fin (moins la commission).
 - [ ] Changer de personnage : le téléphone se ferme ; le second personnage a ses propres données.
 - [ ] Un joueur sans `noirx_staff` ne peut pas utiliser les commandes `/nx_*`.
+
+## Application Mercenaires (ajoutée)
+
+- Fichiers : `server/apps/mercs.lua`, `client/mercs.lua`, `html/js/apps/mercs.js`, `sql/004_noirx_mercs.sql` (table créée au démarrage).
+- Réglages : `Config.Mercs` dans `config.lua` (formules 1/3/5, prix, armes, modèles, délais, limites, remboursements),
+  et en jeu : admin_menu › Illégal › NOIR X › D. Réglages (catégorie Mercenaires). Suivi et annulation : onglet « Mercenaires ».
+- Joueurs intouchables : `add_ace identifier.license:xxxx noirx.protected allow` ; staff en service protégé (`protectStaffOnDuty`) ;
+  métiers en service protégés : `protectedJobs = { 'police', 'ambulance' }`.
+- Cible « à terre » = `Player(src).state.emsDown` (elyzea_ems) ou santé à 0.
+- Nécessite OneSync (les PNJ sont créés par le serveur).
+- Test hors jeu : `lua5.4 tests/mercs_spec.lua`.

@@ -84,6 +84,15 @@
     'burner.create': (a) => { const id = 100 + db.burners.length; const dur = [3600, 21600, 86400][a.duration - 1]; const handle = a.handle || ('burn-' + Math.random().toString(36).slice(2, 7)); db.burners.unshift({ id, handle, kind: 'burner', reputation: 0, active: true, revoked: false, remaining: dur }); db.wallet.clean -= 2500; return ok({ identity: id, handle }); },
     'burner.revoke': (a) => { const b = db.burners.find(x => x.id === a.identity); if (b) { b.active = false; b.revoked = true; } return ok(); },
 
+    'mercs.state': () => ok({
+      rules: { tiers: [{ id: 'solo', label: 'Tireur isolé', size: 1, price: 15000 }, { id: 'team', label: 'Équipe', size: 3, price: 40000 }, { id: 'squad', label: 'Escouade', size: 5, price: 75000 }],
+        currency: 'dirty', symbol: '$', validity: 1200, deployDelay: 60, engageSeconds: 480 },
+      active: db.mercs || [], cooldown: 0,
+      history: [{ id: 1, targetName: 'Tony Vercetti', label: 'Équipe', size: 3, price: 40000, currency: 'dirty', status: 'failed', refund: 0, at: Date.now() / 1000 - 7200 }],
+    }),
+    'mercs.quote': (a) => (a.target.trim().split(/\s+/).length < 2 ? fail('not_found', 'Aucune cible localisable sous ce nom.')
+      : ok({ quote: 'q1', targetName: a.target.trim(), tier: a.tier, label: a.tier === 'solo' ? 'Tireur isolé' : a.tier === 'team' ? 'Équipe' : 'Escouade', size: a.tier === 'solo' ? 1 : a.tier === 'team' ? 3 : 5, price: a.tier === 'solo' ? 15000 : a.tier === 'team' ? 40000 : 75000, currency: 'dirty', validity: 1200, deployDelay: 60, quoteExpires: 60 })),
+    'mercs.order': () => { db.mercs = [{ id: 7, targetName: 'Marco Rossi', label: 'Équipe', tier: 'team', size: 3, price: 40000, currency: 'dirty', status: 'engaged', createdAt: Date.now() / 1000 - 300, deployIn: 0, expiresIn: 900, engagedAt: Date.now() / 1000 - 40, engageLeft: 440, alive: 2 }]; return ok({ contract: db.mercs[0] }); },
     'contacts.list': () => ok({ contacts: [] }),
     'chat.list': () => ok({ conversations: [] }),
   };

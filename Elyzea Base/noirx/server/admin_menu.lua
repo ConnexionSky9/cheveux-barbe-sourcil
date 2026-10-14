@@ -17,6 +17,7 @@
                     expires_in (secondes, facultatif) }
       updateIntel { id, …champs }   deleteIntel { id }   toggleIntel { id, enabled }
       cancelLaunder { id, refund = true|false }
+      cancelMerc { id, refund = true|false }   (contrat de mercenaires en cours)
       setSetting { path, value }    resetSetting { path }
       resolvePayout { id, status = 'paid'|'pending' }
       revokeIdentity { handle }
@@ -66,6 +67,19 @@ local SETTINGS = {
     { 'Ratline.askCooldownSeconds', 'Délai entre deux questions (s)', 'Informateurs' },
     { 'Burner.price', 'Prix d\'un burner', 'Burner' },
     { 'Burner.maxActive', 'Burners actifs max', 'Burner' },
+    { 'Mercs.tiers.1.price', 'Prix : 1 mercenaire', 'Mercenaires' },
+    { 'Mercs.tiers.2.price', 'Prix : 3 mercenaires', 'Mercenaires' },
+    { 'Mercs.tiers.3.price', 'Prix : 5 mercenaires', 'Mercenaires' },
+    { 'Mercs.deployDelaySeconds', 'Délai d\'arrivée de l\'équipe (s)', 'Mercenaires' },
+    { 'Mercs.validityMinutes', 'Validité d\'un contrat (min)', 'Mercenaires' },
+    { 'Mercs.engageSeconds', 'Durée max. du combat (s)', 'Mercenaires' },
+    { 'Mercs.cooldownMinutes', 'Délai entre deux commandes (min)', 'Mercenaires' },
+    { 'Mercs.maxActiveGlobal', 'Contrats simultanés (serveur)', 'Mercenaires' },
+    { 'Mercs.targetCooldownMinutes', 'Délai entre deux contrats sur une cible (min)', 'Mercenaires' },
+    { 'Mercs.maxPerTargetPerDay', 'Contrats max. par cible / 24 h', 'Mercenaires' },
+    { 'Mercs.minPolice', 'Policiers en service requis', 'Mercenaires' },
+    { 'Mercs.refund.expired', 'Remboursement si expiré (%)', 'Mercenaires' },
+    { 'Mercs.refund.target_left', 'Remboursement si cible déconnectée (%)', 'Mercenaires' },
 }
 
 local function settingsView()
@@ -87,6 +101,12 @@ local function intelRow(r)
         enabled = tonumber(r.enabled) == 1, expires_at = tonumber(r.expires_at),
         coords = r.x and { x = tonumber(r.x), y = tonumber(r.y), z = tonumber(r.z) } or nil,
     }
+end
+
+local function mercsView()
+    if not Mercs then return { active = {}, recent = {} } end
+    local active, recent = Mercs.AdminList()
+    return { active = active, recent = recent }
 end
 
 local function adminData(src)
@@ -128,6 +148,7 @@ local function adminData(src)
         settings = settings,
         apps = apps,
         symbol = Config.Money.symbol,
+        mercs = mercsView(),
         audit = DB.Query('SELECT id, actor, action, details, created_at FROM noirx_audit ORDER BY id DESC LIMIT 40', {}),
     }
 end
@@ -191,6 +212,12 @@ end
 A.resetSetting = function(src, d)
     local ok, e = Settings.Reset(tostring(d.path or ''), staffName(src))
     return ok == true, ok and 'Réglage remis par défaut (appliqué au prochain redémarrage).' or err(e)
+end
+
+A.cancelMerc = function(src, d)
+    local ok, info = Mercs.AdminCancel(d.id, d.refund == true, staffName(src))
+    if not ok then return false, 'Ce contrat n\'est plus en cours.' end
+    return true, d.refund and ('Contrat annulé, %s%d remboursés au commanditaire.'):format(Config.Money.symbol, info) or 'Contrat annulé sans remboursement.'
 end
 
 A.resolvePayout = function(src, d)
