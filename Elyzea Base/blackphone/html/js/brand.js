@@ -57,20 +57,14 @@
   }
   // Icônes d'applications (24 × 24, trait fin, angles vifs)
   const I = {
-    chat: '<path d="M3 4H21V16H11L6 20V16H3Z"/><path d="M7 9H17M7 12H13"/>',
-    ghost: '<path d="M4 6L12 3L20 6V12C20 16.5 16.5 19.8 12 21C7.5 19.8 4 16.5 4 12Z"/><path d="M8 11H11M13 11H16"/><path d="M9 15.5H15"/>',
-    market: '<path d="M3 8L5 3H19L21 8"/><path d="M3 8H21V20H3Z"/><path d="M9 12H15"/>',
-    contract: '<path d="M6 2H15L19 6V22H6Z"/><path d="M15 2V6H19"/><path d="M9 11H16M9 14H16M9 17H13"/>',
-    breach: '<path d="M4 12H9L11 8L13 16L15 12H20"/><path d="M3 4H21V20H3Z" stroke-dasharray="3 2"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2V5M12 19V22M2 12H5M19 12H22M4.9 4.9L7 7M17 17L19.1 19.1M4.9 19.1L7 17M17 7L19.1 4.9"/>',
-    profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21C4 16.5 7.5 14 12 14C16.5 14 20 16.5 20 21"/>',
+    info: '<path d="M4 4H20V20H4Z"/><path d="M12 10.5V17M12 7V7.5"/>',
     lock: '<path d="M6 11H18V21H6Z"/><path d="M8.5 11V7.5C8.5 5.5 10 4 12 4C14 4 15.5 5.5 15.5 7.5V11"/>',
-    radar: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12L19 6"/>',
-    shield: '<path d="M12 2L20 5V11C20 16 16.6 20 12 22C7.4 20 4 16 4 11V5Z"/><path d="M8.5 12L11 14.5L15.5 9.5"/>',
-    signal: '<path d="M3 20V17M8 20V13M13 20V9M18 20V5"/>',
     back: '<path d="M15 4L7 12L15 20"/>',
-    plus: '<path d="M12 5V19M5 12H19"/>',
-    send: '<path d="M3 11L21 3L14 21L11 13Z"/>',
+    image: '<path d="M3 5H21V19H3Z"/><path d="M3 16L9 11L13 14.5L16 12L21 16"/><circle cx="15.5" cy="8.5" r="1.3"/>',
+    sound: '<path d="M4 9H8L13 5V19L8 15H4Z"/><path d="M16.5 9.5C17.5 10.8 17.5 13.2 16.5 14.5M19 7C21 9.6 21 14.4 19 17"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2V4M12 20V22M2 12H4M20 12H22M5 5L6.5 6.5M17.5 17.5L19 19M5 19L6.5 17.5M17.5 6.5L19 5"/>',
+    chevron: '<path d="M9 5L16 12L9 19"/>',
   };
   const icon = (name, size = 24, color = 'currentColor', sw = 1.6) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="square" stroke-linejoin="miter">${I[name] || ''}</svg>`;
   root.BPBrand = { word, mark, logo, svgDoc, icon, icons: I };
