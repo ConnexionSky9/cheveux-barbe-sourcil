@@ -291,3 +291,13 @@
 .mk-profile { margin-bottom: 6px; }
 .mk-list .lrow__sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chips + .card, .field + .chips { margin-top: 10px; }
+
+/* ── Connexion par burner ─────────────────────────────────────── */
+.view--auth { background: var(--void); z-index: 9; overflow-y: auto; padding: 56px 18px 40px; }
+.auth { display: flex; flex-direction: column; align-items: stretch; gap: 12px; text-align: center; }
+.auth .onboard__mark { align-self: center; }
+.auth .onboard__text { align-self: center; }
+.auth .section-label, .auth .card { text-align: left; }
+.view--home.is-locked { pointer-events: none; filter: blur(6px); }
+.auth-badge { align-self: center; margin: 6px auto 0; display: block; padding: 6px 12px; border-radius: 10px; font-size: 11px; letter-spacing: .06em;
+  color: #e7b7bc; background: rgba(196, 22, 42, .12); box-shadow: inset 0 0 0 1px rgba(196, 22, 42, .3); font-variant-numeric: tabular-nums; }

@@ -55,6 +55,8 @@ end
 -- ─── Profils ────────────────────────────────────────────────────
 
 local function aliasOf(charId)
+    local l = Auth and Auth.Get(charId)
+    if l then return l.handle end   -- connecté avec un burner : c'est son pseudo qui apparaît
     local list = Ghost and Ghost.MyIdentities(charId) or {}
     for _, i in ipairs(list) do if i.kind == 'main' then return i.handle end end
     return list[1] and list[1].handle or nil

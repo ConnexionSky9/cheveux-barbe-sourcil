@@ -300,7 +300,7 @@ Rpc.Register('burner.list', { app = 'burner' }, function(src, ctx)
     }
 end)
 
-Rpc.Register('burner.create', { app = 'burner', rate = { 3, 30 } }, function(src, ctx, args)
+local function createBurner(src, ctx, args)
     local b = Config.Burner
     local idx = math.tointeger(tonumber(args.duration))
     local duration = idx and b.durations[idx]
@@ -334,14 +334,18 @@ Rpc.Register('burner.create', { app = 'burner', rate = { 3, 30 } }, function(src
     if not ok then return Rpc.Fail('busy', 'Transaction en cours.') end
     if res.ok and b.price > 0 then Push.ToSrc(src, 'wallet:changed', {}) end
     return res
-end)
+end
 
-Rpc.Register('burner.revoke', { app = 'burner' }, function(src, ctx, args)
+Rpc.Register('burner.create', { app = 'burner', rate = { 3, 30 } }, createBurner)
+
+Rpc.Register('burner.revoke', { app = 'burner', identityCheck = false }, function(src, ctx, args)
     local id = math.tointeger(tonumber(args.identity))
     if not id then return Rpc.Fail('bad_args', 'Requête invalide.') end
     local n = DB.Execute('UPDATE noirx_identities SET revoked = 1 WHERE id = ? AND owner = ? AND kind = ?', { id, ctx.charId, 'burner' })
     if n ~= 1 then return Rpc.Fail('not_found', 'Burner introuvable.') end
     Audit.Log(src, 'burner.revoke', { identity = id })
+    local l = Auth.logins[ctx.charId]
+    if l and l.id == id then Auth.Logout(ctx.charId, 'revoked') end
     return { ok = true }
 end)
 
@@ -356,3 +360,93 @@ function Ghost.AdminFind(handle)
     return DB.Single('SELECT id, owner, handle, kind, reputation, created_at, expires_at, revoked FROM noirx_identities WHERE handle_lc = ?',
         { trim(handle):lower() })
 end
+
+-- ─── Connexion au réseau par burner ─────────────────────────────
+-- Le téléphone ne donne accès aux applications qu'une fois connecté avec un burner actif
+-- (Config.Auth.requireBurner). La connexion dure tant que le burner vit : à son expiration
+-- ou à sa révocation, le joueur est déconnecté et revient à l'écran de connexion.
+
+local LOGOUT_TEXT = {
+    expired = 'Ton burner a expiré : déconnecté du réseau.',
+    revoked = 'Ton burner a été révoqué : déconnecté du réseau.',
+    manual = 'Déconnecté du réseau.',
+}
+
+function Auth.Logout(charId, reason)
+    if not Auth.logins[charId] then return end
+    Auth.logins[charId] = nil
+    local src = Players.SrcOf(charId)
+    if src then
+        Push.ToSrc(src, 'auth:logout', { reason = reason, message = LOGOUT_TEXT[reason] or LOGOUT_TEXT.manual })
+        Push.Notify(src, 'NOIR X', LOGOUT_TEXT[reason] or LOGOUT_TEXT.manual, 'alert')
+    end
+    Audit.Log(0, 'auth.logout', { owner = charId, reason = reason })
+end
+
+local function loginView(l)
+    return l and { id = l.id, handle = l.handle, remaining = math.max(0, l.exp - now()) } or nil
+end
+
+local function activeBurners(charId)
+    local out = {}
+    for _, r in ipairs(DB.Query([[SELECT id, handle, expires_at FROM noirx_identities
+        WHERE owner = ? AND kind = 'burner' AND revoked = 0 AND expires_at > ? ORDER BY id DESC]], { charId, now() })) do
+        out[#out + 1] = { id = math.tointeger(tonumber(r.id)), handle = r.handle, remaining = tonumber(r.expires_at) - now() }
+    end
+    return out
+end
+
+local function doLogin(src, charId, identityId)
+    local r = DB.Single([[SELECT id, handle, expires_at FROM noirx_identities
+        WHERE id = ? AND owner = ? AND kind = 'burner' AND revoked = 0 AND expires_at > ?]], { identityId, charId, now() })
+    if not r then return Rpc.Fail('not_found', 'Burner introuvable ou expiré.') end
+    Auth.logins[charId] = { id = math.tointeger(tonumber(r.id)), handle = r.handle, exp = tonumber(r.expires_at) }
+    Audit.Log(src, 'auth.login', { identity = r.id })
+    return { ok = true, login = loginView(Auth.logins[charId]) }
+end
+
+Rpc.Register('auth.state', { auth = false, rate = { 10, 5 } }, function(src, ctx)
+    local b = Config.Burner
+    return {
+        required = Auth.Required(),
+        login = loginView(Auth.Get(ctx.charId)),
+        burners = activeBurners(ctx.charId),
+        offer = { price = b.price, currency = b.currency, durations = b.durations, maxActive = b.maxActive, symbol = Config.Money.symbol },
+    }
+end)
+
+Rpc.Register('auth.login', { auth = false, rate = { 5, 10 } }, function(src, ctx, args)
+    local id = math.tointeger(tonumber(args.identity))
+    if not id then return Rpc.Fail('bad_args', 'Requête invalide.') end
+    return doLogin(src, ctx.charId, id)
+end)
+
+-- Crée un burner temporaire (payant, Config.Burner) puis connecte directement avec.
+Rpc.Register('auth.create', { auth = false, rate = { 3, 30 } }, function(src, ctx, args)
+    local res = createBurner(src, ctx, args)
+    if not res.ok then return res end
+    return doLogin(src, ctx.charId, res.identity)
+end)
+
+Rpc.Register('auth.logout', { auth = false }, function(src, ctx)
+    Auth.Logout(ctx.charId, 'manual')
+    return { ok = true }
+end)
+
+-- Expiration (toutes les 5 s) et révocation par le staff (toutes les 30 s)
+CreateThread(function()
+    local tick = 0
+    while true do
+        Wait(5000)
+        tick = tick + 1
+        local t = now()
+        for charId, l in pairs(Auth.logins) do
+            if l.exp <= t then
+                Auth.Logout(charId, 'expired')
+            elseif tick % 6 == 0 and DB.driver ~= 'none' then
+                local r = DB.Single('SELECT revoked FROM noirx_identities WHERE id = ?', { l.id })
+                if not r or tonumber(r.revoked) == 1 then Auth.Logout(charId, 'revoked') end
+            end
+        end
+    end
+end)

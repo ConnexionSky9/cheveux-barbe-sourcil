@@ -16,6 +16,14 @@
 ]]
 
 Rpc = { handlers = {} }
+-- Connexions par burner : [charId] = { id, handle, exp } (voir server/apps/ghostline.lua)
+Auth = { logins = {} }
+function Auth.Get(charId)
+    local l = charId and Auth.logins[charId]
+    if l and l.exp > os.time() then return l end
+    return nil
+end
+function Auth.Required() return Config.Auth == nil or Config.Auth.requireBurner ~= false end
 Push = {}
 
 local Buckets = {} -- [src] = { [name] = { t1, t2, ... } }
@@ -98,6 +106,16 @@ function Rpc.Dispatch(src, token, reqId, name, args)
 
     local charId = Players.CharOf(src)
     if not charId then return Rpc.Fail('identity', 'Identité introuvable.') end
+
+    -- Connexion par burner obligatoire (sauf actions de connexion : opts.auth = false)
+    if opts.auth ~= false and Auth.Required() then
+        local l = Auth.Get(charId)
+        if not l then return Rpc.Fail('auth', 'Déconnecté : connecte-toi avec un burner.') end
+        -- on ne parle qu'en tant que le burner connecté
+        if opts.identityCheck ~= false and type(args) == 'table' and args.identity ~= nil and math.tointeger(tonumber(args.identity)) ~= l.id then
+            return Rpc.Fail('auth_identity', 'Tu es connecté avec un autre burner.')
+        end
+    end
 
     local ok, result = pcall(h.fn, src, { charId = charId, session = session }, args or {})
     if not ok then

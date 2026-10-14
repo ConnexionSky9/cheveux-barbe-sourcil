@@ -114,6 +114,12 @@ Config.Chat = {
 -- ─────────────────────────────────────────────────────────────
 --  BURNER (pseudonymes temporaires)
 -- ─────────────────────────────────────────────────────────────
+-- Connexion : le téléphone ne donne accès au réseau qu'une fois connecté avec un burner actif.
+-- Quand le burner expire (ou est révoqué), la connexion est coupée.
+Config.Auth = {
+    requireBurner = true,
+}
+
 Config.Burner = {
     price = 2500,
     currency = 'clean',                 -- 'clean' (argent propre) ou 'dirty' (argent sale)

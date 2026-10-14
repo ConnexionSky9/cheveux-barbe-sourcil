@@ -15,6 +15,14 @@
       ident.list = res.identities || [];
       ident.rules = res.rules || ident.rules;
       ident.loaded = true;
+      // Connecté avec un burner : on ne parle qu'en tant que ce burner
+      const login = NX.auth && NX.auth.login;
+      if (login) {
+        ident.list = ident.list.filter(i => i.id === login.id);
+        if (!ident.list.length) ident.list = [{ id: login.id, handle: login.handle, kind: 'burner', reputation: 0, expiresAt: Date.now() / 1000 + login.remaining }];
+        ident.current = ident.list[0];
+        return true;
+      }
       const wanted = ident.current ? ident.current.id : recall();
       ident.current = ident.list.find(i => i.id === wanted) || ident.list.find(i => i.kind === 'main') || ident.list[0] || null;
       return true;

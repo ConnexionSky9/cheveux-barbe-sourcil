@@ -111,6 +111,11 @@
       listings: [{ id: 1, label: 'Lingot d\'or', quantity: 2, initial: 2, price: 18000, currency: 'clean', status: 'active', expiresIn: 200000, image: '', mine: true, categoryLabel: 'Objets de valeur', seller: 'corvus_07' }],
       sent: [], history: [{ id: 9, bought: true, other: 'nyx', label: 'Thermite', quantity: 1, total: 6500, fee: 0, currency: 'dirty', canRate: true, image: '', at: Date.now() / 1000 - 3600 }],
     }),
+    'auth.state': () => ok({ required: true, login: db.login || null, burners: db.login ? [] : [{ id: 7, handle: 'burn-k3x9q', remaining: 2400 }],
+      offer: { price: 2500, currency: 'clean', durations: [3600, 21600, 86400], maxActive: 1, symbol: '$' } }),
+    'auth.login': (a) => { db.login = { id: a.identity, handle: 'burn-k3x9q', remaining: 2400 }; return ok({ login: db.login }); },
+    'auth.create': (a) => { db.login = { id: 8, handle: a.handle || 'burn-p7m2z', remaining: [3600, 21600, 86400][a.duration - 1] }; return ok({ login: db.login }); },
+    'auth.logout': () => { db.login = null; return ok(); },
     'contacts.list': () => ok({ contacts: [] }),
     'chat.list': () => ok({ conversations: [] }),
   };

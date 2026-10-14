@@ -162,7 +162,14 @@ end)
 Rpc.Register('test.disabled', { db = false, app = 'app_inexistante' }, function() return { ok = true } end)
 
 local rid = 0
-local function dispatch(token, name, args) rid = rid + 1; return Rpc.Dispatch(1, token, rid, name, args or {}) end
+-- Connexion par burner obligatoire : le joueur de test est connecté
+local function loginAll() for _, c in pairs(Players.cache or {}) do Auth.logins[c] = { id = 1, handle = 'test', exp = os.time() + 3600 } end end
+local function dispatch(token, name, args)
+    loginAll()
+    local cid = Players.CharOf(1)
+    if cid then Auth.logins[cid] = { id = 1, handle = 'test', exp = os.time() + 3600 } end
+    rid = rid + 1; return Rpc.Dispatch(1, token, rid, name, args or {})
+end
 
 test('RPC : appel valide passe et reçoit charId', function()
     local r = dispatch(tok, 'test.echo', { v = 42 })
