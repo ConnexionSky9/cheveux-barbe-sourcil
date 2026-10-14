@@ -175,6 +175,23 @@ end
 
 Phone.RequestOpen = requestOpen
 
+--- Ouverture « défense » pour un policier sans téléphone NOIR X (Police Hack) :
+--- écran limité au duel, seule l'action policehack.duelSubmit est acceptée.
+function Phone.OpenDefense(src)
+    src = tonumber(src)
+    if not src or Sessions[src] then return Sessions[src] ~= nil end
+    local charId = Players.CharOf(src)
+    if not charId then return false end
+    local token = newToken()
+    Sessions[src] = { token = token, charId = charId, openedAt = os.time(), settings = {}, lastReqId = 0, defense = true }
+    TriggerClientEvent('noirx:client:open', src, {
+        token = token, serial = 'MDT', settings = {}, apps = {}, defense = true,
+        money = { symbol = Config.Money.symbol },
+        ui = { bootDuration = 0, showBootEveryOpen = false, battery = Config.UI.battery, sounds = Config.UI.sounds, wallpapers = Config.UI.wallpapers },
+    })
+    return true
+end
+
 local function validSession(src, token)
     local s = Sessions[src]
     return s ~= nil and type(token) == 'string' and s.token == token, s
@@ -260,9 +277,11 @@ end)
 CreateThread(function()
     while true do
         Wait(Config.Inventory.recheckInterval)
-        for src in pairs(Sessions) do
+        for src, sess in pairs(Sessions) do
             if not GetPlayerName(src) then
                 Sessions[src] = nil
+            elseif sess.defense then
+                -- session « défense » (policier sans téléphone) : pas de contrôle de l'objet
             elseif not Inventory.HasItem(src, Config.Item.name) then
                 Phone.ForceClose(src, 'item_lost')
             else

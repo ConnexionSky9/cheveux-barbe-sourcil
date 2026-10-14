@@ -301,3 +301,44 @@
 .view--home.is-locked { pointer-events: none; filter: blur(6px); }
 .auth-badge { align-self: center; margin: 6px auto 0; display: block; padding: 6px 12px; border-radius: 10px; font-size: 11px; letter-spacing: .06em;
   color: #e7b7bc; background: rgba(196, 22, 42, .12); box-shadow: inset 0 0 0 1px rgba(196, 22, 42, .3); font-variant-numeric: tabular-nums; }
+
+
+/* Application Attaque : identité vert phosphore / glitch */
+.attack-target { margin: 12px 0; display:flex; flex-direction:column; gap:10px; }
+.attack-target__top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.attack-tag { color:#54ff9a; border:1px solid rgba(60,255,140,.4); background:rgba(0,255,90,.08); border-radius:5px; padding:4px 7px; font-size:10px; letter-spacing:.12em; }
+.attack-cooldown { color:#69ffa4; background:rgba(0,255,100,.07); border:1px solid rgba(0,255,100,.25); border-radius:10px; padding:12px; margin:12px 0; font-size:12px; }
+.attack-glitch { position:absolute; z-index:999; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:14px; padding:26px; overflow:hidden; color:#8dffb0; text-align:center; background:rgba(0,8,4,.94); font-family:monospace; animation:attack-glitch-in .18s steps(2,end); }
+.attack-glitch::before { content:""; position:absolute; inset:-50%; pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(40,255,110,.12) 4px,transparent 5px); animation:attack-scan .4s linear infinite; }
+.attack-glitch__scan { position:absolute; inset:0; pointer-events:none; border:2px solid rgba(70,255,120,.6); box-shadow:inset 0 0 35px rgba(0,255,70,.2); }
+.attack-glitch__skull { position:relative; font-size:90px; line-height:1; color:#b8ffd0; text-shadow:4px 0 #ff00c8,-4px 0 #00fff0,0 0 24px #00ff55; animation:attack-skull 1.3s steps(2,end) infinite; }
+.attack-glitch__title { position:relative; font-size:15px; font-weight:900; letter-spacing:.08em; color:#c8ffd8; text-shadow:2px 0 #ff00b7,-2px 0 #00eaff; animation:attack-text .22s steps(2,end) infinite; }
+.attack-glitch__sub { position:relative; font-size:10px; letter-spacing:.14em; color:#4cff89; }
+.attack-glitch__counter { position:relative; font-size:32px; font-weight:900; border:1px solid #35ff7e; padding:6px 22px; box-shadow:0 0 20px rgba(0,255,70,.25); font-variant-numeric:tabular-nums; }
+.attack-glitch--flicker { filter:hue-rotate(45deg) contrast(1.5); transform:translateX(2px); }
+@keyframes attack-glitch-in { from{opacity:0;transform:translateX(-5px)} to{opacity:1;transform:none} }
+@keyframes attack-scan { from{transform:translateY(-10%)} to{transform:translateY(10%)} }
+@keyframes attack-skull { 0%,100%{transform:translate(0,0) skew(0);filter:hue-rotate(0)} 20%{transform:translate(8px,-2px) skew(8deg);filter:hue-rotate(90deg)} 45%{transform:translate(-7px,3px) skew(-5deg);filter:hue-rotate(180deg)} 70%{transform:translate(3px,0);filter:hue-rotate(270deg)} }
+@keyframes attack-text { 0%,100%{opacity:1} 50%{opacity:.65;transform:translateX(1px)} }
+
+/* Police Hack — terminal RP */
+.ph-hero { margin: 4px 0 14px; padding: 16px 12px; border: 1px solid rgba(63,255,123,.28); border-radius: 12px; background: linear-gradient(135deg,rgba(4,25,13,.95),rgba(8,13,18,.98)); color: #72ff9b; overflow: hidden; }
+.ph-skull { font-size: 42px; line-height: 1.1; text-shadow: 2px 0 #ff315d,-2px 0 #3cf5ff; animation: ph-glitch .24s steps(2,end) infinite; }
+.ph-kicker { font-size: 9px; letter-spacing: .18em; margin-top: 8px; opacity: .8; }
+.ph-status { display: flex; flex-direction: column; gap: 10px; }
+.ph-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 11px; }
+.ph-row b { text-align: right; color: #6aff94; }
+.ph-alert { border: 1px solid rgba(255,74,74,.45); background: rgba(110,10,20,.2); color: #ff8c8c; border-radius: 7px; padding: 10px; font-size: 11px; }
+.ph-report { margin: 10px 0; }
+.ph-report button { margin-top: 8px; width: 100%; }
+.ph-overlay { position:absolute; inset:6% 4%; z-index:80; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:18px; text-align:center; color:#65ff91; background:rgba(0,10,4,.94); border:2px solid #35ff74; box-shadow:0 0 22px #00ff5577; animation:ph-glitch .2s steps(2,end) infinite; }
+.ph-overlay__skull { font-size:80px; text-shadow:3px 0 #ff315d,-3px 0 #27efff; }
+.ph-overlay strong { font-size:15px; letter-spacing:.08em; }
+.ph-overlay span { font-size:10px; }
+.ph-overlay b { font-size:32px; }
+.ph-overlay--flicker { transform:translateX(2px); filter:hue-rotate(40deg); }
+@keyframes ph-glitch { 0%{text-shadow:2px 0 #ff315d,-2px 0 #3cf5ff; transform:translateX(0)} 50%{text-shadow:-3px 0 #ff315d,3px 0 #3cf5ff; transform:translateX(1px)} 100%{text-shadow:1px 0 #ff315d,-1px 0 #3cf5ff; transform:translateX(-1px)} }
+
+.ph-report button.danger { background:#54151b; color:#ffd9dc; }
+/* Application Amélioration */
+.upgrade-hero{margin:4px 0 14px;padding:16px 12px;border:1px solid rgba(63,255,123,.25);border-radius:12px;background:linear-gradient(135deg,rgba(4,25,13,.95),rgba(8,13,18,.98));color:#72ff9b}.upgrade-skull{font-size:28px;color:#65ff91;text-shadow:2px 0 #ff315d,-2px 0 #3cf5ff}.upgrade-card{margin:10px 0;display:flex;flex-direction:column;gap:10px}.upgrade-card__top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.upgrade-card__top p{margin:5px 0 0}.upgrade-level{flex:none;border:1px solid rgba(75,255,125,.3);border-radius:6px;padding:5px 7px;color:#6aff94;font-size:10px}.upgrade-progress{height:5px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden}.upgrade-progress span{display:block;height:100%;background:#42ff80;box-shadow:0 0 8px #42ff80}.upgrade-current,.upgrade-next{font-size:11px}.upgrade-next{color:#80ffab}.upgrade-max{color:#67ff91;font-size:10px;letter-spacing:.1em}.upgrade-wallet{padding:10px;margin-bottom:8px;border:1px solid rgba(75,255,125,.25);border-radius:8px;color:#8dffad;font-size:11px}.upgrade-footnote{font-size:10px;line-height:1.5}

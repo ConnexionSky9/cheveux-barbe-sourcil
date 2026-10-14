@@ -103,6 +103,7 @@ RegisterNetEvent('noirx:client:open', function(data)
         settings = data.settings,
         apps = data.apps,
         ui = data.ui,
+        defense = data.defense == true,
         time = gameTime(),
     })
 end)
@@ -178,6 +179,18 @@ CreateThread(function()
             Wait(250)
         end
     end
+end)
+
+
+RegisterNetEvent('noirx:client:attackLocation', function(data)
+    if type(data) ~= 'table' or type(data.x) ~= 'number' or type(data.y) ~= 'number' then return end
+    local blip = AddBlipForCoord(data.x, data.y, tonumber(data.z) or 0.0)
+    SetBlipSprite(blip, 161); SetBlipColour(blip, 2); SetBlipScale(blip, 1.15)
+    SetBlipAsShortRange(blip, false)
+    BeginTextCommandSetBlipName('STRING'); AddTextComponentString('Attaquant repéré'); EndTextCommandSetBlipName(blip)
+    SetNewWaypoint(data.x, data.y)
+    TriggerEvent('chat:addMessage', { args = { '^2NOIR X', 'Attaquant localisé : position révélée pendant 30 secondes.' } })
+    CreateThread(function() Wait((tonumber(data.seconds) or 30) * 1000); if DoesBlipExist(blip) then RemoveBlip(blip) end end)
 end)
 
 -- ─── Commande / touche (optionnelles, même vérification serveur) ─

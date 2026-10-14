@@ -108,3 +108,41 @@ P.Actions.reportArchive = { perm = 'reports_manage', fn = function(src, d)
     History(id, src, archive and 'Archivé' or 'Désarchivé')
     return { ok = true, message = archive and 'Rapport archivé.' or 'Rapport ressorti des archives.' }
 end }
+
+-- ---------------------------------------------------------------------
+--  Pont pour noirx (Police Hack) : Config.PoliceHack.adapterResource = 'elyzea_police'
+--  IsPolice(src)          → agent en service
+--  ListReports(src)       → 15 derniers rapports non archivés (sans le contenu détaillé)
+--  DeleteReport(src, id)  → le rapport est archivé (jamais effacé de la base, récupérable
+--                           par la direction), avec une ligne d'historique
+-- ---------------------------------------------------------------------
+exports('IsPolice', function(src) return P.OnDuty(tonumber(src)) == true end)
+
+-- Liste tenue en cache (rafraîchie toutes les 20 s) : pas d'attente SQL dans un export appelé par une autre ressource
+local MdtCache = {}
+CreateThread(function()
+    while true do
+        local rows = MySQL.query.await([[SELECT `id`, `title`, `type`, `author_name`, UNIX_TIMESTAMP(`created_at`) AS t
+            FROM `police_reports` WHERE `status` <> 'archived' ORDER BY `id` DESC LIMIT 15]]) or {}
+        local out = {}
+        for _, r in ipairs(rows) do
+            out[#out + 1] = { id = r.id, title = r.title, type = r.type, author = r.author_name, date = os.date('%d/%m %H:%M', tonumber(r.t) or 0) }
+        end
+        MdtCache = out
+        Wait(20000)
+    end
+end)
+
+exports('ListReports', function(src) return MdtCache end)
+
+exports('DeleteReport', function(src, id)
+    id = P.Int(id, 1, nil, 0)
+    local idx
+    for i, r in ipairs(MdtCache) do if tonumber(r.id) == id then idx = i end end
+    if not idx then return false end
+    table.remove(MdtCache, idx)
+    MySQL.update('UPDATE `police_reports` SET `status` = ? WHERE `id` = ? AND `status` <> ?', { 'archived', id, 'archived' })
+    MySQL.insert('INSERT INTO `police_report_history` (`report_id`, `actor_name`, `action`) VALUES (?, ?, ?)',
+        { id, 'Inconnu', 'Rapport retiré du MDT lors d\'une intrusion (archivé, récupérable)' })
+    return true
+end)

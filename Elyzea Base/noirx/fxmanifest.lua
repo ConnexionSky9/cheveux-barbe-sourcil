@@ -37,6 +37,8 @@ server_scripts {
     'server/apps/darkchat.lua',
     'server/apps/ratline.lua',
     'server/apps/launder.lua',
+    'server/apps/policehack.lua',
+    'server/apps/upgrades.lua',
     'server/apps/mercs.lua',
     'server/apps/market.lua',
     -- administration

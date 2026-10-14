@@ -87,13 +87,15 @@ Config.Apps = {
     { id = 'launder',     label = 'Blanchiment',   enabled = true },
     { id = 'market',      label = 'Dark Market',   enabled = true },
     { id = 'contracts',   label = 'Contrats',      enabled = true },
-    { id = 'blackbreach', label = 'Blackbreach',   enabled = true },
+    { id = 'attaque',     label = 'Attaque',       enabled = true },
+    { id = 'amelioration', label = 'Amélioration', enabled = true },
     { id = 'mercs',       label = 'Mercenaires',   enabled = true },
     { id = 'blackfile',   label = 'Blackfile',     enabled = true },
     { id = 'burner',      label = 'Burner',        enabled = true },
     { id = 'deaddrop',    label = 'Dead Drop',     enabled = true },
     { id = 'auction',     label = 'Black Auction', enabled = true },
     { id = 'settings',    label = 'Réglages',      enabled = true },
+    { id = 'policehack',  label = 'Police Hack',   enabled = true },
 }
 
 -- ─────────────────────────────────────────────────────────────
@@ -161,19 +163,58 @@ Config.Laundering = {
     hack = {
         npcChance = 35,             -- % de chance qu'un pirate PNJ attaque pendant un blanchiment
         windowSeconds = 25,         -- temps maximum du duel de frappe
-        lossPercentMin = 15,        -- perte en cas de défaite (% du montant blanchi)
-        lossPercentMax = 40,
+        lossPercentMin = 50,        -- attaque réussie : 50 % du montant blanchi
+        lossPercentMax = 50,
         npcCharsPerSecond = { 3.2, 5.5 },  -- vitesse de frappe du pirate PNJ
         maxHumanCps = 16,           -- anti-triche : frappe plus rapide = rejetée
-        lineLength = { 26, 40 },    -- longueur de la ligne de code à recopier
+        lineLength = { 26, 40 },
+        playerWarningSeconds = 60,    -- délai avant le duel joueur contre joueur    -- longueur de la ligne de code à recopier
         vulnerableAfterSeconds = 10,-- un blanchiment n'est attaquable qu'après X s
         maxAttacksPerJob = 2,
-        playerInterception = false, -- réservé : aucune interface d'intrusion entre joueurs dans cette version
-        interceptCost = 500,
+        playerInterception = true,  -- attaques joueur contre joueur depuis Attaque
+        interceptCost = 0,
         interceptCurrency = 'dirty',
-        interceptCooldownSeconds = 600,
+        interceptCooldownSeconds = 1800, -- 30 minutes
         attackerRewardPercent = 100,-- part du montant volé reversée au pirate joueur
     },
+}
+
+-- ─────────────────────────────────────────────────────────────
+--  AMÉLIORATION — progression RP
+Config.Upgrades = {
+    enabled = true,
+    costs = { 25000, 50000, 90000, 140000, 220000 },
+    currency = 'dirty',
+    policeHackRadius = { 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0 },
+    autoDefenseChance = { 0, 5, 10, 15, 20, 25 },
+    revealRadius = { 0.0, 50.0, 100.0, 150.0, 200.0, 250.0 },
+    intel = {
+        [0] = { 'vente', 'achat' },
+        [1] = { 'vente', 'achat', 'weed', 'meth', 'coke' },
+        [2] = { 'vente', 'achat', 'weed', 'meth', 'coke', 'farm_armes' },
+        [3] = { 'vente', 'achat', 'weed', 'meth', 'coke', 'farm_armes', 'table_arme_legere' },
+        [4] = { 'vente', 'achat', 'weed', 'meth', 'coke', 'farm_armes', 'table_arme_legere', 'table_arme_moyenne' },
+        [5] = { 'vente', 'achat', 'weed', 'meth', 'coke', 'farm_armes', 'table_arme_legere', 'table_arme_moyenne', 'table_arme_lourde' },
+    }
+}
+
+--  POLICE HACK (intrusion RP sur les rapports MDT)
+--  Les rapports réels nécessitent un adaptateur vers la ressource police/MDT.
+-- ─────────────────────────────────────────────────────────────
+Config.PoliceHack = {
+    enabled = true,
+    price = 15000,
+    currency = 'dirty', -- 'dirty' ou 'clean'
+    radius = 500.0,
+    station = vector3(425.1, -979.5, 30.7), -- coordonnées par défaut, à adapter à ton poste
+    warningSeconds = 60,
+    duelSeconds = 30,
+    accessSeconds = 30,
+    cooldownSeconds = 1800,
+    maxHumanCps = 16,
+    policeJobs = { 'police', 'sheriff', 'state' },
+    dispatchEvent = '', -- nom d'événement serveur optionnel de ta ressource police
+    adapterResource = 'elyzea_police', -- exports IsPolice / ListReports / DeleteReport (elyzea_police/server/api.lua)
 }
 
 -- ─────────────────────────────────────────────────────────────
@@ -263,7 +304,7 @@ Config.Mercs = {
 Config.Database = {
     driver = 'auto',          -- 'auto' : elyzea_core, puis oxmysql, puis mysql-async
     autoInstall = true,       -- crée les tables au démarrage (CREATE TABLE IF NOT EXISTS, rejouable)
-    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql', 'sql/004_noirx_mercs.sql', 'sql/005_noirx_market.sql' },
+    installFiles = { 'sql/001_noirx_core.sql', 'sql/002_noirx_network.sql', 'sql/004_noirx_mercs.sql', 'sql/005_noirx_market.sql', 'sql/006_noirx_upgrades.sql' },
 }
 Config.Identity = {
     provider = 'elyzea',      -- 'elyzea' : citizenid du personnage · 'license' : licence Rockstar

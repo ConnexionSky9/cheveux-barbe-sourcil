@@ -121,6 +121,8 @@ local function attackView(a, role)
         remainingMs = math.max(0, a.deadlineMs - ms()),
         windowMs = a.deadlineMs - a.startMs,
         npc = a.attacker == 'npc',
+        warning = a.pendingStartMs ~= nil,
+        warningRemainingMs = a.pendingStartMs and math.max(0, a.pendingStartMs - ms()) or 0,
     }
 end
 
@@ -145,7 +147,9 @@ local function startAttack(job, attackerChar, attackerSrc)
         attackerSrc = attackerSrc,
         line = line,
         startMs = startMs,
-        deadlineMs = startMs + h.windowSeconds * 1000,
+        pendingStartMs = attackerChar and (startMs + (h.playerWarningSeconds or 60) * 1000) or nil,
+        pauseStartedAt = now(),
+        deadlineMs = startMs + ((attackerChar and (h.playerWarningSeconds or 60) or 0) + h.windowSeconds) * 1000,
     }
     if not attackerChar then
         local cps = h.npcCharsPerSecond[1] + math.random() * (h.npcCharsPerSecond[2] - h.npcCharsPerSecond[1])
@@ -160,11 +164,17 @@ local function startAttack(job, attackerChar, attackerSrc)
 
     local victimSrc = Players.SrcOf(job.owner)
     if victimSrc then
-        Push.ToSrc(victimSrc, 'duel:start', attackView(a, 'defender'))
-        Push.Notify(victimSrc, 'INTRUSION', 'On pirate ton blanchiment ! Ouvre ton NOIR X et recopie la séquence avant lui.', 'alert')
+        if a.pendingStartMs then
+            Push.ToSrc(victimSrc, 'attack:warning', { attack = a.id, remainingMs = (h.playerWarningSeconds or 60) * 1000 })
+            Push.Notify(victimSrc, 'ATTAQUE', 'Votre blanchiment se fait attaquer.', 'alert')
+        else
+            Push.ToSrc(victimSrc, 'duel:start', attackView(a, 'defender'))
+            Push.Notify(victimSrc, 'INTRUSION', 'On pirate ton blanchiment ! Recopie la séquence avant le pirate.', 'alert')
+        end
     end
     if attackerSrc then
-        Push.ToSrc(attackerSrc, 'duel:start', attackView(a, 'attacker'))
+        if a.pendingStartMs then Push.ToSrc(attackerSrc, 'attack:countdown', { attack = a.id, remainingMs = (h.playerWarningSeconds or 60) * 1000 })
+        else Push.ToSrc(attackerSrc, 'duel:start', attackView(a, 'attacker')) end
     end
     Audit.Log(victimSrc or 0, 'launder.attack_start', { job = job.id, attacker = a.attacker })
     return a
@@ -176,12 +186,17 @@ function Launder.Resolve(attackId, winner, reason)
     if not a then return false end
     Attacks[attackId] = nil
     local job = Jobs[a.jobId]
-    if job then job.attack = nil end
+    if job then
+        job.attack = nil
+        local paused = math.max(0, now() - (a.pauseStartedAt or now()))
+        job.endsAt = job.endsAt + paused
+        DB.Execute('UPDATE noirx_launder_jobs SET ends_at = ? WHERE id = ? AND status = ?', { job.endsAt, job.id, 'running' })
+    end
 
     local loss, reward = 0, 0
     if winner == 'attacker' and job then
         local h = hcfg()
-        local pct = math.random(h.lossPercentMin, math.max(h.lossPercentMin, h.lossPercentMax))
+        local pct = a.attacker ~= 'npc' and 50 or math.random(h.lossPercentMin, math.max(h.lossPercentMin, h.lossPercentMax))
         loss = math.floor(job.amount * pct / 100)
         loss = math.max(0, math.min(loss, job.net - job.stolen))
         job.stolen = job.stolen + loss
@@ -206,6 +221,26 @@ function Launder.Resolve(attackId, winner, reason)
             or ('Le pirate a siphonné %s%d de ton opération.'):format(Config.Money.symbol, loss), winner == 'attacker' and 'alert' or nil) end
     end
     local attackerSrc = a.attacker ~= 'npc' and Players.SrcOf(a.attacker) or nil
+    if winner == 'defender' and attackerSrc and victimSrc then
+        local ped = GetPlayerPed(attackerSrc)
+        if ped and ped ~= 0 then
+            local coords = GetEntityCoords(ped)
+            local level = 0
+            if Upgrades and Upgrades.Get and job then
+                local owned = Upgrades.Get(job.owner)
+                level = owned and (tonumber(owned.revealLevel) or 0) or 0
+            end
+            local radius = (Config.Upgrades.revealRadius[level + 1] or 0.0) + 0.0
+            local x, y = coords.x, coords.y
+            if radius > 0 then
+                local angle = math.random() * math.pi * 2
+                local distance = math.sqrt(math.random()) * radius
+                x = x + math.cos(angle) * distance
+                y = y + math.sin(angle) * distance
+            end
+            TriggerClientEvent('noirx:client:attackLocation', victimSrc, { x = x, y = y, z = coords.z, seconds = 30, radius = radius })
+        end
+    end
     if attackerSrc then
         Push.ToSrc(attackerSrc, 'duel:end', { attack = a.id, role = 'attacker', won = winner == 'attacker', reward = reward, reason = reason })
         if not Phone.GetSession(attackerSrc) then Push.Notify(attackerSrc, 'Blackbreach', winner == 'attacker'
@@ -385,7 +420,7 @@ local function vulnerable(job, attackerChar)
         and Players.SrcOf(job.owner) ~= nil
 end
 
-Rpc.Register('breach.signals', { app = 'blackbreach', rate = { 10, 10 } }, function(src, ctx)
+Rpc.Register('breach.signals', { app = 'attaque', rate = { 10, 10 } }, function(src, ctx)
     local h = hcfg()
     if not h.playerInterception then return { enabled = false, signals = {} } end
     local list = {}
@@ -404,7 +439,7 @@ Rpc.Register('breach.signals', { app = 'blackbreach', rate = { 10, 10 } }, funct
     }
 end)
 
-Rpc.Register('breach.intercept', { app = 'blackbreach', rate = { 3, 10 } }, function(src, ctx, args)
+Rpc.Register('breach.intercept', { app = 'attaque', rate = { 3, 10 } }, function(src, ctx, args)
     local h = hcfg()
     if not h.playerInterception then return Rpc.Fail('disabled', 'Interception désactivée.') end
     local jobId = Signals[tostring(args.signal or '')]
@@ -422,6 +457,15 @@ Rpc.Register('breach.intercept', { app = 'blackbreach', rate = { 3, 10 } }, func
             return Rpc.Fail('funds', 'Fonds insuffisants pour lancer l\'intrusion.')
         end
         InterceptCd[ctx.charId] = now() + h.interceptCooldownSeconds
+        local targetUpgrades = Upgrades and Upgrades.Get and Upgrades.Get(job.owner) or { defenseLevel = 0 }
+        local chance = Config.Upgrades.autoDefenseChance[(targetUpgrades.defenseLevel or 0) + 1] or 0
+        if chance > 0 and math.random(1, 100) <= chance then
+            local victimSrc = Players.SrcOf(job.owner)
+            if victimSrc then Push.Notify(victimSrc, 'Défense NOIR X', 'La défense automatique a repoussé une attaque.', 'alert') end
+            Push.Notify(src, 'Attaque repoussée', 'La défense automatique de la cible a bloqué ton intrusion.', 'alert')
+            Audit.Log(src, 'launder.attack_auto_defended', { job = job.id, chance = chance })
+            return { ok = true, repelled = true, chance = chance }
+        end
         local a = startAttack(job, ctx.charId, src)
         return { ok = true, duel = attackView(a, 'attacker') }
     end)
@@ -435,11 +479,21 @@ end)
 function Launder.Tick()
     local tms, t = ms(), now()
     for id, a in pairs(Attacks) do
+        if a.pendingStartMs and tms >= a.pendingStartMs then
+            a.pendingStartMs = nil
+            a.startMs = tms
+            a.deadlineMs = tms + hcfg().windowSeconds * 1000
+            local job = Jobs[a.jobId]
+            local victimSrc = job and Players.SrcOf(job.owner)
+            if victimSrc then Push.ToSrc(victimSrc, 'attack:warningEnd', { attack = a.id }); Push.ToSrc(victimSrc, 'duel:start', attackView(a, 'defender')) end
+            local attackerSrc = a.attacker ~= 'npc' and Players.SrcOf(a.attacker) or nil
+            if attackerSrc then Push.ToSrc(attackerSrc, 'attack:warningEnd', { attack = a.id }); Push.ToSrc(attackerSrc, 'duel:start', attackView(a, 'attacker')) end
+        end
         if a.npcDoneMs and tms >= a.npcDoneMs then
             Locks.Run('attack:' .. id, function()
                 if Attacks[id] then Launder.Resolve(id, 'attacker', 'npc_faster') end
             end)
-        elseif tms >= a.deadlineMs then
+        elseif not a.pendingStartMs and tms >= a.deadlineMs then
             Locks.Run('attack:' .. id, function()
                 -- Personne n'a fini : le PNJ l'emporte, un pirate joueur échoue.
                 if Attacks[id] then Launder.Resolve(id, a.attacker == 'npc' and 'attacker' or 'defender', 'timeout') end

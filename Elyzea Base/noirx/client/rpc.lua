@@ -55,3 +55,14 @@ CreateThread(function()
         end
     end
 end)
+
+-- Révélation de position pendant 30 s après une défense réussie du MDT.
+RegisterNetEvent('noirx:policehack:trace', function(c, seconds)
+    if type(c) ~= 'table' then return end
+    SetNewWaypoint(tonumber(c.x) or 0.0, tonumber(c.y) or 0.0)
+    TriggerEvent('chat:addMessage', { args = { '^2NOIR X', 'Trace du pirate marquée sur le GPS pendant 30 secondes.' } })
+    local blip = AddBlipForCoord(tonumber(c.x) or 0.0, tonumber(c.y) or 0.0, tonumber(c.z) or 0.0)
+    SetBlipSprite(blip, 161); SetBlipColour(blip, 2); SetBlipScale(blip, 1.0)
+    BeginTextCommandSetBlipName('STRING'); AddTextComponentString('Trace du pirate'); EndTextCommandSetBlipName(blip)
+    SetTimeout((tonumber(seconds) or 30)*1000, function() if DoesBlipExist(blip) then RemoveBlip(blip) end end)
+end)

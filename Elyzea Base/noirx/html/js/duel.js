@@ -8,10 +8,48 @@
   const h = NX.h;
   const duel = { active: null };
   let timer = null;
+  let warningTimer = null;
+  let warningNode = null;
+  let audioCtx = null;
 
   function root() { return document.getElementById('duel'); }
 
   function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+
+  function stopWarning() {
+    if (warningTimer) { clearInterval(warningTimer); warningTimer = null; }
+    if (warningNode) { warningNode.remove(); warningNode = null; }
+  }
+  function glitchSound() {
+    try {
+      if (!NX.state.settings.sounds) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioCtx = audioCtx || new Ctx();
+      const ctx = audioCtx, duration = 0.22, size = Math.floor(ctx.sampleRate * duration);
+      const buffer = ctx.createBuffer(1, size, ctx.sampleRate), data = buffer.getChannelData(0);
+      for (let i=0;i<size;i++) data[i]=(Math.random()*2-1)*(i<size*0.15?0.8:0.22);
+      const src=ctx.createBufferSource(), gain=ctx.createGain(), filter=ctx.createBiquadFilter();
+      src.buffer=buffer; filter.type='bandpass'; filter.frequency.value=1500+Math.random()*1800;
+      gain.gain.setValueAtTime(0.16,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+duration);
+      src.connect(filter); filter.connect(gain); gain.connect(ctx.destination); src.start(); src.stop(ctx.currentTime+duration);
+    } catch (_) {}
+  }
+  function showWarning(payload) {
+    stopWarning();
+    const screen=document.getElementById('screen'); if(!screen) return;
+    let left=Math.max(0,payload && payload.remainingMs || 60000);
+    warningNode=h('div',{class:'attack-glitch'});
+    warningNode.append(h('div',{class:'attack-glitch__scan'}),h('div',{class:'attack-glitch__skull',text:'☠'}),h('div',{class:'attack-glitch__title',text:'VOTRE BLANCHIMENT SE FAIT ATTAQUER'}),h('div',{class:'attack-glitch__sub',text:'SIGNAL COMPROMIS · CONNEXION EN COURS'}));
+    const counter=h('div',{class:'attack-glitch__counter',text:'60'}); warningNode.append(counter); screen.append(warningNode);
+    glitchSound();
+    const pulse=()=>{ if(!warningNode)return; counter.textContent=String(Math.ceil(left/1000)); warningNode.classList.toggle('attack-glitch--flicker',Math.random()>.45); glitchSound(); left=Math.max(0,left-1000); if(left<=0) stopWarning(); };
+    pulse(); warningTimer=setInterval(pulse,1000);
+  }
+  NX.on('attack:warning', showWarning);
+  NX.on('attack:warningEnd', stopWarning);
+  NX.on('attack:countdown', payload => { /* L'attaquant reçoit le même délai, sans l'alerte visuelle de la cible. */ });
 
   function renderLine(line, typed) {
     const wrap = h('div', { class: 'duel__code' });
@@ -25,6 +63,7 @@
   }
 
   duel.open = function (view) {
+    stopWarning();
     if (!view || !view.attack) return;
     if (duel.active && duel.active.attack === view.attack && !duel.active.finished) {
       // déjà affiché (ex. téléphone rouvert pendant le duel) : on redonne le focus au champ
@@ -79,7 +118,7 @@
       if (state.submitting || state.finished) return;
       state.submitting = true;
       status.textContent = 'Transmission…';
-      NX.rpc('duel.submit', { attack: view.attack, text: state.typed }).then(res => {
+      NX.rpc(String(view.attack).startsWith('ph:') ? 'policehack.duelSubmit' : 'duel.submit', { attack: String(view.attack).startsWith('ph:') ? String(view.attack).slice(3) : view.attack, text: state.typed }).then(res => {
         state.submitting = false;
         if (!res.ok) {
           status.textContent = res.message || 'Séquence rejetée.';
@@ -154,6 +193,7 @@
 
   duel.close = function () {
     stopTimer();
+    stopWarning();
     duel.active = null;
     const el = root();
     el.hidden = true;

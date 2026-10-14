@@ -163,9 +163,7 @@ Rpc.Register('test.disabled', { db = false, app = 'app_inexistante' }, function(
 
 local rid = 0
 -- Connexion par burner obligatoire : le joueur de test est connecté
-local function loginAll() for _, c in pairs(Players.cache or {}) do Auth.logins[c] = { id = 1, handle = 'test', exp = os.time() + 3600 } end end
 local function dispatch(token, name, args)
-    loginAll()
     local cid = Players.CharOf(1)
     if cid then Auth.logins[cid] = { id = 1, handle = 'test', exp = os.time() + 3600 } end
     rid = rid + 1; return Rpc.Dispatch(1, token, rid, name, args or {})

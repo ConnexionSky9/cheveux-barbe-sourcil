@@ -91,6 +91,10 @@ function Rpc.Dispatch(src, token, reqId, name, args)
         session.lastReqId = rid
     end
 
+    if session and session.defense and name ~= 'policehack.duelSubmit' then
+        return Rpc.Fail('defense', 'Terminal de défense : action indisponible.')
+    end
+
     if opts.app and not appEnabled(opts.app) then
         return Rpc.Fail('disabled', 'Ce nœud est désactivé.')
     end

@@ -120,7 +120,10 @@
   // À chaque ouverture du téléphone (le serveur répond après la création de la session)
   window.addEventListener('message', (e) => {
     const d = e.data || {};
-    if (d.action === 'open') setTimeout(refresh, 50);
+    if (d.action === 'open') {
+      if (d.defense) { show(false); return; }   // terminal de défense police : pas de connexion
+      setTimeout(refresh, 50);
+    }
   });
   NX.on('auth:logout', (p) => loggedOut(p && p.message));
   // Un appel refusé faute de connexion ramène à l'écran de connexion
