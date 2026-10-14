@@ -1110,6 +1110,15 @@ function edProps() {
         </div>
         </div>
 
+        <div class="section"><h2>💻 PC Police / NOIR X (${ed.props.filter((r) => r.role === 'police_pc').length})</h2>
+        <p class="hint">Terminal posé sur la map : les policiers en service l'ouvrent avec <span class="keycap">E</span> (ressource noirx_police_laptop_prop). Placement, rotation et déplacement comme un prop normal ; sauvegardé et remis après un redémarrage.</p>
+        <div class="btn-row"><button class="btn primary" data-ed="place_prop" data-model="prop_laptop_01a" data-role="police_pc">💻 Placer un PC Police</button></div>
+        ${ed.props.filter((r) => r.role === 'police_pc').map((r) => `<div class="inline" style="margin-top:6px"><span>💻 <b>PC Police</b> <span class="muted">#${r.id} · ${esc(r.model)}</span></span>
+            <span class="btn-row" style="margin:0"><button class="btn" data-ed="move" data-kind="prop" data-id="${r.id}">Déplacer / tourner</button>
+            <button class="btn" data-ed="tp" data-kind="prop" data-id="${r.id}">TP</button>
+            <button class="btn danger" data-ed="delete" data-kind="prop" data-id="${r.id}">Supprimer</button></span></div>`).join('')}
+        </div>
+
         <div class="section"><h2>Props enregistrés (${ed.props.length})</h2>
         <div class="folder-bar">
             <button class="folder-chip ${propView === 'all' ? 'active' : ''}" data-pview="all">📋 Tous <b>${ed.props.length}</b></button>
@@ -2545,7 +2554,7 @@ async function handleEditor(n) {
         case 'place_prop': {
             const model = (n.dataset.model || draft('propModel')).trim();
             if (!model) return toast('Indique un nom de modèle.', 'error');
-            return editorPost('place_prop', { model, magnet: !!drafts.propMagnet, folder: Number(draft('propFolder', propView !== 'all' && propView !== 'none' ? String(propView) : '0')) || undefined });
+            return editorPost('place_prop', { model, role: n.dataset.role || undefined, magnet: !!drafts.propMagnet, folder: Number(draft('propFolder', propView !== 'all' && propView !== 'none' ? String(propView) : '0')) || undefined });
         }
         case 'place_ped': {
             const model = draft('pedModel').trim();

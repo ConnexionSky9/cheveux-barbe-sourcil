@@ -102,3 +102,16 @@ exports('SetCuffed', function(target, on, byName)
     return true
 end)
 exports('IsCuffed', function(target) return P.Cuffed[tonumber(target) or -1] ~= nil end)
+
+-- Unités en service (PC Police : noirx_police_laptop_prop) : nom, matricule, grade, statut, position
+exports('GetOnDutyUnits', function()
+    local out = {}
+    for _, src in ipairs(P.CopsOnDuty()) do
+        local i = P.AgentInfo(src, false)
+        local ped = GetPlayerPed(src)
+        local c = ped ~= 0 and GetEntityCoords(ped) or nil
+        out[#out + 1] = { name = i.name, matricule = i.matricule, grade = i.grade, status = i.status, x = c and c.x or nil, y = c and c.y or nil }
+    end
+    return out
+end)
+exports('GetGradeLevel', function(src) local g = P.Grade(tonumber(src)) return g and g.level or nil end)

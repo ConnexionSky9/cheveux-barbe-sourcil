@@ -77,6 +77,7 @@ end
 local STORAGE_NAME = { propFolders = 'prop_folders' }
 local function save(kind)
     Storage.saveLater(STORAGE_NAME[kind] or kind, Data[kind])
+    if kind == 'props' then TriggerEvent('adminmenu:propsChanged') end
 end
 
 -- Envoi groupé : plusieurs modifications en 150 ms = un seul envoi à tous.
@@ -194,6 +195,7 @@ def('editor_save_prop', 'editor_props', function(src, d)
         AM.addLog(src, 'Prop déplacé', ('#%d %s'):format(r.id, r.model))
     else
         r = { id = nextId(Data.props), model = model, x = x, y = y, z = z, h = h }
+        if d.role == 'police_pc' then r.role = 'police_pc' end   -- PC Police (noirx_police_laptop_prop)
         r.rx, r.ry = tilt(d)
         local _, folder = findIndex(Data.propFolders, d.folder)
         r.folder = folder and folder.id or nil
@@ -2211,4 +2213,13 @@ exports('SetDoorLocked', function(id, locked)
         broadcast('doors')
     end
     return true
+end)
+
+-- Props ayant un rôle (ex. 'police_pc' : PC Police de noirx_police_laptop_prop), lus par d'autres ressources
+exports('GetPropsByRole', function(role)
+    local out = {}
+    for _, r in ipairs(Data.props) do
+        if r.role == role then out[#out + 1] = { id = r.id, model = r.model, x = r.x, y = r.y, z = r.z, h = r.h } end
+    end
+    return out
 end)

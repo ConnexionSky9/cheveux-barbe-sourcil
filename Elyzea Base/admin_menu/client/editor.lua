@@ -390,7 +390,7 @@ local function confirmPlacement()
     local P = Placing
     if not P or not P.pos then return end
     local d = { id = P.id, model = P.model, x = P.pos.x, y = P.pos.y, z = P.pos.z, h = P.heading,
-                rx = P.rot and P.rot.x or 0.0, ry = P.rot and P.rot.y or 0.0, folder = P.folder }
+                rx = P.rot and P.rot.x or 0.0, ry = P.rot and P.rot.y or 0.0, folder = P.folder, role = P.role }
 
     if P.kind == 'prop' then
         TriggerServerEvent('adminmenu:action', 'editor_save_prop', d)
@@ -997,7 +997,7 @@ RegisterNUICallback('editor', function(body, cb)
     if n == 'place_prop' and canEdit('editor_props') then
         CloseMenu()
         if d.magnet ~= nil then LastMagnet = d.magnet == true end
-        StartPlacement({ kind = 'prop', model = tostring(d.model or ''):lower(), folder = tonumber(d.folder) })
+        StartPlacement({ kind = 'prop', model = tostring(d.model or ''):lower(), folder = tonumber(d.folder), role = d.role })
     elseif n == 'place_ped' and canEdit('editor_peds') then
         CloseMenu()
         StartPlacement({ kind = 'ped', model = tostring(d.model or ''):lower(), scenario = d.scenario or '', name = d.name or '', npc = d.npc })
