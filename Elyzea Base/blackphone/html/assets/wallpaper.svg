@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 860" width="400" height="860">
+  <defs><pattern id="p" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V14" stroke="#ffffff" stroke-opacity=".025" stroke-width="1"/></pattern>
+  <radialGradient id="v" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#141416"/><stop offset="1" stop-color="#020203"/></radialGradient>
+  <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d0f13" stop-opacity="0"/><stop offset="1" stop-color="#7d0f13" stop-opacity=".18"/></linearGradient></defs>
+  <rect width="400" height="860" fill="url(#v)"/><rect width="400" height="860" fill="url(#p)"/><rect y="560" width="400" height="300" fill="url(#r)"/>
+  <g transform="translate(110 250) scale(2.8)" opacity=".06"><g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+      
+      <path d="M14 2H50A12 12 0 0 1 62 14V90A12 12 0 0 1 50 102H14A12 12 0 0 1 2 90V14A12 12 0 0 1 14 2Z" stroke="#ffffff" stroke-width="3"/>
+      <path d="M22 26V78H38L44 72V58L39.5 52L44 46V32L38 26Z" stroke="#ffffff" stroke-width="5"/>
+      <path d="M22 52H62" stroke="#ffffff" stroke-width="5"/>
+      <path d="M58 52H66" stroke="#ffffff" stroke-width="5"/>
+      <circle cx="32" cy="12" r="2.6" fill="#ffffff" stroke="none"/>
+    </g></g></svg>

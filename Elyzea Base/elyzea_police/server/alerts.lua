@@ -198,6 +198,11 @@ RegisterNetEvent('police:server:autoReport', function(kind, street)
     if lastAuto[key] and now - lastAuto[key] < (t.cooldown or 30) then return end
     lastAuto[key] = now
     if math.random(100) > (t.chance or 100) then return end
+    -- BLACKPHONE (BLACKBREACH réussi) : signalements automatiques de tirs suspendus temporairement
+    if kind == 'shots' and GetResourceState('blackphone') == 'started' then
+        local ok, off = pcall(function() return exports.blackphone:ShotsSuppressed() end)
+        if ok and off then return end
+    end
     local c = P.Coords(src)
     if not c then return end
     P.CreateGeneral(kind, c, t.label, kind == 'shots' and 'Des tirs ont été entendus dans le secteur.' or 'Un vol de véhicule est en cours.', street)

@@ -7,6 +7,8 @@ local core = exports.elyzea_core
 exports('IsPolice', function(src) return P.IsCop(tonumber(src)) end)
 exports('IsOnDuty', function(src) return P.OnDuty(tonumber(src)) end)
 exports('HasPermission', function(src, perm) return P.Can(tonumber(src), perm) end)
+-- Grade de l'agent (nom, niveau) : utilisé par blackphone pour les accès du PC portable police
+exports('GetGrade', function(src) local g = P.Grade(tonumber(src)) return g and { name = g.name, level = g.level } or nil end)
 
 -- Alerte générale depuis un autre script : type = shots | assault | carjack | robbery | distress | other
 -- exports.elyzea_police:SendAlert('robbery', vector3(x, y, z), 'Braquage de la supérette', 'Alarme déclenchée', 'Grove Street')
