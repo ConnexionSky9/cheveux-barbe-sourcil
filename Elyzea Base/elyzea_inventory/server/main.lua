@@ -120,7 +120,7 @@ local function serialize(it, slot, extra)
         slot = slot, name = it.name, count = it.count,
         label = meta.label or def.label or it.name, icon = def.icon,
         image = not isUrl and img or nil, imageUrl = isUrl and img or nil,
-        weight = math.floor(def.weight or 0) / 1000,
+        weight = (def.perGram and def.perGram > 0) and (1 / def.perGram / 1000) or (math.floor(def.weight or 0) / 1000),
         description = desc,
         stack = def.stack == true, max = Shared.MaxStack(it.name),
         plain = Shared.IsEmptyMeta(it.metadata),
@@ -249,7 +249,7 @@ end
 local function canCarryWeight(st, name, count)
     local d = Items[name]
     if not d then return false end
-    return weightOf(st) + math.floor(d.weight or 0) * count <= capOf(st)
+    return weightOf(st) + Shared.StackWeight(name, count) <= capOf(st)
 end
 
 local function addTo(st, name, count, metadata, preferSlot)

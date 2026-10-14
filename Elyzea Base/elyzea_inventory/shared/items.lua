@@ -196,6 +196,12 @@ Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5,
 Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noirphone.png', icon = '📱',
     description = 'Terminal clandestin sécurisé. Accès au réseau privé NOIR X.' }
 
+-- Argent en billets : 1 000 $ = 1 g, une seule pile sans limite (pas de « inventaire plein »)
+Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'black_money.png', icon = '💵',
+    description = 'Billets d\'origine douteuse. 1 000 $ = 1 g.' }
+Items.markedbills = { label = 'Billets marqués', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'markedbills.png', icon = '💵',
+    description = 'Liasses marquées par la banque. 1 000 $ = 1 g.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

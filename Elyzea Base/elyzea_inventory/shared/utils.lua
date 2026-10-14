@@ -33,11 +33,19 @@ function Shared.MaxStack(name)
     return d.max or Config.DefaultMaxStack
 end
 
--- Poids en grammes (entier) : jamais d'arrondi flottant
-function Shared.ItemWeight(item)
-    local d = item and Items[item.name]
+-- Poids en grammes (entier) d'une pile : jamais d'arrondi flottant.
+-- perGram : nombre d'unités pour 1 g (ex. argent : 1 000 $ = 1 g), arrondi au gramme supérieur.
+function Shared.StackWeight(name, count)
+    local d = Items[name]
     if not d then return 0 end
-    return math.floor(d.weight or 0) * (item.count or 1)
+    count = count or 1
+    if d.perGram and d.perGram > 0 then return math.ceil(count / d.perGram) end
+    return math.floor(d.weight or 0) * count
+end
+
+function Shared.ItemWeight(item)
+    if not item then return 0 end
+    return Shared.StackWeight(item.name, item.count or 1)
 end
 
 function Shared.Copy(t)
