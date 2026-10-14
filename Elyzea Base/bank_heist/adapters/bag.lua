@@ -13,7 +13,18 @@ local function call(fn, ...)
     if not A.Ready() then return nil end
     local args = { ... }
     local ok, a, b = pcall(function() return exports[RES][fn](exports[RES], table.unpack(args)) end)
-    if not ok then print(('^1[BANK] Sac (%s) : %s^0'):format(fn, tostring(a))) return nil end
+    if not ok then
+        if tostring(a):find('No such export', 1, true) then
+            if not A.warned then
+                A.warned = true
+                print('^1[BANK] jewelry_heist n\'est PAS à jour : il lui manque les exports du sac de billets (' .. fn .. ').^0')
+                print('^1[BANK] Remplace le dossier jewelry_heist par la version livrée avec bank_heist, puis : refresh, restart jewelry_heist, restart bank_heist.^0')
+            end
+        else
+            print(('^1[BANK] Sac (%s) : %s^0'):format(fn, tostring(a)))
+        end
+        return nil
+    end
     return a, b
 end
 function A.Carried(src) return call('GetCarriedBag', src) end

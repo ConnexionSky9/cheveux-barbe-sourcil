@@ -20,6 +20,14 @@ function Boot.Run()
         if not ok then NoirX.Error(('Initialisation %s : %s'):format(t.name, tostring(err))) end
     end
     NoirX.Debug('NOIR X prêt.')
+    -- Toujours affiché : applications dont le module serveur est réellement chargé
+    local apps, seen = {}, {}
+    for _, h in pairs(Rpc.handlers or {}) do
+        local id = h.opts and h.opts.app
+        if id and not seen[id] then seen[id] = true apps[#apps + 1] = id end
+    end
+    table.sort(apps)
+    print(('^2[NOIR X] Prêt. Applications serveur chargées : %s^0'):format(table.concat(apps, ', ')))
 end
 
 CreateThread(function()

@@ -120,7 +120,7 @@ function P.Sanitize(raw)
             id = id, name = str(b.name, 60, id), enabled = bool(b.enabled, true),
             start = pos(b.start, db.start), vault = pos(b.vault, db.vault, true),
             clerk = (function() local c2 = pos(b.clerk, db.clerk, true) c2.model = model((b.clerk or {}).model, db.clerk.model) return c2 end)(),
-            door = { enabled = bool(door.enabled, true), model = model(door.model, db.door.model), x = num(door.x, -10000, 10000, db.door.x), y = num(door.y, -10000, 10000, db.door.y),
+            door = { enabled = bool(door.enabled, true), model = (function() local m = model(door.model, db.door.model) return m == 'v_ilev_gb_vaultdr' and 'v_ilev_gb_vauldr' or m end)(), x = num(door.x, -10000, 10000, db.door.x), y = num(door.y, -10000, 10000, db.door.y),
                 z = num(door.z, -500, 3000, db.door.z), openOffset = num(door.openOffset, -180, 180, db.door.openOffset),
                 closedHeading = num(door.closedHeading, -1, 360, db.door.closedHeading or -1) },
             cash = list(b.cash, function(p) return type(p) == 'table' and pos(p, nil, true) or nil end, 10),

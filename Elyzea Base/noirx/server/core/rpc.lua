@@ -59,7 +59,15 @@ end
 --- Exécute un handler (utilisé par l'événement réseau et par les tests).
 function Rpc.Dispatch(src, token, reqId, name, args)
     local h = type(name) == 'string' and Rpc.handlers[name] or nil
-    if not h then return Rpc.Fail('unknown', 'Action inconnue.') end
+    if not h then
+        Rpc.unknownWarned = Rpc.unknownWarned or {}
+        if type(name) == 'string' and not Rpc.unknownWarned[name] then
+            Rpc.unknownWarned[name] = true
+            print(('^1[NOIR X] Action « %s » inconnue du serveur : le fichier server/apps de cette application n\'est pas chargé.^0'):format(name))
+            print('^1[NOIR X] Après une mise à jour de noirx, tape « refresh » PUIS « restart noirx » (sinon FiveM garde l\'ancienne liste de fichiers).^0')
+        end
+        return Rpc.Fail('unknown', 'Module serveur absent : le staff doit taper « refresh » puis « restart noirx ».')
+    end
     local opts = h.opts
 
     local session = Phone.GetSession(src)

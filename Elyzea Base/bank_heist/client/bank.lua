@@ -2,7 +2,7 @@
 --  BANK HEIST - client : décor de la banque (synchronisé par l'état publié par le serveur)
 --  · Porte du coffre : objet de la carte, maintenu FERMÉ (closedHeading) et figé ; tourné de « openOffset »
 --    degrés quand le coffre est ouvert (piratage réussi ou C4), refermé à la fin du braquage.
---  · Chariots de billets (objets locaux) dans le coffre ouvert : pleins, puis vides quand il n'y a plus rien.
+--  · Chariots de billets (objets locaux) toujours visibles dans le coffre : pleins, puis vides une fois pris.
 --  · Charge C4 posée : objet + bips jusqu'à l'explosion. L'explosion (sans dégâts) est créée par un
 --    seul client choisi par le serveur et synchronisée pour tous par le jeu.
 -- =====================================================================
@@ -23,9 +23,11 @@ local function spawnTrolleys(id, def, full)
     if not hash then return end
     local list = { full = full }
     for _, p in ipairs(def.cash or {}) do
-        local o = CreateObject(hash, p.x + 0.0, p.y + 0.0, p.z - 1.0, false, false, false)
+        -- créé à hauteur de la personne qui a placé le point, puis posé au sol (jamais sous le sol)
+        local o = CreateObject(hash, p.x + 0.0, p.y + 0.0, p.z + 0.0, false, false, false)
         SetEntityHeading(o, (p.h or 0.0) + 0.0)
-        PlaceObjectOnGroundProperly(o)
+        if not PlaceObjectOnGroundProperly(o) then SetEntityCoords(o, p.x + 0.0, p.y + 0.0, p.z - 0.98, false, false, false, false) end
+        SetEntityCollision(o, true, true)
         FreezeEntityPosition(o, true)
         list[#list + 1] = o
     end
@@ -52,7 +54,10 @@ CreateThread(function()
                 if near and b.door and b.door.enabled then
                     local d = doors[b.id]
                     if not d or not DoesEntityExist(d.obj) then
-                        local obj = GetClosestObjectOfType(b.door.x + 0.0, b.door.y + 0.0, b.door.z + 0.0, 4.0, joaat(b.door.model), false, false, false)
+                        local obj = 0
+                        for _, m in ipairs({ b.door.model, 'v_ilev_gb_vauldr', 'v_ilev_bk_vaultdoor', 'hei_prop_heist_sec_door' }) do
+                            if obj == 0 and m and m ~= '' then obj = GetClosestObjectOfType(b.door.x + 0.0, b.door.y + 0.0, b.door.z + 0.0, 6.0, joaat(m), false, false, false) end
+                        end
                         if obj ~= 0 then
                             local closed = tonumber(b.door.closedHeading) or -1
                             d = { obj = obj, base = closed >= 0 and closed or GetEntityHeading(obj), orig = GetEntityHeading(obj) }
@@ -70,10 +75,12 @@ CreateThread(function()
                         end
                     end
                 end
-                -- chariots de billets
-                if near and st.open then
+                -- chariots de billets : toujours visibles dans le coffre. Pleins tant que la banque n'a pas été
+                -- vidée ; vides quand les billets ont été pris et pendant le délai de surveillance.
+                if near and #(b.cash or {}) > 0 then
+                    local full = not (st.phase == 'cooldown' or (st.open and not st.cashLeft))
                     local t = trolleys[b.id]
-                    if not t or t.full ~= (st.cashLeft == true) or (t[1] and not DoesEntityExist(t[1])) then spawnTrolleys(b.id, b, st.cashLeft == true) end
+                    if not t or t.full ~= full or (t[1] and not DoesEntityExist(t[1])) then spawnTrolleys(b.id, b, full) end
                 elseif trolleys[b.id] then clearTrolleys(b.id) end
                 -- charge C4
                 if near and st.phase == 'c4' then
