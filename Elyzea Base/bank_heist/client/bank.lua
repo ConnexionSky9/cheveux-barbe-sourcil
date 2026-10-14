@@ -66,12 +66,21 @@ CreateThread(function()
                         end
                     end
                     if d and DoesEntityExist(d.obj) then
-                        local target = st.open and (d.base + (b.door.openOffset or -90.0)) % 360.0 or d.base
-                        local cur = GetEntityHeading(d.obj)
-                        if math.abs(((target - cur + 540.0) % 360.0) - 180.0) > 0.5 then
-                            FreezeEntityPosition(d.obj, true)
-                            SetEntityHeading(d.obj, headingTo(cur, target))
-                            sleep = 30
+                        -- Porte reliée au système de clés (éditeur › Portes) : hors braquage, ce sont les
+                        -- détenteurs des clés qui la verrouillent ; on ne fait que la refermer après un vol.
+                        local managed = st.doorLinked and not st.open and not d.animated
+                        if not managed then
+                            local target = st.open and (d.base + (b.door.openOffset or -90.0)) % 360.0 or d.base
+                            local cur = GetEntityHeading(d.obj)
+                            if st.open then d.animated = true end
+                            if math.abs(((target - cur + 540.0) % 360.0) - 180.0) > 0.5 then
+                                FreezeEntityPosition(d.obj, true)
+                                SetEntityHeading(d.obj, headingTo(cur, target))
+                                sleep = 30
+                            elseif not st.open and d.animated then
+                                d.animated = false   -- refermée : le système de clés reprend la main
+                                if st.doorLinked then FreezeEntityPosition(d.obj, false) end
+                            end
                         end
                     end
                 end

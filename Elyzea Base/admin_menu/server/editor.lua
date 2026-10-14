@@ -2185,3 +2185,30 @@ exports('GetRandomSpawnPoint', function()
     if #Data.spawns == 0 then return nil end
     return Data.spawns[math.random(#Data.spawns)]
 end)
+
+-- ---------------------------------------------------------
+--  Portes pilotées par d'autres ressources (ex. bank_heist : porte du coffre
+--  déverrouillée par le piratage ou la C4, reverrouillée à la fin du braquage)
+-- ---------------------------------------------------------
+exports('DoorsNear', function(x, y, z, radius)
+    local out = {}
+    local c = vector3(tonumber(x) or 0.0, tonumber(y) or 0.0, tonumber(z) or 0.0)
+    local r = tonumber(radius) or 3.0
+    for _, d in ipairs(Data.doors) do
+        for _, l in ipairs(d.leaves) do
+            if #(c - vector3(l.x, l.y, l.z)) <= r then out[#out + 1] = { id = d.id, name = d.name, locked = d.locked } break end
+        end
+    end
+    return out
+end)
+exports('SetDoorLocked', function(id, locked)
+    local door = doorOf(tonumber(id))
+    if not door then return false end
+    locked = locked == true
+    if door.locked ~= locked then
+        door.locked = locked
+        save('doors')
+        broadcast('doors')
+    end
+    return true
+end)

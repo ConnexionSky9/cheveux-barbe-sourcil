@@ -20,14 +20,14 @@ local R = math.random
 local GEN = {}
 
 GEN.sequence = function(d)
-    local len = 4 + d * 2
+    local len = 3 + d                                   -- 4, 5 ou 6 symboles (version facilitée)
     local seq = {}
     for i = 1, len do seq[i] = R(1, 9) end
-    return { seq = seq, show = 2500 + len * 450, symbols = 9 }, { seq = seq }
+    return { seq = seq, show = 3500 + len * 700, symbols = 9 }, { seq = seq }
 end
 
 GEN.circuit = function(d)
-    local n = 5 + d * 2
+    local n = 4 + d                                     -- 5, 6 ou 7 nœuds
     local nodes, labels, used = {}, {}, {}
     while #labels < n do local v = R(10, 99) if not used[v] then used[v] = true labels[#labels + 1] = v end end
     -- positions sur une grille (sans chevauchement)
@@ -42,18 +42,18 @@ GEN.circuit = function(d)
 end
 
 GEN.code = function(d)
-    local len = 3 + d
+    local len = 2 + d                                   -- 3, 4 ou 5 chiffres, 12 essais max.
     local digits, used = {}, {}
     while #digits < len do local v = R(0, 9) if not used[v] then used[v] = true digits[#digits + 1] = v end end
-    return { length = len, guesses = 10 - d }, { code = digits, left = 10 - d }
+    return { length = len, guesses = 13 - d }, { code = digits, left = 13 - d }
 end
 
 GEN.sync = function(d)
     local bars, secret = {}, {}
-    for i = 1, 2 + d do
-        local width = ({ 0.22, 0.16, 0.11 })[d]
+    for i = 1, 1 + d do                                 -- 2, 3 ou 4 curseurs, zones larges, plus lents
+        local width = ({ 0.32, 0.25, 0.18 })[d]
         local start = 0.1 + R() * (0.8 - width)
-        local speed = 0.45 + d * 0.18 + R() * 0.15        -- allers-retours par seconde
+        local speed = 0.30 + d * 0.10 + R() * 0.08        -- allers-retours par seconde
         bars[i] = { from = start, to = start + width, speed = speed }
         secret[i] = bars[i]
     end
@@ -62,7 +62,7 @@ end
 
 local function series(kind, d)
     local a, s = R(1, 9), {}
-    if kind == 1 then local k = R(2, 6 + d * 3) for i = 0, 5 do s[#s + 1] = a + i * k end
+    if kind == 1 then local k = R(2, 4 + d * 2) for i = 0, 5 do s[#s + 1] = a + i * k end
     elseif kind == 2 then local r = R(2, 3) for i = 0, 5 do s[#s + 1] = a * r ^ i end
     elseif kind == 3 then local x, y = R(2, 9), R(2, 9) local v = a for i = 0, 5 do s[#s + 1] = v v = v + (i % 2 == 0 and x or y) end
     elseif kind == 4 then local b = R(1, 9) s = { a, b } for i = 3, 6 do s[i] = s[i - 1] + s[i - 2] end
@@ -72,8 +72,8 @@ local function series(kind, d)
 end
 GEN.logic = function(d)
     local rows, answers = {}, {}
-    for i = 1, 2 + d do
-        local s = series(R(1, d >= 2 and 5 or 3), d)
+    for i = 1, 1 + d do                                 -- 2 à 4 suites ; niveau 1 : additions seulement
+        local s = series(R(1, d == 1 and 1 or (d == 2 and 3 or 5)), d)
         answers[i] = s[6]
         rows[i] = { s[1], s[2], s[3], s[4], s[5] }
     end
@@ -148,11 +148,12 @@ P.Req.hackStart = function(src, d)
     local g = P.S.hack.games[gid]
     local pub, secret = GEN[gid](g.difficulty)
     s.state, s.hackBy = 'hacking', src
-    P.hacks[src] = { bank = b.id, game = gid, secret = secret, startedAt = now(), deadline = now() + g.time * 1000, serial = lp.serial, left = left }
+    local time = math.floor(g.time * (tonumber(Config.HackTimeFactor) or 1.5))   -- temps rallongé (version facilitée)
+    P.hacks[src] = { bank = b.id, game = gid, secret = secret, startedAt = now(), deadline = now() + time * 1000, serial = lp.serial, left = left }
     P.Unlock('open:' .. b.id)
     P.Log('hack', s.id, src, ('Piratage lancé : %s · ordinateur %s · tentatives restantes après celle-ci : %d'):format(Config.GameLabels[gid], lp.serial, left))
     P.PublishBanks()
-    return { ok = true, game = gid, label = Config.GameLabels[gid], data = pub, time = g.time, difficulty = g.difficulty, attemptsLeft = left, attemptsMax = P.S.hack.attempts }
+    return { ok = true, game = gid, label = Config.GameLabels[gid], data = pub, time = time, difficulty = g.difficulty, attemptsLeft = left, attemptsMax = P.S.hack.attempts }
 end
 
 local function finish(src, success, reason)

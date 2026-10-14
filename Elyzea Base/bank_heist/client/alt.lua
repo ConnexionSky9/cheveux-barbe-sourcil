@@ -35,6 +35,10 @@ local function nearest()
         end
     end
     for _, m in ipairs(cfg.merchants) do if m.enabled then consider({ kind = 'merchant', id = m.id, title = m.name }, m.ped, math.max(m.interactDistance, 2.5)) end end
+    if not best then
+        local carried = C.CarriedBankBag and C.CarriedBankBag()
+        if carried and (carried.money or 0) > 0 then best = { kind = 'carried', title = 'Sac de billets', noE = true } end
+    end
     return best
 end
 
@@ -43,7 +47,10 @@ local function options(t)
     if not t then return out end
     local st = t.bank and C.Bank(t.bank) or {}
     local phase = st.phase or 'available'
-    if t.kind == 'merchant' then
+    if t.kind == 'carried' then
+        local carried = C.CarriedBankBag and C.CarriedBankBag()
+        out[#out + 1] = { id = 'takeMoney', label = ('Prendre l\'argent du sac (%s)'):format(BH.Money(carried and carried.money or 0)), icon = 'cash' }
+    elseif t.kind == 'merchant' then
         out[#out + 1] = { id = 'shop', label = 'Acheter du matériel', icon = 'buy' }
     elseif t.kind == 'start' then
         out[#out + 1] = { id = 'start', label = 'Braquer la banque', icon = 'rob', disabled = phase ~= 'available',
@@ -87,6 +94,7 @@ local function select(id, t)
     elseif id == 'c4' then C.PlantC4(t.bank)
     elseif id == 'collect' then C.Collect(t.bank, t.spot)
     elseif id == 'extras' then C.Show(C.Req('takeExtras', { bank = t.bank }))
+    elseif id == 'takeMoney' then C.TakeBagMoney(nil)
     end
 end
 
@@ -140,7 +148,9 @@ CreateThread(function()
         if not C.ui and not busy and not IsPedInAnyVehicle(PlayerPedId(), false) then
             local t = nearest()
             local opts = t and options(t) or {}
-            if #opts > 0 then
+            if #opts > 0 and t.noE then
+                -- sac porté : E sert à poser le sac (jewelry_heist), l'argent se prend avec ALT
+            elseif #opts > 0 then
                 sleep = 0
                 local main = mainOption(opts)
                 if main then

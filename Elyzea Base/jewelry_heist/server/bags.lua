@@ -385,3 +385,16 @@ exports('CashOutCarriedBag', function(src, kind)
     P.Unlock('bag:' .. id)
     return amount, id
 end)
+
+-- Vide et supprime un sac de billets posé au sol, si le joueur est à côté. Retourne le montant, l'id.
+exports('CashOutGroundBag', function(src, id)
+    local b = P.bags[tostring(id or '')]
+    if not b or b.state ~= 'ground' or (b.kind or 'jewel') ~= 'bank' then return 0 end
+    if not nearBag(src, b) or not onFoot(src) then return 0 end
+    if not P.Lock('bag:' .. b.id) then return 0 end
+    local amount, bid = b.money, b.id
+    b.money = 0
+    removeBag(b, ('vidé sur place (%s)'):format(JH.Money(amount)), src)
+    P.Unlock('bag:' .. bid)
+    return amount, bid
+end)

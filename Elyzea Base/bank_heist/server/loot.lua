@@ -119,6 +119,40 @@ end
 -- ---------------------------------------------------------------------
 -- Encaissement à un point de dépôt (E)
 -- ---------------------------------------------------------------------
+-- Paie le contenu d'un sac vidé (dépôt ou « Prendre l'argent ») ; si le paiement échoue, le sac est rendu porté.
+local function payBag(src, amount, id, where)
+    local reward = math.floor(amount * P.S.loot.depositRate / 100)
+    local kind = P.S.loot.rewardType
+    if Adapters.Money.Add(src, kind, reward, 'Braquage de banque ' .. tostring(id)) then
+        P.Log('deposit', id, src, ('Sac vidé (%s) : %s → %s (%s)'):format(where, BH.Money(amount), BH.Money(reward), kind))
+        P.Notify(src, ('Argent récupéré : %s (%s).'):format(BH.Money(reward), Adapters.Money.Labels[kind]), 'success')
+        return { ok = true, amount = reward }
+    end
+    local nid = Adapters.Bag.Create(src, P.S.loot.bagCapacity, id)
+    local back = nid and Adapters.Bag.AddMoney(src, nid, amount) or 0
+    P.Log('anomaly', id, src, ('Paiement refusé (%s) : sac rendu %s'):format(BH.Money(reward), back == amount and 'intact' or ('PARTIEL ' .. BH.Money(back))))
+    return { error = 'Impossible de recevoir l\'argent (inventaire plein ?) : vous gardez le sac.' }
+end
+
+-- Prendre l'argent d'un sac de billets : sac posé au sol (bag = id) ou sac porté (sans bag)
+P.Req.takeBagMoney = function(src, d)
+    if P.IsDown(src) or P.InVehicle(src) then return { error = 'Impossible maintenant.' } end
+    if P.collectors[src] then return { error = 'Terminez d\'abord la collecte.' } end
+    if not P.Lock('deposit:' .. src) then return { error = 'Patientez un instant.' } end
+    local amount, id
+    if d.bag then
+        amount, id = Adapters.Bag.CashOutGround(src, tostring(d.bag))
+    else
+        local bag = Adapters.Bag.Carried(src)
+        if bag and bag.kind == 'bank' then amount, id = Adapters.Bag.CashOut(src) else amount = 0 end
+    end
+    local res
+    if (amount or 0) <= 0 then res = { error = d.bag and 'Le sac est vide ou trop loin.' or 'Vous ne portez pas de sac de billets plein.' }
+    else res = payBag(src, amount, id, d.bag and 'au sol' or 'porté') end
+    P.Unlock('deposit:' .. src)
+    return res
+end
+
 P.Req.deposit = function(src, d)
     local dp = P.DepositById(tostring(d.deposit or ''))
     if not dp or not dp.enabled then return { error = 'Point de dépôt inconnu.' } end
@@ -135,19 +169,7 @@ P.Req.deposit = function(src, d)
     local res
     if amount <= 0 then res = { error = 'Le sac est vide.' }
     else
-        local reward = math.floor(amount * P.S.loot.depositRate / 100)
-        local kind = P.S.loot.rewardType
-        if Adapters.Money.Add(src, kind, reward, 'Braquage de banque ' .. tostring(id)) then
-            P.Log('deposit', id, src, ('Sac encaissé à %s : %s → %s (%s)'):format(dp.name, BH.Money(amount), BH.Money(reward), kind))
-            P.Notify(src, ('Sac encaissé : %s (%s).'):format(BH.Money(reward), Adapters.Money.Labels[kind]), 'success')
-            res = { ok = true, amount = reward }
-        else
-            -- paiement refusé (inventaire plein pour l'argent sale…) : le sac est rendu avec son contenu exact
-            local nid = Adapters.Bag.Create(src, P.S.loot.bagCapacity, id)
-            local back = nid and Adapters.Bag.AddMoney(src, nid, amount) or 0
-            P.Log('anomaly', id, src, ('Encaissement refusé (%s) : sac rendu %s'):format(BH.Money(reward), back == amount and 'intact' or ('PARTIEL ' .. BH.Money(back))))
-            res = { error = 'Impossible de recevoir l\'argent (inventaire plein ?) : vous gardez le sac.' }
-        end
+        res = payBag(src, amount, id, dp.name)
     end
     P.Unlock('deposit:' .. src)
     return res

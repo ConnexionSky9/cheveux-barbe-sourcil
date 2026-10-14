@@ -52,7 +52,8 @@ function P.PublishBanks()
         local s = P.sessions[b.id]
         pub[b.id] = { phase = P.Phase(b.id), threatened = s and s.threatened or false, threatLeft = s and math.max(0, (s.threatUntil or 0) - now()) or 0,
             open = s and s.state == 'open' or false, cashLeft = s and s.state == 'open' and s.pool > 0 or false,
-            c4Left = s and s.state == 'c4' and math.max(0, s.c4At - now()) or nil, hacker = s and s.hackBy or nil }
+            c4Left = s and s.state == 'c4' and math.max(0, s.c4At - now()) or nil, hacker = s and s.hackBy or nil,
+            doorLinked = (P.doorLinks and P.doorLinks[b.id] or 0) > 0 }
     end
     GlobalState.bhBanks = pub
 end
@@ -172,6 +173,41 @@ end
 -- ---------------------------------------------------------------------
 -- Ouverture du coffre (piratage réussi ou C4) : butin tiré une seule fois
 -- ---------------------------------------------------------------------
+-- ---------------------------------------------------------------------
+-- Verrou de la porte du coffre (système de portes / clés de l'éditeur d'admin_menu)
+-- La porte du coffre ajoutée dans l'éditeur (Map › Portes) près du point « Porte du coffre »
+-- est déverrouillée par le piratage ou la C4 et reverrouillée à la fin du braquage.
+-- ---------------------------------------------------------------------
+P.doorLinks = {}   -- [bankId] = { ids }
+function P.VaultDoors(b)
+    if GetResourceState('admin_menu') ~= 'started' or not b.door then return {} end
+    local ok, list = pcall(function() return exports.admin_menu:DoorsNear(b.door.x, b.door.y, b.door.z, 4.0) end)
+    local ids = {}
+    for _, d in ipairs(ok and type(list) == 'table' and list or {}) do ids[#ids + 1] = d.id end
+    return ids
+end
+function P.SetVaultLock(bankId, locked)
+    local b = P.BankById(bankId)
+    if not b then return end
+    for _, id in ipairs(P.VaultDoors(b)) do pcall(function() exports.admin_menu:SetDoorLocked(id, locked) end) end
+end
+function P.RefreshDoorLinks()
+    local changed = false
+    for _, b in ipairs(P.S.banks) do
+        local n = #P.VaultDoors(b)
+        if (P.doorLinks[b.id] or 0) ~= n then P.doorLinks[b.id] = n changed = true end
+    end
+    if changed then P.PublishBanks() end
+end
+CreateThread(function()
+    Wait(5000)
+    while true do
+        -- hors braquage, la porte reste comme les détenteurs des clés l'ont laissée
+        if P.S then P.RefreshDoorLinks() end
+        Wait(30000)
+    end
+end)
+
 function P.OpenVault(s, how, src)
     if s.state == 'open' or s.opened then return end
     local b = P.BankById(s.bank)
@@ -191,13 +227,15 @@ function P.OpenVault(s, how, src)
     local ex = {}
     for _, e in ipairs(extras) do ex[#ex + 1] = ('%s ×%d'):format(e.item, e.count) end
     P.Log('heist', s.id, src, ('Coffre ouvert (%s) · butin : %s%s%s'):format(how, BH.Money(pool), mod, #ex > 0 and (' · objets : ' .. table.concat(ex, ', ')) or ''))
-    for id in pairs(s.participants) do P.Notify(id, 'Le coffre est ouvert : ramassez les billets avec votre sac (ALT sur les chariots).', 'success') end
+    for id in pairs(s.participants) do P.Notify(id, 'Le coffre est ouvert : ramassez les billets avec votre sac (E ou ALT sur les chariots).', 'success') end
+    P.SetVaultLock(s.bank, false)
     P.PublishBanks()
 end
 
 function P.EndSession(bankId, reason, src)
     local s = P.sessions[bankId]
     if not s then return end
+    P.SetVaultLock(bankId, true)
     P.sessions[bankId] = nil
     if P.StopCollectorsOf then P.StopCollectorsOf(bankId) end
     if P.CancelHackOf then P.CancelHackOf(bankId) end

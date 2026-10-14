@@ -54,7 +54,8 @@ local function options(t)
     if t.kind == 'bag' then
         out[#out + 1] = { id = 'pickup', label = 'Ramasser le sac', icon = 'bag', disabled = carrying or IsPedInAnyVehicle(PlayerPedId(), false),
             desc = carrying and 'Vous portez déjà un sac' or nil }
-        if not isBankBag(t.id) then out[#out + 1] = { id = 'open', label = 'Ouvrir le sac', icon = 'open' } end
+        if not isBankBag(t.id) then out[#out + 1] = { id = 'open', label = 'Ouvrir le sac', icon = 'open' }
+        else out[#out + 1] = { id = 'takeMoney', label = 'Prendre l\'argent du sac', icon = 'cash', disabled = GetResourceState('bank_heist') ~= 'started' } end
     elseif t.kind == 'shop' and t.def then
         local heist = (GlobalState.jhHeists or {})[t.id]
         if t.def.buy then out[#out + 1] = { id = 'buy', label = 'Acheter des bijoux', icon = 'buy', disabled = heist ~= nil } end
@@ -80,6 +81,7 @@ local function select(id, t)
     if not t then return end
     if id == 'pickup' then C.PickupBag(t.id)
     elseif id == 'open' then C.OpenBag(t.id)
+    elseif id == 'takeMoney' then TriggerEvent('bh:client:takeBagMoney', t.id)
     elseif id == 'buy' then openTrade(t, 'buy')
     elseif id == 'sell' then openTrade(t, 'sell')
     elseif id == 'rob' then

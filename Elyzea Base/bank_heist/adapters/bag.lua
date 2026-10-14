@@ -31,3 +31,4 @@ function A.Carried(src) return call('GetCarriedBag', src) end
 function A.Create(src, capacity, ref) return call('CreateCarriedBag', src, { kind = 'bank', capacity = capacity, ref = ref }) end
 function A.AddMoney(src, id, amount) return tonumber((call('AddBagMoney', src, id, amount))) or 0 end
 function A.CashOut(src) local a, id = call('CashOutCarriedBag', src, 'bank') return tonumber(a) or 0, id end
+function A.CashOutGround(src, bagId) local a, id = call('CashOutGroundBag', src, bagId) return tonumber(a) or 0, id end

@@ -48,6 +48,22 @@ function C.Collect(bankId, spot)
 end
 RegisterNetEvent('bh:client:collectStop', function() collecting = false end)
 
+-- Prendre l'argent d'un sac de billets (sac au sol : id ; sac porté : nil)
+local taking = false
+function C.TakeBagMoney(bagId)
+    if taking then return end
+    taking = true
+    local ped = PlayerPedId()
+    local a = (C.Cfg() or {}).visuals and C.Cfg().visuals.depositAnim
+    if a and C.PlayAnim(ped, a, a.time) then Wait(a.time or 1000) end
+    ClearPedTasks(ped)
+    C.Show(C.Req('takeBagMoney', { bag = bagId }))
+    taking = false
+end
+AddEventHandler('bh:client:takeBagMoney', function(bagId) CreateThread(function() C.TakeBagMoney(bagId) end) end)
+function C.CarriedBankBag() return bag end
+RegisterCommand('sacargent', function() if bag and bag.money > 0 then CreateThread(function() C.TakeBagMoney(nil) end) else C.Notify('Vous ne portez pas de sac de billets plein.', 'error') end end, false)
+
 -- Encaissement : E près d'un point de dépôt en portant un sac de billets
 CreateThread(function()
     local blocking = false

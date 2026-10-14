@@ -51,11 +51,11 @@ Config.Defaults = {
         anim = { dict = 'amb@code_human_in_bus_passenger_idles@female@tablet@base', name = 'base', flag = 49 },
         prop = 'prop_laptop_01a',
         games = {
-            sequence = { enabled = true, weight = 1, time = 25, difficulty = 2 },
-            circuit  = { enabled = true, weight = 1, time = 30, difficulty = 2 },
-            code     = { enabled = true, weight = 1, time = 60, difficulty = 2 },
-            sync     = { enabled = true, weight = 1, time = 30, difficulty = 2 },
-            logic    = { enabled = true, weight = 1, time = 45, difficulty = 2 },
+            sequence = { enabled = true, weight = 1, time = 30, difficulty = 1 },
+            circuit  = { enabled = true, weight = 1, time = 35, difficulty = 1 },
+            code     = { enabled = true, weight = 1, time = 75, difficulty = 1 },
+            sync     = { enabled = true, weight = 1, time = 35, difficulty = 1 },
+            logic    = { enabled = true, weight = 1, time = 60, difficulty = 1 },
         },
     },
 
@@ -129,6 +129,8 @@ Config.Defaults = {
 }
 
 Config.PedModels = { 'u_m_m_bankman', 'a_f_y_business_02', 'a_m_y_business_03', 's_m_m_highsec_01', 'g_m_m_chicold_01', 'g_m_y_lost_01', 'a_m_m_hasjew_01' }
+-- Multiplicateur du temps des mini-jeux (1.5 = 50 % de temps en plus que la valeur réglée dans le menu staff)
+Config.HackTimeFactor = 1.5
 Config.GameList = { 'sequence', 'circuit', 'code', 'sync', 'logic' }
 Config.GameLabels = { sequence = 'Séquence de symboles', circuit = 'Connexion de circuits', code = 'Déchiffrement de code', sync = 'Synchronisation', logic = 'Décryptage de données' }
 Config.ImagePath = 'nui://elyzea_inventory/html/img/%s.png'
