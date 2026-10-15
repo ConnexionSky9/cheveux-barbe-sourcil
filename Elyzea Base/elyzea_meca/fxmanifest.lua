@@ -26,6 +26,7 @@ server_scripts {
     'server/tow.lua',
     'server/direction.lua',
     'server/garage.lua',
+    'server/phone.lua',
     'server/api.lua',
 }
 
@@ -37,6 +38,7 @@ client_scripts {
     'client/workshop.lua',
     'client/f6.lua',
     'client/tablet.lua',
+    'client/phone.lua',
     'client/garage.lua',
 }
 

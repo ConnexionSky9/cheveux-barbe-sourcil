@@ -24,6 +24,7 @@ server_scripts {
     'server/admin.lua',
     'server/display.lua',
     'server/sales.lua',
+    'server/phone.lua',
     'server/api.lua',
 }
 
@@ -34,6 +35,7 @@ client_scripts {
     'client/display.lua',
     'client/f6.lua',
     'client/tablet.lua',
+    'client/phone.lua',
     'client/admin.lua',
 }
 

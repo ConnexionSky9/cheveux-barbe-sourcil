@@ -25,6 +25,7 @@ server_scripts {
     'server/garage.lua',
     'server/deco.lua',
     'server/direction.lua',
+    'server/phone.lua',
     'server/api.lua',
 }
 
@@ -35,6 +36,7 @@ client_scripts {
     'client/deco.lua',
     'client/f6.lua',
     'client/tablet.lua',
+    'client/phone.lua',
     'client/admin.lua',
 }
 

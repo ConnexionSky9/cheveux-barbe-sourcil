@@ -25,6 +25,7 @@ server_scripts {
     'server/commission.lua',
     'server/records.lua',
     'server/citizen.lua',
+    'server/phone.lua',
     'server/api.lua',
 }
 
@@ -36,6 +37,7 @@ client_scripts {
     'client/alerts.lua',
     'client/f6.lua',
     'client/tablet.lua',
+    'client/phone.lua',
 }
 
 ui_page 'html/index.html'

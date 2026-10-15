@@ -42,7 +42,17 @@ local function Open()
     p.action, p.show = 'f6', true
     SendNUIMessage(p)
 end
-RegisterCommand('d8_menu', Open, false)
+C.OpenF6Menu = Open
+-- Téléphone de service (elyzea_jobphone) : F6 sort le téléphone ; ce menu reste
+-- accessible depuis l'application « Menu rapide » du téléphone
+RegisterCommand('d8_menu', function()
+    if C.IsOpen('f6') then return Open() end
+    if GetResourceState('elyzea_jobphone') == 'started' then
+        local ok, takes = pcall(function() return exports.elyzea_jobphone:TakesF6() end)
+        if ok and takes then return exports.elyzea_jobphone:Toggle() end
+    end
+    Open()
+end, false)
 RegisterKeyMapping('d8_menu', 'Dynasty 8 : menu rapide', 'keyboard', Config.Keys.menu)
 
 CreateThread(function()
