@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Terminal LSPD</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="pc" class="pc hidden">
+    <div class="screen">
+      <header class="bar">
+        <div class="brand"><span class="dot"></span>LSPD · Terminal</div>
+        <nav id="tabs">
+          <button data-tab="units" class="on">Unités en service</button>
+          <button data-tab="reports">Rapports</button>
+        </nav>
+        <div class="who" id="who"></div>
+        <button class="x" id="close" title="Fermer (Échap)">✕</button>
+      </header>
+      <main id="view"></main>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

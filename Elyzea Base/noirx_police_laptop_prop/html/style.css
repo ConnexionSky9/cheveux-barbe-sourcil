@@ -1,0 +1,26 @@
+:root { --bg: #0b1220; --panel: #111a2c; --line: #1f2b44; --text: #dbe4f3; --mute: #8193b2; --accent: #3b82f6; --ok: #22c55e; --warn: #f59e0b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: transparent; font-family: 'Segoe UI', Inter, Arial, sans-serif; color: var(--text); overflow: hidden; }
+.hidden { display: none !important; }
+.pc { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(2, 6, 14, .55); }
+.screen { width: min(1000px, 92vw); height: min(620px, 86vh); background: var(--bg); border: 10px solid #1a1f29; border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6); display: flex; flex-direction: column; overflow: hidden; }
+.bar { display: flex; align-items: center; gap: 18px; padding: 12px 18px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; letter-spacing: .06em; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+nav { display: flex; gap: 6px; flex: 1; }
+nav button { background: transparent; border: 1px solid transparent; color: var(--mute); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+nav button.on { background: #17233b; border-color: var(--line); color: var(--text); }
+.who { color: var(--mute); font-size: 12px; }
+.x { background: #1b2740; border: 0; color: var(--text); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; }
+main { flex: 1; overflow: auto; padding: 18px; }
+.head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+h2 { font-size: 13px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+.refresh { background: #17233b; border: 1px solid var(--line); color: var(--text); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--mute); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.pill { padding: 3px 8px; border-radius: 6px; font-size: 11px; background: #17233b; }
+.pill.available { color: var(--ok); } .pill.busy { color: var(--warn); } .pill.patrol { color: var(--accent); } .pill.pause { color: var(--mute); }
+.empty { color: var(--mute); padding: 30px; text-align: center; }
+.error { color: #f87171; padding: 30px; text-align: center; }
