@@ -97,21 +97,22 @@ P.Actions.billSend = { perm = 'billing', duty = true, fn = function(src, d)
             return { error = ('Le montant a changé (%d $) : vérifiez la facture.'):format(c.total), bill = c }
         end
         local uid = P.Uid('FAC')
+        local job = P.MyJob(src)   -- agence qui facture (son compte encaisse)
         local method = P.Charge(t, c.total, ('Facture médicale %s'):format(uid))
         local status = method and 'paid' or 'failed'
         local txid
         if method then
-            if not P.SocietyAdd(c.total, ('Facture %s · %s'):format(uid, P.Name(t))) then
+            if not P.SocietyAdd(c.total, ('Facture %s · %s'):format(uid, P.Name(t)), job) then
                 -- Société indisponible : le patient est remboursé, rien n'est facturé
                 P.Refund(cid, c.total, method, 'Annulation facture ' .. uid)
                 status, method = 'failed', nil
             else
-                txid = P.Tx({ type = 'in', category = 'invoice', amount = c.total, reason = 'Facture médicale', actorCid = P.Cid(src), actorName = P.Name(src),
+                txid = P.Tx({ job = job, type = 'in', category = 'invoice', amount = c.total, reason = 'Facture médicale', actorCid = P.Cid(src), actorName = P.Name(src),
                     targetCid = cid, targetName = P.Name(t), ref = uid })
             end
         end
-        MySQL.insert.await([[INSERT INTO `ems_invoices` (`uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `mode`, `amount`, `status`, `method`, `txid`)
-            VALUES (?, 'medical', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { uid, cid, P.Name(t), P.Cid(src), P.Name(src), json.encode(c.items), c.mode, c.total, status, method, txid })
+        MySQL.insert.await([[INSERT INTO `ems_invoices` (`job`, `uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `mode`, `amount`, `status`, `method`, `txid`)
+            VALUES (?, ?, 'medical', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { job, uid, cid, P.Name(t), P.Cid(src), P.Name(src), json.encode(c.items), c.mode, c.total, status, method, txid })
         if status ~= 'paid' then
             P.Notify(t, ('Facture médicale de %d $ refusée : fonds insuffisants.'):format(c.total), 'error')
             return { error = ('%s n\'a pas assez d\'argent (%d $). Facture %s refusée, les actes restent à facturer.'):format(P.Name(t), c.total, uid) }
@@ -136,7 +137,7 @@ local function CanSeeInvoices(src) return P.Can(src, 'billing_manage') or P.Can(
 
 P.Actions.invoices = { perm = 'billing', fn = function(src, d)
     if not CanSeeInvoices(src) then return { error = 'Votre grade ne permet pas de voir les factures.' } end
-    local where, args = {}, {}
+    local where, args = { '`job` = ?' }, { P.MyJob(src) }
     local st = tostring(d.status or '')
     if st:match('^%a+$') then where[#where + 1] = '`status` = ?' args[#args + 1] = st end
     local kind = tostring(d.kind or '')
@@ -163,7 +164,8 @@ P.Actions.invoiceRefund = { perm = 'billing_manage', fn = function(src, d)
     refunding[uid] = true
     local ok, res = pcall(function()
         local inv = MySQL.single.await('SELECT * FROM `ems_invoices` WHERE `uid` = ?', { uid })
-        if not inv then return { error = 'Facture introuvable.' } end
+        if not inv or inv.job ~= P.MyJob(src) then return { error = 'Facture introuvable.' } end
+        local job = inv.job
         local reason = P.Clean(d.reason, 160)
         if #reason < 3 then return { error = 'Indiquez le motif.' } end
         if inv.status == 'failed' then
@@ -172,14 +174,14 @@ P.Actions.invoiceRefund = { perm = 'billing_manage', fn = function(src, d)
         end
         if inv.status ~= 'paid' then return { error = 'Cette facture n\'est pas payée.' } end
         local amount = math.floor(tonumber(inv.amount) or 0)
-        if not P.SocietyRemove(amount, ('Remboursement %s'):format(uid)) then return { error = ('Fonds insuffisants pour rembourser %d $.'):format(amount) } end
+        if not P.SocietyRemove(amount, ('Remboursement %s'):format(uid), job) then return { error = ('Fonds insuffisants pour rembourser %d $.'):format(amount) } end
         local paid, target = P.Refund(inv.patient_cid, amount, inv.method, 'Remboursement facture ' .. uid)
         if not paid then
-            P.SocietyAdd(amount, ('Annulation remboursement %s'):format(uid))
+            P.SocietyAdd(amount, ('Annulation remboursement %s'):format(uid), job)
             return { error = 'Remboursement impossible sur le compte du patient : rien n\'a changé.' }
         end
         MySQL.update.await('UPDATE `ems_invoices` SET `status` = ?, `note` = ?, `handled_by` = ?, `updated_at` = NOW() WHERE `uid` = ?', { 'refunded', reason, P.Name(src), uid })
-        P.Tx({ type = 'out', category = 'refund', amount = amount, reason = 'Remboursement : ' .. reason, actorCid = P.Cid(src), actorName = P.Name(src),
+        P.Tx({ job = job, type = 'out', category = 'refund', amount = amount, reason = 'Remboursement : ' .. reason, actorCid = P.Cid(src), actorName = P.Name(src),
             targetCid = inv.patient_cid, targetName = inv.patient_name, ref = uid })
         if inv.kind == 'ppa' then MySQL.update('UPDATE `ems_ppa` SET `payment_status` = ?, `updated_at` = NOW() WHERE `invoice_uid` = ?', { 'refunded', uid }) end
         if target then P.Notify(target, ('Facture %s remboursée : %d $.'):format(uid, amount), 'success') end

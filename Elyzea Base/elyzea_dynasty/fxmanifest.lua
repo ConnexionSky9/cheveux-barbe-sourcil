@@ -16,6 +16,7 @@ shared_scripts {
 server_scripts {
     '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
+    'server/agencies.lua',
     'server/service.lua',
     'server/finance.lua',
     'server/commission.lua',

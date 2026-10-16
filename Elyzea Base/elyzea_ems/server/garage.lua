@@ -14,8 +14,11 @@ P.vehicles = {}   -- [netId] = { src, cid, model }
 
 local VTYPES = { automobile = true, heli = true, bike = true, boat = true, plane = true }
 
-function P.GarageSettings()
-    local s = P.GetSetting('garage', {})
+-- Réglages propres à chaque agence (la première garde la clé « garage »)
+local function GKey(job) return (not job or job == Config.Job.name) and 'garage' or ('garage:' .. job) end
+local function StashOf(job) return (not job or job == Config.Job.name) and STASH or (STASH .. '_' .. job) end
+function P.GarageSettings(job)
+    local s = P.GetSetting(GKey(job), {})
     local vehicles = {}
     for _, v in ipairs(type(s.vehicles) == 'table' and s.vehicles or G.vehicles) do
         vehicles[#vehicles + 1] = { model = tostring(v.model), label = tostring(v.label or v.model), minLevel = tonumber(v.minLevel) or 1,
@@ -24,17 +27,24 @@ function P.GarageSettings()
     return { garage = s.garage, spawn = s.spawn, pharmacy = s.pharmacy, vehicles = vehicles }
 end
 
--- Points publics (marqueurs côté client)
+-- Points publics (marqueurs côté client) : { [métier de l'agence] = points }
 local function Publish()
-    local s = P.GarageSettings()
-    GlobalState.emsPoints = { garage = s.garage, spawn = s.spawn, pharmacy = s.pharmacy }
-    if s.pharmacy and GetResourceState('elyzea_inventory') == 'started' then
-        pcall(function()
-            exports.elyzea_inventory:RegisterStash(STASH, ('Pharmacie %s'):format(Config.Job.label), G.pharmacy.slots, G.pharmacy.weight, nil,
-                { [Config.Job.name] = 0 }, vector3(s.pharmacy.x, s.pharmacy.y, s.pharmacy.z))
-        end)
+    local all = {}
+    for _, a in ipairs(P.agencyList) do
+        local s = P.GarageSettings(a.job)
+        all[a.job] = { garage = s.garage, spawn = s.spawn, pharmacy = s.pharmacy }
+        if s.pharmacy and GetResourceState('elyzea_inventory') == 'started' then
+            pcall(function()
+                exports.elyzea_inventory:RegisterStash(StashOf(a.job), ('Pharmacie %s'):format(a.label), G.pharmacy.slots, G.pharmacy.weight, nil,
+                    { [a.job] = 0 }, vector3(s.pharmacy.x, s.pharmacy.y, s.pharmacy.z))
+            end)
+        end
     end
+    GlobalState.emsPoints = all
 end
+-- Agence créée / modifiée / supprimée : points republiés
+P.AfterAgencies = P.AfterAgencies or {}
+P.AfterAgencies[#P.AfterAgencies + 1] = function() Publish() end
 P.OnReady = P.OnReady or {}
 P.OnReady[#P.OnReady + 1] = Publish
 AddEventHandler('onResourceStart', function(res) if res == 'elyzea_inventory' and P.ready then SetTimeout(2000, Publish) end end)
@@ -48,10 +58,10 @@ end
 -- ---------------------------------------------------------------------
 -- Réglages (tablette › Direction › Garage)
 -- ---------------------------------------------------------------------
-P.Actions.garageSettings = { perm = 'garage_manage', fn = function()
-    return { settings = P.GarageSettings(), levels = (function()
+P.Actions.garageSettings = { perm = 'garage_manage', fn = function(src)
+    return { settings = P.GarageSettings(P.MyJob(src)), levels = (function()
         local l = {}
-        for _, g in ipairs(P.SortedGrades()) do l[#l + 1] = { level = g.level, name = g.name } end
+        for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do l[#l + 1] = { level = g.level, name = g.name } end
         return l
     end)() }
 end }
@@ -59,7 +69,7 @@ end }
 P.Actions.garagePoint = { perm = 'garage_manage', fn = function(src, d)
     local kind = tostring(d.kind or '')
     if kind ~= 'garage' and kind ~= 'spawn' and kind ~= 'pharmacy' then return { error = 'Point inconnu.' } end
-    local s = P.GetSetting('garage', {})
+    local s = P.GetSetting(GKey(P.MyJob(src)), {})
     if d.remove == true then
         s[kind] = nil
     else
@@ -67,7 +77,7 @@ P.Actions.garagePoint = { perm = 'garage_manage', fn = function(src, d)
         local c = GetEntityCoords(ped)
         s[kind] = { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor(c.z * 100) / 100, h = math.floor(GetEntityHeading(ped)) }
     end
-    P.SetSetting('garage', s)
+    P.SetSetting(GKey(P.MyJob(src)), s)
     Publish()
     local label = ({ garage = 'Garage', spawn = 'Place de sortie', pharmacy = 'Pharmacie' })[kind]
     P.AddLog(src, nil, nil, d.remove and 'Point retiré' or 'Point placé', nil, label, nil)
@@ -85,9 +95,9 @@ P.Actions.garageVehicles = { perm = 'garage_manage', fn = function(src, d)
         if #list >= 30 then break end
     end
     if #list == 0 then return { error = 'Gardez au moins un véhicule.' } end
-    local s = P.GetSetting('garage', {})
+    local s = P.GetSetting(GKey(P.MyJob(src)), {})
     s.vehicles = list
-    P.SetSetting('garage', s)
+    P.SetSetting(GKey(P.MyJob(src)), s)
     P.AddLog(src, nil, nil, 'Véhicules du garage', nil, nil, ('%d modèle(s)'):format(#list))
     return { ok = true, message = 'Véhicules enregistrés.' }
 end }
@@ -96,7 +106,7 @@ end }
 -- Sortir / ranger
 -- ---------------------------------------------------------------------
 P.Actions.garageList = { perm = 'garage', duty = true, fn = function(src)
-    local s = P.GarageSettings()
+    local s = P.GarageSettings(P.MyJob(src))
     if not Near(src, s.garage, 4.0) then return { error = 'Vous n\'êtes pas au garage.' } end
     local my = P.Grade(src).level
     local list = {}
@@ -106,7 +116,7 @@ end }
 
 local lastSpawn = {}
 P.Actions.garageSpawn = { perm = 'garage', duty = true, fn = function(src, d)
-    local s = P.GarageSettings()
+    local s = P.GarageSettings(P.MyJob(src))
     if not Near(src, s.garage, 4.0) then return { error = 'Vous n\'êtes pas au garage.' } end
     if not s.spawn then return { error = 'La direction n\'a pas encore placé la place de sortie.' } end
     local v = s.vehicles[tonumber(d.i) or 0]
@@ -136,7 +146,7 @@ P.Actions.garageSpawn = { perm = 'garage', duty = true, fn = function(src, d)
 end }
 
 P.Actions.garageStore = { perm = 'garage', fn = function(src, d)
-    local s = P.GarageSettings()
+    local s = P.GarageSettings(P.MyJob(src))
     if not Near(src, s.garage, G.storeRadius + 4.0) and not Near(src, s.spawn, G.storeRadius + 4.0) then return { error = 'Rangez le véhicule au garage.' } end
     local veh = NetworkGetEntityFromNetworkId(tonumber(d.net) or 0)
     if not veh or veh == 0 or not DoesEntityExist(veh) then return { error = 'Véhicule introuvable.' } end
@@ -154,10 +164,10 @@ end }
 RegisterNetEvent('ems:server:pharmacy', function()
     local src = source
     if not P.IsEms(src) or not P.OnDuty(src) then return P.Notify(src, 'Réservé aux EMS en service.', 'error') end
-    local s = P.GarageSettings()
+    local s = P.GarageSettings(P.MyJob(src))
     if not Near(src, s.pharmacy, 3.0) then return end
     if GetResourceState('elyzea_inventory') ~= 'started' then return P.Notify(src, 'Inventaire indisponible.', 'error') end
-    local ok, done = pcall(function() return exports.elyzea_inventory:OpenInventory(src, 'stash', STASH) end)
+    local ok, done = pcall(function() return exports.elyzea_inventory:OpenInventory(src, 'stash', StashOf(P.MyJob(src))) end)
     if not ok or not done then P.Notify(src, 'Pharmacie indisponible.', 'error') end
 end)
 

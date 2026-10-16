@@ -83,8 +83,10 @@ RegisterNetEvent('ems:server:respawn', function()
     if fee > 0 then
         paidWith = P.Charge(src, fee, 'Frais d\'hôpital')
         if paidWith then
-            P.SocietyAdd(fee, 'Frais d\'hôpital · ' .. P.Name(src))
-            P.Tx({ type = 'in', category = 'respawn', amount = fee, reason = 'Frais d\'hôpital (réapparition)', targetCid = d.cid, targetName = P.Name(src) })
+            -- Agence dont la zone d'alerte couvre le lieu du coma
+            local job = next(P.RouteJobs(vector3(d.x or 0.0, d.y or 0.0, d.z or 0.0))) or P.MainJob()
+            P.SocietyAdd(fee, 'Frais d\'hôpital · ' .. P.Name(src), job)
+            P.Tx({ job = job, type = 'in', category = 'respawn', amount = fee, reason = 'Frais d\'hôpital (réapparition)', targetCid = d.cid, targetName = P.Name(src) })
         end
     end
     Clear(src)

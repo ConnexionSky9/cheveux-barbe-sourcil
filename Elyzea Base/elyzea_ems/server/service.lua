@@ -16,10 +16,12 @@ local function StatusOk(id)
 end
 
 -- Membres en service (pour la tablette, la carte, les appels)
-function P.CrewOnDuty(perm)
+-- jobs : nil = toutes les agences, texte = une agence, table { [job] = true } = plusieurs
+function P.CrewOnDuty(perm, jobs)
     local list = {}
+    if type(jobs) == 'string' then jobs = { [jobs] = true } end
     for src in pairs(P.duty) do
-        if GetPlayerName(src) and P.IsEms(src) and (not perm or P.Can(src, perm)) then list[#list + 1] = src end
+        if GetPlayerName(src) and P.IsEms(src) and (not perm or P.Can(src, perm)) and (not jobs or jobs[P.MyJob(src)]) then list[#list + 1] = src end
     end
     return list
 end
@@ -180,14 +182,15 @@ local function SortCrew(a, b) if a.level ~= b.level then return a.level > b.leve
 -- ---------------------------------------------------------------------
 P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     local crew = {}
-    for _, id in ipairs(P.CrewOnDuty()) do crew[#crew + 1] = P.CrewInfo(id) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do crew[#crew + 1] = P.CrewInfo(id) end
     table.sort(crew, SortCrew)
     local me = P.CrewInfo(src)
     me.times = P.MyTimes(src)
     local perms = {}
     for k in pairs(P.Grade(src).perms) do perms[k] = true end
     local total = 0
-    for _ in pairs(P.employees) do total = total + 1 end
+    local myJob = P.MyJob(src)
+    for _, e in pairs(P.employees) do if e.job == myJob then total = total + 1 end end
     local today = MySQL.single.await([[SELECT
         (SELECT COUNT(*) FROM `ems_calls` WHERE `created_at` >= CURDATE()) AS calls,
         (SELECT COUNT(*) FROM `ems_treatments` WHERE `service` = 'revive' AND `created_at` >= CURDATE()) AS revives,
@@ -195,16 +198,16 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     return {
         me = me, perms = perms, crew = crew, dutyCount = #crew, employees = total,
         calls = P.CallList and P.CallList(src) or {},
-        supports = P.SupportList and P.SupportList() or {},
+        supports = P.SupportList and P.SupportList(false, P.MyJob(src)) or {},
         today = { calls = tonumber(today.calls) or 0, revives = tonumber(today.revives) or 0, treatments = tonumber(today.treatments) or 0 },
         downs = P.DownList and P.DownList() or {},
         now = os.time(),
     }
 end }
 
-P.Actions.crew = { perm = 'tablet', fn = function()
+P.Actions.crew = { perm = 'tablet', fn = function(src)
     local list = {}
-    for _, id in ipairs(P.CrewOnDuty()) do list[#list + 1] = P.CrewInfo(id) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do list[#list + 1] = P.CrewInfo(id) end
     table.sort(list, SortCrew)
     return { list = list }
 end }
@@ -212,9 +215,9 @@ end }
 -- Positions calculées par le serveur à la demande (tablette ouverte sur la carte)
 P.Actions.map = { perm = 'map', fn = function(src)
     local crew = {}
-    for _, id in ipairs(P.CrewOnDuty()) do crew[#crew + 1] = P.CrewInfo(id, true) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do crew[#crew + 1] = P.CrewInfo(id, true) end
     table.sort(crew, SortCrew)
-    return { crew = crew, supports = P.SupportList and P.SupportList(true) or {}, calls = P.CallList and P.CallList(src, true) or {},
+    return { crew = crew, supports = P.SupportList and P.SupportList(true, P.MyJob(src)) or {}, calls = P.CallList and P.CallList(src, true) or {},
         downs = P.DownList and P.DownList(true) or {}, now = os.time() }
 end }
 

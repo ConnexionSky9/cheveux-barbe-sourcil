@@ -10,10 +10,12 @@ local function StatusOk(id)
 end
 
 -- Liste des agents en service (pour la tablette, la carte, les alertes)
-function P.CopsOnDuty(perm)
+-- jobs : nil = toutes les agences, texte = une agence, table { [job] = true } = plusieurs
+function P.CopsOnDuty(perm, jobs)
     local list = {}
+    if type(jobs) == 'string' then jobs = { [jobs] = true } end
     for src in pairs(P.duty) do
-        if GetPlayerName(src) and P.IsCop(src) and (not perm or P.Can(src, perm)) then list[#list + 1] = src end
+        if GetPlayerName(src) and P.IsCop(src) and (not perm or P.Can(src, perm)) and (not jobs or jobs[P.MyJob(src)]) then list[#list + 1] = src end
     end
     return list
 end
@@ -128,9 +130,10 @@ end }
 -- Tableau de bord, agents, carte
 -- ---------------------------------------------------------------------
 P.Actions.dashboard = { perm = 'tablet', fn = function(src)
+    local job = P.MyJob(src)
     local agents = {}
     if P.Can(src, 'agents_view') or P.Can(src, 'map') then
-        for _, id in ipairs(P.CopsOnDuty()) do agents[#agents + 1] = P.AgentInfo(id) end
+        for _, id in ipairs(P.CopsOnDuty(nil, job)) do agents[#agents + 1] = P.AgentInfo(id) end
         table.sort(agents, function(a, b) if a.level ~= b.level then return a.level > b.level end return a.name < b.name end)
     end
     local me = P.AgentInfo(src)
@@ -138,41 +141,42 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     local perms = {}
     for k in pairs(P.Grade(src).perms) do perms[k] = true end
     local total = 0
-    for _ in pairs(P.employees) do total = total + 1 end
+    for _, e in pairs(P.employees) do if e.job == job then total = total + 1 end end
     return {
-        me = me, perms = perms, agents = agents, dutyCount = #P.CopsOnDuty(), employees = total,
-        agentAlerts = P.AgentAlertList and P.AgentAlertList() or {},
-        interventions = P.GeneralAlertList and P.GeneralAlertList() or {},
+        me = me, perms = perms, agents = agents, dutyCount = #P.CopsOnDuty(nil, job), employees = total, agency = P.AgencyLabel(job),
+        agentAlerts = P.AgentAlertList and P.AgentAlertList(job) or {},
+        interventions = P.GeneralAlertList and P.GeneralAlertList(job) or {},
         recent = MySQL.query.await([[SELECT `id`, `kind`, `type`, `title`, `street`, `author_name`, `status`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `police_alerts` ORDER BY `id` DESC LIMIT 8]]) or {},
+            FROM `police_alerts` WHERE FIND_IN_SET(?, `job`) ORDER BY `id` DESC LIMIT 8]], { job }) or {},
         reports = P.Can(src, 'reports_view') and (MySQL.query.await([[SELECT `id`, `title`, `type`, `status`, `author_name`, UNIX_TIMESTAMP(`created_at`) AS t
             FROM `police_reports` WHERE `status` <> 'archived' ORDER BY `id` DESC LIMIT 5]]) or {}) or nil,
         now = os.time(),
     }
 end }
 
-P.Actions.agents = { perm = 'agents_view', fn = function()
+P.Actions.agents = { perm = 'agents_view', fn = function(src)
     local list = {}
-    for _, id in ipairs(P.CopsOnDuty()) do list[#list + 1] = P.AgentInfo(id) end
+    for _, id in ipairs(P.CopsOnDuty(nil, P.MyJob(src))) do list[#list + 1] = P.AgentInfo(id) end
     table.sort(list, function(a, b) if a.level ~= b.level then return a.level > b.level end return a.name < b.name end)
     return { list = list }
 end }
 
 -- Positions : calculées par le serveur à la demande (tablette ouverte sur la carte)
 -- Agents connectés : en service = position + santé ; hors service = juste listés (pas de position)
-P.Actions.map = { perm = 'map', fn = function()
+P.Actions.map = { perm = 'map', fn = function(src)
+    local job = P.MyJob(src)
     local agents, off = {}, {}
     for _, s in ipairs(GetPlayers()) do
         local id = tonumber(s)
-        if P.IsCop(id) then
+        if P.IsCop(id) and P.MyJob(id) == job then
             if P.duty[id] then agents[#agents + 1] = P.AgentInfo(id, true)
             else off[#off + 1] = P.AgentInfo(id) end
         end
     end
     local sort = function(a, b) if a.level ~= b.level then return a.level > b.level end return a.name < b.name end
     table.sort(agents, sort) table.sort(off, sort)
-    return { agents = agents, offDuty = off, agentAlerts = P.AgentAlertList and P.AgentAlertList() or {},
-        interventions = P.GeneralAlertList and P.GeneralAlertList() or {}, now = os.time() }
+    return { agents = agents, offDuty = off, agentAlerts = P.AgentAlertList and P.AgentAlertList(job) or {},
+        interventions = P.GeneralAlertList and P.GeneralAlertList(job) or {}, now = os.time() }
 end }
 
 -- ---------------------------------------------------------------------

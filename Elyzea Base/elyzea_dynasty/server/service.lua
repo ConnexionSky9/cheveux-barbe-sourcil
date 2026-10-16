@@ -16,10 +16,12 @@ local function StatusOk(id)
 end
 
 -- Membres en service (pour la tablette, la carte, les appels)
-function P.CrewOnDuty(perm)
+-- jobs : nil = toutes les agences, texte = une agence, table { [job] = true } = plusieurs
+function P.CrewOnDuty(perm, jobs)
     local list = {}
+    if type(jobs) == 'string' then jobs = { [jobs] = true } end
     for src in pairs(P.duty) do
-        if GetPlayerName(src) and P.IsDynasty(src) and (not perm or P.Can(src, perm)) then list[#list + 1] = src end
+        if GetPlayerName(src) and P.IsDynasty(src) and (not perm or P.Can(src, perm)) and (not jobs or jobs[P.MyJob(src)]) then list[#list + 1] = src end
     end
     return list
 end
@@ -173,9 +175,9 @@ local function SortCrew(a, b) if a.level ~= b.level then return a.level > b.leve
 P.SortCrew = SortCrew
 
 -- Tableau de bord et carte : server/properties.lua (données des biens)
-P.Actions.crew = { perm = 'tablet', fn = function()
+P.Actions.crew = { perm = 'tablet', fn = function(src)
     local list = {}
-    for _, id in ipairs(P.CrewOnDuty()) do list[#list + 1] = P.CrewInfo(id) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do list[#list + 1] = P.CrewInfo(id) end
     table.sort(list, SortCrew)
     return { list = list }
 end }

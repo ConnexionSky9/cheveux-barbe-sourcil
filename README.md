@@ -130,6 +130,7 @@ Remplace `mm_radio`, sans ox_lib.
 
 ### 3.8 Métiers
 Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`), **EMS / SAMS** (`elyzea_ems`, voir `Elyzea Base/elyzea_ems/README.md` — non testé en jeu), **Mécano** (`elyzea_meca`, nouveau : atelier, devis, CarPlay payant, dépannage, points d'atelier posés en jeu, voir `Elyzea Base/elyzea_meca/README.md` — non testé en jeu) et **illégal** (`elyzea_illegal`). Les autres (entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
+**Plusieurs agences par métier** (`elyzea_agences`, voir `Elyzea Base/elyzea_agences/README.md`) : plusieurs polices (LSPD, BCSO…), plusieurs EMS, plusieurs garages mécano et agences Dynasty 8, créées en jeu (`/agences` ou admin_menu › **Agences des métiers**, permission `agencies_manage`), chacune avec son métier, ses grades, son compte, son téléphone de service et sa **zone d'alerte dessinée sur la carte ou en jeu**.
 Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)

@@ -3,6 +3,7 @@
 --  Demandes des joueurs (app Urgences du téléphone › Dépannage, /depannage) :
 --  pending → accepted → enroute → onsite → diagnostic → quote → repair → done (ou cancelled).
 --  Chaque changement est journalisé (meca_tow_log). Pas de renfort entre employés.
+--  Agences (elyzea_agences) : une demande va aux garages dont la zone d'alerte contient le lieu.
 -- =====================================================================
 local P = Meca
 local T = Config.Tow
@@ -19,15 +20,26 @@ local function View(c)
         x = math.floor(c.x * 10) / 10, y = math.floor(c.y * 10) / 10, z = math.floor(c.z * 10) / 10, t = c.t }
 end
 
+-- Demandes adressées à l'agence du mécanicien src (toutes si src est nil)
 function P.TowList(src)
     local list = {}
-    for _, c in pairs(P.tows) do local v = View(c) v.mine = src ~= nil and c.crew[src] == true list[#list + 1] = v end
+    local job = src and P.MyJob(src) or nil
+    for _, c in pairs(P.tows) do
+        if not src or c.jobs[job] then local v = View(c) v.mine = src ~= nil and c.crew[src] == true list[#list + 1] = v end
+    end
     table.sort(list, function(a, b) return a.t < b.t end)
     return list
 end
 
-local function Receivers() return P.CrewOnDuty('tow') end
-local function Broadcast(ev, data) for _, s in ipairs(Receivers()) do TriggerClientEvent(ev, s, data) end end
+-- jobs : agences destinataires ({ [job] = true }) ; nil = toutes
+local function Receivers(jobs) return P.CrewOnDuty('tow', jobs) end
+local function Broadcast(ev, data, jobs) for _, s in ipairs(Receivers(jobs)) do TriggerClientEvent(ev, s, data) end end
+local function JobList(set)
+    local l = {}
+    for j in pairs(set) do l[#l + 1] = j end
+    table.sort(l)
+    return table.concat(l, ',')
+end
 local function Log(c, status, actor) MySQL.insert('INSERT INTO `meca_tow_log` (`tow_id`, `status`, `actor_name`) VALUES (?, ?, ?)', { c.id, status, actor }) end
 
 -- Création (téléphone, commande, exports)
@@ -41,17 +53,19 @@ function P.CreateTow(src, message, coords, opts)
         clientName = src and P.Name(src) or (opts.name and P.Clean(opts.name, 100) or nil), phone = opts.phone and P.Clean(opts.phone, 20) or nil,
         vehicle = opts.vehicle and P.Clean(opts.vehicle, 80) or nil, plate = opts.plate and P.CleanPlate(opts.plate) or nil,
         status = 'pending', crew = {}, t = os.time() }
-    c.id = MySQL.insert.await([[INSERT INTO `meca_tow` (`source`, `reason`, `description`, `x`, `y`, `z`, `street`, `client_cid`, `client_name`, `client_phone`, `vehicle`, `plate`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { c.source, c.reason, c.description, c.x, c.y, c.z, c.street, c.clientCid, c.clientName, c.phone, c.vehicle, c.plate })
+    c.jobs = P.RouteJobs(c)   -- garages dont la zone d'alerte contient le lieu
+    c.id = MySQL.insert.await([[INSERT INTO `meca_tow` (`job`, `source`, `reason`, `description`, `x`, `y`, `z`, `street`, `client_cid`, `client_name`, `client_phone`, `vehicle`, `plate`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { JobList(c.jobs), c.source, c.reason, c.description, c.x, c.y, c.z, c.street, c.clientCid, c.clientName, c.phone, c.vehicle, c.plate })
     if not c.id then return nil end
     P.tows[c.id] = c
     Log(c, 'pending', c.clientName or 'Système')
-    for _, s in ipairs(Receivers()) do
+    local list = Receivers(c.jobs)
+    for _, s in ipairs(list) do
         local v = View(c)
         v.distance = math.floor(#(vector3(c.x, c.y, c.z) - (P.Coords(s) or vector3(0, 0, 0))))
         TriggerClientEvent('meca:client:tow', s, v)
     end
-    return c.id, #Receivers()
+    return c.id, #list
 end
 
 local function Close(c, status, actor)
@@ -65,18 +79,23 @@ local function Close(c, status, actor)
     end
 end
 
-local function Get(id) return P.tows[tonumber(id) or 0] end
+-- Demande active visible par le mécanicien src (adressée à son agence)
+local function Get(id, src)
+    local c = P.tows[tonumber(id) or 0]
+    if c and src and not c.jobs[P.MyJob(src)] then return nil end
+    return c
+end
 
 P.Actions.tows = { perm = 'tow', fn = function(src)
     return { list = P.TowList(src), history = MySQL.query.await([[SELECT `id`, `reason`, `street`, `client_name`, `vehicle`, `plate`, `status`, `assigned_name`,
-        UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS c FROM `meca_tow` WHERE `status` IN ('done', 'cancelled') ORDER BY `id` DESC LIMIT 40]]) or {},
+        UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS c FROM `meca_tow` WHERE `status` IN ('done', 'cancelled') AND FIND_IN_SET(?, `job`) ORDER BY `id` DESC LIMIT 40]], { P.MyJob(src) }) or {},
         canManage = P.Can(src, 'tow_manage') }
 end }
 
 P.Actions.towInfo = { perm = 'tow', fn = function(src, d)
     local id = tonumber(d.id) or 0
     local row = MySQL.single.await([[SELECT `id`, `source`, `reason`, `description`, `street`, `client_name`, `client_phone`, `vehicle`, `plate`, `status`, `assigned_name`,
-        UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS c FROM `meca_tow` WHERE `id` = ?]], { id })
+        UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS c FROM `meca_tow` WHERE `id` = ? AND FIND_IN_SET(?, `job`)]], { id, P.MyJob(src) })
     if not row then return { error = 'Demande introuvable.' } end
     row.log = MySQL.query.await('SELECT `status`, `actor_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_tow_log` WHERE `tow_id` = ? ORDER BY `id`', { id }) or {}
     local c = P.tows[id]
@@ -85,7 +104,7 @@ P.Actions.towInfo = { perm = 'tow', fn = function(src, d)
 end }
 
 P.Actions.towAccept = { perm = 'tow', duty = true, fn = function(src, d)
-    local c = Get(d.id)
+    local c = Get(d.id, src)
     if not c then return { error = 'Cette demande est terminée.' } end
     c.crew[src] = true
     if not c.assignedCid then
@@ -101,22 +120,22 @@ P.Actions.towAccept = { perm = 'tow', duty = true, fn = function(src, d)
     end
     P.status[src] = 'enroute'
     P.PushState(src)
-    Broadcast('meca:client:towUpdate', View(c))
+    Broadcast('meca:client:towUpdate', View(c), c.jobs)
     if c.clientSrc and GetPlayerName(c.clientSrc) then P.Notify(c.clientSrc, 'Un mécanicien a accepté votre demande et arrive.', 'success') end
     return { ok = true, tow = View(c), message = 'Dépannage accepté : itinéraire tracé.' }
 end }
 
 P.Actions.towLeave = { perm = 'tow', fn = function(src, d)
-    local c = Get(d.id)
+    local c = Get(d.id, src)
     if not c or not c.crew[src] then return { error = 'Vous ne faites pas partie de cette intervention.' } end
     c.crew[src] = nil
     Log(c, c.status, P.Name(src) .. ' (quitte)')
-    Broadcast('meca:client:towUpdate', View(c))
+    Broadcast('meca:client:towUpdate', View(c), c.jobs)
     return { ok = true, message = 'Vous avez quitté l\'intervention.' }
 end }
 
 P.Actions.towStatus = { perm = 'tow', duty = true, fn = function(src, d)
-    local c = Get(d.id)
+    local c = Get(d.id, src)
     if not c then return { error = 'Cette demande est terminée.' } end
     local st = tostring(d.status or '')
     if not T.statuses[st] or st == 'pending' then return { error = 'Statut inconnu.' } end
@@ -133,7 +152,7 @@ P.Actions.towStatus = { perm = 'tow', duty = true, fn = function(src, d)
     MySQL.update('UPDATE `meca_tow` SET `status` = ? WHERE `id` = ?', { st, c.id })
     Log(c, st, P.Name(src))
     for s in pairs(c.crew) do if GetPlayerName(s) and P.OnDuty(s) then P.status[s] = (st == 'accepted' or st == 'enroute') and 'enroute' or 'busy' P.PushState(s) end end
-    Broadcast('meca:client:towUpdate', View(c))
+    Broadcast('meca:client:towUpdate', View(c), c.jobs)
     if c.clientSrc and GetPlayerName(c.clientSrc) and (st == 'onsite' or st == 'quote') then
         P.Notify(c.clientSrc, st == 'onsite' and 'Le mécanicien est sur place.' or 'Le mécanicien prépare votre devis.', 'inform')
     end
@@ -146,7 +165,7 @@ end
 
 function P.ReleaseAll(src)
     for _, c in pairs(P.tows) do
-        if c.crew[src] then c.crew[src] = nil Broadcast('meca:client:towUpdate', View(c)) end
+        if c.crew[src] then c.crew[src] = nil Broadcast('meca:client:towUpdate', View(c), c.jobs) end
     end
 end
 

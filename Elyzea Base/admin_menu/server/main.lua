@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v49 then
+        -- Agences des métiers (elyzea_agences) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.agencies_manage = true end
+        meta.v49 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v48 then
         -- Téléphone clandestin NOIR X (noirx) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.noirx_staff = true end

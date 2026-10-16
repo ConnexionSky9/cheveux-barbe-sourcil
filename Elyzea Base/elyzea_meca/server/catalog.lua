@@ -81,7 +81,7 @@ P.Actions.catalog = { perm = 'tablet', fn = function(src)
         (SELECT COALESCE(SUM(`price`), 0) FROM `meca_carplay`) AS total FROM `meca_carplay`]]) or {}
     return { list = list, categories = P.CATEGORIES, canEdit = P.Can(src, 'catalog_manage'), maxPrice = Config.Catalog.maxPrice,
         perfMods = P.PERF_MODS, cosmetic = P.COSMETIC, carplay = { count = tonumber(carplay.n) or 0, revenue = tonumber(carplay.total) or 0 },
-        grades = (function() local l = {} for _, g in ipairs(P.SortedGrades()) do l[#l + 1] = { level = g.level, name = g.name } end return l end)() }
+        grades = (function() local l = {} for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do l[#l + 1] = { level = g.level, name = g.name } end return l end)() }
 end }
 
 P.Actions.catalogSave = { perm = 'catalog_manage', fn = function(src, d)

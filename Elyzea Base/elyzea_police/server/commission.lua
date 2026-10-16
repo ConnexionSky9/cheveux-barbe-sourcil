@@ -5,10 +5,11 @@
 --  · La commission est prise sur le compte de l'entreprise APRÈS l'encaissement,
 --    versée sur la banque de l'employé (connecté ou non) et journalisée.
 --    Si le versement échoue, l'argent est remis dans l'entreprise.
+--  · Agences : chaque grade appartient à une agence, l'argent sort du compte de
+--    l'agence de l'employé.
 -- =====================================================================
 local P = Police
 local core = exports.elyzea_core
-local SOC = Config.Society or Config.Job.name
 local TBL = 'police_commission'
 P.CommissionMax = 50   -- pourcentage maximum
 local rates = {}       -- [grade_id] = pourcentage
@@ -28,14 +29,14 @@ end)
 
 function P.CommissionRate(gradeId) return rates[tonumber(gradeId) or -1] or 0 end
 
-local function SocAdd(amount, reason)
-    if P.SocietyAdd then return P.SocietyAdd(amount, reason) end
-    local ok, done = pcall(function() return core:AddSocietyMoney(SOC, amount, reason) end)
+local function SocAdd(amount, reason, job)
+    if P.SocietyAdd then return P.SocietyAdd(amount, reason, job) end
+    local ok, done = pcall(function() return core:AddSocietyMoney(P.Society(job), amount, reason) end)
     return ok and done == true
 end
-local function SocRemove(amount, reason)
-    if P.SocietyRemove then return P.SocietyRemove(amount, reason) end
-    local ok, done = pcall(function() return core:RemoveSocietyMoney(SOC, amount, reason) end)
+local function SocRemove(amount, reason, job)
+    if P.SocietyRemove then return P.SocietyRemove(amount, reason, job) end
+    local ok, done = pcall(function() return core:RemoveSocietyMoney(P.Society(job), amount, reason) end)
     return ok and done == true
 end
 local function PayBank(cid, amount, reason)
@@ -66,14 +67,14 @@ function P.Commission(cid, amount, label, ref)
     local com = math.floor((tonumber(amount) or 0) * pct / 100)
     if com <= 0 then return 0 end
     local why = ('Commission %d %% · %s'):format(pct, label or '')
-    if not SocRemove(com, why) then
+    if not SocRemove(com, why, e.job) then
         print(('^3[%s] Commission non versée (fonds insuffisants) : %s^0'):format(GetCurrentResourceName(), why))
         return 0
     end
     local ok, s = PayBank(cid, com, why)
-    if not ok then SocAdd(com, 'Annulation : ' .. why) return 0 end
+    if not ok then SocAdd(com, 'Annulation : ' .. why, e.job) return 0 end
     if P.Tx then
-        pcall(P.Tx, { type = 'out', category = 'commission', amount = com, reason = why, actorName = 'Système', targetCid = cid, targetName = e.name, ref = ref })
+        pcall(P.Tx, { job = e.job, type = 'out', category = 'commission', amount = com, reason = why, actorName = 'Système', targetCid = cid, targetName = e.name, ref = ref })
     end
     if P.Log then pcall(P.Log, nil, 'Commission', ('%s · %d $ · %s'):format(e.name, com, why)) end
     if s then P.Notify(s, ('Commission reçue en banque : %d $ (%d %% · %s).'):format(com, pct, label or ''), 'success') end
@@ -81,7 +82,7 @@ function P.Commission(cid, amount, label, ref)
 end
 
 local function MyLevel(src) local g = P.Grade(src) return g and g.level or -1 end
-local function CanEdit(src, g) local my = MyLevel(src) return g.level < my or my >= P.TopLevel() end
+local function CanEdit(src, g) local my = MyLevel(src) return g.job == P.MyJob(src) and (g.level < my or my >= P.TopLevel(g.job)) end
 
 -- Grades vus dans Finance : pourcentage et droit de le modifier
 function P.CommissionView(src, g) return { commission = P.CommissionRate(g.id), commissionEditable = P.Can(src, 'finance') and CanEdit(src, g) } end

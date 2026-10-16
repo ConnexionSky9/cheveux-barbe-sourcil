@@ -11,10 +11,16 @@ local core = exports.elyzea_core
 local RES = GetCurrentResourceName()
 local IsMember = P.IsCop or P.IsEms or P.IsMeca or P.IsDynasty or P.IsMember
 
--- Unité : le métier, ou la concession pour le concessionnaire (multi-concessions)
+-- Unité : le métier, la concession (multi-concessions) ou l'agence (elyzea_agences).
+-- La première agence garde l'unité « ressource » (numéros et messages déjà donnés conservés).
 local function ShopId(e) return P.ShopOf and e and e.shop_id or nil end
 local function UnitOf(src)
     if P.ShopOf then local D = P.ShopOf(src) return D and (RES .. ':' .. D.id) or nil, D and D.name or nil end
+    if P.AgencyOf then
+        local a = P.AgencyOf(src)
+        if not a then return nil, nil end
+        return a.job == Config.Job.name and RES or (RES .. ':' .. a.job), a.label, a
+    end
     return RES, Config.Job and Config.Job.label or RES
 end
 
@@ -96,9 +102,10 @@ end
 local function Me(src)
     if not IsMember(src) then return nil end
     local e, g = P.Employee(src), P.Grade(src)
-    local unit, label = UnitOf(src)
+    local unit, label, a = UnitOf(src)
     return {
         res = RES, unit = unit, unitLabel = label, cid = P.Cid(src), name = P.Name(src),
+        numberKey = unit, prefix = a and a.phone or nil, color = a and a.color or nil,
         matricule = e and e.matricule or '?', grade = g and g.name or '?', level = g and g.level or 0,
         duty = P.OnDuty(src), canDuty = P.Can(src, 'duty'), tablet = P.Can(src, 'tablet'),
         times = Times(src), status = P.status[src] or 'available',
@@ -111,10 +118,11 @@ function Ops.me(src) return Me(src) end
 -- Annuaire : toute l'unité (en ligne ou non), lu dans la table des employés
 function Ops.roster(src)
     local unit = UnitOf(src)
-    local shop = ShopId(P.Employee(src))
+    local me = P.Employee(src)
+    local shop = ShopId(me)
     local list = {}
     for cid, e in pairs(P.employees) do
-        if not P.ShopOf or e.shop_id == shop then
+        if (P.ShopOf and e.shop_id == shop) or (not P.ShopOf and (not P.AgencyOf or (me and e.job == me.job))) then
             local g = P.grades[e.grade_id]
             local id = core:GetSourceByCitizenId(cid)
             local online = id ~= nil and IsMember(id) and UnitOf(id) == unit
@@ -155,7 +163,8 @@ function Ops.alert(src, d)
     return { native = true }
 end
 function Ops.alerts(src)
-    local list = (P.AgentAlertList and P.AgentAlertList()) or (P.SupportList and P.SupportList()) or {}
+    local job = P.MyJob and P.MyJob(src) or nil
+    local list = (P.AgentAlertList and P.AgentAlertList(job)) or (P.SupportList and P.SupportList(false, job)) or {}
     local out = {}
     for _, a in ipairs(list) do
         out[#out + 1] = { id = a.id, level = a.level, street = a.street, author = a.author, matricule = a.matricule,

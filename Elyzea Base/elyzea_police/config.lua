@@ -6,6 +6,9 @@
 Config = {}
 
 Config.Job = { name = 'police', label = 'LSPD', type = 'leo' }
+-- Agences (elyzea_agences) : plusieurs agences de ce métier, chacune son métier elyzea_core,
+-- ses grades, son compte, son téléphone et sa zone d'alerte. Config.Job ci-dessus = première agence.
+Config.AgencyKind = 'police'
 
 Config.Keys = {
     menu = 'F6',      -- menu rapide (service, alerte agent, tablette)

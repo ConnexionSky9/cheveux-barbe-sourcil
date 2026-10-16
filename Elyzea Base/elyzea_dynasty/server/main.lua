@@ -15,7 +15,8 @@ Dynasty = {
 }
 local P = Dynasty
 local core = exports.elyzea_core
-local JOB = Config.Job.name
+local DEF_JOB = Config.Job.name:gsub('[^%w_]', '')
+P.T = { grades = 'd8_grades', employees = 'd8_employees' }
 
 -- ---------------------------------------------------------------------
 -- Utilitaires
@@ -86,14 +87,17 @@ P.Tables = {
         `v` LONGTEXT NOT NULL ) ]],
     d8_grades = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        `name` VARCHAR(50) NOT NULL UNIQUE,
-        `level` INT NOT NULL UNIQUE,
+        `job` VARCHAR(40) NOT NULL DEFAULT ']] .. DEF_JOB .. [[',
+        `name` VARCHAR(50) NOT NULL,
+        `level` INT NOT NULL,
         `salary` INT NOT NULL DEFAULT 0,
         `perms` TEXT NOT NULL,
         `is_default` TINYINT(1) NOT NULL DEFAULT 0,
-        `active` TINYINT(1) NOT NULL DEFAULT 1 ) ]],
+        `active` TINYINT(1) NOT NULL DEFAULT 1,
+        UNIQUE KEY `job_name` (`job`, `name`), UNIQUE KEY `job_level` (`job`, `level`) ) ]],
     d8_employees = [[ (
         `citizenid` VARCHAR(50) NOT NULL PRIMARY KEY,
+        `job` VARCHAR(40) NOT NULL DEFAULT ']] .. DEF_JOB .. [[',
         `name` VARCHAR(100) NOT NULL,
         `matricule` VARCHAR(20) NOT NULL UNIQUE,
         `grade_id` INT NOT NULL,
@@ -268,6 +272,8 @@ local function InitDb()
     for _, name in ipairs(P.TableOrder) do
         Q(('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
     end
+    -- Base d'avant les agences : tout ce qui existe appartient à la première agence
+    P.AddJobColumns({ 'd8_grades', 'd8_employees' }, { 'd8_admin_log', 'd8_transactions', 'd8_contracts' }, 'd8_grades')
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
 end
 
@@ -286,52 +292,53 @@ function P.EncodePerms(set)
     return json.encode(list)
 end
 
-function P.SortedGrades()
+-- Grades d'une agence (job), du plus bas au plus haut
+function P.SortedGrades(job)
     local list = {}
-    for _, g in pairs(P.grades) do list[#list + 1] = g end
+    for _, g in pairs(P.grades) do if not job or g.job == job then list[#list + 1] = g end end
     table.sort(list, function(a, b) return a.level < b.level end)
     return list
 end
-function P.DefaultGrade()
-    local sorted = P.SortedGrades()
+function P.DefaultGrade(job)
+    local sorted = P.SortedGrades(job)
     for _, g in ipairs(sorted) do if g.isDefault then return g end end
     return sorted[1]
 end
-function P.GradeByLevel(level)
-    for _, g in pairs(P.grades) do if g.level == level then return g end end
+function P.GradeByLevel(job, level)
+    for _, g in pairs(P.grades) do if g.job == job and g.level == level then return g end end
 end
-function P.TopLevel()
+function P.TopLevel(job)
     local top = 0
-    for _, g in pairs(P.grades) do if g.level > top then top = g.level end end
+    for _, g in pairs(P.grades) do if g.job == job and g.level > top then top = g.level end end
     return top
 end
 
 function P.LoadGrades()
     P.grades = {}
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `d8_grades`') or {}) do
-        P.grades[r.id] = { id = r.id, name = r.name, level = r.level, salary = r.salary, perms = DecodePerms(r.perms), isDefault = r.is_default == 1 or r.is_default == true,
+        P.grades[r.id] = { id = r.id, job = r.job, name = r.name, level = r.level, salary = r.salary, perms = DecodePerms(r.perms), isDefault = r.is_default == 1 or r.is_default == true,
             active = not (r.active == 0 or r.active == false) }
     end
 end
 
-local function SeedGrades()
+function P.SeedGrades(job)
     for _, g in ipairs(Config.DefaultGrades) do
         local set = {}
         if g.perms == 'all' then for _, p in ipairs(D8Perms) do set[p.key] = true end
         else for _, k in ipairs(g.perms or {}) do set[k] = true end end
-        local id = MySQL.insert.await('INSERT INTO `d8_grades` (`name`, `level`, `salary`, `perms`, `is_default`) VALUES (?, ?, ?, ?, ?)',
-            { g.name, g.level, g.salary or 0, P.EncodePerms(set), g.default and 1 or 0 })
+        local id = MySQL.insert.await('INSERT INTO `d8_grades` (`job`, `name`, `level`, `salary`, `perms`, `is_default`) VALUES (?, ?, ?, ?, ?, ?)',
+            { job, g.name, g.level, g.salary or 0, P.EncodePerms(set), g.default and 1 or 0 })
         if id then MySQL.insert.await('INSERT INTO `d8_rates` (`grade_id`, `grade_name`, `rate`, `actor_name`) VALUES (?, ?, ?, ?)', { id, g.name, g.salary or 0, 'Installation' }) end
     end
-    print('^2[D8] Grades par défaut créés.^0')
+    print(('^2[D8] Grades par défaut créés pour %s.^0'):format(job))
 end
 
 -- Grade « Directeur » toujours présent : l'ancien grade « Direction » est renommé,
 -- sinon un grade Directeur (toutes les permissions) est créé au-dessus des autres.
-local function EnsureDirecteur()
-    for _, g in pairs(P.grades) do if g.name == 'Directeur' then return end end
+local function EnsureDirecteur(job)
+    for _, g in pairs(P.grades) do if g.job == job and g.name == 'Directeur' then return end end
     for _, g in pairs(P.grades) do
-        if g.name == 'Direction' then
+        if g.job == job and g.name == 'Direction' then
             MySQL.update.await('UPDATE `d8_grades` SET `name` = ? WHERE `id` = ?', { 'Directeur', g.id })
             g.name = 'Directeur'
             print('^2[D8] Grade « Direction » renommé « Directeur ».^0')
@@ -340,28 +347,34 @@ local function EnsureDirecteur()
     end
     local set = {}
     for _, p in ipairs(D8Perms) do set[p.key] = true end
-    local level = P.TopLevel() + 1
-    local id = MySQL.insert.await('INSERT INTO `d8_grades` (`name`, `level`, `salary`, `perms`, `is_default`) VALUES (?, ?, ?, ?, 0)',
-        { 'Directeur', level, 1400, P.EncodePerms(set) })
+    local level = P.TopLevel(job) + 1
+    local id = MySQL.insert.await('INSERT INTO `d8_grades` (`job`, `name`, `level`, `salary`, `perms`, `is_default`) VALUES (?, ?, ?, ?, ?, 0)',
+        { job, 'Directeur', level, 1400, P.EncodePerms(set) })
     if id then
         MySQL.insert.await('INSERT INTO `d8_rates` (`grade_id`, `grade_name`, `rate`, `actor_name`) VALUES (?, ?, ?, ?)', { id, 'Directeur', 1400, 'Installation' })
-        P.grades[id] = { id = id, name = 'Directeur', level = level, salary = 1400, perms = set, isDefault = false, active = true }
-        print(('^2[D8] Grade « Directeur » créé (niveau %d).^0'):format(level))
+        P.grades[id] = { id = id, job = job, name = 'Directeur', level = level, salary = 1400, perms = set, isDefault = false, active = true }
+        print(('^2[D8] Grade « Directeur » créé (niveau %d) pour %s.^0'):format(level, job))
     end
 end
 
+P.EnsureDirecteur = EnsureDirecteur
+
 -- Métier d'elyzea_core : un grade du core par niveau ; payment = 0 (la direction paie les heures dans Finance)
-function P.SyncCoreJob()
+function P.SyncCoreJob(job)
+    if not job then
+        for _, a in ipairs(P.agencyList) do P.SyncCoreJob(a.job) end
+        return
+    end
     local grades = {}
-    local top = P.TopLevel()
+    local top = P.TopLevel(job)
     for _, g in pairs(P.grades) do
-        grades[g.level] = { name = g.name, payment = 0, isboss = g.perms.direction == true or g.level == top }
+        if g.job == job then grades[g.level] = { name = g.name, payment = 0, isboss = g.perms.direction == true or g.level == top } end
     end
     if not grades[0] then grades[0] = { name = 'Sans grade', payment = 0 } end
     local ok, err = pcall(function()
-        core:CreateJob(JOB, { label = Config.Job.label, type = Config.Job.type, defaultDuty = false, offDutyPay = false, grades = grades })
+        core:CreateJob(job, { label = P.AgencyLabel(job), type = Config.Job.type, defaultDuty = false, offDutyPay = false, grades = grades })
     end)
-    if not ok then print(('^1[D8] Métier non déclaré dans elyzea_core : %s^0'):format(tostring(err))) end
+    if not ok then print(('^1[D8] Métier « %s » non déclaré dans elyzea_core : %s^0'):format(job, tostring(err))) end
 end
 
 -- ---------------------------------------------------------------------
@@ -369,18 +382,21 @@ end
 -- ---------------------------------------------------------------------
 function P.LoadEmployees()
     P.employees = {}
-    for _, r in ipairs(MySQL.query.await([[SELECT `citizenid`, `name`, `matricule`, `grade_id`, `note`, `total_seconds`, `unpaid_seconds`, `unpaid_amount`,
+    for _, r in ipairs(MySQL.query.await([[SELECT `citizenid`, `job`, `name`, `matricule`, `grade_id`, `note`, `total_seconds`, `unpaid_seconds`, `unpaid_amount`,
         DATE_FORMAT(`recruited_at`, '%d/%m/%Y') AS recruited, DATE_FORMAT(`promoted_at`, '%d/%m/%Y') AS promoted FROM `d8_employees`]]) or {}) do
         r.total_seconds, r.unpaid_seconds, r.unpaid_amount = tonumber(r.total_seconds) or 0, tonumber(r.unpaid_seconds) or 0, tonumber(r.unpaid_amount) or 0
         P.employees[r.citizenid] = r
     end
 end
 
-function P.NextMatricule()
+-- Préfixe de l'agence ; numéro suivant le plus grand déjà donné avec ce préfixe (toutes agences)
+function P.NextMatricule(job)
     local max = 0
-    local prefix = Config.Matricule.prefix
+    local a = P.Agency(job)
+    local prefix = a and a.mat or Config.Matricule.prefix
     for _, e in pairs(P.employees) do
-        local n = tonumber(tostring(e.matricule):sub(#prefix + 1))
+        local m = tostring(e.matricule)
+        local n = m:sub(1, #prefix) == prefix and tonumber(m:sub(#prefix + 1)) or nil
         if n and n > max then max = n end
     end
     return ('%s%0' .. Config.Matricule.digits .. 'd'):format(prefix, max + 1)
@@ -393,7 +409,9 @@ function P.Grade(src) local cid = P.Cid(src) return cid and P.GradeOfCid(cid) or
 -- Membre du métier : métier dans le core ET fiche d'employé
 function P.IsDynasty(src)
     local p = P.GetPlayer(src)
-    return p ~= nil and p.PlayerData.job and p.PlayerData.job.name == JOB and P.employees[p.PlayerData.citizenid] ~= nil
+    if not p or not p.PlayerData.job then return false end
+    local e = P.employees[p.PlayerData.citizenid]
+    return e ~= nil and e.job == p.PlayerData.job.name and P.agencies[e.job] ~= nil
 end
    -- nom gardé pour le code commun avec la police
 function P.OnDuty(src) return P.duty[tonumber(src) or -1] == true end
@@ -404,12 +422,14 @@ function P.Can(src, perm)
     return g ~= nil and g.perms[perm] == true
 end
 
-function P.AddLog(actorSrc, targetCid, targetName, action, oldGrade, newGrade, reason)
+-- job : agence concernée (sinon celle de l'employé visé, ou celle de l'auteur)
+function P.AddLog(actorSrc, targetCid, targetName, action, oldGrade, newGrade, reason, job)
     local aCid, aName
     if type(actorSrc) == 'number' and actorSrc > 0 then aCid, aName = P.Cid(actorSrc), P.Name(actorSrc)
     elseif type(actorSrc) == 'string' then aName = actorSrc end
-    MySQL.insert('INSERT INTO `d8_admin_log` (`actor_cid`, `actor_name`, `target_cid`, `target_name`, `action`, `old_grade`, `new_grade`, `reason`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        { aCid, aName, targetCid, targetName, action, oldGrade, newGrade, reason and P.Clean(reason, 255) or nil })
+    job = job or (targetCid and P.JobOf(targetCid)) or (type(actorSrc) == 'number' and actorSrc > 0 and P.MyJob(actorSrc)) or nil
+    MySQL.insert('INSERT INTO `d8_admin_log` (`job`, `actor_cid`, `actor_name`, `target_cid`, `target_name`, `action`, `old_grade`, `new_grade`, `reason`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        { job, aCid, aName, targetCid, targetName, action, oldGrade, newGrade, reason and P.Clean(reason, 255) or nil })
 end
 
 -- Applique un grade (base Dynasty 8 + elyzea_core), connecté ou non.
@@ -422,7 +442,7 @@ function P.ApplyGrade(cid, grade)
     e.grade_id = grade.id
     MySQL.update.await('UPDATE `d8_employees` SET `grade_id` = ?, `promoted_at` = NOW() WHERE `citizenid` = ?', { grade.id, cid })
     P.applying[cid] = true
-    pcall(function() core:AddPlayerToJob(cid, JOB, grade.level) end)
+    pcall(function() core:AddPlayerToJob(cid, e.job, grade.level) end)
     P.applying[cid] = nil
     local src = core:GetSourceByCitizenId(cid)
     if src then
@@ -437,12 +457,13 @@ end
 
 function P.Hire(cid, name, grade)
     if P.employees[cid] then return false, 'Déjà employé de Dynasty 8.' end
-    local mat = P.NextMatricule()
-    MySQL.insert.await('INSERT INTO `d8_employees` (`citizenid`, `name`, `matricule`, `grade_id`) VALUES (?, ?, ?, ?)', { cid, name, mat, grade.id })
-    P.employees[cid] = { citizenid = cid, name = name, matricule = mat, grade_id = grade.id, recruited = os.date('%d/%m/%Y'),
+    local job = grade.job
+    local mat = P.NextMatricule(job)
+    MySQL.insert.await('INSERT INTO `d8_employees` (`citizenid`, `job`, `name`, `matricule`, `grade_id`) VALUES (?, ?, ?, ?, ?)', { cid, job, name, mat, grade.id })
+    P.employees[cid] = { citizenid = cid, job = job, name = name, matricule = mat, grade_id = grade.id, recruited = os.date('%d/%m/%Y'),
         total_seconds = 0, unpaid_seconds = 0, unpaid_amount = 0 }
     P.applying[cid] = true
-    pcall(function() core:AddPlayerToJob(cid, JOB, grade.level) end)
+    pcall(function() core:AddPlayerToJob(cid, job, grade.level) end)
     P.applying[cid] = nil
     local src = core:GetSourceByCitizenId(cid)
     if src then P.PushState(src) end
@@ -459,10 +480,28 @@ function P.Remove(cid)
     P.employees[cid] = nil
     MySQL.update.await('DELETE FROM `d8_employees` WHERE `citizenid` = ?', { cid })
     P.applying[cid] = true
-    pcall(function() core:RemovePlayerFromJob(cid, JOB) end)
+    pcall(function() core:RemovePlayerFromJob(cid, e.job) end)
     P.applying[cid] = nil
     if src then P.PushState(src) end
     return true
+end
+
+-- Mutation vers une autre agence (grade de la nouvelle agence) : nouveau matricule,
+-- service terminé (temps compté au taux de l'ancien grade), salaire dû conservé
+function P.Transfer(cid, grade)
+    local e = P.employees[cid]
+    if not e or not grade or e.job == grade.job then return false end
+    local src = core:GetSourceByCitizenId(cid)
+    if src and P.OnDuty(src) and P.SetDuty then P.SetDuty(src, false, true) end
+    if P.FlushCid then P.FlushCid(cid) end
+    local mat = P.NextMatricule(grade.job)
+    MySQL.update.await('UPDATE `d8_employees` SET `job` = ?, `grade_id` = ?, `matricule` = ? WHERE `citizenid` = ?', { grade.job, grade.id, mat, cid })
+    e.job, e.grade_id, e.matricule = grade.job, grade.id, mat
+    P.applying[cid] = true
+    pcall(function() core:AddPlayerToJob(cid, grade.job, grade.level) end)
+    P.applying[cid] = nil
+    if src then P.PushState(src) end
+    return true, mat
 end
 
 -- ---------------------------------------------------------------------
@@ -475,9 +514,11 @@ function P.PushState(src)
         return
     end
     local e, g = P.Employee(src), P.Grade(src)
+    local a = P.Agency(e.job) or {}
     local perms = {}
     for k in pairs(g and g.perms or {}) do perms[k] = true end
     Player(src).state:set('d8', {
+        job = e.job, agency = a.label or Config.Job.label, short = a.short, color = a.color,
         matricule = e.matricule, name = P.Name(src), grade = g and g.name or '?', level = g and g.level or 0, perms = perms,
         duty = P.OnDuty(src), status = P.status[src] or 'available',
     }, true)
@@ -490,34 +531,49 @@ end
 -- ---------------------------------------------------------------------
 -- Changements de métier faits ailleurs (menu admin, /setjob…)
 -- ---------------------------------------------------------------------
+-- Le métier du core est celui d'une agence : fiche créée, mutée ou mise au bon grade
+local function FollowCoreJob(src, cid, job)
+    local level = job.grade and job.grade.level or 0
+    local grade = P.GradeByLevel(job.name, level) or P.DefaultGrade(job.name)
+    if not grade then return end
+    local e = P.employees[cid]
+    if not e then
+        P.Hire(cid, P.Name(src), grade)
+        P.AddLog('Système', cid, P.Name(src), 'Recrutement', nil, grade.name, 'Métier donné hors de la tablette')
+    elseif e.job ~= job.name then
+        local before = P.grades[e.grade_id]
+        local from = P.AgencyLabel(e.job)
+        P.Transfer(cid, grade)
+        P.AddLog('Système', cid, P.Name(src), 'Mutation', before and before.name, grade.name, ('%s → %s (hors de la tablette)'):format(from, P.AgencyLabel(job.name)))
+    elseif e.grade_id ~= grade.id then
+        local before = P.grades[e.grade_id]
+        P.ApplyGrade(cid, grade)
+        P.AddLog('Système', cid, P.Name(src), 'Changement de grade', before and before.name, grade.name, 'Grade changé hors de la tablette')
+    end
+end
+
 AddEventHandler('elyzea:server:onJobUpdate', function(src, job, old)
     local cid = P.Cid(src)
     if not cid or P.applying[cid] or not P.ready then return end
-    if job and job.name == JOB then
-        local level = job.grade and job.grade.level or 0
-        local grade = P.GradeByLevel(level) or P.DefaultGrade()
-        if not P.employees[cid] then
-            P.Hire(cid, P.Name(src), grade)
-            P.AddLog('Système', cid, P.Name(src), 'Recrutement', nil, grade.name, 'Métier donné hors de la tablette')
-        elseif P.employees[cid].grade_id ~= grade.id then
-            local before = P.grades[P.employees[cid].grade_id]
-            P.ApplyGrade(cid, grade)
-            P.AddLog('Système', cid, P.Name(src), 'Changement de grade', before and before.name, grade.name, 'Grade changé hors de la tablette')
-        end
-    elseif old and old.name == JOB and P.employees[cid] then
+    if job and P.IsAgencyJob(job.name) then
+        FollowCoreJob(src, cid, job)
+    elseif old and P.IsAgencyJob(old.name) and P.employees[cid] then
         if P.OnDuty(src) and P.SetDuty then P.SetDuty(src, false, true) end
+        P.AddLog('Système', cid, P.Name(src), 'Départ', nil, nil, 'Métier changé hors de la tablette')
         P.employees[cid] = nil
         MySQL.update('DELETE FROM `d8_employees` WHERE `citizenid` = ?', { cid })
-        P.AddLog('Système', cid, P.Name(src), 'Départ', nil, nil, 'Métier changé hors de la tablette')
     end
     P.PushState(src)
 end)
 
 AddEventHandler('elyzea:server:playerLoaded', function(src)
-    -- Toujours hors service à la connexion (pas de temps de service fantôme)
+    -- Toujours hors service à la connexion
     local p = P.GetPlayer(src)
-    if p and p.PlayerData.job and p.PlayerData.job.name == JOB and p.PlayerData.job.onduty then
-        pcall(function() p.Functions.SetJobDuty(false) end)
+    if p and p.PlayerData.job and P.IsAgencyJob(p.PlayerData.job.name) then
+        if p.PlayerData.job.onduty then pcall(function() p.Functions.SetJobDuty(false) end) end
+        -- Métier changé pendant que la ressource était arrêtée : on suit
+        local cid = p.PlayerData.citizenid
+        if P.ready and P.employees[cid] and P.employees[cid].job ~= p.PlayerData.job.name then FollowCoreJob(src, cid, p.PlayerData.job) end
     end
     P.PushState(src)
 end)
@@ -553,11 +609,11 @@ Ely.callback.register('d8:req', function(src, action, data)
 end)
 
 -- Données de départ du client (config publique)
-P.Actions.init = { perm = false, fn = function()
+P.Actions.init = { perm = false, fn = function(src)
     local statuses = {}
     for _, s in ipairs(Config.Statuses) do statuses[#statuses + 1] = s end
     return { perms = D8Perms, statuses = statuses, propStatuses = Config.PropertyStatuses, categories = Config.Categories,
-        garageSizes = Config.GarageSizes, map = Config.MapImage, mapRefresh = Config.MapRefresh, job = Config.Job.label,
+        garageSizes = Config.GarageSizes, map = Config.MapImage, mapRefresh = Config.MapRefresh, job = P.AgencyLabel(P.MyJob(src) or P.MainJob()),
         rent = Config.Rent, codeLength = Config.CodeLength, deco = Config.Deco, visitMinutes = Config.Visit.maxMinutes }
 end }
 
@@ -571,9 +627,15 @@ CreateThread(function()
             local okj, v = pcall(json.decode, r.v)
             if okj then P.Settings[r.k] = v end
         end
+        P.LoadAgencies(true)
         P.LoadGrades()
-        if not next(P.grades) then SeedGrades() P.LoadGrades() end
-        EnsureDirecteur()
+        for _, a in ipairs(P.agencyList) do
+            local has = false
+            for _, g in pairs(P.grades) do if g.job == a.job then has = true break end end
+            if not has then P.SeedGrades(a.job) end
+        end
+        P.LoadGrades()
+        for _, a in ipairs(P.agencyList) do EnsureDirecteur(a.job) end
         P.LoadEmployees()
     end)
     if not ok then print(('^1[D8] Chargement impossible : %s^0'):format(tostring(err))) return end
@@ -581,12 +643,12 @@ CreateThread(function()
     if P.OnReady then for _, fn in ipairs(P.OnReady) do pcall(fn) end end
     P.ready = true
     for src, p in pairs(core:GetPlayers()) do
-        if p.PlayerData.job and p.PlayerData.job.name == JOB and p.PlayerData.job.onduty then pcall(function() p.Functions.SetJobDuty(false) end) end
+        if p.PlayerData.job and P.IsAgencyJob(p.PlayerData.job.name) and p.PlayerData.job.onduty then pcall(function() p.Functions.SetJobDuty(false) end) end
         P.PushState(src)
     end
     local n = 0
     for _ in pairs(P.employees) do n = n + 1 end
-    print(('^2[D8] Prêt : %d grade(s), %d employé(s).^0'):format(#P.SortedGrades(), n))
+    print(('^2[D8] Prêt : %d agence(s), %d grade(s), %d employé(s).^0'):format(#P.agencyList, #P.SortedGrades(), n))
 end)
 
 AddEventHandler('playerDropped', function() rate[source] = nil end)

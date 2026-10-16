@@ -18,6 +18,11 @@ depuis l'application **Menu rapide**.
 3. Les tables sont créées automatiquement au démarrage (`sql/install.sql` si besoin).
 4. `refresh` puis redémarrer le serveur (les fxmanifest des métiers ont changé).
 
+## Agences (elyzea_agences)
+Avec plusieurs agences d'un même métier (ex. LSPD et BCSO), chaque agence a son propre téléphone :
+numéros avec le **préfixe de l'agence** (ex. 921-XXXX), **couleur** et **nom** de l'agence, annuaire, messages,
+appels et alertes **limités à l'agence**. La première agence garde les numéros et messages déjà donnés.
+
 ## Ce que les métiers ont reçu
 Dans chacun des 5 métiers :
 - `server/phone.lua` : pont **en lecture** (`exports.<métier>:PhoneBridge`) qui

@@ -120,8 +120,10 @@ local function Collect(target, amount)
     return false
 end
 
-local function ToSociety(amount)
-    if Config.Fines.toSociety then pcall(function() core:AddSocietyMoney(Config.Job.name, amount, 'Amende') end) end
+-- Compte de l'agence de l'agent qui a verbalisé (agent parti : première agence)
+local function ToSociety(amount, officerCid)
+    local job = P.JobOf(officerCid) or P.MainJob()
+    if Config.Fines.toSociety then pcall(function() core:AddSocietyMoney(P.Society(job), amount, 'Amende') end) end
 end
 
 P.Actions.fine = { perm = 'fine', duty = true, fn = function(src, d)
@@ -143,7 +145,7 @@ P.Actions.fine = { perm = 'fine', duty = true, fn = function(src, d)
     local paidWith = Collect(t, amount)
     if paidWith then
         MySQL.update.await('UPDATE `police_fines` SET `paid` = 1 WHERE `id` = ?', { id })
-        ToSociety(amount)
+        ToSociety(amount, P.Cid(src))
         if Config.Fines.toSociety then P.Commission(P.Cid(src), amount, ('Amende %s'):format(name), tostring(id)) end
         P.Notify(t, ('Amende de %d $ (%s) prélevée %s. Motif : %s.'):format(amount, o.label, paidWith == 'bank' and 'sur votre compte' or 'en liquide', reason), 'inform')
     else
@@ -174,7 +176,7 @@ RegisterNetEvent('police:server:payFine', function(id)
         local n = MySQL.update.await('UPDATE `police_fines` SET `paid` = 1 WHERE `id` = ? AND `paid` = 0', { f.id })
         if n and n > 0 then
             if Collect(src, f.amount) then
-                ToSociety(f.amount)
+                ToSociety(f.amount, f.officer_cid)
                 if Config.Fines.toSociety and f.officer_cid then P.Commission(f.officer_cid, f.amount, ('Amende %s'):format(f.name or ''), tostring(f.id)) end
                 P.Notify(src, ('Amende payée : %d $.'):format(f.amount), 'success')
             else

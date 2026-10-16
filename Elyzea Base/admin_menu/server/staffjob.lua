@@ -39,7 +39,10 @@ function A.join(J, src, d)
     if not p then return AM.notify(src, 'Personnage non chargé.', 'error') end
     local j = p.PlayerData.job or {}
     local isStaffJob = false
-    for _, k in ipairs(ORDER) do if JOBS[k].job == j.name then isStaffJob = true end end
+    for _, k in ipairs(ORDER) do
+        -- Métier d'une agence (elyzea_agences : plusieurs polices, EMS…) : déjà un métier staff
+        if JOBS[k].job == j.name or (available(JOBS[k]) and call(JOBS[k], 'AdminInfo', src)) then isStaffJob = true end
+    end
     if not prevJob(src) and not isStaffJob then
         core:SetMetadata(src, KEY, { name = j.name or 'unemployed', grade = j.grade and j.grade.level or 0, label = j.label })
     end

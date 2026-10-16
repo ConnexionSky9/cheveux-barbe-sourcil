@@ -34,6 +34,14 @@ local function managedElsewhere()
     add('elyzea_entreprises', function() return exports.elyzea_entreprises:GetJobNames() end)
     add('elyzea_concess_air', function() return exports.elyzea_concess_air:GetJobName() end)
     for _, n in ipairs((Config.Ems or {}).jobs or {}) do set[n] = set[n] or 'elyzea_ems' end
+    -- Agences des métiers (elyzea_agences) : chaque EMS, garage mécano et agence Dynasty 8
+    for _, res in ipairs({ 'elyzea_ems', 'elyzea_meca', 'elyzea_dynasty' }) do
+        add(res, function()
+            local l = {}
+            for _, a in ipairs(exports[res]:GetAgencies() or {}) do l[#l + 1] = a.job end
+            return l
+        end)
+    end
     return set
 end
 

@@ -76,6 +76,7 @@ P.Actions.ppaDeliver = { perm = nil, fn = function(src, d)
     delivering[cid] = true
     local ok, res = pcall(function()
         local uid = P.Uid('PPA')
+        local job = P.MyJob(src)   -- agence qui délivre (son compte encaisse)
         local name, g = P.Name(t), P.Grade(src)
         MySQL.insert.await([[INSERT INTO `ems_ppa` (`uid`, `citizenid`, `name`, `type`, `ems_cid`, `ems_name`, `ems_grade`, `price`, `payment_status`, `delivery_status`)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')]], { uid, cid, name, set.kind, P.Cid(src), P.Name(src), g and g.name, set.price })
@@ -89,21 +90,21 @@ P.Actions.ppaDeliver = { perm = nil, fn = function(src, d)
             method = P.Charge(t, set.price, ('%s %s'):format(set.label, uid))
             if not method then
                 Upd('failed', 'cancelled')
-                MySQL.insert.await([[INSERT INTO `ems_invoices` (`uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `amount`, `status`)
-                    VALUES (?, 'ppa', ?, ?, ?, ?, ?, ?, 'failed')]], { uid, cid, name, P.Cid(src), P.Name(src), json.encode({ { id = set.kind, label = set.label, price = set.price } }), set.price })
+                MySQL.insert.await([[INSERT INTO `ems_invoices` (`job`, `uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `amount`, `status`)
+                    VALUES (?, ?, 'ppa', ?, ?, ?, ?, ?, ?, 'failed')]], { job, uid, cid, name, P.Cid(src), P.Name(src), json.encode({ { id = set.kind, label = set.label, price = set.price } }), set.price })
                 P.Notify(t, ('%s : paiement refusé (%d $).'):format(set.label, set.price), 'error')
                 return { error = ('%s n\'a pas assez d\'argent (%d $). Rien n\'a été délivré.'):format(name, set.price) }
             end
-            if not P.SocietyAdd(set.price, ('%s %s · %s'):format(set.label, uid, name)) then
+            if not P.SocietyAdd(set.price, ('%s %s · %s'):format(set.label, uid, name), job) then
                 P.Refund(cid, set.price, method, 'Annulation ' .. uid)
                 Upd('refunded', 'cancelled')
                 return { error = 'Compte de l\'entreprise indisponible : le bénéficiaire a été remboursé, rien n\'a été délivré.' }
             end
-            txid = P.Tx({ type = 'in', category = 'ppa', amount = set.price, reason = set.label, actorCid = P.Cid(src), actorName = P.Name(src),
+            txid = P.Tx({ job = job, type = 'in', category = 'ppa', amount = set.price, reason = set.label, actorCid = P.Cid(src), actorName = P.Name(src),
                 targetCid = cid, targetName = name, ref = uid })
         end
-        MySQL.insert.await([[INSERT INTO `ems_invoices` (`uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `amount`, `status`, `method`, `txid`)
-            VALUES (?, 'ppa', ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { uid, cid, name, P.Cid(src), P.Name(src), json.encode({ { id = set.kind, label = set.label, price = set.price } }),
+        MySQL.insert.await([[INSERT INTO `ems_invoices` (`job`, `uid`, `kind`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `items`, `amount`, `status`, `method`, `txid`)
+            VALUES (?, ?, 'ppa', ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { job, uid, cid, name, P.Cid(src), P.Name(src), json.encode({ { id = set.kind, label = set.label, price = set.price } }),
             set.price, set.price > 0 and 'paid' or 'free', method, txid })
         Upd(set.price > 0 and 'paid' or 'free', 'pending', ', `invoice_uid` = `uid`')
 
@@ -113,11 +114,11 @@ P.Actions.ppaDeliver = { perm = nil, fn = function(src, d)
             local why = okGive and msg or 'erreur du système de papiers'
             -- 3. Compensation : remboursement intégral
             if set.price > 0 then
-                local back = P.SocietyRemove(set.price, ('Remboursement %s (remise impossible)'):format(uid))
+                local back = P.SocietyRemove(set.price, ('Remboursement %s (remise impossible)'):format(uid), job)
                 local refunded = back and P.Refund(cid, set.price, method, 'Remboursement ' .. uid)
-                if back and not refunded then P.SocietyAdd(set.price, ('Annulation remboursement %s'):format(uid)) end
+                if back and not refunded then P.SocietyAdd(set.price, ('Annulation remboursement %s'):format(uid), job) end
                 if refunded then
-                    P.Tx({ type = 'out', category = 'refund', amount = set.price, reason = set.label .. ' non remis', actorName = 'Système', targetCid = cid, targetName = name, ref = uid })
+                    P.Tx({ job = job, type = 'out', category = 'refund', amount = set.price, reason = set.label .. ' non remis', actorName = 'Système', targetCid = cid, targetName = name, ref = uid })
                     MySQL.update.await('UPDATE `ems_invoices` SET `status` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?', { 'refunded', P.Clean(why, 160), uid })
                     Upd('refunded', 'failed')
                 else
@@ -160,7 +161,7 @@ P.Actions.ppaSettings = { perm = nil, fn = function(src)
     for _, s in pairs(P.PpaSettings()) do list[#list + 1] = s end
     table.sort(list, function(a, b) return a.kind < b.kind end)
     local allowed = {}
-    for _, g in ipairs(P.SortedGrades()) do
+    for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do
         allowed[#allowed + 1] = { name = g.name, level = g.level, civil = g.perms.ppa_civil == true, fdo = g.perms.ppa_fdo == true }
     end
     return { list = list, grades = allowed, canEdit = P.Can(src, 'ppa_manage'), canCivil = P.Can(src, 'ppa_civil'), canFdo = P.Can(src, 'ppa_fdo'),
