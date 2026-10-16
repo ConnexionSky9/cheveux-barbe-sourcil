@@ -147,15 +147,67 @@ if not Config.ReplaceF6 then
 end
 
 -- ---------------------------------------------------------------------
+-- Voix et sonneries d'appel
+--  Les sons « Remote_Ring » / « Dial_and_Remote_Ring » bouclent tout seuls :
+--  ils sont joués sur un identifiant réservé pour pouvoir être ARRÊTÉS
+--  (décroché, raccroché, sans réponse, déconnexion).
+-- ---------------------------------------------------------------------
+local function Voice(channel)
+    if GetResourceState('pma-voice') ~= 'started' then return end
+    pcall(function() exports['pma-voice']:setCallChannel(channel or 0) end)
+end
+
+local ring = nil   -- { sound, callId }
+local function StopRing()
+    if not ring then return end
+    StopSound(ring.sound)
+    ReleaseSoundId(ring.sound)
+    ring = nil
+end
+local function StartRing(callId, incoming)
+    StopRing()
+    local id = GetSoundId()
+    ring = { sound = id, callId = callId }
+    if incoming then PlaySoundFrontend(id, 'Remote_Ring', 'Phone_SoundSet_Michael', true)
+    else PlaySoundFrontend(id, 'Dial_and_Remote_Ring', 'Phone_SoundSet_Default', true) end
+    -- Filet de sécurité : jamais de sonnerie sans appel en attente
+    CreateThread(function()
+        local limit = GetGameTimer() + (Config.Calls.ringSeconds + 5) * 1000
+        while ring and ring.sound == id do
+            if not call or call.id ~= callId or (call.state ~= 'incoming' and call.state ~= 'outgoing') or GetGameTimer() > limit then
+                if ring and ring.sound == id then StopRing() end
+                break
+            end
+            Wait(250)
+        end
+    end)
+end
+
+-- ---------------------------------------------------------------------
 -- NUI
 -- ---------------------------------------------------------------------
 RegisterNUICallback('req', function(body, cb)
     local action, data = tostring(body.action or ''), type(body.data) == 'table' and body.data or {}
     if action == 'alert' then data.street = Street() end
+    -- Raccrocher : la tonalité s'arrête tout de suite, sans attendre le serveur
+    if action == 'hangup' then StopRing() end
     local r = Req(action, data)
     cb(r)
     if r.ok and r.call then
         call = r.call
+        if call.state == 'outgoing' then StartRing(call.id, false) end
+    end
+    if action == 'hangup' then
+        if call then
+            call = nil
+            Voice(0)
+            -- Retour à l'animation « lecture » (ou rangement si le téléphone est fermé)
+            local ped = PlayerPedId()
+            StopAnimTask(ped, Config.Anim.dict, Config.Anim.call, 2.0)
+            StopAnimTask(ped, Config.Anim.carDict, Config.Anim.call, 2.0)
+            if isOpen then PlayAnim() else StopAnim() end
+        end
+        StopRing()
     end
     -- Tablette / menu rapide : le téléphone se range, l'écran du métier s'ouvre
     if r.ok and (action == 'tablet' or action == 'menu') and r.res then
@@ -185,28 +237,19 @@ end)
 -- ---------------------------------------------------------------------
 -- Appels (pma-voice)
 -- ---------------------------------------------------------------------
-local function Voice(channel)
-    if GetResourceState('pma-voice') ~= 'started' then return end
-    pcall(function() exports['pma-voice']:setCallChannel(channel or 0) end)
-end
-
 RegisterNetEvent('elyzea_jobphone:client:call', function(c)
     if type(c) ~= 'table' then return end
     if c.state == 'incoming' then
         call = c
-        PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
+        StartRing(c.id, true)
         if not isOpen then Notify(('Appel pro de %s (%s) : sortez votre téléphone pour répondre.'):format(c.name, c.number or '?')) end
-        CreateThread(function()
-            while call and call.id == c.id and call.state == 'incoming' do
-                PlaySoundFrontend(-1, 'Remote_Ring', 'Phone_SoundSet_Michael', true)
-                Wait(2500)
-            end
-        end)
     elseif c.state == 'active' then
+        StopRing()
         call = c
         Voice(c.channel)
         if isOpen then PlayAnim() end
     elseif c.state == 'ended' then
+        if ring and ring.callId == c.id then StopRing() end
         if call and call.id == c.id then
             call = nil
             Voice(0)
@@ -277,6 +320,7 @@ AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     if isOpen then SetNuiFocus(false, false) SetNuiFocusKeepInput(false) end
     StopAnim()
+    StopRing()
     if call then Voice(0) end
     ClearBlips()
 end)
