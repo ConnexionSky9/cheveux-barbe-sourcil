@@ -61,6 +61,15 @@ Config.Keys = {
 Config.PvP = true
 Config.DisableWantedLevel = true
 Config.DisableDispatch = true       -- pas de police / ambulances PNJ
+
+-- Circulation : aucun PNJ au volant (voitures, motos, camions, bateaux, trains,
+-- avions et hélicoptères d'ambiance). Les véhicules garés restent.
+-- Les PNJ créés par les scripts (gardes du corps, missions…) ne sont pas touchés.
+Config.NoTraffic = {
+    enabled = true,
+    parkedVehicles = 1.0,   -- densité des véhicules garés (0.0 = aucun, 1.0 = normal)
+    trains = false,         -- true = garder les trains (conduits par un PNJ)
+}
 Config.DisableHealthRegen = true
 Config.BloodTypes = { 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-' }
 

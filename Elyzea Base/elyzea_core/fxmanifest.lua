@@ -23,6 +23,7 @@ server_scripts {
     'server/society.lua',
     'server/keys.lua',
     'server/loops.lua',
+    'server/traffic.lua',
     'server/main.lua',
 }
 
@@ -32,6 +33,7 @@ client_scripts {
     'client/vehicle.lua',
     'client/keys.lua',
     'client/world.lua',
+    'client/traffic.lua',
 }
 
 ui_page 'html/index.html'
