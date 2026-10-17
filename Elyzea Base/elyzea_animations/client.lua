@@ -13,7 +13,7 @@ local Config = {
     NearbyRadius   = 3.0,          -- distance max (mètres) pour les animations partagées (3 m comme rpemotes)
     -- Aperçu 3D : caméra devant ton personnage pendant que le menu est ouvert
     PreviewCam = {
-        side   = 1.1,   -- décalage sur le côté (le perso apparaît à l'opposé du menu)
+        side   = 0.0,   -- décalage sur le côté : 0 = perso au milieu de l'écran (1.1 = à l'opposé du menu)
         dist   = 3.3,   -- distance de la caméra (plus grand = perso plus petit)
         height = 0.15,  -- hauteur de la caméra
         fov    = 50.0,  -- angle de vue

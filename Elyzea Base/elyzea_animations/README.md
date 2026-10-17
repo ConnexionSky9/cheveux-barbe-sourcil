@@ -60,7 +60,7 @@ local Config = {
     RefuseKey      = 'N',           -- refuser une demande
     NearbyRadius   = 3.0,           -- distance max (mètres) pour les animations partagées
     PreviewCam = {                  -- caméra de l'aperçu 3D
-        side   = 1.1,               -- décalage sur le côté
+        side   = 0.0,               -- décalage sur le côté (0 = perso au milieu de l'écran)
         dist   = 3.3,               -- distance (plus grand = perso plus petit)
         height = 0.15,              -- hauteur
         fov    = 50.0,              -- angle de vue
@@ -99,7 +99,7 @@ Quand tu ouvres le menu, la caméra se place devant ton personnage. Quand tu sur
 
 Comment ça marche : une copie de ton personnage, visible seulement par toi, prend ta place pendant que le menu est ouvert. Les autres joueurs te voient normalement, debout, tant que tu n'as pas lancé d'animation. Quand tu fermes le menu, la caméra revient derrière toi et la copie disparaît.
 
-- Le personnage s'affiche du côté opposé au menu (menu à gauche par défaut, perso à droite).
+- Le personnage s'affiche au milieu de l'écran, face à la caméra (`side = 1.1` pour le remettre à l'opposé du menu).
 - L'aperçu est désactivé dans un véhicule.
 - Tu peux le couper dans les paramètres du menu (« Aperçu 3D »).
 - Pour régler le cadrage, change `PreviewCam` dans `client.lua` (par exemple `dist = 4.0` pour voir le perso plus petit).
