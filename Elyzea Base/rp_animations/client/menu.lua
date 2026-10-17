@@ -86,7 +86,8 @@ local function setOpen(state, extra)
         local data = { action = 'open', catalog = catalogForUi(), favorites = favorites, recents = recents, prefs = RPA.Prefs,
             avail = A.avail, checked = A.checked, current = cur and { id = cur.e.id, label = cur.e.label } or nil,
             keys = { open = Config.OpenKey, stop = Config.StopKey, accept = Config.AcceptKey, refuse = Config.RefuseKey },
-            incoming = incoming, outgoing = outgoing }
+            incoming = incoming, outgoing = outgoing,
+            emotesMenu = GetResourceState('elyzea_animations') == 'started' }
         for k, v in pairs(extra or {}) do data[k] = v end
         SendNUIMessage(data)
         if not A.checked then A.CheckAll(M.PushAvail) end
@@ -101,6 +102,17 @@ RegisterCommand('rp_animations_menu', function() setOpen(not open) end, false)
 RegisterKeyMapping('rp_animations_menu', 'Danses : ouvrir le menu', 'keyboard', Config.OpenKey)
 
 RegisterNUICallback('close', function(_, cb) setOpen(false) cb('ok') end)
+
+-- Retour au menu des animations d'Elyzea (K)
+RegisterNUICallback('emotesMenu', function(_, cb)
+    cb('ok')
+    setOpen(false)
+    if GetResourceState('elyzea_animations') == 'started' then
+        pcall(function() exports.elyzea_animations:OpenMenu() end)
+    end
+end)
+
+exports('Open', function() setOpen(true) end)
 
 -- ── Joueurs proches (pour inviter) ───────────────────────────────────────
 local function nearby()

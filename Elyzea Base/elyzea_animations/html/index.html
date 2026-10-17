@@ -497,10 +497,13 @@ function toast(t,kind){const e=$("toast");e.textContent=t;e.classList.remove("ok
 
 /* ===================== RENDU ===================== */
 function renderRail(){
+  // Slows & duos (rp_animations) : juste sous Récents, visible sans faire défiler
+  const dances=ENV.dances?`<button class="cat" data-id="__dances" type="button" title="Slows, danses de couple et animations romantiques (rp_animations)">
+      <i data-lucide="heart"></i>Slows &amp; duos<span class="n">›</span></button>`:"";
   $("rail").innerHTML=CATS.map(c=>{
     const n=c.id==="fav"?favs.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.id==="recent"?recent.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.items.filter(canDo).length;
     return `<button class="cat" role="tab" data-id="${c.id}" ${c.side?`data-side="${c.side}"`:""} aria-selected="${c.id===cat&&!$("q").value}" type="button">
-      <i data-lucide="${c.icon}"></i>${c.name}<span class="n">${n}</span></button>`;
+      <i data-lucide="${c.icon}"></i>${c.name}<span class="n">${n}</span></button>`+(c.id==="recent"?dances:"");
   }).join("");
 }
 function tile(i,favView){
@@ -646,6 +649,7 @@ function setEnv(e){
   if(Array.isArray(e.hidden)) ENV.hidden=new Set(e.hidden);
   if(typeof e.inVehicle==="boolean") ENV.inVehicle=e.inVehicle;
   if(typeof e.male==="boolean") ENV.male=e.male;
+  if(typeof e.dances==="boolean") ENV.dances=e.dances;
   renderAll();
 }
 let pvCmd=null,pvTimer=null;
@@ -674,11 +678,12 @@ $("listwrap").addEventListener("mouseleave",endPreview);
 /* ===================== OUVERTURE ===================== */
 const panel=$("panel");
 function open(){panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
-function close(){
+function hidePanel(){
   panel.classList.remove("open");
   ["settings","picker","bindSheet"].forEach(id=>$(id).classList.remove("open"));
-  bindingEmote=null;endPreview();$("pv").classList.remove("show");$("hint").style.opacity=1;document.activeElement?.blur();nui("close");
+  bindingEmote=null;endPreview();$("pv").classList.remove("show");$("hint").style.opacity=1;document.activeElement?.blur();
 }
+function close(){hidePanel();nui("close")}
 window.addEventListener("message",e=>{
   const d=e.data||{};
   if(d.env) setEnv(d.env);
@@ -726,6 +731,8 @@ function endBind(){binding=null;$("bindOpen").classList.remove("listening");$("b
 /* ===================== ÉVÉNEMENTS ===================== */
 $("rail").addEventListener("click",e=>{
   const b=e.target.closest(".cat"); if(!b) return;
+  // Slows & danses à deux : le menu rp_animations prend le relais
+  if(b.dataset.id==="__dances"){hidePanel();nui("openDances");return}
   cat=b.dataset.id;$("q").value="";renderAll();$("listwrap").scrollTop=0;
 });
 function gridAction(e){

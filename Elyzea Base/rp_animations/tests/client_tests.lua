@@ -268,3 +268,44 @@ T('Arrêt de la ressource pendant un duo : personnage libéré', function()
     Mock.Fire('onResourceStop', 'rp_animations')
     check(not CM.attached[ME] and CM.anims[ME] == nil, 'détaché et sans clip')
 end)
+
+T('elyzea_animations : sa touche X (export Stop) arrête une danse en duo et prévient le serveur', function()
+    startDuo('B')
+    check(Mock.exported.Stop and Mock.exported.IsBusy(), 'exports disponibles')
+    Mock.exported.Stop()
+    check(not RPA.Current() and not CM.attached[ME], 'danse arrêtée et B détaché')
+    check(#CM.Server('rp_animations:sv:stop') == 1, 'serveur prévenu')
+end)
+
+T('elyzea_animations : son emote / placement est arrêté avant une danse', function()
+    local released = 0
+    Mock.resources.elyzea_animations = 'started'
+    Mock.foreign.elyzea_animations = { StopEmote = function() released = released + 1 end }
+    CM.Nui('play', { id = 'solo_lente' })
+    Mock.Advance(100)
+    check(released == 1 and RPA.Current(), 'emote Elyzea arrêtée avant la danse solo')
+    RPA.Stop('stop')
+    CM.FromServer('rp_animations:cl:prepare', { sid = 7, anim = 'slow_classique', role = 'A', partner = 2, offsets = {} })
+    check(released == 2, 'emote Elyzea arrêtée avant une danse en duo')
+end)
+
+T('elyzea_animations : bouton retour vers le menu K et export Open', function()
+    local opened = 0
+    Mock.resources.elyzea_animations = 'started'
+    Mock.foreign.elyzea_animations = { OpenMenu = function() opened = opened + 1 end }
+    Mock.exported.Open()
+    check(CM.focus == true, 'menu des danses ouvert par export')
+    local o = CM.NuiMsgs('open')
+    check(o[#o].emotesMenu == true, 'bouton retour affiché')
+    CM.Nui('emotesMenu')
+    check(CM.focus == false and opened == 1, 'menu K rouvert, menu des danses fermé')
+end)
+
+T('Sans elyzea_animations : aucune erreur, pas de bouton retour', function()
+    CM.Nui('play', { id = 'solo_lente' })
+    Mock.Advance(100)
+    check(RPA.Current(), 'danse lancée')
+    Mock.exported.Open()
+    local o = CM.NuiMsgs('open')
+    check(o[#o].emotesMenu == false, 'pas de bouton retour')
+end)

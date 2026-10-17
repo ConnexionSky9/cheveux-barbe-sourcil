@@ -13,6 +13,12 @@ function RPA.Current() return Cur end
 function RPA.InUseDict(d) return Cur ~= nil and Cur.clip ~= nil and Cur.clip.d == d end
 function RPA.Busy() return Cur ~= nil end
 
+-- elyzea_animations (menu K) : libère le personnage avant une danse (emote rpemotes, placement figé)
+local function releaseEmotes()
+    if GetResourceState('elyzea_animations') ~= 'started' then return end
+    pcall(function() exports.elyzea_animations:StopEmote() end)
+end
+
 local function partnerPed(c)
     local pid = GetPlayerFromServerId(c.partner)
     if pid == -1 then return nil end
@@ -139,6 +145,7 @@ function RPA.PlaySolo(e)
             print('[rp_animations] ' .. e.id .. ' indisponible : ' .. tostring(why))
             return notify('Animation indisponible : fichiers absents (voir F8)', 'err')
         end
+        releaseEmotes()
         if Cur then cleanup() end
         local ped = PlayerPedId()
         if not e.move then ClearPedTasks(ped) end
@@ -189,6 +196,7 @@ end
 RegisterNetEvent('rp_animations:cl:prepare', function(data)
     local e = Catalog.Get(data.anim)
     if not e then return TriggerServerEvent('rp_animations:sv:ready', data.sid, false, 'fichiers') end
+    releaseEmotes()
     if Cur then cleanup() end
     local c = { kind = 'duo', e = e, sid = data.sid, role = data.role, partner = data.partner, state = 'preparing', step = 1,
         fade = RPA.TakeFadeChoice and RPA.TakeFadeChoice(e.id) or false, grace = 0 }
@@ -268,6 +276,10 @@ end
 RegisterCommand(Config.StopCommand, function() RPA.Stop('stop') end, false)
 RegisterCommand('rp_animations_stop', function() RPA.Stop('stop') end, false)
 RegisterKeyMapping('rp_animations_stop', 'Danses : arrêter l\'animation', 'keyboard', Config.StopKey)
+
+-- Pour les autres ressources (elyzea_animations : touche X, bouton du menu K)
+exports('Stop', function() return RPA.Stop('stop') end)
+exports('IsBusy', function() return Cur ~= nil end)
 
 AddEventHandler('onResourceStop', function(name)
     if name ~= GetCurrentResourceName() or not Cur then return end

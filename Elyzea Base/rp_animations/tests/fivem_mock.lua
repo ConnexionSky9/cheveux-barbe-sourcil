@@ -107,7 +107,17 @@ function GetCurrentResourceName() return 'rp_animations' end
 function GetResourceKvpString(k) return Mock.kvp[k] end
 function SetResourceKvp(k, v) Mock.kvp[k] = v end
 function GetConvar(k, d) return Mock.convars[k] or d end
-exports = setmetatable({}, { __index = function() return setmetatable({}, { __index = function() return function() return nil end end }) end })
+-- exports('Nom', fn) enregistre ; exports.ressource:Nom() appelle Mock.foreign[ressource][Nom] s'il existe
+Mock.exported, Mock.foreign, Mock.resources = {}, {}, { rp_animations = 'started' }
+exports = setmetatable({}, {
+    __call = function(_, name, fn) Mock.exported[name] = fn end,
+    __index = function(_, res)
+        return setmetatable({}, { __index = function(_, fname)
+            return function(_, ...) local f = Mock.foreign[res] and Mock.foreign[res][fname] if f then return f(...) end end
+        end })
+    end,
+})
+function GetResourceState(res) return Mock.resources[res] or 'missing' end
 
 local rawprint = print
 function print(...)

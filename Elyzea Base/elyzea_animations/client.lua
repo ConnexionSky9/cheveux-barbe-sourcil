@@ -53,6 +53,20 @@ end
 
 -- Animation en cours (lancée par le menu, un raccourci ou /placer)
 local currentEmote, currentLabel = nil, nil
+local isPlayingEmote
+
+-- Secours local : si rpemotes accepte la commande mais ne démarre pas réellement
+-- l'animation (notamment après un déplacement/placement), on la joue directement.
+-- Les objets créés par ce secours sont suivis afin d'être supprimés proprement.
+local fallbackProps = {}
+
+local function clearFallbackProps()
+    for i = #fallbackProps, 1, -1 do
+        local obj = fallbackProps[i]
+        if DoesEntityExist(obj) then DeleteEntity(obj) end
+        fallbackProps[i] = nil
+    end
+end
 
 -- Personnage figé après un placement en hauteur (assis sur un muret, une chaise...)
 local placed = nil
@@ -93,7 +107,8 @@ end
 
 local function getEnv()
     local ped = PlayerPedId()
-    return { hidden = hiddenList, inVehicle = IsPedInAnyVehicle(ped, false), male = IsPedMale(ped) }
+    return { hidden = hiddenList, inVehicle = IsPedInAnyVehicle(ped, false), male = IsPedMale(ped),
+        dances = GetResourceState('rp_animations') == 'started' }
 end
 
 RegisterCommand('elyzea_anim_check', function()
@@ -197,14 +212,14 @@ local function applyEmoteToPed(ped, e, props, alive, alpha)
 
     if e.k == 'w' then
         if loadDict(e.d) and alive() then
-            TaskPlayAnim(ped, e.d, 'walk', 8.0, -8.0, -1, 1, 0.0, false, false, false)
+            TaskPlayAnim(ped, e.d, 'walk', 8.0, -8.0, -1, e.f or 1, 0.0, false, false, false)
         end
     elseif e.k == 'm' then
         SetFacialIdleAnimOverride(ped, e.d, 0)
     elseif e.d and e.d:find('Scenario') then
         TaskStartScenarioInPlace(ped, e.a, 0, true)
     elseif e.d and loadDict(e.d) and alive() then
-        TaskPlayAnim(ped, e.d, e.a, 8.0, -8.0, -1, 1, 0.0, false, false, false)
+        TaskPlayAnim(ped, e.d, e.a, 8.0, -8.0, -1, e.f or 1, 0.0, false, false, false)
     end
 
     if e.p and alive() then
@@ -288,6 +303,11 @@ RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une deman
 -- ---------------------------------------------------------
 local function playEmote(emote, etype, label, target)
     if not emote then return end
+
+    -- Si une animation de secours précédente avait créé des objets, on les enlève
+    -- avant de demander une nouvelle animation à rpemotes.
+    clearFallbackProps()
+
     if etype == 'walk' then
         local style = emote:gsub('^walk_', '')
         ExecuteCommand(Config.WalkCommand .. ' ' .. style)
@@ -301,14 +321,75 @@ local function playEmote(emote, etype, label, target)
         currentEmote, currentLabel = emote, label
         -- Déjà figé à un endroit placé : on garde la place pour la nouvelle animation
         if placed then placed.cmd, placed.since = emote, GetGameTimer() end
+
+        -- Tablet2 : version Elyzea dédiée, debout et mobile.
+        -- On ne passe pas par rpemotes ici, car sa définition de tablet2 peut
+        -- utiliser une pose assise/immobile et écraser notre animation.
+        if emote == 'tablet2' then
+            local e = ElyzeaAnims[emote]
+            if e then
+                applyEmoteToPed(PlayerPedId(), e, fallbackProps, function()
+                    return currentEmote == emote and not IsEntityDead(PlayerPedId())
+                end)
+            end
+            return
+        end
+
+        -- 1) On laisse rpemotes gérer normalement l'animation.
         ExecuteCommand(Config.EmoteCommand .. ' ' .. emote)
+
+        -- 2) Vérification réelle. Si rpemotes n'a pas démarré l'animation,
+        --    on utilise les mêmes données que l'aperçu/placement pour la lancer.
+        local requested = emote
+        CreateThread(function()
+            Wait(350)
+            if currentEmote ~= requested then return end
+
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) or IsPedInAnyVehicle(ped, false) then return end
+            if isPlayingEmote(ped, requested) then return end
+
+            local e = ElyzeaAnims[requested]
+            if not e or e.k ~= 'e' then return end
+
+            clearFallbackProps()
+            applyEmoteToPed(ped, e, fallbackProps, function()
+                return currentEmote == requested and not IsEntityDead(PlayerPedId())
+            end)
+
+            -- Le placement doit pouvoir surveiller cette animation comme une animation rpemotes.
+            if placed and placed.cmd == requested then
+                placed.since = GetGameTimer()
+            end
+        end)
     end
 end
 
 local function stopEmote()
+    -- X doit toujours arrêter l'animation, y compris une animation placée/fixée.
+    local ped = PlayerPedId()
+
+    -- Demande d'abord à rpemotes de nettoyer son propre état (partagées incluses).
     ExecuteCommand(Config.CancelCommand)
+
+    -- Danse rp_animations en cours (solo ou à deux) : arrêt propre, le partenaire est prévenu
+    if GetResourceState('rp_animations') == 'started' then
+        pcall(function() exports.rp_animations:Stop() end)
+    end
+
+    -- Nettoyage local de secours : indispensable si l'animation a été lancée
+    -- directement par Elyzea après un placement ou si rpemotes ne répond pas.
+    if DoesEntityExist(ped) then
+        ClearPedTasksImmediately(ped)
+        ClearPedSecondaryTask(ped)
+        StopAnimTask(ped, '', '', 1.0)
+        FreezeEntityPosition(ped, false)
+    end
+
+    clearFallbackProps()
     currentEmote, currentLabel = nil, nil
     releasePlaced()
+    placing = nil
     SendNUIMessage({ action = 'stopped' })
 end
 
@@ -355,7 +436,7 @@ local function groundBelow(x, y, z, ignore)
     if hit then return pos.z end
 end
 
-local function isPlayingEmote(ped, cmd)
+isPlayingEmote = function(ped, cmd)
     local e = ElyzeaAnims[cmd]
     if not e or not e.d then return true end
     if e.d:find('Scenario') then return IsPedUsingAnyScenario(ped) end
@@ -654,6 +735,18 @@ end
 -- ---------------------------------------------------------
 RegisterNUICallback('close', function(_, cb) closeMenu() cb(true) end)
 
+-- Bouton « Slows & danses à deux » : ouvre le menu de rp_animations
+RegisterNUICallback('openDances', function(_, cb)
+    cb(true)
+    if GetResourceState('rp_animations') ~= 'started' then return notify('Le menu des danses n\'est pas démarré', 'err') end
+    closeMenu()   -- l'interface s'est déjà masquée elle-même (index.html)
+    pcall(function() exports.rp_animations:Open() end)
+end)
+
+-- Utilisés par rp_animations : libérer le personnage avant une danse, revenir à ce menu
+exports('StopEmote', stopEmote)
+exports('OpenMenu', function() openMenu() end)
+
 RegisterNUICallback('playEmote', function(data, cb)
     playEmote(data.emote, data.type, data.label, data.target)
     cb(true)
@@ -748,5 +841,6 @@ AddEventHandler('onResourceStop', function(res)
     if menuOpen then SetNuiFocus(false, false) end
     closePreview()
     if placing then placing.abort = true end
+    clearFallbackProps()
     releasePlaced()
 end)

@@ -802,7 +802,7 @@ ElyzeaAnims = {
     ["brief2"] = {d="missheistdocksprep1hold_cellphone",a="static",l=1,p={{"prop_ld_case_01",57005,0.1,0.0,0.0,0.0,280.0,53.0}},k="e"},
     ["guncase"] = {d="move_weapon@jerrycan@generic",a="idle",l=1,p={{"prop_gun_case_01",57005,0.1,0.02,-0.02,40.0,145.0,115.0}},k="e"},
     ["tablet"] = {d="amb@world_human_tourist_map@male@base",a="base",l=1,p={{"prop_cs_tablet",28422,0.0,-0.03,0.0,20.0,-90.0,0.0}},k="e"},
-    ["tablet2"] = {d="amb@code_human_in_bus_passenger_idles@female@tablet@idle_a",a="idle_a",l=1,p={{"prop_cs_tablet",28422,-0.05,0.0,0.0,0.0,0.0,0.0}},k="e"},
+    ["tablet2"] = {d="amb@code_human_in_bus_passenger_idles@female@tablet@base",a="base",l=49,p={{"prop_cs_tablet",60309,0.03,0.002,0.0,10.0,160.0,0.0}},k="e",f=49},
     ["phonecall"] = {d="cellphone@",a="cellphone_call_listen_base",l=1,p={{"prop_phone_taymckenzienz",28422,0.0,0.0,0.0,0.0,0.0,0.0}},k="e"},
     ["phonecall2"] = {d="random@kidnap_girl",a="ig_1_girl_on_phone_loop",l=1,p={{"prop_phone_taymckenzienz",28422,0.0,0.0,0.0,0.0,0.0,0.0}},k="e"},
     ["wt"] = {d="cellphone@",a="cellphone_text_read_base",l=1,p={{"prop_cs_hand_radio",28422,0.0,0.0,0.0,0.0,0.0,0.0}},k="e"},

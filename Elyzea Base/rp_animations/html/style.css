@@ -73,6 +73,9 @@ kbd{font-family:var(--ui);font-size:11px;padding:1px 6px;border-radius:5px;borde
 .icon-btn{width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:12px;background:rgba(0,0,0,.28);
   box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
 .icon-btn:hover{color:var(--ivory)}
+.back-btn{height:40px;padding:0 13px;border:0;border-radius:12px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--gold);font-weight:600;white-space:nowrap}
+.back-btn:hover{color:var(--ivory)}
 .cat-head{padding:6px 22px 10px}
 .cat-head h1{margin:0;font-family:var(--serif);font-weight:700;font-size:30px;color:var(--gold);letter-spacing:.01em}
 .cat-head p{margin:2px 0 0;color:var(--muted);font-size:14px}

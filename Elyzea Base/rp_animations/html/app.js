@@ -283,6 +283,7 @@ function handle(m) {
       S.favorites = m.favorites || []; S.recents = m.recents || []; S.prefs = m.prefs || {};
       S.avail = m.avail || {}; S.checked = !!m.checked; S.current = m.current || null; S.keys = m.keys || {};
       S.open = true;
+      $('btnEmotes').hidden = !m.emotesMenu;
       $('panel').classList.add('open'); $('panel').setAttribute('aria-hidden', 'false');
       render();
       if (m.incoming) showIncoming(m.incoming);
@@ -337,6 +338,7 @@ $('filters').addEventListener('click', (ev) => {
   render();
 });
 $('btnClose').addEventListener('click', closeMenu);
+$('btnEmotes').addEventListener('click', () => post('emotesMenu'));
 $('btnStop').addEventListener('click', () => post('stop'));
 $('btnSettings').addEventListener('click', () => { renderSettings(); openModal('modalSettings'); });
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closeModal(b.closest('.modal').id)));

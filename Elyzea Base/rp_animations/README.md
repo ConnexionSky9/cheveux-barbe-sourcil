@@ -20,6 +20,15 @@ partenaires, arrêt immédiat et nettoyage fiable. Toutes les animations sont ac
 Le menu ne propose que ce qui peut vraiment être joué : chaque clip est vérifié chez le joueur (dictionnaire présent et
 clip de durée non nulle). Une animation dont les fichiers manquent est marquée « Fichiers absents » et ne se lance pas.
 
+## Avec elyzea_animations (menu K)
+
+Les deux menus sont reliés : bouton **Slows & duos** dans le menu K pour venir ici, bouton **‹ Animations** pour y
+retourner. La touche X d'elyzea_animations arrête aussi une danse (le partenaire est prévenu), et lancer une danse arrête
+d'abord l'emote ou le placement Elyzea en cours. Il faut la version d'`elyzea_animations` fournie dans ce dépôt (elle ajoute
+le bouton et deux exports) ; sans elle, rp_animations fonctionne seul avec F7.
+
+Exports : `exports.rp_animations:Open()`, `exports.rp_animations:Stop()`, `exports.rp_animations:IsBusy()`.
+
 ## Prérequis
 
 - **OneSync** activé (txAdmin l'active par défaut). Sans OneSync, le serveur refuse les duos (il ne peut pas vérifier les distances).

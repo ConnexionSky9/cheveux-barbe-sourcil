@@ -22,6 +22,8 @@ Le menu utilise **rpemotes** (version nox-rpemotes) pour jouer les animations. T
 
 rpemotes doit être installé et fonctionnel. Vérifie en jeu que `/e wave` marche avant d'installer le menu.
 
+**Sécurité de lancement.** Le menu utilise d'abord la commande de rpemotes. Après chaque animation classique, il vérifie que l'animation a réellement démarré. Si rpemotes n'a pas lancé l'animation (cas fréquent après un placement ou un déplacement), Elyzea la lance directement avec ses données et gère aussi les objets attachés. L'arrêt supprime également ces objets de secours.
+
 ## Installation
 
 1. Décompresse le zip et place le dossier `elyzea_animations` dans le dossier `resources` de ton serveur. Tu peux le mettre dans un sous-dossier, par exemple `resources/[elyzea]/elyzea_animations`.
@@ -263,3 +265,18 @@ Un autre script utilise peut-être cette touche. Change-la dans Paramètres GTA 
 
 **Une touche changée ne prend pas effet.**
 FiveM garde en mémoire les raccourcis déjà créés. Va dans Paramètres GTA > Raccourcis > FiveM et vérifie la touche liée à « Elyzea animations ».
+
+## Slows et danses à deux (rp_animations)
+
+Si la ressource `rp_animations` est démarrée, un bouton **Slows & duos** apparaît sous « Récents ». Il ferme ce menu et
+ouvre celui des danses (slows, danses de couple, invitations avec consentement). Le bouton « ‹ Animations » du menu des
+danses ramène ici.
+
+Les deux ressources sont coordonnées :
+
+- **X** (ou le bouton Arrêter) arrête aussi une danse rp_animations en cours, et le partenaire est prévenu.
+- Lancer une danse arrête d'abord l'animation Elyzea en cours et libère un personnage figé par un placement.
+- Sans rp_animations, rien ne change : le bouton n'apparaît pas.
+
+Exports ajoutés : `exports.elyzea_animations:StopEmote()` et `exports.elyzea_animations:OpenMenu()`.
+
