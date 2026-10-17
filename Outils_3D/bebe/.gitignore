@@ -1,0 +1,9 @@
+# Fichiers intermédiaires reproductibles (construire.sh les régénère)
+build/gta_xml/
+build/dds/
+build/source/bebe_elyzea_gta.blend
+*.blend1
+convertisseur/bin/
+convertisseur/obj/
+CodeWalker/
+scripts/__pycache__/

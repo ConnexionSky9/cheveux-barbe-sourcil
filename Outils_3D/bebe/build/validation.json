@@ -1,0 +1,105 @@
+{
+  "resultat": "OK",
+  "controles": [
+    {
+      "controle": "fichier bebe_elyzea.blend",
+      "ok": true,
+      "detail": "1525 Ko"
+    },
+    {
+      "controle": "fichier bebe_elyzea_squelette.glb",
+      "ok": true,
+      "detail": "2258 Ko"
+    },
+    {
+      "controle": "fichier bebe_elyzea_squelette.fbx",
+      "ok": true,
+      "detail": "584 Ko"
+    },
+    {
+      "controle": "pose allonge (.obj)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "controle": "pose porte (.obj)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "controle": "pose assis (.obj)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "controle": "pose ventral (.obj)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "controle": "textures (présentes, puissance de 2)",
+      "ok": true,
+      "detail": "22 fichiers"
+    },
+    {
+      "controle": "squelette",
+      "ok": true,
+      "detail": "20 os"
+    },
+    {
+      "controle": "maillage du corps",
+      "ok": true,
+      "detail": "11000 triangles"
+    },
+    {
+      "controle": "UV du corps",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "controle": "poids de déformation (tous les sommets)",
+      "ok": true,
+      "detail": "0 sommet(s) sans poids"
+    },
+    {
+      "controle": "corps : volume positif (normales vers l'extérieur)",
+      "ok": true,
+      "detail": "volume 4.19 L"
+    },
+    {
+      "controle": "corps : maillage fermé",
+      "ok": true,
+      "detail": "0 arête(s) ouverte(s)"
+    },
+    {
+      "controle": "pose allonge : objets",
+      "ok": true,
+      "detail": "ely_bebe_allonge_corps, ely_bebe_allonge_cheveux, ely_bebe_allonge_oeil_G, ely_bebe_allonge_oeil_D"
+    },
+    {
+      "controle": "pose porte : objets",
+      "ok": true,
+      "detail": "ely_bebe_porte_corps, ely_bebe_porte_cheveux, ely_bebe_porte_oeil_G, ely_bebe_porte_oeil_D"
+    },
+    {
+      "controle": "pose assis : objets",
+      "ok": true,
+      "detail": "ely_bebe_assis_corps, ely_bebe_assis_cheveux, ely_bebe_assis_oeil_G, ely_bebe_assis_oeil_D"
+    },
+    {
+      "controle": "pose ventral : objets",
+      "ok": true,
+      "detail": "ely_bebe_ventral_corps, ely_bebe_ventral_cheveux, ely_bebe_ventral_oeil_G, ely_bebe_ventral_oeil_D"
+    },
+    {
+      "controle": ".glb réimporté",
+      "ok": true,
+      "detail": "1 squelette, actions ['pose_allonge', 'pose_assis', 'pose_porte', 'pose_ventral']"
+    },
+    {
+      "controle": "ressource FiveM : fichiers binaires",
+      "ok": true,
+      "detail": "86/86 dans stream/"
+    }
+  ]
+}

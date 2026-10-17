@@ -1,0 +1,6 @@
+1. peau1 · yeux ardoise · chauve
+2. peau2 · yeux bleu · duvet_blond
+3. peau3 · yeux vert · duvet_roux
+4. peau4 · yeux noisette · touffe_chatain
+5. peau5 · yeux marron · touffe_brun
+6. peau6 · yeux ardoise · touffe_noir

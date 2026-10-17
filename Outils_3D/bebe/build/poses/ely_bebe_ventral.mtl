@@ -1,0 +1,33 @@
+# Blender 5.2.2 LTS MTL File: 'bebe_elyzea.blend'
+# www.blender.org
+
+newmtl cheveux
+Ns 202.500000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd ../textures/ely_bebe_cheveux_touffe_brun.png
+map_d ../textures/ely_bebe_cheveux_touffe_brun.png
+
+newmtl corps
+Ns 202.500000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd ../textures/ely_bebe_corps_peau3.png
+map_Bump -bm 1.000000 ../textures/ely_bebe_corps_n.png
+
+newmtl yeux
+Ns 722.500000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd ../textures/ely_bebe_yeux_marron.png

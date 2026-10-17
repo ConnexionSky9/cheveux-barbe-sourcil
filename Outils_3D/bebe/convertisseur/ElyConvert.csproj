@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Convertisseur CodeWalker XML -> fichiers binaires GTA V (.ydr, .ytd, .ytyp).
+    Utilise la bibliothèque CodeWalker.Core (https://github.com/dexyfex/CodeWalker, licence MIT),
+    à cloner à côté de ce dossier : ../CodeWalker/CodeWalker.Core (voir convertir.sh / convertir.bat).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ElyConvert</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(CodeWalkerCore)" />
+  </ItemGroup>
+</Project>
