@@ -472,7 +472,8 @@ function playerDetail(p) {
                 b('give_weapon', 'give_weapon', 'Donner une arme'), b('kill', 'kill', 'Tuer', 'danger', above)].join('');
     const pm = !isMe ? b('staff_pm', 'pm', '✉️ Message privé', 'primary') : '';
     const sa = [b('jail', 'jail', '⛓️ Jail', '', above), b('warn', 'warn', 'Avertir', '', isMe || above), b('kick', 'kick', 'Expulser', 'danger', isMe || above), b('ban', 'ban', 'Bannir', 'danger', isMe || above)].join('');
-    const sf = has('manage_staff') && !isMe ? `<button class="btn" data-act="set_rank" ${above ? 'disabled' : ''}>Modifier le grade</button>` : '';
+    const rankLocked = above && !(D.me.isOwner && p.menuOwner);
+    const sf = has('manage_staff') && !isMe ? `<button class="btn" data-act="set_rank" ${rankLocked ? 'disabled' : ''}>Modifier le grade</button>` : '';
 
     const group = (title, html) => (html ? `<div class="group"><h3>${title}</h3><div class="btn-row">${html}</div></div>` : '');
     return `
@@ -885,9 +886,10 @@ function bansTable() {
 };
 
 /* ---------- Staff ---------- */
-function assignableRanks() {
+// withOwner : un fondateur peut nommer un autre fondateur (accès à tout)
+function assignableRanks(withOwner) {
     return Object.entries(D.ranks)
-        .filter(([, r]) => r.level < D.me.level)
+        .filter(([k, r]) => r.level < D.me.level || (withOwner && D.me.isOwner && k === D.me.rank))
         .sort((a, b) => b[1].level - a[1].level);
 }
 
@@ -898,11 +900,13 @@ VIEWS.staff = () => {
     ${list.length ? `<table>
         <tr><th>Membre</th><th>Grade</th><th>Statut</th><th>Identifiant</th><th></th></tr>
         ${list.map((s) => {
-            const editable = !s.owner && s.level < D.me.level;
+            const isSelf = s.online && s.online === D.me.id;
+            const editable = (!s.owner && s.level < D.me.level) || (D.me.isOwner && s.menuOwner && !isSelf);
             return `<tr>
                 <td>${esc(s.name)}</td>
                 <td>${editable
                     ? `<select class="input" data-staff-rank="${esc(s.identifier)}" style="width:170px">
+                        ${s.menuOwner ? `<option value="" selected disabled>${esc(s.label)}</option>` : ''}
                         ${ranks.map(([k, r]) => `<option value="${k}" ${k === s.rank ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}
                        </select>`
                     : `<span class="badge" style="color:${s.color}">${esc(s.label)}</span>`}</td>
@@ -3297,9 +3301,12 @@ async function handleAct(act) {
             return;
         }
         case 'set_rank': {
-            const opts = [{ value: 'none', label: 'Aucun (retirer du staff)' }, ...assignableRanks().map(([k, r]) => ({ value: k, label: `${r.label} (niveau ${r.level})` }))];
+            const opts = [{ value: 'none', label: 'Aucun (retirer du staff)' }, ...assignableRanks(true).map(([k, r]) => ({ value: k, label: k === D.me.rank ? `${r.label} (accès à tout)` : `${r.label} (niveau ${r.level})` }))];
             const v = await formModal(`Grade de ${name}`, [{ name: 'rank', label: 'Grade', type: 'select', options: opts, value: p && p.rank }], 'Appliquer');
-            if (v) action('set_rank', { target: t, rank: v.rank });
+            if (!v) return;
+            if (D.me.isOwner && v.rank === D.me.rank
+                && !(await confirmBox('Nommer fondateur ?', `${name} aura accès à TOUT, comme vous (toutes les permissions, gestion du staff et des grades). Seul un fondateur pourra le lui retirer.`))) return;
+            action('set_rank', { target: t, rank: v.rank });
             return;
         }
         case 'tpc_go': {

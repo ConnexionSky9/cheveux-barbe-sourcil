@@ -401,6 +401,13 @@ Au premier démarrage, les grades déjà sauvegardés reçoivent automatiquement
 | SuperAdmin | 40 |
 | Fondateur | 100 (verrouillé, toutes les permissions) |
 
+### Nommer un autre fondateur en jeu
+Un **Fondateur** peut nommer quelqu'un Fondateur : Joueurs → le joueur → **Modifier le grade** →
+« Fondateur (accès à tout) » (confirmation demandée). Il obtient toutes les permissions, comme toi.
+- Enregistré dans `data/owners.json` (conservé aux redémarrages et mises à jour).
+- Seul un fondateur peut nommer ou retirer un fondateur (onglet Staff : changer son grade ou **Retirer**).
+- Les fondateurs de `Config.Owners` (config.lua) ne se retirent que dans config.lua ; personne ne peut se retirer lui-même.
+
 Règles de hiérarchie :
 - on ne peut sanctionner / ramener / modifier que quelqu'un de **niveau inférieur** ;
 - on ne peut donner que des grades de niveau inférieur au sien ;

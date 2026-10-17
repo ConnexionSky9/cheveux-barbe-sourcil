@@ -333,11 +333,27 @@ end
 -- Fondateurs : config.lua (Config.Owners) ET le menu lui-même (data/owners.json).
 -- Le fichier data/ n'est jamais écrasé par une mise à jour du menu.
 local Owners = Storage.load('owners', {})
+local OwnerNames = Storage.load('owner_names', {})   -- nom affiché des fondateurs nommés en jeu
 local function isOwner(lic)
     if not lic then return false end
     for _, o in ipairs(Config.Owners or {}) do if o == lic then return true end end
     for _, o in ipairs(Owners) do if o == lic then return true end end
     return false
+end
+-- Fondateur donné depuis le menu (data/owners.json) : retirable par un autre fondateur.
+-- Ceux de Config.Owners ne se retirent que dans config.lua.
+local function isConfigOwner(lic)
+    for _, o in ipairs(Config.Owners or {}) do if o == lic then return true end end
+    return false
+end
+local function isMenuOwner(lic)
+    if not lic or isConfigOwner(lic) then return false end
+    for _, o in ipairs(Owners) do if o == lic then return true end end
+    return false
+end
+local function removeMenuOwner(lic)
+    for i = #Owners, 1, -1 do if Owners[i] == lic then table.remove(Owners, i) end end
+    Storage.save('owners', Owners)
 end
 
 -- Grade venant des ACE de server.cfg (mis en cache 30 s par joueur)
@@ -646,6 +662,7 @@ local function buildAndSend(src)
             back = BringBack[id] ~= nil,
             warns = (lic and Warns[lic]) and #Warns[lic] or 0,
             license = showLicense and lic or nil,
+            menuOwner = isMenuOwner(lic) or nil,
         }
     end
 
@@ -661,6 +678,15 @@ local function buildAndSend(src)
             }
         end
         local o = Ranks[Config.OwnerRank]
+        for _, lic in ipairs(Owners) do
+            if isMenuOwner(lic) then
+                staff[#staff + 1] = {
+                    identifier = lic, name = online[lic] and GetPlayerName(online[lic]) or (OwnerNames[lic] or 'Fondateur'),
+                    rank = Config.OwnerRank, label = o.label, color = o.color, level = o.level,
+                    online = online[lic], owner = true, menuOwner = true,
+                }
+            end
+        end
         for _, lic in ipairs(Config.Owners) do
             staff[#staff + 1] = {
                 identifier = lic, name = online[lic] and GetPlayerName(online[lic]) or 'Fondateur (config)',
@@ -1238,10 +1264,37 @@ Actions.set_rank = { perm = 'manage_staff', fn = function(src, d)
     if t == src then return notify(src, 'Vous ne pouvez pas modifier votre propre grade.', 'error') end
     local lic = getLicense(t)
     if not lic then return notify(src, 'Ce joueur n\'a pas de licence Rockstar.', 'error') end
-    if isOwner(lic) then return notify(src, 'Ce joueur est fondateur via la config.', 'error') end
-    if not checkHierarchy(src, t) then return end
-
+    if isConfigOwner(lic) then return notify(src, 'Ce joueur est fondateur via la config.', 'error') end
     local rank = tostring(d.rank or '')
+    local iAmOwner = getRankName(src) == Config.OwnerRank
+
+    -- Nommer Fondateur : réservé à un fondateur ; accès total (toutes les permissions, verrouillé)
+    if rank == Config.OwnerRank then
+        if not iAmOwner then return notify(src, 'Seul un fondateur peut nommer un fondateur.', 'error') end
+        if isOwner(lic) then return notify(src, ('%s est déjà fondateur.'):format(pname(t)), 'error') end
+        Owners[#Owners + 1] = lic
+        Storage.save('owners', Owners)
+        OwnerNames[lic] = pname(t)
+        Storage.saveLater('owner_names', OwnerNames)
+        Admins[lic] = nil
+        Storage.saveLater('admins', Admins)
+        AceCache[t] = nil
+        local r = Ranks[Config.OwnerRank]
+        notify(src, ('%s est maintenant %s : accès à tout.'):format(pname(t), r.label), 'success')
+        notify(t, ('Vous êtes maintenant %s : accès complet. Menu : %s'):format(r.label, Config.Keys[1].key), 'success')
+        addLog(src, 'Fondateur nommé', pname(t))
+        pushPerms(t)
+        return
+    end
+
+    -- Un fondateur nommé depuis le menu peut être rétrogradé par un autre fondateur
+    if isMenuOwner(lic) then
+        if not iAmOwner then return notify(src, 'Ce joueur a un grade égal ou supérieur au vôtre.', 'error') end
+        if rank ~= 'none' and rank ~= '' and not Ranks[rank] then return notify(src, 'Grade inconnu.', 'error') end
+        removeMenuOwner(lic)
+        addLog(src, 'Fondateur retiré', pname(t))
+    elseif not checkHierarchy(src, t) then return end
+
     if rank == 'none' or rank == '' then
         Admins[lic] = nil
         notify(src, ('%s ne fait plus partie du staff.'):format(pname(t)), 'success')
@@ -1262,6 +1315,18 @@ end }
 
 Actions.remove_staff = { perm = 'manage_staff', fn = function(src, d)
     local lic = tostring(d.identifier or '')
+    if isMenuOwner(lic) then
+        if getRankName(src) ~= Config.OwnerRank then return notify(src, 'Grade égal ou supérieur au vôtre.', 'error') end
+        if lic == getLicense(src) then return notify(src, 'Vous ne pouvez pas vous retirer vous-même.', 'error') end
+        removeMenuOwner(lic)
+        Admins[lic] = nil
+        Storage.saveLater('admins', Admins)
+        local online = onlineLicenses()
+        if online[lic] then pushPerms(online[lic]) notify(online[lic], 'Vous ne faites plus partie du staff.', 'warning') end
+        notify(src, ('%s n\'est plus fondateur.'):format(OwnerNames[lic] or lic), 'success')
+        addLog(src, 'Fondateur retiré', OwnerNames[lic] or lic)
+        return
+    end
     local a = Admins[lic]
     if not a then return notify(src, 'Membre introuvable.', 'error') end
     local r = Ranks[a.rank]
@@ -1276,6 +1341,21 @@ end }
 
 Actions.change_staff_rank = { perm = 'manage_staff', fn = function(src, d)
     local lic = tostring(d.identifier or '')
+    if isMenuOwner(lic) then
+        -- Rétrograder un fondateur (donné depuis le menu) : réservé à un fondateur
+        local r = Ranks[tostring(d.rank or '')]
+        if getRankName(src) ~= Config.OwnerRank then return notify(src, 'Grade égal ou supérieur au vôtre.', 'error') end
+        if lic == getLicense(src) then return notify(src, 'Vous ne pouvez pas modifier votre propre grade.', 'error') end
+        if not r or d.rank == Config.OwnerRank then return notify(src, 'Données invalides.', 'error') end
+        removeMenuOwner(lic)
+        Admins[lic] = { rank = d.rank, name = OwnerNames[lic] or lic }
+        Storage.saveLater('admins', Admins)
+        local online = onlineLicenses()
+        if online[lic] then pushPerms(online[lic]) end
+        notify(src, ('%s est maintenant %s.'):format(OwnerNames[lic] or lic, r.label), 'success')
+        addLog(src, 'Fondateur rétrogradé', ('%s → %s'):format(OwnerNames[lic] or lic, r.label))
+        return
+    end
     local a = Admins[lic]
     local r = Ranks[tostring(d.rank or '')]
     if not a or not r then return notify(src, 'Données invalides.', 'error') end
@@ -1407,7 +1487,7 @@ RegisterCommand('adminmenu_fondateur', function(src, args)
     for _, o in ipairs(Owners) do if o == lic then return print('^3Déjà Fondateur.^7') end end
     Owners[#Owners + 1] = lic
     Storage.save('owners', Owners)
-    if id then pushPerms(id) end
+    if id then OwnerNames[lic] = GetPlayerName(id) Storage.saveLater('owner_names', OwnerNames) pushPerms(id) end
     print(('^2[AdminMenu] %s est maintenant Fondateur (enregistré dans data/owners.json).^7'):format(id and GetPlayerName(id) or lic))
 end, true)
 RegisterCommand('adminmenu_retirer_fondateur', function(src, args)
