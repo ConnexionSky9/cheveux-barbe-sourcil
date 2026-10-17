@@ -202,6 +202,12 @@ Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack =
 Items.markedbills = { label = 'Billets marqués', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'markedbills.png', icon = '💵',
     description = 'Liasses marquées par la banque. 1 000 $ = 1 g.' }
 
+-- Tags (elyzea_tags) : peindre / effacer un graffiti
+Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
+    description = 'Peins un tag sur un mur de ton quartier.' }
+Items.sprayremover = { label = 'Solvant anti-graffiti', weight = 500, stack = true, max = 10, image = 'sprayremover.png', icon = '🧽',
+    description = 'Efface un tag peint sur un mur.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

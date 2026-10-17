@@ -175,6 +175,7 @@ Config.Permissions = {
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     -- Illégal (ressource elyzea_illegal)
     { key = 'drugsale_manage', label = 'Vente de drogue : réglages du mode vente (clients PNJ, prix, vols, appels à la police)', cat = 'Illégal' },
+    { key = 'tags_manage',     label = 'Tags : graffitis des quartiers (réglages, mots interdits, voir l\'auteur, supprimer un tag / ceux d\'un joueur / tous), /taginfo et /tagclean', cat = 'Illégal' },
     { key = 'heist_manage',    label = 'Braquage bijouterie : bijouteries, butin, bijoux, sac, police, racheteurs (jewelry_heist)', cat = 'Illégal' },
     { key = 'bankheist_manage', label = 'Braquage de banque : banques, marchands, prix, piratage, coffre, dépôts, sessions (bank_heist)', cat = 'Illégal' },
     { key = 'noirx_staff', label = 'NOIR X (téléphone clandestin) : informateurs, informations, blanchiments, réglages, paiements (noirx)', cat = 'Illégal' },
@@ -535,7 +536,7 @@ local function with(base, extra)
 end
 
 local P_SUPPORT = { 'reports', 'goto', 'spectate', 'warn', 'noclip', 'tp_waypoint', 'player_ids', 'heal', 'staff_pm', 'staff_chat' }
-local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail' })
+local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail', 'tags_manage' })
 local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmode', 'invisible', 'tp_coords',
                                  'weather', 'time', 'announce', 'clear_area', 'view_logs', 'wallhack', 'revive_area', 'armor',
                                  'gofast_missions' })
