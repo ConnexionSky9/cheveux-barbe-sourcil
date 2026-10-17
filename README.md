@@ -133,11 +133,12 @@ Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_polic
 **Plusieurs agences par métier** (`elyzea_agences`, voir `Elyzea Base/elyzea_agences/README.md`) : plusieurs polices (LSPD, BCSO…), plusieurs EMS, plusieurs garages mécano et agences Dynasty 8, créées en jeu (`/agences` ou admin_menu › **Agences des métiers**, permission `agencies_manage`), chacune avec son métier, ses grades, son compte, son téléphone de service et sa **zone d'alerte dessinée sur la carte ou en jeu**.
 Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
-### 3.9 Famille : bébé (modèle 3D original)
+### 3.9 Famille : bébé (modèle 3D original), moment intime, contraception
 Premier livrable de l'écosystème famille / animaux / télévision (audit et architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
 - **`elyzea_bebe_modele`** : modèle 3D du bébé créé par génération procédurale (4 poses, 6 teintes, 5 couleurs d'yeux, 10 coiffures), fichiers du jeu dans `stream/`. **Non testé en jeu.**
 - Test staff : `/bebe_test`, `/bebe_galerie`, `/bebe_ajuster`, `/bebe_retirer` (voir `Elyzea Base/elyzea_bebe_modele/README.md`).
 - Sources, scripts de génération et de conversion : `Outils_3D/bebe/` (`construire.sh` refait tout).
+- **`elyzea_famille`** (0.1) : moment intime avec consentement (ALT › *Proposer un moment intime*, fondu au noir, X pour arrêter), contraception (préservatif, pilule, implant posé par les EMS, `/contraception`), tirage de conception côté serveur. **Non testé en jeu** ; voir `Elyzea Base/elyzea_famille/README.md`.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.

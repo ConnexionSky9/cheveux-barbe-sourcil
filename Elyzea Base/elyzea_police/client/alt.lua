@@ -5,6 +5,7 @@
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
 --  Mécano en service (elyzea_meca) : réparer, nettoyer, retourner, historique, devis (exports AltOptions / AltSelect).
+--  Famille (elyzea_famille) : proposer un moment intime ; EMS en service : implant contraceptif, ordonnance.
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -45,6 +46,7 @@ end
 local ALT_PROVIDERS = {
     { res = 'elyzea_ems', prefix = 'ems:' },
     { res = 'elyzea_meca', prefix = 'meca:' },
+    { res = 'elyzea_famille', prefix = 'fam:' },
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },
 }

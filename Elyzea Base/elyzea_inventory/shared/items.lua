@@ -196,6 +196,15 @@ Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5,
 Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noirphone.png', icon = '📱',
     description = 'Terminal clandestin sécurisé. Accès au réseau privé NOIR X.' }
 
+-- ───────── Famille (ressource elyzea_famille) ─────────
+-- Utilisés et retirés par elyzea_famille lui-même, après vérification par le serveur (pas de consommation automatique).
+Items.preservatif = { label = 'Préservatif', weight = 5, stack = true, max = 20, icon = '🛡️', close = true,
+    description = 'À cocher dans une demande de moment intime, ou à utiliser pendant le moment. Fiabilité : 98 %.' }
+Items.pilule_contraceptive = { label = 'Pilule contraceptive', weight = 5, stack = true, max = 30, icon = '💊', close = true,
+    description = 'Une prise protège 48 h (renouvelable dans les 12 dernières heures). « /contraception » pour voir votre état.' }
+Items.implant_contraceptif = { label = 'Implant contraceptif', weight = 10, stack = true, max = 5, icon = '💉',
+    description = 'Posé par un EMS en service (menu ALT sur le patient). Protège 30 jours.' }
+
 -- Argent en billets : 1 000 $ = 1 g, une seule pile sans limite (pas de « inventaire plein »)
 Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'black_money.png', icon = '💵',
     description = 'Billets d\'origine douteuse. 1 000 $ = 1 g.' }

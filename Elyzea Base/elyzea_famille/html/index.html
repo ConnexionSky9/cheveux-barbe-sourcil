@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Elyzea Famille</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Demande de consentement (moment intime, acte médical) -->
+<div id="consentement" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="c-titre">
+  <div class="card">
+    <div class="head"><span class="badge" id="c-badge">♡</span><h1 id="c-titre"></h1></div>
+    <p id="c-texte"></p>
+    <div id="c-options" class="options"></div>
+    <p id="c-aide" class="aide"></p>
+    <div class="timer"><div id="c-barre"></div></div>
+    <div class="actions">
+      <button class="btn" id="c-refuser">Refuser</button>
+      <button class="btn primary" id="c-accepter">Accepter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Proposer un moment intime -->
+<div id="proposer" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="p-titre">
+  <div class="card">
+    <div class="head"><span class="badge">♡</span><h1 id="p-titre">Proposer un moment intime</h1></div>
+    <p id="p-texte"></p>
+    <div id="p-options" class="options"></div>
+    <p class="aide">L'autre personne doit accepter. Chacun peut arrêter à tout instant avec X. Vos choix restent privés.</p>
+    <div class="actions">
+      <button class="btn" id="p-annuler">Annuler</button>
+      <button class="btn primary" id="p-envoyer">Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ma contraception (privé) -->
+<div id="panneau" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="k-titre">
+  <div class="card large">
+    <div class="head"><span class="badge">🔒</span><h1 id="k-titre">Ma contraception</h1><button class="close" id="k-fermer" aria-label="Fermer">✕</button></div>
+    <p class="aide">Ces informations ne sont visibles que par vous.</p>
+    <div id="k-methodes" class="methodes"></div>
+    <h2>Historique</h2>
+    <div id="k-historique" class="historique"></div>
+  </div>
+</div>
+
+<!-- Écran noir pendant le moment intime -->
+<div id="noir" class="hidden">
+  <div class="noir-texte">
+    <div class="coeur">♡</div>
+    <div id="n-temps" class="mono"></div>
+    <div class="noir-aide"><kbd>X</kbd> arrêter</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

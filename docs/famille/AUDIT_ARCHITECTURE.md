@@ -27,7 +27,7 @@ L'API reprend la forme de QBCore (`Player.PlayerData`, `Player.Functions.AddMone
 | Logement | `elyzea_dynasty` | biens immobiliers, accès, décoration, coffres (`d8_properties`, `d8_contracts`…) |
 | Placement d'objets / PNJ | `admin_menu` (éditeur) | props et PNJ posés en jeu, `GetPropsByRole`, points de spawn |
 | Téléphone | `elyzea_aura` (+ `blackphone`, `noirx`) | notifications et applications (possible support du suivi de grossesse plus tard) |
-| Version du jeu | `server.cfg` | `sv_enforceGameBuild 3258`. **Version de FXServer (artefact) : absente du dépôt, à me communiquer.** |
+| Version du jeu | `server.cfg` | `sv_enforceGameBuild 3258` ; FXServer artefact **35245** (canal stable, confirmé) |
 
 **Absents du serveur** (aucun conflit direct) : grossesse, enfants, animaux de compagnie, vétérinaire, crèche, refuge, télévision / DUI.
 
@@ -147,10 +147,26 @@ Ce sera un choix parmi des variantes visuelles, pas une génétique biologique.
 Voir `Outils_3D/bebe/README_BEBE.md` (ce qui a été exécuté, converti, contrôlé, et ce qui reste à tester)
 et `Elyzea Base/elyzea_bebe_modele/README.md` (installation et procédure de test en jeu : `/bebe_test`, `/bebe_galerie`, `/bebe_ajuster`).
 
-## 9. Décisions à prendre avant les modules suivants
+## 9. Décisions prises (réponses du propriétaire du serveur)
 
-1. Version de l'artefact FXServer utilisée.
-2. Ventre de grossesse : tenues de grossesse à créer (proposé) ou pas de changement visuel ?
-3. Chevaux : modèle animal sur mesure (gros chantier) ou hors périmètre pour l'instant ?
-4. Rôles : quels métiers pour la crèche, les services sociaux, le refuge, le vétérinaire (nouveaux métiers via `elyzea_agences`, ou métiers existants) ?
-5. VIP pour la télévision : groupe ACE `group.vip` ?
+| Sujet | Décision | Conséquence technique |
+|---|---|---|
+| Artefact FXServer | **35245** (stable) | fonctions natives récentes disponibles (state bags, OneSync) |
+| Ventre de grossesse | **tenues de grossesse** à créer | 3 tailles de ventre en vêtements (chaîne 3D d'`Outils_3D`), appliquées selon le stade |
+| Animaux | **pas de chevaux** ; animaux existants du jeu **légèrement modifiés** (pelages de chats, nouvelles races de chiens…) | nouvelles textures (`.ytd`) sur les modèles d'animaux existants, pas de nouveau squelette |
+| Crèche | **un PNJ**, payé directement selon le **nombre d'enfants** et la **durée** | pas de métier : PNJ posé dans l'éditeur, tarif calculé par le serveur |
+| Abandon / protection de l'enfance | **un PNJ** | dépôt et suivi auprès d'un PNJ, sans travailleur social joueur |
+| Animaleries (ferme, domestiques, exotiques) | **des PNJ** | un PNJ par animalerie, catalogue par type d'animal |
+| VIP (télévision) | **créer un rôle VIP** | groupe ACE `group.vip` dans `permissions.cfg` (module télévision) |
+
+Non précisé, choisi par défaut (modifiable) : le **vétérinaire** et la **pension animale** seront aussi des PNJ, dans la logique ci-dessus.
+
+## 10. Avancement
+
+| Étape | État |
+|---|---|
+| 1. Audit · 2. Architecture | fait (ce document) |
+| 5. Modèle 3D du bébé | fait, non testé en jeu (`elyzea_bebe_modele`) |
+| 3. Moment intime, contraception + début de l'étape 4 (tirage de conception, création de la grossesse) | fait, non testé en jeu (`elyzea_famille` 0.1) |
+| 4. Découverte, progression, symptômes, tenues de grossesse, suivi médical, accouchement | à faire (suivant) |
+| 6 à 11 | à faire |
