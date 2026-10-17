@@ -30,9 +30,15 @@ end)
 -- ---------------------------------------------------------------------
 -- Staff (admin_menu › Métier staff)
 -- ---------------------------------------------------------------------
+-- Grades de toutes les agences (nom préfixé par l'agence quand il y en a plusieurs)
 function P.AdminGrades()
     local list = {}
-    for _, g in ipairs(P.SortedGrades()) do list[#list + 1] = { id = g.id, name = g.name, level = g.level, direction = g.perms.direction == true } end
+    for _, a in ipairs(P.agencyList) do
+        for _, g in ipairs(P.SortedGrades(a.job)) do
+            list[#list + 1] = { id = g.id, name = P.MultiAgency() and ('%s · %s'):format(a.short or a.label, g.name) or g.name, level = g.level,
+                direction = g.perms.direction == true, job = a.job, agency = a.label }
+        end
+    end
     return list
 end
 
@@ -49,6 +55,13 @@ function P.AdminSetGrade(adminSrc, target, gradeId)
     if P.employees[cid] then
         local old = P.grades[P.employees[cid].grade_id]
         if old and old.id == g.id then return true, ('%s est déjà %s.'):format(name, g.name) end
+        if P.employees[cid].job ~= g.job then
+            local from = P.AgencyLabel(P.employees[cid].job)
+            local _, mat = P.Transfer(cid, g)
+            P.AddLog(adminName, cid, name, 'Mutation (staff)', old and old.name, g.name, ('%s → %s'):format(from, P.AgencyLabel(g.job)), g.job)
+            P.Notify(target, ('Vous êtes muté(e) au %s : %s, matricule %s.'):format(P.AgencyLabel(g.job), g.name, mat or '?'), 'inform')
+            return true, ('%s est muté(e) au %s : %s.'):format(name, P.AgencyLabel(g.job), g.name)
+        end
         P.ApplyGrade(cid, g)
         P.AddLog(adminName, cid, name, 'Changement de grade (staff)', old and old.name, g.name, nil)
         P.Notify(target, ('Votre grade est maintenant : %s.'):format(g.name), 'inform')
@@ -57,8 +70,8 @@ function P.AdminSetGrade(adminSrc, target, gradeId)
     local ok, mat = P.Hire(cid, name, g)
     if not ok then return false, mat end
     P.AddLog(adminName, cid, name, 'Recrutement (staff)', nil, g.name, nil)
-    P.Notify(target, ('Vous rejoignez le %s : %s, matricule %s.'):format(Config.Job.label, g.name, mat), 'success')
-    return true, ('%s rejoint la police : %s (%s).'):format(name, g.name, mat)
+    P.Notify(target, ('Vous rejoignez le %s : %s, matricule %s.'):format(P.AgencyLabel(g.job), g.name, mat), 'success')
+    return true, ('%s rejoint le %s : %s (%s).'):format(name, P.AgencyLabel(g.job), g.name, mat)
 end
 
 function P.AdminRemove(adminSrc, target)
@@ -67,8 +80,8 @@ function P.AdminRemove(adminSrc, target)
     if not cid or not P.employees[cid] then return false, 'Ce joueur n\'est pas dans la police.' end
     local name = P.Name(target)
     local old = P.grades[P.employees[cid].grade_id]
-    P.Remove(cid)
     P.AddLog(('Staff · %s'):format(GetPlayerName(adminSrc) or '?'), cid, name, 'Renvoi (staff)', old and old.name, nil, nil)
+    P.Remove(cid)
     return true, ('%s ne fait plus partie de la police.'):format(name)
 end
 
@@ -80,7 +93,7 @@ exports('AdminInfo', function(target)
     local e = cid and P.employees[cid]
     if not e then return nil end
     local g = P.grades[e.grade_id]
-    return { matricule = e.matricule, grade = g and g.name, gradeId = e.grade_id, duty = P.OnDuty(tonumber(target)) }
+    return { matricule = e.matricule, grade = g and g.name, gradeId = e.grade_id, duty = P.OnDuty(tonumber(target)), job = e.job, agency = P.AgencyLabel(e.job) }
 end)
 exports('AdminDuty', function(target, on)
     target = tonumber(target)
@@ -110,8 +123,16 @@ exports('GetOnDutyUnits', function()
         local i = P.AgentInfo(src, false)
         local ped = GetPlayerPed(src)
         local c = ped ~= 0 and GetEntityCoords(ped) or nil
-        out[#out + 1] = { name = i.name, matricule = i.matricule, grade = i.grade, status = i.status, x = c and c.x or nil, y = c and c.y or nil }
+        out[#out + 1] = { name = i.name, matricule = i.matricule, grade = i.grade, status = i.status, x = c and c.x or nil, y = c and c.y or nil,
+            agency = P.AgencyLabel(P.MyJob(src)) }
     end
     return out
 end)
 exports('GetGradeLevel', function(src) local g = P.Grade(tonumber(src)) return g and g.level or nil end)
+
+-- Métiers de toutes les agences de police (admin_menu › Métiers : page dédiée)
+exports('GetPoliceJobs', function()
+    local out = {}
+    for _, a in ipairs(P.agencyList) do out[#out + 1] = a.job end
+    return out
+end)

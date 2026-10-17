@@ -325,7 +325,7 @@ window.addEventListener('message', (e) => {
   const m = e.data || {};
   switch (m.action) {
     case 'init': return applyCfg(m.cfg);
-    case 'state': APP.st = m.state; if (window.Tablet) Tablet.onState(m.state); return;
+    case 'state': APP.st = m.state; if (m.state && m.state.agency && APP.cfg) APP.cfg.job = m.state.agency; if (window.Tablet) Tablet.onState(m.state); return;
     case 'altMenu': if (m.show) showAlt(m); else $('#alt').classList.add('hidden'); return;
     case 'f6':
       if (m.show) { F6.view = 'main'; F6.data = m; $('#f6').classList.remove('hidden'); f6Draw(); } else $('#f6').classList.add('hidden');

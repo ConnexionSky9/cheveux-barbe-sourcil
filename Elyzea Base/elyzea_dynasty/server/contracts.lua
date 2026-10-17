@@ -133,6 +133,7 @@ P.Actions.assignOffer = { perm = 'tablet', duty = true, fn = function(src, d)
     local price, rate, days = Quote(pr, kind, d.days)
     if not price then return { error = rate } end
     local o = { uid = P.Uid(kind == 'sale' and 'VTE' or 'LOC'), pid = pr.id, kind = kind, price = price, rate = rate, days = days, method = method,
+        job = P.MyJob(src),   -- agence de l'agent (son compte encaisse)
         agent = src, agentName = P.Name(src), agentCid = P.Cid(src), client = t, clientCid = P.Cid(t), clientName = P.Name(t), expires = os.time() + 60 }
     offers[t] = o
     TriggerClientEvent('d8:client:offer', t, { uid = o.uid, property = pr.name, address = pr.address, category = Config.Categories[pr.category], kind = kind,
@@ -156,26 +157,26 @@ local function Assign(o, pr)
             employee = o.agentName, status = 'refunded', note = why })
         P.Log(src, 'Remboursement automatique', ('%s · %d $ · %s'):format(o.uid, o.price, why))
     end
-    if o.price > 0 and not P.SocietyAdd(o.price, ('%s %s · %s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name, o.uid)) then
+    if o.price > 0 and not P.SocietyAdd(o.price, ('%s %s · %s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name, o.uid), o.job) then
         refund('compte société indisponible')
         return false, 'Erreur de paiement : vous avez été remboursé.'
     end
     -- 3. Contrat
     local ok, cid = pcall(function()
-        return MySQL.insert.await([[INSERT INTO `d8_contracts` (`uid`, `property_id`, `kind`, `holder_cid`, `holder_name`, `holder_phone`, `price`, `rate`, `days`, `paid_total`, `method`,
-            `started_at`, `ends_at`, `employee_cid`, `employee_name`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)]],
-            { o.uid, pr.id, o.kind, o.clientCid, o.clientName, PhoneOf(src), o.price, o.rate, o.days, o.price, o.method,
+        return MySQL.insert.await([[INSERT INTO `d8_contracts` (`job`, `uid`, `property_id`, `kind`, `holder_cid`, `holder_name`, `holder_phone`, `price`, `rate`, `days`, `paid_total`, `method`,
+            `started_at`, `ends_at`, `employee_cid`, `employee_name`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)]],
+            { o.job, o.uid, pr.id, o.kind, o.clientCid, o.clientName, PhoneOf(src), o.price, o.rate, o.days, o.price, o.method,
               o.kind == 'rent' and os.date('%Y-%m-%d %H:%M:%S', os.time() + o.days * 86400) or nil, o.agentCid, o.agentName })
     end)
     if not ok or not cid then
-        P.SocietyRemove(o.price, 'Annulation ' .. o.uid)
+        P.SocietyRemove(o.price, 'Annulation ' .. o.uid, o.job)
         refund('contrat non enregistré')
         return false, 'Erreur d\'enregistrement : vous avez été remboursé.'
     end
     MySQL.update.await('UPDATE `d8_contracts` SET `stash_id` = ? WHERE `id` = ?', { P.StashId(pr.id, cid), cid })
     Payment({ txid = o.uid, contract = cid, pid = pr.id, kind = o.kind, amount = o.price, days = o.days, method = o.method, payerCid = o.clientCid,
         payerName = o.clientName, employee = o.agentName, status = 'paid' })
-    P.Tx({ txid = o.uid, type = 'in', category = o.kind, amount = o.price, reason = ('%s · %s%s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name,
+    P.Tx({ job = o.job, txid = o.uid, type = 'in', category = o.kind, amount = o.price, reason = ('%s · %s%s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name,
         o.kind == 'rent' and (' · %d j'):format(o.days) or ''), actorCid = o.agentCid, actorName = o.agentName, targetCid = o.clientCid, targetName = o.clientName, ref = ('#%d'):format(pr.id) })
     P.Commission(o.agentCid, o.price, ('%s %s · %s'):format(o.kind == 'sale' and 'Vente' or 'Location', pr.name, o.uid), o.uid)
     -- 4. Bien attribué, accès configurés, visites closes
@@ -332,7 +333,7 @@ end }
 
 P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     local crew = {}
-    for _, id in ipairs(P.CrewOnDuty()) do crew[#crew + 1] = P.CrewInfo(id) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do crew[#crew + 1] = P.CrewInfo(id) end
     table.sort(crew, P.SortCrew)
     local me = P.CrewInfo(src)
     me.times = P.MyTimes(src)
@@ -350,8 +351,8 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     end
     table.sort(soon, function(a, b) return a.ends < b.ends end)
     local rev = MySQL.single.await([[SELECT
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `type` = 'in' AND `created_at` >= CURDATE()) AS today,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `type` = 'in' AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY)) AS week]]) or {}
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `job` = ? AND `type` = 'in' AND `created_at` >= CURDATE()) AS today,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `job` = ? AND `type` = 'in' AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY)) AS week]], { P.MyJob(src), P.MyJob(src) }) or {}
     local last = MySQL.query.await([[SELECT c.`kind`, c.`holder_name`, c.`price`, c.`days`, c.`employee_name`, p.`name`, UNIX_TIMESTAMP(c.`started_at`) AS t
         FROM `d8_contracts` c LEFT JOIN `d8_properties` p ON p.`id` = c.`property_id` ORDER BY c.`id` DESC LIMIT 8]]) or {}
     local visits = MySQL.query.await([[SELECT v.`employee_name`, v.`clients`, p.`name`, UNIX_TIMESTAMP(v.`started_at`) AS t FROM `d8_visits` v
@@ -364,7 +365,7 @@ end }
 
 P.Actions.map = { perm = 'tablet', fn = function(src)
     local crew = {}
-    for _, id in ipairs(P.CrewOnDuty()) do crew[#crew + 1] = P.CrewInfo(id, true) end
+    for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do crew[#crew + 1] = P.CrewInfo(id, true) end
     local list = {}
     for _, pr in pairs(P.props) do if pr.enabled then list[#list + 1] = ListView(pr, false) end end
     return { crew = crew, props = list, now = os.time() }
@@ -501,7 +502,7 @@ P.Pub.extend = { fn = function(src, d)
     if busy[pr.id] then return { error = 'Opération en cours.' } end
     busy[pr.id] = true
     local ok, res = pcall(function()
-        local cur = MySQL.single.await("SELECT `id`, UNIX_TIMESTAMP(`ends_at`) AS e FROM `d8_contracts` WHERE `id` = ? AND `status` = 'active'", { c.id })
+        local cur = MySQL.single.await("SELECT `id`, `job`, UNIX_TIMESTAMP(`ends_at`) AS e FROM `d8_contracts` WHERE `id` = ? AND `status` = 'active'", { c.id })
         if not cur then return { error = 'Contrat introuvable.' } end
         local uid = P.Uid('PRO')
         local paid = P.ChargeWith(src, total, method, ('Dynasty 8 · prolongation %s'):format(pr.name))
@@ -509,7 +510,7 @@ P.Pub.extend = { fn = function(src, d)
             Payment({ txid = uid, contract = c.id, pid = pr.id, kind = 'extend', amount = total, days = days, method = method, payerCid = P.Cid(src), payerName = P.Name(src), status = 'failed', note = 'Fonds insuffisants' })
             return { error = method == 'cash' and 'Espèces insuffisantes.' or 'Solde bancaire insuffisant.' }
         end
-        if total > 0 and not P.SocietyAdd(total, ('Prolongation %s · %s'):format(pr.name, uid)) then
+        if total > 0 and not P.SocietyAdd(total, ('Prolongation %s · %s'):format(pr.name, uid), cur.job) then
             P.Refund(P.Cid(src), total, method, 'Remboursement ' .. uid)
             return { error = 'Erreur de paiement : vous avez été remboursé.' }
         end
@@ -518,7 +519,7 @@ P.Pub.extend = { fn = function(src, d)
         MySQL.update.await('UPDATE `d8_contracts` SET `ends_at` = ?, `days` = `days` + ?, `paid_total` = `paid_total` + ? WHERE `id` = ?',
             { os.date('%Y-%m-%d %H:%M:%S', newEnd), days, total, c.id })
         Payment({ txid = uid, contract = c.id, pid = pr.id, kind = 'extend', amount = total, days = days, method = method, payerCid = P.Cid(src), payerName = P.Name(src), status = 'paid' })
-        P.Tx({ txid = uid, type = 'in', category = 'extend', amount = total, reason = ('Prolongation %s · %d j'):format(pr.name, days), actorCid = P.Cid(src), actorName = P.Name(src),
+        P.Tx({ job = cur.job, txid = uid, type = 'in', category = 'extend', amount = total, reason = ('Prolongation %s · %d j'):format(pr.name, days), actorCid = P.Cid(src), actorName = P.Name(src),
             targetCid = P.Cid(src), targetName = P.Name(src), ref = ('#%d'):format(pr.id) })
         LoadContract(pr.id)
         P.PropLog(pr.id, 'Location prolongée', ('+%d j · %d $'):format(days, total), src)

@@ -8,6 +8,9 @@ Config = {}
 
 -- Métier et compte de société d'elyzea_core (même nom que celui utilisé par elyzea_papiers)
 Config.Job = { name = 'ambulance', label = 'SAMS', type = 'ems' }
+-- Agences (elyzea_agences) : plusieurs agences de ce métier, chacune son métier elyzea_core,
+-- ses grades, son compte, son téléphone et sa zone d'alerte. Config.Job ci-dessus = première agence.
+Config.AgencyKind = 'ems'
 Config.Society = 'ambulance'
 
 Config.Keys = {

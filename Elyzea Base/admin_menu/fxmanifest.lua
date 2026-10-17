@@ -45,6 +45,7 @@ client_scripts {
     'client/guards.lua',
     'client/dynasty.lua',
     'client/dealer.lua',
+    'client/agences.lua',
 }
 
 server_scripts {
@@ -113,6 +114,7 @@ files {
     'html/guards.js',
     'html/dynasty.js',
     'html/dealer.js',
+    'html/agences.js',
     'html/jewelry.js',
     'html/bankheist.js',
     'html/noirx.js',

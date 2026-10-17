@@ -66,6 +66,7 @@
     const r = await req('home');
     if (r.error) { toast(r.error, 'err'); return null; }
     S.home = r;
+    if (r.job && r.job.color) setAccent(r.job.color);   // couleur de l'agence (elyzea_agences)
     $('#sb-duty').classList.toggle('on', !!r.me.duty);
     return r;
   }

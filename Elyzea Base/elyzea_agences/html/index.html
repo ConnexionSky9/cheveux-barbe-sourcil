@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agences des métiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="hidden" role="dialog" aria-label="Agences des métiers">
+    <header class="top">
+      <div class="title"><span class="logo">🏢</span><div><h1>Agences des métiers</h1><p>Plusieurs polices, EMS, garages ou agences : chacune son métier, ses grades, son téléphone et sa zone d'alerte.</p></div></div>
+      <nav id="kinds" class="kinds" aria-label="Métiers"></nav>
+      <button class="icon-btn" id="close" aria-label="Fermer">✕</button>
+    </header>
+    <main class="body">
+      <aside class="side">
+        <div id="list" class="list"></div>
+        <button class="btn primary block" id="new">+ Nouvelle agence</button>
+      </aside>
+      <section class="mapwrap">
+        <div id="map" class="map"></div>
+        <div id="maptools" class="maptools"></div>
+        <div id="hint" class="hint"></div>
+      </section>
+      <aside id="detail" class="detail"></aside>
+    </main>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

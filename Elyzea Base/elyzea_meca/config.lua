@@ -8,6 +8,9 @@ Config = {}
 
 -- Métier et compte de société d'elyzea_core
 Config.Job = { name = 'mechanic', label = 'Mécano', type = 'mechanic' }
+-- Agences (elyzea_agences) : plusieurs agences de ce métier, chacune son métier elyzea_core,
+-- ses grades, son compte, son téléphone et sa zone d'alerte. Config.Job ci-dessus = première agence.
+Config.AgencyKind = 'meca'
 Config.Society = 'mechanic'
 
 Config.Keys = {

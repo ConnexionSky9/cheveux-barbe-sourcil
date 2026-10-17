@@ -4,6 +4,8 @@
 --    le GPS de la bonne couleur est posé automatiquement chez tous les agents en service.
 --  · Alerte générale (coups de feu, vol de véhicule, braquage, appel…) : chaque agent
 --    valide (GPS + prise en charge visible par tous) ou décline (masquée pour lui seul).
+--  · Agences (elyzea_agences) : l'alerte agent ne va qu'à l'agence de son auteur ;
+--    l'alerte générale va aux agences dont la zone d'alerte contient le lieu.
 --  Les clients ne reçoivent que des ajouts / retraits ponctuels, jamais un flux continu.
 -- =====================================================================
 local P = Police
@@ -13,8 +15,15 @@ P.AgentAlerts = {}     -- [id] = alerte agent active
 P.GeneralAlerts = {}   -- [id] = alerte générale active
 local lastAgentAlert, lastCall, lastAuto = {}, {}, {}
 
-local function Receivers()
-    return P.CopsOnDuty('alerts_receive')
+-- jobs : agence(s) destinataire(s) (texte ou { [job] = true })
+local function Receivers(jobs)
+    return P.CopsOnDuty('alerts_receive', jobs)
+end
+local function JobList(set)
+    local l = {}
+    for j in pairs(set) do l[#l + 1] = j end
+    table.sort(l)
+    return table.concat(l, ',')
 end
 local function SendTo(list, event, ...)
     for _, id in ipairs(list) do TriggerClientEvent(event, id, ...) end
@@ -30,9 +39,9 @@ local function PublicAgent(a)
         authorId = a.author, t = a.t }
 end
 
-function P.AgentAlertList()
+function P.AgentAlertList(job)
     local list = {}
-    for _, a in pairs(P.AgentAlerts) do list[#list + 1] = PublicAgent(a) end
+    for _, a in pairs(P.AgentAlerts) do if not job or a.job == job then list[#list + 1] = PublicAgent(a) end end
     table.sort(list, function(a, b) return a.t > b.t end)
     return list
 end
@@ -48,17 +57,19 @@ P.Actions.agentAlert = { perm = 'alert_agent', duty = true, fn = function(src, d
     if not c then return { error = 'Position introuvable.' } end
     lastAgentAlert[src] = now
     local e = P.Employee(src)
+    local job = e.job
     local street = P.Clean(d.street, 120)
-    local id = MySQL.insert.await([[INSERT INTO `police_alerts` (`kind`, `type`, `title`, `x`, `y`, `z`, `street`, `author_cid`, `author_name`)
-        VALUES ('agent', ?, ?, ?, ?, ?, ?, ?, ?)]], { lvl, 'Alerte agent · ' .. AA.levels[lvl].label, c.x, c.y, c.z, street, P.Cid(src), P.Name(src) })
+    local id = MySQL.insert.await([[INSERT INTO `police_alerts` (`job`, `kind`, `type`, `title`, `x`, `y`, `z`, `street`, `author_cid`, `author_name`)
+        VALUES (?, 'agent', ?, ?, ?, ?, ?, ?, ?, ?)]], { job, lvl, 'Alerte agent · ' .. AA.levels[lvl].label, c.x, c.y, c.z, street, P.Cid(src), P.Name(src) })
     if not id then return { error = 'Enregistrement impossible.' } end
     local pos = Round(c)
-    local a = { id = id, level = lvl, x = pos.x, y = pos.y, z = pos.z, street = street, author = src, authorCid = P.Cid(src),
+    local a = { id = id, job = job, level = lvl, x = pos.x, y = pos.y, z = pos.z, street = street, author = src, authorCid = P.Cid(src),
         authorName = P.Name(src), matricule = e and e.matricule or '?', t = now }
     P.AgentAlerts[id] = a
-    SendTo(Receivers(), 'police:client:agentAlert', PublicAgent(a))
-    P.Log(src, 'Alerte agent', ('%s · %s'):format(AA.levels[lvl].label, street))
-    return { ok = true, message = ('Alerte %s envoyée à %d agent(s).'):format(AA.levels[lvl].label:lower(), #Receivers()), id = id }
+    local list = Receivers(job)
+    SendTo(list, 'police:client:agentAlert', PublicAgent(a))
+    P.Log(src, 'Alerte agent', ('%s · %s · %s'):format(P.AgencyLabel(job), AA.levels[lvl].label, street))
+    return { ok = true, message = ('Alerte %s envoyée à %d agent(s).'):format(AA.levels[lvl].label:lower(), #list), id = id }
 end }
 
 function P.CloseAgentAlert(id, byName)
@@ -73,7 +84,7 @@ end
 
 P.Actions.closeAgentAlert = { perm = nil, fn = function(src, d)
     local a = P.AgentAlerts[tonumber(d.id) or 0]
-    if not a then return { error = 'Cette alerte est déjà clôturée.' } end
+    if not a or a.job ~= P.MyJob(src) then return { error = 'Cette alerte est déjà clôturée.' } end
     if a.authorCid ~= P.Cid(src) and not P.Can(src, 'alert_close') then return { error = 'Seul l\'auteur ou un gradé habilité peut la clôturer.' } end
     P.CloseAgentAlert(a.id, P.Name(src))
     P.Log(src, 'Alerte agent clôturée', ('#%d'):format(a.id))
@@ -105,9 +116,9 @@ local function PublicGeneral(g)
         sprite = GA.types[g.type].sprite, color = GA.types[g.type].color, radius = g.radius or GA.types[g.type].radius }
 end
 
-function P.GeneralAlertList()
+function P.GeneralAlertList(job)
     local list = {}
-    for _, g in pairs(P.GeneralAlerts) do list[#list + 1] = PublicGeneral(g) end
+    for _, g in pairs(P.GeneralAlerts) do if not job or g.jobs[job] then list[#list + 1] = PublicGeneral(g) end end
     table.sort(list, function(a, b) return a.t > b.t end)
     return list
 end
@@ -121,22 +132,24 @@ function P.CreateGeneral(kind, coords, title, description, street, opts)
         if g.type == kind and now - g.t < 60 and #(vector3(g.x, g.y, g.z) - c) < GA.mergeRadius then
             g.count = g.count + 1
             g.t = now
-            SendTo(Receivers(), 'police:client:generalUpdate', PublicGeneral(g))
+            SendTo(Receivers(g.jobs), 'police:client:generalUpdate', PublicGeneral(g))
             return g.id
         end
     end
     title = P.Clean(title ~= nil and title ~= '' and title or GA.types[kind].label, 100)
     description = P.Clean(description, 255)
     street = P.Clean(street, 120)
-    local id = MySQL.insert.await([[INSERT INTO `police_alerts` (`kind`, `type`, `title`, `description`, `x`, `y`, `z`, `street`)
-        VALUES ('general', ?, ?, ?, ?, ?, ?, ?)]], { kind, title, description, c.x, c.y, c.z, street })
+    -- Agences destinataires : zone d'alerte qui contient le lieu (elyzea_agences)
+    local jobs = P.RouteJobs(c)
+    local id = MySQL.insert.await([[INSERT INTO `police_alerts` (`job`, `kind`, `type`, `title`, `description`, `x`, `y`, `z`, `street`)
+        VALUES (?, 'general', ?, ?, ?, ?, ?, ?, ?)]], { JobList(jobs), kind, title, description, c.x, c.y, c.z, street })
     if not id then return nil end
     local pos = Round(c)
     local g = { id = id, type = kind, title = title, description = description, x = pos.x, y = pos.y, z = pos.z, street = street,
-        t = now, created = now, count = 1, takers = {},
+        t = now, created = now, count = 1, takers = {}, jobs = jobs,
         radius = type(opts) == 'table' and tonumber(opts.radius) and math.max(0, math.min(2000, tonumber(opts.radius))) or nil }
     P.GeneralAlerts[id] = g
-    SendTo(Receivers(), 'police:client:generalAlert', PublicGeneral(g))
+    SendTo(Receivers(jobs), 'police:client:generalAlert', PublicGeneral(g))
     return id
 end
 
@@ -152,7 +165,7 @@ end
 -- VALIDER : prise en charge (ou rejoindre une intervention déjà prise)
 P.Actions.acceptAlert = { perm = 'alerts_receive', duty = true, fn = function(src, d)
     local g = P.GeneralAlerts[tonumber(d.id) or 0]
-    if not g then return { error = 'Cette alerte n\'est plus active.' } end
+    if not g or not g.jobs[P.MyJob(src)] then return { error = 'Cette alerte n\'est plus active.' } end
     local cid = P.Cid(src)
     if g.takers[cid] then return { ok = true, alert = PublicGeneral(g) } end
     local e = P.Employee(src)
@@ -160,7 +173,7 @@ P.Actions.acceptAlert = { perm = 'alerts_receive', duty = true, fn = function(sr
     g.takers[cid] = ('%s (%s)'):format(P.Name(src), e and e.matricule or '?')
     P.status[src] = 'busy'
     P.PushState(src)
-    SendTo(Receivers(), 'police:client:generalUpdate', PublicGeneral(g))
+    SendTo(Receivers(g.jobs), 'police:client:generalUpdate', PublicGeneral(g))
     MySQL.update('UPDATE `police_alerts` SET `author_name` = COALESCE(`author_name`, ?) WHERE `id` = ?', { P.Name(src), g.id })
     return { ok = true, alert = PublicGeneral(g), message = first and 'Intervention prise en charge.' or 'Vous rejoignez l\'intervention.' }
 end }
@@ -168,21 +181,23 @@ end }
 -- Fin d'intervention : un agent qui l'a prise en charge, ou un gradé habilité
 P.Actions.closeGeneral = { perm = 'alerts_receive', fn = function(src, d)
     local g = P.GeneralAlerts[tonumber(d.id) or 0]
-    if not g then return { error = 'Cette alerte est déjà clôturée.' } end
+    if not g or not g.jobs[P.MyJob(src)] then return { error = 'Cette alerte est déjà clôturée.' } end
     if not g.takers[P.Cid(src)] and not P.Can(src, 'alert_close') then return { error = 'Prenez d\'abord l\'intervention en charge.' } end
     CloseGeneral(g.id, P.Name(src))
     if P.status[src] == 'busy' then P.status[src] = 'available' P.PushState(src) end
     return { ok = true, message = 'Intervention terminée.' }
 end }
 
-P.Actions.alerts = { perm = 'alerts_receive', fn = function()
-    return { agent = P.AgentAlertList(), general = P.GeneralAlertList(), now = os.time() }
+P.Actions.alerts = { perm = 'alerts_receive', fn = function(src)
+    local job = P.MyJob(src)
+    return { agent = P.AgentAlertList(job), general = P.GeneralAlertList(job), now = os.time() }
 end }
 
--- Agent qui prend son service : il reçoit les alertes en cours
+-- Agent qui prend son service : il reçoit les alertes en cours de son agence
 function P.SyncAlertsTo(src)
     if not P.Can(src, 'alerts_receive') then return end
-    TriggerClientEvent('police:client:syncAlerts', src, P.AgentAlertList(), P.GeneralAlertList())
+    local job = P.MyJob(src)
+    TriggerClientEvent('police:client:syncAlerts', src, P.AgentAlertList(job), P.GeneralAlertList(job))
 end
 
 -- ---------------------------------------------------------------------
@@ -228,8 +243,9 @@ RegisterNetEvent('police:server:distress', function(msg, street)
     if not lastCall[src] or os.time() - lastCall[src] > 10 then return end
     local c = P.Coords(src)
     if not c then return end
-    P.CreateGeneral('distress', c, 'Appel de détresse', ('%s : « %s »'):format(P.Name(src), P.Clean(msg, 200)), street)
-    local n = #Receivers()
+    local id = P.CreateGeneral('distress', c, 'Appel de détresse', ('%s : « %s »'):format(P.Name(src), P.Clean(msg, 200)), street)
+    local g = id and P.GeneralAlerts[id]
+    local n = g and #Receivers(g.jobs) or 0
     P.Notify(src, n > 0 and 'Votre appel a été transmis à la police.' or 'Aucun agent en service pour le moment : votre appel est enregistré.', n > 0 and 'success' or 'inform')
 end)
 

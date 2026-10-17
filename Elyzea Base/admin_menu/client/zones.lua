@@ -305,7 +305,10 @@ function ZoneDrawKey(id)
         end
     elseif id == 'finish' then
         if #drawing.points < 3 then return true, Notify('Pose au moins 3 coins.', 'error') end
-        if drawing.target and drawing.target.ped then
+        if drawing.target and drawing.target.agency then
+            -- zone d'alerte d'une agence (elyzea_agences) : ajoutée comme nouvelle forme
+            TriggerServerEvent('elyzea_agences:server:worldZone', drawing.target.agency, drawing.points)
+        elseif drawing.target and drawing.target.ped then
             -- zone pour parler à un PNJ
             TriggerServerEvent('adminmenu:action', 'editor_npc_area', { id = drawing.target.ped, points = drawing.points })
         else
@@ -342,7 +345,7 @@ local function drawLoop()
             DrawLine(aim.x, aim.y, aim.z + 0.2, pts[1].x, pts[1].y, pts[1].z + 0.2, r, g, b, 120)
         end
 
-        ShowKeysHud('zonedraw', d.target and 'Zone pour parler au PNJ' or 'Dessiner la zone', {
+        ShowKeysHud('zonedraw', d.target and (d.target.agency and ('Zone d\'alerte : ' .. (d.target.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', {
             { keys = { EK('confirm') }, label = 'Poser un coin ici' },
             { keys = { EK('cancel') }, label = #pts > 0 and 'Retirer le dernier coin' or 'Annuler' },
             { keys = { EK('finish') }, label = 'Terminer la zone' },
@@ -355,7 +358,8 @@ function StartZoneDraw(id, settings, target)
     if drawing then return end
     if IsPlacing() then return Notify('Termine d\'abord le placement en cours.', 'error') end
     drawing = { id = id, settings = settings, points = {}, target = target }
-    Notify(target and 'Pose les coins de la zone dans laquelle on pourra parler au PNJ (le noclip marche aussi).'
+    Notify(target and target.agency and 'Pose les coins de la zone d\'alerte un par un (le noclip marche aussi, vise le sol jusqu\'à 200 m).'
+        or target and 'Pose les coins de la zone dans laquelle on pourra parler au PNJ (le noclip marche aussi).'
         or 'Vise le sol et pose les coins de la zone un par un (le noclip marche aussi).', 'info')
     CreateThread(function()
         local ok, err = pcall(drawLoop)
@@ -366,6 +370,13 @@ function StartZoneDraw(id, settings, target)
         end
     end)
 end
+
+-- Zone d'alerte d'une agence (elyzea_agences › « Dessiner en jeu ») ; le serveur
+-- d'elyzea_agences revérifie la permission « agencies_manage »
+AddEventHandler('adminmenu:client:drawAgencyZone', function(id, name)
+    if not tonumber(id) then return end
+    StartZoneDraw(nil, { color = 'blue', name = name }, { agency = tonumber(id), name = name })
+end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end

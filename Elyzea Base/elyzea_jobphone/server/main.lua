@@ -62,22 +62,26 @@ CreateThread(function()
     JP.ready = true
 end)
 
--- Numéro pro unique par employé et par métier (créé au premier besoin, conservé)
-function JP.Number(res, cid)
-    local j = JOBS[res]
-    if not j or not cid then return nil end
-    JP.numbers[res] = JP.numbers[res] or {}
-    local n = JP.numbers[res][cid]
+-- Numéro pro unique par employé et par unité (métier, agence ou concession), créé au premier
+-- besoin et conservé. key = unité (« elyzea_police », « elyzea_police:bcso »…),
+-- prefix = préfixe de l'agence (elyzea_agences), sinon celui du métier (Config.Jobs)
+function JP.Number(key, cid, prefix)
+    if not key or not cid then return nil end
+    local res = tostring(key):match('^[^:]+')
+    prefix = prefix or (JOBS[res] and JOBS[res].prefix)
+    if not prefix then return nil end
+    JP.numbers[key] = JP.numbers[key] or {}
+    local n = JP.numbers[key][cid]
     if n then return n end
     for _ = 1, 50 do
-        local cand = ('%s-%04d'):format(j.prefix, math.random(0, 9999))
+        local cand = ('%s-%04d'):format(prefix, math.random(0, 9999))
         if not JP.byNumber[cand] then
-            local okq = MySQL.insert.await('INSERT IGNORE INTO `jobphone_numbers` (`citizenid`, `job`, `number`) VALUES (?, ?, ?)', { cid, res, cand })
+            local okq = MySQL.insert.await('INSERT IGNORE INTO `jobphone_numbers` (`citizenid`, `job`, `number`) VALUES (?, ?, ?)', { cid, key, cand })
             if okq ~= nil then
-                local row = MySQL.single.await('SELECT `number` FROM `jobphone_numbers` WHERE `citizenid` = ? AND `job` = ?', { cid, res })
+                local row = MySQL.single.await('SELECT `number` FROM `jobphone_numbers` WHERE `citizenid` = ? AND `job` = ?', { cid, key })
                 if row then
-                    JP.numbers[res][cid] = row.number
-                    JP.byNumber[row.number] = { job = res, cid = cid }
+                    JP.numbers[key][cid] = row.number
+                    JP.byNumber[row.number] = { job = key, cid = cid }
                     return row.number
                 end
             end
@@ -85,6 +89,7 @@ function JP.Number(res, cid)
     end
     return nil
 end
+local function MyNumber(me, cid) return JP.Number(me.numberKey or me.res, cid or me.cid, me.prefix) end
 
 -- ---------------------------------------------------------------------
 -- Téléphones ouverts (pour pousser les mises à jour sans sonder)
@@ -159,10 +164,10 @@ function A.home(src, me)
     return {
         me = {
             name = me.name, grade = me.grade, level = me.level, matricule = me.matricule, unit = me.unitLabel,
-            number = JP.Number(me.res, me.cid), duty = me.duty, canDuty = me.canDuty, tablet = me.tablet, times = me.times,
+            number = MyNumber(me), duty = me.duty, canDuty = me.canDuty, tablet = me.tablet, times = me.times,
             status = me.status,
         },
-        job = { res = me.res, label = me.job.label, color = me.job.color },
+        job = { res = me.res, label = me.unitLabel or me.job.label, color = me.color or me.job.color },
         unread = unread, inCall = JP.inCall[src] ~= nil,
         levels = Config.Alerts.levels,
     }
@@ -180,7 +185,7 @@ end
 function A.directory(src, me)
     local list = Bridge(me.res, 'roster', src) or {}
     for _, e in ipairs(list) do
-        e.number = JP.Number(me.res, e.cid)
+        e.number = MyNumber(me, e.cid)
         e.me = e.cid == me.cid
         e.id = nil
     end
@@ -283,7 +288,7 @@ function A.call(src, me, d)
     local cid = d.cid and Clean(d.cid, 64) or nil
     if not cid and d.number then
         local n = JP.byNumber[Clean(d.number, 16)]
-        if not n or n.job ~= me.res then return { error = 'Numéro pro inconnu.' } end
+        if not n or n.job ~= (me.numberKey or me.res) then return { error = 'Numéro pro inconnu.' } end
         cid = n.cid
     end
     if not cid or cid == me.cid then return { error = 'Correspondant invalide.' } end
@@ -296,7 +301,7 @@ function A.call(src, me, d)
     JP.callSeq = JP.callSeq + 1
     local id = JP.callSeq
     local c = { id = id, a = src, b = target, unit = me.unit, state = 'ringing', t = os.time(),
-        aName = me.name, bName = tme.name, aNumber = JP.Number(me.res, me.cid), bNumber = JP.Number(me.res, tme.cid) }
+        aName = me.name, bName = tme.name, aNumber = MyNumber(me), bNumber = MyNumber(tme) }
     JP.calls[id], JP.inCall[src], JP.inCall[target] = c, id, id
     TriggerClientEvent('elyzea_jobphone:client:call', target, { state = 'incoming', id = id, name = c.aName, number = c.aNumber })
     SetTimeout(Config.Calls.ringSeconds * 1000, function()
@@ -446,4 +451,9 @@ CreateThread(function()
 end)
 
 exports('GetNumber', function(res, cid) return JP.Number(res, cid) end)
+-- Numéro pro d'un joueur connecté (son unité actuelle)
+exports('GetMyNumber', function(src)
+    local me = JP.Me(tonumber(src))
+    return me and MyNumber(me) or nil
+end)
 exports('IsInCall', function(src) return JP.inCall[tonumber(src) or -1] ~= nil end)

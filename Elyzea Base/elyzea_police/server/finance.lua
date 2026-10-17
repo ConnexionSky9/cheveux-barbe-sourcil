@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA POLICE - serveur : Direction › Finance
---  · Argent de l'entreprise = compte société « police » d'elyzea_core.
+--  · Argent de l'entreprise = compte société de l'agence d'elyzea_core (« police », « bcso »…).
 --  · Chaque grade a un taux ($ par heure de service) fixé par la direction.
 --  · Le temps de service de chaque employé est compté (server/service.lua).
 --  · « Payer » : société → banque de l'employé (même hors ligne), puis son
@@ -8,17 +8,16 @@
 -- =====================================================================
 local P = Police
 local core = exports.elyzea_core
-local JOB = Config.Job.name
 local paying = {}
 
 local function MyLevel(src) local g = P.Grade(src) return g and g.level or -1 end
--- Taux modifiable : grades inférieurs au sien, ou tous pour le plus haut grade
-local function CanEditRate(src, g) local my = MyLevel(src) return g.level < my or my >= P.TopLevel() end
+-- Taux modifiable : grades inférieurs au sien, ou tous pour le plus haut grade (de son agence)
+local function CanEditRate(src, g) local my = MyLevel(src) return g.job == P.MyJob(src) and (g.level < my or my >= P.TopLevel(g.job)) end
 
 local function Due(seconds, rate) return math.floor((tonumber(seconds) or 0) * (tonumber(rate) or 0) / 3600) end
 
-local function Balance()
-    local ok, v = pcall(function() return core:GetSocietyMoney(JOB) end)
+local function Balance(job)
+    local ok, v = pcall(function() return core:GetSocietyMoney(P.Society(job)) end)
     return ok and tonumber(v) or 0
 end
 
@@ -29,14 +28,15 @@ end
 
 P.Actions.finance = { perm = 'finance', fn = function(src)
     P.FlushAllService()
+    local job = P.MyJob(src)
     local grades, members = {}, {}
     for cid, e in pairs(P.employees) do members[e.grade_id] = (members[e.grade_id] or 0) + 1 end
-    for _, g in ipairs(P.SortedGrades()) do
+    for _, g in ipairs(P.SortedGrades(job)) do
         grades[#grades + 1] = { id = g.id, name = g.name, level = g.level, rate = tonumber(g.salary) or 0, members = members[g.id] or 0, editable = CanEditRate(src, g) }
     end
     for _, gr in ipairs(grades) do local v = P.CommissionView(src, P.grades[gr.id]) gr.commission, gr.commissionEditable = v.commission, v.commissionEditable end
     local list, totalDue = {}, 0
-    for cid, e in pairs(P.employees) do
+    for cid, e in pairs(P.employees) do if e.job == job then
         local g = P.grades[e.grade_id]
         local s = core:GetSourceByCitizenId(cid)
         local rate = g and tonumber(g.salary) or 0
@@ -44,12 +44,12 @@ P.Actions.finance = { perm = 'finance', fn = function(src)
         totalDue = totalDue + due
         list[#list + 1] = { cid = cid, name = e.name, matricule = e.matricule, grade = g and g.name or '?', level = g and g.level or 0,
             seconds = tonumber(e.service_seconds) or 0, rate = rate, due = due, online = s ~= nil, duty = s ~= nil and P.OnDuty(s) or false }
-    end
+    end end
     table.sort(list, function(a, b) if a.level ~= b.level then return a.level > b.level end return a.name < b.name end)
     local logs = {}
-    local ok, rows = pcall(function() return core:GetSocietyLogs(JOB, 15) end)
+    local ok, rows = pcall(function() return core:GetSocietyLogs(P.Society(job), 15) end)
     for _, r in ipairs(ok and rows or {}) do logs[#logs + 1] = { amount = r.amount, reason = r.reason, t = LogTime(r.created_at) } end
-    return { balance = Balance(), grades = grades, employees = list, totalDue = totalDue, logs = logs, now = os.time() }
+    return { balance = Balance(job), grades = grades, employees = list, totalDue = totalDue, logs = logs, now = os.time() }
 end }
 
 P.Actions.financeRate = { perm = 'finance', fn = function(src, d)
@@ -71,7 +71,7 @@ local function PayBank(cid, amount)
     local s = core:GetSourceByCitizenId(cid)
     if s then
         local p = core:GetPlayer(s)
-        if p and p.Functions.AddMoney('bank', amount, 'Salaire ' .. Config.Job.label) then return true, s end
+        if p and p.Functions.AddMoney('bank', amount, 'Salaire ' .. P.AgencyLabel(P.JobOf(cid))) then return true, s end
         return false
     end
     local ok, done = pcall(function()
@@ -88,7 +88,8 @@ end
 P.Actions.financePay = { perm = 'finance', fn = function(src, d)
     local cid = tostring(d.cid or '')
     local e = P.employees[cid]
-    if not e then return { error = 'Employé introuvable.' } end
+    if not e or e.job ~= P.MyJob(src) then return { error = 'Employé introuvable.' } end
+    local SOC = P.Society(e.job)
     if paying[cid] then return { error = 'Paiement déjà en cours.' } end
     paying[cid] = true
     local res = (function()
@@ -100,11 +101,11 @@ P.Actions.financePay = { perm = 'finance', fn = function(src, d)
         local h, m = math.floor(seconds / 3600), math.floor(seconds % 3600 / 60)
         local label = ('Salaire %s (%s) : %dh%02d'):format(e.name, e.matricule, h, m)
         local okRemove = false
-        pcall(function() okRemove = core:RemoveSocietyMoney(JOB, amount, label) end)
+        pcall(function() okRemove = core:RemoveSocietyMoney(SOC, amount, label) end)
         if not okRemove then return { error = ('Fonds insuffisants : il faut %d $ dans le compte de l\'entreprise.'):format(amount) } end
         local paid, target = PayBank(cid, amount)
         if not paid then
-            pcall(function() core:AddSocietyMoney(JOB, amount, 'Annulation : ' .. label) end)
+            pcall(function() core:AddSocietyMoney(SOC, amount, 'Annulation : ' .. label) end)
             return { error = 'Versement impossible sur le compte de l\'employé, argent remis dans l\'entreprise.' }
         end
         -- Seul le temps payé est retiré (le service en cours continue d'être compté)

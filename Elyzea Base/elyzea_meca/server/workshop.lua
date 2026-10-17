@@ -171,7 +171,7 @@ end
 
 P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
     local grades = {}
-    for _, g in ipairs(P.SortedGrades()) do grades[#grades + 1] = { level = g.level, name = g.name } end
+    for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do grades[#grades + 1] = { level = g.level, name = g.name } end
     local list = {}
     for _, w in ipairs(P.WorkshopList()) do
         local n = 0
@@ -398,11 +398,12 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     local uid = P.Uid('DEV')
     local q = { uid = uid, status = 'pending', items = lines, total = total, plate = plate, vehicleId = row and row.id,
         model = P.Clean(d.model, 60), net = veh and NetworkGetNetworkIdFromEntity(veh) or nil, workshop = w and w.id or nil,
+        job = P.MyJob(src),   -- garage (agence) qui encaisse
         mechanic = src, mechanicCid = P.Cid(src), mechanicName = P.Name(src), customer = cust, customerCid = P.Cid(cust), customerName = P.Name(cust),
         t = os.time(), expires = os.time() + Q.acceptTimeout }
     P.quotes[uid] = q
-    MySQL.insert.await([[INSERT INTO `meca_quotes` (`uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `model`, `mechanic_cid`, `mechanic_name`, `workshop`, `items`, `total`, `status`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')]], { uid, q.customerCid, q.customerName, q.vehicleId, plate, q.model, q.mechanicCid, q.mechanicName, q.workshop,
+    MySQL.insert.await([[INSERT INTO `meca_quotes` (`job`, `uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `model`, `mechanic_cid`, `mechanic_name`, `workshop`, `items`, `total`, `status`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')]], { q.job, uid, q.customerCid, q.customerName, q.vehicleId, plate, q.model, q.mechanicCid, q.mechanicName, q.workshop,
         json.encode(lines), total })
     TriggerClientEvent('meca:client:quoteOffer', cust, QuoteView(q), Q.acceptTimeout)
     return { ok = true, quote = QuoteView(q), message = ('Devis %s envoyé (%d $).'):format(uid, total) }
@@ -425,14 +426,14 @@ local function Finalize(q, results, actorSrc)
     local refund = math.max(0, (q.paid or 0) - amount)
     local refundNote
     if refund > 0 then
-        if P.SocietyRemove(refund, ('Remboursement devis %s (non installé)'):format(q.uid)) then
+        if P.SocietyRemove(refund, ('Remboursement devis %s (non installé)'):format(q.uid), q.job) then
             local back = P.Refund(q.customerCid, refund, q.method, 'Remboursement ' .. q.uid)
             if back then
                 q.refunded = refund
-                P.Tx({ type = 'out', category = 'refund', amount = refund, reason = 'Prestations non installées', actorName = 'Système',
+                P.Tx({ job = q.job, type = 'out', category = 'refund', amount = refund, reason = 'Prestations non installées', actorName = 'Système',
                     targetCid = q.customerCid, targetName = q.customerName, ref = q.uid })
             else
-                P.SocietyAdd(refund, ('Annulation remboursement %s'):format(q.uid))
+                P.SocietyAdd(refund, ('Annulation remboursement %s'):format(q.uid), q.job)
                 refundNote = ('Remboursement de %d $ à faire à la main'):format(refund)
             end
         else
@@ -443,8 +444,8 @@ local function Finalize(q, results, actorSrc)
     local invoiceUid
     if #done > 0 then
         invoiceUid = P.Uid('FAC')
-        MySQL.insert.await([[INSERT INTO `meca_invoices` (`uid`, `quote_uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `txid`, `note`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)]], { invoiceUid, q.uid, q.customerCid, q.customerName, q.vehicleId, q.plate, q.mechanicName,
+        MySQL.insert.await([[INSERT INTO `meca_invoices` (`job`, `uid`, `quote_uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `txid`, `note`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)]], { q.job, invoiceUid, q.uid, q.customerCid, q.customerName, q.vehicleId, q.plate, q.mechanicName,
             json.encode(done), amount, q.method, q.txid, refundNote })
         -- Commission du mécanicien sur le montant final (lignes réellement posées)
         P.Commission(q.mechanicCid, amount, ('Devis %s · %s'):format(q.uid, q.customerName or ''), invoiceUid)
@@ -503,14 +504,14 @@ RegisterNetEvent('meca:server:quoteAnswer', function(uid, accept)
         tellMech(('Le client n\'a pas assez d\'argent (%d $) : devis %s annulé.'):format(q.total, q.uid), 'error')
         return P.Notify(src, ('Fonds insuffisants (%d $).'):format(q.total), 'error')
     end
-    if q.total > 0 and not P.SocietyAdd(q.total, ('Devis %s · %s'):format(q.uid, q.customerName)) then
+    if q.total > 0 and not P.SocietyAdd(q.total, ('Devis %s · %s'):format(q.uid, q.customerName), q.job) then
         P.Refund(q.customerCid, q.total, method, 'Annulation ' .. q.uid)
         q.status = 'failed' Save(q, ', `note` = ?', { 'Compte société indisponible' }) P.quotes[q.uid] = nil answering[q.uid] = nil
         tellMech('Compte de l\'entreprise indisponible : client remboursé.', 'error')
         return P.Notify(src, 'Paiement annulé et remboursé.', 'error')
     end
     q.status, q.paid, q.method = 'accepted', q.total, method == 'free' and nil or method
-    q.txid = q.total > 0 and P.Tx({ type = 'in', category = 'invoice', amount = q.total, reason = 'Devis accepté', actorCid = q.mechanicCid, actorName = q.mechanicName,
+    q.txid = q.total > 0 and P.Tx({ job = q.job, type = 'in', category = 'invoice', amount = q.total, reason = 'Devis accepté', actorCid = q.mechanicCid, actorName = q.mechanicName,
         targetCid = q.customerCid, targetName = q.customerName, ref = q.uid }) or nil
     q.acceptedAt = os.time()
     Save(q)
@@ -619,17 +620,17 @@ P.OnReady[#P.OnReady + 1] = function()
     MySQL.update.await("UPDATE `meca_quotes` SET `status` = 'expired', `updated_at` = NOW() WHERE `status` = 'pending'")
     for _, r in ipairs(MySQL.query.await("SELECT * FROM `meca_quotes` WHERE `status` = 'accepted'") or {}) do
         local okj, items = pcall(json.decode, r.items or '[]')
-        local q = { uid = r.uid, items = okj and items or {}, paid = tonumber(r.paid) or 0, method = r.method, customerCid = r.customer_cid, customerName = r.customer_name,
+        local q = { uid = r.uid, job = r.job, items = okj and items or {}, paid = tonumber(r.paid) or 0, method = r.method, customerCid = r.customer_cid, customerName = r.customer_name,
             plate = r.plate, vehicleId = r.vehicle_id, mechanicName = r.mechanic_name }
         local refund = q.paid
         local done = false
-        if refund > 0 and P.SocietyRemove(refund, ('Remboursement devis %s (arrêt du serveur)'):format(q.uid)) then
+        if refund > 0 and P.SocietyRemove(refund, ('Remboursement devis %s (arrêt du serveur)'):format(q.uid), q.job) then
             if P.Refund(q.customerCid, refund, q.method, 'Remboursement ' .. q.uid) then
-                P.Tx({ type = 'out', category = 'refund', amount = refund, reason = 'Devis non installé (arrêt du serveur)', actorName = 'Système',
+                P.Tx({ job = q.job, type = 'out', category = 'refund', amount = refund, reason = 'Devis non installé (arrêt du serveur)', actorName = 'Système',
                     targetCid = q.customerCid, targetName = q.customerName, ref = q.uid })
                 done = true
             else
-                P.SocietyAdd(refund, ('Annulation remboursement %s'):format(q.uid))
+                P.SocietyAdd(refund, ('Annulation remboursement %s'):format(q.uid), q.job)
             end
         end
         MySQL.update.await('UPDATE `meca_quotes` SET `status` = ?, `refunded` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?',
@@ -640,16 +641,17 @@ end
 -- ---------------------------------------------------------------------
 -- Consultation (F6, tablette)
 -- ---------------------------------------------------------------------
-function P.OpenQuotes()
+-- Devis en cours (job : ceux d'une agence)
+function P.OpenQuotes(job)
     local list = {}
-    for _, q in pairs(P.quotes) do list[#list + 1] = QuoteView(q) end
+    for _, q in pairs(P.quotes) do if not job or q.job == job then list[#list + 1] = QuoteView(q) end end
     table.sort(list, function(a, b) return a.t > b.t end)
     return list
 end
 
 P.Actions.quotes = { perm = 'quotes', fn = function(src, d)
     local mine = d.mine == true or not P.Can(src, 'quotes_manage')
-    local where, args = {}, {}
+    local where, args = { '`job` = ?' }, { P.MyJob(src) }
     if mine then where[#where + 1] = '`mechanic_cid` = ?' args[#args + 1] = P.Cid(src) end
     local st = tostring(d.status or '')
     if st:match('^%a+$') then where[#where + 1] = '`status` = ?' args[#args + 1] = st end
@@ -662,7 +664,7 @@ P.Actions.quotes = { perm = 'quotes', fn = function(src, d)
     local rows = MySQL.query.await([[SELECT `uid`, `customer_name`, `plate`, `model`, `mechanic_name`, `items`, `total`, `paid`, `refunded`, `status`, `invoice_uid`, `note`,
         UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_quotes`]] .. (#where > 0 and (' WHERE ' .. table.concat(where, ' AND ')) or '') .. ' ORDER BY `id` DESC LIMIT 120', args) or {}
     for _, r in ipairs(rows) do local ok, it = pcall(json.decode, r.items or '[]') r.items = ok and it or {} end
-    return { list = rows, active = P.OpenQuotes(), canManage = P.Can(src, 'quotes_manage') }
+    return { list = rows, active = P.OpenQuotes(P.MyJob(src)), canManage = P.Can(src, 'quotes_manage') }
 end }
 
 P.Actions.invoices = { perm = 'quotes', fn = function(src, d)
@@ -675,10 +677,10 @@ P.Actions.invoices = { perm = 'quotes', fn = function(src, d)
     if q ~= '' then
         local like = '%' .. q .. '%'
         rows = MySQL.query.await([[SELECT `uid`, `quote_uid`, `customer_name`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `note`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `meca_invoices` WHERE `uid` LIKE ? OR `plate` LIKE ? OR `customer_name` LIKE ? ORDER BY `id` DESC LIMIT 150]], { like, like, like })
+            FROM `meca_invoices` WHERE `job` = ? AND (`uid` LIKE ? OR `plate` LIKE ? OR `customer_name` LIKE ?) ORDER BY `id` DESC LIMIT 150]], { P.MyJob(src), like, like, like })
     else
         rows = MySQL.query.await([[SELECT `uid`, `quote_uid`, `customer_name`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `note`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `meca_invoices` ORDER BY `id` DESC LIMIT 150]])
+            FROM `meca_invoices` WHERE `job` = ? ORDER BY `id` DESC LIMIT 150]], { P.MyJob(src) })
     end
     for _, r in ipairs(rows or {}) do local ok, it = pcall(json.decode, r.items or '[]') r.items = ok and it or {} end
     return { list = rows or {}, canManage = P.Can(src, 'quotes_manage') }
@@ -692,19 +694,20 @@ P.Actions.invoiceRefund = { perm = 'quotes_manage', fn = function(src, d)
     refunding[uid] = true
     local ok, res = pcall(function()
         local inv = MySQL.single.await('SELECT * FROM `meca_invoices` WHERE `uid` = ?', { uid })
-        if not inv then return { error = 'Facture introuvable.' } end
+        if not inv or inv.job ~= P.MyJob(src) then return { error = 'Facture introuvable.' } end
+        local job = inv.job
         if inv.status ~= 'paid' then return { error = 'Cette facture n\'est pas remboursable.' } end
         local reason = P.Clean(d.reason, 160)
         if #reason < 3 then return { error = 'Indiquez le motif.' } end
         local amount = tonumber(inv.amount) or 0
-        if amount > 0 and not P.SocietyRemove(amount, ('Remboursement facture %s'):format(uid)) then return { error = ('Fonds insuffisants (%d $).'):format(amount) } end
+        if amount > 0 and not P.SocietyRemove(amount, ('Remboursement facture %s'):format(uid), job) then return { error = ('Fonds insuffisants (%d $).'):format(amount) } end
         if amount > 0 and not P.Refund(inv.customer_cid, amount, inv.method, 'Remboursement ' .. uid) then
-            P.SocietyAdd(amount, ('Annulation remboursement %s'):format(uid))
+            P.SocietyAdd(amount, ('Annulation remboursement %s'):format(uid), job)
             return { error = 'Remboursement impossible sur le compte du client : rien n\'a changé.' }
         end
         MySQL.update.await('UPDATE `meca_invoices` SET `status` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?', { 'refunded', ('%s · %s'):format(reason, P.Name(src)), uid })
         if amount > 0 then
-            P.Tx({ type = 'out', category = 'refund', amount = amount, reason = 'Remboursement : ' .. reason, actorCid = P.Cid(src), actorName = P.Name(src),
+            P.Tx({ job = job, type = 'out', category = 'refund', amount = amount, reason = 'Remboursement : ' .. reason, actorCid = P.Cid(src), actorName = P.Name(src),
                 targetCid = inv.customer_cid, targetName = inv.customer_name, ref = uid })
         end
         if inv.vehicle_id and MySQL.scalar.await('SELECT 1 FROM `meca_carplay` WHERE `invoice_uid` = ?', { uid }) then

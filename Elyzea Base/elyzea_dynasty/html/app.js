@@ -348,7 +348,7 @@ window.addEventListener('message', (e) => {
   const m = e.data || {};
   switch (m.action) {
     case 'init': return applyCfg(m.cfg);
-    case 'state': APP.st = m.state; if (window.Tablet) Tablet.onState(m.state); return;
+    case 'state': APP.st = m.state; if (m.state && m.state.agency && APP.cfg) APP.cfg.job = m.state.agency; if (window.Tablet) Tablet.onState(m.state); return;
     case 'f6': if (m.show) { F6.view = 'main'; F6.data = m; show('#f6', true); f6Draw(); } else show('#f6', false); return;
     case 'f6Data': if (!$('#f6').classList.contains('hidden')) { F6.data = m; f6Draw(); } return;
     case 'bell': return showBell(m.bell);

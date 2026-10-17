@@ -18,7 +18,9 @@ end
 CreateThread(function()
     while true do
         local sleep = 1500
-        local pts = GlobalState.emsPoints
+        -- Points de l'agence du joueur (elyzea_agences)
+        local st = C.State()
+        local pts = st and st.job and (GlobalState.emsPoints or {})[st.job]
         if pts and C.OnDuty() and not C.IsDown() then
             local ped = PlayerPedId()
             local pos = GetEntityCoords(ped)
