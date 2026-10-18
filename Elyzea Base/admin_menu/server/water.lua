@@ -94,3 +94,6 @@ RegisterCommand('eau_maps', function(src)
     for _, l in ipairs(out) do say(l) end
     say('Retire-les par moitié (# devant ensure, redémarrage complet, reconnexion) jusqu\'à ce que l\'eau revienne.')
 end, false)
+
+-- Grade staff d'un joueur (utilisé par elyzea_eau : /eau_ajouter réservé au Fondateur)
+exports('GetStaffRank', function(src) return AdminMenu and AdminMenu.getRankName and AdminMenu.getRankName(src) or nil end)
