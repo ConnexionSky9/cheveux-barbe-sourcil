@@ -17,8 +17,17 @@ if IsDuplicityVersion and not IsDuplicityVersion() then return end
 local core = exports.elyzea_core
 local resource = GetCurrentResourceName()
 
+-- Ressource en cours d'arrêt (ex. sauvegarde du temps de service dans onResourceStop) :
+-- la requête part SANS attendre de réponse. Attendre bloquerait le reste de la sauvegarde
+-- (la ressource disparaît avant la réponse) et la réponse arriverait sur une ressource arrêtée
+-- (« reference wasn't valid »). La requête est bien exécutée par elyzea_core.
+local stopping = false
+AddEventHandler('onResourceStop', function(res) if res == resource then stopping = true end end)
+local function isStopping() return stopping or GetResourceState(resource) == 'stopping' end
+
 local function call(kind, sql, params, cb)
     if type(params) == 'function' then cb, params = params, nil end
+    if isStopping() then core['db_' .. kind](core, sql, params or {}) return end
     core['db_' .. kind](core, sql, params or {}, function(result, err)
         if err then return cb and cb(nil, err) end
         if cb then cb(result) end
@@ -26,6 +35,7 @@ local function call(kind, sql, params, cb)
 end
 
 local function await(kind, sql, params)
+    if isStopping() then core['db_' .. kind](core, sql, params or {}) return nil end
     local p = promise.new()
     core['db_' .. kind](core, sql, params or {}, function(result, err)
         if err then p:reject(('%s : %s'):format(resource, err)) else p:resolve(result) end
@@ -78,10 +88,12 @@ MySQL.fetch = MySQL.query
 MySQL.transaction = setmetatable({}, {
     __call = function(_, queries, params, cb)
         if type(params) == 'function' then cb, params = params, nil end
+        if isStopping() then core:db_transaction(queries, params) return end
         core:db_transaction(queries, params, function(ok) if cb then cb(ok == true) end end)
     end,
 })
 MySQL.transaction.await = function(queries, params)
+    if isStopping() then core:db_transaction(queries, params) return true end
     local p = promise.new()
     core:db_transaction(queries, params, function(ok) p:resolve(ok == true) end)
     return Citizen.Await(p)

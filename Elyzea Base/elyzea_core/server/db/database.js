@@ -19909,7 +19909,11 @@ function wrap(type) {
     if (typeof params === 'function' && cb === undefined) { cb = params; params = []; }
     const invoking = invokingOverride || GetInvokingResource() || RES;
     run(invoking, type, sql, params)
-      .then((res) => { if (cb) { try { cb(res); } catch (e) { console.log(`^1[elyzea_core] ${invoking} : erreur dans le callback SQL : ${e.message}^0`); } } })
+      .then((res) => { if (cb) { try { cb(res); } catch (e) {
+        // Ressource redémarrée pendant la requête : la requête est faite, personne n'attend plus la réponse
+        if (/wasn't valid|restart recently/.test(e.message || '')) return;
+        console.log(`^1[elyzea_core] ${invoking} : erreur dans le callback SQL : ${e.message}^0`);
+      } } })
       .catch((err) => {
         if (err.code === 'ELY_DB_OFF') {
           // une seule ligne par ressource, pas une par requête
@@ -19930,7 +19934,7 @@ exports('db_update', wrap('update'));
 exports('db_transaction', (queries, shared, cb) => {
   if (typeof shared === 'function' && cb === undefined) { cb = shared; shared = undefined; }
   const invoking = GetInvokingResource() || RES;
-  transaction(invoking, queries, shared).then((ok) => cb && cb(ok)).catch((err) => {
+  transaction(invoking, queries, shared).then((ok) => { try { if (cb) cb(ok); } catch (e) { /* ressource redémarrée */ } }).catch((err) => {
     if (err.code !== 'ELY_DB_OFF' || !warned.has(invoking)) { warned.add(invoking); console.log(`^1[elyzea_core] ${invoking} : transaction : ${err.message}^0`); }
     if (cb) cb(false);
   });
