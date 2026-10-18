@@ -30,10 +30,22 @@ RegisterCommand('eau_zone', function()
     local zone = GetLabelText(GetNameOfZone(c.x, c.y, c.z))
     local street = GetStreetNameFromHashKey(GetStreetNameAtCoord(c.x, c.y, c.z))
     local wf = getWaterFile()
-    local has, h = GetWaterHeight(c.x, c.y, c.z + 50.0)
+    -- Eau connue du jeu à cet endroit (indépendant de ce qui est affiché ou du sol posé par une map)
+    local has, h = GetWaterHeightNoWaves(c.x, c.y, c.z + 100.0)
+    local okG, gz = GetGroundZFor_3dCoord(c.x, c.y, c.z + 100.0, false)
     say(('Position : %.1f, %.1f, %.1f (%s, %s)'):format(c.x, c.y, c.z, zone, street))
     say(('Fichier d\'eau chargé : %s'):format(wf == 0 and '0 = Los Santos (normal)' or wf == 1 and '1 = Cayo Perico (des eaux de Los Santos peuvent manquer)' or tostring(wf)))
-    say(has and ('Le jeu voit de l\'eau ici (hauteur %.1f).'):format(h) or 'Le jeu ne voit AUCUNE eau ici.')
+    if has then
+        say(('Le jeu A de l\'eau ici (surface à %.1f m%s).'):format(h, okG and (', sol à %.1f m'):format(gz) or ''))
+        if okG and gz > h + 0.3 then
+            say('=> Le sol est AU-DESSUS de l\'eau : une map pose du sable / une collision par-dessus. Trouve-la avec /eau_maps (console).')
+        else
+            say('=> L\'eau existe et le sol est dessous : si tu ne la vois pas, c\'est l\'affichage (map qui masque l\'eau, réglages graphiques « Eau », cache FiveM).')
+        end
+    else
+        say('Le jeu n\'a AUCUNE eau ici.')
+        say('=> Soit le jeu de base n\'a jamais eu d\'eau à cet endroit (crique creusée par une map), soit un fichier d\'eau la retire. Envoie la position au développeur.')
+    end
     if wf == 1 then say('Teste /eau_principale : si l\'eau revient, mets Config.WaterMainland = true dans admin_menu/config.lua.') end
 end, false)
 
