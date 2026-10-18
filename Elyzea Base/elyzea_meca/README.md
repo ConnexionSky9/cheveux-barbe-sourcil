@@ -54,11 +54,45 @@ Déroulé : le mécanicien gare la voiture du client sur le cercle et appuie sur
 - Il n'existe pas de système de factures différées sur le serveur : le client **paie au moment où il accepte** (banque, puis liquide). L'argent va sur le compte société `mechanic` (elyzea_core).
 - Le total est **recalculé par le serveur** à partir du catalogue en base ; l'interface ne fait qu'afficher.
 - Le prix est **copié dans le devis** : changer un tarif ne touche que les nouveaux devis.
-- Après acceptation, le mécanicien clique **Installer**. Chaque ligne est appliquée puis relue sur le véhicule. Ce qui n'a pas pu être installé est **remboursé** automatiquement ; la facture ne contient que ce qui a été posé.
+- Après acceptation, le mécanicien clique **Installer** : il **réalise l'intervention en jeu** (voir « Interventions animées »). Chaque pièce est posée au moment où l'animation la monte, puis relue sur le véhicule. Ce qui n'a pas pu être installé est **remboursé** automatiquement ; la facture ne contient que ce qui a été posé.
 - Devis payé jamais installé : remboursé après `Config.Quotes.installTimeout` (30 min) ou au redémarrage du serveur.
 - Prestations (réparations, nettoyage, remorquage) : F6 › Véhicules › Devis de prestations (la dernière réparation faite est proposée).
 - Remboursement d'une facture : tablette › Factures (permission « Annuler et rembourser »). Une seule fois par facture.
 - Les modifications installées sont enregistrées dans `player_vehicles.mods` : elles restent après un rangement au garage et un redémarrage.
+
+## Interventions animées (installation d'un devis payé)
+« Installer » ne pose plus tout d'un coup : l'atelier se ferme et le mécanicien fait le travail, dans un ordre logique,
+seulement pour les pièces achetées. Les prix, le paiement (à l'acceptation, une seule fois) et la facture ne changent pas.
+
+| Travail | Ce qui se passe |
+|---|---|
+| Transmission, échappement, suspension, freins | véhicule levé **une seule fois** pour tout : chandelles sous les roues (ou ton pont, voir plus bas), mécanicien allongé sur le chariot sous le véhicule (scénario du jeu `WORLD_HUMAN_VEHICLE_MECHANIC`), puis redescente progressive |
+| Freins | roues avant (et arrière si `brakesRear`) : accroupi, pneu retiré, étrier en main, remontage |
+| Jantes / pneus | roue par roue (avant gauche, avant droite, arrière gauche, arrière droite) : cric si le véhicule n'est pas levé, desserrage, **pneu retiré**, roue portée à l'établi, nouvelle roue, serrage |
+| Moteur, turbo, bloc, filtre, barres | capot ouvert, penché sur le moteur, clé en main ; le capot reste ouvert entre ces travaux |
+| Capot | ouverture, démontage, **l'ancien capot disparaît**, porté à l'établi, nouveau capot, remontage (la nouvelle pièce apparaît), fixation, fermeture |
+| Pare-chocs, calandre, aileron, coffre, ailes, bas de caisse, portières | à l'endroit de la pièce : démontage, ancienne pièce à l'établi, nouvelle pièce, fixation |
+| Blindage | soudure des deux côtés |
+| Peinture, vitres teintées | tour du véhicule (préparation), la teinte apparaît à la fin |
+| Phares, néons, plaque, intérieur, CarPlay | phares capot ouvert, néons accroupi sur le côté, plaque à l'arrière, intérieur et CarPlay portière ouverte (tablette) |
+
+**Sécurité et multijoueur**
+- Une seule intervention par point d'atelier (un autre mécanicien ne peut pas l'ouvrir) et par mécanicien.
+- Le serveur ne donne les propriétés d'une pièce qu'**au moment de la pose**, une seule fois ; il compte lui-même les pièces posées. Le client ne peut ni se déclarer payé, ni obtenir une pièce non achetée.
+- Occupants descendus et portes verrouillées pendant le travail ; véhicule, objets et animations en réseau : tout le monde voit la même scène.
+
+**Interruptions** (touche **X**, mort, fin de service, éloignement, véhicule déplacé ou détruit, déconnexion, arrêt de la ressource) :
+objets supprimés, véhicule redescendu à sa place exacte, capot / pneus remis, portes refermées et déverrouillées, contrôles rendus.
+Les pièces déjà posées restent posées ; le devis reste payé : **rouvrir l'atelier et « Installer » reprend la suite**.
+Sans reprise : après `installTimeout`, ou au redémarrage du serveur, les pièces posées sont facturées et enregistrées, le reste remboursé.
+Déconnexion du mécanicien : le serveur supprime ses objets et fait remettre le véhicule en état par le joueur qui le contrôle.
+
+**Réglages** : `Config.Interventions` dans `config.lua` (vitesse, durées, animations, objets et leur position en main, levage).
+- **Pont élévateur** : le jeu de base n'a pas, à ma connaissance, de pont animé fiable. Par défaut : chandelles (`prop_carjack`) et véhicule levé de 50 cm, mécanicien sur chariot. Si ta map contient un modèle de pont, mets son nom dans `lift.model` (et `lift.height`, `lift.platformMoves` si c'est un plateau qui doit monter avec la voiture) : le véhicule monte alors à `lift.height` et le mécanicien travaille debout dessous.
+- `underHeadingOffset` / `underOffset` : si le mécanicien s'allonge dans le mauvais sens ou trop loin, ajuste ces valeurs.
+- Les objets en main (`props`) ont une position réglable ; les modèles `imp_prop_impexp_*` viennent du DLC Import/Export (inclus dans le build du serveur). Un modèle absent est simplement ignoré.
+
+**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (46 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage).
 
 ## CarPlay (installation payante)
 
@@ -107,6 +141,17 @@ Les grades n'ont pas de salaire : le taux horaire est réglé dans Finance et ch
 - L'application HelpMécano du téléphone (missions PNJ) n'a pas été modifiée.
 
 ## Tests à faire en jeu
+
+**Interventions animées**
+- a. Devis « Freins + Transmission » : chandelles, véhicule levé, mécanicien allongé dessous, freins aux roues avant, redescente. Vérifier la position allongée (régler `underHeadingOffset` / `underOffset` si besoin).
+- b. Devis « Capot » sur un véhicule intact : capot ouvert, disparaît, porté, réapparaît avec la nouvelle pièce ; sur un véhicule cabossé : pas de démontage visuel, carrosserie inchangée.
+- c. Devis « Jantes » : 4 roues, pneu retiré puis remis à chaque roue, jante changée à la première roue.
+- d. Devis « Moteur + Turbo + Peinture » : capot ouvert une fois pour les deux, peinture à la fin.
+- e. Appuyer sur X pendant le moteur : tout est rangé ; rouvrir l'atelier, Installer : seul le reste est refait ; facture = devis.
+- f. Un 2ᵉ mécanicien essaie d'ouvrir le même point pendant l'intervention : refusé.
+- g. Le client regarde depuis à côté : il voit le véhicule monter, les pièces, les animations.
+- h. Déconnexion du mécanicien pendant le levage : véhicule redescendu par un autre joueur proche, objets supprimés.
+
 
 1. Démarrage : console `[MECA] Prêt`, tables créées, grades et catalogue de départ.
 2. admin_menu › Métier staff › Mécano : se mettre Directeur ; F6 › prendre son service.

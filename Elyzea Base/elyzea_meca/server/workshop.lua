@@ -12,11 +12,21 @@
 --  5. Seules les lignes posées sont facturées : la différence est remboursée tout de suite.
 --     Les modifications sont enregistrées sur la carte grise ; le CarPlay est lié au véhicule.
 --  Un devis ne sert qu'une fois (identifiant unique) : aucune double facturation.
+--
+--  Interventions animées (client/interventions.lua) : à l'installation, le serveur
+--  verrouille le point d'atelier et le mécanicien, puis ne remet les propriétés d'une
+--  ligne qu'au moment où l'animation la pose (quoteInstallStep). Chaque ligne posée et
+--  vérifiée est marquée « installed » et enregistrée en base : une intervention
+--  interrompue (annulation, mort, déconnexion, véhicule déplacé…) peut être reprise,
+--  et seules les lignes posées sont facturées, comme avant.
 -- =====================================================================
 local P = Meca
 local Q = Config.Quotes
 
 P.quotes = {}   -- [uid] = devis actif (pending / accepted)
+P.wsBusy = {}   -- [id du point d'atelier] = { uid, by } : une seule intervention par emplacement
+local IC = Config.Interventions or {}
+local BEAT_TIMEOUT = tonumber(IC.serverTimeout) or 120   -- secondes sans nouvelle du mécanicien → intervention libérée
 
 -- Clés d'elyzea_core par type de modification GTA (inverse de la table MODS du core)
 local MOD_KEYS = {
@@ -287,12 +297,91 @@ local function QuoteView(q)
 end
 
 -- ---------------------------------------------------------------------
+-- Interventions en cours : verrous, état de la scène, remise en état
+-- ---------------------------------------------------------------------
+local function WorkshopLocked(wsId, src)
+    local l = wsId and P.wsBusy[wsId]
+    if not l then return false end
+    local q = P.quotes[l.uid]
+    if not q or not q.installing then P.wsBusy[wsId] = nil return false end   -- verrou orphelin
+    return l.by ~= src
+end
+
+-- Lignes réellement posées (prestations comprises seulement à la fin normale d'une installation)
+local function InstalledOnly(q)
+    local r = {}
+    for i, l in ipairs(q.items) do r[i] = l.installed == true end
+    return r
+end
+local function AnyInstalled(q) for _, l in ipairs(q.items) do if l.installed then return true end end return false end
+
+-- Remet la scène en état quand le mécanicien n'est plus là pour le faire (déconnexion, délai) :
+-- objets temporaires supprimés, véhicule redescendu et libéré par le joueur qui le contrôle.
+local function CleanScene(q)
+    local ins = q.installing
+    if not ins then return end
+    for _, net in ipairs(ins.scene and ins.scene.props or {}) do
+        local e = NetworkGetEntityFromNetworkId(tonumber(net) or 0)
+        if e and e ~= 0 and DoesEntityExist(e) and GetEntityType(e) == 3 then DeleteEntity(e) end
+    end
+    local veh = ins.veh
+    if veh and DoesEntityExist(veh) then
+        local owner = NetworkGetEntityOwner(veh)
+        if owner and owner > 0 and GetPlayerName(owner) then
+            TriggerClientEvent('meca:client:interventionRestore', owner, NetworkGetNetworkIdFromEntity(veh), ins.base, ins.scene or {})
+        else
+            if ins.base then SetEntityCoords(veh, ins.base.x, ins.base.y, ins.base.z, false, false, false, false) end
+            FreezeEntityPosition(veh, false)
+        end
+    end
+end
+
+-- Libère le point et le mécanicien (clean = remettre la scène en état côté serveur)
+local function Release(q, clean)
+    if not q.installing then return end
+    if clean then CleanScene(q) end
+    for id, l in pairs(P.wsBusy) do if l.uid == q.uid then P.wsBusy[id] = nil end end
+    q.installing = nil
+end
+
+-- Les lignes posées sont gardées en base : une reprise ou un redémarrage n'en perd aucune
+local function SaveItems(q)
+    MySQL.update('UPDATE `meca_quotes` SET `items` = ?, `updated_at` = NOW() WHERE `uid` = ?', { json.encode(q.items), q.uid })
+end
+
+-- Intervention du mécanicien (vérifie que c'est bien lui qui installe ce devis)
+local function Installing(src, uid)
+    local q = P.quotes[tostring(uid or '')]
+    if not q or q.status ~= 'accepted' or not q.installing or q.installing.by ~= src then return nil end
+    return q
+end
+
+-- État de la scène envoyé par le client (objets réseau, capot démonté, pneus retirés, véhicule levé)
+local function Scene(q, sc)
+    if type(sc) ~= 'table' then return end
+    local props = {}
+    for i, n in ipairs(type(sc.props) == 'table' and sc.props or {}) do
+        if i > 20 then break end
+        if tonumber(n) then props[#props + 1] = math.floor(tonumber(n)) end
+    end
+    local tyres = {}
+    for i, t in ipairs(type(sc.tyres) == 'table' and sc.tyres or {}) do
+        if i > 8 then break end
+        local v = N(t, 0, 7)
+        if v then tyres[#tyres + 1] = v end
+    end
+    q.installing.scene = { props = props, tyres = tyres, hood = sc.hood == true, lifted = sc.lifted == true }
+    q.installing.beat = os.time()
+end
+
+-- ---------------------------------------------------------------------
 -- Ouverture d'un point d'atelier
 -- ---------------------------------------------------------------------
 P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     local w = Workshop(tostring(d.ws or ''))
     local veh, why = CheckWorkshop(src, w, d.net)
     if not veh then return { error = why } end
+    if WorkshopLocked(w.id, src) then return { error = 'Une intervention est en cours sur ce point : attendez qu\'elle soit terminée.' } end
     local plate = P.CleanPlate(GetVehicleNumberPlateText(veh))
     local row = P.VehicleRow(plate)
     local ok, mods = pcall(json.decode, row and row.mods or '{}')
@@ -376,6 +465,7 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     if w then
         veh, why = CheckWorkshop(src, w, d.net)
         if not veh then return { error = why } end
+        if WorkshopLocked(w.id, src) then return { error = 'Une intervention est en cours sur ce point.' } end
     else
         veh = NetworkGetEntityFromNetworkId(tonumber(d.net) or 0)
         if not veh or veh == 0 or not DoesEntityExist(veh) then veh = nil end
@@ -419,6 +509,7 @@ end
 
 -- Facture finale : seulement les lignes réellement posées
 local function Finalize(q, results, actorSrc)
+    Release(q, false)
     local done, failed, amount = {}, {}, 0
     for i, line in ipairs(q.items) do
         if results[i] then done[#done + 1] = line amount = amount + line.total else failed[#failed + 1] = line end
@@ -530,33 +621,111 @@ RegisterNetEvent('meca:server:quoteAnswer', function(uid, accept)
     tellMech(('Devis %s accepté (%d $) : installez les prestations.'):format(q.uid, q.total), 'success')
 end)
 
--- Installation : le serveur donne les propriétés exactes de chaque ligne
+-- Installation animée : le serveur verrouille le point et le mécanicien, puis donne la liste
+-- des lignes (sans leurs propriétés : elles sont remises une par une, au moment de la pose)
 P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(src, d)
     local q = P.quotes[tostring(d.uid or '')]
     if not q or q.status ~= 'accepted' then return { error = 'Ce devis n\'est pas prêt à être installé.' } end
     if q.mechanicCid ~= P.Cid(src) and not P.Can(src, 'quotes_manage') then return { error = 'Seul le mécanicien du devis peut l\'installer.' } end
+    if q.installing and q.installing.by ~= src and GetPlayerName(q.installing.by) and os.time() - (q.installing.beat or 0) < BEAT_TIMEOUT then
+        return { error = 'Un autre mécanicien installe déjà ce devis.' }
+    end
+    for _, other in pairs(P.quotes) do
+        if other ~= q and other.installing and other.installing.by == src then return { error = 'Vous avez déjà une intervention en cours.' } end
+    end
     local w = Workshop(q.workshop or '')
     local veh, why = CheckWorkshop(src, w, d.net)
     if not veh then return { error = why } end
     if P.CleanPlate(GetVehicleNumberPlateText(veh)) ~= q.plate then return { error = 'Ce n\'est pas le véhicule du devis.' } end
+    if WorkshopLocked(w.id, src) then return { error = 'Une intervention est déjà en cours sur ce point.' } end
+    local c = GetEntityCoords(veh)
+    q.installing = { by = src, t = GetGameTimer(), veh = veh, net = NetworkGetNetworkIdFromEntity(veh), beat = os.time(), granted = {},
+        base = { x = c.x, y = c.y, z = c.z }, scene = {} }
+    P.wsBusy[w.id] = { uid = q.uid, by = src }
+    -- Personne ne reste dans le véhicule pendant l'intervention (client, passagers)
+    for _, s in ipairs(GetPlayers()) do
+        local id = tonumber(s)
+        if id ~= src and GetVehiclePedIsIn(GetPlayerPed(id), false) == veh then
+            TriggerClientEvent('meca:client:leaveVehicle', id, q.installing.net)
+        end
+    end
+    local cust = q.customerCid and exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
+    if cust and cust ~= src then P.Notify(cust, ('Intervention en cours sur votre véhicule (%s).'):format(q.plate or '?'), 'inform') end
     local lines = {}
     for i, l in ipairs(q.items) do
-        lines[i] = { i = i, label = l.label, kind = l.kind, patch = l.patch }
+        local keys = {}
+        for k in pairs(l.patch or {}) do keys[#keys + 1] = k end
+        table.sort(keys)
+        lines[i] = { i = i, label = l.label, kind = l.kind, code = l.code, keys = keys, plate = l.plateText ~= nil, done = l.installed == true }
     end
-    q.installing = { by = src, t = GetGameTimer(), veh = veh }
-    return { ok = true, lines = lines }
+    return { ok = true, lines = lines, uid = q.uid }
 end }
 
--- Résultat de l'installation : results[i] = true si la ligne est réellement posée
+-- Une ligne est sur le point d'être posée : ses propriétés exactes (une seule fois par ligne et par passage)
+P.Actions.quoteInstallStep = { perm = 'workshop', duty = true, fn = function(src, d)
+    local q = Installing(src, d.uid)
+    if not q then return { error = 'Intervention non démarrée.' } end
+    local i = N(d.i, 1, #q.items)
+    local line = i and q.items[i]
+    if not line then return { error = 'Ligne inconnue.' } end
+    if line.installed then return { error = 'Cette ligne est déjà posée.' } end
+    if q.installing.granted[i] then return { error = 'Cette ligne est déjà en cours de pose.' } end
+    local veh = q.installing.veh
+    if not veh or not DoesEntityExist(veh) then return { error = 'Le véhicule a disparu.' } end
+    local cc = P.Coords(src)
+    if not cc or #(cc - GetEntityCoords(veh)) > 10.0 then return { error = 'Restez auprès du véhicule.' } end
+    q.installing.granted[i] = true
+    Scene(q, d.scene)
+    return { ok = true, patch = line.patch, plate = line.plateText ~= nil }
+end }
+
+-- Résultat de la pose d'une ligne (relue sur le véhicule par le client)
+P.Actions.quoteInstallStepDone = { perm = 'workshop', duty = true, fn = function(src, d)
+    local q = Installing(src, d.uid)
+    if not q then return { error = 'Intervention non démarrée.' } end
+    local i = N(d.i, 1, #q.items)
+    if not i or not q.installing.granted[i] then return { error = 'Ligne non commencée.' } end
+    q.installing.granted[i] = nil
+    if d.ok == true and not q.items[i].installed then
+        q.items[i].installed = true
+        SaveItems(q)
+    end
+    Scene(q, d.scene)
+    return { ok = true }
+end }
+
+-- Le mécanicien est toujours là (longues étapes) : état de la scène à jour
+P.Actions.quoteInstallBeat = { perm = 'workshop', duty = true, fn = function(src, d)
+    local q = Installing(src, d.uid)
+    if not q then return { error = 'Intervention non démarrée.' } end
+    Scene(q, d.scene)
+    return { ok = true }
+end }
+
+-- Interruption (annulation, mort, véhicule déplacé…) : la scène a été remise en état par le client.
+-- Le devis reste payé et en attente : les lignes déjà posées sont gardées, la suite peut être reprise.
+P.Actions.quoteInstallAbort = { perm = 'workshop', fn = function(src, d)
+    local q = Installing(src, d.uid)
+    if not q then return { ok = true } end
+    Release(q, d.cleaned ~= true)
+    local n, total = 0, 0
+    for _, l in ipairs(q.items) do if l.kind ~= 'service' and l.kind ~= 'custom' then total = total + 1 if l.installed then n = n + 1 end end end
+    P.Log(src, 'Intervention interrompue', ('%s · %d/%d posée(s) · %s'):format(q.uid, n, total, P.Clean(d.reason, 80)))
+    local left = math.max(1, math.floor((Q.installTimeout - (os.time() - (q.acceptedAt or os.time()))) / 60))
+    return { ok = true, message = ('Intervention interrompue : %d/%d pièce(s) posée(s). Rouvrez l\'atelier et « Installer » pour reprendre (sinon remboursement automatique des pièces non posées dans %d min).')
+        :format(n, total, left) }
+end }
+
+-- Fin de l'intervention : facture des lignes réellement posées (comptées par le serveur)
 P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src, d)
-    local q = P.quotes[tostring(d.uid or '')]
-    if not q or q.status ~= 'accepted' or not q.installing or q.installing.by ~= src then return { error = 'Installation non démarrée.' } end
+    local q = Installing(src, d.uid)
+    if not q then return { error = 'Installation non démarrée.' } end
     local results = {}
     for i, l in ipairs(q.items) do
-        local ok = type(d.results) == 'table' and d.results[i] == true
-        if l.kind == 'service' or l.kind == 'custom' or l.kind == 'carplay' then ok = true end
+        local ok = l.installed == true
+        if l.kind == 'service' or l.kind == 'custom' then ok = true end
         -- Plaque personnalisée : changée par le serveur (carte grise, clés, coffre du véhicule)
-        if l.plateText then
+        if l.plateText and ok then
             local veh = q.installing.veh
             local old = q.plate
             local changed, why = exports.elyzea_core:ChangePlate(old, l.plateText, veh and DoesEntityExist(veh) and veh or nil)
@@ -570,6 +739,7 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
                     if cust then exports.elyzea_core:GiveKeys(cust, l.plateText) end
                 end
             else
+                l.installed = nil
                 P.Notify(src, why or 'Plaque non changée.', 'error')
             end
         end
@@ -577,8 +747,10 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
     end
     local r = Finalize(q, results, src)
     P.Log(src, 'Installation', ('%s · %s · %d $'):format(q.uid, q.plate or '?', r.amount))
-    r.message = r.failed > 0 and ('Facture %s : %d $ (%d ligne(s) non posée(s), %d $ remboursés).'):format(r.invoice or '-', r.amount, r.failed, r.refund)
-        or ('Facture %s : %d $.'):format(r.invoice or '-', r.amount)
+    r.message = r.failed > 0 and ('Facture %s : %d $ (%d ligne(s) non posée(s), %d $ remboursés). Le véhicule peut repartir.'):format(r.invoice or '-', r.amount, r.failed, r.refund)
+        or ('Intervention terminée · facture %s : %d $. Le véhicule peut repartir.'):format(r.invoice or '-', r.amount)
+    local cust = q.customerCid and exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
+    if cust and cust ~= src then P.Notify(cust, 'Intervention terminée : votre véhicule peut repartir.', 'success') end
     return r
 end }
 
@@ -588,8 +760,14 @@ P.Actions.quoteCancel = { perm = 'quotes', fn = function(src, d)
     if not q then return { error = 'Devis introuvable ou terminé.' } end
     if q.mechanicCid ~= P.Cid(src) and not P.Can(src, 'quotes_manage') then return { error = 'Ce devis n\'est pas le vôtre.' } end
     if q.status == 'accepted' then
-        local res = {}
-        return (function() local r = Finalize(q, res, src) q.status = 'cancelled' Save(q) r.message = ('Devis annulé : %d $ remboursés.'):format(r.refund) return r end)()
+        if q.installing and GetPlayerName(q.installing.by) and os.time() - (q.installing.beat or 0) < BEAT_TIMEOUT then
+            return { error = 'Une intervention est en cours sur ce devis : interrompez-la d\'abord (X).' }
+        end
+        local partial = AnyInstalled(q)
+        local r = Finalize(q, InstalledOnly(q), src)   -- pièces déjà posées : facturées ; le reste : remboursé
+        if not partial then q.status = 'cancelled' Save(q) end
+        r.message = partial and ('Devis clos : pièces posées facturées, %d $ remboursés.'):format(r.refund) or ('Devis annulé : %d $ remboursés.'):format(r.refund)
+        return r
     end
     q.status = 'cancelled' Save(q) P.quotes[q.uid] = nil
     if GetPlayerName(q.customer) then TriggerClientEvent('meca:client:quoteClosed', q.customer, q.uid) end
@@ -605,10 +783,16 @@ CreateThread(function()
             if q.status == 'pending' and now > q.expires then
                 q.status = 'expired' Save(q) P.quotes[q.uid] = nil
                 if GetPlayerName(q.customer) then TriggerClientEvent('meca:client:quoteClosed', q.customer, q.uid) end
-            elseif q.status == 'accepted' and now - (q.acceptedAt or now) > Q.installTimeout then
-                local r = Finalize(q, {}, nil)
-                q.status = 'expired' Save(q)
-                print(('^3[MECA] Devis %s jamais installé : %d $ remboursés.^0'):format(q.uid, r.refund))
+            elseif q.status == 'accepted' and q.installing and now - (q.installing.beat or now) > BEAT_TIMEOUT then
+                -- Mécanicien sans nouvelles : intervention libérée, scène remise en état, devis repris plus tard
+                local by = q.installing.by
+                Release(q, true)
+                if GetPlayerName(by) then P.Notify(by, ('Intervention %s interrompue (délai dépassé).'):format(q.uid), 'error') end
+            elseif q.status == 'accepted' and not q.installing and now - (q.acceptedAt or now) > Q.installTimeout then
+                local partial = AnyInstalled(q)
+                local r = Finalize(q, InstalledOnly(q), nil)
+                if not partial then q.status = 'expired' Save(q) end
+                print(('^3[MECA] Devis %s %s : %d $ remboursés.^0'):format(q.uid, partial and 'installé en partie' or 'jamais installé', r.refund))
             end
         end
     end
@@ -620,8 +804,15 @@ P.OnReady[#P.OnReady + 1] = function()
     MySQL.update.await("UPDATE `meca_quotes` SET `status` = 'expired', `updated_at` = NOW() WHERE `status` = 'pending'")
     for _, r in ipairs(MySQL.query.await("SELECT * FROM `meca_quotes` WHERE `status` = 'accepted'") or {}) do
         local okj, items = pcall(json.decode, r.items or '[]')
-        local q = { uid = r.uid, job = r.job, items = okj and items or {}, paid = tonumber(r.paid) or 0, method = r.method, customerCid = r.customer_cid, customerName = r.customer_name,
-            plate = r.plate, vehicleId = r.vehicle_id, mechanicName = r.mechanic_name }
+        local q = { uid = r.uid, job = r.job, items = okj and type(items) == 'table' and items or {}, paid = tonumber(r.paid) or 0, method = r.method, customerCid = r.customer_cid, customerName = r.customer_name,
+            plate = r.plate, vehicleId = r.vehicle_id, mechanicName = r.mechanic_name, mechanicCid = r.mechanic_cid, status = 'accepted' }
+        -- Intervention interrompue par l'arrêt : les pièces déjà posées sont facturées et enregistrées, le reste remboursé
+        if AnyInstalled(q) then
+            local ok, res = pcall(Finalize, q, InstalledOnly(q), nil)
+            print(ok and ('^3[MECA] Devis %s : intervention interrompue par l\'arrêt, pièces posées facturées (%d $), %d $ remboursés.^0'):format(q.uid, res.amount, res.refund)
+                or ('^1[MECA] Devis %s : %s^0'):format(q.uid, tostring(res)))
+            goto continue
+        end
         local refund = q.paid
         local done = false
         if refund > 0 and P.SocietyRemove(refund, ('Remboursement devis %s (arrêt du serveur)'):format(q.uid), q.job) then
@@ -635,6 +826,7 @@ P.OnReady[#P.OnReady + 1] = function()
         end
         MySQL.update.await('UPDATE `meca_quotes` SET `status` = ?, `refunded` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?',
             { 'expired', done and refund or 0, done and nil or ('Remboursement de %d $ à faire'):format(refund), q.uid })
+        ::continue::
     end
 end
 
@@ -728,6 +920,9 @@ AddEventHandler('playerDropped', function()
     for _, q in pairs(P.quotes) do
         if q.status == 'pending' and (q.customer == src or q.mechanic == src) then
             q.status = 'cancelled' Save(q) P.quotes[q.uid] = nil
+        elseif q.installing and q.installing.by == src then
+            -- Mécanicien déconnecté en pleine intervention : scène remise en état, devis repris plus tard
+            Release(q, true)
         end
     end
 end)

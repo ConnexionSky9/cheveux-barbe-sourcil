@@ -413,7 +413,7 @@ $('#workshop').addEventListener('click', async (e) => {
       return wsRender();
     }
     if (a === 'install') {
-      if (!(await confirmBox('Installer le devis ?', 'Les modifications sont posées sur le véhicule puis vérifiées. Les lignes qui ne se posent pas ne sont pas facturées.', 'Installer'))) return;
+      if (!(await confirmBox('Installer le devis ?', 'Vous réalisez l\'intervention sur le véhicule : pont ou chandelles, roues, capot, pièces… chaque pièce est posée au bon moment puis vérifiée. Les lignes qui ne se posent pas ne sont pas facturées.<br>X pendant l\'intervention : interrompre (reprise possible).', 'Commencer l\'intervention'))) return;
       W.busy = true; b.classList.add('loading');
       const r = await post('wsInstall', { uid: W.quote.uid });
       W.busy = false;

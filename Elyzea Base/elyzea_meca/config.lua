@@ -51,6 +51,73 @@ Config.WorkshopMax = 30
 Config.WorkshopMarker = true      -- marqueur au sol pour les mécaniciens en service
 
 -- ---------------------------------------------------------------------
+-- Interventions animées à l'installation d'un devis (client/interventions.lua)
+-- Après paiement, « Installer » lance le vrai travail : pont / chandelles, sous le véhicule,
+-- roue par roue, capot, carrosserie… chaque pièce apparaît au moment où elle est posée.
+-- Animations et modèles : noms du jeu, vérifiés au chargement (absent = étape sans l'objet).
+-- ---------------------------------------------------------------------
+Config.Interventions = {
+    speed = 1.0,              -- multiplie toutes les durées (0.5 = deux fois plus rapide)
+    maxDistance = 12.0,       -- le mécanicien qui s'éloigne plus que ça du véhicule interrompt l'intervention
+    serverTimeout = 120,      -- secondes sans nouvelle du mécanicien → intervention libérée, scène remise en état
+    debug = false,            -- détails dans la console F8 (modèle ou animation manquants, lignes posées)
+
+    -- Levage pour moteur-dessous / freins / transmission / suspension / échappement :
+    --  · sans modèle de pont : chandelles (crics) sous les roues, véhicule levé de standsHeight,
+    --    le mécanicien travaille allongé sur un chariot (scénario WORLD_HUMAN_VEHICLE_MECHANIC) ;
+    --  · avec le modèle d'un pont de ta map (model = 'nom_du_modele') : posé sous le véhicule,
+    --    véhicule levé de height, le mécanicien travaille debout dessous (underLiftScenario).
+    --    platformMoves = true si le modèle est un plateau qui doit monter avec le véhicule.
+    lift = { model = nil, height = 1.6, offsetZ = 0.0, heading = 0.0, platformMoves = false, standsHeight = 0.5 },
+    jackHeight = 0.12,        -- roue changée sans pont : le véhicule se soulève légèrement au cric
+    underSide = 'left',       -- côté par lequel le mécanicien se glisse sous le véhicule
+    underOffset = 0.35,       -- distance au bord du véhicule avant de s'allonger (à ajuster selon le rendu)
+    underHeadingOffset = 0.0, -- correction d'orientation (degrés) si le mécanicien s'allonge dans le mauvais sens
+    underLiftScenario = 'WORLD_HUMAN_WELDING',
+    paintScenario = 'WORLD_HUMAN_MAID_CLEAN',
+    allWheels = true,         -- jantes / pneus : passer aux 4 roues (false = une seule roue)
+    brakesRear = false,       -- freins : aussi les roues arrière
+    detachHood = true,        -- capot : l'ancien capot disparaît pendant le remplacement (seulement si la carrosserie est intacte)
+    removeTyres = true,       -- roues : le pneu est retiré visuellement (seulement s'il n'était pas déjà crevé)
+
+    -- Durées de chaque travail (ms, avant « speed »)
+    durations = {
+        liftUp = 4000, liftDown = 3500, carry = 5000,
+        transmission = 14000, exhaust = 12000, suspension = 12000, brakes = 8000, brakesSwap = 3000, wheel = 9000, wheelpaint = 7000,
+        engine = 14000, turbo = 14000, enginebay = 10000, hood = 12000, armor = 14000, panel = 10000, roof = 9000,
+        paint = 16000, tint = 9000, lights = 8000, neon = 9000, plate = 7000, interior = 10000, carplay = 10000,
+    },
+
+    -- Animations { dictionnaire, nom, drapeau }
+    anims = {
+        hoodWork  = { 'mini@repair', 'fixing_a_ped', 1 },                                          -- penché sur le moteur
+        standWork = { 'mini@repair', 'fixing_a_player', 1 },                                       -- travail debout sur la carrosserie
+        kneelWork = { 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', 'machinic_loop_mechandplayer', 1 }, -- accroupi (roues, bas de caisse)
+        kneel     = { 'amb@medic@standing@kneel@base', 'base', 1 },                                -- à genoux (plaque)
+        carry     = { 'anim@heists@box_carry@', 'idle', 49 },                                      -- porter une pièce en marchant
+        interior  = { 'anim@gangops@facility@servers@bodysearch@', 'player_search', 1 },           -- penché dans l'habitacle
+        tablet    = { 'amb@code_human_in_bus_passenger_idles@female@tablet@base', 'base', 49 },    -- CarPlay (tablette)
+        finish    = { 'anim@mp_player_intmenu@key_fob@', 'fob_click', 48 },                        -- fin : clé du véhicule
+    },
+
+    -- Objets : liste de modèles (le premier qui existe est utilisé), os de la main, position, rotation
+    -- 57005 = main droite, 60309 = main gauche (prise « carton » des deux mains avec l'animation carry)
+    props = {
+        wrench  = { models = { 'prop_cs_wrench' }, bone = 57005, pos = { 0.10, 0.03, -0.02 }, rot = { -90.0, 0.0, 0.0 } },
+        tablet  = { models = { 'prop_cs_tablet' }, bone = 60309, pos = { 0.03, 0.002, 0.0 }, rot = { 10.0, 160.0, 0.0 } },
+        jack    = { 'prop_carjack', 'imp_prop_car_jack_01a' },
+        wheel   = { models = { 'imp_prop_impexp_tyre_01a', 'prop_wheel_tyre' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        caliper = { models = { 'imp_prop_impexp_brake_caliper_01a' }, bone = 57005, pos = { 0.10, 0.02, -0.02 }, rot = { 0.0, 0.0, 0.0 } },
+        hood    = { models = { 'imp_prop_impexp_bonnet_02a', 'imp_prop_impexp_bonnet_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        frontBumper = { models = { 'imp_prop_impexp_front_bumper_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        rearBumper  = { models = { 'imp_prop_impexp_rear_bumper_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        spoiler = { models = { 'imp_prop_impexp_spoiler_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        panel   = { models = { 'imp_prop_impexp_car_panel_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+        door    = { models = { 'imp_prop_impexp_car_door_04a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
+    },
+}
+
+-- ---------------------------------------------------------------------
 -- Devis et paiement
 -- ---------------------------------------------------------------------
 Config.Quotes = {

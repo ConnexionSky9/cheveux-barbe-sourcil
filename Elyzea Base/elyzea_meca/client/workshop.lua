@@ -359,7 +359,7 @@ local function Close(silent)
     SendNUIMessage({ action = 'workshop', show = false })
     if not silent then C.Notify('Atelier fermé : les modifications non payées et non installées ont été retirées.', 'inform') end
 end
-C.ui.workshop = { close = function() Close(false) end }
+C.ui.workshop = { close = function() if not WS.busy then Close(false) end end }
 
 -- Véhicule de l'atelier : celui que le mécanicien conduit sur le point, sinon le véhicule
 -- garé sur le point le plus proche de lui (il peut être à pied à côté)
@@ -417,9 +417,10 @@ local function Open(w)
     CreateThread(function()
         while WS.open do
             Wait(500)
-            if DoesEntityExist(veh) then LightsOn(veh) end   -- garde phares, néons et moteur allumés
-            if not DoesEntityExist(veh) or #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(veh)) > 6.0 or #(GetEntityCoords(veh) - w.coords) > (w.radius or 3.5) + 2.0
-                or C.IsDown() or not C.OnDuty() then
+            -- Pendant une intervention, c'est elle qui gère le véhicule et les interruptions
+            if not WS.busy and DoesEntityExist(veh) then LightsOn(veh) end   -- garde phares, néons et moteur allumés
+            if not WS.busy and (not DoesEntityExist(veh) or #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(veh)) > 6.0 or #(GetEntityCoords(veh) - w.coords) > (w.radius or 3.5) + 2.0
+                or C.IsDown() or not C.OnDuty()) then
                 Close(false)
             end
         end
@@ -475,51 +476,52 @@ RegisterNUICallback('wsCancelQuote', function(body, cb)
     cb(r)
 end)
 
--- Installation : propriétés exactes envoyées par le serveur, appliquées puis vérifiées
+-- Pose d'une ligne : propriétés exactes envoyées par le serveur, appliquées puis relues.
+-- Appelée par client/interventions.lua AU MOMENT où l'animation pose la pièce.
+function C.WsApplyPatch(veh, patch)
+    if type(patch) ~= 'table' or not DoesEntityExist(veh) then return false end
+    Control(veh)
+    core:SetVehicleProperties(veh, patch)
+    if patch.modXenon == true and not patch.customXenon then ClearVehicleXenonLightsCustomColor(veh) SetVehicleXenonLightsColor(veh, patch.xenonColor or -1) end
+    if patch.modCustomTiresF ~= nil then
+        SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), patch.modCustomTiresF == true)
+        if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), patch.modCustomTiresR == true) end
+    end
+    -- Finition d'une couleur d'origine (le core n'applique la finition qu'aux couleurs libres)
+    if patch.paintType1 and type(patch.color1) == 'number' then
+        local _, s2 = GetVehicleColours(veh)
+        SetVehicleModColor_1(veh, patch.paintType1, patch.color1, 0) SetVehicleColours(veh, patch.color1, s2)
+    end
+    if patch.paintType2 and type(patch.color2) == 'number' then
+        local p1 = GetVehicleColours(veh)
+        SetVehicleModColor_2(veh, patch.paintType2, patch.color2) SetVehicleColours(veh, p1, patch.color2)
+    end
+    -- Pneus personnalisés : la variante se pose sur la jante actuelle (jantes posées avant, cf. ordre des travaux)
+    Wait(80)
+    return Verify(veh, patch)
+end
+
+-- Installation : le mécanicien réalise l'intervention en jeu (client/interventions.lua).
+-- L'atelier se ferme pendant le travail ; à la fin, l'état posé devient la référence du véhicule.
 RegisterNUICallback('wsInstall', function(body, cb)
     if not WS.open then return cb({ error = 'Atelier fermé.' }) end
+    if C.InterventionRunning() then return cb({ error = 'Une intervention est déjà en cours.' }) end
     local veh = WS.veh
-    local r = C.Req('quoteInstallStart', { uid = body.uid, net = VehToNet(veh) })
-    if r.error then return cb(r) end
-    Restore()                         -- on enlève les aperçus : seul le devis est posé
+    Restore()                         -- on enlève les aperçus : seul le devis sera posé, pièce par pièce
     Control(veh)
-    local results = {}
-    -- Pneus en dernier (la variante « pneus personnalisés » se pose sur la jante finale)
-    local order = {}
-    for i, line in ipairs(r.lines) do if not (line.patch and line.patch.modCustomTiresF ~= nil) then order[#order + 1] = i end end
-    for i, line in ipairs(r.lines) do if line.patch and line.patch.modCustomTiresF ~= nil then order[#order + 1] = i end end
-    for _, i in ipairs(order) do
-        local line = r.lines[i]
-        if line.patch then
-            core:SetVehicleProperties(veh, line.patch)
-            if line.patch.modXenon == true and not line.patch.customXenon then ClearVehicleXenonLightsCustomColor(veh) SetVehicleXenonLightsColor(veh, line.patch.xenonColor or -1) end
-            if line.patch.modCustomTiresF ~= nil then
-                SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), line.patch.modCustomTiresF == true)
-                if IsThisModelABike(GetEntityModel(veh)) then SetVehicleMod(veh, 24, GetVehicleMod(veh, 24), line.patch.modCustomTiresR == true) end
-            end
-            -- Finition d'une couleur d'origine (le core n'applique la finition qu'aux couleurs libres)
-            local pt = line.patch
-            if pt.paintType1 and type(pt.color1) == 'number' then
-                local _, s2 = GetVehicleColours(veh)
-                SetVehicleModColor_1(veh, pt.paintType1, pt.color1, 0) SetVehicleColours(veh, pt.color1, s2)
-            end
-            if pt.paintType2 and type(pt.color2) == 'number' then
-                local p1 = GetVehicleColours(veh)
-                SetVehicleModColor_2(veh, pt.paintType2, pt.color2) SetVehicleColours(veh, p1, pt.color2)
-            end
-            Wait(80)
-            results[i] = Verify(veh, line.patch)
-        else
-            results[i] = true
-        end
-    end
-    local done = C.Req('quoteInstallDone', { uid = body.uid, results = results })
-    if done.ok then
-        WS.snapshot = core:GetVehicleProperties(veh)   -- l'état payé et installé devient la référence
-        LightsOn(veh)
-        C.Notify(done.message, done.failed > 0 and 'inform' or 'success')
-    end
-    cb(done)
+    WS.busy = true
+    CamStop()
+    C.Focus('workshop', false)
+    SendNUIMessage({ action = 'workshop', show = false })
+    cb({ ok = true, status = 'accepted', message = 'Intervention en cours sur le véhicule…' })
+    local ok, res = pcall(C.RunIntervention, veh, body.uid, VehToNet(veh))
+    if not ok then print(('^1[MECA] Intervention : %s^0'):format(tostring(res))) res = { error = 'Erreur pendant l\'intervention : la scène a été remise en état.' } end
+    WS.busy = false
+    if DoesEntityExist(veh) then WS.snapshot = core:GetVehicleProperties(veh) end   -- état réellement posé = nouvelle référence
+    Close(true)
+    if res.error then C.Notify(res.error, 'error')
+    elseif res.aborted then C.Notify(res.message, 'error')
+    elseif res.message then C.Notify(res.message, (res.failed or 0) > 0 and 'inform' or 'success') end
 end)
 
 RegisterNetEvent('meca:client:quoteUpdate', function(q)

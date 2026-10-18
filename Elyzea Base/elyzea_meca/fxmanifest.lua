@@ -36,6 +36,7 @@ client_scripts {
     'client/alt.lua',
     'client/tow.lua',
     'client/quotes.lua',
+    'client/interventions.lua',
     'client/workshop.lua',
     'client/f6.lua',
     'client/tablet.lua',
