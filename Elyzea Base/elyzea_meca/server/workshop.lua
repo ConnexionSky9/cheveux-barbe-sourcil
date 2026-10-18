@@ -161,12 +161,14 @@ local function Publish()
     local pub = {}
     for _, w in ipairs(P.WorkshopList()) do
         if w.coords then
-            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel }
+            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
+                lift = type(w.lift) == 'table' and { h = tonumber(w.lift.h) or 0.0 } or nil }
         end
     end
     GlobalState.mecaWorkshops = pub
 end
 P.PublishWorkshops = Publish
+P.WorkshopById = function(id) return Workshop(id) end
 P.OnReady = P.OnReady or {}
 P.OnReady[#P.OnReady + 1] = Publish
 
@@ -174,7 +176,7 @@ local function Workshop(id)
     for _, w in ipairs(P.WorkshopList()) do
         if w.id == id and w.coords then
             return { id = w.id, label = w.label, coords = Vec(w.coords), radius = tonumber(w.radius) or WD.radius,
-                categories = w.categories or {}, minLevel = tonumber(w.minLevel) or 1 }
+                categories = w.categories or {}, minLevel = tonumber(w.minLevel) or 1, lift = type(w.lift) == 'table' and w.lift or nil }
         end
     end
 end
@@ -188,7 +190,7 @@ P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
         for _, q in pairs(P.quotes) do if q.workshop == w.id then n = n + 1 end end
         local c = w.coords and P.Coords(src)
         list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
-            quotes = n, distance = c and math.floor(#(c - Vec(w.coords))) or nil }
+            lift = w.lift ~= nil, quotes = n, distance = c and math.floor(#(c - Vec(w.coords))) or nil }
     end
     return { list = list, categories = P.CATEGORIES, grades = grades, max = Config.WorkshopMax, defaults = WD }
 end }
@@ -241,6 +243,9 @@ P.Actions.workshopDelete = { perm = 'garage_manage', fn = function(src, d)
     if not w then return { error = 'Point introuvable.' } end
     for _, q in pairs(P.quotes) do
         if q.workshop == w.id then return { error = 'Un devis est en cours sur ce point : terminez-le ou annulez-le d\'abord.' } end
+    end
+    if w.lift and P.GiveLiftItem and not P.GiveLiftItem(src) then
+        return { error = 'Ce point a un pont roulant : libérez de la place dans votre inventaire pour le récupérer.' }
     end
     table.remove(list, i)
     P.SetSetting('workshops', list)
@@ -658,7 +663,7 @@ P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(sr
         table.sort(keys)
         lines[i] = { i = i, label = l.label, kind = l.kind, code = l.code, keys = keys, plate = l.plateText ~= nil, done = l.installed == true }
     end
-    return { ok = true, lines = lines, uid = q.uid }
+    return { ok = true, lines = lines, uid = q.uid, lift = w.lift ~= nil }
 end }
 
 -- Une ligne est sur le point d'être posée : ses propriétés exactes (une seule fois par ligne et par passage)

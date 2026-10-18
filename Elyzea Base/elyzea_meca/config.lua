@@ -68,12 +68,24 @@ Config.Interventions = {
     --  · avec le modèle d'un pont de ta map (model = 'nom_du_modele') : posé sous le véhicule,
     --    véhicule levé de height, le mécanicien travaille debout dessous (underLiftScenario).
     --    platformMoves = true si le modèle est un plateau qui doit monter avec le véhicule.
-    lift = { model = nil, height = 1.6, offsetZ = 0.0, heading = 0.0, platformMoves = false, standsHeight = 0.5 },
+    lift = { model = nil, height = 1.6, offsetZ = 0.0, heading = 0.0, platformMoves = false, standsHeight = 0.5,
+        -- Pont roulant posé avec l'objet (points équipés) : véhicule levé pour laisser clearance mètres
+        -- sous la caisse (le mécanicien passe dessous debout), puis wheelHeight pour les roues / freins.
+        clearance = 1.95, wheelHeight = 0.5,
+        -- Dessin du pont (aucun modèle de pont garanti dans le jeu de base) : couleurs et hauteur des colonnes
+        color = { 235, 180, 20 }, darkColor = { 60, 60, 66 }, postHeight = 2.9, drawDistance = 45.0,
+        -- Modèle réel (ta map ou un pack) à la place du dessin : models = { 'nom_du_modele' }, offsetZ, heading
+        models = {},
+    },
+    -- Objet d'inventaire « Pont roulant » : utilisé sur un point d'atelier pour l'équiper
+    liftItem = { name = 'pont_roulant', perm = 'workshop', range = 3.0 },
+    underLiftScenarios = { 'PROP_HUMAN_MOVIE_BULB', 'WORLD_HUMAN_WELDING' },   -- debout sous le véhicule, bras levés
+    walkMargin = 0.85,        -- distance gardée autour de la carrosserie quand le mécanicien fait le tour
+    collisionPad = 0.3,
     jackHeight = 0.12,        -- roue changée sans pont : le véhicule se soulève légèrement au cric
     underSide = 'left',       -- côté par lequel le mécanicien se glisse sous le véhicule
     underOffset = 0.35,       -- distance au bord du véhicule avant de s'allonger (à ajuster selon le rendu)
     underHeadingOffset = 0.0, -- correction d'orientation (degrés) si le mécanicien s'allonge dans le mauvais sens
-    underLiftScenario = 'WORLD_HUMAN_WELDING',
     paintScenario = 'WORLD_HUMAN_MAID_CLEAN',
     allWheels = true,         -- jantes / pneus : passer aux 4 roues (false = une seule roue)
     brakesRear = false,       -- freins : aussi les roues arrière

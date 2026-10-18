@@ -180,6 +180,13 @@ Items.sapphire = { label = 'Saphir',    weight = 20, stack = true, image = 'sapp
 Items.emerald  = { label = 'Émeraude',  weight = 20, stack = true, image = 'emerald.png',  icon = '💎', description = 'Émeraude verte, taille à degrés. Se revend à un receleur.' }
 Items.amethyst = { label = 'Améthyste', weight = 20, stack = true, image = 'amethyst.png', icon = '💎', description = 'Améthyste violette, taille poire. Se revend à un receleur.' }
 
+-- ───────── Mécano (ressource elyzea_meca) ─────────
+-- Image : html/img/pont_roulant.png (256 × 256, fond transparent)
+-- Utilisé sur un point d'atelier par un mécanicien en service : le point est équipé d'un pont
+-- (véhicule levé, travail debout sous la voiture). /meca_pont_retirer le rend à l'inventaire.
+Items.pont_roulant = { label = 'Pont roulant', weight = 25000, stack = false, close = true, image = 'pont_roulant.png', icon = '🛠️',
+    description = 'Pont élévateur à deux colonnes. Utilisez-le sur un point d\'atelier pour l\'installer.' }
+
 -- ───────── Braquage de banque (ressource bank_heist) ─────────
 -- Images : html/img/bank_laptop.png, bank_bag.png, bank_c4.png (256 × 256, fond transparent)
 -- L'ordinateur n'est pas empilable : chacun a un numéro de série (métadonnée « serial »)

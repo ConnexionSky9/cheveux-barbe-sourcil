@@ -194,24 +194,139 @@ local function Stop()
     end
 end
 
--- Se rendre à un point puis s'orienter (repli : léger recalage si le chemin est bloqué)
-local function GoTo(pos, heading)
+-- ---------------------------------------------------------------------
+-- Déplacements : le mécanicien CONTOURNE le véhicule (jamais de téléportation)
+-- ---------------------------------------------------------------------
+-- Coordonnées dans le repère du véhicule à sa position d'origine
+local function ToLocal(p)
+    local h = math.rad(I.base.heading)
+    local dx, dy = p.x - I.base.pos.x, p.y - I.base.pos.y
+    return dx * math.cos(h) + dy * math.sin(h), -dx * math.sin(h) + dy * math.cos(h)
+end
+
+-- Le segment a→b traverse-t-il le rectangle [x0,x1]×[y0,y1] ? (Liang-Barsky)
+local function SegHitsBox(ax, ay, bx, by, x0, x1, y0, y1)
+    local t0, t1 = 0.0, 1.0
+    local dx, dy = bx - ax, by - ay
+    for _, e in ipairs({ { -dx, ax - x0 }, { dx, x1 - ax }, { -dy, ay - y0 }, { dy, y1 - ay } }) do
+        local pp, q = e[1], e[2]
+        if pp == 0 then
+            if q < 0 then return false end
+        else
+            local r = q / pp
+            if pp < 0 then if r > t1 then return false elseif r > t0 then t0 = r end
+            else if r < t0 then return false elseif r < t1 then t1 = r end end
+        end
+    end
+    return t0 <= t1
+end
+
+-- Le véhicule est-il assez haut sur le pont pour passer dessous ?
+local function CanWalkUnder() return I.liftMode == 'lift' and I.liftH >= (I.liftTop or 99) - 0.05 end
+
+-- Points de passage autour du véhicule (coins d'un rectangle élargi), par le chemin le plus court
+local function Route(target)
+    local min, max = I.dim.min, I.dim.max
+    local px, py = ToLocal(GetEntityCoords(PlayerPedId()))
+    local tx, ty = ToLocal(target)
+    local pad = IC.collisionPad or 0.3
+    if CanWalkUnder() or not SegHitsBox(px, py, tx, ty, min.x - pad, max.x + pad, min.y - pad, max.y + pad) then return { target } end
+    local m = IC.walkMargin or 0.85
+    local X0, X1, Y0, Y1 = min.x - m, max.x + m, min.y - m, max.y + m
+    local e1, e2 = X1 - X0, Y1 - Y0
+    local L = 2 * (e1 + e2)
+    local corners = { { X0, Y1, 0.0 }, { X1, Y1, e1 }, { X1, Y0, e1 + e2 }, { X0, Y0, 2 * e1 + e2 } }
+    -- Position d'un point sur le tour (bord le plus proche)
+    local function S(x, y)
+        x, y = math.max(X0, math.min(X1, x)), math.max(Y0, math.min(Y1, y))
+        local d = { Y1 - y, X1 - x, y - Y0, x - X0 }
+        local k, best = 1, d[1]
+        for i = 2, 4 do if d[i] < best then k, best = i, d[i] end end
+        if k == 1 then return x - X0 elseif k == 2 then return e1 + (Y1 - y) elseif k == 3 then return e1 + e2 + (X1 - x) end
+        return 2 * e1 + e2 + (y - Y0)
+    end
+    local sp, st = S(px, py), S(tx, ty)
+    local cw = (st - sp) % L
+    local out = {}
+    if cw <= L - cw then
+        for _, c in ipairs(corners) do
+            local d = (c[3] - sp) % L
+            if d > 0.01 and d < cw - 0.01 then out[#out + 1] = { d, c } end
+        end
+    else
+        for _, c in ipairs(corners) do
+            local d = (sp - c[3]) % L
+            if d > 0.01 and d < (L - cw) - 0.01 then out[#out + 1] = { d, c } end
+        end
+    end
+    table.sort(out, function(a, b) return a[1] < b[1] end)
+    local pts = {}
+    for _, o in ipairs(out) do pts[#pts + 1] = Around(o[2][1], o[2][2]) end
+    pts[#pts + 1] = target
+    return pts
+end
+
+-- Marche jusqu'à un point (fn : appelée à chaque image, ex. garder une pièce en main)
+local function WalkTo(pos, heading, fn, final)
     local ped = PlayerPedId()
-    ClearPedTasks(ped)
-    TaskGoStraightToCoord(ped, pos.x, pos.y, pos.z, 1.0, 7000, heading, 0.15)
-    local t = GetGameTimer() + 7500
-    while GetGameTimer() < t do
+    local reach = final and 0.3 or 0.55
+    TaskGoStraightToCoord(ped, pos.x, pos.y, pos.z, 1.0, 20000, heading or 0.0, 0.2)
+    local last, lastT, navmesh = GetEntityCoords(ped), GetGameTimer(), false
+    local deadline = GetGameTimer() + 20000
+    while GetGameTimer() < deadline do
         if not Check() then return false end
-        if #(GetEntityCoords(ped).xy - pos.xy) < 0.35 then break end
+        if fn then fn() end
+        local cur = GetEntityCoords(ped)
+        if #(cur.xy - pos.xy) < reach then return true end
+        if GetGameTimer() - lastT > 1500 then
+            if #(cur.xy - last.xy) < 0.15 then
+                if navmesh then
+                    -- Toujours bloqué : on accepte une fin de trajet proche, sinon on arrête proprement
+                    if #(cur.xy - pos.xy) < 0.7 then return true end
+                    I.abort = 'chemin bloqué autour du véhicule'
+                    return false
+                end
+                navmesh = true
+                TaskFollowNavMeshToCoord(ped, pos.x, pos.y, pos.z, 1.0, 8000, 0.25, 0, heading or 0.0)
+            end
+            last, lastT = cur, GetGameTimer()
+        end
         Wait(0)
     end
-    if #(GetEntityCoords(ped).xy - pos.xy) > 0.35 and #(GetEntityCoords(ped) - pos) < 4.0 then
-        SetEntityCoordsNoOffset(ped, pos.x, pos.y, pos.z, false, false, false)   -- bloqué contre un objet : recalage court
-    end
+    return #(GetEntityCoords(ped).xy - pos.xy) < 0.7
+end
+
+-- Se rendre à un point en faisant le tour du véhicule, puis s'orienter
+local function GoTo(pos, heading, fn)
+    local ped = PlayerPedId()
     ClearPedTasks(ped)
-    SetEntityHeading(ped, heading)
-    Wait(150)
+    local pts = Route(pos)
+    for i, p in ipairs(pts) do
+        if not WalkTo(p, i == #pts and heading or nil, fn, i == #pts) then return false end
+    end
+    if heading then
+        TaskAchieveHeading(ped, heading, 800)
+        local t = GetGameTimer() + 900
+        while GetGameTimer() < t do
+            if not Check() then return false end
+            if fn then fn() end
+            Wait(0)
+        end
+    end
     return Check()
+end
+
+-- Sortir de sous le véhicule avant de le descendre (rien ne doit être écrasé)
+local function EnsureClear()
+    local min, max = I.dim.min, I.dim.max
+    local px, py = ToLocal(GetEntityCoords(PlayerPedId()))
+    local pad = (IC.collisionPad or 0.3) + 0.25
+    if px > min.x - pad and px < max.x + pad and py > min.y - pad and py < max.y + pad then
+        ClearPedTasks(PlayerPedId())
+        local side = px < 0 and min.x - 1.1 or max.x + 1.1
+        return GoTo(Around(side, math.max(min.y + 0.3, math.min(max.y - 0.3, py))), nil)
+    end
+    return true
 end
 
 -- Pose des lignes au milieu d'un geste (le geste continue, il n'est pas coupé)
@@ -244,7 +359,15 @@ end
 -- lines : posées au milieu du scénario, sans que le personnage se relève
 local function Scenario(name, pos, heading, ms, label, lines)
     local ped = PlayerPedId()
-    TaskStartScenarioAtPosition(ped, name, pos.x, pos.y, pos.z, heading, 0, false, true)
+    local names = type(name) == 'table' and name or { name }
+    for i, n in ipairs(names) do
+        TaskStartScenarioAtPosition(ped, n, pos.x, pos.y, pos.z, heading, 0, false, false)   -- jamais de téléportation
+        local t = GetGameTimer() + 1500
+        while GetGameTimer() < t and not IsPedUsingScenario(ped, n) do Wait(50) end
+        if IsPedUsingScenario(ped, n) or i == #names then break end
+        Log(('scénario indisponible : %s'):format(n))
+        ClearPedTasks(ped)
+    end
     local res = HoldApply(ms, label, lines)
     ClearPedTasks(ped)
     Wait(600)
@@ -262,27 +385,24 @@ local function WithTool(spec, ms, label, toolSpec, lines)
     return ok
 end
 
--- Porter une pièce jusqu'à un point puis revenir (pièce démontée → établi, nouvelle pièce → véhicule)
+-- Porter une pièce jusqu'à un point puis revenir (pièce démontée → établi, nouvelle pièce → véhicule),
+-- en faisant le tour du véhicule si besoin
 local function Carry(partSpec, to, back, backHeading, label)
     local ped = PlayerPedId()
     local carry = A.carry
+    local okDict = carry and C.LoadDict(carry[1])
     local part = HandProp(partSpec)
-    if carry and C.LoadDict(carry[1]) then TaskPlayAnim(ped, carry[1], carry[2], 3.0, 3.0, -1, 49, 0, false, false, false) end
-    SendNUIMessage({ action = 'progress', show = true, label = (label or 'Pièce') .. '  ·  X : interrompre', duration = D('carry', 5000) })
-    TaskGoStraightToCoord(ped, to.x, to.y, to.z, 1.0, 5000, 0.0, 0.2)
-    local ok = Hold(D('carry', 5000) / 2, nil, function()
-        if carry and not IsEntityPlayingAnim(ped, carry[1], carry[2], 3) then TaskPlayAnim(ped, carry[1], carry[2], 3.0, 3.0, -1, 49, 0, false, false, false) end
-    end)
-    if ok then
-        TaskGoStraightToCoord(ped, back.x, back.y, back.z, 1.0, 5000, backHeading, 0.2)
-        ok = Hold(D('carry', 5000) / 2, nil, function()
-            if carry and not IsEntityPlayingAnim(ped, carry[1], carry[2], 3) then TaskPlayAnim(ped, carry[1], carry[2], 3.0, 3.0, -1, 49, 0, false, false, false) end
-        end)
+    local function keep()
+        if okDict and not IsEntityPlayingAnim(ped, carry[1], carry[2], 3) then TaskPlayAnim(ped, carry[1], carry[2], 3.0, 3.0, -1, 49, 0, false, false, false) end
     end
+    keep()
+    SendNUIMessage({ action = 'progress', show = true, label = (label or 'Pièce') .. '  ·  X : interrompre', duration = D('carry', 5000) })
+    local ok = GoTo(to, nil, keep)
+    if ok then ok = Hold(900, nil, keep) end
+    if ok then ok = GoTo(back, backHeading, keep) end
     SendNUIMessage({ action = 'progress', show = false })
-    if carry then StopAnimTask(ped, carry[1], carry[2], 1.0) end
+    if okDict then StopAnimTask(ped, carry[1], carry[2], 1.0) end
     if part then DeleteProp(part) end
-    if ok then SetEntityCoordsNoOffset(ped, back.x, back.y, back.z, false, false, false) SetEntityHeading(ped, backHeading) end
     return ok
 end
 
@@ -297,6 +417,7 @@ local function LiftTo(h, ms)
     if not Control(veh) then return false end
     local from = I.liftH
     if math.abs(from - h) < 0.01 then return true end
+    if h < from and not I.abort and not EnsureClear() then return false end   -- personne sous le véhicule quand il descend
     local t0 = GetGameTimer()
     local b = I.base
     local moving = lift.platform
@@ -320,8 +441,13 @@ local function LiftTo(h, ms)
 end
 
 -- Installe le pont (modèle configuré) ou, à défaut, les chandelles / crics sous les roues
-local function LiftSetup()
+local function LiftSetup(hasLift)
     local L = IC.lift or {}
+    if hasLift then
+        -- Pont roulant installé sur ce point (objet « Pont roulant ») : dessiné par client/lift.lua,
+        -- le véhicule monte assez haut pour que le mécanicien tienne debout dessous
+        return C.LiftHeightFor(I.veh), 'lift'
+    end
     if L.model then
         local pos = vector3(I.base.pos.x, I.base.pos.y, I.base.ground + (L.offsetZ or 0.0))
         local obj = SpawnProp({ L.model }, pos, (I.base.heading + (L.heading or 0.0)) % 360.0)
@@ -406,7 +532,17 @@ local function CleanScene()
         Control(veh)
         RefitHood()
         for t in pairs(I.burst) do SetVehicleTyreFixed(veh, t) end
-        if I.liftH > 0.001 then LiftTo(0.0, 1200) end
+        if I.liftH > 0.001 then
+            -- Interruption avec le mécanicien sous le véhicule : il est sorti sur le côté avant la descente
+            local px, py = ToLocal(GetEntityCoords(ped))
+            local min, max = I.dim.min, I.dim.max
+            if px > min.x - 0.4 and px < max.x + 0.4 and py > min.y - 0.4 and py < max.y + 0.4 then
+                local out = Around(px < 0 and min.x - 1.1 or max.x + 1.1, py)
+                ClearPedTasksImmediately(ped)
+                SetEntityCoordsNoOffset(ped, out.x, out.y, out.z + 1.0, false, false, false)
+            end
+            LiftTo(0.0, 1200)
+        end
         SetEntityCoordsNoOffset(veh, I.base.pos.x, I.base.pos.y, I.base.pos.z, false, false, false)
         SetEntityRotation(veh, I.base.rot.x, I.base.rot.y, I.base.rot.z, 2, true)
         for d in pairs(I.doors) do SetVehicleDoorShut(veh, d, false) end
@@ -457,9 +593,11 @@ local function dims() return I.dim.min, I.dim.max end
 local function UnderCar(lines, y, label, ms)
     local min, max = dims()
     if I.liftMode == 'lift' then
+        -- Véhicule en haut du pont : le mécanicien passe dessous et travaille debout, bras levés
+        if I.liftH < (I.liftTop or 0) - 0.05 and not LiftTo(I.liftTop, D('liftUp', 4000)) then return false end
         local p = Around(0.0, y)
-        if not GoTo(p, Facing('front', true)) then return false end
-        return Scenario(IC.underLiftScenario or 'WORLD_HUMAN_WELDING', p, Facing('front', true), ms, label, lines)
+        if not GoTo(p, I.base.heading) then return false end
+        return Scenario(IC.underLiftScenarios or { 'PROP_HUMAN_MOVIE_BULB', 'WORLD_HUMAN_WELDING' }, p, I.base.heading, ms, label, lines)
     end
     -- Le mécanicien se met dos au véhicule, puis s'allonge : la tête et le buste passent dessous
     local side = IC.underSide or 'left'
@@ -737,6 +875,32 @@ local function DisableControls()
             Wait(0)
         end
     end)
+    -- Sécurité anti-chute : le personnage ne peut pas passer sous le sol ni tomber dans le vide.
+    -- Dernière position sûre mémorisée en continu ; en cas de chute, il y est remis (seul cas de replacement).
+    CreateThread(function()
+        local ped = PlayerPedId()
+        local g = I.base.ground
+        I.safe = GetEntityCoords(ped)
+        SetPedCanRagdoll(ped, false)
+        local fallingSince
+        while I.running do
+            ped = PlayerPedId()
+            RequestCollisionAtCoord(I.base.pos.x, I.base.pos.y, I.base.pos.z)
+            local p = GetEntityCoords(ped)
+            local falling = IsPedFalling(ped) or IsEntityInAir(ped)
+            if not falling and math.abs(p.z - (g + 1.0)) < 1.2 then I.safe, fallingSince = p, nil end
+            if falling then fallingSince = fallingSince or GetGameTimer() end
+            if p.z < g - 0.8 or (fallingSince and GetGameTimer() - fallingSince > 700) or p.z > g + 3.5 then
+                ClearPedTasksImmediately(ped)
+                SetEntityVelocity(ped, 0.0, 0.0, 0.0)
+                SetEntityCoordsNoOffset(ped, I.safe.x, I.safe.y, I.safe.z, false, false, false)
+                fallingSince = nil
+                Log('chute évitée : personnage replacé')
+            end
+            Wait(0)
+        end
+        SetPedCanRagdoll(PlayerPedId(), true)
+    end)
     -- Le serveur sait que le mécanicien est toujours là pendant les longues étapes
     CreateThread(function()
         while I.running do
@@ -803,14 +967,19 @@ function C.RunIntervention(veh, uid, netId)
 
     -- 1. Travaux levés : une seule montée du véhicule pour tout ce qui se fait dessous et aux roues
     if not I.abort and needLift then
-        local h, mode = LiftSetup()
-        I.liftMode = mode
+        local h, mode = LiftSetup(r.lift == true)
+        I.liftMode, I.liftTop = mode, h
         SendNUIMessage({ action = 'progress', show = true, label = mode == 'lift' and 'Montée sur le pont élévateur' or 'Mise sur chandelles', duration = D('liftUp', 4000) })
         LiftTo(h, D('liftUp', 4000))
         SendNUIMessage({ action = 'progress', show = false })
         for _, w in ipairs(ORDER) do
             if I.abort then break end
             if byWork[w] and (LIFT_WORK[w] or w == 'wheels' or w == 'tyres' or w == 'wheelpaint' or w == 'smoke') then
+                -- Sur le pont : travaux de dessous en haut, puis le véhicule redescend à hauteur des roues
+                if mode == 'lift' and not (w == 'transmission' or w == 'exhaust' or w == 'suspension') and I.liftH > (IC.lift and IC.lift.wheelHeight or 0.5) + 0.05 then
+                    Stop()
+                    if not LiftTo((IC.lift and IC.lift.wheelHeight) or 0.5, D('liftDown', 3500)) then break end
+                end
                 if not RunWork(w, byWork[w]) then break end
                 byWork[w] = nil
             end
@@ -818,7 +987,7 @@ function C.RunIntervention(veh, uid, netId)
         if not I.abort then
             Stop()
             SendNUIMessage({ action = 'progress', show = true, label = 'Descente du véhicule', duration = D('liftDown', 3500) })
-            LiftTo(0.0, D('liftDown', 3500))
+            if not LiftTo(0.0, D('liftDown', 3500)) and not I.abort then I.abort = 'descente impossible' end
             SendNUIMessage({ action = 'progress', show = false })
             LiftTeardown()
         end
@@ -847,6 +1016,7 @@ function C.RunIntervention(veh, uid, netId)
     end
     ClearPedTasks(ped)
     I.running = false
+    SetPedCanRagdoll(PlayerPedId(), true)
 
     if aborted then
         local a = C.Req('quoteInstallAbort', { uid = uid, reason = aborted, cleaned = true })
@@ -897,4 +1067,5 @@ AddEventHandler('onResourceStop', function(res)
     I.abort = 'arrêt de la ressource'
     CleanScene()
     I.running = false
+    SetPedCanRagdoll(PlayerPedId(), true)
 end)

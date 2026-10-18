@@ -32,9 +32,11 @@ function CreateThread(fn) threads[#threads + 1] = { co = coroutine.create(fn), w
 function Wait(ms) coroutine.yield(ms or 0) end
 function SetTimeout(ms, fn) CreateThread(function() Wait(ms) fn() end) end
 local hooks = {}   -- [temps] = fonction (événements de test : touche X, véhicule détruit…)
+local moveStep   -- défini plus bas (marche du personnage)
 local function tick()
     TIME = TIME + 16
     for t, fn in pairs(hooks) do if TIME >= t then hooks[t] = nil fn() end end
+    if moveStep then moveStep() end
     local list = threads
     threads = {}
     for _, th in ipairs(list) do
@@ -69,7 +71,36 @@ local function newWorld()
     W.mech2 = newEnt('ped', { pos = vector3(97.0, 200.0, 30.0) })
     if Meca then for k in pairs(Meca.quotes or {}) do Meca.quotes[k] = nil end end
     W.pressX, W.missingModels, W.missingDicts = false, {}, {}
+    W.workshops = W.workshops or { { id = 'WS1', label = 'Pont 1', coords = { x = 100.0, y = 200.0, z = 30.5 }, radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'carplay' }, minLevel = 1 } }
+    W.bumps, W.pedSnaps, W.teleports, W.scenarioFar, W.walkedUnder, W.navmesh = 0, 0, 0, 0, false, 0
     W.log = {}
+end
+
+-- ---------------------------------------------------------------- marche du personnage (1,5 m/s), bloqué par la carrosserie
+local function carLocal(p)
+    local v = ents[W.veh]
+    local h = math.rad(v.heading)
+    local dx, dy = p.x - v.pos.x, p.y - v.pos.y
+    return dx * math.cos(h) + dy * math.sin(h), -dx * math.sin(h) + dy * math.cos(h), v.pos.z - 30.5
+end
+local function insideCar(p)
+    local x, y, lift = carLocal(p)
+    return lift < 1.85 and x > -1.1 and x < 1.1 and y > -2.45 and y < 2.45
+end
+moveStep = function()
+    local pd = ents[W.ped]
+    if not pd or not pd.move then return end
+    local d = pd.move - pd.pos
+    local len = math.sqrt(d.x * d.x + d.y * d.y)
+    if len < 0.02 then pd.move = nil return end
+    local stepL = math.min(len, 0.024)
+    local nxt = vector3(pd.pos.x + d.x / len * stepL, pd.pos.y + d.y / len * stepL, pd.move.z)
+    if insideCar(nxt) then W.bumps = (W.bumps or 0) + 1 return end    -- contre la carrosserie : bloqué
+    if W.veh and select(3, carLocal(nxt)) >= 1.85 then
+        local x, y = carLocal(nxt)
+        if x > -0.95 and x < 0.95 and y > -2.3 and y < 2.3 then W.walkedUnder = true end
+    end
+    pd.pos = nxt
 end
 
 -- ---------------------------------------------------------------- natives (client et serveur, mêmes entités)
@@ -84,7 +115,11 @@ function GetEntityHeightAboveGround(e) return 0.5 end
 function GetEntitySpeed() return 0.0 end
 function GetEntityRoll() return 0.0 end
 function IsEntityUpsidedown() return false end
-function SetEntityCoordsNoOffset(e, x, y, z) if ents[e] then ents[e].pos = vector3(x, y, z) end end
+function SetEntityCoordsNoOffset(e, x, y, z)
+    if not ents[e] then return end
+    if ents[e].kind == 'ped' and #(ents[e].pos - vector3(x, y, z)) > 0.25 then W.pedSnaps = (W.pedSnaps or 0) + 1 end
+    ents[e].pos = vector3(x, y, z)
+end
 function SetEntityCoords(e, x, y, z) SetEntityCoordsNoOffset(e, x, y, z) end
 function SetEntityRotation(e, x, y, z) if ents[e] then ents[e].rot = vector3(x, y, z) end end
 function SetEntityHeading(e, h) if ents[e] then ents[e].heading = h end end
@@ -120,9 +155,21 @@ function GetPedBoneIndex() return 1 end
 function TaskPlayAnim(p, d, n) ents[p].anim = d .. '/' .. n W.log[#W.log + 1] = 'anim ' .. d .. '/' .. n end
 function IsEntityPlayingAnim(p, d, n) return ents[p].anim == d .. '/' .. n end
 function StopAnimTask(p) ents[p].anim = nil end
-function ClearPedTasks(p) ents[p].anim, ents[p].scenario = nil, nil end
-function TaskStartScenarioAtPosition(p, name, x, y, z, h) ents[p].scenario = name ents[p].pos = vector3(x, y, z) W.log[#W.log + 1] = 'scenario ' .. name end
-function TaskGoStraightToCoord(p, x, y, z) ents[p].pos = vector3(x, y, z) end
+function ClearPedTasks(p) ents[p].anim, ents[p].scenario, ents[p].move = nil, nil, nil end
+function TaskStartScenarioAtPosition(p, name, x, y, z, h, dur, sit, teleport)
+    if teleport then W.teleports = (W.teleports or 0) + 1 end
+    if #(ents[p].pos.xy - vec(x, y)) > 0.8 then W.scenarioFar = (W.scenarioFar or 0) + 1 end
+    ents[p].scenario = name ents[p].move = nil W.log[#W.log + 1] = 'scenario ' .. name end
+function IsPedUsingScenario(p, name) return ents[p].scenario == name and not (W.missingScenarios or {})[name] end
+function TaskGoStraightToCoord(p, x, y, z) ents[p].move = vector3(x, y, z) ents[p].anim = ents[p].upper end
+function TaskFollowNavMeshToCoord(p, x, y, z) ents[p].move = vector3(x, y, z) W.navmesh = (W.navmesh or 0) + 1 end
+function TaskAchieveHeading(p, h) ents[p].heading = h end
+function IsPedFalling(p) return ents[p].pos.z < 29.0 end
+function IsEntityInAir() return false end
+function ClearPedTasksImmediately(p) ents[p].move, ents[p].anim, ents[p].scenario = nil, nil, nil end
+function SetEntityVelocity() end
+function SetPedCanRagdoll(p, v) ents[p].ragdoll = v end
+function RequestCollisionAtCoord() end
 function TaskLeaveVehicle(p) ents[p].inVeh = nil end
 function GetVehiclePedIsIn(p) local t = ents[p] return t and t.inVeh or 0 end
 function IsPedInAnyVehicle(p) return ents[p].inVeh ~= nil end
@@ -170,9 +217,18 @@ function AddEventHandler(name, fn) (LOADING == 'server' and serverEvents or clie
 function TriggerClientEvent(name, target, ...) sentToClients[#sentToClients + 1] = { name = name, target = target, args = { ... } }
     if clientEvents[name] and (target == 2 or target == -1) then clientEvents[name](...) end end
 function GetCurrentResourceName() return 'elyzea_meca' end
+function GetGamePool() return { W.veh } end
+function DrawPoly() W.polys = (W.polys or 0) + 1 end
+function CreateObjectNoOffset(h, x, y, z) return newEnt('obj', { pos = vector3(x, y, z), model = h, lift = true }) end
+function RegisterCommand(name, fn) W.commands = W.commands or {} W.commands[name] = fn end
+function GetResourceState() return 'started' end
+local usable = {}
 json = { encode = function(t) W.lastJson = t return '<json>' end, decode = function() return W.lastJson or {} end }
 GlobalState = {}
-exports = setmetatable({ elyzea_core = {
+exports = setmetatable({ elyzea_inventory = {
+    RegisterUsableItem = function(_, name, fn) usable[name] = fn end,
+    AddItem = function(_, src, name, n) W.given = (W.given or 0) + n return true end,
+}, elyzea_core = {
     GetSourceByCitizenId = function(_, cid) return cid == 'CUST' and 2 or (cid == 'MECH' and 1 or nil) end,
     ChangePlate = function() return true end, GiveKeys = function() end, CleanNewPlate = function(_, p) return p end,
 } }, { __call = function() end })
@@ -194,8 +250,10 @@ MySQL = {
 local money = { cust = 100000, society = 0, refunds = 0, charges = 0 }
 Meca = {
     Actions = {}, OnReady = {}, catalog = {}, CATEGORIES = { perf = true, cosmetic = true, paint = true, wheels = true },
-    GetSetting = function(k, d) if k == 'workshops' then return { { id = 'WS1', label = 'Pont 1', coords = { x = 100.0, y = 200.0, z = 30.5 }, radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'carplay' }, minLevel = 1 } } end return d end,
-    SetSetting = function() end, Uid = function(p) nextId = nextId + 1 return p .. nextId end, AddLog = function() end,
+    GetSetting = function(k, d) if k == 'workshops' then return W.workshops end return d end,
+    SetSetting = function(k, v) if k == 'workshops' then W.workshops = v end end,
+    PublishWorkshops = nil,
+    IsMeca = function() return true end, OnDuty = function() return true end, Uid = function(p) nextId = nextId + 1 return p .. nextId end, AddLog = function() end,
     Clean = function(s, n) return tostring(s or ''):sub(1, n or 60) end, Int = function(v, a, b, d) return tonumber(v) or d end,
     SortedGrades = function() return {} end, MyJob = function() return 'mechanic' end,
     Coords = function(src) local p = GetPlayerPed(src) return ents[p] and ents[p].pos end,
@@ -235,6 +293,7 @@ newWorld()
 loadFile('config.lua')
 LOADING = 'server'
 loadFile('server/workshop.lua')
+loadFile('server/lift.lua')
 local P = Meca
 -- client : socle imité (même interface que client/main.lua) + vrai moteur
 LOADING = 'client'
@@ -257,6 +316,13 @@ C.WsApplyPatch = function(veh, patch)
     if W.failKey and patch[W.failKey] ~= nil then return false end
     return true
 end
+C.Workshops = function()
+    local out = {}
+    for _, w in ipairs(W.workshops or {}) do out[#out + 1] = { id = w.id, label = w.label, radius = w.radius, coords = vector3(w.coords.x, w.coords.y, w.coords.z), lift = w.lift and { h = w.lift.h } or nil } end
+    return out
+end
+C.Do = function(a, d) return C.Req(a, d) end
+loadFile('client/lift.lua')
 loadFile('client/interventions.lua')
 
 -- ---------------------------------------------------------------- aides de scénario
@@ -314,6 +380,8 @@ check(v.locked == 1, 'verrouillage des portes rétabli')
 check(propsLeft() == 0, 'aucun objet temporaire restant')
 check(next(P.wsBusy) == nil and P.quotes[uid] == nil, 'emplacement libéré, devis clos')
 check(W.saved and W.saved.modTurbo == true and W.saved.modHood == 2, 'modifications enregistrées sur la carte grise')
+check(W.bumps == 0, ('le mécanicien n\'a jamais marché contre la carrosserie (%d contacts)'):format(W.bumps))
+check(W.pedSnaps == 0 and W.teleports == 0 and W.scenarioFar == 0, ('aucune téléportation (%d recalages, %d scénarios téléportés)'):format(W.pedSnaps, W.teleports + W.scenarioFar))
 
 print('\n[2] Interruption (X) pendant le moteur, puis reprise')
 newWorld() W.applied = {}
@@ -413,6 +481,11 @@ check(propsLeft() == 0, 'objets du mécanicien supprimés par le serveur')
 check(P.quotes[uid8] and P.quotes[uid8].status == 'accepted' and P.quotes[uid8].items[1].installed, 'devis gardé, transmission posée conservée')
 W.dropped = nil
 threads = {}   -- le client déconnecté ne tourne plus
+-- (son état local disparaît avec lui : on simule le redémarrage du client)
+local stopHandler = clientEvents['onResourceStop']
+CreateThread(function() stopHandler('elyzea_meca') end)
+for _ = 1, 400 do tick() end
+threads = {}
 
 print('\n[9] Redémarrage du serveur avec une intervention inachevée')
 W.saved = nil
@@ -424,6 +497,53 @@ local before9 = money.cust
 for _, fn in ipairs(P.OnReady) do pcall(fn) end
 check(money.cust == before9 + 4500, 'moteur non posé remboursé (4 500 $), transmission facturée')
 check(W.saved and W.saved.modTransmission == 0, 'transmission posée enregistrée sur la carte grise')
+
+print('\n[10] Objet « Pont roulant » : installation sur le point, puis intervention sur le pont')
+newWorld() W.applied = {}
+threads = {}
+loadFile('client/lift.lua')   -- relance ses fils (dessin du pont)
+source = 1
+check(usable.pont_roulant ~= nil, 'objet « pont_roulant » utilisable')
+ents[W.ped].pos = vector3(100.0, 201.0, 31.5)
+check(usable.pont_roulant(1) == true and W.workshops[1].lift ~= nil, 'utilisé sur le point : pont installé, objet consommé')
+check(usable.pont_roulant(1) == false, 'second pont refusé sur le même point')
+ents[W.ped].pos = vector3(103.0, 200.0, 31.0)
+for _ = 1, 40 do tick() end
+check((W.polys or 0) > 0, 'pont dessiné pour les joueurs proches')
+local uid10 = newQuote({ { code = 'transmission_1' }, { code = 'brakes_1' }, { code = 'engine_2' } })
+local maxLift, lowerWithPedUnder = 0, false
+CreateThread(function()
+    while true do
+        local z = ents[W.veh].pos.z - 30.5
+        if z > maxLift then maxLift = z end
+        Wait(0)
+    end
+end)
+local r10 = run(uid10)
+if not r10.ok then print('      résultat : ' .. tostring(r10.error or r10.message)) end
+threads = {}
+check(r10.ok and r10.failed == 0, 'intervention sur le pont terminée et facturée')
+check(maxLift > 1.9, ('véhicule monté à hauteur d\'homme sur le pont (%.2f m)'):format(maxLift))
+check(W.walkedUnder, 'le mécanicien est passé SOUS le véhicule')
+check(W.applied[1].scenario == 'PROP_HUMAN_MOVIE_BULB' and W.applied[1].lifted > 1.9, 'transmission posée debout sous la voiture, bras levés')
+check(W.applied[2].lifted < 0.6 and W.applied[2].lifted > 0.4, 'freins : véhicule redescendu à hauteur des roues')
+check(W.bumps == 0 and W.pedSnaps == 0, 'aucun contact avec la carrosserie, aucune téléportation')
+check(math.abs(ents[W.veh].pos.z - 30.5) < 0.001, 'véhicule redescendu au sol')
+local liftCmd = W.commands and W.commands.meca_pont_retirer
+ents[W.ped].pos = vector3(100.0, 201.0, 31.5)
+local given = W.given or 0
+if liftCmd then liftCmd() end
+check(W.workshops[1].lift == nil and (W.given or 0) == given + 1, '/meca_pont_retirer : pont retiré et rendu à l\'inventaire')
+
+print('\n[11] Sécurité anti-chute : le personnage passe sous le sol pendant une intervention')
+newWorld() W.applied = {}
+local uid11 = newQuote({ { code = 'engine_2' } })
+CreateThread(function() Wait(2500) ents[W.ped].pos = vector3(ents[W.ped].pos.x, ents[W.ped].pos.y, 20.0) end)
+local r11 = run(uid11)
+threads = {}
+check(r11.ok, 'intervention terminée malgré la chute')
+check(ents[W.ped].pos.z > 29.0, ('personnage replacé au-dessus du sol (z = %.1f)'):format(ents[W.ped].pos.z))
+check(ents[W.ped].ragdoll == true, 'chute / ragdoll rétabli à la fin')
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails
