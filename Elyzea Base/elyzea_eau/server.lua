@@ -1,12 +1,13 @@
 -- =========================================================
 --  ELYZEA EAU : ajoute de l'eau là où le jeu n'en a pas
 --  water_base.xml : eau d'origine du jeu (jamais modifié)
---  added.json     : zones ajoutées en jeu
+--  added.json     : zones ajoutées (éditeur /eau_editeur ou /eau_ajouter)
 --  water.xml      : les deux réunis, chargé par le jeu (data_file 'WATER_FILE')
 --  Les changements comptent après un REDÉMARRAGE du serveur et une reconnexion.
 -- =========================================================
 local RES = GetCurrentResourceName()
 local DEFAULT_SIZE, MIN_SIZE, MAX_SIZE = 60, 8, 400
+local EDITOR_RANGE = 1200.0     -- eau existante envoyée à l'éditeur autour du joueur (m)
 
 local function say(src, msg)
     if src == 0 then print('[EAU] ' .. msg) return end
@@ -33,12 +34,37 @@ local function parseQuads(xml)
     return out
 end
 
-local function loadAdded()
+local function base() return LoadResourceFile(RES, 'water_base.xml') end
+
+-- Zones ajoutées : { z, rects = {…}, points = {…}, by, at }
+-- (ancien format : un rectangle seul { minX, maxX, minY, maxY, z } → converti)
+local function loadZones()
     local ok, t = pcall(json.decode, LoadResourceFile(RES, 'added.json') or '[]')
-    return (ok and type(t) == 'table') and t or {}
+    if not ok or type(t) ~= 'table' then return {} end
+    local out = {}
+    for _, z in ipairs(t) do
+        if z.rects then out[#out + 1] = z
+        elseif z.minX then out[#out + 1] = { z = z.z or 0.0, rects = { { minX = z.minX, maxX = z.maxX, minY = z.minY, maxY = z.maxY } } } end
+    end
+    return out
 end
 
-local function base() return LoadResourceFile(RES, 'water_base.xml') end
+local function flatten(zones)
+    local out = {}
+    for _, z in ipairs(zones) do
+        for _, r in ipairs(z.rects) do out[#out + 1] = { minX = r.minX, maxX = r.maxX, minY = r.minY, maxY = r.maxY, z = z.z } end
+    end
+    return out
+end
+
+-- Toute l'eau connue : jeu d'origine + zones ajoutées
+local function allQuads(zones)
+    local xml = base()
+    if not xml then return nil end
+    local quads = parseQuads(xml)
+    for _, q in ipairs(flatten(zones)) do quads[#quads + 1] = q end
+    return quads
+end
 
 -- ---------------------------------------------------------------- écriture
 local function quadXml(q)
@@ -61,17 +87,21 @@ local function quadXml(q)
 ]]):format(q.minX, q.maxX, q.minY, q.maxY, q.z)
 end
 
-local function build(added)
+local function build(zones)
     local xml = base()
     if not xml then return false, 'water_base.xml introuvable dans la ressource' end
     local extra = {}
-    for _, q in ipairs(added) do extra[#extra + 1] = quadXml(q) end
-    local s, e = xml:find('</WaterQuads>', 1, true)
+    for _, q in ipairs(flatten(zones)) do extra[#extra + 1] = quadXml(q) end
+    local s = xml:find('</WaterQuads>', 1, true)
     if not s then return false, 'water_base.xml illisible (balise WaterQuads absente)' end
     local out = xml:sub(1, s - 1) .. table.concat(extra) .. '  ' .. xml:sub(s)
     if not SaveResourceFile(RES, 'water.xml', out, -1) then return false, 'impossible d\'écrire water.xml' end
-    if not SaveResourceFile(RES, 'added.json', json.encode(added), -1) then return false, 'impossible d\'écrire added.json' end
+    if not SaveResourceFile(RES, 'added.json', json.encode(zones), -1) then return false, 'impossible d\'écrire added.json' end
     return true
+end
+
+local function restartHint(src)
+    say(src, 'REDÉMARRE le serveur (pas seulement ensure), puis reconnecte-toi pour voir l\'eau. /eau_annuler pour retirer la dernière zone.')
 end
 
 -- ---------------------------------------------------------------- géométrie
@@ -81,44 +111,71 @@ local function distTo(q, x, y)
     local dy = math.max(q.minY - y, 0, y - q.maxY)
     return math.sqrt(dx * dx + dy * dy)
 end
-local function even(v) return math.floor(v / 2 + 0.5) * 2 end
+local even = EauGeo.even
 
--- Rectangle centré sur (x, y), raboté pour ne chevaucher aucune eau existante
--- (deux eaux superposées scintillent). On garde toujours le côté où se trouve le joueur.
-local function carve(x, y, size, quads)
-    local h = size / 2
-    local r = { minX = even(x - h), maxX = even(x + h), minY = even(y - h), maxY = even(y + h) }
+local function nearestZ(quads, x, y)
+    local best, bd = nil, math.huge
     for _, q in ipairs(quads) do
-        if q.minX < r.maxX and q.maxX > r.minX and q.minY < r.maxY and q.maxY > r.minY then
-            local cuts = {}
-            if q.maxX <= x then cuts[#cuts + 1] = { 'minX', q.maxX } end
-            if q.minX >= x then cuts[#cuts + 1] = { 'maxX', q.minX } end
-            if q.maxY <= y then cuts[#cuts + 1] = { 'minY', q.maxY } end
-            if q.minY >= y then cuts[#cuts + 1] = { 'maxY', q.minY } end
-            local best, bestArea
-            for _, c in ipairs(cuts) do
-                local t = { minX = r.minX, maxX = r.maxX, minY = r.minY, maxY = r.maxY }
-                t[c[1]] = c[2]
-                local area = (t.maxX - t.minX) * (t.maxY - t.minY)
-                if not bestArea or area > bestArea then best, bestArea = t, area end
-            end
-            if not best then return nil end
-            r = best
-        end
+        local d = distTo(q, x, y)
+        if d < bd then best, bd = q, d end
     end
-    if r.maxX - r.minX < 2 or r.maxY - r.minY < 2 then return nil end
-    return r
+    return best and best.z or 0.0, bd
 end
 
--- ---------------------------------------------------------------- commandes
-local function add(src, x, y, size, height, groundZ)
-    if not allowed(src) then return end
-    local xml = base()
-    if not xml then say(src, 'water_base.xml introuvable : réinstalle la ressource elyzea_eau.') return end
-    local added = loadAdded()
-    local quads = parseQuads(xml)
-    for _, q in ipairs(added) do quads[#quads + 1] = q end
+-- ---------------------------------------------------------------- éditeur (dessin)
+RegisterNetEvent('elyzea_eau:editor:open', function()
+    local src = source
+    if not allowed(src) then return say(src, 'Éditeur d\'eau réservé au Fondateur.') end
+    local zones = loadZones()
+    local quads = allQuads(zones)
+    if not quads then return say(src, 'water_base.xml introuvable : réinstalle la ressource elyzea_eau.') end
+    local c = GetEntityCoords(GetPlayerPed(src))
+    local near = {}
+    for _, q in ipairs(quads) do
+        if distTo(q, c.x, c.y) < EDITOR_RANGE then near[#near + 1] = q end
+    end
+    local z = nearestZ(quads, c.x, c.y)
+    TriggerClientEvent('elyzea_eau:editor:start', src, near, z)
+end)
 
+RegisterNetEvent('elyzea_eau:editor:save', function(points, z)
+    local src = source
+    if not allowed(src) then return end
+    z = tonumber(z)
+    if type(points) ~= 'table' or #points < 3 or #points > 100 or not z or z < -50.0 or z > 1500.0 then
+        return say(src, 'Zone invalide (3 à 100 coins, hauteur entre -50 et 1500 m).')
+    end
+    local pts = {}
+    for _, p in ipairs(points) do
+        local x, y = tonumber(type(p) == 'table' and p.x), tonumber(type(p) == 'table' and p.y)
+        if not x or not y or math.abs(x) > 10000 or math.abs(y) > 10000 then return say(src, 'Coin invalide.') end
+        pts[#pts + 1] = { x = x, y = y }
+    end
+    local c = GetEntityCoords(GetPlayerPed(src))
+    local b = EauGeo.Bounds(pts)
+    if b.maxX - b.minX > 1500 or b.maxY - b.minY > 1500 then return say(src, 'Zone trop grande (1500 m maximum de côté).') end
+    if distTo(b, c.x, c.y) > 600.0 then return say(src, 'Tu es trop loin de la zone dessinée.') end
+
+    local zones = loadZones()
+    local quads = allQuads(zones)
+    if not quads then return say(src, 'water_base.xml introuvable : réinstalle la ressource elyzea_eau.') end
+    local rects = EauGeo.Subtract(EauGeo.Rasterize(pts), quads)
+    if #rects == 0 then return say(src, 'Toute cette zone a déjà de l\'eau dans le fichier du jeu : rien à ajouter.') end
+    if #rects > EauGeo.MAX_RECTS then return say(src, ('Forme trop découpée (%d morceaux, %d maximum) : simplifie la forme ou fais-la en plusieurs fois.'):format(#rects, EauGeo.MAX_RECTS)) end
+    zones[#zones + 1] = { z = z, rects = rects, points = pts, by = GetPlayerName(src), at = os.date('%Y-%m-%d %H:%M') }
+    local ok, err = build(zones)
+    if not ok then return say(src, 'Erreur : ' .. err) end
+    say(src, ('Zone d\'eau n°%d enregistrée : %d × %d m, %d m², surface à %.2f m (%d morceau(x)).'):format(
+        #zones, math.floor(b.maxX - b.minX + 0.5), math.floor(b.maxY - b.minY + 0.5), EauGeo.Area(rects), z, #rects))
+    restartHint(src)
+    print(('[EAU] zone n°%d ajoutée par %s : %d morceaux, z %.2f'):format(#zones, GetPlayerName(src), #rects, z))
+end)
+
+-- ---------------------------------------------------------------- commande rapide (carré autour de soi)
+local function add(src, x, y, size, height, groundZ)
+    local zones = loadZones()
+    local quads = allQuads(zones)
+    if not quads then say(src, 'water_base.xml introuvable : réinstalle la ressource elyzea_eau.') return end
     for i, q in ipairs(quads) do
         if inside(q, x, y) then
             say(src, ('Il y a DÉJÀ de l\'eau ici dans le fichier du jeu (zone n°%d, surface à %.1f m).'):format(i, q.z))
@@ -126,31 +183,25 @@ local function add(src, x, y, size, height, groundZ)
             return
         end
     end
-
     size = math.max(MIN_SIZE, math.min(MAX_SIZE, math.floor(size or DEFAULT_SIZE)))
     local z = height
     if not z then
-        local best, bd = nil, math.huge
-        for _, q in ipairs(quads) do
-            local d = distTo(q, x, y)
-            if d < bd then best, bd = q, d end
-        end
-        z = best and best.z or 0.0
+        local bd
+        z, bd = nearestZ(quads, x, y)
         say(src, ('Hauteur de l\'eau reprise de l\'eau voisine (à %.0f m) : %.1f m.'):format(bd, z))
     end
-
-    local r = carve(x, y, size, quads)
-    if not r then say(src, 'Pas de place : l\'eau voisine couvre déjà presque tout. Essaie plus au centre de l\'endroit sec.') return end
-    r.z = z
-    added[#added + 1] = r
-    local ok, err = build(added)
+    local h = size / 2
+    local square = { { minX = even(x - h), maxX = even(x + h), minY = even(y - h), maxY = even(y + h) } }
+    local rects = EauGeo.Subtract(square, quads)
+    if #rects == 0 then say(src, 'Pas de place : l\'eau voisine couvre déjà tout.') return end
+    zones[#zones + 1] = { z = z, rects = rects, by = src == 0 and 'console' or GetPlayerName(src), at = os.date('%Y-%m-%d %H:%M') }
+    local ok, err = build(zones)
     if not ok then say(src, 'Erreur : ' .. err) return end
-    say(src, ('Zone d\'eau n°%d ajoutée : %d × %d m, surface à %.1f m.'):format(#added, r.maxX - r.minX, r.maxY - r.minY, z))
+    say(src, ('Zone d\'eau n°%d ajoutée : %d m², surface à %.1f m.'):format(#zones, EauGeo.Area(rects), z))
     if groundZ and groundZ > z + 0.3 then
         say(src, ('Attention : le sol sous toi est à %.1f m, AU-DESSUS de l\'eau : à cet endroit précis l\'eau restera cachée sous le sable.'):format(groundZ))
     end
-    say(src, 'REDÉMARRE le serveur (pas seulement ensure), puis reconnecte-toi pour voir l\'eau. /eau_annuler pour la retirer.')
-    print(('[EAU] zone ajoutée par %s : x %d → %d, y %d → %d, z %.2f'):format(src == 0 and 'console' or GetPlayerName(src), r.minX, r.maxX, r.minY, r.maxY, z))
+    restartHint(src)
 end
 
 RegisterNetEvent('elyzea_eau:add', function(size, height, groundZ)
@@ -160,26 +211,46 @@ RegisterNetEvent('elyzea_eau:add', function(size, height, groundZ)
     add(src, c.x, c.y, tonumber(size), tonumber(height), tonumber(groundZ))
 end)
 
+-- ---------------------------------------------------------------- gestion
+local function remove(src, n)
+    local zones = loadZones()
+    if #zones == 0 then return say(src, 'Aucune zone d\'eau ajoutée.') end
+    n = n or #zones
+    if not zones[n] then return say(src, ('Zone n°%s introuvable (%d zone(s)).'):format(tostring(n), #zones)) end
+    table.remove(zones, n)
+    local ok, err = build(zones)
+    if not ok then return say(src, 'Erreur : ' .. err) end
+    say(src, ('Zone n°%d retirée (%d restante(s)). Redémarre le serveur puis reconnecte-toi.'):format(n, #zones))
+end
+
 RegisterNetEvent('elyzea_eau:undo', function()
     local src = source
-    if not allowed(src) then return end
-    local added = loadAdded()
-    if #added == 0 then say(src, 'Aucune zone d\'eau ajoutée.') return end
-    table.remove(added)
-    local ok, err = build(added)
-    if not ok then say(src, 'Erreur : ' .. err) return end
-    say(src, ('Dernière zone retirée (%d restante(s)). Redémarre le serveur puis reconnecte-toi.'):format(#added))
+    if allowed(src) then remove(src, nil) end
+end)
+
+RegisterNetEvent('elyzea_eau:remove', function(n)
+    local src = source
+    if allowed(src) then remove(src, tonumber(n)) end
 end)
 
 RegisterNetEvent('elyzea_eau:list', function()
     local src = source
     if not allowed(src) then return end
-    local added = loadAdded()
-    say(src, ('%d zone(s) d\'eau ajoutée(s).'):format(#added))
-    for i, q in ipairs(added) do say(src, ('  n°%d : x %d → %d, y %d → %d, surface %.1f m'):format(i, q.minX, q.maxX, q.minY, q.maxY, q.z)) end
+    local zones = loadZones()
+    say(src, ('%d zone(s) d\'eau ajoutée(s).'):format(#zones))
+    for i, z in ipairs(zones) do
+        local b = { minX = math.huge, maxX = -math.huge, minY = math.huge, maxY = -math.huge }
+        for _, r in ipairs(z.rects) do
+            b.minX, b.maxX = math.min(b.minX, r.minX), math.max(b.maxX, r.maxX)
+            b.minY, b.maxY = math.min(b.minY, r.minY), math.max(b.maxY, r.maxY)
+        end
+        say(src, ('  n°%d : autour de %d, %d · %d m² · surface %.2f m%s'):format(i, math.floor((b.minX + b.maxX) / 2), math.floor((b.minY + b.maxY) / 2),
+            EauGeo.Area(z.rects), z.z, z.by and (' · ' .. z.by) or ''))
+    end
+    if #zones > 0 then say(src, '/eau_supprimer <n°> pour en retirer une.') end
 end)
 
--- Console : eau_ajouter x y [taille] [hauteur]
+-- Console : eau_ajouter_console x y [taille] [hauteur]
 RegisterCommand('eau_ajouter_console', function(src, args)
     if src ~= 0 then return end
     local x, y = tonumber(args[1]), tonumber(args[2])
@@ -189,12 +260,10 @@ end, true)
 
 -- water.xml manquant ou périmé (ex. après une mise à jour de la ressource) : régénéré
 CreateThread(function()
-    if not LoadResourceFile(RES, 'water.xml') or #loadAdded() > 0 then
-        local cur = LoadResourceFile(RES, 'water.xml') or ''
-        local before = cur
-        local ok = build(loadAdded())
-        if ok and LoadResourceFile(RES, 'water.xml') ~= before then
-            print('[EAU] water.xml régénéré : redémarre le serveur une fois pour qu\'il soit pris en compte.')
-        end
+    local zones = loadZones()
+    local before = LoadResourceFile(RES, 'water.xml')
+    if before and #zones == 0 then return end
+    if build(zones) and LoadResourceFile(RES, 'water.xml') ~= before then
+        print('[EAU] water.xml régénéré : redémarre le serveur une fois pour qu\'il soit pris en compte.')
     end
 end)
