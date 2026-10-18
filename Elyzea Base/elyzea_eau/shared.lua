@@ -93,3 +93,15 @@ function EauGeo.Bounds(points)
     end
     return b
 end
+
+-- Réserve de zones d'eau cachées (sous le mont Chiliad, à -100 m, aucune eau du jeu à cet endroit).
+-- Chargées avec water.xml au démarrage, puis déplacées EN DIRECT par le client sur les zones
+-- dessinées : l'eau apparaît tout de suite, sans redémarrage.
+EauGeo.POOL = { x0 = 420, y0 = 5500, cols = 20, gap = 4, size = 2, count = 300, z = -100.0 }
+function EauGeo.PoolSlot(i)   -- i de 1 à count
+    local P = EauGeo.POOL
+    local k = i - 1
+    local x = P.x0 + (k % P.cols) * P.gap
+    local y = P.y0 + math.floor(k / P.cols) * P.gap
+    return { minX = x, maxX = x + P.size, minY = y, maxY = y + P.size }
+end

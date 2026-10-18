@@ -92,6 +92,12 @@ local function build(zones)
     if not xml then return false, 'water_base.xml introuvable dans la ressource' end
     local extra = {}
     for _, q in ipairs(flatten(zones)) do extra[#extra + 1] = quadXml(q) end
+    -- Réserve pour l'eau en direct (voir shared.lua)
+    for i = 1, EauGeo.POOL.count do
+        local r = EauGeo.PoolSlot(i)
+        r.z = EauGeo.POOL.z
+        extra[#extra + 1] = quadXml(r)
+    end
     local s = xml:find('</WaterQuads>', 1, true)
     if not s then return false, 'water_base.xml illisible (balise WaterQuads absente)' end
     local out = xml:sub(1, s - 1) .. table.concat(extra) .. '  ' .. xml:sub(s)
@@ -100,8 +106,20 @@ local function build(zones)
     return true
 end
 
+-- Zones envoyées aux joueurs : l'eau est posée en direct (réserve), sans attendre un redémarrage
+local function liveList(zones)
+    local out = {}
+    for _, z in ipairs(zones) do out[#out + 1] = { z = z.z, rects = z.rects } end
+    return out
+end
+local function broadcast(zones) TriggerClientEvent('elyzea_eau:zones', -1, liveList(zones)) end
+
+RegisterNetEvent('elyzea_eau:zones:get', function()
+    TriggerClientEvent('elyzea_eau:zones', source, liveList(loadZones()))
+end)
+
 local function restartHint(src)
-    say(src, 'REDÉMARRE le serveur (pas seulement ensure), puis reconnecte-toi pour voir l\'eau. /eau_annuler pour retirer la dernière zone.')
+    say(src, 'L\'eau apparaît tout de suite pour tous les joueurs. Elle est aussi enregistrée dans le fichier d\'eau (gardée après redémarrage). /eau_annuler pour la retirer.')
 end
 
 -- ---------------------------------------------------------------- géométrie
@@ -165,6 +183,7 @@ RegisterNetEvent('elyzea_eau:editor:save', function(points, z)
     zones[#zones + 1] = { z = z, rects = rects, points = pts, by = GetPlayerName(src), at = os.date('%Y-%m-%d %H:%M') }
     local ok, err = build(zones)
     if not ok then return say(src, 'Erreur : ' .. err) end
+    broadcast(zones)
     say(src, ('Zone d\'eau n°%d enregistrée : %d × %d m, %d m², surface à %.2f m (%d morceau(x)).'):format(
         #zones, math.floor(b.maxX - b.minX + 0.5), math.floor(b.maxY - b.minY + 0.5), EauGeo.Area(rects), z, #rects))
     restartHint(src)
@@ -197,6 +216,7 @@ local function add(src, x, y, size, height, groundZ)
     zones[#zones + 1] = { z = z, rects = rects, by = src == 0 and 'console' or GetPlayerName(src), at = os.date('%Y-%m-%d %H:%M') }
     local ok, err = build(zones)
     if not ok then say(src, 'Erreur : ' .. err) return end
+    broadcast(zones)
     say(src, ('Zone d\'eau n°%d ajoutée : %d m², surface à %.1f m.'):format(#zones, EauGeo.Area(rects), z))
     if groundZ and groundZ > z + 0.3 then
         say(src, ('Attention : le sol sous toi est à %.1f m, AU-DESSUS de l\'eau : à cet endroit précis l\'eau restera cachée sous le sable.'):format(groundZ))
@@ -220,7 +240,8 @@ local function remove(src, n)
     table.remove(zones, n)
     local ok, err = build(zones)
     if not ok then return say(src, 'Erreur : ' .. err) end
-    say(src, ('Zone n°%d retirée (%d restante(s)). Redémarre le serveur puis reconnecte-toi.'):format(n, #zones))
+    broadcast(zones)
+    say(src, ('Zone n°%d retirée (%d restante(s)) : l\'eau disparaît tout de suite.'):format(n, #zones))
 end
 
 RegisterNetEvent('elyzea_eau:undo', function()
@@ -259,11 +280,11 @@ RegisterCommand('eau_ajouter_console', function(src, args)
 end, true)
 
 -- water.xml manquant ou périmé (ex. après une mise à jour de la ressource) : régénéré
+-- water.xml toujours à jour (eau du jeu + zones + réserve). S'il a changé, les joueurs ne l'auront
+-- qu'au prochain démarrage : un redémarrage complet est nécessaire UNE fois.
 CreateThread(function()
-    local zones = loadZones()
     local before = LoadResourceFile(RES, 'water.xml')
-    if before and #zones == 0 then return end
-    if build(zones) and LoadResourceFile(RES, 'water.xml') ~= before then
-        print('[EAU] water.xml régénéré : redémarre le serveur une fois pour qu\'il soit pris en compte.')
+    if build(loadZones()) and LoadResourceFile(RES, 'water.xml') ~= before then
+        print('^3[EAU] water.xml mis à jour : REDÉMARRE le serveur une fois (pas seulement ensure) pour que l\'eau en direct fonctionne.^0')
     end
 end)
