@@ -57,13 +57,20 @@ def main():
     # ── 1. textures DDS (DXT1 opaque, DXT5 avec alpha), avec mipmaps
     tex_dir = os.path.join(build, 'textures')
     dds = {}
-    jobs = [(f'{PREFIX}_corps_n', f'{PREFIX}_corps_n.png', 'DXT1')]
+    # Carte de normales : Blender cuit en convention OpenGL (vert = Y+), GTA V attend la convention DirectX
+    # (vert inversé ; Sollumz inverse le vert quand il affiche une carte du jeu). On inverse donc le vert ici.
+    from PIL import Image as _Img
+    import numpy as _np
+    _n = _np.asarray(_Img.open(os.path.join(tex_dir, f'{PREFIX}_corps_n.png')).convert('RGBA')).copy()
+    _n[..., 1] = 255 - _n[..., 1]
+    _Img.fromarray(_n, 'RGBA').save(os.path.join(dds_dir, f'{PREFIX}_corps_n_gta.png'))
+    jobs = [(f'{PREFIX}_corps_n', os.path.join(dds_dir, f'{PREFIX}_corps_n_gta.png'), 'DXT1')]
     jobs += [(os.path.splitext(f)[0], f, 'DXT1') for f in report['textures']['corps'].values()]
     jobs += [(os.path.splitext(f)[0], f, 'DXT1') for f in report['textures']['yeux'].values()]
     jobs += [(os.path.splitext(f)[0], f, 'DXT5') for f in report['textures']['cheveux'].values()]
     for name, png, fmt in jobs:
         p = os.path.join(dds_dir, name + '.dds')
-        n = write_dds(os.path.join(tex_dir, png), p, fmt)
+        n = write_dds(png if os.path.isabs(png) else os.path.join(tex_dir, png), p, fmt)
         dds[name] = p
     log(f'{len(dds)} textures DDS (mipmaps compris)')
 
@@ -110,7 +117,8 @@ def main():
     for eye in report['yeux']:
         mats[('yeux', eye)] = material('default.sps', {'DiffuseSampler': f'{PREFIX}_yeux_{eye}'}, f'yeux_{eye}')
     for key in report['textures']['cheveux']:
-        mats[('cheveux', key)] = material('cutout.sps', {'DiffuseSampler': f'{PREFIX}_cheveux_{key}'}, f'cheveux_{key}')
+        # « alpha » : transparence douce (bord des cheveux fondu), au lieu d'une découpe tout-ou-rien
+        mats[('cheveux', key)] = material('alpha.sps', {'DiffuseSampler': f'{PREFIX}_cheveux_{key}'}, f'cheveux_{key}')
 
     # retirer de la scène tout ce qui n'est pas une pose figée
     for o in list(bpy.data.objects):

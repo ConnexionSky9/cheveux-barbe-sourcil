@@ -25,7 +25,8 @@ Config.Intimite = {
     attenteEntreDemandes = 60,   -- secondes entre deux demandes vers la même personne
     demandesParMinute = 3,       -- demandes max envoyées par minute (toutes personnes confondues)
     duree = 30,                  -- secondes d'écran noir (durée de l'interaction)
-    dureeMinPourConception = 0.6, -- part de la durée à atteindre pour qu'une conception soit possible (annulation avant = rien)
+    dureeMinPourConception = 0.6, -- utilisé seulement si Config.Conception.siInterrompu = true
+    delaiEntreMoments = 30,      -- minutes : délai pour chaque personne après un moment intime terminé (0 = aucun)
     distanceCouple = 1.0,        -- distance entre les deux personnages pendant l'étreinte (mètres)
     fondu = 1500,                -- millisecondes du fondu au noir / retour
     delaiAvantNoir = 2500,       -- millisecondes d'étreinte visible avant le fondu
@@ -74,12 +75,27 @@ Config.Conception = {
     delaiApresGrossesse = 48,    -- heures après la fin d'une grossesse avant une nouvelle conception
     -- Grossesses multiples : tirées SÉPARÉMENT, seulement après une conception réussie
     multiples = { actif = true, jumeaux = 0.03, triples = 0.002, triplesActifs = true },
+    -- Moment arrêté avant la fin (X, déconnexion…) : false = AUCUNE tentative (défaut) ;
+    -- true = tentative si au moins Config.Intimite.dureeMinPourConception de la durée a été atteinte
+    siInterrompu = false,
     forcer = false,              -- TEST UNIQUEMENT : conception à 100 % (toujours false en production)
 }
 
 -- ─────────────────────────── Grossesse (utilisé dès la conception) ───────────────────────────
 Config.Grossesse = {
     duree = 336,                 -- heures réelles (14 jours) entre conception et terme
+    -- Test de grossesse (objet) : positif seulement après ce délai depuis la conception
+    test = { item = 'test_grossesse', delai = 24, fiabilite = 0.99 },   -- heures · 0.99 = 1 faux négatif sur 100
+    examenEms = true,            -- EMS en service : « Examen de grossesse » (menu ALT) = résultat sûr + nombre de bébés
+    commande = 'grossesse',      -- /grossesse : suivi privé (si la grossesse est connue)
+    -- Étapes affichées (jour de grossesse -> description) ; la dernière s'applique au-delà
+    etapes = {
+        { jusqua = 3, label = 'Ventre presque plat' },
+        { jusqua = 7, label = 'Léger arrondi' },
+        { jusqua = 11, label = 'Ventre visible' },
+        { jusqua = 13, label = 'Ventre très arrondi' },
+        { jusqua = 999, label = 'Terme atteint' },
+    },
 }
 
 -- Commandes staff (permission ACE : command.<nom>, déjà incluse dans group.admin)

@@ -89,6 +89,7 @@ function R.decider(e, cfg, now, rng)
     local CC, Co = cfg.Conception, cfg.Contraception
     local d = { resultat = 'aucune', protections = {}, probabilite = 0, tirage = nil, bebes = 0 }
     if not cfg.Modules.conception then d.resultat = 'desactive' return d end
+    if e.interrompu and not CC.siInterrompu then d.resultat = 'interrompu' return d end
     if (e.dureePct or 0) < cfg.Intimite.dureeMinPourConception then d.resultat = 'interrompu' return d end
     if not e.volontaire and not CC.accidentelle then d.resultat = 'accidentelle_desactivee' return d end
     local who, raison = R.porteur(e.a, e.b, CC, now)
@@ -131,6 +132,24 @@ function R.poseImplant(etat, now, I)
     local fin = tonumber((etat or {}).implant_until) or 0
     if fin - now > 24 * HEURE then return false, 'encore_actif', fin end
     return true, now + I.duree * HEURE
+end
+
+-- Test de grossesse : renvoie true (positif) ou false. enceinte = { conceived_at } ou nil
+function R.testGrossesse(enceinte, now, T, rng)
+    if not enceinte then return false end
+    if now - (tonumber(enceinte.conceived_at) or now) < T.delai * HEURE then return false end
+    return rng() < T.fiabilite
+end
+
+-- Avancement d'une grossesse : jour (1..), étape, terme atteint
+function R.avancement(g, now, G)
+    local total = G.duree * HEURE
+    local ecoule = math.max(0, now - g.conceived_at)
+    local jour = math.floor(ecoule / (24 * HEURE)) + 1
+    local etape = G.etapes[#G.etapes].label
+    for _, e in ipairs(G.etapes) do if jour <= e.jusqua then etape = e.label break end end
+    if now >= g.due_at then etape = G.etapes[#G.etapes].label end
+    return { jour = jour, jours = math.ceil(total / (24 * HEURE)), pct = math.min(1, ecoule / total), etape = etape, terme = now >= g.due_at }
 end
 
 -- Date prévue d'accouchement

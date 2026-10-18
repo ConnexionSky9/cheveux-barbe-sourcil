@@ -101,6 +101,25 @@ end
 test(('jumeaux ≈ 3 %% (observé %.2f %%)'):format(b2 / N * 100), math.abs(b2 / N - 0.03) < 0.003)
 test(('triplés ≈ 0,2 %% (observé %.2f %%)'):format(b3 / N * 100), math.abs(b3 / N - 0.002) < 0.001)
 
+-- Interruption
+test('interrompu : aucune tentative par défaut (même à 90 %)', R.decider(entree({ interrompu = true, dureePct = 0.9 }), Config, NOW, fixe(0)).resultat == 'interrompu')
+local Cint = copie(Config) Cint.Conception.siInterrompu = true
+test('interrompu autorisé par la config au-delà de 60 %', R.decider(entree({ interrompu = true, dureePct = 0.9 }), Cint, NOW, fixe(0.01)).resultat == 'conception')
+test('interrompu autorisé mais trop tôt', R.decider(entree({ interrompu = true, dureePct = 0.3 }), Cint, NOW, fixe(0)).resultat == 'interrompu')
+
+-- Test de grossesse et avancement
+local GG = Config.Grossesse
+test('test négatif sans grossesse', R.testGrossesse(nil, NOW, GG.test, fixe(0)) == false)
+test('test négatif avant 24 h', R.testGrossesse({ conceived_at = NOW - 10 * H }, NOW, GG.test, fixe(0)) == false)
+test('test positif après 24 h', R.testGrossesse({ conceived_at = NOW - 30 * H }, NOW, GG.test, fixe(0.5)) == true)
+test('faux négatif possible (1 %)', R.testGrossesse({ conceived_at = NOW - 30 * H }, NOW, GG.test, fixe(0.995)) == false)
+local g0 = { conceived_at = NOW, due_at = NOW + 336 * H }
+test('jour 1 : ventre presque plat', R.avancement(g0, NOW + H, GG).jour == 1 and R.avancement(g0, NOW + H, GG).etape == 'Ventre presque plat')
+test('jour 5 : léger arrondi', R.avancement(g0, NOW + 4 * 24 * H + H, GG).etape == 'Léger arrondi')
+test('jour 9 : ventre visible', R.avancement(g0, NOW + 8 * 24 * H + H, GG).etape == 'Ventre visible')
+test('jour 13 : très arrondi', R.avancement(g0, NOW + 12 * 24 * H + H, GG).etape == 'Ventre très arrondi')
+test('jour 14 révolu : terme atteint', R.avancement(g0, NOW + 336 * H, GG).terme and R.avancement(g0, NOW + 336 * H, GG).etape == 'Terme atteint')
+
 -- Terme
 test('terme à 336 h', R.terme(NOW, Config.Grossesse) == NOW + 336 * H)
 

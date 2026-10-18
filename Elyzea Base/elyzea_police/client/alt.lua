@@ -6,6 +6,7 @@
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
 --  Mécano en service (elyzea_meca) : réparer, nettoyer, retourner, historique, devis (exports AltOptions / AltSelect).
 --  Famille (elyzea_famille) : proposer un moment intime ; EMS en service : implant contraceptif, ordonnance.
+--  Bébé (elyzea_bebe_modele) : prendre un bébé posé, le poser, changer de prise (cible propre : AltNearby).
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -49,6 +50,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_famille', prefix = 'fam:' },
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },
+    { res = 'elyzea_bebe_modele', prefix = 'bebe:', target = true },
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre

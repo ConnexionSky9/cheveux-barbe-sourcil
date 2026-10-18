@@ -114,6 +114,8 @@ def parts():
     add('lowerlip', lambda p: ellipsoid(p, (0, -0.0480, 0.3828), (0.0062, 0.0042, 0.0028)), 'skin', 0.004)
     for s in (L, R_):
         add('ear', (lambda s: lambda p: ellipsoid(p, mirror((0.0570, 0.014, 0.414), s), (0.0075, 0.0155, 0.0210)))(s), 'skin', 0.006)
+        # paupière supérieure posée sur l'œil : regard doux de nouveau-né (pas de regard « écarquillé »)
+        add('lid', (lambda s: lambda p: ellipsoid(p, mirror((0.0195, -0.0512, 0.4232), s), (0.0106, 0.0036, 0.0034)))(s), 'skin', 0.0022)
 
     # Bras (manches longues jusqu'au poignet) et mains en poing
     for s in (L, R_):
@@ -174,7 +176,7 @@ def field(p, want_labels=False):
     # Creux : orbites (yeux en amande), narines, commissure de la bouche, conque des oreilles
     for s in (L, R_):
         d = ssub(d, ellipsoid(p, mirror(EYE['socket'], s), EYE['socket_r']), 0.0025)
-        d = ssub(d, ellipsoid(p, mirror((0.0033, -0.0600, 0.3992), s), (0.0011, 0.0020, 0.0009)), 0.0008)
+        d = ssub(d, ellipsoid(p, mirror((0.0032, -0.0598, 0.3994), s), (0.0008, 0.0014, 0.0006)), 0.0006)
         d = ssub(d, ellipsoid(p, mirror((0.0610, 0.010, 0.412), s), (0.0040, 0.0100, 0.0140)), 0.003)
     d = ssub(d, ellipsoid(p, (0, -0.0532, 0.3858), (0.0072, 0.0035, 0.0010)), 0.0012)
 

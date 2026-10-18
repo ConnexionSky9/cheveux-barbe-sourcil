@@ -47,6 +47,21 @@
   </div>
 </div>
 
+<!-- Ma grossesse (privé) -->
+<div id="grossesse" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="g-titre">
+  <div class="card large">
+    <div class="head"><span class="badge">🤰</span><h1 id="g-titre">Ma grossesse</h1><button class="close" id="g-fermer" aria-label="Fermer">✕</button></div>
+    <p class="aide">Ces informations ne sont visibles que par vous.</p>
+    <div class="suivi">
+      <div class="suivi-top"><b id="g-jour"></b><span id="g-etape" class="etat active"></span></div>
+      <div class="progress"><div id="g-barre"></div></div>
+      <div id="g-infos" class="sub"></div>
+    </div>
+    <h2>Historique</h2>
+    <div id="g-historique" class="historique"></div>
+  </div>
+</div>
+
 <!-- Écran noir pendant le moment intime -->
 <div id="noir" class="hidden">
   <div class="noir-texte">

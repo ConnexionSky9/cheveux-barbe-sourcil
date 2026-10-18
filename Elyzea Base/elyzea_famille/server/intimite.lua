@@ -24,6 +24,18 @@ local function verifier(a, b)
         return 'Réservé aux personnages majeurs.'
     end
     if parJoueur[a] or parJoueur[b] then return 'Une des deux personnes est déjà occupée.' end
+    if GetResourceState('elyzea_bebe_modele') == 'started' then
+        local okA, bebeA = pcall(function() return exports.elyzea_bebe_modele:BebePortePar(a) end)
+        local okB, bebeB = pcall(function() return exports.elyzea_bebe_modele:BebePortePar(b) end)
+        if okA and bebeA then return 'Posez d\'abord le bébé.' end
+        if okB and bebeB then return 'La personne porte un bébé.' end
+    end
+    if (I.delaiEntreMoments or 0) > 0 then
+        local depuis = os.time() - I.delaiEntreMoments * 60
+        local recent = MySQL.scalar.await("SELECT COUNT(*) FROM `rp_intimacy_sessions` WHERE `status` = 'terminee' AND `ended_at` > ? AND (`a_cid` IN (?, ?) OR `b_cid` IN (?, ?))",
+            { depuis, ja.cid, jb.cid, ja.cid, jb.cid })
+        if (tonumber(recent) or 0) > 0 then return 'Il faut attendre avant un nouveau moment intime.' end
+    end
     local ia, ib = Fam.Indisponible(a), Fam.Indisponible(b)
     if ia then return ('Impossible : vous êtes %s.'):format(ia) end
     if ib then return ('Impossible : la personne est %s.'):format(ib) end
@@ -75,7 +87,12 @@ local function terminer(id, statut, raison, par)
             local autre = par == s.a and s.b or s.a
             if GetPlayerName(autre) then Fam.Notify(autre, 'L\'autre personne s\'est déconnectée.', 'inform') end
         end
-        if statut ~= 'interrompue' then Fam.ResoudreConception(s, pct) end
+        -- Tentative de conception : seulement pour un moment terminé (ou interrompu si la config l'autorise)
+        if statut == 'terminee' then
+            Fam.ResoudreConception(s, pct, false)
+        elseif statut == 'annulee' and Config.Conception.siInterrompu then
+            Fam.ResoudreConception(s, pct, true)
+        end
     end)
 end
 

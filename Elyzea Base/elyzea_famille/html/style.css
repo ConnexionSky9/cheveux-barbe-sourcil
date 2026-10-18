@@ -70,3 +70,10 @@ h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: 
 #n-temps { margin-top: .4rem; font-size: .9rem; }
 .noir-aide { margin-top: .6rem; font-size: .8rem; color: var(--faint); }
 kbd { border: 1px solid var(--line-2); border-radius: .3rem; padding: .05rem .4rem; font-family: inherit; color: var(--text); }
+
+.suivi { border: 1px solid var(--line); border-radius: .6rem; padding: .9rem; margin-top: .9rem; background: rgba(148, 178, 230, .03); }
+.suivi-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.suivi-top b { font-size: 1.05rem; }
+.progress { height: .45rem; background: var(--line); border-radius: 1rem; overflow: hidden; margin: .7rem 0 .5rem; }
+#g-barre { height: 100%; background: var(--accent); border-radius: 1rem; }
+.suivi .sub { color: var(--muted); font-size: .85rem; }

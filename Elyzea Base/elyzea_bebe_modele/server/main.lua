@@ -1,9 +1,9 @@
 -- =====================================================================
---  ELYZEA BÉBÉ (modèle) - serveur : commandes de test réservées au staff
+--  ELYZEA BÉBÉ (modèle) - serveur : aperçus LOCAUX réservés au staff (contrôle visuel des variantes)
 --  RegisterCommand(..., true) : FiveM vérifie la permission ACE command.<nom> avant d'exécuter.
---  Les objets de test sont créés chez le joueur seulement (non synchronisés).
+--  Ces aperçus ne sont visibles que par le staff qui les lance. Le vrai bébé, visible par tous : server/bebes.lua.
 -- =====================================================================
-local C = Config.Commandes
+local C = Config.Staff
 
 local function bind(cmd, action)
     RegisterCommand(cmd, function(src, args)
@@ -14,7 +14,6 @@ end
 
 bind(C.test, 'test')
 bind(C.galerie, 'galerie')
-bind(C.ajuster, 'ajuster')
 bind(C.retirer, 'retirer')
 
 -- Vérification au démarrage : les fichiers du jeu sont-ils bien présents ?

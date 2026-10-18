@@ -197,13 +197,17 @@ Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noir
     description = 'Terminal clandestin sécurisé. Accès au réseau privé NOIR X.' }
 
 -- ───────── Famille (ressource elyzea_famille) ─────────
+-- Images : html/img/preservatif.png, pilule_contraceptive.png, implant_contraceptif.png, test_grossesse.png (256 × 256)
+-- En vente : supérette (rayon « Santé ») et préréglage « Pharmacie » de l'éditeur de PNJ (admin_menu)
 -- Utilisés et retirés par elyzea_famille lui-même, après vérification par le serveur (pas de consommation automatique).
-Items.preservatif = { label = 'Préservatif', weight = 5, stack = true, max = 20, icon = '🛡️', close = true,
+Items.preservatif = { label = 'Préservatif', weight = 5, stack = true, max = 20, image = 'preservatif.png', icon = '🛡️', close = true,
     description = 'À cocher dans une demande de moment intime, ou à utiliser pendant le moment. Fiabilité : 98 %.' }
-Items.pilule_contraceptive = { label = 'Pilule contraceptive', weight = 5, stack = true, max = 30, icon = '💊', close = true,
+Items.pilule_contraceptive = { label = 'Pilule contraceptive', weight = 5, stack = true, max = 30, image = 'pilule_contraceptive.png', icon = '💊', close = true,
     description = 'Une prise protège 48 h (renouvelable dans les 12 dernières heures). « /contraception » pour voir votre état.' }
-Items.implant_contraceptif = { label = 'Implant contraceptif', weight = 10, stack = true, max = 5, icon = '💉',
+Items.implant_contraceptif = { label = 'Implant contraceptif', weight = 10, stack = true, max = 5, image = 'implant_contraceptif.png', icon = '💉',
     description = 'Posé par un EMS en service (menu ALT sur le patient). Protège 30 jours.' }
+Items.test_grossesse = { label = 'Test de grossesse', weight = 20, stack = true, max = 10, image = 'test_grossesse.png', icon = '🧪', close = true,
+    description = 'Résultat privé. Fiable à partir de 24 h après la conception (1 faux négatif sur 100).' }
 
 -- Argent en billets : 1 000 $ = 1 g, une seule pile sans limite (pas de « inventaire plein »)
 Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'black_money.png', icon = '💵',

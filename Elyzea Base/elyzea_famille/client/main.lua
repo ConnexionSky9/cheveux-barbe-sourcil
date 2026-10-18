@@ -93,6 +93,26 @@ local function panneau()
 end
 RegisterCommand(Config.Contraception.commande, panneau, false)
 
+-- ─────────── Ma grossesse (privé) ───────────
+
+local function grossesse()
+    local res = Ely.callback.await('famille:grossesse', false)
+    if type(res) ~= 'table' then return Notify('Le serveur ne répond pas.', 'error') end
+    if res.erreur then return Notify(res.erreur, 'error') end
+    if res.aucune then return Notify('Aucune grossesse connue. Un test de grossesse ou un examen EMS permet de le savoir.', 'inform') end
+    ouvrir('grossesse', { donnees = res })
+end
+RegisterCommand(Config.Grossesse.commande, grossesse, false)
+
+RegisterNetEvent('elyzea_famille:client:resultatTest', function()
+    local ped = PlayerPedId()
+    local dict = 'amb@world_human_clipboard@male@idle_a'
+    RequestAnimDict(dict)
+    local t = GetGameTimer() + 3000
+    while not HasAnimDictLoaded(dict) and GetGameTimer() < t do Wait(0) end
+    if HasAnimDictLoaded(dict) then TaskPlayAnim(ped, dict, 'idle_c', 4.0, 4.0, 2500, 49, 0.0, false, false, false) end
+end)
+
 RegisterNUICallback('fermer', function(_, cb)
     cb('ok')
     if ouvert == 'consentement' and consentId then
@@ -139,6 +159,9 @@ exports('AltOptions', function(ctx)
             out[#out + 1] = { id = 'ordonnance', label = 'Prescrire la pilule', icon = 'ordonnance' }
         end
     end
+    if Config.Modules.conception and Config.Grossesse.examenEms and emsEnService() then
+        out[#out + 1] = { id = 'examen', label = 'Examen de grossesse', icon = 'examine' }
+    end
     return out
 end)
 
@@ -146,7 +169,8 @@ exports('AltSelect', function(id, ctx)
     if type(ctx) ~= 'table' or not ctx.sid then return true end
     CreateThread(function()
         if id == 'intime' then proposer(ctx.sid)
-        elseif id == 'implant' or id == 'retrait' or id == 'ordonnance' then TriggerServerEvent('elyzea_famille:ems', id, ctx.sid) end
+        elseif id == 'implant' or id == 'retrait' or id == 'ordonnance' then TriggerServerEvent('elyzea_famille:ems', id, ctx.sid)
+        elseif id == 'examen' then TriggerServerEvent('elyzea_famille:examen', ctx.sid) end
     end)
     return true
 end)

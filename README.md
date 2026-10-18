@@ -135,10 +135,10 @@ Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dan
 
 ### 3.9 Famille : bébé (modèle 3D original), moment intime, contraception
 Premier livrable de l'écosystème famille / animaux / télévision (audit et architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
-- **`elyzea_bebe_modele`** : modèle 3D du bébé créé par génération procédurale (4 poses, 6 teintes, 5 couleurs d'yeux, 10 coiffures), fichiers du jeu dans `stream/`. **Non testé en jeu.**
-- Test staff : `/bebe_test`, `/bebe_galerie`, `/bebe_ajuster`, `/bebe_retirer` (voir `Elyzea Base/elyzea_bebe_modele/README.md`).
+- **`elyzea_bebe_modele`** (1.1) : modèle 3D du bébé V2 (4 poses, 6 teintes, 5 couleurs d'yeux, 10 coiffures), **portage visible par tous** (ALT : prendre dans les bras, face à soi, porte-bébé ; poser allongé ou assis), le porteur ne peut pas frapper mais reste vulnérable. **Non testé en jeu.**
+- Staff : `/bebe_creer`, `/bebe_supprimer`, `/bebe_ajuster`, aperçus locaux `/bebe_test`, `/bebe_galerie` (voir `Elyzea Base/elyzea_bebe_modele/README.md`). Livraison V2 : `docs/famille/LIVRAISON_V2.md`.
 - Sources, scripts de génération et de conversion : `Outils_3D/bebe/` (`construire.sh` refait tout).
-- **`elyzea_famille`** (0.1) : moment intime avec consentement (ALT › *Proposer un moment intime*, fondu au noir, X pour arrêter), contraception (préservatif, pilule, implant posé par les EMS, `/contraception`), tirage de conception côté serveur. **Non testé en jeu** ; voir `Elyzea Base/elyzea_famille/README.md`.
+- **`elyzea_famille`** (0.2) : moment intime avec consentement (ALT › *Proposer un moment intime*, fondu au noir, X pour arrêter), contraception (préservatif, pilule, implant posé par les EMS, `/contraception`, en vente à la supérette / pharmacie), tirage de conception côté serveur, test de grossesse, examen EMS, `/grossesse`. **Non testé en jeu** ; voir `Elyzea Base/elyzea_famille/README.md`.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.

@@ -1,10 +1,22 @@
-# Bébé Elyzea — modèle 3D original (version 1)
+# Bébé Elyzea — modèle 3D original (version 2)
 
 Modèle de nouveau-né **créé de A à Z par génération procédurale**, sans modèle acheté ni modélisation manuelle.
 Toute la chaîne (forme, maillage, UV, textures, squelette, poids, poses, conversion GTA V) est automatisée par les scripts de ce dossier.
 
 ![Poses](build/rendus/planche_poses.png)
 ![Variantes](build/rendus/galerie_variantes.png)
+
+## Version 2 (ce qui a changé par rapport à la version 1)
+
+| Défaut de la V1 | Correction V2 (modèle et textures réellement régénérés) |
+|---|---|
+| **Carte de normales inversée dans GTA** : Blender cuit en convention OpenGL, GTA V attend la convention DirectX (Sollumz inverse le vert quand il lit une carte du jeu) → reliefs du visage à l'envers en jeu | canal vert inversé à l'export (`export_gta.py`), vérifié pixel par pixel |
+| Cheveux « casque » : découpe alpha tout-ou-rien, aspect moucheté | shader `alpha.sps` (transparence douce) + texture de mèches fines, bord d'implantation fondu |
+| Regard « écarquillé » | paupière supérieure posée sur l'œil (géométrie) |
+| Narines trop marquées | narines plus petites et moins profondes |
+| Peau grise et granuleuse | occlusion adoucie sur la peau, chaleur rosée dans les plis, grain réduit |
+
+Comparaison (rendus Blender, même éclairage) : `build/rendus/comparaison_v1_v2.png` (V1 à gauche, V2 à droite).
 
 ## Ce qui a été réellement produit et vérifié
 
@@ -91,7 +103,8 @@ Windows : la chaîne n'a pas été lancée sous Windows. Le plus simple est WSL 
   et des fichiers `.ycd` : possible plus tard avec le même squelette, non fait dans cette version.
 - **Topologie** : maillage triangulé par décimation (pas de quadrillage propre comme un modèle fait à la main). Sans effet en jeu ;
   moins pratique si quelqu'un veut le retoucher à la main.
-- **Cheveux** : coque à alpha découpé (technique classique de GTA pour les cheveux courts) ; de près, l'aspect est « duvet tramé ».
+- **Cheveux** : coque à transparence douce (`alpha.sps`). Les objets transparents de GTA peuvent montrer de petits défauts de tri
+  (ordre d'affichage) sous certains angles : à vérifier en jeu ; repli possible sur `cutout.sps` (une ligne dans `export_gta.py`).
 - **Couche** : volume présent sous le pyjama, pas de couche visible séparée. Pas encore de couverture ni de bonnet (prévu en variantes).
 - **Pas de collision** : le bébé est attaché ou posé figé ; un objet bébé ne doit pas pouvoir être poussé physiquement.
 - Le visage est stylisé (proche des proportions des PNJ de GTA) ; ce n'est pas un scan ni un portrait réaliste.

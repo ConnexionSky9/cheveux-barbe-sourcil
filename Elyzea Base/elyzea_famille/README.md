@@ -1,8 +1,8 @@
-# elyzea_famille — moment intime, contraception, conception (version 0.1)
+# elyzea_famille — moment intime, contraception, conception, grossesse (version 0.2)
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
-> - règles de calcul : **39/39 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques sur 200 000 essais ;
-> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **37/37 contrôles** (`python3 tests/integration_test.py`) ;
+> - règles de calcul : **51/51 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques sur 200 000 essais ;
+> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **52/52 contrôles** (`python3 tests/integration_test.py`) ;
 > - syntaxe Lua et JavaScript ; interfaces affichées dans Chromium.
 >
 > À tester en jeu : placement face à face, animation, fondu au noir, touche X, menu ALT.
@@ -13,8 +13,12 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
 ## Installation
 1. Dossier `elyzea_famille` dans `Elyzea Base` ; `server.cfg` : `ensure elyzea_famille` (déjà ajouté, après les métiers).
 2. Tables créées automatiquement au démarrage (`sql/install.sql` contient les mêmes requêtes). Console : `[elyzea_famille] Prêt (...)`.
-3. Objets ajoutés dans `elyzea_inventory/shared/items.lua` : `preservatif`, `pilule_contraceptive`, `implant_contraceptif`.
-   Pour les vendre, ajoute-les à une boutique existante (pharmacie, supérette) ; staff : `/giveitem [id] preservatif 5`.
+3. Objets (dans `elyzea_inventory/shared/items.lua`, avec image) : `preservatif`, `pilule_contraceptive`, `implant_contraceptif`, `test_grossesse`.
+4. **Obtenir les objets** (supérette existante d'admin_menu, aucun nouveau commerce) :
+   - nouvelle supérette posée dans l'éditeur : rayon **Santé** inclus (préservatif 15 $, pilule 40 $, test de grossesse 25 $) ;
+   - supérette déjà posée : Éditeur › PNJ › la supérette › **« Ajouter les produits de base »** (ajoute le rayon Santé) › Enregistrer ;
+   - ou un PNJ **« Pharmacie »** (nouveau préréglage de l'éditeur, même système que la supérette) ;
+   - l'implant n'est pas vendu : il se donne aux EMS (coffre de pharmacie EMS ou `/giveitem`).
 
 ## Utilisation
 | Action | Comment |
@@ -26,11 +30,15 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
 | Pilule | utiliser l'objet : 48 h de protection, renouvelable dans les 12 dernières heures |
 | Implant | posé par un EMS en service : **ALT** sur le patient › *Poser un implant contraceptif* (le patient accepte) |
 | Mon état (privé) | `/contraception` |
+| Test de grossesse | utiliser l'objet : résultat privé (positif à partir de 24 h après la conception, 1 faux négatif sur 100) |
+| Suivi de grossesse (privé) | `/grossesse` : jour, étape du ventre, terme ; nombre de bébés après un examen EMS |
+| Examen de grossesse (EMS en service) | **ALT** sur la patiente › *Examen de grossesse* (elle accepte) : résultat sûr pour les deux |
 | Staff | `/famille_etat [id]` (contraception, grossesse, dernières tentatives) — ACE `command.famille_etat` |
 
 ## Déroulé d'un moment intime
 1. Demande → le serveur vérifie : deux personnages chargés, **majeurs** (date de naissance de la fiche), proches (2,5 m),
-   ni à terre ni menottés, pas déjà occupés, limite de demandes (3/min, 60 s entre deux demandes à la même personne).
+   ni à terre ni menottés, pas déjà occupés, **ne portant pas de bébé**, limite de demandes (3/min, 60 s entre deux demandes
+   à la même personne) et **délai de 30 min** après un moment terminé (`delaiEntreMoments`).
 2. L'autre personne accepte → nouvelle vérification → préservatif retiré **une seule fois** s'il a été coché.
 3. Les deux personnages se placent face à face, étreinte (animation native GTA `mp_ped_interaction`), **fondu au noir** pendant 30 s.
    Aucune image explicite : l'écran reste noir. Commandes bloquées sauf la voix et X.
@@ -45,7 +53,8 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
 | Durée pilule / implant | 48 h / 30 jours |
 | Jumeaux / triplés (tirés séparément, après une conception) | 3 % / 0,2 % |
 | Durée de grossesse | 336 h (14 jours) |
-| Arrêt avant 60 % de la durée | aucune conception |
+| Moment arrêté avant la fin (X, déconnexion) | **aucune tentative** (`siInterrompu = false`) |
+| Délai entre deux moments terminés (par personne) | 30 min |
 | Âge maximum de la personne qui porte | 55 ans |
 | Délai après une grossesse | 48 h |
 
@@ -56,19 +65,23 @@ Règle RP : la personne de sexe féminin porte l'enfant, avec un partenaire de s
 Résultats enregistrés (`rp_conception_attempts.resultat`) : `conception`, `echec_contraception` (conception malgré une protection),
 `protege`, `aucune`, `impossible` (+ raison : `meme_sexe`, `age_max`, `deja_enceinte`, `delai_apres_grossesse`), `interrompu`,
 `accidentelle_desactivee`, `desactive`.
-**Rien n'est annoncé aux joueurs** : la grossesse se découvrira par les symptômes, un test ou un examen (module suivant).
+**Rien n'est annoncé aux joueurs** au moment de la conception : la grossesse se découvre par le test ou l'examen EMS,
+puis se suit avec `/grossesse` (avancement calculé depuis les dates : il continue hors ligne et après un redémarrage).
+Pas encore fait : symptômes, tenues de grossesse, accouchement (module suivant). Au terme, `/grossesse` affiche « Terme atteint ».
 
 ## Garanties techniques
 - Une seule tentative par moment (contrainte unique SQL) ; une seule grossesse en cours par personne (index unique `active_key`).
 - Grossesse créée dans une transaction (grossesse + événement + lien) : tout ou rien.
+- Mise à jour depuis la 0.1 : la nouvelle colonne est ajoutée automatiquement au démarrage (données conservées).
 - Objets retirés par le serveur après validation ; rendus si l'écriture en base échoue.
 - Réponses de consentement vérifiées (identifiant de demande) ; toute réponse sans demande est journalisée (`rp_famille_logs`, action `suspect`).
 - Déconnexion pendant un moment : interrompu, aucune conception. Redémarrage : moments en cours marqués interrompus.
 - Dates en secondes Unix : la protection et le terme continuent hors ligne et après redémarrage.
 
 ## Fichiers modifiés ailleurs
-- `elyzea_inventory/shared/items.lua` : 3 objets ajoutés.
-- `elyzea_police/client/alt.lua` : fournisseur `elyzea_famille` ajouté au menu ALT ; `elyzea_police/html/app.js` : 3 icônes.
+- `elyzea_inventory/shared/items.lua` : 4 objets ; `elyzea_inventory/html/img/` : 4 images (rendues dans Blender, `Outils_3D/icones`).
+- `admin_menu/config.lua` : rayon « Santé » de la supérette + préréglage de PNJ « Pharmacie ».
+- `elyzea_police/client/alt.lua` : fournisseurs `elyzea_famille` et `elyzea_bebe_modele` ; `elyzea_police/html/app.js` : 3 icônes.
 - `Serveur cfg/server.cfg` : `ensure elyzea_famille`.
 
 ## Limites connues
@@ -76,4 +89,4 @@ Résultats enregistrés (`rp_conception_attempts.resultat`) : `conception`, `ech
   Une animation duo sur mesure demanderait le squelette des personnages GTA (fichiers du jeu).
 - La distance est vérifiée par le serveur seulement avec OneSync (sinon `verifierDistance = false` : seule la vérification du client reste).
 - Ordonnance de pilule : prévue mais désactivée par défaut (`pilule.ordonnance = false`).
-- Les objets n'ont pas encore d'image (icône émoji) ; ils ne sont dans aucune boutique.
+- Les supérettes déjà posées ne reçoivent pas le rayon Santé toutes seules : un clic « Ajouter les produits de base » dans l'éditeur.

@@ -61,8 +61,8 @@ HAIR_COLORS = {
 }
 HAIR_STYLES = {
     # densité max, étendue (0 = sommet seulement, 1 = toute la zone du cuir chevelu)
-    'duvet': {'density': 0.40, 'extent': 0.55},
-    'touffe': {'density': 0.70, 'extent': 1.0},
+    'duvet': {'density': 0.55, 'extent': 0.55},
+    'touffe': {'density': 0.85, 'extent': 1.0},
 }
 ONESIE_COLOR = (236, 234, 228)   # blanc cassé (pyjama / grenouillère)
 
@@ -430,13 +430,17 @@ def compose_body(m1, m2, ao, tone):
     skin = skin * (1 - lips[..., None] * 0.75) + lipc[None, None, :] * lips[..., None] * 0.75
     skin = skin * (1 - brow[..., None] * 0.18)
     skin = skin * (1 - lash[..., None] * 0.55)
-    # léger grain de peau
-    grain = value_noise((H, W), 6, 3) * 0.06 + 0.97
+    # grain de peau très léger + chaleur dans les plis (aspect de peau vivante plutôt que grise)
+    grain = value_noise((H, W), 6, 3) * 0.035 + 0.985
     skin = skin * grain[..., None]
+    pli = np.clip(1.0 - ao, 0, 1)[..., None]
+    skin = skin * (1 - pli * 0.45 * (1 - np.array((1.0, 0.80, 0.74), np.float32)))
 
     fabric = srgb_to_lin(ONESIE_COLOR)[None, None, :] * (0.96 + 0.06 * value_noise((H, W), 3, 11)[..., None])
     col = skin * (1 - cloth[..., None]) + fabric * cloth[..., None]
-    col = col * (0.50 + 0.50 * ao[..., None])
+    # occlusion plus douce sur la peau que sur le tissu (le jeu ajoute déjà son propre ombrage)
+    occ = (0.68 + 0.32 * ao)[..., None] * (1 - cloth[..., None]) + (0.55 + 0.45 * ao)[..., None] * cloth[..., None]
+    col = col * occ
     return lin_to_srgb(col)
 
 
@@ -467,14 +471,15 @@ def compose_hair(scalp, crown, style, color, seed):
     H, W = scalp.shape
     st = HAIR_STYLES[style]
     region = scalp if st['extent'] >= 1 else scalp * np.clip(crown * 2.2 + (st['extent'] - 0.5), 0, 1)
+    # Cheveux à transparence douce (shader « alpha » du jeu) : mèches fines étirées dans un sens + petites touffes
     rng = np.random.default_rng(seed)
-    fine = rng.random((H, W)).astype(np.float32)                    # mèches fines (1 pixel)
-    clumps = value_noise((H, W), 3.0, seed + 1)                      # petites touffes
-    strands = fine * 0.6 + clumps * 0.4
-    edge = np.clip(region * 1.6, 0, 1) ** 1.5                        # implantation progressive
-    alpha = edge * st['density']
-    # alpha « tramé » : la coupe alpha du jeu est binaire, le bruit donne un aspect de duvet
-    a = (strands < alpha).astype(np.float32)
+    fine = blur(rng.random((H, W)).astype(np.float32), 0.6)
+    fine = (fine - fine.min()) / max(1e-6, fine.max() - fine.min())
+    streak = blur(np.repeat(rng.random((H, -(-W // 3))).astype(np.float32), 3, axis=1)[:, :W], 0.8)
+    clumps = value_noise((H, W), 3.0, seed + 1)
+    strands = np.clip(0.45 * fine + 0.30 * streak + 0.25 * clumps, 0, 1)
+    edge = np.clip(region * 1.5, 0, 1) ** 1.6                        # implantation progressive, bord flou
+    a = np.clip(edge * st['density'] * (0.35 + 0.9 * strands), 0, 1)
     base = srgb_to_lin(color)
     shade = (0.85 + 0.3 * value_noise((H, W), 2.0, seed + 2))[..., None]
     rgb = lin_to_srgb(base[None, None, :] * shade)
@@ -514,7 +519,7 @@ def build_armature():
     return arm
 
 
-HEAD_PARTS = {'cranium', 'face', 'cheek', 'chin', 'nose', 'nosebridge', 'upperlip', 'lowerlip', 'ear'}
+HEAD_PARTS = {'cranium', 'face', 'cheek', 'chin', 'nose', 'nosebridge', 'upperlip', 'lowerlip', 'ear', 'lid'}
 PART_BONES = {
     # partie : os autorisés (« .s » = côté du sommet) ; le poids se répartit selon la distance aux os
     'jowl': ['tete', 'cou'],

@@ -12,7 +12,7 @@ let consentTimer = null;
 let noirTimer = null;
 
 function hideAll() {
-  ['#consentement', '#proposer', '#panneau'].forEach((s) => $(s).classList.add('hidden'));
+  ['#consentement', '#proposer', '#panneau', '#grossesse'].forEach((s) => $(s).classList.add('hidden'));
   if (consentTimer) { clearTimeout(consentTimer); consentTimer = null; }
 }
 
@@ -95,6 +95,25 @@ function openPanel(d) {
 }
 $('#k-fermer').addEventListener('click', () => { post('fermer'); hideAll(); });
 
+/* ---------- Ma grossesse ---------- */
+const EVENEMENTS = { test: 'Test de grossesse', decouverte: 'Grossesse découverte', examen: 'Examen EMS' };
+function openGrossesse(d) {
+  hideAll();
+  const g = d.donnees || {};
+  $('#g-jour').textContent = g.terme ? 'Terme atteint' : `Jour ${g.jour} sur ${g.jours}`;
+  $('#g-etape').textContent = g.etape || '';
+  $('#g-barre').style.width = `${Math.round((g.pct || 0) * 100)}%`;
+  const infos = [`Terme prévu : ${fmtDate(g.due_at)}`];
+  if (g.bebes) infos.push(g.bebes === 1 ? 'Un bébé (examen EMS)' : (g.bebes === 2 ? 'Jumeaux (examen EMS)' : 'Triplés (examen EMS)'));
+  else infos.push('Nombre de bébés : examen EMS nécessaire');
+  $('#g-infos').textContent = infos.join(' · ');
+  const h = g.evenements || [];
+  $('#g-historique').innerHTML = h.length ? h.map((r) => `<div class="row"><span>${esc(EVENEMENTS[r.kind] || r.kind)}</span><span>${esc(fmtDate(r.at))}</span></div>`).join('')
+    : '<div class="vide">Aucun événement.</div>';
+  $('#grossesse').classList.remove('hidden');
+}
+$('#g-fermer').addEventListener('click', () => { post('fermer'); hideAll(); });
+
 /* ---------- Écran noir ---------- */
 function showNoir(d) {
   if (noirTimer) { clearInterval(noirTimer); noirTimer = null; }
@@ -111,6 +130,7 @@ window.addEventListener('message', (e) => {
     case 'consentement': openConsent(d); break;
     case 'proposer': openPropose(d); break;
     case 'panneau': openPanel(d); break;
+    case 'grossesse': openGrossesse(d); break;
     case 'noir': showNoir(d); break;
     case 'fermer': hideAll(); break;
   }
@@ -120,5 +140,5 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('#consentement').classList.contains('hidden')) return answerConsent(false);
   if (!$('#proposer').classList.contains('hidden')) { post('proposer', { envoyer: false }); return hideAll(); }
-  if (!$('#panneau').classList.contains('hidden')) { post('fermer'); hideAll(); }
+  if (!$('#panneau').classList.contains('hidden') || !$('#grossesse').classList.contains('hidden')) { post('fermer'); hideAll(); }
 });

@@ -55,6 +55,7 @@ class World:
         self.callbacks = {}
         self.commands = {}
         self.prints = []
+        self.bebes = {}
 
     def add_player(self, src, cid, gender, birthdate, pos=(0.0, 0.0, 30.0)):
         self.players[src] = {'cid': cid, 'gender': gender, 'birthdate': birthdate, 'pos': pos}
@@ -203,6 +204,7 @@ api = {
     'cb': lambda name, fn: W.callbacks.__setitem__(name, fn),
     'cmd': lambda name, fn: W.commands.__setitem__(name, fn),
     'print': lambda s: W.prints.append(s),
+    'porte_bebe': lambda s: W.bebes.get(int(s)),
 }
 G.py = to_lua({})
 for k, f in api.items():
@@ -256,11 +258,12 @@ exports = {
     },
     elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end },
     elyzea_police = { IsCuffed = function() return false end },
+    elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end },
 }
 ''')
 
 for f in ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/consentement.lua', 'server/contraception.lua',
-          'server/conception.lua', 'server/intimite.lua', 'server/staff.lua'):
+          'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/staff.lua'):
     lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
 advance(1)   # enregistrement des objets utilisables (Wait 500)
 
@@ -311,6 +314,10 @@ def use(item, src):
 def answer(src, accept, options=None):
     args = last_client('elyzea_famille:client:consentement', src)
     net('elyzea_famille:consentement', src, args[0], accept, options or {})
+
+
+def wait_delay():
+    advance(G.Config.Intimite.delaiEntreMoments * 60 + 1)
 
 
 def full_duration():
@@ -392,7 +399,7 @@ check('7. 2e calcul de la même session ignoré', len(q('SELECT 1 FROM rp_concep
 
 # 8. conception forcée -> grossesse, puis impossible tant qu'elle est en cours
 G.Config.Conception.forcer = True
-advance(61)
+wait_delay()
 net('elyzea_famille:intime:demande', 1, 2, {})
 answer(2, True, {})
 advance(full_duration())
@@ -401,7 +408,9 @@ check('8. grossesse créée (porteuse = la femme, même si elle a proposé)', le
 check('8. terme = conception + 336 h', g and g[0]['due_at'] - g[0]['conceived_at'] == 336 * H)
 check('8. événement « conception » enregistré', g and q('SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id = %s AND kind = %s', (g[0]['id'], 'conception')))
 check('8. rien n\'est annoncé aux joueurs', not any('enceinte' in m.lower() or 'grossesse' in m.lower() for _, m, _ in W.notifs))
-advance(61)
+net('elyzea_famille:intime:demande', 2, 1, {})
+check('8b. délai entre deux moments terminés : nouvelle demande refusée', notif(2, 'attendre'))
+wait_delay()
 net('elyzea_famille:intime:demande', 2, 1, {})
 answer(1, True, {})
 advance(full_duration())
@@ -410,7 +419,7 @@ check('8. déjà enceinte : aucune 2e grossesse', last['resultat'] == 'impossibl
 G.Config.Conception.forcer = False
 
 # 9. arrêt anticipé : pas de conception possible
-advance(61)
+wait_delay()
 net('elyzea_famille:intime:demande', 2, 1, {})
 answer(1, True, {})
 advance(5)
@@ -419,7 +428,7 @@ net('elyzea_famille:intime:arreter', 1, sid)
 row = q('SELECT status, end_reason FROM rp_intimacy_sessions WHERE id = %s', (sid,))[0]
 att = q('SELECT resultat FROM rp_conception_attempts WHERE session_id = %s', (sid,))
 check('9. arrêt par X : session annulée', row['status'] == 'annulee', row)
-check('9. arrêt trop tôt : tentative « interrompu »', att and att[0]['resultat'] == 'interrompu', att)
+check('9. arrêt avant la fin : AUCUNE tentative (règle par défaut)', not att, att)
 check('9. l\'autre personne est prévenue', last_client('elyzea_famille:client:intimeFin', 2)[2] is False)
 
 # 10. préservatif utilisé depuis l'inventaire pendant le moment
@@ -448,6 +457,22 @@ for target in (3, 3, 3, 3):
     net('elyzea_famille:intime:demande', 2, target, {})
 check('12. demandes répétées limitées', notif(2, 'Patientez') or notif(2, 'Trop de demandes'))
 
+# 9b. arrêt tardif (90 %) : toujours aucune tentative par défaut
+wait_delay()
+net('elyzea_famille:intime:demande', 2, 1, {})
+answer(1, True, {})
+advance(full_duration() - 4)
+sid = session_rows()[-1]['id']
+net('elyzea_famille:intime:arreter', 2, sid)
+check('9b. arrêt à ~90 % : aucune tentative', not q('SELECT 1 FROM rp_conception_attempts WHERE session_id = %s', (sid,)))
+
+# 9c. impossible en portant un bébé
+wait_delay()
+W.bebes[2] = 'BB-1'
+net('elyzea_famille:intime:demande', 2, 1, {})
+check('9c. demandeur qui porte un bébé : refus', notif(2, 'Posez d\'abord le bébé'))
+W.bebes.clear()
+
 # 13. implant posé par un EMS
 advance(120)
 W.ems.add(3)
@@ -467,11 +492,56 @@ G.source = 1
 res = from_lua(W.callbacks['famille:contraception'](1))
 check('14. « Ma contraception » renvoie ses propres données', any(m['cle'] == 'pilule' for m in res['methodes']) and all(h['methode'] for h in res['historique']))
 
+# 16. test de grossesse et suivi privé
+W.inv[1]['test_grossesse'] = 2
+G.source = 1
+res = from_lua(W.callbacks['famille:grossesse'](1))
+check('16. avant le test : grossesse inconnue de la joueuse', res.get('aucune') is True)
+use('test_grossesse', 1)
+check('16. test trop tôt (grossesse de moins de 24 h) : négatif', notif(1, 'négatif') and W.inv[1]['test_grossesse'] == 1)
+W.inv[1]['test_grossesse'] = 2
+advance(24 * H)
+G.Config.Grossesse.test.fiabilite = 1.0   # résultat déterministe pour le test (0,99 en production)
+use('test_grossesse', 1)
+G.Config.Grossesse.test.fiabilite = 0.99
+check('16. test : objet consommé, résultat positif (grossesse de plus de 24 h)', W.inv[1]['test_grossesse'] == 1 and notif(1, 'POSITIF'))
+gid = q("SELECT id FROM rp_pregnancies WHERE porteur_cid='F001'")[0]['id']
+check('16. découverte enregistrée', q('SELECT discovered_at FROM rp_pregnancies WHERE id=%s', (gid,))[0]['discovered_at'] is not None)
+res = from_lua(W.callbacks['famille:grossesse'](1))
+check('16. /grossesse : jour, étape et terme', res.get('jour', 0) >= 1 and res.get('etape') and res.get('due_at') and res.get('bebes') is None, res)
+W.inv[2]['test_grossesse'] = 1
+use('test_grossesse', 2)
+check('16. test d\'une personne non enceinte : négatif', notif(2, 'négatif') and W.inv[2]['test_grossesse'] == 0)
+W.inv[2]['test_grossesse'] = 0
+use('test_grossesse', 2)
+check('16. sans objet : refus, rien ne se passe', notif(2, 'pas de test'))
+
+# 17. examen EMS : nombre de bébés connu
+net('elyzea_famille:examen', 3, 1)
+answer(1, True, {})
+check('17. examen EMS : résultat envoyé à la patiente et à l\'EMS', notif(1, 'grossesse confirmée') and notif(3, 'grossesse confirmée'))
+res = from_lua(W.callbacks['famille:grossesse'](1))
+check('17. nombre de bébés visible après l\'examen', res.get('bebes') in (1, 2, 3), res)
+net('elyzea_famille:examen', 2, 1)
+check('17. examen par un non-EMS : refusé et journalisé', q("SELECT 1 FROM rp_famille_logs WHERE action='suspect' AND acteur='M002'"))
+
+# 18. progression hors ligne : 13 jours plus tard (rien ne tourne, seules les dates comptent)
+advance(13 * 24 * H)
+res = from_lua(W.callbacks['famille:grossesse'](1))
+check('18. 13 jours plus tard : étape avancée, calculée depuis les dates', res.get('etape') in ('Ventre très arrondi', 'Terme atteint') and res.get('jour') >= 13, res)
+
 # 15. redémarrage : une session restée « active » est interrompue
 q("INSERT INTO rp_intimacy_sessions (id, a_cid, b_cid, status, duree, started_at) VALUES ('SES-TEST', 'A', 'B', 'active', 30, %s)", (W.now,))
 lua.execute(open(os.path.join(RES_DIR, 'server/base.lua'), encoding='utf-8').read())
 advance(1)
 check('15. redémarrage : session active interrompue', q("SELECT status FROM rp_intimacy_sessions WHERE id = 'SES-TEST'")[0]['status'] == 'interrompue')
+
+# 19. mise à jour depuis la version 0.1 (table sans la colonne bebes_connus)
+q('ALTER TABLE rp_pregnancies DROP COLUMN bebes_connus')
+lua.execute(open(os.path.join(RES_DIR, 'server/base.lua'), encoding='utf-8').read())
+advance(1)
+cols = {r['COLUMN_NAME'] for r in q("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME='rp_pregnancies'", (DB,))}
+check('19. mise à jour 0.1 -> 0.2 : colonne ajoutée automatiquement, données conservées', 'bebes_connus' in cols and q("SELECT 1 FROM rp_pregnancies WHERE porteur_cid='F001'"))
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

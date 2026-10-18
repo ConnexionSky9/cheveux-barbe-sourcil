@@ -4,8 +4,8 @@
   "etapes": [
     {
       "surface_hd": {
-        "sommets": 258844,
-        "triangles": 517684
+        "sommets": 259146,
+        "triangles": 518288
       }
     },
     {
@@ -18,26 +18,26 @@
       "squelette": {
         "os": 20,
         "sommets_par_os": {
-          "main.R": 223,
-          "avantbras.R": 201,
-          "bras.R": 192,
+          "main.R": 222,
+          "avantbras.R": 199,
+          "bras.R": 189,
           "clavicule.R": 196,
-          "cuisse.R": 360,
+          "cuisse.R": 361,
           "bassin": 248,
-          "colonne": 219,
-          "tete": 1328,
+          "colonne": 220,
+          "tete": 1352,
           "tibia.R": 202,
           "pied.R": 316,
-          "cou": 217,
-          "poitrine": 44,
-          "racine": 95,
-          "cuisse.L": 348,
-          "clavicule.L": 196,
-          "tibia.L": 207,
-          "pied.L": 301,
-          "bras.L": 199,
-          "avantbras.L": 193,
-          "main.L": 217
+          "cou": 216,
+          "poitrine": 38,
+          "racine": 94,
+          "cuisse.L": 346,
+          "clavicule.L": 193,
+          "tibia.L": 208,
+          "pied.L": 299,
+          "bras.L": 196,
+          "avantbras.L": 192,
+          "main.L": 215
         }
       }
     }
@@ -69,7 +69,7 @@
       "min": [
         -0.1134,
         -0.1131,
-        -0.0494
+        -0.0495
       ],
       "max": [
         0.1138,
@@ -113,7 +113,7 @@
       ],
       "max": [
         0.1374,
-        0.0495,
+        0.0496,
         0.3001
       ],
       "objets": [
@@ -267,5 +267,5 @@
     "tibia.R",
     "pied.R"
   ],
-  "duree_s": 193.1
+  "duree_s": 200.9
 }

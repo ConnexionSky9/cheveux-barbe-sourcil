@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS `rp_pregnancies` (
     `partenaire_cid` VARCHAR(64) NULL,
     `session_id`    VARCHAR(16) NULL,
     `bebes`         TINYINT     NOT NULL DEFAULT 1,
+    `bebes_connus`  TINYINT(1)  NOT NULL DEFAULT 0,             -- 1 après un examen EMS
     `conceived_at`  BIGINT      NOT NULL,
     `due_at`        BIGINT      NOT NULL,
     `status`        VARCHAR(16) NOT NULL DEFAULT 'en_cours',  -- en_cours | accouchee | terminee

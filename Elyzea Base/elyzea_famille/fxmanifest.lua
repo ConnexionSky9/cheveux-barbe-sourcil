@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'elyzea_famille'
 author 'Elyzea FA'
-description 'Famille Elyzea : moment intime avec consentement, contraception, conception (grossesse, enfants, crèche : modules suivants)'
-version '0.1.0'
+description 'Famille Elyzea : moment intime avec consentement, contraception, conception, test et suivi de grossesse (accouchement, enfants, crèche : modules suivants)'
+version '0.2.0'
 
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
@@ -20,6 +20,7 @@ server_scripts {
     'server/contraception.lua',
     'server/conception.lua',
     'server/intimite.lua',
+    'server/grossesse.lua',
     'server/staff.lua',
 }
 

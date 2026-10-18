@@ -14,12 +14,12 @@ end
 
 local function rng() return math.random() end
 
-function Fam.ResoudreConception(s, pct)
+function Fam.ResoudreConception(s, pct, interrompu)
     if not Config.Modules.conception then return end
     local now = os.time()
     local a, b = s.ja, s.jb
     local e = {
-        volontaire = s.volontaire, preservatif = s.preservatif ~= nil, dureePct = pct,
+        volontaire = s.volontaire, preservatif = s.preservatif ~= nil, dureePct = pct, interrompu = interrompu == true,
         a = a, b = b,
         etatA = Fam.EtatContraception(a.cid), etatB = Fam.EtatContraception(b.cid),
         enceinteA = grossesseEnCours(a.cid), enceinteB = grossesseEnCours(b.cid),

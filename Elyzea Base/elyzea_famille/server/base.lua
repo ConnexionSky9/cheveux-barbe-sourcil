@@ -165,6 +165,15 @@ MySQL.ready(function()
             if not ok then Fam.err('création de table : ' .. tostring(err)) end
         end
     end
+    -- Mises à jour d'une installation existante (colonnes ajoutées depuis la version 0.1)
+    local function colonne(tbl, col, def)
+        local n = MySQL.scalar.await('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', { tbl, col })
+        if (tonumber(n) or 0) == 0 then
+            local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` ADD COLUMN `%s` %s'):format(tbl, col, def))
+            if ok then print(('[%s] colonne %s.%s ajoutée'):format(RES, tbl, col)) else Fam.err('mise à jour : ' .. tostring(err)) end
+        end
+    end
+    colonne('rp_pregnancies', 'bebes_connus', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER `bebes`')
     -- Un redémarrage interrompt les moments intimes en cours : aucune conception pour eux
     MySQL.update.await("UPDATE `rp_intimacy_sessions` SET `status` = 'interrompue', `ended_at` = ?, `end_reason` = 'redemarrage' WHERE `status` = 'active'", { os.time() })
     Fam.Pret = true

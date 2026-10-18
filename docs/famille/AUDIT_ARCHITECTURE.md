@@ -166,7 +166,9 @@ Non précisé, choisi par défaut (modifiable) : le **vétérinaire** et la **pe
 | Étape | État |
 |---|---|
 | 1. Audit · 2. Architecture | fait (ce document) |
-| 5. Modèle 3D du bébé | fait, non testé en jeu (`elyzea_bebe_modele`) |
-| 3. Moment intime, contraception + début de l'étape 4 (tirage de conception, création de la grossesse) | fait, non testé en jeu (`elyzea_famille` 0.1) |
-| 4. Découverte, progression, symptômes, tenues de grossesse, suivi médical, accouchement | à faire (suivant) |
+| 5. Modèle 3D du bébé | V2 (normales corrigées, cheveux, visage), non testé en jeu (`elyzea_bebe_modele` 1.1) |
+| 6 (partiel). Portage visible par tous, poser, prises, combat bloqué pendant le portage | fait, non testé en jeu — voir `LIVRAISON_V2.md` |
+| 3. Moment intime, contraception + tirage de conception, création de la grossesse | fait, non testé en jeu (`elyzea_famille` 0.2) |
+| 4 (partiel). Test de grossesse, examen EMS, suivi `/grossesse`, progression hors ligne | fait (0.2) ; symptômes, tenues de grossesse, accouchement : à faire |
+| Contraceptifs achetables (supérette, PNJ « Pharmacie ») | fait |
 | 6 à 11 | à faire |

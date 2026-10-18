@@ -774,6 +774,14 @@ Config.Editor = {
           npc = { payment = 'cash', tattoo = { name = 'Salon de tatouage', payChoice = true, blip = true, removal = true } } },
         { id = 'market', icon = '🏪', label = 'Supérette', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeur',
           npc = { payment = 'cash', market = { name = 'Supérette 24/7', payChoice = true, blip = true, useDefaults = true } } },
+        { id = 'pharmacie', icon = '💊', label = 'Pharmacie', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Pharmacien',
+          npc = { payment = 'cash', market = { name = 'Pharmacie', payChoice = true, blip = true, blipSprite = 51, blipColor = 2,
+                  items = {
+                      { item = 'preservatif',          price = 12,  cat = 'Contraception', max = 20 },
+                      { item = 'pilule_contraceptive', price = 35,  cat = 'Contraception', max = 10 },
+                      { item = 'test_grossesse',       price = 20,  cat = 'Grossesse',     max = 5 },
+                      { item = 'bandage',              price = 45,  cat = 'Soins',         max = 20 },
+                  } } } },
         { id = 'gunshop', icon = '🔫', label = 'Armurerie', scenario = 'WORLD_HUMAN_GUARD_STAND', name = 'Armurier',
           npc = { payment = 'cash', gunshop = { name = 'Ammu-Nation', payChoice = true, blip = true, useDefaults = true,
                   licence = false, trial = true, trialDuration = 60, isolate = true, trialRadius = 60 } } },
@@ -1121,13 +1129,17 @@ Config.Market = {
     enabled = true,
     blipSprite = 52, blipColor = 2, blipScale = 0.75,
     imagePath = 'nui://elyzea_inventory/html/img/%s.png',   -- images des objets
-    categories = { 'Boissons', 'Nourriture', 'Snacks', 'Hygiène', 'Utilitaires', 'Tabac', 'Divers' },
+    categories = { 'Boissons', 'Nourriture', 'Snacks', 'Hygiène', 'Santé', 'Utilitaires', 'Tabac', 'Divers' },
     defaultItems = {
         { item = 'water',    price = 5,   cat = 'Boissons' },
         { item = 'cola',     price = 7,   cat = 'Boissons' },
         { item = 'burger',   price = 12,  cat = 'Nourriture' },
         { item = 'sandwich', price = 10,  cat = 'Nourriture' },
         { item = 'bandage',  price = 50,  cat = 'Hygiène' },
+        -- Santé (elyzea_famille) : préservatif, pilule, test de grossesse
+        { item = 'preservatif',          price = 15,  cat = 'Santé', max = 10 },
+        { item = 'pilule_contraceptive', price = 40,  cat = 'Santé', max = 5 },
+        { item = 'test_grossesse',       price = 25,  cat = 'Santé', max = 3 },
         { item = 'phone',    price = 450, cat = 'Utilitaires' },
         { item = 'radio',    price = 250, cat = 'Utilitaires' },
     },
