@@ -6,7 +6,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as store from '../core/project/store.js';
 import { PROJECT_EXT, addHistory, newId } from '../core/project/schema.js';
-import { saveTextureDoc, loadTextureDoc, textureDocFromAsset } from '../core/project/textures.js';
+import { saveTextureDoc, loadTextureDoc, textureDocFromAsset, textureDocFromYtd } from '../core/project/textures.js';
+import { scanCatalog, queryCatalog, collectionsOf, CATALOG_CATEGORIES } from '../core/gta/catalog.js';
+import { garmentFromCatalog } from '../core/project/fromCatalog.js';
+import { readYtd, decodeYtdTexture, thumbnailLevel } from '../core/gta/ytd.js';
+import crypto from 'node:crypto';
 import { inspectFile } from '../core/importer.js';
 import { readImageFile, encodeImage } from '../core/image/codecs.js';
 import { RGBAImage } from '../core/image/rgba.js';
@@ -262,6 +266,87 @@ export function registerIpc(ctx) {
     const { asset } = store.importAsset(dir, project, tmp, { kind: 'model', format: 'glb', info: { role: 'work', summary: 'Copie de travail GLB' } });
     fs.rmSync(tmp, { force: true });
     return { project, asset };
+  });
+
+  // ---------------------------------------------------------------- catalogue des vêtements du jeu
+  const catFile = () => path.join(ctx.userData(), 'catalog.json');
+  let catalog = null;
+  const loadCatalog = () => {
+    if (catalog) return catalog;
+    try { catalog = JSON.parse(fs.readFileSync(catFile(), 'utf8')); } catch { catalog = null; }
+    return catalog;
+  };
+  const catSummary = (c) => (c ? { root: c.root, scannedAt: c.scannedAt, stats: c.stats, collections: collectionsOf(c), rootExists: fs.existsSync(c.root) } : null);
+  handle('catalog:info', () => ({ catalog: catSummary(loadCatalog()), categories: CATALOG_CATEGORIES }));
+  handle('catalog:scan', async (root) => {
+    if (!root) {
+      const r = await dialog.showOpenDialog(ctx.window, { title: 'Dossier des vêtements extraits du jeu', properties: ['openDirectory'] });
+      if (r.canceled) return { catalog: catSummary(loadCatalog()) };
+      root = r.filePaths[0];
+    }
+    const c = scanCatalog(root, { onProgress: (n) => ctx.window?.webContents.send('app:event', { type: 'catalog-progress', files: n }) });
+    if (!c.items.length) throw new Error('Aucun vêtement trouvé. Choisissez le dossier qui contient les dossiers « mp_m_freemode_01 », « mp_f_freemode_01 »… extraits avec CodeWalker.');
+    store.writeJsonAtomic(catFile(), c);
+    catalog = c;
+    logger.info(`Catalogue indexé : ${c.items.length} vêtements`, { root });
+    return { catalog: catSummary(c) };
+  });
+  handle('catalog:query', (q) => { const c = loadCatalog(); if (!c) return { total: 0, items: [] }; return queryCatalog(c, q); });
+  handle('catalog:thumb', (key) => {
+    const c = loadCatalog();
+    const it = c?.items.find((i) => i.key === key);
+    if (!it || !it.textures.length) return { url: null };
+    const file = safeJoin(c.root, it.textures[0].file);
+    const st = fs.statSync(file);
+    const id = crypto.createHash('sha1').update(`${file}|${st.size}|${st.mtimeMs}`).digest('hex');
+    const cache = path.join(ctx.userData(), 'thumbs', `${id}.png`);
+    let png;
+    if (fs.existsSync(cache)) png = fs.readFileSync(cache);
+    else {
+      try {
+        const y = readYtd(fs.readFileSync(file));
+        const t = y.textures.find((x) => /_diff/i.test(x.name) && x.readable) || y.textures.find((x) => x.readable);
+        if (!t) return { url: null, error: 'format non lisible' };
+        png = encodeImage(decodeYtdTexture(y, t.name, thumbnailLevel(t, 96)), { format: 'png' }).buffer;
+        fs.mkdirSync(path.dirname(cache), { recursive: true });
+        fs.writeFileSync(cache, png);
+      } catch (e) { return { url: null, error: e.message }; }
+    }
+    return { url: `data:image/png;base64,${png.toString('base64')}` };
+  });
+  handle('catalog:create', ({ project, key }) => {
+    const dir = needProject();
+    const c = loadCatalog();
+    const it = c?.items.find((i) => i.key === key);
+    if (!it) throw new Error('Vêtement introuvable dans le catalogue.');
+    if (!project.targetPeds.includes(it.ped)) project.targetPeds.push(it.ped);
+    const g = garmentFromCatalog(dir, project, c.root, it);
+    // Texture de la première variante prête à modifier
+    let meta = null, docPayload = null, warning = null;
+    const v = g.variants[0];
+    if (v) {
+      try {
+        const r = textureDocFromYtd(dir, project, project.assets.find((a) => a.id === v.ytdAssetId), null, { undoSteps: undoSteps() });
+        meta = r.meta; docPayload = docToPayload(r.doc); v.textureDocId = meta.id;
+      } catch (e) { warning = `Texture non ouverte : ${e.message}`; }
+    }
+    return { project, garmentId: g.id, meta, doc: docPayload, warning };
+  });
+  handle('ytd:list', ({ project, assetId }) => {
+    const a = project.assets.find((x) => x.id === assetId);
+    if (!a) throw new Error('Fichier introuvable.');
+    const y = readYtd(fs.readFileSync(store.assetPath(needProject(), a)));
+    return { textures: y.textures.map((t) => {
+      let url = null;
+      if (t.readable) { try { url = `data:image/png;base64,${encodeImage(decodeYtdTexture(y, t.name, thumbnailLevel(t, 64)), { format: 'png' }).buffer.toString('base64')}`; } catch { url = null; } }
+      return { name: t.name, width: t.width, height: t.height, format: t.format, levels: t.levels, readable: t.readable, writable: t.writable, url };
+    }) };
+  });
+  handle('texture:fromYtd', ({ project, assetId, textureName }) => {
+    const a = project.assets.find((x) => x.id === assetId);
+    if (!a) throw new Error('Fichier introuvable.');
+    const { doc, meta } = textureDocFromYtd(needProject(), project, a, textureName, { undoSteps: undoSteps() });
+    return { project, meta, doc: docToPayload(doc) };
   });
 
   // ---------------------------------------------------------------- export

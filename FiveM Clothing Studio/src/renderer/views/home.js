@@ -20,6 +20,7 @@ export function renderHome(main) {
       h('div.cards',
         card('plus', 'Nouveau projet', 'Choisir le personnage et commencer un pack', () => newProjectDialog(), null, 'home-new'),
         card('folder', 'Ouvrir un projet', 'Reprendre un projet existant', () => openProjectFlow(), null, 'home-open'),
+        card('shirt', 'Vêtements du jeu', 'Tous les vêtements de GTA V : choisir, modifier, créer', () => go('catalog'), null, 'home-catalog'),
         card('import', 'Importer des fichiers', 'Textures, logos, modèles 3D, fichiers GTA V', () => openImportDialog(), hasProject ? null : 'Créez ou ouvrez d\'abord un projet.'),
         card('shirt', 'Bibliothèque de vêtements', 'Vêtements, variantes et fichiers du projet', () => go('workspace'), hasProject ? null : 'Créez ou ouvrez d\'abord un projet.'),
         card('export', 'Exporter pour FiveM', 'Vérifier puis générer la ressource', () => openExportWizard(), hasProject ? null : 'Créez ou ouvrez d\'abord un projet.'),

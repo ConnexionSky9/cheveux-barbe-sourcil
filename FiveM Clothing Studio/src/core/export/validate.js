@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { safeJoin, isValidResourceName } from '../paths.js';
 import { inspectRsc7 } from '../gta/rsc7.js';
-import { garmentFileNames, slotInfo, PED_MODELS, VARIANT_LETTERS, isValidCollection } from '../gta/naming.js';
+import { garmentFileNames, slotInfo, PED_MODELS, VARIANT_LETTERS, isValidCollection, replacePrefix } from '../gta/naming.js';
+import { readYtd } from '../gta/ytd.js';
 import { sniff } from '../detect.js';
 
 export const EXPORT_MODES = {
@@ -110,13 +111,13 @@ export function validateExport(dir, project, settings = project.exportSettings, 
     const key = `${g.ped}|${g.kind}|${g.slot}|${g.drawableIndex}`;
     if (seenSlots.has(key)) { add('error', `${label} et « ${seenSlots.get(key)} » utilisent le même emplacement (${g.slot} n° ${g.drawableIndex}).`, g.id); continue; }
     seenSlots.set(key, g.name);
-    const prefix = mode === 'addon' ? prefixes[g.ped] : g.ped;
+    const prefix = mode === 'addon' ? prefixes[g.ped] : (g.basePrefix || replacePrefix(g.ped, g.kind));
     if (!prefix) continue; // erreur déjà signalée sur la collection
     const names = garmentFileNames({ prefix, kind: g.kind, slot: g.slot, index: g.drawableIndex });
 
     if (g.yddAssetId) {
       const y = gtaAsset(g.yddAssetId, 'ydd', `${label} – modèle`);
-      if (y) plan.stream.push({ from: y.file, to: `stream/${names.ydd}`, role: 'ydd', garmentId: g.id });
+      if (y) plan.stream.push({ from: y.file, to: `stream/${(mode === 'replace' && g.streamNames?.ydd) || names.ydd}`, role: 'ydd', garmentId: g.id });
     } else if (mode === 'addon') {
       add('error', `${label} : un vêtement additionnel a besoin de son modèle .ydd.`, g.id);
     } else {
@@ -129,14 +130,34 @@ export function validateExport(dir, project, settings = project.exportSettings, 
     for (const v of g.variants) {
       const vl = `${label} variante ${v.letter ?? '?'}`;
       if (!VARIANT_LETTERS.includes(v.letter)) { add('error', `${vl} : lettre de variante invalide (a à z).`, g.id); continue; }
-      if (letters.has(v.letter)) { add('error', `${label} : la variante « ${v.letter} » existe deux fois.`, g.id); continue; }
-      letters.add(v.letter);
+      const vkey = `${v.letter}${v.suffix ? `_${v.suffix}` : ''}`;
+      if (letters.has(vkey)) { add('error', `${label} : la variante « ${vkey} » existe deux fois.`, g.id); continue; }
+      letters.add(vkey);
+      const ytdName = (mode === 'replace' && v.streamName) || names.ytd(v.letter);
       if (v.ytdAssetId) {
         const t = gtaAsset(v.ytdAssetId, 'ytd', vl);
-        if (t) plan.stream.push({ from: t.file, to: `stream/${names.ytd(v.letter)}`, role: 'ytd', garmentId: g.id });
+        const doc = v.textureDocId ? project.textureDocs.find((d) => d.id === v.textureDocId) : null;
+        if (t && doc) {
+          // Texture modifiée dans l'application : réécrite DANS le .ytd (même format, taille, mipmaps)
+          try {
+            const y = readYtd(fs.readFileSync(t.file));
+            const target = (doc.source?.type === 'ytd' && doc.source.assetId === v.ytdAssetId && doc.source.textureName)
+              || (y.textures.find((x) => /_diff/i.test(x.name)) || y.textures[0])?.name;
+            const tex = y.textures.find((x) => x.name === target);
+            if (!tex) add('error', `${vl} : texture « ${target} » introuvable dans ${t.asset.name}.`, g.id);
+            else if (!tex.writable) add('error', `${vl} : la texture « ${tex.name} » est au format ${tex.format.toUpperCase()}, que l'application ne sait pas réécrire.`, g.id);
+            else {
+              plan.stream.push({ from: t.file, to: `stream/${ytdName}`, role: 'ytd', garmentId: g.id, patch: { textureDocId: doc.id, textureName: tex.name } });
+              add('info', `${vl} : votre texture « ${doc.name} » sera écrite dans ${ytdName} (texture « ${tex.name} », ${tex.width} × ${tex.height}, ${tex.format.toUpperCase()}).`, g.id);
+              if (doc.width && (doc.width !== tex.width || doc.height !== tex.height)) add('warning', `${vl} : la texture sera redimensionnée en ${tex.width} × ${tex.height} (taille d'origine).`, g.id);
+            }
+          } catch (e) {
+            add('error', `${vl} : lecture du .ytd impossible (${e.message}). La texture ne peut pas y être réécrite.`, g.id);
+          }
+        } else if (t) plan.stream.push({ from: t.file, to: `stream/${ytdName}`, role: 'ytd', garmentId: g.id });
       } else if (v.textureDocId && project.textureDocs.some((d) => d.id === v.textureDocId)) {
-        plan.pending.push({ garmentId: g.id, variantId: v.id, textureDocId: v.textureDocId, ytdName: names.ytd(v.letter), textureName: names.textureName(v.letter) });
-        add('warning', `${vl} : texture créée dans l'application, à intégrer dans « ${names.ytd(v.letter)} » avec un outil externe (CodeWalker). Le pack sera marqué incomplet.`, g.id);
+        plan.pending.push({ garmentId: g.id, variantId: v.id, textureDocId: v.textureDocId, ytdName, textureName: names.textureName(v.letter) });
+        add('warning', `${vl} : texture sans .ytd de départ : à intégrer dans « ${ytdName} » avec un outil externe (CodeWalker). Astuce : partez d'un vêtement du catalogue pour que l'application écrive le .ytd elle-même. Le pack sera marqué incomplet.`, g.id);
       } else {
         add('error', `${vl} : aucune texture (.ytd ou texture de travail) associée.`, g.id);
       }

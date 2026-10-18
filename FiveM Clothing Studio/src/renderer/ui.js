@@ -43,7 +43,7 @@ const ICONS = {
   help: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01', check: 'M5 12l5 5 9-10', warn: 'M12 3l10 18H2zM12 10v5M12 18h.01',
   x: 'M6 6l12 12M18 6L6 18', brush: 'M15 3l6 6-9 9-3-1-1-3zM6 15c-2 0-3 2-3 5 3 0 5-1 5-3', eraser: 'M16 3l5 5-11 11H5l-2-2zM9 9l6 6', move: 'M12 2v20M2 12h20M12 2l-3 3m3-3l3 3M12 22l-3-3m3 3l3-3M2 12l3-3m-3 3l3 3M22 12l-3-3m3 3l-3 3',
   crop: 'M6 2v16h16M2 6h16v16', text: 'M5 5h14M12 5v14', layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5', reset: 'M4 4v6h6M20 20v-6h-6M5 15a8 8 0 0014 2M19 9A8 8 0 005 7',
-  grid: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18', home: 'M3 11l9-8 9 8v10H3z', search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5', rect: 'M4 6h16v12H4z',
+  grid: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18', bucket: 'M5 12l7-7 7 7-7 7zM19 15s2 2.5 2 4a2 2 0 01-4 0c0-1.5 2-4 2-4', shapes: 'M3 3h8v8H3zM17 3a4 4 0 110 8 4 4 0 010-8zM7 13l4 8H3z', sphere: 'M12 21a9 9 0 100-18 9 9 0 000 18zM3 12c0 2 4 4 9 4s9-2 9-4', home: 'M3 11l9-8 9 8v10H3z', search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5', rect: 'M4 6h16v12H4z',
 };
 export function icon(name, size = 18) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

@@ -3,7 +3,7 @@
 Application de bureau Windows pour **préparer, retoucher, vérifier et exporter des packs de vêtements FiveM** sans écrire de code.
 
 > Nom provisoire : il se change dans `app.config.json` (`appName`) ou dans **Paramètres**.
-> Version : 0.1.0 — première version fonctionnelle. Lisez la section « Limites connues » avant de l'utiliser.
+> Version : 0.2.0. Lisez la section « Limites connues » avant de l'utiliser.
 
 ---
 
@@ -11,6 +11,10 @@ Application de bureau Windows pour **préparer, retoucher, vérifier et exporter
 
 | Fonction | État | Détail |
 |---|---|---|
+| **Vêtements du jeu** : catalogue de tous les vêtements extraits de votre GTA V (hauts, bras et gants, pantalons, chaussures, chapeaux, lunettes, masques, montres…), vignettes, homme / femme, jeu de base et DLC | ✅ Nouveau (0.2) | Fichiers extraits une fois avec CodeWalker depuis VOTRE jeu : l'application n'en contient aucun |
+| **Créer à partir d'un vêtement du jeu** puis modifier sa texture : la texture est **réécrite dans le .ytd du jeu** à l'export | ✅ Nouveau (0.2) ⚠️ expérimental | Même format, taille et mipmaps que l'original. Testé sur des fichiers construits selon la structure documentée du format, **pas encore sur de vrais fichiers du jeu** |
+| Formes sur la texture : boutons, fermeture éclair, coutures, poche, rayures, écusson, étoile, cœur, chevron, flèche, croix… + pot de peinture | ✅ Nouveau (0.2) | Chaque forme est un calque modifiable |
+| Formes 3D (cube, sphère, cylindre, cône, anneau, plaque, bouton, capsule), suppression de pièces, effacement d'une zone du maillage | ✅ Nouveau (0.2) | Dans l'aperçu 3D et la copie GLB ; **pour aller en jeu, le GLB doit être converti en .ydd** (Blender + Sollumz) |
 | Projets (création, ouverture, récents, sauvegarde auto, récupération après plantage, duplication, renommage, suppression, modèles de projet, migration de format) | ✅ Disponible, testé | Un projet = un dossier `<nom>.fcsproj`, jamais confondu avec la ressource exportée |
 | Import de fichiers (bouton ou glisser-déposer) avec analyse du format réel | ✅ Disponible, testé | Les originaux sont copiés, jamais modifiés |
 | Éditeur de textures en calques | ✅ Disponible, testé | Luminosité, contraste, teinte, saturation, colorer, texte, logos, déplacement / échelle / rotation, recadrage, gomme, pinceau, effacement de zone, opacité, ordre, duplication, annuler / rétablir |
@@ -20,9 +24,10 @@ Application de bureau Windows pour **préparer, retoucher, vérifier et exporter
 | Patron UV sur la texture | ✅ | Calculé à partir des UV réels du modèle chargé (aucun UV inventé) |
 | Contrôles géométriques | ✅ | Dimensions, UV manquants, normales manquantes, triangles dégénérés, coordonnées invalides |
 | Vêtements, variantes, catégories, bibliothèque (recherche, filtres personnage / catégorie) | ✅ | Slot GTA V choisi par l'utilisateur, jamais déduit d'une catégorie |
-| Fichiers GTA V `.ydd`, `.ytd`, `.ymt` | ⚠️ Contrôle seulement | Signature RSC7, version, intégrité (décompression complète) ; **le contenu n'est ni affiché ni modifié** |
+| Fichiers GTA V `.ydd`, `.ymt` | ⚠️ Contrôle seulement | Signature RSC7, version, intégrité ; contenu ni affiché ni modifié |
+| Fichiers GTA V `.ytd` | ⚠️ Lecture et réécriture des textures (expérimental) | DXT1, DXT3, DXT5, A8R8G8B8, A8, L8 lus ; DXT1, DXT5, A8R8G8B8, A8, L8 réécrits ; BC7 et autres refusés avec un message |
 | Export de ressource FiveM | ✅ Disponible, testé | Validation (erreurs / avertissements / informations), génération atomique, `fxmanifest.lua`, `README.txt`, `export_report.json`, annulation sans fichier partiel |
-| Création d'un `.ytd` à partir d'une texture modifiée | ❌ Non pris en charge | L'application exporte le DDS prêt à insérer ; le `.ytd` se crée avec CodeWalker (parcours guidé) |
+| Création d'un `.ytd` à partir de rien | ❌ Non pris en charge | Partez d'un vêtement du jeu (son `.ytd` est réécrit) ; sinon le DDS est fourni pour CodeWalker |
 | Conversion d'un modèle 3D en `.ydd` | ❌ Non pris en charge | Se fait dans Blender + Sollumz (parcours guidé dans l'aide) |
 | Génération des `.ymt` / `.meta` d'une collection additionnelle | ❌ Non pris en charge | Fichiers fournis par l'utilisateur (outil spécialisé), vérifiés par l'application |
 | Modèles 3D des personnages freemode | ❌ Non fournis | Fichiers du jeu : importez un modèle que vous avez le droit d'utiliser comme « personnage de référence » |
@@ -39,7 +44,7 @@ Application de bureau Windows pour **préparer, retoucher, vérifier et exporter
 
 ## Installation (version empaquetée)
 
-1. Décompressez `FiveM-Clothing-Studio-0.1.0-win-x64.zip` où vous voulez (par exemple `C:\Programmes\FiveM Clothing Studio`).
+1. Décompressez `FiveM-Clothing-Studio-0.2.0-win-x64.zip` où vous voulez (par exemple `C:\Programmes\FiveM Clothing Studio`).
 2. Lancez `FiveM Clothing Studio.exe`.
 3. Windows SmartScreen peut avertir (exécutable non signé) : « Informations complémentaires » › « Exécuter quand même ».
 
@@ -59,13 +64,13 @@ npm install
 npm run build:win
 ```
 
-Résultat : `dist/FiveM Clothing Studio-win32-x64/` (dossier portable) et `dist/FiveM-Clothing-Studio-0.1.0-win-x64.zip`.
+Résultat : `dist/FiveM Clothing Studio-win32-x64/` (dossier portable) et `dist/FiveM-Clothing-Studio-0.2.0-win-x64.zip`.
 La compilation fonctionne aussi depuis Linux ou macOS (pas d'icône personnalisée ni de signature dans ce cas).
 
 ## Tests
 
 ```
-npm test                 # 41 tests unitaires et d'intégration (cœur : projets, images, DDS, imports, validation, export)
+npm test                 # 50 tests unitaires et d'intégration (cœur : projets, images, DDS, imports, validation, export)
 npm run test:e2e         # parcours complet dans l'application (Windows, ou Linux avec : xvfb-run -a npm run test:e2e)
 npm run demo             # régénère le projet et l'export de démonstration (examples/)
 ```
@@ -107,7 +112,10 @@ Aucun service en ligne n'est utilisé ; l'application fonctionne hors ligne.
 
 ## Limites connues
 
-- Pas de création ni d'édition du contenu des `.ydd`, `.ytd`, `.ymt` (voir tableau ci-dessus).
+- Pas d'aperçu 3D des vêtements du jeu : le contenu des `.ydd` n'est pas décodé (le catalogue montre leurs textures).
+- Les formes et modifications 3D ne vont pas en jeu sans conversion du GLB en `.ydd` (Blender + Sollumz) ; les détails ajoutés sur la TEXTURE (boutons, coutures, logos…) vont, eux, directement en jeu.
+- Vêtements du jeu : mode « remplacement » uniquement (le vêtement modifié remplace l'original sur votre serveur). Ajouter de NOUVELLES variantes ou de nouveaux vêtements demande un `.ymt` produit par un outil spécialisé.
+- Lecture / réécriture des `.ytd` : expérimentale, à vérifier en jeu sur un premier vêtement avant de produire un gros pack.
 - Remplacement de vêtements : seule la variante « universelle » (`_u` / `_uni`) est générée.
 - FBX : chargé par Three.js, prise en charge partielle (FBX 7.x) ; les textures externes d'un FBX ne sont pas chargées. Préférez glTF / GLB.
 - L'aperçu 3D affiche les modèles en pose de repos (pas d'animation, pas de simulation de tissu, pas de sculpture).

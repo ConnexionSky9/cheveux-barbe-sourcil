@@ -6,6 +6,7 @@ import { safeJoin, toPosix } from '../paths.js';
 import { TextureDocument } from '../image/layers.js';
 import { encodeImage, readImageFile } from '../image/codecs.js';
 import { newId, addHistory } from './schema.js';
+import { readYtd, decodeYtdTexture } from '../gta/ytd.js';
 import { writeJsonAtomic } from './store.js';
 
 /**
@@ -54,5 +55,18 @@ export function textureDocFromAsset(dir, project, asset, opts = {}) {
   doc.addLayer({ name: 'Original', image });
   doc.past = [];
   const meta = saveTextureDoc(dir, project, doc, { sourceAssetId: asset.id });
+  return { doc, meta };
+}
+
+/** Nouveau document à partir d'une texture contenue dans un .ytd du projet. */
+export function textureDocFromYtd(dir, project, asset, textureName, opts = {}) {
+  const ytd = readYtd(fs.readFileSync(safeJoin(dir, asset.file)));
+  const t = ytd.textures.find((x) => x.name === textureName) || ytd.textures.find((x) => /_diff/i.test(x.name)) || ytd.textures[0];
+  const image = decodeYtdTexture(ytd, t.name);
+  const doc = new TextureDocument(image.width, image.height, { name: t.name, ...opts });
+  doc.addLayer({ name: `Original (${t.format.toUpperCase()})`, image });
+  doc.past = [];
+  const meta = saveTextureDoc(dir, project, doc, { sourceAssetId: asset.id });
+  meta.source = { type: 'ytd', assetId: asset.id, textureName: t.name, format: t.format, width: t.width, height: t.height, levels: t.levels };
   return { doc, meta };
 }

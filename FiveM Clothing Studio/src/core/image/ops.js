@@ -247,4 +247,34 @@ export function brushStroke(img, points, { size = 10, color = [255, 255, 255, 25
   return img;
 }
 
-export const OPS = { brightness, contrast, hueSaturation, colorize, invert, crop, erase, rotate90, flip, resize };
+/**
+ * Pot de peinture : remplit la zone de couleur proche (tolérance 0…255) autour de (x, y).
+ * Renvoie une NOUVELLE image. `global` = toutes les zones de cette couleur, contiguës ou non.
+ */
+export function floodFill(img, x, y, [r, g, b, a = 255], { tolerance = 32, global = false } = {}) {
+  x = Math.floor(x); y = Math.floor(y);
+  if (x < 0 || y < 0 || x >= img.width || y >= img.height) return img.clone();
+  const out = img.clone(), d = out.data, w = img.width, h = img.height;
+  const i0 = (y * w + x) * 4, ref = [d[i0], d[i0 + 1], d[i0 + 2], d[i0 + 3]];
+  const tol = tolerance * tolerance * 4;
+  const match = (i) => { const dr = d[i] - ref[0], dg = d[i + 1] - ref[1], db = d[i + 2] - ref[2], da = d[i + 3] - ref[3]; return dr * dr + dg * dg + db * db + da * da <= tol; };
+  const seen = new Uint8Array(w * h);
+  const paint = (p) => { const i = p * 4; d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a; };
+  if (global) { for (let p = 0; p < w * h; p++) if (match(p * 4)) paint(p); return out; }
+  const stack = [y * w + x];
+  const marks = [];
+  while (stack.length) {
+    const p = stack.pop();
+    if (seen[p]) continue;
+    seen[p] = 1;
+    if (!match(p * 4)) continue;
+    marks.push(p);
+    const px = p % w, py = (p / w) | 0;
+    if (px > 0) stack.push(p - 1); if (px < w - 1) stack.push(p + 1);
+    if (py > 0) stack.push(p - w); if (py < h - 1) stack.push(p + w);
+  }
+  for (const p of marks) paint(p);
+  return out;
+}
+
+export const OPS = { floodFill, brightness, contrast, hueSaturation, colorize, invert, crop, erase, rotate90, flip, resize };

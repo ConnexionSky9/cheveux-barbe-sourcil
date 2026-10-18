@@ -5,6 +5,7 @@ import { h, fill, icon, btn, toast, modal, field, select, confirmBox, prompt } f
 import { TextureDocument } from '../../core/image/layers.js';
 import { RGBAImage, isPowerOfTwo } from '../../core/image/rgba.js';
 import * as ops from '../../core/image/ops.js';
+import { SHAPES, renderShape, shapeIcon } from './shapes.js';
 import { S, api, adopt, markDirty, saveProject } from '../app.js';
 
 const TOOLS = [
@@ -13,6 +14,7 @@ const TOOLS = [
   { id: 'eraser', icon: 'eraser', label: 'Gomme' },
   { id: 'erase-rect', icon: 'rect', label: 'Effacer une zone rectangulaire du calque' },
   { id: 'crop', icon: 'crop', label: 'Recadrer le document (tracer un rectangle)' },
+  { id: 'fill', icon: 'bucket', label: 'Pot de peinture : remplir une zone de couleur' },
 ];
 
 export function payloadToDoc(p, undoSteps) {
@@ -45,7 +47,7 @@ export function createTextureEditor(center, side, state) {
   const { meta, doc } = state;
   state.ui = state.ui || { tool: 'move', zoom: null, panX: 0, panY: 0 };
   const E = { active: true, meta, doc, get dirty() { return doc.dirty; }, set dirty(v) { doc.dirty = v; }, tool: state.ui.tool, layerId: doc.layers.at(-1)?.id, zoom: 1, panX: 0, panY: 0,
-    brush: { size: 16, color: '#ffffff', hardness: 0.8, opacity: 100 }, preview: null, drag: null, uvOverlay: false, refImage: null, refOpacity: 0.5 };
+    brush: { size: 16, color: '#ffffff', hardness: 0.8, opacity: 100 }, fillOpt: { color: '#c0392b', tolerance: 40, global: false }, preview: null, drag: null, uvOverlay: false, refImage: null, refOpacity: 0.5 };
 
   // ---------------------------------------------------------------- vue
   const checker = h('div.checker');
@@ -167,6 +169,12 @@ export function createTextureEditor(center, side, state) {
     if (E.tool === 'move') { if (l) E.drag = { layerId: l.id, sx: p[0], sy: p[1], dx: 0, dy: 0 }; }
     else if (E.tool === 'brush' || E.tool === 'eraser') { if (!l) return toast('Choisissez un calque.'); E.stroke = [p]; drawOverlay(); }
     else if (E.tool === 'erase-rect' || E.tool === 'crop') { E.rect = { x0: p[0], y0: p[1], x1: p[0], y1: p[1] }; }
+    else if (E.tool === 'fill') {
+      if (!l) return toast('Choisissez un calque.');
+      const [lx, ly] = layerPoint(l, p);
+      const [r, g, b] = hexToRgb(E.fillOpt.color);
+      change(() => doc.applyToLayer(l.id, 'Pot de peinture', (img) => ops.floodFill(img, lx, ly, [r, g, b, 255], { tolerance: E.fillOpt.tolerance, global: E.fillOpt.global })));
+    }
   });
   wrap.addEventListener('pointermove', (e) => {
     const p = docPoint(e);
@@ -243,6 +251,32 @@ export function createTextureEditor(center, side, state) {
     });
     return new RGBAImage(c.width, c.height, ctx.getImageData(0, 0, c.width, c.height).data);
   }
+  function shapeDialog(type, layer) {
+    const def = SHAPES.find((x) => x.id === type);
+    const k = Math.max(0.25, Math.min(4, doc.width / 512));
+    const prev = layer?.meta?.shape?.opts;
+    const st = prev ? { ...prev } : { ...def.defaults, w: Math.round(def.defaults.w * k), h: Math.round(def.defaults.h * k), strokeWidth: Math.round((def.defaults.strokeWidth || 0) * k) };
+    st.fillOn = prev ? prev.fillOn : !/00$/.test(def.defaults.fill) || def.defaults.fill.length === 7;
+    st.strokeOn = prev ? prev.strokeOn : (def.defaults.strokeWidth || 0) > 0 && def.defaults.stroke.length === 7;
+    st.fill = st.fill.slice(0, 7); st.stroke = st.stroke.slice(0, 7);
+    const num = (label, key, min, max) => field(label, h('input.input', { type: 'number', min, max, value: st[key], oninput: (e) => { st[key] = Number(e.target.value) || 0; } }));
+    modal({ title: layer ? `Modifier : ${def.label}` : `Ajouter : ${def.label}`, body: h('div.form',
+      h('div.row', num('Largeur (px)', 'w', 2, 8192), num('Hauteur (px)', 'h', 2, 8192)),
+      h('div.row', h('label.checkbox', h('input', { type: 'checkbox', checked: st.fillOn, onchange: (e) => { st.fillOn = e.target.checked; } }), 'Couleur'), h('input', { type: 'color', value: st.fill, oninput: (e) => { st.fill = e.target.value; } }),
+        h('label.checkbox', h('input', { type: 'checkbox', checked: st.strokeOn, onchange: (e) => { st.strokeOn = e.target.checked; } }), 'Contour'), h('input', { type: 'color', value: st.stroke, oninput: (e) => { st.stroke = e.target.value; } })),
+      h('div.row', num('Épaisseur du contour', 'strokeWidth', 0, 200),
+        ['stripes', 'star', 'button'].includes(type) ? num(type === 'stripes' ? 'Nombre de bandes' : type === 'star' ? 'Branches' : 'Trous (2 ou 4)', 'count', 1, 30) : null,
+        ['stitches', 'pocket'].includes(type) ? num('Longueur des points', 'dash', 1, 200) : null)),
+    actions: [{ label: 'Annuler' }, { label: layer ? 'Mettre à jour' : 'Ajouter', kind: 'primary', id: 'shape-ok', onclick: () => {
+      const opts = { ...st, fill: st.fillOn ? st.fill : '#00000000', stroke: st.strokeOn ? st.stroke : '#00000000', strokeWidth: st.strokeOn ? st.strokeWidth : (type === 'stitches' ? st.strokeWidth : 0) };
+      if (type === 'stitches') opts.fill = st.fill;
+      const img = renderShape(type, opts);
+      const meta = { shape: { type, opts: st } };
+      if (layer) change(() => { doc.applyToLayer(layer.id, `Modifier ${def.label}`, () => img); doc.updateLayer(layer.id, { meta }, `Modifier ${def.label}`); });
+      else change(() => { E.layerId = doc.addLayer({ name: def.label, image: img, x: Math.round((doc.width - img.width) / 2), y: Math.round((doc.height - img.height) / 2), meta }); });
+    } }] });
+  }
+
   function textDialog(layer) {
     const t = layer?.meta?.text || { text: 'Mon texte', size: Math.round(doc.height / 12), color: '#ffffff', font: 'Arial', bold: true, outline: '' };
     const st = { ...t };
@@ -344,6 +378,15 @@ export function createTextureEditor(center, side, state) {
         h('div.slider-row', h('span', 'Dureté'), h('input', { type: 'range', min: 0, max: 100, value: E.brush.hardness * 100, oninput: (e) => { E.brush.hardness = Number(e.target.value) / 100; } }), h('output', '')),
         E.tool === 'brush' ? h('div.slider-row', h('span', 'Opacité'), h('input', { type: 'range', min: 1, max: 100, value: E.brush.opacity, oninput: (e) => { E.brush.opacity = Number(e.target.value); } }), h('output', '')) : null,
         E.tool === 'brush' ? h('div.row.tight', h('span.small.muted', 'Couleur'), h('input', { type: 'color', value: E.brush.color, oninput: (e) => { E.brush.color = e.target.value; } })) : null) : null,
+      E.tool === 'fill' ? h('div.props-section', h('h3', 'Pot de peinture'),
+        h('div.row.tight', h('span.small.muted', 'Couleur'), h('input', { type: 'color', value: E.fillOpt.color, oninput: (e) => { E.fillOpt.color = e.target.value; } })),
+        h('div.slider-row', h('span', 'Tolérance'), h('input', { type: 'range', min: 0, max: 200, value: E.fillOpt.tolerance, oninput: (e) => { E.fillOpt.tolerance = Number(e.target.value); } }), h('output', '')),
+        h('label.checkbox', h('input', { type: 'checkbox', checked: E.fillOpt.global, onchange: (e) => { E.fillOpt.global = e.target.checked; } }), 'Toutes les zones de cette couleur'),
+        h('p.help', 'Cliquez sur la zone du calque à recolorer.')) : null,
+      h('div.props-section', h('h3', 'Formes et détails'),
+        h('div.shape-grid', SHAPES.map((sh) => h('button', { type: 'button', title: sh.label, dataset: { shape: sh.id }, onclick: () => shapeDialog(sh.id) }, shapeIcon(sh.id), sh.label))),
+        l?.meta?.shape ? h('div', { style: { marginTop: '8px' } }, btn('Modifier la forme sélectionnée', () => shapeDialog(l.meta.shape.type, l), { kind: 'small' })) : null,
+        h('p.help', 'Chaque forme devient un calque : déplacez-la, tournez-la, changez sa couleur ou son opacité.')),
       h('div.props-section', h('h3', 'Repères'),
         h('label.checkbox', h('input', { type: 'checkbox', checked: E.uvOverlay, onchange: (e) => {
           if (e.target.checked && !S.viewer?.models.some((m) => !m.reference)) { e.target.checked = false; return toast('Chargez d\'abord un modèle 3D avec UV dans l\'aperçu (onglet Aperçu 3D).'); }

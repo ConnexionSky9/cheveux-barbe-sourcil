@@ -1,8 +1,8 @@
 // Espace de création : bibliothèque (gauche), zone de travail (centre), propriétés (droite).
 import { h, fill, icon, btn, toast, field, select, issueList, fmtBytes, fmtDate, confirmBox, prompt, modal } from '../ui.js';
-import { S, api, commit, adopt, refresh, status, loadProject } from '../app.js';
+import { S, api, commit, adopt, refresh, status, loadProject, go } from '../app.js';
 import { COMPONENTS, PROPS, VARIANT_LETTERS } from '../../core/gta/naming.js';
-import { Viewer } from './viewer3d.js';
+import { Viewer, analyse } from './viewer3d.js';
 import { createTextureEditor, payloadToDoc } from './textureEditor.js';
 import { openImportDialog } from './dialogs.js';
 
@@ -41,7 +41,8 @@ function renderLeft(el) {
       h('div.row', { style: { marginBottom: '10px' } },
         select([{ value: '', label: 'Tous personnages' }, ...PED_OPTS.map((p) => ({ value: p.value, label: p.value.includes('_m_') ? 'Homme' : 'Femme' }))], filters.ped, (v) => { filters.ped = v; renderLeft(el); }),
         select([{ value: '', label: 'Toutes catégories' }, ...P.categories.map((c) => ({ value: c, label: c }))], filters.category, (v) => { filters.category = v; renderLeft(el); })),
-      section('Vêtements', h('button.icon-btn', { title: 'Nouveau vêtement', type: 'button', id: 'add-garment', onclick: addGarment }, icon('plus', 16)),
+      h('button.btn.primary', { type: 'button', style: { width: '100%', marginBottom: '12px', justifyContent: 'center' }, onclick: () => go('catalog'), id: 'ws-catalog' }, icon('shirt'), h('span', 'Partir d\'un vêtement du jeu')),
+      section('Vêtements', h('button.icon-btn', { title: 'Nouveau vêtement vide', type: 'button', id: 'add-garment', onclick: addGarment }, icon('plus', 16)),
         garments.map((g) => { const st = garmentState(g); return h(`div.tree-item${sel.type === 'garment' && sel.id === g.id ? '.selected' : ''}`, { onclick: () => selectItem('garment', g.id) },
           h(`span.dot.${st}`), h('span.name', g.name), h('span.meta', `${g.ped.includes('_m_') ? 'H' : 'F'} · ${g.slot || '?'}${Number.isInteger(g.drawableIndex) ? ` ${g.drawableIndex}` : ''}`)); }),
         P.garments.length ? 'Aucun résultat.' : 'Aucun vêtement. Cliquez sur + pour en créer un.'),
@@ -266,7 +267,8 @@ function renderViewerTools() {
   const box = document.getElementById('viewer-tools');
   if (!box) return;
   const st = S.viewerStats;
-  if (!st || !S.viewer) { fill(box, h('p.help', 'Aucun modèle 3D affiché.')); return; }
+  if (!S.viewer) { fill(box, h('p.help', 'Aucun modèle 3D affiché.')); return; }
+  if (!st) { fill(box, h('p.help', 'Aucun modèle 3D affiché. Vous pouvez aussi partir de zéro avec les formes ci-dessous.'), create3dTools()); return; }
   const g = currentGarment();
   const mats = S.viewer.materials();
   fill(box, 
@@ -286,11 +288,15 @@ function renderViewerTools() {
     S.viewer.selected ? h('div.row.tight', { style: { flexWrap: 'wrap', gap: '4px' } },
       btn('Déplacer', () => S.viewer.setTransformMode('translate'), { kind: 'small' }), btn('Tourner', () => S.viewer.setTransformMode('rotate'), { kind: 'small' }),
       btn('Échelle', () => S.viewer.setTransformMode('scale'), { kind: 'small' }), btn('Réinitialiser', () => S.viewer.resetTransform(), { kind: 'small' }),
-      btn('Désélectionner', () => S.viewer.select(null), { kind: 'small' })) : h('p.help', 'Cliquez sur une pièce du modèle pour la sélectionner.'),
+      btn('Désélectionner', () => S.viewer.select(null), { kind: 'small' }),
+      /^(box|sphere|cylinder|cone|torus|plane|button|capsule)_\d+$/.test(S.viewer.selected.name) ? h('label.small.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Couleur',
+        h('input', { type: 'color', value: '#cccccc', oninput: (e) => S.viewer.setColor(S.viewer.selected, e.target.value) })) : null,
+      btn('Supprimer la pièce', () => { if (S.viewer.removeSelected()) { renderViewerTools(); toast('Pièce supprimée de l\'aperçu (enregistrez une copie GLB pour la garder).'); } }, { kind: 'small danger' })) : h('p.help', 'Cliquez sur une pièce du modèle pour la sélectionner.'),
+    create3dTools(),
     h('div.row', { style: { marginTop: '10px' } }, btn('Enregistrer une copie de travail (GLB)', async () => {
       try {
         const data = await S.viewer.exportGlb();
-        const r = await api.modelSaveWork({ project: S.project, name: `${st.name.replace(/\.[^.]+$/, '')}_travail`, data });
+        const r = await api.modelSaveWork({ project: S.project, name: `${(st?.name || 'creation').replace(/\.[^.]+$/, '')}_travail`, data });
         if (!r.ok) return toast(r.error, 'error');
         adopt(r.project, 'Copie de travail GLB'); toast('Copie de travail enregistrée dans le projet (Modèles 3D).', 'success'); renderLeftOnly();
       } catch (e) { toast(e.message, 'error'); }
@@ -298,6 +304,37 @@ function renderViewerTools() {
     h('p.help', 'La copie GLB garde les transformations et textures appliquées. Elle reste un modèle intermédiaire : la conversion en .ydd se fait dans Blender + Sollumz.'),
   );
 }
+/** Formes 3D et effacement de zone sur le modèle affiché. */
+function create3dTools() {
+  const st = { color: '#c8c8c8', size: 10, radius: 4 };
+  const SH = [['box', 'Cube'], ['sphere', 'Sphère'], ['cylinder', 'Cylindre'], ['cone', 'Cône'], ['torus', 'Anneau'], ['plane', 'Plaque'], ['button', 'Bouton'], ['capsule', 'Capsule']];
+  const eraseBtn = btn(S.viewer.eraseOn ? 'Effacement actif : cliquer sur le modèle' : 'Effacer une zone', () => {
+    S.viewer.onErase = (n) => status(`${n} triangle(s) effacé(s).`);
+    S.viewer.setEraseMode(!S.viewer.eraseOn, st.radius / 100);
+    renderViewerTools();
+  }, { kind: `small${S.viewer.eraseOn ? ' active' : ''}`, icon: 'eraser', id: 'erase3d' });
+  return h('div', { style: { marginTop: '12px' } },
+    h('h3', 'Créer et modifier en 3D'),
+    h('div.row.tight', { style: { flexWrap: 'wrap', gap: '6px', marginBottom: '6px' } },
+      h('label.small.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Couleur', h('input', { type: 'color', value: st.color, oninput: (e) => { st.color = e.target.value; } })),
+      h('label.small.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Taille (cm)', h('input.input', { type: 'number', min: 1, max: 200, value: st.size, style: { width: '70px' }, oninput: (e) => { st.size = Number(e.target.value) || 10; } }))),
+    h('div.shape-grid', SH.map(([id, label]) => h('button', { type: 'button', dataset: { shape3d: id }, onclick: () => {
+      try {
+        S.viewer.addShape(id, { color: st.color, size: st.size / 100 });
+        const main = S.viewer.models.find((m) => !m.reference);
+        const a = analyse(main.object);
+        S.viewerStats = { name: S.viewerStats?.name || 'Création', assetId: S.viewerStats?.assetId, ...a };
+        renderViewerTools();
+        toast(`${label} ajouté(e) : déplacez-le avec les poignées.`, 'info', 2500);
+      } catch (e) { toast(e.message, 'error'); }
+    } }, icon(id === 'sphere' ? 'sphere' : 'cube', 22), label))),
+    h('div.row.tight', { style: { flexWrap: 'wrap', gap: '6px', marginTop: '8px' } }, eraseBtn,
+      h('label.small.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Rayon (cm)', h('input', { type: 'range', min: 1, max: 30, value: st.radius, style: { width: '90px' },
+        oninput: (e) => { st.radius = Number(e.target.value); if (S.viewer.eraseOn) S.viewer.eraseRadius = st.radius / 100; } })),
+      btn('Annuler l\'effacement', () => { if (!S.viewer.undoErase()) toast('Rien à annuler.'); }, { kind: 'small' })),
+    h('p.help', 'Formes, pièces supprimées et zones effacées font partie de la copie GLB. Pour les porter en jeu, ce GLB doit être converti en .ydd dans Blender + Sollumz (squelette et poids du personnage). Pour un rendu immédiat en jeu, utilisez plutôt les formes de l\'éditeur de texture (boutons, coutures, logos…).'));
+}
+
 function renderLeftOnly() { const el = document.querySelector('.panel.left'); if (el) renderLeft(el); }
 
 // ===================================================================== droite
@@ -351,10 +388,19 @@ function garmentProps(g) {
         h('div.variant-head', h('b', `Variante ${v.letter}`),
           select(VARIANT_LETTERS.map((l) => ({ value: l, label: l })), v.letter, (val) => upd('Lettre de variante', () => { v.letter = val; }), { style: { width: '64px' } }),
           h('button.icon-btn', { title: 'Supprimer la variante', type: 'button', onclick: () => upd('Supprimer la variante', (x) => { x.variants = x.variants.filter((y) => y.id !== v.id); }) }, icon('trash', 15))),
+        v.ytdAssetId ? btn(v.textureDocId ? 'Modifier la texture' : 'Modifier la texture du jeu', async () => {
+          if (v.textureDocId && S.project.textureDocs.some((t) => t.id === v.textureDocId)) return openTexture(v.textureDocId);
+          const res = await api.textureFromYtd({ project: S.project, assetId: v.ytdAssetId, textureName: null });
+          if (!res.ok) return toast(res.error, 'error', 7000);
+          adopt(res.project, 'Modifier la texture');
+          const vv = S.project.garments.find((x) => x.id === g.id)?.variants.find((x) => x.id === v.id);
+          if (vv) vv.textureDocId = res.meta.id;
+          openTexture(res.meta.id, res);
+        }, { icon: 'brush', kind: 'small primary', id: `edit-var-${v.letter}` }) : null,
         field('Textures GTA V (.ytd)', select([{ value: '', label: '— Aucun —' }, ...gtaOf('ytd').map((a) => ({ value: a.id, label: a.name }))], v.ytdAssetId || '', (val) => upd('Texture .ytd', () => { v.ytdAssetId = val || null; }))),
         field('ou texture de travail', h('div.row', select([{ value: '', label: '— Aucune —' }, ...P.textureDocs.map((t) => ({ value: t.id, label: t.name }))], v.textureDocId || '', (val) => upd('Texture de travail', () => { v.textureDocId = val || null; })),
           v.textureDocId ? btn('', () => openTexture(v.textureDocId), { icon: 'layers', kind: 'small', title: 'Ouvrir dans l\'éditeur' }) : null),
-        !v.ytdAssetId && v.textureDocId ? 'Exportée en DDS ; le .ytd est à créer avec un outil externe (pack marqué incomplet).' : null)))),
+        v.ytdAssetId && v.textureDocId ? 'Votre texture sera écrite dans ce .ytd à l\'export.' : !v.ytdAssetId && v.textureDocId ? 'Exportée en DDS ; le .ytd est à créer avec un outil externe (pack marqué incomplet).' : null)))),
     h('div.props-section', h('div.row.tight', h('h3', { style: { flex: 1, margin: 0 } }, 'Vérification'),
       btn('Vérifier', async () => {
         const r = await api.exportValidate({ project: S.project, settings: { ...S.project.exportSettings, resourceName: S.project.exportSettings.resourceName || 'verification', packName: S.project.exportSettings.packName || S.project.name } });
@@ -385,6 +431,7 @@ function assetProps(a) {
       missing ? h('p', { style: { color: 'var(--err)' } }, 'Fichier introuvable dans le projet : réimportez-le.') : null,
       h('div.status-badges', Object.entries(ST).map(([k, l]) => h(`span.sbadge${st[k] ? '.on' : ''}`, `${st[k] ? '✓' : '✗'} ${l}`)))),
     a.info?.issues?.length ? h('div.props-section', h('h3', 'Analyse à l\'import'), issueList(a.info.issues)) : null,
+    /\.ytd$/i.test(a.name) ? ytdTextures(a) : null,
     h('div.props-section', h('div.row', { style: { flexWrap: 'wrap' } },
       a.kind === 'texture' ? btn('Ouvrir dans l\'éditeur', async () => {
         const r = await api.textureFromAsset({ project: S.project, assetId: a.id });
@@ -408,6 +455,27 @@ function assetProps(a) {
         await (await import('../app.js')).saveProject({ quiet: true });
         refresh();
       }, { icon: 'trash', kind: 'small danger' }))));
+}
+
+/** Textures contenues dans un .ytd, avec « Modifier » (ouvre l'éditeur, relie à la variante). */
+function ytdTextures(a) {
+  const box = h('div.props-section', h('h3', 'Textures de ce .ytd'), h('p.muted.small', 'Lecture…'));
+  api.ytdList({ project: S.project, assetId: a.id }).then((r) => {
+    if (!r.ok) return fill(box, h('h3', 'Textures de ce .ytd'), h('p.small', { style: { color: 'var(--warn)' } }, `Lecture impossible : ${r.error}`),
+      h('p.help', 'Le fichier reste utilisable tel quel dans l\'export ; seule la modification de ses textures n\'est pas possible.'));
+    fill(box, h('h3', 'Textures de ce .ytd'), r.textures.map((t) => h('div.ytd-tex',
+      t.url ? h('img', { src: t.url, alt: '' }) : h('div.ytd-noimg', t.format.toUpperCase()),
+      h('div', { style: { flex: 1, minWidth: 0 } }, h('b.small', t.name), h('div.faint.small', `${t.width} × ${t.height} · ${t.format.toUpperCase()} · ${t.levels} mipmap(s)`),
+        !t.writable ? h('div.small', { style: { color: 'var(--warn)' } }, 'Format non réécrivable par l\'application') : null),
+      t.readable ? btn('Modifier', async () => {
+        const res = await api.textureFromYtd({ project: S.project, assetId: a.id, textureName: t.name });
+        if (!res.ok) return toast(res.error, 'error');
+        adopt(res.project, 'Modifier une texture du jeu');
+        for (const g of S.project.garments) for (const v of g.variants) if (v.ytdAssetId === a.id && !v.textureDocId) v.textureDocId = res.meta.id;
+        openTexture(res.meta.id, res);
+      }, { kind: 'small primary' }) : null)));
+  });
+  return box;
 }
 
 function setReference(a) {

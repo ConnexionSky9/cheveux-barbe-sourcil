@@ -1,6 +1,7 @@
 // Interface : état global, navigation, barre du haut, sauvegarde automatique, annuler / rétablir.
 import { h, $, btn, icon, toast, modal, confirmBox } from './ui.js';
 import { renderHome } from './views/home.js';
+import { renderCatalog } from './views/catalog.js';
 import { renderWorkspace, saveTexDoc } from './views/workspace.js';
 import { renderTools } from './views/tools.js';
 import { renderSettings, renderHelp } from './views/tools.js';
@@ -121,6 +122,7 @@ export function refresh() {
   const main = $('#main');
   main.replaceChildren();
   if (S.view === 'workspace' && S.project) renderWorkspace(main);
+  else if (S.view === 'catalog') renderCatalog(main);
   else if (S.view === 'tools') renderTools(main);
   else if (S.view === 'settings') renderSettings(main);
   else if (S.view === 'help') renderHelp(main);
@@ -150,6 +152,7 @@ function renderTopbar() {
     h('div.project', p ? [h('b', p.name), S.dirty ? h('span.dirty-dot', { title: 'Modifications non enregistrées' }) : null] : h('span', '')),
     btn('Accueil', () => go(S.project ? 'home' : 'home'), { icon: 'home', kind: 'ghost', title: 'Accueil' }),
     S.project ? btn('Projet', () => go('workspace'), { icon: 'layers', kind: `ghost${S.view === 'workspace' ? ' active' : ''}`, title: 'Espace de création' }) : null,
+    btn('Vêtements du jeu', () => go('catalog'), { icon: 'shirt', kind: `ghost${S.view === 'catalog' ? ' active' : ''}`, title: 'Tous les vêtements de GTA V, pour créer les vôtres' }),
     S.project ? btn('Importer', () => openImportDialog(), { icon: 'import', kind: 'ghost', title: 'Importer des fichiers (Ctrl+I)' }) : null,
     S.project ? btn('Enregistrer', () => saveProject(), { icon: 'save', kind: 'ghost', title: 'Enregistrer (Ctrl+S)' }) : null,
     S.project ? h('span.sep') : null,

@@ -158,3 +158,15 @@ test('Pinceau et gomme', () => {
   ops.brushStroke(img, [[10, 10]], { size: 4, erase: true, hardness: 1 });
   assert.equal(img.get(10, 10)[3], 0);
 });
+
+test('Pot de peinture : zone contiguë, tolérance, mode global', () => {
+  const img = RGBAImage.filled(10, 10, [255, 255, 255, 255]);
+  for (let y = 0; y < 10; y++) img.data.set([0, 0, 0, 255], (y * 10 + 5) * 4);   // trait vertical noir
+  const f = ops.floodFill(img, 1, 1, [255, 0, 0, 255]);
+  assert.deepEqual(f.get(2, 2), [255, 0, 0, 255]);
+  assert.deepEqual(f.get(8, 8), [255, 255, 255, 255], 'de l\'autre côté du trait : intact');
+  assert.deepEqual(img.get(2, 2), [255, 255, 255, 255], 'original intact');
+  const g = ops.floodFill(img, 1, 1, [0, 0, 255, 255], { global: true });
+  assert.deepEqual(g.get(8, 8), [0, 0, 255, 255]);
+  assert.deepEqual(g.get(5, 5), [0, 0, 0, 255]);
+});

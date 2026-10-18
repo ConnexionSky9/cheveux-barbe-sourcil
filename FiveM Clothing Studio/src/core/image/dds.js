@@ -257,3 +257,69 @@ export function encodeDds(img, { format = 'dxt5', mipmaps = true } = {}) {
   }
   return out;
 }
+
+// ------------------------------------------------------------------ surfaces brutes (sans en-tête DDS)
+// Utilisées pour les textures contenues dans les .ytd du jeu.
+
+/** Taille en octets d'un niveau. format : 'dxt1' | 'dxt3' | 'dxt5' | 'bgra8' | 'a8' | 'l8'. */
+export function surfaceBytes(format, w, h) {
+  w = Math.max(1, w); h = Math.max(1, h);
+  if (format === 'dxt1') return Math.ceil(w / 4) * Math.ceil(h / 4) * 8;
+  if (format === 'dxt3' || format === 'dxt5') return Math.ceil(w / 4) * Math.ceil(h / 4) * 16;
+  if (format === 'bgra8') return w * h * 4;
+  if (format === 'a8' || format === 'l8') return w * h;
+  throw new ImageError(`Format de surface non pris en charge : ${format}`);
+}
+
+/** Décode un niveau brut en RGBA. */
+export function decodeSurface(format, u8, offset, w, h) {
+  const img = new RGBAImage(w, h), out = img.data;
+  let o = offset;
+  if (o + surfaceBytes(format, w, h) > u8.length) throw new ImageError('Données de texture tronquées.');
+  if (format.startsWith('dxt')) {
+    const bw = Math.ceil(w / 4), bh = Math.ceil(h / 4), bsz = format === 'dxt1' ? 8 : 16;
+    for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+      if (format === 'dxt1') decodeColorBlock(u8, o, out, bx * 4, by * 4, w, h, true);
+      else {
+        decodeColorBlock(u8, o + 8, out, bx * 4, by * 4, w, h, false);
+        if (format === 'dxt5') decodeDxt5Alpha(u8, o, out, bx * 4, by * 4, w, h);
+        else for (let p = 0; p < 16; p++) {
+          const x = bx * 4 + (p & 3), y = by * 4 + (p >> 2);
+          if (x < w && y < h) out[(y * w + x) * 4 + 3] = ((u8[o + (p >> 1)] >> ((p & 1) * 4)) & 15) * 17;
+        }
+      }
+      o += bsz;
+    }
+  } else if (format === 'bgra8') {
+    for (let i = 0; i < w * h; i++, o += 4) { out[i * 4] = u8[o + 2]; out[i * 4 + 1] = u8[o + 1]; out[i * 4 + 2] = u8[o]; out[i * 4 + 3] = u8[o + 3]; }
+  } else if (format === 'l8') {
+    for (let i = 0; i < w * h; i++) { const v = u8[o++]; out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = v; out[i * 4 + 3] = 255; }
+  } else if (format === 'a8') {
+    for (let i = 0; i < w * h; i++) { out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = 255; out[i * 4 + 3] = u8[o++]; }
+  }
+  return img;
+}
+
+/** Encode une image en niveau brut (mêmes formats ; DXT3 refusé). */
+export function encodeSurface(img, format) {
+  const out = new Uint8Array(surfaceBytes(format, img.width, img.height));
+  if (format === 'dxt1' || format === 'dxt5') {
+    let o = 0;
+    const bw = Math.ceil(img.width / 4), bh = Math.ceil(img.height / 4);
+    for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+      const px = blockPixels(img, bx, by);
+      if (format === 'dxt5') { encodeAlphaBlock(px, out, o); encodeColorBlock(px, out, o + 8); o += 16; }
+      else { encodeColorBlock(px, out, o); o += 8; }
+    }
+  } else if (format === 'bgra8') {
+    const d = img.data;
+    for (let i = 0, o = 0; i < d.length; i += 4, o += 4) { out[o] = d[i + 2]; out[o + 1] = d[i + 1]; out[o + 2] = d[i]; out[o + 3] = d[i + 3]; }
+  } else if (format === 'l8') {
+    const d = img.data;
+    for (let i = 0; i < img.width * img.height; i++) out[i] = Math.round(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]);
+  } else if (format === 'a8') {
+    const d = img.data;
+    for (let i = 0; i < img.width * img.height; i++) out[i] = d[i * 4 + 3];
+  } else throw new ImageError(`Écriture non prise en charge pour le format ${format}.`);
+  return out;
+}

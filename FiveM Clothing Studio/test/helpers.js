@@ -74,3 +74,48 @@ export function makeGlb({ withUv = true } = {}) {
   const ch = (len, type) => { const c = Buffer.alloc(8); c.writeUInt32LE(len, 0); c.writeUInt32LE(type, 4); return c; };
   return Buffer.concat([head, ch(j.length, 0x4e4f534a), j, ch(b.length, 0x004e4942), b]);
 }
+
+import { encodeSurface, buildMipmaps } from '../src/core/image/dds.js';
+/**
+ * .ytd SYNTHÉTIQUE construit selon la structure documentée (dictionnaire 0x40, textures 0x90).
+ * textures : [{ name, image (RGBAImage), format: 'dxt1'|'dxt5'|'bgra8', levels }]
+ * Sert à tester la logique ; ce n'est pas un fichier du jeu.
+ */
+export function makeYtd(textures) {
+  const FMT = { dxt1: 0x31545844, dxt5: 0x35545844, bgra8: 21, bc7: 0x20374342 };
+  const align = (n, a = 16) => Math.ceil(n / a) * a;
+  const n = textures.length;
+  let o = 0x40;
+  const hashOff = o; o = align(o + n * 4);
+  const listOff = o; o = align(o + n * 8);
+  const texOff = textures.map(() => { const t = o; o += 0x90; return t; });
+  const nameOff = textures.map((t) => { const p = o; o = align(o + t.name.length + 1); return p; });
+  const sysSize = o;
+  const gfx = [];
+  let g = 0;
+  const dataOff = textures.map((t) => {
+    const p = g;
+    const mips = t.format === 'bc7' ? [t.image] : buildMipmaps(t.image, t.levels);
+    for (const m of mips) { const b = t.format === 'bc7' ? new Uint8Array(m.width * m.height) : encodeSurface(m, t.format); gfx.push(b); g += b.length; }
+    return p;
+  });
+  const gfxSize = g;
+  const flagsFor = (size) => { let ss = 0; while ((0x200 << ss) < size) ss++; return ((1 << 27) | ss) >>> 0; };
+  const sysAlloc = 0x200 << (flagsFor(sysSize) & 0xf), gfxAlloc = 0x200 << (flagsFor(gfxSize) & 0xf);
+  const data = Buffer.alloc(sysAlloc + gfxAlloc);
+  const sp = (off) => 0x50000000n + BigInt(off), gp = (off) => 0x60000000n + BigInt(off);
+  data.writeBigUInt64LE(sp(hashOff), 0x20); data.writeUInt16LE(n, 0x28); data.writeUInt16LE(n, 0x2a);
+  data.writeBigUInt64LE(sp(listOff), 0x30); data.writeUInt16LE(n, 0x38); data.writeUInt16LE(n, 0x3a);
+  textures.forEach((t, i) => {
+    data.writeBigUInt64LE(sp(texOff[i]), listOff + i * 8);
+    const s = texOff[i];
+    data.writeBigUInt64LE(sp(nameOff[i]), s + 0x28);
+    data.writeUInt16LE(t.image.width, s + 0x50); data.writeUInt16LE(t.image.height, s + 0x52); data.writeUInt16LE(1, s + 0x54);
+    data.writeUInt32LE(FMT[t.format], s + 0x58); data[s + 0x5d] = t.format === 'bc7' ? 1 : t.levels;
+    data.writeBigUInt64LE(gp(dataOff[i]), s + 0x70);
+    data.write(t.name + '\0', nameOff[i], 'latin1');
+  });
+  Buffer.concat(gfx.map((b) => Buffer.from(b))).copy(data, sysAlloc);
+  const head = Buffer.alloc(16); head.write('RSC7'); head.writeUInt32LE(13, 4); head.writeUInt32LE(flagsFor(sysSize), 8); head.writeUInt32LE(flagsFor(gfxSize), 12);
+  return Buffer.concat([head, zlib.deflateRawSync(data)]);
+}

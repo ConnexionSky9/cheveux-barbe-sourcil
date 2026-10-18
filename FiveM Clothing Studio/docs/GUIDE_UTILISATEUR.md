@@ -12,6 +12,19 @@ L'écran est organisé en trois zones : la **bibliothèque** à gauche (vêtemen
 
 Le projet est un dossier `<nom>.fcsproj`. Il est **enregistré automatiquement** toutes les 60 secondes ; Ctrl+S enregistre tout de suite. Si l'application se ferme mal, elle propose de récupérer le travail à la réouverture.
 
+## 1 bis. Partir d'un vêtement du jeu (le plus simple)
+
+1. **Une seule fois** : extrayez les vêtements de votre GTA V avec CodeWalker (le pas à pas est affiché dans l'application, bouton **Vêtements du jeu**), puis choisissez le dossier extrait. Tous les vêtements sont rangés par catégorie avec une vignette.
+2. Choisissez **Homme / Femme**, une catégorie (Hauts, Bras et gants, Pantalons, Chaussures, Chapeaux, Lunettes, Masques, Montres…), puis un vêtement.
+3. **Créer un vêtement à partir de celui-ci** : il est copié dans votre projet et sa texture s'ouvre dans l'éditeur.
+4. Modifiez : couleurs, pot de peinture, logos, texte, formes (boutons, fermeture éclair, coutures, poche, rayures, écusson…), gomme…
+5. **Exporter pour FiveM** : votre texture est réécrite dans le fichier du jeu (même format et taille). La ressource remplace ce vêtement sur votre serveur.
+
+Les autres variantes du vêtement (b, c…) sont gardées telles quelles ; « Modifier la texture du jeu » sur une variante permet de la changer aussi.
+
+> Dans GTA V, les gants font partie des « bras » : catégorie **Bras et gants**.
+> Lecture et réécriture des `.ytd` : fonction récente, à vérifier en jeu sur un premier vêtement.
+
 ## 2. Importer une texture
 
 - **Importer** (Ctrl+I) ou **glissez-déposez** des fichiers depuis l'explorateur Windows sur la zone centrale.
@@ -32,6 +45,11 @@ Formats d'image : PNG, JPEG, TGA, DDS (voir `FORMATS.md`).
 
 Annuler / rétablir : Ctrl+Z / Ctrl+Y (40 étapes par défaut, réglable).
 
+### Formes et détails, pot de peinture
+
+- **Formes et détails** (panneau de droite) : bouton (2 ou 4 trous), fermeture éclair, couture (pointillés), poche, rayures, rectangle, arrondi, cercle, triangle, étoile, cœur, chevron, bande, flèche, écusson, croix. Réglez taille, couleur, contour ; la forme devient un calque (déplacer, tourner, opacité). « Modifier la forme sélectionnée » pour la changer ensuite.
+- **Pot de peinture** (outil à gauche) : recolore une zone d'un clic (tolérance réglable, ou toutes les zones de la même couleur).
+
 ## 4. Gérer les calques
 
 Dans le panneau de droite : ajouter un calque vide, dupliquer, supprimer, monter, descendre, masquer (œil), opacité, renommer (double-clic). Le calque sélectionné reçoit les outils et les réglages de couleur.
@@ -49,6 +67,12 @@ Dans le panneau de droite : ajouter un calque vide, dupliquer, supprimer, monter
 - Les problèmes détectés (UV manquants, triangles dégénérés…) et les dimensions s'affichent à droite.
 
 Le personnage freemode du jeu n'est pas fourni. Pour un repère visuel, importez un modèle que vous avez le droit d'utiliser puis « Personnage de référence… » : il s'affiche en transparence. Ce n'est pas le corps exact du jeu.
+
+### Créer et modifier en 3D
+
+Dans le panneau de droite, **Créer et modifier en 3D** : ajoutez cube, sphère, cylindre, cône, anneau, plaque, bouton ou capsule (couleur, taille en cm), déplacez / tournez / redimensionnez avec les poignées, supprimez une pièce, ou **Effacer une zone** (cliquez sur le modèle ; rayon réglable ; « Annuler l'effacement »). Vous pouvez partir de zéro, sans modèle.
+
+« Enregistrer une copie de travail (GLB) » garde le résultat. **Pour qu'une modification 3D apparaisse en jeu**, ce GLB doit être converti en `.ydd` dans Blender + Sollumz (squelette et poids du personnage) : l'application ne fait pas cette conversion.
 
 ## 6. Associer des matériaux
 

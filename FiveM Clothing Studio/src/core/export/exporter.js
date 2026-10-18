@@ -14,6 +14,7 @@ import { loadTextureDoc } from '../project/textures.js';
 import { encodeImage } from '../image/codecs.js';
 import { resize } from '../image/ops.js';
 import { isPowerOfTwo } from '../image/rgba.js';
+import { patchYtd, readYtd } from '../gta/ytd.js';
 
 export class ExportCancelled extends Error {
   constructor() { super('Export annulé.'); this.name = 'ExportCancelled'; this.code = 'E_CANCELLED'; }
@@ -69,8 +70,17 @@ export async function exportResource(o) {
     let done = 0;
     for (const s of v.plan.stream) {
       const to = safeJoin(tmpRes, s.to);
-      fs.copyFileSync(s.from, to, fs.constants.COPYFILE_EXCL);
-      files.push({ path: s.to, role: s.role, bytes: fs.statSync(to).size, sha256: sha(to), source: path.basename(s.from) });
+      if (s.patch) {
+        // Texture modifiée réécrite dans une copie du .ytd (l'original du projet reste intact)
+        const meta = project.textureDocs.find((t) => t.id === s.patch.textureDocId);
+        const img = loadTextureDoc(dir, meta).composite();
+        const r = patchYtd(fs.readFileSync(s.from), { [s.patch.textureName]: img });
+        fs.writeFileSync(to, r.buffer, { flag: 'wx' });
+        files.push({ path: s.to, role: s.role, bytes: r.buffer.length, sha256: sha(to), source: path.basename(s.from), patched: s.patch.textureName, warnings: r.warnings });
+      } else {
+        fs.copyFileSync(s.from, to, fs.constants.COPYFILE_EXCL);
+        files.push({ path: s.to, role: s.role, bytes: fs.statSync(to).size, sha256: sha(to), source: path.basename(s.from) });
+      }
       await tick(`Copie de ${path.basename(s.to)}`, 0.05 + 0.6 * (++done / Math.max(1, total)));
     }
     // 2. Métadonnées (collections additionnelles)
@@ -113,7 +123,10 @@ export async function exportResource(o) {
     for (const f of files) {
       if (!present.has(f.path)) problems.push(`Fichier manquant après copie : ${f.path}`);
       const src = v.plan.stream.find((s) => s.to === f.path) || v.plan.dataFiles.find((d) => d.path === f.path);
-      if (src && sha(src.from) !== f.sha256) problems.push(`Copie altérée : ${f.path}`);
+      if (src && !src.patch && sha(src.from) !== f.sha256) problems.push(`Copie altérée : ${f.path}`);
+      if (src?.patch) {
+        try { readYtd(fs.readFileSync(safeJoin(tmpRes, f.path))); } catch (e) { problems.push(`.ytd réécrit illisible : ${f.path} (${e.message})`); }
+      }
     }
     if (problems.length) throw new ExportError('La ressource générée ne passe pas les contrôles.', problems.map((m) => ({ level: 'error', message: m })));
     await tick('Contrôles', 0.8);

@@ -43,7 +43,7 @@ export class Viewer {
     this.raycaster = new THREE.Raycaster();
     this.renderer.domElement.addEventListener('pointerdown', (e) => { this.down = [e.clientX, e.clientY]; });
     this.renderer.domElement.addEventListener('pointerup', (e) => {
-      if (!this.down || Math.hypot(e.clientX - this.down[0], e.clientY - this.down[1]) > 4 || this.transform.dragging) return;
+      if (this.eraseOn || !this.down || Math.hypot(e.clientX - this.down[0], e.clientY - this.down[1]) > 4 || this.transform.dragging) return;
       this.pick(e);
     });
     this.ro = new ResizeObserver(() => this.resize());
@@ -269,6 +269,123 @@ export class Viewer {
     this.onSelect(obj ? { name: obj.name || '(sans nom)', material: [].concat(obj.material).map((m) => m.name).join(', '), vertices: obj.geometry.attributes.position?.count || 0 } : null);
   }
   setTransformMode(mode) { this.transform.setMode(mode); }
+
+  // ---------------------------------------------------------------- création 3D
+  /** Ajoute une forme simple au modèle principal (crée un modèle « Création » s'il n'y en a pas). */
+  addShape(type, { color = '#cccccc', size = 0.1 } = {}) {
+    let main = this.models.find((m) => !m.reference);
+    if (!main) {
+      const g = new THREE.Group(); g.name = 'Création';
+      this.root.add(g);
+      main = { name: 'Création', object: g, reference: false };
+      this.models.push(main);
+      this.focus = { center: new THREE.Vector3(0, 1, 0), radius: 0.6 };
+      this.setView('front');
+    }
+    const s = size;
+    const geo = {
+      box: () => new THREE.BoxGeometry(s, s, s),
+      sphere: () => new THREE.SphereGeometry(s / 2, 32, 16),
+      cylinder: () => new THREE.CylinderGeometry(s / 2, s / 2, s, 32),
+      cone: () => new THREE.ConeGeometry(s / 2, s, 32),
+      torus: () => new THREE.TorusGeometry(s / 2, s / 8, 16, 48),
+      plane: () => new THREE.PlaneGeometry(s * 2, s * 2),
+      button: () => new THREE.CylinderGeometry(s / 4, s / 4, s / 20, 32).rotateX(Math.PI / 2),
+      capsule: () => new THREE.CapsuleGeometry(s / 4, s / 2, 8, 16),
+    }[type]?.();
+    if (!geo) throw new Error(`Forme inconnue : ${type}`);
+    const n = (this.shapeCount = (this.shapeCount || 0) + 1);
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, side: type === 'plane' ? THREE.DoubleSide : THREE.FrontSide });
+    mat.name = `Forme ${n}`;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = `${type}_${n}`;
+    // Posée devant le centre de la vue, dans le repère du modèle
+    const target = this.controls.target.clone().add(this.camera.position.clone().sub(this.controls.target).normalize().multiplyScalar((this.focus?.radius || 1) * 0.3));
+    main.object.updateMatrixWorld(true);
+    mesh.position.copy(main.object.worldToLocal(target));
+    main.object.add(mesh);
+    this.select(mesh);
+    return mesh;
+  }
+  setColor(obj, color) { for (const m of [].concat(obj.material)) { m.color?.set(color); m.map = null; m.needsUpdate = true; } }
+  removeSelected() {
+    const o = this.selected;
+    if (!o || !o.parent) return false;
+    this.select(null);
+    o.parent.remove(o);
+    o.geometry?.dispose();
+    return true;
+  }
+
+  /** Mode « effacer une zone » : chaque clic retire les triangles proches du point touché. */
+  setEraseMode(on, radius = 0.05) {
+    this.eraseRadius = radius;
+    if (on === this.eraseOn) return;
+    this.eraseOn = on;
+    const el = this.renderer.domElement;
+    if (on) {
+      this.eraseHandler = (e) => {
+        if (e.button !== 0) return;
+        const hit = this.hitAt(e);
+        if (!hit) return;
+        e.stopImmediatePropagation();
+        this.eraseAt(hit.object, hit.point, this.eraseRadius);
+      };
+      el.addEventListener('pointerdown', this.eraseHandler, true);
+      this.controls.mouseButtons.LEFT = null;
+      el.style.cursor = 'crosshair';
+    } else {
+      el.removeEventListener('pointerdown', this.eraseHandler, true);
+      this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      el.style.cursor = '';
+    }
+  }
+  hitAt(e) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.raycaster.setFromCamera(p, this.camera);
+    const targets = [];
+    this.forMeshes((m) => targets.push(m));
+    return this.raycaster.intersectObjects(targets, false)[0] || null;
+  }
+  /** Retire les triangles dont le centre est à moins de `radius` du point (repère monde). Annulable. */
+  eraseAt(mesh, point, radius) {
+    const g = mesh.geometry, pos = g.attributes.position;
+    if (!pos) return 0;
+    const index = g.index ? Array.from(g.index.array) : Array.from({ length: pos.count }, (_, i) => i);
+    const groups = g.groups.length ? g.groups.map((x) => ({ ...x })) : [{ start: 0, count: index.length, materialIndex: 0 }];
+    mesh.updateMatrixWorld(true);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    const keep = [], newGroups = [];
+    let removed = 0;
+    for (const gr of groups) {
+      const start = keep.length;
+      for (let i = gr.start; i + 2 < gr.start + gr.count; i += 3) {
+        a.fromBufferAttribute(pos, index[i]); b.fromBufferAttribute(pos, index[i + 1]); c.fromBufferAttribute(pos, index[i + 2]);
+        const center = a.add(b).add(c).divideScalar(3).applyMatrix4(mesh.matrixWorld);
+        if (center.distanceTo(point) <= radius) { removed++; continue; }
+        keep.push(index[i], index[i + 1], index[i + 2]);
+      }
+      newGroups.push({ start, count: keep.length - start, materialIndex: gr.materialIndex });
+    }
+    if (!removed) return 0;
+    (this.eraseHistory = this.eraseHistory || []).push({ mesh, index: g.index ? g.index.clone() : null, groups: g.groups.map((x) => ({ ...x })) });
+    if (this.eraseHistory.length > 30) this.eraseHistory.shift();
+    g.setIndex(keep);
+    g.clearGroups();
+    if (g.groups !== undefined && groups.length > 1) for (const ng of newGroups) g.addGroup(ng.start, ng.count, ng.materialIndex);
+    this.onErase?.(removed);
+    return removed;
+  }
+  undoErase() {
+    const st = this.eraseHistory?.pop();
+    if (!st) return false;
+    const g = st.mesh.geometry;
+    g.setIndex(st.index);
+    g.clearGroups();
+    for (const gr of st.groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+    return true;
+  }
   resetTransform() { if (this.selected) { this.selected.position.set(0, 0, 0); this.selected.rotation.set(0, 0, 0); this.selected.scale.set(1, 1, 1); } }
 
   /** Copie de travail GLB du modèle principal (transformations et textures appliquées incluses). */

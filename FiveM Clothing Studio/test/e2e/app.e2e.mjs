@@ -8,7 +8,9 @@ import os from 'node:os';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { encodeImage } from '../../src/core/image/codecs.js';
-import { testImage, fakeRsc7, makeGlb, QUAD_OBJ } from '../helpers.js';
+import { testImage, fakeRsc7, makeGlb, QUAD_OBJ, makeYtd } from '../helpers.js';
+import { RGBAImage } from '../../src/core/image/rgba.js';
+import { readYtd, decodeYtdTexture } from '../../src/core/gta/ytd.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SHOTS = process.env.FCS_SHOTS || path.join(ROOT, 'test/.tmp/shots');
@@ -28,6 +30,18 @@ fs.mkdirSync(objDir);
 fs.writeFileSync(path.join(objDir, 'quad.obj'), QUAD_OBJ);
 fs.writeFileSync(path.join(objDir, 'quad.mtl'), 'newmtl Tissu\nKd 1 1 1\nmap_Kd motif.png\n');
 fs.writeFileSync(path.join(objDir, 'motif.png'), encodeImage(testImage(32, 32), { format: 'png' }).buffer);
+
+// Dossier imitant une extraction CodeWalker (fichiers SYNTHÉTIQUES)
+const game = path.join(work, 'GTA vêtements extraits');
+const gw = (rel, buf) => { const p = path.join(game, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, buf); };
+const gytd = (name, img) => makeYtd([{ name, image: img, format: 'dxt1', levels: 8 }]);
+gw('mp_m_freemode_01/jbib_000_u.ydd', fakeRsc7(165, 'haut'));
+gw('mp_m_freemode_01/jbib_diff_000_a_uni.ytd', gytd('jbib_diff_000_a_uni', RGBAImage.filled(128, 128, [230, 230, 230, 255])));
+gw('mp_m_freemode_01/jbib_diff_000_b_uni.ytd', gytd('jbib_diff_000_b_uni', RGBAImage.filled(128, 128, [40, 40, 40, 255])));
+gw('mp_m_freemode_01/jbib_001_u.ydd', fakeRsc7(165, 'haut 2'));
+gw('mp_m_freemode_01/jbib_diff_001_a_uni.ytd', gytd('jbib_diff_001_a_uni', testImage(128, 128)));
+gw('mp_m_freemode_01_p/p_head_003.ydd', fakeRsc7(165, 'chapeau'));
+gw('mp_m_freemode_01_p/p_head_diff_003_a.ytd', gytd('p_head_diff_003_a', RGBAImage.filled(64, 64, [120, 60, 20, 255])));
 
 const errors = [];
 const step = (m) => console.log(`• ${m}`);
@@ -179,6 +193,71 @@ try {
   assert.ok(fs.existsSync(path.join(res, 'stream', 'mp_m_freemode_01^jbib_diff_015_a_uni.ytd')));
   assert.match(fs.readFileSync(path.join(res, 'README.txt'), 'utf8'), /ensure collection_ete/);
   step('Ressource exportée et vérifiée');
+  await page.keyboard.press('Escape');
+
+  // Catalogue des vêtements du jeu
+  await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, game);
+  await page.click('button[title="Tous les vêtements de GTA V, pour créer les vôtres"]');
+  await page.click('#cat-scan');
+  await page.waitForSelector('.cat-card', { timeout: 15000 });
+  assert.equal(await page.locator('.cat-card').count(), 2, '2 hauts homme');
+  await page.waitForFunction(() => document.querySelectorAll('.cat-thumb img').length === 2, null, { timeout: 10000 });
+  await page.locator('.cat-item', { hasText: 'Chapeaux' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.cat-card').length === 1);
+  await page.locator('.cat-item').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('.cat-card').length === 2);
+  await shot('09-catalogue');
+  step('Catalogue : vêtements du jeu indexés, vignettes, catégories');
+  await page.locator('.cat-card', { hasText: 'jbib 0' }).click();
+  await page.click('#cat-create');
+  await page.waitForSelector('.texed canvas', { timeout: 15000 });
+  step('Vêtement créé depuis le jeu, texture ouverte');
+  // Pot de peinture (rouge) puis bouton et couture
+  await page.click('button[title="Pot de peinture : remplir une zone de couleur"]');
+  await page.locator('.props-section', { hasText: 'Pot de peinture' }).locator('input[type=color]').evaluate((el) => { el.value = '#c01010'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  const box = await page.locator('.canvas-wrap canvas').first().boundingBox();
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.8);
+  await page.waitForTimeout(300);
+  await page.locator('[data-shape="button"]').click();
+  await page.click('#shape-ok');
+  await page.locator('[data-shape="stitches"]').click();
+  await page.click('#shape-ok');
+  await page.waitForFunction(() => document.querySelectorAll('.layer').length === 3);
+  await page.waitForTimeout(300);
+  await shot('10-texture-jeu-modifiee');
+  await page.locator('.panel.right').getByRole('button', { name: 'Enregistrer' }).click();
+  await page.waitForTimeout(600);
+  step('Pot de peinture, bouton et couture ajoutés');
+  // Formes 3D et effacement
+  await page.click('.center-tabs button:has-text("Aperçu 3D")');
+  await page.locator('[data-shape3d="box"]').click();
+  await page.locator('[data-shape3d="sphere"]').click();
+  await page.waitForTimeout(400);
+  const meshes = await page.evaluate(() => { let n = 0; window.__fcs.viewer.forMeshes(() => n++); return n; });
+  assert.equal(meshes, 2, 'deux formes 3D');
+  const erased = await page.evaluate(() => {
+    const v = window.__fcs.viewer; let target; v.forMeshes((m) => { if (m.name.startsWith('sphere')) target = m; });
+    target.updateMatrixWorld(true);
+    const p = target.getWorldPosition(target.position.clone()); p.z += 0.05; // point à la surface (face avant)
+    return v.eraseAt(target, p, 0.03);
+  });
+  assert.ok(erased > 0, 'triangles effacés');
+  await page.waitForTimeout(300);
+  await shot('11-formes-3d');
+  step(`Formes 3D ajoutées, ${erased} triangles effacés`);
+  // Export : le .ytd du jeu est réécrit avec la texture modifiée
+  await page.getByRole('button', { name: 'Exporter pour FiveM' }).click();
+  await page.waitForSelector('#exp-pack');
+  await page.fill('#exp-resource', 'haut_du_jeu_modifie');
+  await page.click('#exp-validate');
+  await page.waitForSelector('#exp-run:not([disabled])', { timeout: 15000 });
+  await page.click('#exp-run');
+  await page.waitForSelector('.modal h2.result-ok', { timeout: 20000 });
+  const outYtd = path.join(out, 'haut_du_jeu_modifie', 'stream', 'mp_m_freemode_01^jbib_diff_000_a_uni.ytd');
+  const px = decodeYtdTexture(readYtd(fs.readFileSync(outYtd)), 'jbib_diff_000_a_uni').get(110, 110);
+  assert.ok(px[0] > 150 && px[1] < 60, `texture réécrite (rouge attendu, obtenu ${px})`);
+  assert.ok(fs.existsSync(path.join(out, 'haut_du_jeu_modifie', 'stream', 'mp_m_freemode_01^jbib_diff_000_b_uni.ytd')));
+  step('Export : .ytd du jeu réécrit avec la texture modifiée');
   await page.keyboard.press('Escape');
 
   // Aide, outils

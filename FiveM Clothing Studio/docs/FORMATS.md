@@ -43,7 +43,7 @@ Contrôles à l'import : dimensions, puissance de 2, taille excessive (avertisse
 | Fichier | Rôle | Ce que fait l'application |
 |---|---|---|
 | `.ydd` (drawable dictionary) | Modèle du vêtement | Contrôle (signature RSC7, version, décompression complète), renommage selon le slot, copie exacte dans `stream/` |
-| `.ytd` (texture dictionary) | Textures d'une variante | Idem |
+| `.ytd` (texture dictionary) | Textures d'une variante | Contrôle + **lecture des textures** (DXT1, DXT3, DXT5, A8R8G8B8, A8, L8) et **réécriture d'une texture** dans le même format, la même taille et le même nombre de mipmaps (DXT1, DXT5, A8R8G8B8, A8, L8). Expérimental. |
 | `.ymt` (métadonnées du personnage) | Collection additionnelle | Contrôle (RSC7 ou PSO), copie dans `stream/` |
 | `.meta` (ShopPedApparel, XML) | Collection additionnelle | Vérification de la structure, du personnage, déclaration `data_file 'SHOP_PED_APPAREL_META_FILE'` |
 
@@ -52,7 +52,14 @@ Versions de ressource habituelles relevées sur les fichiers du jeu : `.ytd` = 1
 ### Ce qui n'est PAS pris en charge (et pourquoi)
 
 - **Afficher ou modifier le contenu d'un `.ydd` / `.ytd`** : ces formats binaires demandent un décodeur complet des structures du moteur du jeu. L'application ne l'inclut pas pour ne pas produire de fichiers invalides. Utilisez CodeWalker ou Blender + Sollumz.
-- **Créer un `.ytd`** à partir d'une texture modifiée : l'application produit le **DDS** (format attendu dans un `.ytd`, avec mipmaps) et le nom de texture conseillé ; l'insertion se fait avec CodeWalker.
+- **Créer un `.ytd` de toutes pièces** : non pris en charge. En partant d'un vêtement du jeu, son `.ytd` est réécrit (sa structure n'est jamais modifiée, seules les données de pixels sont remplacées). Sans `.ytd` de départ, le DDS est fourni pour CodeWalker.
+- **Textures BC7 / BC4 / BC5** dans un `.ytd` : ni lues ni réécrites (message clair).
+- **Aperçu 3D des `.ydd`** : non pris en charge (contenu non décodé).
+
+### Lecture des `.ytd` : comment c'est fait
+
+Structure lue (PC, version 13) : ressource RSC7 décompressée, segments système et graphique (tailles déduites des drapeaux de l'en-tête), dictionnaire de textures (liste de pointeurs à +0x30), textures de 0x90 octets (nom +0x28, largeur +0x50, hauteur +0x52, format +0x58, niveaux +0x5D, pixels +0x70). Chaque valeur est contrôlée (nom lisible, dimensions, niveaux, pointeurs dans le fichier) : au moindre écart, le fichier est refusé avec un message plutôt que de produire un fichier abîmé. La réécriture est relue avant d'être placée dans la ressource.
+Cette lecture a été vérifiée sur des fichiers construits selon cette structure, **pas encore sur des fichiers du jeu** : testez un premier vêtement en jeu.
 - **Créer un `.ydd`** à partir d'un modèle 3D : Blender + Sollumz (squelette, poids, matériaux).
 - **Générer `.ymt` / `.meta`** d'une collection : outil spécialisé (par exemple un générateur de packs de vêtements). L'application les vérifie et les intègre.
 
@@ -63,9 +70,11 @@ Remplacement d'un vêtement du jeu (préfixe = modèle du personnage) :
 ```
 mp_m_freemode_01^jbib_005_u.ydd
 mp_m_freemode_01^jbib_diff_005_a_uni.ytd     (variante a)
-mp_f_freemode_01^p_head_002.ydd               (accessoire)
-mp_f_freemode_01^p_head_diff_002_a.ytd
+mp_f_freemode_01_p^p_head_002.ydd             (accessoire : dossier « _p »)
+mp_f_freemode_01_p^p_head_diff_002_a.ytd
 ```
+
+Vêtements venant du catalogue : le nom d'origine est conservé (`<dossier du jeu>^<fichier>`), y compris les variantes de peau `_r` / `_whi`, `_bla`…
 
 Collection additionnelle (préfixe = nom du `.ymt` fourni, sans extension) :
 

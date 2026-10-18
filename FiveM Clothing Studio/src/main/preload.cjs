@@ -12,6 +12,7 @@ const CHANNELS = [
   'import:inspect', 'import:add',
   'texture:fromAsset', 'texture:blank', 'texture:load', 'texture:save', 'texture:decodeFile', 'texture:decodeAsset', 'texture:export', 'texture:delete',
   'model:load', 'model:saveWork', 'asset:remove',
+  'catalog:info', 'catalog:scan', 'catalog:query', 'catalog:thumb', 'catalog:create', 'ytd:list', 'texture:fromYtd',
   'export:validate', 'export:run', 'export:cancel',
   'tools:detect', 'config:get', 'config:set', 'config:openFile',
   'shell:openPath', 'shell:openExternal', 'docs:read',

@@ -1,7 +1,7 @@
 {
   "name": "fivem-clothing-studio",
   "productName": "FiveM Clothing Studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Éditeur de vêtements pour FiveM : projets, textures, aperçu 3D, validation et export de ressources.",
   "author": "FiveM Clothing Studio",
   "type": "module",
