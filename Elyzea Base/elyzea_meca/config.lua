@@ -77,8 +77,9 @@ Config.Interventions = {
         -- Modèle réel (ta map ou un pack) à la place du dessin : models = { 'nom_du_modele' }, offsetZ, heading
         models = {},
     },
-    -- Objet d'inventaire « Pont roulant » : utilisé sur un point d'atelier pour l'équiper
-    liftItem = { name = 'pont_roulant', perm = 'workshop', range = 3.0 },
+    -- Objet d'inventaire « Pont roulant » (5 kg)
+    -- Posé (utilisé) à côté d'un véhicule garé sur un point d'atelier ; H à côté du pont pour le reprendre
+    liftItem = { name = 'pont_roulant', perm = 'workshop', range = 3.0, vehicleRange = 5.0, pickupKey = 74 },
     underLiftScenarios = { 'PROP_HUMAN_MOVIE_BULB', 'WORLD_HUMAN_WELDING' },   -- debout sous le véhicule, bras levés
     walkMargin = 0.85,        -- distance gardée autour de la carrosserie quand le mécanicien fait le tour
     collisionPad = 0.3,

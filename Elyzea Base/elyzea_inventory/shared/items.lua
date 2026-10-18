@@ -182,10 +182,10 @@ Items.amethyst = { label = 'Améthyste', weight = 20, stack = true, image = 'ame
 
 -- ───────── Mécano (ressource elyzea_meca) ─────────
 -- Image : html/img/pont_roulant.png (256 × 256, fond transparent)
--- Utilisé sur un point d'atelier par un mécanicien en service : le point est équipé d'un pont
--- (véhicule levé, travail debout sous la voiture). /meca_pont_retirer le rend à l'inventaire.
-Items.pont_roulant = { label = 'Pont roulant', weight = 25000, stack = false, close = true, image = 'pont_roulant.png', icon = '🛠️',
-    description = 'Pont élévateur à deux colonnes. Utilisez-le sur un point d\'atelier pour l\'installer.' }
+-- Utilisé à côté d'un véhicule garé sur un point d'atelier (mécanicien en service) : le pont est
+-- posé sous le véhicule (levage, travail debout dessous). H à côté du pont : il revient dans l'inventaire.
+Items.pont_roulant = { label = 'Pont roulant', weight = 5000, stack = false, close = true, image = 'pont_roulant.png', icon = '🛠️',
+    description = 'Pont élévateur à deux colonnes (5 kg). Utilisez-le à côté d\'un véhicule garé sur un point d\'atelier ; H à côté du pont pour le reprendre.' }
 
 -- ───────── Braquage de banque (ressource bank_heist) ─────────
 -- Images : html/img/bank_laptop.png, bank_bag.png, bank_c4.png (256 × 256, fond transparent)

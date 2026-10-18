@@ -1,10 +1,11 @@
 -- =====================================================================
 --  ELYZEA MÉCANO - serveur : objet « Pont roulant »
---  · Utilisé (inventaire) par un mécanicien en service sur un point d'atelier :
---    le pont est installé sur ce point (gardé en base, visible par tous) et l'objet consommé.
+--  · Utilisé (inventaire) par un mécanicien en service à côté d'un véhicule garé sur un point
+--    d'atelier : le pont est posé sous ce véhicule (gardé en base, visible par tous), l'objet consommé.
 --  · Aux points équipés, les interventions montent le véhicule sur le pont et le mécanicien
 --    travaille debout sous la voiture ; ailleurs, chandelles et chariot.
---  · /meca_pont_retirer (permission « garage_manage ») : le pont revient dans l'inventaire.
+--  · Touche H à côté du pont (ou /meca_pont_retirer) : n'importe quel mécanicien en service le
+--    reprend, il revient dans son inventaire (refusé pendant une intervention).
 -- =====================================================================
 local P = Meca
 local LC = (Config.Interventions or {}).liftItem or {}
@@ -31,25 +32,52 @@ local function PointHere(src)
     return best
 end
 
+-- Véhicule le plus proche du joueur (à pied, à côté)
+local function NearVehicle(src, radius)
+    local c = P.Coords(src)
+    if not c then return nil end
+    local best, bestD
+    for _, v in ipairs(GetAllVehicles()) do
+        local d = #(GetEntityCoords(v) - c)
+        if d <= radius and (not bestD or d < bestD) then best, bestD = v, d end
+    end
+    return best
+end
+
+-- Point d'atelier sur lequel un véhicule est garé
+local function PointOfVehicle(veh)
+    local vc = GetEntityCoords(veh)
+    for _, w in ipairs(P.WorkshopList()) do
+        if w.coords and #(vc - vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0)) <= (tonumber(w.radius) or 3.5) + 1.0 then return w end
+    end
+end
+
+local function Busy(wsId)
+    for _, l in pairs(P.wsBusy or {}) do if l and P.quotes[l.uid] and P.quotes[l.uid].workshop == wsId then return true end end
+    return false
+end
+
+-- Pose du pont SOUS un véhicule garé sur un point d'atelier (l'objet est consommé)
 local function Install(src)
-    if not P.IsMeca(src) then P.Notify(src, 'Seul un mécanicien peut installer un pont roulant.', 'error') return false end
-    if not P.OnDuty(src) then P.Notify(src, 'Prenez votre service (F6) pour installer le pont.', 'error') return false end
-    if not P.Can(src, LC.perm or 'workshop') then P.Notify(src, 'Votre grade ne permet pas d\'installer un pont roulant.', 'error') return false end
+    if not P.IsMeca(src) then P.Notify(src, 'Seul un mécanicien peut poser un pont roulant.', 'error') return false end
+    if not P.OnDuty(src) then P.Notify(src, 'Prenez votre service (F6) pour poser le pont.', 'error') return false end
+    if not P.Can(src, LC.perm or 'workshop') then P.Notify(src, 'Votre grade ne permet pas de poser un pont roulant.', 'error') return false end
+    if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then P.Notify(src, 'Descendez du véhicule pour poser le pont.', 'error') return false end
+    local veh = NearVehicle(src, LC.vehicleRange or 5.0)
+    if not veh then P.Notify(src, 'Approchez-vous du véhicule sous lequel poser le pont.', 'error') return false end
+    local here = PointOfVehicle(veh)
+    if not here then P.Notify(src, 'Garez d\'abord le véhicule sur un point d\'atelier (cercle au sol).', 'error') return false end
     local list = P.WorkshopList()
-    local here = PointHere(src)
-    if not here then P.Notify(src, 'Placez-vous sur un point d\'atelier (cercle au sol) pour installer le pont.', 'error') return false end
     for _, w in ipairs(list) do
         if w.id == here.id then
-            if w.lift then P.Notify(src, ('« %s » a déjà un pont roulant.'):format(w.label), 'error') return false end
-            for _, l in pairs(P.wsBusy or {}) do if l and P.quotes[l.uid] and P.quotes[l.uid].workshop == w.id then
-                P.Notify(src, 'Une intervention est en cours sur ce point.', 'error') return false end end
-            local ped = GetPlayerPed(src)
-            local veh = GetVehiclePedIsIn(ped, false)
-            w.lift = { h = math.floor(GetEntityHeading(veh ~= 0 and veh or ped) * 10) / 10, by = P.Name(src), at = os.time() }
+            if w.lift then P.Notify(src, 'Il y a déjà un pont roulant sous ce véhicule.', 'error') return false end
+            if Busy(w.id) then P.Notify(src, 'Une intervention est en cours sur ce point.', 'error') return false end
+            w.lift = { h = math.floor(GetEntityHeading(veh) * 10) / 10, by = P.Name(src), at = os.time() }
             P.SetSetting('workshops', list)
             P.PublishWorkshops()
-            P.AddLog(src, nil, nil, 'Pont roulant installé', nil, w.label, nil)
-            P.Notify(src, ('Pont roulant installé sur « %s ».'):format(w.label), 'success')
+            P.AddLog(src, nil, nil, 'Pont roulant posé', nil, w.label, nil)
+            TriggerClientEvent('meca:client:liftAnim', src)
+            P.Notify(src, 'Pont roulant posé sous le véhicule. H à côté du pont pour le reprendre.', 'success')
             return true   -- l'objet est consommé
         end
     end
@@ -63,23 +91,22 @@ CreateThread(function()
     if not ok then print(('^1[MECA] Objet « %s » non utilisable : %s^0'):format(ITEM, tostring(err))) end
 end)
 
--- Retirer le pont du point où l'on se trouve (rendu dans l'inventaire)
-P.Actions.liftRemove = { perm = 'garage_manage', fn = function(src)
+-- Reprendre le pont (touche H à côté, ou /meca_pont_retirer) : il revient dans l'inventaire
+P.Actions.liftRemove = { perm = LC.perm or 'workshop', duty = true, fn = function(src)
     local here = PointHere(src)
-    if not here then return { error = 'Placez-vous sur le point d\'atelier équipé du pont.' } end
+    if not here then return { error = 'Approchez-vous du pont roulant.' } end
     local list = P.WorkshopList()
     for _, w in ipairs(list) do
         if w.id == here.id then
-            if not w.lift then return { error = 'Ce point n\'a pas de pont roulant.' } end
-            for _, l in pairs(P.wsBusy or {}) do if l and P.quotes[l.uid] and P.quotes[l.uid].workshop == w.id then
-                return { error = 'Une intervention est en cours sur ce point.' } end end
+            if not w.lift then return { error = 'Il n\'y a pas de pont roulant ici.' } end
+            if Busy(w.id) then return { error = 'Une intervention est en cours : attendez qu\'elle soit terminée.' } end
             if not P.GiveLiftItem(src) then return { error = 'Pas assez de place dans votre inventaire.' } end
             w.lift = nil
             P.SetSetting('workshops', list)
             P.PublishWorkshops()
-            P.AddLog(src, nil, nil, 'Pont roulant retiré', nil, w.label, nil)
-            return { ok = true, message = ('Pont roulant retiré de « %s » (dans votre inventaire).'):format(w.label) }
+            P.AddLog(src, nil, nil, 'Pont roulant repris', nil, w.label, nil)
+            return { ok = true, message = 'Pont roulant repris : il est dans votre inventaire.' }
         end
     end
-    return { error = 'Point introuvable.' }
+    return { error = 'Pont introuvable.' }
 end }

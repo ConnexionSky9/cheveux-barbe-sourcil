@@ -218,6 +218,11 @@ function TriggerClientEvent(name, target, ...) sentToClients[#sentToClients + 1]
     if clientEvents[name] and (target == 2 or target == -1) then clientEvents[name](...) end end
 function GetCurrentResourceName() return 'elyzea_meca' end
 function GetGamePool() return { W.veh } end
+function GetAllVehicles() return W.veh and ents[W.veh] and { W.veh } or {} end
+function IsControlJustPressed(_, c) if c == 74 and W.pressH then W.pressH = false return true end return false end
+function SetDrawOrigin() end function ClearDrawOrigin() end function SetTextScale() end function SetTextFont() end
+function SetTextCentre() end function SetTextOutline() end function SetTextColour() end
+function BeginTextCommandDisplayText() end function AddTextComponentSubstringPlayerName(t) W.text3d = t end function EndTextCommandDisplayText() end
 function DrawPoly() W.polys = (W.polys or 0) + 1 end
 function CreateObjectNoOffset(h, x, y, z) return newEnt('obj', { pos = vector3(x, y, z), model = h, lift = true }) end
 function RegisterCommand(name, fn) W.commands = W.commands or {} W.commands[name] = fn end
@@ -321,7 +326,10 @@ C.Workshops = function()
     for _, w in ipairs(W.workshops or {}) do out[#out + 1] = { id = w.id, label = w.label, radius = w.radius, coords = vector3(w.coords.x, w.coords.y, w.coords.z), lift = w.lift and { h = w.lift.h } or nil } end
     return out
 end
-C.Do = function(a, d) return C.Req(a, d) end
+C.Do = function(a, d) local r = C.Req(a, d) W.lastDo = r return r end
+C.IsMeca = function() return true end
+C.Can = function() return true end
+C.AnyOpen = function() return false end
 loadFile('client/lift.lua')
 loadFile('client/interventions.lua')
 
@@ -504,9 +512,15 @@ threads = {}
 loadFile('client/lift.lua')   -- relance ses fils (dessin du pont)
 source = 1
 check(usable.pont_roulant ~= nil, 'objet « pont_roulant » utilisable')
-ents[W.ped].pos = vector3(100.0, 201.0, 31.5)
-check(usable.pont_roulant(1) == true and W.workshops[1].lift ~= nil, 'utilisé sur le point : pont installé, objet consommé')
-check(usable.pont_roulant(1) == false, 'second pont refusé sur le même point')
+ents[W.ped].pos = vector3(130.0, 201.0, 31.5)
+check(usable.pont_roulant(1) == false and W.workshops[1].lift == nil, 'loin de tout véhicule : refusé, objet gardé')
+ents[W.ped].pos = vector3(100.0, 202.5, 31.5)
+ents[W.ped].inVeh = W.veh
+check(usable.pont_roulant(1) == false, 'dans le véhicule : refusé')
+ents[W.ped].inVeh = nil
+check(usable.pont_roulant(1) == true and W.workshops[1].lift ~= nil, 'posé sous le véhicule garé sur le point, objet consommé')
+check(W.workshops[1].lift.h == 90.0, 'pont orienté comme le véhicule')
+check(usable.pont_roulant(1) == false, 'second pont refusé sous le même véhicule')
 ents[W.ped].pos = vector3(103.0, 200.0, 31.0)
 for _ = 1, 40 do tick() end
 check((W.polys or 0) > 0, 'pont dessiné pour les joueurs proches')
@@ -529,11 +543,25 @@ check(W.applied[1].scenario == 'PROP_HUMAN_MOVIE_BULB' and W.applied[1].lifted >
 check(W.applied[2].lifted < 0.6 and W.applied[2].lifted > 0.4, 'freins : véhicule redescendu à hauteur des roues')
 check(W.bumps == 0 and W.pedSnaps == 0, 'aucun contact avec la carrosserie, aucune téléportation')
 check(math.abs(ents[W.veh].pos.z - 30.5) < 0.001, 'véhicule redescendu au sol')
-local liftCmd = W.commands and W.commands.meca_pont_retirer
-ents[W.ped].pos = vector3(100.0, 201.0, 31.5)
+ents[W.ped].pos = vector3(103.0, 201.0, 31.0)
+loadFile('client/lift.lua')
+for _ = 1, 60 do tick() end
+check(W.text3d and W.text3d:find('Reprendre le pont'), 'à côté du pont : « H · Reprendre le pont roulant » affiché')
 local given = W.given or 0
-if liftCmd then liftCmd() end
-check(W.workshops[1].lift == nil and (W.given or 0) == given + 1, '/meca_pont_retirer : pont retiré et rendu à l\'inventaire')
+W.pressH = true
+for _ = 1, 400 do tick() end
+check(W.workshops[1].lift == nil and (W.given or 0) == given + 1, 'H : pont repris, rendu à l\'inventaire')
+check(W.lastDo and W.lastDo.ok, 'confirmation : ' .. tostring(W.lastDo and (W.lastDo.message or W.lastDo.error)))
+W.lastDo = nil
+local again = P.Actions.liftRemove.fn(1, {})
+check(again.error ~= nil, 'plus de pont à reprendre ensuite')
+-- pont reposé puis intervention en cours : impossible de le reprendre
+ents[W.ped].pos = vector3(100.0, 202.5, 31.5)
+usable.pont_roulant(1)
+local uidB = newQuote({ { code = 'engine_2' } })
+P.Actions.quoteInstallStart.fn(1, { uid = uidB, net = 900 })
+check(P.Actions.liftRemove.fn(1, {}).error ~= nil, 'pendant une intervention : le pont ne peut pas être repris')
+threads = {}
 
 print('\n[11] Sécurité anti-chute : le personnage passe sous le sol pendant une intervention')
 newWorld() W.applied = {}

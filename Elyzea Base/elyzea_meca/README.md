@@ -76,13 +76,14 @@ seulement pour les pièces achetées. Les prix, le paiement (à l'acceptation, u
 | Peinture, vitres teintées | tour du véhicule (préparation), la teinte apparaît à la fin |
 | Phares, néons, plaque, intérieur, CarPlay | phares capot ouvert, néons accroupi sur le côté, plaque à l'arrière, intérieur et CarPlay portière ouverte (tablette) |
 
-**Pont roulant (objet d'inventaire `pont_roulant`)**
-- Un mécanicien en service, debout sur un point d'atelier, **utilise** l'objet (inventaire) : le point est équipé d'un pont (enregistré, visible par tous), l'objet est consommé. Un seul pont par point.
+**Pont roulant (objet d'inventaire `pont_roulant`, 5 kg)**
+- **Poser** : un mécanicien en service, à pied à côté d'un véhicule garé sur un point d'atelier, **utilise** l'objet (inventaire) : le pont est posé sous ce véhicule (orienté comme lui, enregistré, visible par tous) et l'objet quitte l'inventaire. Un seul pont par point.
+- **Reprendre** : n'importe quel mécanicien en service, à côté du pont, appuie sur **H** (texte « H · Reprendre le pont roulant ») ou tape `/meca_pont_retirer` : le pont revient dans **son** inventaire. Impossible pendant une intervention ou sans place dans l'inventaire.
 - Sur un point équipé : le véhicule monte jusqu'à laisser ~1,95 m sous la caisse, le mécanicien **passe dessous** et travaille debout bras levés (scénario `PROP_HUMAN_MOVIE_BULB`, repli `WORLD_HUMAN_WELDING`) ; le pont redescend à hauteur des roues pour les freins et les roues, puis au sol. Le mécanicien sort toujours de dessous avant une descente.
 - Le pont est **dessiné par le script** (colonnes jaunes, chariots et bras qui suivent le dessous du véhicule) : le jeu de base n'a pas de modèle de pont garanti. Si ta map ou un pack en fournit un, mets son nom dans `Config.Interventions.lift.models`.
-- `/meca_pont_retirer` (direction, permission `garage_manage`) sur le point : le pont revient dans l'inventaire. Supprimer un point équipé rend aussi l'objet.
+- Supprimer un point équipé rend aussi l'objet.
 - Points sans pont : chandelles et chariot, comme avant.
-- Obtenir l'objet : `pont_roulant` (25 kg) se donne comme les autres objets (menu staff / give).
+- Obtenir l'objet : `pont_roulant` se donne comme les autres objets (menu staff / give).
 
 **Déplacements et sécurité du personnage**
 - Le mécanicien **fait le tour** du véhicule par les coins (chemin le plus court) au lieu de marcher contre la carrosserie ; s'il est bloqué, il recalcule un trajet (navmesh) ; **aucune téléportation**. Sous un véhicule levé au pont, il passe directement dessous.
@@ -104,7 +105,7 @@ Déconnexion du mécanicien : le serveur supprime ses objets et fait remettre le
 - `underHeadingOffset` / `underOffset` : si le mécanicien s'allonge dans le mauvais sens ou trop loin, ajuste ces valeurs.
 - Les objets en main (`props`) ont une position réglable ; les modèles `imp_prop_impexp_*` viennent du DLC Import/Export (inclus dans le build du serveur). Un modèle absent est simplement ignoré.
 
-**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (63 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé / utilisé / retiré, passage sous le véhicule, chute rattrapée).
+**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (70 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé sous un véhicule / utilisé / repris avec H, passage sous le véhicule, chute rattrapée).
 
 ## CarPlay (installation payante)
 
@@ -163,7 +164,7 @@ Les grades n'ont pas de salaire : le taux horaire est réglé dans Finance et ch
 - f. Un 2ᵉ mécanicien essaie d'ouvrir le même point pendant l'intervention : refusé.
 - g. Le client regarde depuis à côté : il voit le véhicule monter, les pièces, les animations.
 - h. Déconnexion du mécanicien pendant le levage : véhicule redescendu par un autre joueur proche, objets supprimés.
-- i. Donner `pont_roulant`, l'utiliser sur un point : pont visible par un 2ᵉ joueur. Devis transmission + freins : voiture en haut, mécanicien debout dessous, puis roues à mi-hauteur.
+- i. Donner `pont_roulant`, l'utiliser à côté d'un véhicule garé sur un point : pont visible par un 2ᵉ joueur ; H à côté : il revient dans l'inventaire. Devis transmission + freins : voiture en haut, mécanicien debout dessous, puis roues à mi-hauteur.
 - j. Pièces à l'opposé (aile gauche puis aile droite) : le mécanicien contourne par l'avant ou l'arrière, sans traverser ni se téléporter.
 
 

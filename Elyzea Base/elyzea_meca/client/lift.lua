@@ -158,8 +158,57 @@ AddEventHandler('onResourceStop', function(res)
     for _, l in pairs(lifts) do if l.obj and DoesEntityExist(l.obj) then DeleteObject(l.obj) end end
 end)
 
--- Retirer le pont du point où l'on se trouve (direction) : il revient dans l'inventaire
-RegisterCommand('meca_pont_retirer', function() C.Do('liftRemove') end, false)
+-- ---------------------------------------------------------------------
+-- Reprendre le pont : touche H à côté (mécanicien en service), ou /meca_pont_retirer
+-- ---------------------------------------------------------------------
+local KEY = (Config.Interventions or {}).liftItem and Config.Interventions.liftItem.pickupKey or 74   -- H
+local function Kneel(ms)
+    local ped = PlayerPedId()
+    local dict = 'amb@medic@standing@kneel@base'
+    if C.LoadDict(dict) then TaskPlayAnim(ped, dict, 'base', 3.0, 3.0, ms, 1, 0, false, false, false) end
+    Wait(ms)
+    ClearPedTasks(ped)
+end
+local picking = false
+local function Pickup()
+    if picking then return end
+    if C.InterventionRunning and C.InterventionRunning() then return C.Notify('Terminez l\'intervention avant de reprendre le pont.', 'error') end
+    picking = true
+    Kneel(2500)
+    C.Do('liftRemove')
+    picking = false
+end
+RegisterCommand('meca_pont_retirer', function() CreateThread(Pickup) end, false)
+RegisterNetEvent('meca:client:liftAnim', function() CreateThread(function() Kneel(2500) end) end)
+
+local function Text3D(p, text)
+    SetDrawOrigin(p.x, p.y, p.z, 0)
+    SetTextScale(0.33, 0.33) SetTextFont(4) SetTextCentre(true) SetTextOutline()
+    SetTextColour(255, 255, 255, 235)
+    BeginTextCommandDisplayText('STRING') AddTextComponentSubstringPlayerName(text) EndTextCommandDisplayText(0.0, 0.0)
+    ClearDrawOrigin()
+end
+
+CreateThread(function()
+    while true do
+        local sleep = 500
+        if C.IsMeca() and C.OnDuty() and C.Can((Config.Interventions.liftItem or {}).perm or 'workshop') then
+            local ped = PlayerPedId()
+            local pos = GetEntityCoords(ped)
+            for _, l in pairs(lifts) do
+                if l.near and not IsPedInAnyVehicle(ped, false) and not (C.InterventionRunning and C.InterventionRunning()) then
+                    local d = #(pos.xy - l.coords.xy)
+                    if d < (l.radius or 3.5) + 1.5 then
+                        sleep = 0
+                        Text3D(vector3(l.coords.x, l.coords.y, l.ground + 1.2), '~y~H~s~ · Reprendre le pont roulant')
+                        if IsControlJustPressed(0, KEY) and not C.AnyOpen() then CreateThread(Pickup) end
+                    end
+                end
+            end
+        end
+        Wait(sleep)
+    end
+end)
 
 -- Hauteur à laquelle le pont lève ce véhicule pour qu'un mécanicien tienne debout dessous
 function C.LiftHeightFor(veh)
