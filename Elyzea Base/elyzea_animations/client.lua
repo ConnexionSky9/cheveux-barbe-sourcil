@@ -38,14 +38,37 @@ local Config = {
 -- (événements SyncPlayEmote / SyncPlayEmoteSource), après acceptation dans le menu Elyzea.
 
 -- ---------------------------------------------------------
+--  Touche K (menu) et X (arrêt) : enregistrées dès le chargement, avant tout le reste.
+--  Même si une erreur survenait plus bas, K répondrait au lieu de rester muette.
+--  Nouveau nom de raccourci FiveM : un ancien raccourci « touche K » perdu ou modifié ne gêne plus.
+-- ---------------------------------------------------------
+local Menu = {}   -- toggle / stop : définis plus bas, une fois le menu chargé
+local function chat(text)
+    TriggerEvent('chat:addMessage', { color = { 233, 212, 164 }, args = { 'Animations', text } })
+end
+RegisterCommand('animations', function()
+    if Menu.toggle then return Menu.toggle() end
+    chat('Le menu n\'a pas pu se charger : ouvre la console F8 et envoie les lignes en rouge.')
+end, false)
+RegisterKeyMapping('animations', 'Animations : ouvrir / fermer le menu', 'keyboard', Config.DefaultOpenKey)
+RegisterCommand('animations_arreter', function() if Menu.stop then Menu.stop() end end, false)
+RegisterKeyMapping('animations_arreter', 'Animations : arrêter l\'animation', 'keyboard', Config.DefaultStopKey)
+
+-- ---------------------------------------------------------
 local menuOpen = false
 local registered = {}
 local pendingRequest = nil   -- demande reçue en attente
 
-local settings = json.decode(GetResourceKvpString('elyzea_anim_settings') or 'null') or {}
-settings.openKey = settings.openKey or Config.DefaultOpenKey
-settings.stopKey = settings.stopKey or Config.DefaultStopKey
-local binds = json.decode(GetResourceKvpString('elyzea_anim_binds') or 'null') or {}
+local function loadKvp(key)
+    local ok, v = pcall(json.decode, GetResourceKvpString(key) or 'null')
+    if ok and type(v) == 'table' then return v end
+    if not ok then print(('[Elyzea animations] réglages « %s » illisibles : valeurs par défaut'):format(key)) end
+    return {}
+end
+local settings = loadKvp('elyzea_anim_settings')
+if type(settings.openKey) ~= 'string' or settings.openKey == '' then settings.openKey = Config.DefaultOpenKey end
+if type(settings.stopKey) ~= 'string' or settings.stopKey == '' then settings.stopKey = Config.DefaultStopKey end
+local binds = loadKvp('elyzea_anim_binds')
 
 local function notify(text, kind)
     SendNUIMessage({ action = 'notify', text = text, kind = kind })
@@ -335,7 +358,10 @@ RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une deman
 -- ---------------------------------------------------------
 local function playEmote(emote, etype, label, target, role)
     if not emote then return end
-    if emote:sub(1, 6) == 'danse:' then return Danse.Ask(emote:sub(7), target or nearestPlayer(), role) end
+    if emote:sub(1, 6) == 'danse:' then
+        if not (Danse and Danse.Ask) then return notify('Danses indisponibles : dossier danses/ manquant', 'err') end
+        return Danse.Ask(emote:sub(7), target or nearestPlayer(), role)
+    end
 
     -- Si une animation de secours précédente avait créé des objets, on les enlève
     -- avant de demander une nouvelle animation à rpemotes.
@@ -403,7 +429,7 @@ local function stopEmote(keepDance)
     local ped = PlayerPedId()
 
     -- Danse à plusieurs en cours (ou groupe en attente) : arrêt propre, les autres danseurs sont prévenus
-    if not keepDance and Danse.Stop('stop') then
+    if not keepDance and Danse and Danse.Stop and Danse.Stop('stop') then
         currentEmote, currentLabel = nil, nil
         SendNUIMessage({ action = 'stopped' })
         return
@@ -441,21 +467,61 @@ AddEventHandler('rpemotes:client:syncEmoteSource', function() releasePlaced() en
 -- ---------------------------------------------------------
 --  Menu et touches
 -- ---------------------------------------------------------
-local function openMenu()
-    if menuOpen or IsPauseMenuActive() then return end
-    menuOpen = true
-    SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', env = getEnv() })
-    if settings.preview ~= false then
-        CreateThread(function() previewEmote('__idle') end)
-    end
-end
-
+local menuAck = 0
 local function closeMenu()
     menuOpen = false
     SetNuiFocus(false, false)
     closePreview()
 end
+
+local function openMenu()
+    if menuOpen or IsPauseMenuActive() then return end
+    menuOpen = true
+    menuAck = 0
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'open', env = getEnv() })
+    if settings.preview ~= false then
+        CreateThread(function() previewEmote('__idle') end)
+    end
+    -- L'interface répond « opened » dès qu'elle s'affiche. Sans réponse, on rend la main au joueur :
+    -- jamais de souris bloquée sur un menu invisible.
+    local asked = GetGameTimer()
+    CreateThread(function()
+        Wait(2500)
+        if menuOpen and menuAck < asked then
+            closeMenu()
+            print('[Elyzea animations] l\'interface du menu ne s\'est pas affichée (html/index.html non chargé ou erreur JavaScript)')
+            chat('Le menu ne s\'est pas affiché. Tape /animreset puis réessaie avec K ; si ça recommence, envoie la console F8.')
+        end
+    end)
+end
+
+-- K : ouvre le menu, ou le referme s'il est resté ouvert sans s'afficher
+Menu.toggle = function()
+    if placing or IsPauseMenuActive() then return end
+    if menuOpen then
+        SendNUIMessage({ action = 'close' })
+        return closeMenu()
+    end
+    openMenu()
+end
+
+-- /animreset : débloque le menu (souris, placement, personnage figé) et remet les réglages par défaut
+RegisterCommand('animreset', function()
+    if placing then placing.abort = true end
+    closeMenu()
+    SendNUIMessage({ action = 'close' })
+    releasePlaced()
+    FreezeEntityPosition(PlayerPedId(), false)
+    settings = { openKey = Config.DefaultOpenKey, stopKey = Config.DefaultStopKey }
+    binds = {}
+    DeleteResourceKvp('elyzea_anim_settings')
+    DeleteResourceKvp('elyzea_anim_binds')
+    SendNUIMessage({ action = 'init', settings = settings, binds = binds,
+        keys = { accept = Config.AcceptKey, refuse = Config.RefuseKey, place = Config.Placement.Enabled and Config.Placement.Key or nil } })
+    chat(('Menu réinitialisé : %s pour l\'ouvrir, %s pour arrêter (raccourcis réglables dans Paramètres › Raccourcis › FiveM).')
+        :format(Config.DefaultOpenKey, Config.DefaultStopKey))
+end, false)
 
 -- ---------------------------------------------------------
 --  Placement : un fantôme de ton personnage fait l'animation,
@@ -746,6 +812,12 @@ RegisterCommand(Config.Placement.Command, function(_, args)
     startPlacement(cmd, cmd)
 end, false)
 
+Menu.stop = function()
+    if placing then placing.abort = true return end
+    if menuOpen then return end
+    stopEmote()
+end
+
 local function onKey(key)
     if placing then
         if key == settings.stopKey then placing.abort = true end
@@ -760,6 +832,7 @@ end
 
 local function ensureKey(key)
     if type(key) ~= 'string' or key == '' or registered[key] then return end
+    if (key == Config.DefaultOpenKey and settings.openKey == key) or (key == Config.DefaultStopKey and settings.stopKey == key) then return end
     registered[key] = true
     local cmd = 'elyzea_anim_' .. key:lower()
     RegisterCommand(cmd, function() onKey(key) end, false)
@@ -771,10 +844,23 @@ end
 --  Callbacks NUI
 -- ---------------------------------------------------------
 RegisterNUICallback('close', function(_, cb) closeMenu() cb(true) end)
+RegisterNUICallback('opened', function(_, cb) menuAck = GetGameTimer() cb(true) end)
 
 -- ---------------------------------------------------------
 --  Danses lentes, en duo et en groupe (moteur : danses/client)
 -- ---------------------------------------------------------
+local DANSES_OK = type(Danse) == 'table' and type(DanseCatalog) == 'table' and type(DanseConfig) == 'table'
+if not DANSES_OK then
+    print('[Elyzea animations] dossier danses/ absent ou incomplet : le menu fonctionne, sans les danses à plusieurs')
+    Danse, DanseCatalog, DanseConfig = Danse or {}, { List = {}, Categories = {}, Validated = {} }, DanseConfig or { Group = { InviteDistance = 8.0 } }
+    Danse.Anim = Danse.Anim or { CheckAll = function(cb) cb({}) end, CheckEntry = function() return false, 'danses absentes' end }
+    Danse.SelfBlocked = Danse.SelfBlocked or function() return nil end
+    Danse.SetMaybeLobby = Danse.SetMaybeLobby or function() end
+    Danse.Current = Danse.Current or function() return nil end
+    DanseCatalog.IsPlayable = function() return false end
+    DanseCatalog.Get = function() return nil end
+end
+
 local function danseList()
     local list = {}
     for _, e in ipairs(DanseCatalog.List) do
@@ -918,6 +1004,8 @@ RegisterNUICallback('getNearbyPlayers', function(data, cb)
 end)
 
 -- ---------------------------------------------------------
+print(('[Elyzea animations] menu prêt : touche %s (ou /animations), arrêt %s'):format(Config.DefaultOpenKey, Config.DefaultStopKey))
+
 CreateThread(function()
     ensureKey(settings.openKey)
     ensureKey(settings.stopKey)
@@ -932,7 +1020,7 @@ CreateThread(function()
     end
     Wait(1500)
     SendNUIMessage({ action = 'danses', danses = danseList() })
-    TriggerServerEvent('elyzea_danse:sv:hello')
+    if DANSES_OK then TriggerServerEvent('elyzea_danse:sv:hello') end
     SendNUIMessage({ action = 'init', settings = settings, binds = binds,
         keys = { accept = Config.AcceptKey, refuse = Config.RefuseKey,
                  place = Config.Placement.Enabled and Config.Placement.Key or nil } })

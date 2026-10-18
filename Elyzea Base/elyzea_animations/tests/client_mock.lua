@@ -5,7 +5,7 @@ CM = {
     peds = { [101] = { pos = vector3(0, 0, 0), heading = 0.0 }, [102] = { pos = vector3(0, 1.5, 0), heading = 180.0 },
              [103] = { pos = vector3(2, 0, 0), heading = 90.0 } },
     anims = {}, attached = {}, nui = {}, server = {}, nuiCb = {}, focus = false, keys = {}, pressed = {}, executed = {},
-    missingDicts = {}, missingClips = {}, dead = false, vehicle = false, visible = { [1] = true, [2] = true }, walks = 0, frozen = false,
+    missingDicts = {}, missingClips = {}, mappings = {}, dead = false, vehicle = false, visible = { [1] = true, [2] = true }, walks = 0, frozen = false,
 }
 LocalPlayer = { state = {} }
 
@@ -77,6 +77,8 @@ function SendNUIMessage(m) CM.nui[#CM.nui + 1] = m end
 function RegisterNUICallback(name, fn) CM.nuiCb[name] = fn end
 function TriggerServerEvent(name, ...) CM.server[#CM.server + 1] = { name = name, args = { ... } } end
 function TriggerEvent() end
+function RegisterKeyMapping(cmd, label, mapper, key) CM.mappings[cmd] = key end
+function DeleteResourceKvp(k) Mock.kvp[k] = nil end
 function ExecuteCommand(cmd)
     CM.executed[#CM.executed + 1] = cmd
     local name = cmd:match('^(%S+)')

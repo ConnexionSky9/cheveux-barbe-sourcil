@@ -166,6 +166,7 @@ function json.decode(s)
         local j, out = i + 1, {}
         while true do
             local c = s:sub(j, j)
+            if c == '' then error('json invalide', 0) end   -- comme FiveM : texte abîmé = erreur
             if c == '"' then i = j + 1 return table.concat(out) end
             if c == '\\' then
                 local n = s:sub(j + 1, j + 1)
@@ -181,7 +182,9 @@ function json.decode(s)
             local t = {} i = i + 1 ws()
             if s:sub(i, i) == '}' then i = i + 1 return t end
             while true do
-                ws() local k = str() ws() i = i + 1 t[k] = val() ws()
+                ws()
+                if s:sub(i, i) ~= '"' then error('json invalide', 0) end
+                local k = str() ws() i = i + 1 t[k] = val() ws()
                 local d = s:sub(i, i) i = i + 1
                 if d == '}' then return t end
             end
@@ -198,7 +201,9 @@ function json.decode(s)
         elseif s:sub(i, i + 4) == 'false' then i = i + 5 return false
         elseif s:sub(i, i + 3) == 'null' then i = i + 4 return nil
         else
-            local num = s:match('^-?[%d%.eE+-]+', i) i = i + #num return tonumber(num)
+            local num = s:match('^-?[%d%.eE+-]+', i)
+            if not num then error('json invalide', 0) end
+            i = i + #num return tonumber(num)
         end
     end
     return val()

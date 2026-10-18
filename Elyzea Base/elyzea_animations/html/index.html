@@ -738,7 +738,7 @@ $("listwrap").addEventListener("mouseleave",endPreview);
 
 /* ===================== OUVERTURE ===================== */
 const panel=$("panel");
-function open(){panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
+function open(){nui("opened");panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
 function hidePanel(){
   panel.classList.remove("open");
   ["settings","picker","bindSheet"].forEach(id=>$(id).classList.remove("open"));

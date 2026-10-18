@@ -11,7 +11,8 @@ décisions, **pas** le rendu des animations, la physique ni le réseau réel.
 | Syntaxe Lua de tous les fichiers de la ressource | 15 fichiers, 0 erreur |
 | Analyse statique (variables globales créées par erreur) | 1 défaut trouvé et corrigé (`placing`) |
 | Tests serveur : duo, groupe, sécurité, partagées | 40 réussis sur 40 |
-| Tests client : **ton vrai `client.lua`** (touche K, X, Y / L, menu) + moteur de danse | 26 réussis sur 26 |
+| Tests client : **ton vrai `client.lua`** (touche K, X, Y / L, menu) + moteur de danse | 33 réussis sur 33 |
+| Touche K quand les réglages sont abîmés ou le dossier danses/ absent | 2 réussis sur 2 |
 | Menu K ouvert dans Chromium avec les données du jeu simulé | 14 réussis sur 14 |
 | Tests de mutation (protections retirées volontairement) | les 3 mutations ont été détectées |
 

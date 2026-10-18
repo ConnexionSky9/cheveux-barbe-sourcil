@@ -296,6 +296,15 @@ Une danse dont un fichier d'animation manque est masquée automatiquement (`elyz
   Page ↑/↓, molette, Maj = fin, Entrée enregistre pour tout le monde).
 - `/danse_valider <id>` après un essai réussi, `/danse_reset <id>` pour revenir aux positions d'origine.
 
+**La touche K ne répond pas ?**
+- K et X sont enregistrées dès le chargement sous les noms « Animations : ouvrir / fermer le menu » et « Animations :
+  arrêter l'animation » (Échap › Paramètres › Raccourcis › FiveM) : vérifie qu'elles sont bien sur K et X.
+- `/animations` ouvre aussi le menu ; `/animreset` débloque tout (souris, placement, personnage figé) et remet les
+  réglages par défaut.
+- Si l'interface ne s'affiche pas, le menu se débloque seul au bout de 2,5 s et un message l'indique dans le chat.
+- En F8, la ligne `[Elyzea animations] menu prêt : touche K` confirme que le menu est chargé. Si elle n'apparaît pas,
+  envoie-moi les lignes rouges.
+
 **Diagnostic** : `animdiag` en F8 écrit la version de rpemotes trouvée, les touches, le nombre d'animations masquées
 et l'état en cours. Envoie-moi ce texte si quelque chose ne marche pas.
 

@@ -78,5 +78,29 @@ if __name__ == '__main__':
         p, f = run_suite(test_file, files)
         total_p += p
         total_f += f
+    # Situations de panne au chargement : la touche K doit quand même ouvrir le menu
+    print('\nTouche K dans des situations de panne :')
+    variants = [
+        ('Réglages enregistrés illisibles (KVP abîmé)', "Mock.kvp.elyzea_anim_settings = '{abîmé' ; Mock.kvp.elyzea_anim_binds = 'null'",
+         SHARED + ['tests/client_mock.lua'] + CLIENT),
+        ('Dossier danses/ absent (ancien fxmanifest)', '', ['tests/client_mock.lua', 'anim_data.lua', 'client.lua']),
+    ]
+    for title, pre, files in variants:
+        lua = lua54.LuaRuntime()
+        load(lua, 'tests/fivem_mock.lua')
+        try:
+            for i, rel in enumerate(files):
+                if rel == 'tests/client_mock.lua':
+                    load(lua, rel)
+                    if pre:
+                        lua.execute(pre)
+                else:
+                    load(lua, rel)
+            lua.execute("Mock.Advance(9000); Mock.commands['animations']()")
+            ok = bool(lua.eval('CM.focus'))
+        except Exception as e:  # une erreur au chargement = K morte
+            ok, title = False, title + ' : ' + str(e).splitlines()[0]
+        print(('  RÉUSSI  ' if ok else '  ÉCHEC   ') + title)
+        total_p, total_f = total_p + (1 if ok else 0), total_f + (0 if ok else 1)
     print('\nRésultat : %d réussi(s), %d échec(s), %d erreur(s) de syntaxe' % (total_p, total_f, bad))
     sys.exit(1 if (total_f or bad) else 0)
