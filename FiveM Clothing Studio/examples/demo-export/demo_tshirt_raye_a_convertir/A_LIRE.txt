@@ -1,0 +1,15 @@
+TEXTURES À CONVERTIR EN .YTD
+
+L'application exporte vos textures en DDS (avec mipmaps), le format attendu dans un dictionnaire
+de textures GTA V, mais elle ne sait pas encore fabriquer le fichier .ytd lui-même.
+
+Pour chaque ligne ci-dessous :
+1. Ouvrez CodeWalker (https://github.com/dexyfex/CodeWalker) > Tools > RPF Explorer ou l'éditeur YTD,
+   ou tout outil capable de créer / modifier un .ytd.
+2. Créez (ou ouvrez) le .ytd indiqué et ajoutez la texture DDS en la nommant comme indiqué.
+3. Placez le .ytd dans « demo_tshirt_raye/stream/ », ou importez-le dans le projet et ré-exportez.
+
+- jbib_diff_000_a_uni.dds  →  mp_m_freemode_01^jbib_diff_000_a_uni.ytd  (texture « jbib_diff_000_a_uni », DXT1, 512×512)
+
+Le nom de texture indiqué suit la convention des vêtements du jeu ; vérifiez-le dans l'outil si votre modèle
+utilise un autre nom.

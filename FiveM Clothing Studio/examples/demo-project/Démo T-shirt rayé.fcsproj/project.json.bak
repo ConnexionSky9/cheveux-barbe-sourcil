@@ -1,0 +1,44 @@
+{
+  "format": "fivem-clothing-studio-project",
+  "formatVersion": 2,
+  "appVersion": "0.1.0",
+  "id": "a07b9067-da8a-44b4-b210-8a1406405a77",
+  "name": "Démo T-shirt rayé",
+  "description": "Projet de démonstration créé avec des ressources générées (aucun fichier du jeu).",
+  "createdAt": "2026-10-18T01:37:09.452Z",
+  "updatedAt": "2026-10-18T01:37:09.452Z",
+  "targetPeds": [
+    "mp_m_freemode_01"
+  ],
+  "categories": [
+    "T-shirts",
+    "Hauts",
+    "Vestes",
+    "Pantalons",
+    "Chaussures",
+    "Accessoires",
+    "Chapeaux",
+    "Masques",
+    "Gants",
+    "Sacs",
+    "Autres"
+  ],
+  "assets": [],
+  "textureDocs": [],
+  "garments": [],
+  "exportSettings": {
+    "packName": "Démo T-shirt rayé",
+    "resourceName": "",
+    "mode": "replace",
+    "destination": "",
+    "collections": {}
+  },
+  "referenceModels": {},
+  "reports": [],
+  "history": [
+    {
+      "t": "2026-10-18T01:37:09.453Z",
+      "action": "Projet créé"
+    }
+  ]
+}

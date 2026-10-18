@@ -1,0 +1,35 @@
+{
+  "type": "fcs-texture-document",
+  "version": 1,
+  "name": "T-shirt rayé (logo)",
+  "width": 512,
+  "height": 512,
+  "layers": [
+    {
+      "x": 0,
+      "y": 0,
+      "scale": 1,
+      "rotation": 0,
+      "opacity": 1,
+      "visible": true,
+      "id": "Lmvd5nre20",
+      "name": "Original",
+      "file": "layers/Lmvd5nre20.png",
+      "w": 512,
+      "h": 512
+    },
+    {
+      "x": 192,
+      "y": 140,
+      "scale": 1,
+      "rotation": -8,
+      "opacity": 0.95,
+      "visible": true,
+      "id": "Lmvd5nrfm1",
+      "name": "Logo",
+      "file": "layers/Lmvd5nrfm1.png",
+      "w": 128,
+      "h": 128
+    }
+  ]
+}

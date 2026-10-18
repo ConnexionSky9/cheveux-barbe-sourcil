@@ -1,0 +1,164 @@
+{
+  "format": "fivem-clothing-studio-project",
+  "formatVersion": 2,
+  "appVersion": "0.1.0",
+  "id": "a07b9067-da8a-44b4-b210-8a1406405a77",
+  "name": "Démo T-shirt rayé",
+  "description": "Projet de démonstration créé avec des ressources générées (aucun fichier du jeu).",
+  "createdAt": "2026-10-18T01:37:09.452Z",
+  "updatedAt": "2026-10-18T01:37:09.627Z",
+  "targetPeds": [
+    "mp_m_freemode_01"
+  ],
+  "categories": [
+    "T-shirts",
+    "Hauts",
+    "Vestes",
+    "Pantalons",
+    "Chaussures",
+    "Accessoires",
+    "Chapeaux",
+    "Masques",
+    "Gants",
+    "Sacs",
+    "Autres"
+  ],
+  "assets": [
+    {
+      "id": "618721ff-273e-4ed7-b4ca-b854b875292d",
+      "kind": "texture",
+      "format": "png",
+      "name": "tissu_rayures.png",
+      "file": "assets/originals/618721ff_tissu_rayures.png",
+      "originalPath": null,
+      "size": 305913,
+      "sha256": "edfe0d167695ef1557c9c41d9265862e9fc91cd52cf531474c0c7eebd0d30785",
+      "importedAt": "2026-10-18T01:37:09.454Z",
+      "info": {
+        "summary": "Fichier de démonstration généré",
+        "status": {
+          "readable": true,
+          "viewable": true,
+          "editable": true,
+          "convertible": true,
+          "exportable": false
+        }
+      }
+    },
+    {
+      "id": "e37b3fca-fb7b-4fb1-863b-08e69e16b2f7",
+      "kind": "texture",
+      "format": "png",
+      "name": "logo_demo.png",
+      "file": "assets/originals/e37b3fca_logo_demo.png",
+      "originalPath": null,
+      "size": 1241,
+      "sha256": "1e51c76fc1c98ff1ef17ebba8bf4f5dce5d1341d8ddbbd319823b44e864002c0",
+      "importedAt": "2026-10-18T01:37:09.455Z",
+      "info": {
+        "summary": "Fichier de démonstration généré",
+        "status": {
+          "readable": true,
+          "viewable": true,
+          "editable": true,
+          "convertible": true,
+          "exportable": false
+        }
+      }
+    },
+    {
+      "id": "c8b989ea-9f5b-4097-b5e1-9ff10c032d24",
+      "kind": "model",
+      "format": "glb",
+      "name": "torse_demo.glb",
+      "file": "assets/originals/c8b989ea_torse_demo.glb",
+      "originalPath": null,
+      "size": 3460,
+      "sha256": "837ee62a67fcb375fa50e62db2a74dcc11466bd3f302feefd79fdbc5fb9f04e0",
+      "importedAt": "2026-10-18T01:37:09.455Z",
+      "info": {
+        "summary": "Fichier de démonstration généré",
+        "status": {
+          "readable": true,
+          "viewable": true,
+          "editable": true,
+          "convertible": false,
+          "exportable": false
+        }
+      }
+    }
+  ],
+  "textureDocs": [
+    {
+      "id": "5c1e4dfa-6970-45fc-98f2-3a45b9dc2b3c",
+      "name": "T-shirt rayé (logo)",
+      "dir": "textures/5c1e4dfa-6970-45fc-98f2-3a45b9dc2b3c",
+      "sourceAssetId": "618721ff-273e-4ed7-b4ca-b854b875292d",
+      "createdAt": "2026-10-18T01:37:09.482Z",
+      "width": 512,
+      "height": 512,
+      "layers": 2,
+      "updatedAt": "2026-10-18T01:37:09.627Z"
+    }
+  ],
+  "garments": [
+    {
+      "id": "8e2b5a76-4679-4108-83be-52bd51bde871",
+      "name": "T-shirt rayé",
+      "description": "Démonstration",
+      "category": "T-shirts",
+      "ped": "mp_m_freemode_01",
+      "kind": "component",
+      "slot": "jbib",
+      "drawableIndex": 0,
+      "yddAssetId": null,
+      "modelAssetId": "c8b989ea-9f5b-4097-b5e1-9ff10c032d24",
+      "materials": [
+        {
+          "name": "Tissu",
+          "textureDocId": "5c1e4dfa-6970-45fc-98f2-3a45b9dc2b3c"
+        }
+      ],
+      "variants": [
+        {
+          "id": "6f4e235e-745a-429e-ad7e-e846af616312",
+          "name": "Rayé bleu",
+          "letter": "a",
+          "ytdAssetId": null,
+          "textureDocId": "5c1e4dfa-6970-45fc-98f2-3a45b9dc2b3c"
+        }
+      ]
+    }
+  ],
+  "exportSettings": {
+    "packName": "Démo T-shirt rayé",
+    "resourceName": "demo_tshirt_raye",
+    "mode": "replace",
+    "destination": "",
+    "collections": {}
+  },
+  "referenceModels": {},
+  "reports": [],
+  "history": [
+    {
+      "t": "2026-10-18T01:37:09.453Z",
+      "action": "Projet créé"
+    },
+    {
+      "t": "2026-10-18T01:37:09.454Z",
+      "action": "Import : tissu_rayures.png"
+    },
+    {
+      "t": "2026-10-18T01:37:09.455Z",
+      "action": "Import : logo_demo.png"
+    },
+    {
+      "t": "2026-10-18T01:37:09.455Z",
+      "action": "Import : torse_demo.glb"
+    },
+    {
+      "t": "2026-10-18T01:37:09.482Z",
+      "action": "Texture créée : tissu_rayures"
+    }
+  ]
+}

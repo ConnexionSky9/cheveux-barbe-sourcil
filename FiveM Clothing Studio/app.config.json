@@ -1,0 +1,23 @@
+{
+  "$comment": "Configuration centrale de FiveM Clothing Studio. Les valeurs vides sont détectées automatiquement. Une copie modifiable est créée dans le dossier utilisateur (Paramètres > Ouvrir le fichier de configuration).",
+  "appName": "FiveM Clothing Studio",
+  "language": "fr",
+  "autosaveSeconds": 60,
+  "undoSteps": 40,
+  "limits": {
+    "maxImportBytes": 268435456,
+    "maxTextureSize": 4096,
+    "warnTextureSize": 2048,
+    "maxModelBytes": 268435456,
+    "streamAssetWarnBytes": 16777216
+  },
+  "tools": {
+    "blender": "",
+    "codewalker": "",
+    "sollumzAddonDir": ""
+  },
+  "fivem": {
+    "fxVersion": "cerulean",
+    "game": "gta5"
+  }
+}

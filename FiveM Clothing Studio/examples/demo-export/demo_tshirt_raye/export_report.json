@@ -1,0 +1,50 @@
+{
+  "tool": "FiveM Clothing Studio",
+  "appVersion": "0.1.0",
+  "generatedAt": "2026-10-18T01:37:09.722Z",
+  "durationMs": 93,
+  "resourceName": "demo_tshirt_raye",
+  "packName": "Démo T-shirt rayé",
+  "mode": "replace",
+  "status": "incomplete",
+  "statusLabel": "Incomplet : conversion externe requise avant installation",
+  "testedInGame": false,
+  "files": [],
+  "conversionsRequired": [
+    {
+      "dds": "jbib_diff_000_a_uni.dds",
+      "ytd": "mp_m_freemode_01^jbib_diff_000_a_uni.ytd",
+      "textureName": "jbib_diff_000_a_uni",
+      "format": "DXT1",
+      "width": 512,
+      "height": 512,
+      "notes": []
+    }
+  ],
+  "checks": {
+    "manifest": "ok",
+    "copiesIdentical": true,
+    "structure": "ok"
+  },
+  "issues": [
+    {
+      "level": "info",
+      "message": "« T-shirt rayé » : aucun .ydd, seules les textures du vêtement jbib n° 0 du jeu seront remplacées.",
+      "ref": "8e2b5a76-4679-4108-83be-52bd51bde871"
+    },
+    {
+      "level": "info",
+      "message": "« T-shirt rayé » : le modèle 3D de travail (torse_demo.glb) sert à l'aperçu ; il n'est pas exporté (conversion en .ydd requise).",
+      "ref": "8e2b5a76-4679-4108-83be-52bd51bde871"
+    },
+    {
+      "level": "warning",
+      "message": "« T-shirt rayé » variante a : texture créée dans l'application, à intégrer dans « mp_m_freemode_01^jbib_diff_000_a_uni.ytd » avec un outil externe (CodeWalker). Le pack sera marqué incomplet.",
+      "ref": "8e2b5a76-4679-4108-83be-52bd51bde871"
+    },
+    {
+      "level": "warning",
+      "message": "Aucun fichier de vêtement prêt à diffuser (.ydd / .ytd)."
+    }
+  ]
+}
