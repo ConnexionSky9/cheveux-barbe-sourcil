@@ -91,6 +91,16 @@ Voir le tableau complet dans [`docs/FORMATS.md`](docs/FORMATS.md) (lisible, modi
 
 Ces guides sont aussi lisibles dans l'application (**Aide**, touche F1).
 
+## Trous et zones transparentes d'un vêtement (.ytd)
+
+```bash
+node scripts/transparence.js analyse "…^jbib_diff_012_a_uni.ytd"           # rapport + images (zones invisibles en magenta)
+node scripts/transparence.js reparer "…^jbib_diff_012_a_uni.ytd" --texture jbib_diff_012_a_uni --masque masque.png
+```
+
+Seuls les pixels blancs du masque deviennent opaques (les transparences voulues restent) ; le fichier
+d'origine n'est jamais modifié. Procédure complète : `Elyzea Base/elyzea_vetements_correctifs/README.md`.
+
 ## Exemples
 
 - `examples/demo-project/Démo T-shirt rayé.fcsproj` — projet de démonstration créé avec des ressources générées pour l'occasion (motif, logo, modèle 3D simple). Aucun fichier du jeu, aucun contenu de tiers.
