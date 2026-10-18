@@ -23,7 +23,7 @@ V.__add = function(a, b) return a.n == 2 and vec(a.x + b.x, a.y + b.y) or vec(a.
 V.__sub = function(a, b) return a.n == 2 and vec(a.x - b.x, a.y - b.y) or vec(a.x - b.x, a.y - b.y, (a.z or 0) - (b.z or 0)) end
 V.__len = function(a) return math.sqrt(a.x * a.x + a.y * a.y + (a.n == 3 and a.z * a.z or 0)) end
 function vector3(x, y, z) return vec(x + 0.0, y + 0.0, z + 0.0) end
-function joaat(s) local h = 0 for i = 1, #s do h = (h * 31 + s:byte(i)) % 4294967296 end return h end
+function GetHashKey(s) local h = 0 for i = 1, #s do h = (h * 31 + s:byte(i)) % 4294967296 end return h end
 
 -- ---------------------------------------------------------------- temps et fils
 local TIME, threads = 0, {}
@@ -61,7 +61,7 @@ local function newEnt(kind, t) nextId = nextId + 1 t.id = nextId t.kind = kind e
 
 local function newWorld()
     ents, nextId = {}, 100
-    W.veh = newEnt('veh', { pos = vector3(100.0, 200.0, 30.5), rot = vector3(0.0, 0.0, 90.0), heading = 90.0, frozen = true, model = joaat('sultan'),
+    W.veh = newEnt('veh', { pos = vector3(100.0, 200.0, 30.5), rot = vector3(0.0, 0.0, 90.0), heading = 90.0, frozen = true, model = GetHashKey('sultan'),
         doors = {}, broken = {}, burst = {}, mods = {}, engine = 1000.0, body = 1000.0, tank = 1000.0, dirt = 2.0, locked = 1, plate = 'ABC123',
         net = 900, seats = {}, damaged = false })
     W.ped = newEnt('ped', { pos = vector3(103.0, 200.0, 30.0), heading = 0.0, anim = nil, scenario = nil, inVeh = nil, dead = false })
@@ -380,7 +380,7 @@ check(propsLeft() == 0 and next(P.wsBusy) == nil, 'chandelles retirées, emplace
 
 print('\n[6] Modèles et animations absents : l\'intervention se termine quand même')
 newWorld() W.applied = {}
-for _, name in ipairs({ 'prop_cs_wrench', 'prop_carjack', 'imp_prop_car_jack_01a', 'imp_prop_impexp_tyre_01a', 'prop_wheel_tyre', 'imp_prop_impexp_bonnet_02a', 'imp_prop_impexp_bonnet_01a' }) do W.missingModels[joaat(name)] = true end
+for _, name in ipairs({ 'prop_cs_wrench', 'prop_carjack', 'imp_prop_car_jack_01a', 'imp_prop_impexp_tyre_01a', 'prop_wheel_tyre', 'imp_prop_impexp_bonnet_02a', 'imp_prop_impexp_bonnet_01a' }) do W.missingModels[GetHashKey(name)] = true end
 W.missingDicts['mini@repair'] = true
 local uid6 = newQuote({ { code = 'cosmetic_wheels', spec = { t = 'wheels', wt = 0, v = 3 }, label = 'Jante 4' }, { code = 'cosmetic_body', spec = { t = 'mod', id = 7, v = 1 }, label = 'Capot 2' } })
 local r6 = run(uid6)

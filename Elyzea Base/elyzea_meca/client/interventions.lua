@@ -53,7 +53,7 @@ end
 -- Premier modèle existant d'une liste (nil si aucun : l'étape continue sans objet)
 local function LoadModel(list)
     for _, name in ipairs(type(list) == 'table' and list or { list }) do
-        local h = type(name) == 'number' and name or joaat(name)
+        local h = type(name) == 'number' and name or GetHashKey(name)
         if IsModelInCdimage(h) and IsModelValid(h) then
             RequestModel(h)
             local t = GetGameTimer() + 3000

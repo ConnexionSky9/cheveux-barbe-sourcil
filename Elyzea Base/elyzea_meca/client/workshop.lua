@@ -505,10 +505,16 @@ end
 -- L'atelier se ferme pendant le travail ; à la fin, l'état posé devient la référence du véhicule.
 RegisterNUICallback('wsInstall', function(body, cb)
     if not WS.open then return cb({ error = 'Atelier fermé.' }) end
+    -- Fichier des interventions absent : manifeste pas rechargé (« refresh » puis « ensure elyzea_meca »)
+    if type(C.RunIntervention) ~= 'function' or type(C.InterventionRunning) ~= 'function' then
+        print('^1[MECA] client/interventions.lua non chargé : tapez « refresh » puis « ensure elyzea_meca » dans la console du serveur.^0')
+        return cb({ error = 'Mise à jour incomplète : la direction doit taper « refresh » puis « ensure elyzea_meca » dans la console du serveur.' })
+    end
     if C.InterventionRunning() then return cb({ error = 'Une intervention est déjà en cours.' }) end
     local veh = WS.veh
-    Restore()                         -- on enlève les aperçus : seul le devis sera posé, pièce par pièce
-    Control(veh)
+    if not veh or not DoesEntityExist(veh) then return cb({ error = 'Véhicule introuvable.' }) end
+    local okR, errR = pcall(function() Restore() Control(veh) end)   -- on enlève les aperçus : seul le devis sera posé, pièce par pièce
+    if not okR then print(('^1[MECA] Préparation de l\'intervention : %s^0'):format(tostring(errR))) end
     WS.busy = true
     CamStop()
     C.Focus('workshop', false)
