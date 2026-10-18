@@ -270,7 +270,7 @@ end
 local function WalkTo(pos, heading, fn, final)
     local ped = PlayerPedId()
     local reach = final and 0.3 or 0.55
-    TaskGoStraightToCoord(ped, pos.x, pos.y, pos.z, 1.0, 20000, heading or 0.0, 0.2)
+    TaskGoStraightToCoord(ped, pos.x, pos.y, pos.z, IC.walkSpeed or 1.6, 20000, heading or 0.0, 0.2)
     local last, lastT, navmesh = GetEntityCoords(ped), GetGameTimer(), false
     local deadline = GetGameTimer() + 20000
     while GetGameTimer() < deadline do
@@ -287,7 +287,7 @@ local function WalkTo(pos, heading, fn, final)
                     return false
                 end
                 navmesh = true
-                TaskFollowNavMeshToCoord(ped, pos.x, pos.y, pos.z, 1.0, 8000, 0.25, 0, heading or 0.0)
+                TaskFollowNavMeshToCoord(ped, pos.x, pos.y, pos.z, IC.walkSpeed or 1.6, 8000, 0.25, 0, heading or 0.0)
             end
             last, lastT = cur, GetGameTimer()
         end
@@ -305,8 +305,8 @@ local function GoTo(pos, heading, fn)
         if not WalkTo(p, i == #pts and heading or nil, fn, i == #pts) then return false end
     end
     if heading then
-        TaskAchieveHeading(ped, heading, 800)
-        local t = GetGameTimer() + 900
+        TaskAchieveHeading(ped, heading, 500)
+        local t = GetGameTimer() + 500
         while GetGameTimer() < t do
             if not Check() then return false end
             if fn then fn() end
@@ -370,7 +370,7 @@ local function Scenario(name, pos, heading, ms, label, lines)
     end
     local res = HoldApply(ms, label, lines)
     ClearPedTasks(ped)
-    Wait(600)
+    Wait(350)
     return res
 end
 
@@ -398,7 +398,7 @@ local function Carry(partSpec, to, back, backHeading, label)
     keep()
     SendNUIMessage({ action = 'progress', show = true, label = (label or 'Pièce') .. '  ·  X : interrompre', duration = D('carry', 5000) })
     local ok = GoTo(to, nil, keep)
-    if ok then ok = Hold(900, nil, keep) end
+    if ok then ok = Hold(500, nil, keep) end
     if ok then ok = GoTo(back, backHeading, keep) end
     SendNUIMessage({ action = 'progress', show = false })
     if okDict then StopAnimTask(ped, carry[1], carry[2], 1.0) end
@@ -469,6 +469,12 @@ end
 local function LiftTeardown()
     for _, o in ipairs(lift.props) do DeleteProp(o) end
     lift = { props = {} }
+end
+
+-- Bras du pont roulant sous la voiture (vu par tous : état partagé du véhicule)
+local function LiftArms(on)
+    if not I.veh or not DoesEntityExist(I.veh) then return end
+    pcall(function() Entity(I.veh).state:set('mecaLift', on == true, true) end)
 end
 
 local function OpenDoor(i)
@@ -543,6 +549,7 @@ local function CleanScene()
             end
             LiftTo(0.0, 1200)
         end
+        LiftArms(false)
         SetEntityCoordsNoOffset(veh, I.base.pos.x, I.base.pos.y, I.base.pos.z, false, false, false)
         SetEntityRotation(veh, I.base.rot.x, I.base.rot.y, I.base.rot.z, 2, true)
         for d in pairs(I.doors) do SetVehicleDoorShut(veh, d, false) end
@@ -969,6 +976,11 @@ function C.RunIntervention(veh, uid, netId)
     if not I.abort and needLift then
         local h, mode = LiftSetup(r.lift == true)
         I.liftMode, I.liftTop = mode, h
+        if mode == 'lift' then
+            -- Les 4 bras pivotent sous les points de levage avant la montée
+            LiftArms(true)
+            Hold(D('liftArms', 1200), 'Pont roulant : bras sous la voiture')
+        end
         SendNUIMessage({ action = 'progress', show = true, label = mode == 'lift' and 'Montée sur le pont élévateur' or 'Mise sur chandelles', duration = D('liftUp', 4000) })
         LiftTo(h, D('liftUp', 4000))
         SendNUIMessage({ action = 'progress', show = false })
@@ -988,6 +1000,7 @@ function C.RunIntervention(veh, uid, netId)
             Stop()
             SendNUIMessage({ action = 'progress', show = true, label = 'Descente du véhicule', duration = D('liftDown', 3500) })
             if not LiftTo(0.0, D('liftDown', 3500)) and not I.abort then I.abort = 'descente impossible' end
+            LiftArms(false)
             SendNUIMessage({ action = 'progress', show = false })
             LiftTeardown()
         end

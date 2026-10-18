@@ -85,7 +85,7 @@ seulement pour les pièces achetées. Les prix, le paiement (à l'acceptation, u
 - **Poser** : un mécanicien en service, à pied à côté d'un véhicule garé sur un point d'atelier, **utilise** l'objet (inventaire) : le pont est posé sous ce véhicule (orienté comme lui, enregistré, visible par tous) et l'objet quitte l'inventaire. Un seul pont par point.
 - **Reprendre** : n'importe quel mécanicien en service, à côté du pont, appuie sur **H** (texte « H · Reprendre le pont roulant ») ou tape `/meca_pont_retirer` : le pont revient dans **son** inventaire. Impossible pendant une intervention ou sans place dans l'inventaire.
 - Sur un point équipé : le véhicule monte jusqu'à laisser ~1,95 m sous la caisse, le mécanicien **passe dessous** et travaille debout bras levés (scénario `PROP_HUMAN_MOVIE_BULB`, repli `WORLD_HUMAN_WELDING`) ; le pont redescend à hauteur des roues pour les freins et les roues, puis au sol. Le mécanicien sort toujours de dessous avant une descente.
-- Le pont est **dessiné par le script** (colonnes jaunes, chariots et bras qui suivent le dessous du véhicule) : le jeu de base n'a pas de modèle de pont garanti. Si ta map ou un pack en fournit un, mets son nom dans `Config.Interventions.lift.models`.
+- Le pont est **dessiné par le script** : 2 colonnes jaunes, 2 chariots et **4 bras**. Au repos les bras sont repliés le long des colonnes ; au début de l'intervention ils pivotent sous les 4 points de levage, puis les chariots montent avec la voiture ; à la fin ils se replient (état partagé par le véhicule : tous les joueurs voient la même chose). Le jeu de base n'a pas de modèle de pont garanti : si ta map ou un pack en fournit un, mets son nom dans `Config.Interventions.lift.models`.
 - Supprimer un point équipé rend aussi l'objet.
 - Points sans pont : chandelles et chariot, comme avant.
 - Obtenir l'objet : `pont_roulant` se donne comme les autres objets (menu staff / give).
@@ -105,12 +105,13 @@ Les pièces déjà posées restent posées ; le devis reste payé : **rouvrir l'
 Sans reprise : après `installTimeout`, ou au redémarrage du serveur, les pièces posées sont facturées et enregistrées, le reste remboursé.
 Déconnexion du mécanicien : le serveur supprime ses objets et fait remettre le véhicule en état par le joueur qui le contrôle.
 
-**Réglages** : `Config.Interventions` dans `config.lua` (vitesse, durées, animations, objets et leur position en main, levage).
+**Réglages** : `Config.Interventions` dans `config.lua` (vitesse `speed` = 0.6 par défaut, marche `walkSpeed`, durées, animations, objets et leur position en main, levage, `lift.armSwing`).
+- Néons : proposés seulement si le véhicule accepte des néons (certains véhicules de packs ne les affichent pas). Une pièce qui ne se pose pas est réessayée une fois ; sinon la console F8 indique la valeur attendue et la valeur relue.
 - **Pont élévateur** : le jeu de base n'a pas, à ma connaissance, de pont animé fiable. Par défaut : chandelles (`prop_carjack`) et véhicule levé de 50 cm, mécanicien sur chariot. Si ta map contient un modèle de pont, mets son nom dans `lift.model` (et `lift.height`, `lift.platformMoves` si c'est un plateau qui doit monter avec la voiture) : le véhicule monte alors à `lift.height` et le mécanicien travaille debout dessous.
 - `underHeadingOffset` / `underOffset` : si le mécanicien s'allonge dans le mauvais sens ou trop loin, ajuste ces valeurs.
 - Les objets en main (`props`) ont une position réglable ; les modèles `imp_prop_impexp_*` viennent du DLC Import/Export (inclus dans le build du serveur). Un modèle absent est simplement ignoré.
 
-**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (76 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé sous un véhicule / utilisé / repris avec H, passage sous le véhicule, chute rattrapée).
+**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (85 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé sous un véhicule / utilisé / repris avec H, passage sous le véhicule, chute rattrapée).
 
 ## CarPlay (installation payante)
 

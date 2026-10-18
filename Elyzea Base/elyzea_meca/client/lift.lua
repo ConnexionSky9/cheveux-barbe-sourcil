@@ -113,40 +113,65 @@ CreateThread(function()
     end
 end)
 
--- Dessin du pont « script » (colonnes, chariots et bras au niveau du dessous du véhicule)
+-- Dessin du pont « script » : 2 colonnes, 2 chariots qui montent avec la voiture et 4 bras
+-- qui pivotent sous la voiture (repliés le long des colonnes au repos). L'état « bras sous la
+-- voiture » est partagé par le véhicule (state bag mecaLift) : tout le monde voit la même chose.
+local function lerpAngle(a, b, t)
+    local d = (b - a + math.pi) % (2 * math.pi) - math.pi
+    return a + d * t
+end
+
 CreateThread(function()
+    local last = GetGameTimer()
     while true do
         local any = false
+        local now = GetGameTimer()
+        local dt = math.min(0.1, (now - last) / 1000)
+        last = now
         for _, l in pairs(lifts) do
             if l.near and not l.obj then
                 any = true
                 local veh = l.veh and DoesEntityExist(l.veh) and l.veh or nil
+                -- Bras : 0 = repliés le long des colonnes, 1 = sous les points de levage
+                local want = (veh and Entity(veh).state.mecaLift) and 1.0 or 0.0
+                l.t = l.t or want
+                local speed = dt / (LC.armSwing or 1.0)
+                if l.t < want then l.t = math.min(want, l.t + speed) elseif l.t > want then l.t = math.max(want, l.t - speed) end
+                local e = l.t * l.t * (3.0 - 2.0 * l.t)
+
                 local heading = veh and GetEntityHeading(veh) or l.h
                 local half = veh and l.half or 1.0
+                local len = veh and l.len or 4.4
                 local cx, cy = l.coords.x, l.coords.y
                 if veh then local vp = GetEntityCoords(veh) cx, cy = vp.x, vp.y end
                 local g = l.ground
                 local postH = LC.postHeight or 2.9
                 local armZ = g + 0.12
                 if veh then armZ = math.max(g + 0.12, GetEntityCoords(veh).z + l.minZ - 0.03) end
-                armZ = math.min(armZ, g + postH - 0.2)
+                armZ = math.min(armZ, g + postH - 0.25)
                 local hr = math.rad(heading)
-                local function W(x, y, z) return vector3(cx + x * math.cos(hr) - y * math.sin(hr), cy + x * math.sin(hr) + y * math.cos(hr), z) end
-                local px = half + 0.45
+                local ch, sh = math.cos(hr), math.sin(hr)
+                local function W(x, y, z) return vector3(cx + x * ch - y * sh, cy + x * sh + y * ch, z) end
+                local px = half + 0.5
                 for _, side in ipairs({ -1, 1 }) do
-                    local base = W(side * px, 0.0, g)
-                    box(W(side * px, 0.0, g + 0.03), 0.32, 0.32, 0.03, heading, DARK)                    -- platine au sol
-                    box(W(side * px, 0.0, g + postH / 2), 0.13, 0.13, postH / 2, heading, COL)           -- colonne
-                    box(W(side * px, 0.0, g + postH + 0.04), 0.18, 0.18, 0.04, heading, DARK)            -- chapeau
-                    box(W(side * px, 0.0, armZ + 0.12), 0.18, 0.2, 0.16, heading, DARK)                  -- chariot (monte avec la voiture)
-                    local root = W(side * (px - 0.12), 0.0, armZ)
-                    local len = (l.len or 4.4) * 0.32
-                    bar(root, W(side * half * 0.55, len, armZ), 0.05, DARK)                            -- bras avant
-                    bar(root, W(side * half * 0.55, -len, armZ), 0.05, DARK)                           -- bras arrière
-                    box(W(side * half * 0.55, len, armZ + 0.03), 0.09, 0.09, 0.03, heading, COL)        -- tampons
-                    box(W(side * half * 0.55, -len, armZ + 0.03), 0.09, 0.09, 0.03, heading, COL)
+                    box(W(side * px, 0.0, g + 0.03), 0.34, 0.34, 0.03, heading, DARK)                     -- platine au sol
+                    box(W(side * px, 0.0, g + postH / 2), 0.16, 0.16, postH / 2, heading, COL)            -- colonne
+                    box(W(side * px, 0.0, g + postH + 0.05), 0.2, 0.2, 0.05, heading, DARK)               -- chapeau
+                    box(W(side * px, 0.0, armZ + 0.14), 0.22, 0.24, 0.18, heading, DARK)                  -- chariot (monte avec la voiture)
+                    -- 2 bras par colonne : avant et arrière
+                    local rx, ry = side * (px - 0.12), 0.0
+                    for _, fb in ipairs({ 1, -1 }) do
+                        local ux, uy = side * half * 0.55, fb * len * 0.3          -- point de levage sous la voiture
+                        local fx, fy = side * (px + 0.02), fb * len * 0.36         -- replié, le long de la voiture
+                        local au, lu = math.atan(uy - ry, ux - rx), math.sqrt((ux - rx) ^ 2 + (uy - ry) ^ 2)
+                        local af, lf = math.atan(fy - ry, fx - rx), math.sqrt((fx - rx) ^ 2 + (fy - ry) ^ 2)
+                        local ang, ln = lerpAngle(af, au, e), lf + (lu - lf) * e
+                        local ex, ey = rx + ln * math.cos(ang), ry + ln * math.sin(ang)
+                        bar(W(rx, ry, armZ), W(ex, ey, armZ), 0.06, DARK)                                  -- bras
+                        box(W(ex, ey, armZ + 0.05), 0.1, 0.1, 0.05, heading, COL)                          -- tampon de levage
+                    end
                 end
-                box(W(0.0, 0.0, g + postH + 0.06), px, 0.06, 0.04, heading, COL)                      -- traverse haute
+                box(W(0.0, 0.0, g + postH + 0.07), px, 0.07, 0.05, heading, COL)                         -- traverse haute
             end
         end
         Wait(any and 0 or 500)

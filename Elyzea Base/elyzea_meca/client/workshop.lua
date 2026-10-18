@@ -89,7 +89,7 @@ local function Subs(veh, group)
         return out
     elseif group == 'paint' then return { { id = '1', label = 'Peinture principale' }, { id = '2', label = 'Peinture secondaire' } }
     elseif group == 'neon' then
-        if not IsThisModelACar(GetEntityModel(veh)) then return {} end
+        if not IsThisModelACar(GetEntityModel(veh)) or not C.NeonSupported(veh) then return {} end
         local out = {}
         for _, l in ipairs(NEON_LAYOUT) do out[#out + 1] = { id = l[1], label = l[2] } end
         return out
@@ -104,6 +104,17 @@ local function Subs(veh, group)
         return out
     end
     return nil
+end
+
+-- Le véhicule accepte-t-il des néons ? (certains modèles, souvent ajoutés par un pack, ne les affichent pas :
+-- le jeu refuse alors de les allumer). Essai sur le côté gauche, état d'origine remis aussitôt.
+function C.NeonSupported(veh)
+    local was = IsVehicleNeonLightEnabled(veh, 0)
+    SetVehicleModKit(veh, 0)
+    SetVehicleNeonLightEnabled(veh, 0, true)
+    local ok = IsVehicleNeonLightEnabled(veh, 0)
+    SetVehicleNeonLightEnabled(veh, 0, was)
+    return ok == true or ok == 1
 end
 
 local function Options(veh, group, sub)
@@ -266,10 +277,14 @@ local function Verify(veh, patch)
                 v = v == true or v == 1
             end
             if k == 'extras' then
-                for id, val in pairs(v) do if (tonumber((got or {})[tostring(id)]) or -1) ~= tonumber(val) then return false end end
+                for id, val in pairs(v) do if (tonumber((got or {})[tostring(id)]) or -1) ~= tonumber(val) then return false, k, got, v end end
             elseif k == 'plate' then
-                if C.Plate(veh):upper() ~= tostring(v):upper() then return false end
-            elseif not Same(got, v) then return false end
+                if C.Plate(veh):upper() ~= tostring(v):upper() then return false, k, got, v end
+            elseif k == 'neonColor' then
+                -- Couleur des néons : le jeu peut arrondir légèrement les composantes
+                if type(got) ~= 'table' then return false, k, got, v end
+                for i = 1, 3 do if math.abs((tonumber(got[i]) or -99) - (tonumber(v[i]) or 0)) > 10 then return false, k, got, v end end
+            elseif not Same(got, v) then return false, k, got, v end
         end
     end
     return true
@@ -496,9 +511,27 @@ function C.WsApplyPatch(veh, patch)
         local p1 = GetVehicleColours(veh)
         SetVehicleModColor_2(veh, patch.paintType2, patch.color2) SetVehicleColours(veh, p1, patch.color2)
     end
-    -- Pneus personnalisés : la variante se pose sur la jante actuelle (jantes posées avant, cf. ordre des travaux)
+    -- Néons : allumés côté par côté (le core ne le fait pas si la palette arrive avant la mise en kit)
+    if patch.neonEnabled then
+        SetVehicleModKit(veh, 0)
+        for i = 1, 4 do SetVehicleNeonLightEnabled(veh, i - 1, patch.neonEnabled[i] == true) end
+        if patch.neonColor then SetVehicleNeonLightsColour(veh, patch.neonColor[1], patch.neonColor[2], patch.neonColor[3]) end
+        DisableVehicleNeonLights(veh, false)
+    end
     Wait(80)
-    return Verify(veh, patch)
+    local ok, key, got, want = Verify(veh, patch)
+    if not ok then
+        -- Seconde tentative (véhicule repris par le réseau entre-temps, réglage pas encore appliqué…)
+        Wait(250)
+        Control(veh)
+        core:SetVehicleProperties(veh, patch)
+        Wait(150)
+        ok, key, got, want = Verify(veh, patch)
+    end
+    if not ok then
+        print(('^3[MECA] Pièce non posée : « %s » attendu %s, relu %s (modèle %s)^0'):format(tostring(key), json.encode(want), json.encode(got), C.ModelLabel(veh)))
+    end
+    return ok
 end
 
 -- Installation : le mécanicien réalise l'intervention en jeu (client/interventions.lua).

@@ -209,7 +209,8 @@ function C.Workshops()
         for _, w in ipairs(type(pub) == 'table' and pub or {}) do
             if w.coords then
                 wsCache[#wsCache + 1] = { id = w.id, label = w.label, radius = tonumber(w.radius) or 3.5, categories = w.categories, minLevel = tonumber(w.minLevel) or 1,
-                    coords = vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0) }
+                    coords = vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0),
+                    lift = type(w.lift) == 'table' and { h = tonumber(w.lift.h) or 0.0 } or nil }   -- pont roulant posé sur ce point
             end
         end
     end

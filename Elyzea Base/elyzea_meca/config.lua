@@ -57,7 +57,8 @@ Config.WorkshopMarker = true      -- marqueur au sol pour les mécaniciens en se
 -- Animations et modèles : noms du jeu, vérifiés au chargement (absent = étape sans l'objet).
 -- ---------------------------------------------------------------------
 Config.Interventions = {
-    speed = 1.0,              -- multiplie toutes les durées (0.5 = deux fois plus rapide)
+    speed = 0.6,              -- multiplie toutes les durées (0.5 = deux fois plus rapide, 1.0 = lent et détaillé)
+    walkSpeed = 1.6,          -- vitesse de marche du mécanicien autour du véhicule (1.0 = marche, 2.0 = course)
     maxDistance = 12.0,       -- le mécanicien qui s'éloigne plus que ça du véhicule interrompt l'intervention
     serverTimeout = 120,      -- secondes sans nouvelle du mécanicien → intervention libérée, scène remise en état
     debug = false,            -- détails dans la console F8 (modèle ou animation manquants, lignes posées)
@@ -74,6 +75,7 @@ Config.Interventions = {
         clearance = 1.95, wheelHeight = 0.5,
         -- Dessin du pont (aucun modèle de pont garanti dans le jeu de base) : couleurs et hauteur des colonnes
         color = { 235, 180, 20 }, darkColor = { 60, 60, 66 }, postHeight = 2.9, drawDistance = 45.0,
+        armSwing = 1.0,       -- secondes pour que les 4 bras pivotent sous la voiture (ou se replient)
         -- Modèle réel (ta map ou un pack) à la place du dessin : models = { 'nom_du_modele' }, offsetZ, heading
         models = {},
     },
@@ -95,7 +97,7 @@ Config.Interventions = {
 
     -- Durées de chaque travail (ms, avant « speed »)
     durations = {
-        liftUp = 4000, liftDown = 3500, carry = 5000,
+        liftUp = 4000, liftDown = 3500, liftArms = 1200, carry = 4000,
         transmission = 14000, exhaust = 12000, suspension = 12000, brakes = 8000, brakesSwap = 3000, wheel = 9000, wheelpaint = 7000,
         engine = 14000, turbo = 14000, enginebay = 10000, hood = 12000, armor = 14000, panel = 10000, roof = 9000,
         paint = 16000, tint = 9000, lights = 8000, neon = 9000, plate = 7000, interior = 10000, carplay = 10000,

@@ -219,6 +219,14 @@ function TriggerClientEvent(name, target, ...) sentToClients[#sentToClients + 1]
     if clientEvents[name] and (target == 2 or target == -1) then clientEvents[name](...) end end
 function GetCurrentResourceName() return 'elyzea_meca' end
 function GetGamePool() return { W.veh } end
+-- État partagé des entités (state bags)
+function Entity(e)
+    local st = setmetatable({}, { __index = function(_, k)
+        if k == 'set' then return function(_, key, v) if ents[e] then ents[e].state = ents[e].state or {} ents[e].state[key] = v end end end
+        return ents[e] and ents[e].state and ents[e].state[k]
+    end })
+    return { state = st }
+end
 function GetAllVehicles() return W.veh and ents[W.veh] and { W.veh } or {} end
 function IsControlJustPressed(_, c) if c == 74 and W.pressH then W.pressH = false return true end return false end
 function SetDrawOrigin() end function ClearDrawOrigin() end function SetTextScale() end function SetTextFont() end
@@ -367,9 +375,11 @@ local function newQuote(items)
     return r.quote.uid
 end
 local function run(uid)
+    local t0 = TIME
     local res
     CreateThread(function() res = C.RunIntervention(W.veh, uid, 900) end)
     runUntil(function() return res ~= nil end, 900000)
+    print(('      durée de l\'intervention : %.0f s'):format((TIME - t0) / 1000))
     return res
 end
 local function propsLeft() local n = 0 for _, e in pairs(ents) do if e.kind == 'obj' then n = n + 1 end end return n end
@@ -423,7 +433,8 @@ local pressAt
 hooks[TIME + 1] = function() end
 CreateThread(function()
     while not (W.applied and #W.applied >= 1) do Wait(0) end   -- freins posés
-    Wait(25000)                                                 -- en plein moteur
+    while ents[W.ped].anim ~= 'mini@repair/fixing_a_ped' do Wait(0) end   -- penché sur le moteur
+    Wait(300)
     W.pressX = true
 end)
 local r2 = run(uid2)
@@ -550,10 +561,14 @@ for _ = 1, 40 do tick() end
 check((W.polys or 0) > 0, 'pont dessiné pour les joueurs proches')
 local uid10 = newQuote({ { code = 'transmission_1' }, { code = 'brakes_1' }, { code = 'engine_2' } })
 local maxLift, lowerWithPedUnder = 0, false
+local armsWhenUp, armsBeforeUp = false, nil
 CreateThread(function()
     while true do
         local z = ents[W.veh].pos.z - 30.5
         if z > maxLift then maxLift = z end
+        local arms = ents[W.veh].state and ents[W.veh].state.mecaLift
+        if z > 0.05 and armsBeforeUp == nil then armsBeforeUp = arms == true end
+        if z > 1.5 and arms then armsWhenUp = true end
         Wait(0)
     end
 end)
@@ -563,6 +578,8 @@ threads = {}
 check(r10.ok and r10.failed == 0, 'intervention sur le pont terminée et facturée')
 check(maxLift > 1.9, ('véhicule monté à hauteur d\'homme sur le pont (%.2f m)'):format(maxLift))
 check(W.walkedUnder, 'le mécanicien est passé SOUS le véhicule')
+check(armsBeforeUp == true and armsWhenUp, 'les 4 bras du pont sont sous la voiture avant et pendant la montée')
+check(not (ents[W.veh].state and ents[W.veh].state.mecaLift), 'bras repliés à la fin')
 check(W.applied[1].scenario == 'PROP_HUMAN_MOVIE_BULB' and W.applied[1].lifted > 1.9, 'transmission posée debout sous la voiture, bras levés')
 check(W.applied[2].lifted < 0.6 and W.applied[2].lifted > 0.4, 'freins : véhicule redescendu à hauteur des roues')
 check(W.bumps == 0 and W.pedSnaps == 0, 'aucun contact avec la carrosserie, aucune téléportation')
@@ -642,6 +659,25 @@ check(okReady, 'démarrage sans erreur « Duplicate entry »')
 check(money.cust == before13 and money.society == soc13, 'aucun remboursement ni prélèvement en double')
 check(savedStatus(uid13) == 'installed', 'devis remis à « installed »')
 W.acceptedRows = nil
+
+print('\n[14] Liste des points côté joueur (client/main.lua) : le pont posé est bien transmis')
+do
+    local saved = MecaC
+    GlobalState.mecaWorkshops = { { id = 'WS1', label = 'Pont 1', coords = { x = 1.0, y = 2.0, z = 3.0 }, radius = 3.5, lift = { h = 45.0 } }, { id = 'WS2', label = 'Sans pont', coords = { x = 9.0, y = 9.0, z = 3.0 } } }
+    function AddStateBagChangeHandler() end
+    function GetPlayerServerId() return 1 end
+    function PlayerId() return 0 end
+    function RegisterNUICallback() end
+    LocalPlayer = { state = {} }
+    Ely = { callback = { await = function() return {} end } }
+    threads = {}
+    loadFile('client/main.lua')
+    local list = MecaC.Workshops()
+    check(list[1].lift and list[1].lift.h == 45.0, 'pont transmis aux joueurs (champ « lift »)')
+    check(list[2].lift == nil, 'point sans pont : rien de dessiné')
+    MecaC = saved
+    threads = {}
+end
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails
