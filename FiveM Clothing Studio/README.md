@@ -3,7 +3,7 @@
 Application de bureau Windows pour **préparer, retoucher, vérifier et exporter des packs de vêtements FiveM** sans écrire de code.
 
 > Nom provisoire : il se change dans `app.config.json` (`appName`) ou dans **Paramètres**.
-> Version : 0.2.0. Lisez la section « Limites connues » avant de l'utiliser.
+> Version : 0.2.1. Lisez la section « Limites connues » avant de l'utiliser.
 
 ---
 
@@ -11,7 +11,7 @@ Application de bureau Windows pour **préparer, retoucher, vérifier et exporter
 
 | Fonction | État | Détail |
 |---|---|---|
-| **Vêtements du jeu** : catalogue de tous les vêtements extraits de votre GTA V (hauts, bras et gants, pantalons, chaussures, chapeaux, lunettes, masques, montres…), vignettes, homme / femme, jeu de base et DLC | ✅ Nouveau (0.2) | Fichiers extraits une fois avec CodeWalker depuis VOTRE jeu : l'application n'en contient aucun |
+| **Vêtements du jeu** : catalogue de tous les vêtements extraits de votre GTA V (hauts, bras et gants, pantalons, chaussures, chapeaux, lunettes, masques, montres…), vignettes, homme / femme, jeu de base et DLC | ✅ Nouveau (0.2) | Fichiers extraits une fois avec CodeWalker depuis VOTRE jeu : l'application n'en contient aucun. **0.2.1** : glisser-déposer du dossier, nom de dossier libre (question homme / femme si besoin), ajout de plusieurs dossiers, explication précise quand rien n'est trouvé (dossier de GTA V, archives .rpf, Export XML, mauvais mode d'extraction…) |
 | **Créer à partir d'un vêtement du jeu** puis modifier sa texture : la texture est **réécrite dans le .ytd du jeu** à l'export | ✅ Nouveau (0.2) ⚠️ expérimental | Même format, taille et mipmaps que l'original. Testé sur des fichiers construits selon la structure documentée du format, **pas encore sur de vrais fichiers du jeu** |
 | Formes sur la texture : boutons, fermeture éclair, coutures, poche, rayures, écusson, étoile, cœur, chevron, flèche, croix… + pot de peinture | ✅ Nouveau (0.2) | Chaque forme est un calque modifiable |
 | Formes 3D (cube, sphère, cylindre, cône, anneau, plaque, bouton, capsule), suppression de pièces, effacement d'une zone du maillage | ✅ Nouveau (0.2) | Dans l'aperçu 3D et la copie GLB ; **pour aller en jeu, le GLB doit être converti en .ydd** (Blender + Sollumz) |
@@ -44,7 +44,7 @@ Application de bureau Windows pour **préparer, retoucher, vérifier et exporter
 
 ## Installation (version empaquetée)
 
-1. Décompressez `FiveM-Clothing-Studio-0.2.0-win-x64.zip` où vous voulez (par exemple `C:\Programmes\FiveM Clothing Studio`).
+1. Décompressez `FiveM-Clothing-Studio-0.2.1-win-x64.zip` où vous voulez (par exemple `C:\Programmes\FiveM Clothing Studio`).
 2. Lancez `FiveM Clothing Studio.exe`.
 3. Windows SmartScreen peut avertir (exécutable non signé) : « Informations complémentaires » › « Exécuter quand même ».
 
@@ -64,13 +64,13 @@ npm install
 npm run build:win
 ```
 
-Résultat : `dist/FiveM Clothing Studio-win32-x64/` (dossier portable) et `dist/FiveM-Clothing-Studio-0.2.0-win-x64.zip`.
+Résultat : `dist/FiveM Clothing Studio-win32-x64/` (dossier portable) et `dist/FiveM-Clothing-Studio-0.2.1-win-x64.zip`.
 La compilation fonctionne aussi depuis Linux ou macOS (pas d'icône personnalisée ni de signature dans ce cas).
 
 ## Tests
 
 ```
-npm test                 # 50 tests unitaires et d'intégration (cœur : projets, images, DDS, imports, validation, export)
+npm test                 # 55 tests unitaires et d'intégration (cœur : projets, images, DDS, imports, validation, export)
 npm run test:e2e         # parcours complet dans l'application (Windows, ou Linux avec : xvfb-run -a npm run test:e2e)
 npm run demo             # régénère le projet et l'export de démonstration (examples/)
 ```

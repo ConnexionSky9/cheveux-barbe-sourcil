@@ -197,7 +197,11 @@ input[type=color] { width: 44px; height: 32px; padding: 2px; background: var(--b
 }
 
 /* Catalogue des vêtements du jeu */
-.catalog { height: 100%; overflow: hidden; }
+.catalog { height: 100%; overflow: hidden; position: relative; }
+.cat-report { border-width: 2px; }
+.cat-advice { border-left: 4px solid var(--muted); padding: 4px 10px; margin: 8px 0; }
+.cat-advice p { margin: 4px 0 0; color: var(--muted); }
+.cat-drop { border-style: dashed; }
 .catalog > .page { height: 100%; }
 .cat-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr) 320px; height: 100%; }
 .cat-side { background: var(--panel); border-right: 1px solid var(--line); padding: 14px; overflow: auto; }

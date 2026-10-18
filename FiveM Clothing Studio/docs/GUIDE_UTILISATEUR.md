@@ -14,7 +14,12 @@ Le projet est un dossier `<nom>.fcsproj`. Il est **enregistré automatiquement**
 
 ## 1 bis. Partir d'un vêtement du jeu (le plus simple)
 
-1. **Une seule fois** : extrayez les vêtements de votre GTA V avec CodeWalker (le pas à pas est affiché dans l'application, bouton **Vêtements du jeu**), puis choisissez le dossier extrait. Tous les vêtements sont rangés par catégorie avec une vignette.
+1. **Une seule fois** : extrayez les vêtements de votre GTA V avec CodeWalker (le pas à pas est affiché dans l'application, bouton **Vêtements du jeu**) :
+   - CodeWalker RPF Explorer › `x64v.rpf › models › cdimages › streamedpeds_mp.rpf` › dossier `mp_m_freemode_01` › Ctrl+A › clic droit › **Extract Raw…** vers `Documents\GTA vêtements\homme` ;
+   - même chose avec `mp_f_freemode_01` vers `…\femme` ; accessoires : `streamedpedprops.rpf` › `mp_m_freemode_01_p` / `mp_f_freemode_01_p`.
+   - **Glissez le dossier `GTA vêtements` sur la page** (ou bouton « Choisir le dossier »). Tous les vêtements sont rangés par catégorie avec une vignette.
+
+   Le nom des dossiers n'a pas d'importance : si l'application ne peut pas savoir si des fichiers sont homme ou femme, elle vous le demande. Si rien n'est trouvé, elle explique pourquoi (dossier d'installation de GTA V choisi, archives `.rpf` non extraites, fichiers `.xml` venant de « Export XML », fichiers extraits avec « Extract Uncompressed », dossier vide…). **Ajouter un dossier…** complète le catalogue (femme, accessoires, DLC) sans effacer ce qui est déjà indexé.
 2. Choisissez **Homme / Femme**, une catégorie (Hauts, Bras et gants, Pantalons, Chaussures, Chapeaux, Lunettes, Masques, Montres…), puis un vêtement.
 3. **Créer un vêtement à partir de celui-ci** : il est copié dans votre projet et sa texture s'ouvre dans l'éditeur.
 4. Modifiez : couleurs, pot de peinture, logos, texte, formes (boutons, fermeture éclair, coutures, poche, rayures, écusson…), gomme…
@@ -23,6 +28,7 @@ Le projet est un dossier `<nom>.fcsproj`. Il est **enregistré automatiquement**
 Les autres variantes du vêtement (b, c…) sont gardées telles quelles ; « Modifier la texture du jeu » sur une variante permet de la changer aussi.
 
 > Dans GTA V, les gants font partie des « bras » : catégorie **Bras et gants**.
+> L'application ne lit pas directement les archives `.rpf` du jeu (chiffrées) : l'extraction avec CodeWalker reste nécessaire, une seule fois.
 > Lecture et réécriture des `.ytd` : fonction récente, à vérifier en jeu sur un premier vêtement.
 
 ## 2. Importer une texture

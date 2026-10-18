@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { tmpDir, makeYtd, fakeRsc7, testImage } from './helpers.js';
-import { scanCatalog, queryCatalog, collectionsOf } from '../src/core/gta/catalog.js';
+import { scanCatalog, queryCatalog, collectionsOf, mergeCatalogs, diagnoseScan, inferPed } from '../src/core/gta/catalog.js';
 import { parseGarmentFileName } from '../src/core/gta/naming.js';
 import * as store from '../src/core/project/store.js';
 import { garmentFromCatalog } from '../src/core/project/fromCatalog.js';
@@ -104,4 +104,100 @@ test('Créer à partir de bras (_r, plusieurs teintes de peau) et de lunettes', 
   assert.ok(names.includes('stream/mp_m_freemode_01^uppr_diff_003_a_whi.ytd'));
   assert.ok(names.includes('stream/mp_f_freemode_01_p^p_eyes_002.ydd'));
   void glasses;
+});
+
+// ---------------------------------------------------------------- extractions « réelles » variées
+function writer(root) {
+  return (rel, buf) => { const p = path.join(root, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, buf); };
+}
+const smallYtd = (name) => makeYtd([{ name, image: RGBAImage.filled(16, 16, [9, 9, 9, 255]), format: 'dxt1', levels: 1 }]);
+
+test('Personnage deviné : mp_…, « .rpf », homme / femme / female', () => {
+  assert.equal(inferPed('mp_m_freemode_01.rpf').ped, 'mp_m_freemode_01');
+  assert.equal(inferPed('Copie de mp_f_freemode_01_p (2)').props, true);
+  assert.equal(inferPed('Vêtements Femme').ped, 'mp_f_freemode_01');
+  assert.equal(inferPed('female').ped, 'mp_f_freemode_01');
+  assert.equal(inferPed('HOMMES').ped, 'mp_m_freemode_01');
+  assert.equal(inferPed('GTA vêtements'), null);
+});
+
+test('Fichiers « en vrac » (sans dossier de personnage) : question puis indexation', () => {
+  const root = tmpDir('en vrac ');
+  const w = writer(root);
+  w('jbib_000_u.ydd', fakeRsc7(165, 'x'));
+  w('jbib_diff_000_a_uni.ytd', smallYtd('jbib_diff_000_a_uni'));
+  w('p_head_001.ydd', fakeRsc7(165, 'x'));
+  w('p_head_diff_001_a.ytd', smallYtd('p_head_diff_001_a'));
+  const first = scanCatalog(root);
+  assert.equal(first.items.length, 0);
+  assert.equal(first.report.orphans, 4);
+  assert.ok(diagnoseScan(first.report).some((a) => a.level === 'question'));
+  const fem = scanCatalog(root, { defaultPed: 'mp_f_freemode_01' });
+  assert.equal(fem.items.length, 2);
+  assert.equal(fem.items.find((i) => i.slot === 'jbib').yddStream, 'mp_f_freemode_01^jbib_000_u.ydd');
+  assert.equal(fem.items.find((i) => i.slot === 'p_head').yddStream, 'mp_f_freemode_01_p^p_head_001.ydd', 'accessoire : dossier _p');
+  assert.equal(scanCatalog(root, { defaultPed: 'skip' }).items.length, 0);
+});
+
+test('Dossiers « homme » / « femme » et dossier « mp_m_freemode_01.rpf »', () => {
+  const root = tmpDir('GTA vêtements ');
+  const w = writer(root);
+  w('homme/jbib_002_u.ydd', fakeRsc7(165, 'x'));
+  w('homme/p_eyes_003.ydd', fakeRsc7(165, 'x'));
+  w('Femme/lowr_004_u.ydd', fakeRsc7(165, 'x'));
+  w('x/mp_m_freemode_01.rpf/feet_005_u.ydd', fakeRsc7(165, 'x'));
+  const c = scanCatalog(root);
+  assert.equal(c.report.orphans, 0);
+  assert.deepEqual(c.items.map((i) => i.yddStream).sort(), ['mp_f_freemode_01^lowr_004_u.ydd', 'mp_m_freemode_01^feet_005_u.ydd', 'mp_m_freemode_01^jbib_002_u.ydd', 'mp_m_freemode_01_p^p_eyes_003.ydd']);
+  assert.equal(c.stats.mp_m_freemode_01, 3);
+  assert.ok(diagnoseScan(c.report).some((a) => a.level === 'info' && /deviné/.test(a.title)));
+});
+
+test('Diagnostic : dossier de GTA V, archives .rpf, Export XML, Extract Uncompressed, dossier vide', () => {
+  const gta = tmpDir('Grand Theft Auto V ');
+  writer(gta)('GTA5.exe', 'MZ'); writer(gta)('x64v.rpf', 'RPF7'); writer(gta)('update/update.rpf', 'RPF7');
+  const g = scanCatalog(gta);
+  assert.equal(g.report.gtaInstall, true); assert.equal(g.report.rpf, 2);
+  assert.match(diagnoseScan(g.report)[0].title, /installation de GTA V/);
+
+  const rpf = tmpDir('rpf ');
+  writer(rpf)('streamedpeds_mp.rpf', 'RPF7');
+  assert.match(diagnoseScan(scanCatalog(rpf).report)[0].title, /archive/);
+
+  const xml = tmpDir('xml ');
+  writer(xml)('mp_m_freemode_01/jbib_000_u.ydd.xml', '<x/>');
+  assert.ok(diagnoseScan(scanCatalog(xml).report).some((a) => a.level === 'error' && /xml/i.test(a.title)));
+
+  const unc = tmpDir('uncompressed ');
+  writer(unc)('mp_m_freemode_01/jbib_000_u.ydd', Buffer.alloc(64, 1));
+  const u = scanCatalog(unc);
+  assert.equal(u.report.notRsc7, 1); assert.equal(u.items.length, 0);
+  assert.ok(diagnoseScan(u.report).some((a) => /mauvais mode/.test(a.title)));
+
+  const empty = tmpDir('vide ');
+  assert.match(diagnoseScan(scanCatalog(empty).report)[0].text, /vide/);
+
+  const other = tmpDir('autres ');
+  writer(other)('mp_m_freemode_01/prop_chair_01.ydd', fakeRsc7(165, 'x'));
+  assert.ok(diagnoseScan(scanCatalog(other).report).some((a) => /pas des vêtements/.test(a.title)));
+});
+
+test('Ajouter un second dossier au catalogue, puis créer un vêtement depuis ce dossier', () => {
+  const a = tmpDir('homme ');
+  writer(a)('jbib_000_u.ydd', fakeRsc7(165, 'x'));
+  writer(a)('jbib_diff_000_a_uni.ytd', smallYtd('jbib_diff_000_a_uni'));
+  const b = tmpDir('femme ');
+  writer(b)('jbib_000_u.ydd', fakeRsc7(165, 'y'));
+  writer(b)('jbib_diff_000_a_uni.ytd', smallYtd('jbib_diff_000_a_uni'));
+  const merged = mergeCatalogs(scanCatalog(a), scanCatalog(b));
+  assert.equal(merged.items.length, 2);
+  assert.deepEqual(merged.roots, [a, b]);
+  assert.equal(merged.stats.mp_f_freemode_01, 1);
+  const fem = merged.items.find((i) => i.ped === 'mp_f_freemode_01');
+  assert.equal(fem.root, b);
+  const proj = tmpDir('proj ');
+  const { dir, project } = store.createProject(proj, 'Fusion');
+  const g = garmentFromCatalog(dir, project, fem.root, fem);
+  assert.equal(g.variants.length, 1);
+  assert.equal(g.streamNames.ydd, 'mp_f_freemode_01^jbib_000_u.ydd');
 });

@@ -34,6 +34,13 @@ fs.writeFileSync(path.join(objDir, 'motif.png'), encodeImage(testImage(32, 32), 
 // Dossier imitant une extraction CodeWalker (fichiers SYNTHÉTIQUES)
 const game = path.join(work, 'GTA vêtements extraits');
 const gw = (rel, buf) => { const p = path.join(game, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, buf); };
+// Erreurs courantes : dossier d'installation de GTA V ; fichiers extraits « en vrac » (sans dossier homme / femme)
+const gtaDir = path.join(work, 'Grand Theft Auto V');
+fs.mkdirSync(gtaDir, { recursive: true }); fs.writeFileSync(path.join(gtaDir, 'GTA5.exe'), 'MZ'); fs.writeFileSync(path.join(gtaDir, 'x64v.rpf'), 'RPF7');
+const loose = path.join(work, 'extraction en vrac');
+fs.mkdirSync(loose, { recursive: true });
+fs.writeFileSync(path.join(loose, 'lowr_007_u.ydd'), fakeRsc7(165, 'pantalon'));
+fs.writeFileSync(path.join(loose, 'lowr_diff_007_a_uni.ytd'), makeYtd([{ name: 'lowr_diff_007_a_uni', image: RGBAImage.filled(32, 32, [20, 120, 40, 255]), format: 'dxt1', levels: 6 }]));
 const gytd = (name, img) => makeYtd([{ name, image: img, format: 'dxt1', levels: 8 }]);
 gw('mp_m_freemode_01/jbib_000_u.ydd', fakeRsc7(165, 'haut'));
 gw('mp_m_freemode_01/jbib_diff_000_a_uni.ytd', gytd('jbib_diff_000_a_uni', RGBAImage.filled(128, 128, [230, 230, 230, 255])));
@@ -198,6 +205,12 @@ try {
   // Catalogue des vêtements du jeu
   await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, game);
   await page.click('button[title="Tous les vêtements de GTA V, pour créer les vôtres"]');
+  await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, gtaDir);
+  await page.click('#cat-scan');
+  await page.waitForSelector('#cat-report:has-text("installation de GTA V")', { timeout: 15000 });
+  await shot('09a-catalogue-diagnostic');
+  step('Catalogue : dossier de GTA V choisi par erreur → explication claire');
+  await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, game);
   await page.click('#cat-scan');
   await page.waitForSelector('.cat-card', { timeout: 15000 });
   assert.equal(await page.locator('.cat-card').count(), 2, '2 hauts homme');
@@ -259,6 +272,22 @@ try {
   assert.ok(fs.existsSync(path.join(out, 'haut_du_jeu_modifie', 'stream', 'mp_m_freemode_01^jbib_diff_000_b_uni.ytd')));
   step('Export : .ytd du jeu réécrit avec la texture modifiée');
   await page.keyboard.press('Escape');
+
+  // Ajout d'un dossier « en vrac » : l'application demande homme / femme
+  await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, loose);
+  await page.click('button[title="Tous les vêtements de GTA V, pour créer les vôtres"]');
+  await page.click('#cat-add');
+  await page.waitForSelector('#cat-ped-f', { timeout: 15000 });
+  await shot('09b-catalogue-homme-femme');
+  await page.click('#cat-ped-f');
+  await page.waitForSelector('.cat-layout');
+  await page.getByRole('button', { name: 'Femme', exact: true }).click();
+  await page.locator('.cat-item', { hasText: 'Pantalons' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.cat-card').length === 1);
+  await page.locator('.cat-item').first().click();
+  await page.getByRole('button', { name: 'Homme', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.cat-card').length === 2, null, { timeout: 10000 });
+  step('Dossier « en vrac » ajouté après la question homme / femme, catalogue fusionné');
 
   // Aide, outils
   await page.click('button[title="Aide (F1)"]');

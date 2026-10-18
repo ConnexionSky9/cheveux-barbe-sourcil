@@ -1,8 +1,8 @@
-# Rapport des tests — version 0.2.0
+# Rapport des tests — version 0.2.1
 
 Environnement : Linux x64 (conteneur), Node.js 22.22.0, Electron 33.2.1, Chromium avec affichage virtuel (Xvfb), Python 3 + lupa (Lua 5.4) pour l'exécution du manifeste.
 
-## 1. Tests unitaires et d'intégration (`npm test`) — 50 / 50 réussis
+## 1. Tests unitaires et d'intégration (`npm test`) — 55 / 55 réussis
 
 | Domaine | Tests |
 |---|---|
@@ -18,6 +18,7 @@ Environnement : Linux x64 (conteneur), Node.js 22.22.0, Electron 33.2.1, Chromiu
 | Interface | empreinte CSP de la carte d'import vérifiée |
 | `.ytd` (0.2) | taille des segments depuis les drapeaux ; liste des textures (nom, taille, format, mipmaps) ; décodage DXT1 / DXT5 / A8R8G8B8 et d'un niveau de mipmap ; réécriture d'une texture (redimensionnement, mipmaps régénérées, autres textures et en-tête intacts) ; refus de BC7, d'une mauvaise version, d'un fichier non reconnu, d'une texture absente |
 | Catalogue (0.2) | indexation d'une arborescence imitant une extraction CodeWalker (noms sans préfixe, dossiers `mp_m_freemode_01`, `_p`, DLC) ; noms de diffusion d'origine ; filtres ; création d'un vêtement depuis le jeu ; modification de sa texture (logo + assombrissement) puis export : le `.ytd` exporté contient bien la nouvelle texture, l'autre variante est copiée à l'identique ; bras `_r` avec plusieurs teintes de peau ; lunettes (accessoire) |
+| Catalogue, cas réels (0.2.1) | personnage deviné d'après le nom des dossiers (`mp_…`, `mp_m_freemode_01.rpf`, « homme », « Femme », « female ») ; fichiers « en vrac » : question homme / femme puis indexation, accessoires rangés dans `_p` ; diagnostics : dossier d'installation de GTA V, archives `.rpf`, exports XML, fichiers non RSC7 (« Extract Uncompressed »), fichiers non vêtements, dossier vide ; ajout d'un second dossier (fusion) puis création d'un vêtement depuis ce dossier |
 | Pot de peinture (0.2) | zone contiguë, tolérance, mode « toutes les zones » |
 
 Les fichiers `.ydd` / `.ytd` / `.ymt` utilisés sont **synthétiques** (les `.ytd` sont construits selon la structure documentée du format, par le même développeur que le lecteur : ils ne prouvent pas la compatibilité avec les fichiers réels) (en-tête RSC7 + flux compressé valide, contenu factice) : ils valident la logique de l'application, **pas** un vrai vêtement du jeu.
@@ -43,7 +44,8 @@ Exécuté deux fois : depuis les sources, puis sur **l'application empaquetée**
 15. Pot de peinture (rouge), bouton et couture ajoutés comme calques.
 16. Formes 3D (cube, sphère) ajoutées, zone de la sphère effacée (62 triangles).
 17. Export : le `.ytd` du jeu exporté contient la texture repeinte (pixel rouge relu), l'autre variante est présente.
-18. Pages Aide et Outils.
+18. Catalogue : dossier d'installation de GTA V choisi par erreur → explication affichée ; dossier « en vrac » ajouté → question homme / femme → vêtement rangé chez Femme, catalogue fusionné.
+19. Pages Aide et Outils.
 
 Captures d'écran : `test/.tmp/shots/` (générées à chaque exécution).
 
@@ -56,7 +58,7 @@ Captures d'écran : `test/.tmp/shots/` (générées à chaque exécution).
 
 - Lancement et utilisation sur Windows 10 / 11 réels (dialogues natifs, chemins `C:\…`, SmartScreen, mise à l'échelle d'écran).
 - **Fichiers GTA V réels** (`.ydd`, `.ytd`, `.ymt` du jeu ou de packs existants) : en particulier la lecture et la réécriture des `.ytd` n'ont été vérifiées que sur des fichiers synthétiques.
-- Extraction réelle avec CodeWalker (noms de dossiers selon la version du jeu).
+- Extraction réelle avec CodeWalker (noms de dossiers selon la version du jeu ; libellés exacts du menu « Extract Raw »).
 - **Installation d'une ressource exportée sur un serveur FiveM et test en jeu.**
 - Détection de Blender / Sollumz / CodeWalker installés (absents de l'environnement de test ; le cas « absent » est vérifié).
 - FBX réels (seul l'en-tête est testé automatiquement).

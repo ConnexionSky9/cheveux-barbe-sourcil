@@ -7,7 +7,7 @@ import path from 'node:path';
 import * as store from '../core/project/store.js';
 import { PROJECT_EXT, addHistory, newId } from '../core/project/schema.js';
 import { saveTextureDoc, loadTextureDoc, textureDocFromAsset, textureDocFromYtd } from '../core/project/textures.js';
-import { scanCatalog, queryCatalog, collectionsOf, CATALOG_CATEGORIES } from '../core/gta/catalog.js';
+import { scanCatalog, mergeCatalogs, diagnoseScan, queryCatalog, collectionsOf, CATALOG_CATEGORIES } from '../core/gta/catalog.js';
 import { garmentFromCatalog } from '../core/project/fromCatalog.js';
 import { readYtd, decodeYtdTexture, thumbnailLevel } from '../core/gta/ytd.js';
 import crypto from 'node:crypto';
@@ -276,27 +276,42 @@ export function registerIpc(ctx) {
     try { catalog = JSON.parse(fs.readFileSync(catFile(), 'utf8')); } catch { catalog = null; }
     return catalog;
   };
-  const catSummary = (c) => (c ? { root: c.root, scannedAt: c.scannedAt, stats: c.stats, collections: collectionsOf(c), rootExists: fs.existsSync(c.root) } : null);
+  const catRoots = (c) => c.roots || [c.root];
+  const catSummary = (c) => (c ? { root: c.root, roots: catRoots(c), scannedAt: c.scannedAt, stats: c.stats, collections: collectionsOf(c),
+    rootExists: catRoots(c).some((r) => fs.existsSync(r)) } : null);
   handle('catalog:info', () => ({ catalog: catSummary(loadCatalog()), categories: CATALOG_CATEGORIES }));
-  handle('catalog:scan', async (root) => {
+  // opts : chemin (texte) ou { root, defaultPed, merge }. Ne lève pas d'erreur quand rien n'est trouvé :
+  // renvoie un rapport expliquant pourquoi, pour que l'interface guide l'utilisateur.
+  handle('catalog:scan', async (opts) => {
+    let { root, defaultPed = null, merge = false } = typeof opts === 'string' ? { root: opts } : (opts || {});
     if (!root) {
       const r = await dialog.showOpenDialog(ctx.window, { title: 'Dossier des vêtements extraits du jeu', properties: ['openDirectory'] });
       if (r.canceled) return { catalog: catSummary(loadCatalog()) };
       root = r.filePaths[0];
     }
-    const c = scanCatalog(root, { onProgress: (n) => ctx.window?.webContents.send('app:event', { type: 'catalog-progress', files: n }) });
-    if (!c.items.length) throw new Error('Aucun vêtement trouvé. Choisissez le dossier qui contient les dossiers « mp_m_freemode_01 », « mp_f_freemode_01 »… extraits avec CodeWalker.');
-    store.writeJsonAtomic(catFile(), c);
-    catalog = c;
-    logger.info(`Catalogue indexé : ${c.items.length} vêtements`, { root });
-    return { catalog: catSummary(c) };
+    try { if (fs.statSync(root).isFile()) root = path.dirname(root); } catch { throw new Error(`Dossier introuvable : ${root}`); }
+    const c = scanCatalog(root, { defaultPed, onProgress: (n) => ctx.window?.webContents.send('app:event', { type: 'catalog-progress', files: n }) });
+    const advice = diagnoseScan(c.report);
+    const report = { ...c.report, advice };
+    // Fichiers dont le personnage est inconnu : on demande avant d'enregistrer
+    if (c.report.orphans && !defaultPed) return { pending: true, root, merge, report, catalog: catSummary(loadCatalog()) };
+    if (!c.items.length) {
+      logger.warn('Catalogue : aucun vêtement trouvé', { root, report: { ...c.report, samples: undefined } });
+      return { empty: true, root, report, catalog: catSummary(loadCatalog()) };
+    }
+    const prev = loadCatalog();
+    const next = merge && prev ? mergeCatalogs(prev, c) : c;
+    store.writeJsonAtomic(catFile(), next);
+    catalog = next;
+    logger.info(`Catalogue indexé : ${c.items.length} vêtements (total ${next.items.length})`, { root });
+    return { catalog: catSummary(next), added: c.items.length, report };
   });
   handle('catalog:query', (q) => { const c = loadCatalog(); if (!c) return { total: 0, items: [] }; return queryCatalog(c, q); });
   handle('catalog:thumb', (key) => {
     const c = loadCatalog();
     const it = c?.items.find((i) => i.key === key);
     if (!it || !it.textures.length) return { url: null };
-    const file = safeJoin(c.root, it.textures[0].file);
+    const file = safeJoin(it.root || c.root, it.textures[0].file);
     const st = fs.statSync(file);
     const id = crypto.createHash('sha1').update(`${file}|${st.size}|${st.mtimeMs}`).digest('hex');
     const cache = path.join(ctx.userData(), 'thumbs', `${id}.png`);
@@ -320,7 +335,7 @@ export function registerIpc(ctx) {
     const it = c?.items.find((i) => i.key === key);
     if (!it) throw new Error('Vêtement introuvable dans le catalogue.');
     if (!project.targetPeds.includes(it.ped)) project.targetPeds.push(it.ped);
-    const g = garmentFromCatalog(dir, project, c.root, it);
+    const g = garmentFromCatalog(dir, project, it.root || c.root, it);
     // Texture de la première variante prête à modifier
     let meta = null, docPayload = null, warning = null;
     const v = g.variants[0];

@@ -55,6 +55,7 @@ Versions de ressource habituelles relevées sur les fichiers du jeu : `.ytd` = 1
 - **Créer un `.ytd` de toutes pièces** : non pris en charge. En partant d'un vêtement du jeu, son `.ytd` est réécrit (sa structure n'est jamais modifiée, seules les données de pixels sont remplacées). Sans `.ytd` de départ, le DDS est fourni pour CodeWalker.
 - **Textures BC7 / BC4 / BC5** dans un `.ytd` : ni lues ni réécrites (message clair).
 - **Aperçu 3D des `.ydd`** : non pris en charge (contenu non décodé).
+- **Lecture directe des archives `.rpf`** : non prise en charge. Les archives du jeu sont chiffrées avec des clés contenues dans l'exécutable de GTA V ; l'application ne les embarque pas. Les vêtements s'extraient une fois avec CodeWalker (« Extract Raw »).
 
 ### Lecture des `.ytd` : comment c'est fait
 
