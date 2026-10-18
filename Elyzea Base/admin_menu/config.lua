@@ -615,6 +615,9 @@ Config.StaffGarageName = 'public'
 -- /eau_diagnostic (console ou Fondateur) donne la ressource fautive ; /eau_vanilla teste l'eau d'origine sur ton écran.
 -- true : l'eau d'origine est remise pour tout le monde (l'eau propre à une map, ex. Cayo Perico, disparaît).
 Config.WaterReset = false
+-- true = remet l'eau de Los Santos si un script Cayo Perico a basculé le jeu sur l'eau de l'île
+-- (corrige les lacs / criques sans eau ; l'eau propre aux lagons de Cayo Perico peut manquer). Tester d'abord avec /eau_principale.
+Config.WaterMainland = false
 Config.StaffGaragePlatePrefix = 'ST'
 Config.DeletePreviousVehicle = true
 

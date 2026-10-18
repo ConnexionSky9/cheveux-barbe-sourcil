@@ -29,7 +29,9 @@ RegisterCommand('eau_diagnostic', function(src)
     local found = list()
     local lines = {}
     if #found == 0 then
-        lines[1] = 'Aucune ressource ne remplace l\'eau du jeu (WATER_FILE) : le souci vient d\'une map qui couvre la zone (sol / collision) ou du build du jeu.'
+        lines[1] = 'Aucune ressource ne remplace l\'eau du jeu par WATER_FILE.'
+        lines[2] = 'Autre cause fréquente : un script Cayo Perico (ex. cayo-perico-ultimate-main) charge l\'eau de l\'île. En jeu, à l\'endroit bugué : /eau_zone puis /eau_principale.'
+        lines[3] = 'Si l\'eau ne revient pas : c\'est une map qui couvre la zone (sol / collision) ; arrête-les une par une pour trouver laquelle.'
     else
         lines[1] = ('%d ressource(s) remplacent l\'eau du jeu (seule la DERNIÈRE démarrée compte) :'):format(#found)
         for _, f in ipairs(found) do lines[#lines + 1] = ('  - %s (%s) : %s'):format(f.res, f.state, f.file) end
