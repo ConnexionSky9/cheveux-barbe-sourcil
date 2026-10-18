@@ -287,7 +287,7 @@ function wsRender() {
     ${q ? '' : `<div class="ws-cart"><div class="section-label" style="padding-left:0">Devis (${W.cart.length})</div>
       ${W.cart.map((l, i) => `<div class="line"><span>${esc(l.label)}</span><span><b>${money(l.price * (l.qty || 1))}</b> <button data-wdel="${i}" title="Retirer">✕</button></span></div>`).join('') || '<div class="faint" style="font-size:.82rem">Aucune ligne.</div>'}
       <div class="ws-total"><span>Total : <b>${money(cartTotal())}</b></span>
-        <span style="display:flex;gap:.4rem;align-items:center"><select class="input" id="wsCustomer" style="width:auto">${customers.length ? customers.map((c) => `<option value="${c.id}" ${String(W.customer) === String(c.id) ? 'selected' : ''}>${c.owner ? `👤 ${esc(c.name || '')} (propriétaire)` : `Personne · ID ${c.id}`}</option>`).join('') : '<option value="">Aucun client à côté</option>'}</select>
+        <span style="display:flex;gap:.4rem;align-items:center"><select class="input" id="wsCustomer" style="width:auto">${customers.length ? customers.map((c) => `<option value="${c.id}" ${String(W.customer) === String(c.id) ? 'selected' : ''}>${c.self ? `🔧 Moi-même${c.owner ? ' (propriétaire)' : ''} · je paie` : c.owner ? `👤 ${esc(c.name || '')} (propriétaire)` : `Personne · ID ${c.id}`}</option>`).join('') : '<option value="">Aucun client à côté</option>'}</select>
         <button class="btn" data-ws="clear" ${W.cart.length ? '' : 'disabled'}>Vider</button><button class="btn primary" data-ws="send" ${W.cart.length && customers.length ? '' : 'disabled'}>Envoyer le devis</button></span></div></div>`}`;
 }
 
@@ -398,12 +398,16 @@ $('#workshop').addEventListener('click', async (e) => {
       const customer = Number(($('#wsCustomer') || {}).value);
       if (!customer) return toast('Choisissez le client.', false);
       W.customer = customer;
-      if (!(await confirmBox('Envoyer le devis ?', `${W.cart.length} ligne(s) · <b>${money(cartTotal())}</b> (prix officiels, recalculés par le serveur).<br>Le client doit l'accepter ; le paiement est prélevé à l'acceptation.`, 'Envoyer'))) return;
+      const selfQ = ((W.d && W.d.data && W.d.data.customers) || []).some((c) => c.self && String(c.id) === String(customer));
+      if (!(await confirmBox(selfQ ? 'Payer votre devis ?' : 'Envoyer le devis ?', selfQ
+        ? `${W.cart.length} ligne(s) · <b>${money(cartTotal())}</b> (prix officiels, recalculés par le serveur).<br>Devis pour vous-même : le montant est prélevé tout de suite (banque puis liquide), puis vous installez vos pièces. Les pièces non posées sont remboursées.`
+        : `${W.cart.length} ligne(s) · <b>${money(cartTotal())}</b> (prix officiels, recalculés par le serveur).<br>Le client doit l'accepter ; le paiement est prélevé à l'acceptation.`, selfQ ? 'Payer et continuer' : 'Envoyer'))) return;
       b.classList.add('loading');
       const r = await post('wsSend', { customer, items: W.cart.map((l) => ({ code: l.code, spec: l.kind === 'cosmetic' ? l.spec : undefined, label: l.label, current: l.current, qty: l.qty })) });
       b.classList.remove('loading');
       if (r.error) return toast(r.error, false);
-      W.quote = r.quote; W.result = null;
+      W.quote = r.quote; W.result = selfQ ? r.message : null;
+      if (W.d && W.d.data) W.d.data.canInstall = true;   // le mécanicien qui envoie le devis peut l'installer
       return wsRender();
     }
     if (a === 'cancelQuote') {
@@ -474,7 +478,7 @@ function svcRender(err = '') {
     <p class="lead">Prix officiels de la direction. Le client accepte et paie sur son écran ; la facture est créée aussitôt.</p>
     <div class="q-items">${SV.items.map((i) => `<label class="extra" style="justify-content:space-between"><span><input type="checkbox" class="check" data-sv="${esc(i.code)}" ${SV.sel[i.code] ? 'checked' : ''} ${i.locked ? 'disabled' : ''}> ${esc(i.name)}
       ${i.locked ? '<small class="faint">(grade insuffisant)</small>' : ''}</span><span>${SV.sel[i.code] ? `<input class="input" type="number" min="1" max="10" value="${SV.sel[i.code]}" data-svq="${esc(i.code)}" style="width:4rem;padding:.2rem .4rem">` : ''} <b>${money(i.price)}</b></span></label>`).join('')}</div>
-    <label class="field"><span>Client</span><select class="input" id="svCustomer">${SV.customers.length ? SV.customers.map((c) => `<option value="${c.id}">Personne · ID ${c.id} (${c.distance} m)</option>`).join('') : '<option value="">Personne à côté</option>'}</select></label>
+    <label class="field"><span>Client</span><select class="input" id="svCustomer">${SV.customers.length ? SV.customers.map((c) => `<option value="${c.id}">${c.self ? '🔧 Moi-même · je paie' : `Personne · ID ${c.id} (${c.distance} m)`}</option>`).join('') : '<option value="">Personne à côté</option>'}</select></label>
     <div class="bill-total"><span>Total</span><span>${money(total)}</span></div><div class="err">${esc(err)}</div>
     <div class="actions"><button class="btn" data-svb="cancel">Annuler</button><button class="btn primary" data-svb="send" ${total > 0 && SV.customers.length ? '' : 'disabled'}>Envoyer le devis</button></div>`;
 }

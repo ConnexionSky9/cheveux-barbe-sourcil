@@ -60,6 +60,11 @@ Déroulé : le mécanicien gare la voiture du client sur le cercle et appuie sur
 - Remboursement d'une facture : tablette › Factures (permission « Annuler et rembourser »). Une seule fois par facture.
 - Les modifications installées sont enregistrées dans `player_vehicles.mods` : elles restent après un rangement au garage et un redémarrage.
 
+## Devis pour soi-même (custom personnel)
+- Dans la liste des clients de l'atelier (et du devis de prestations F6), **« 🔧 Moi-même · je paie »** : le mécanicien se fait son propre devis.
+- Pas de fenêtre d'acceptation : à la confirmation, le total est prélevé tout de suite (banque puis liquide) et versé à l'entreprise, puis **Installer** lance l'intervention comme pour un client. Pièces non posées : remboursées.
+- Pas de commission sur ses propres devis (`Config.Quotes.selfCommission`). Désactivable avec `Config.Quotes.allowSelf = false`.
+
 ## Interventions animées (installation d'un devis payé)
 « Installer » ne pose plus tout d'un coup : l'atelier se ferme et le mécanicien fait le travail, dans un ordre logique,
 seulement pour les pièces achetées. Les prix, le paiement (à l'acceptation, une seule fois) et la facture ne changent pas.
@@ -105,7 +110,7 @@ Déconnexion du mécanicien : le serveur supprime ses objets et fait remettre le
 - `underHeadingOffset` / `underOffset` : si le mécanicien s'allonge dans le mauvais sens ou trop loin, ajuste ces valeurs.
 - Les objets en main (`props`) ont une position réglable ; les modèles `imp_prop_impexp_*` viennent du DLC Import/Export (inclus dans le build du serveur). Un modèle absent est simplement ignoré.
 
-**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (70 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé sous un véhicule / utilisé / repris avec H, passage sous le véhicule, chute rattrapée).
+**Tests hors jeu** (logique, natives imitées) : `pip install lupa` puis `python3 tests/run_intervention_sim.py` (76 vérifications : ordre, pose au bon moment, facturation unique, verrous, interruption + reprise, véhicule détruit, objets absents, carrosserie abîmée, déconnexion, redémarrage, marche réelle autour du véhicule sans contact ni téléportation, pont roulant posé sous un véhicule / utilisé / repris avec H, passage sous le véhicule, chute rattrapée).
 
 ## CarPlay (installation payante)
 

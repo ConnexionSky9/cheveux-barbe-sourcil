@@ -276,6 +276,8 @@ end
 local function NearbyCustomers(src, veh, ownerCid)
     local list = {}
     local vc = GetEntityCoords(veh)
+    -- Le mécanicien peut se faire un devis à lui-même (ses propres customisations)
+    if Q.allowSelf ~= false then list[#list + 1] = { id = src, self = true, owner = ownerCid ~= nil and P.Cid(src) == ownerCid, name = P.Name(src) } end
     for _, s in ipairs(GetPlayers()) do
         local id = tonumber(s)
         if id ~= src then
@@ -286,7 +288,11 @@ local function NearbyCustomers(src, veh, ownerCid)
             end
         end
     end
-    table.sort(list, function(a, b) if a.owner ~= b.owner then return a.owner end return a.id < b.id end)
+    table.sort(list, function(a, b)
+        if a.owner ~= b.owner then return a.owner end
+        if (a.self == true) ~= (b.self == true) then return b.self == true end   -- un client en premier, soi-même ensuite
+        return a.id < b.id
+    end)
     return list
 end
 
@@ -464,6 +470,8 @@ local function BuildLines(src, w, list, ctx)
     return lines, total
 end
 
+local Answer   -- acceptation / refus d'un devis (défini plus bas)
+
 P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     local w = d.ws and Workshop(tostring(d.ws)) or nil
     local veh, why
@@ -478,7 +486,7 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     local plate = veh and P.CleanPlate(GetVehicleNumberPlateText(veh)) or nil
     if plate and ActiveQuoteForPlate(plate) then return { error = 'Un devis est déjà en cours pour ce véhicule.' } end
     local cust = tonumber(d.customer)
-    if not cust or cust == src or not GetPlayerName(cust) or not P.GetPlayer(cust) then return { error = 'Choisissez le client.' } end
+    if not cust or (cust == src and Q.allowSelf == false) or not GetPlayerName(cust) or not P.GetPlayer(cust) then return { error = 'Choisissez le client.' } end
     local ref = veh and GetEntityCoords(veh) or P.Coords(src)
     local cc = P.Coords(cust)
     if not cc or not ref or #(cc - ref) > (w and Config.Distances.workshopCustomer or Config.Distances.quote + 4.0) then return { error = 'Le client doit être à côté.' } end
@@ -500,6 +508,12 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     MySQL.insert.await([[INSERT INTO `meca_quotes` (`job`, `uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `model`, `mechanic_cid`, `mechanic_name`, `workshop`, `items`, `total`, `status`)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')]], { q.job, uid, q.customerCid, q.customerName, q.vehicleId, plate, q.model, q.mechanicCid, q.mechanicName, q.workshop,
         json.encode(lines), total })
+    -- Devis pour soi-même : le mécanicien a validé l'envoi, il paie tout de suite (pas de fenêtre d'acceptation)
+    if cust == src then
+        local r = Answer(src, q, true)
+        if not r.ok then return { error = r.message } end
+        return { ok = true, quote = QuoteView(q), message = r.message }
+    end
     TriggerClientEvent('meca:client:quoteOffer', cust, QuoteView(q), Q.acceptTimeout)
     return { ok = true, quote = QuoteView(q), message = ('Devis %s envoyé (%d $).'):format(uid, total) }
 end }
@@ -544,7 +558,10 @@ local function Finalize(q, results, actorSrc)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)]], { q.job, invoiceUid, q.uid, q.customerCid, q.customerName, q.vehicleId, q.plate, q.mechanicName,
             json.encode(done), amount, q.method, q.txid, refundNote })
         -- Commission du mécanicien sur le montant final (lignes réellement posées)
-        P.Commission(q.mechanicCid, amount, ('Devis %s · %s'):format(q.uid, q.customerName or ''), invoiceUid)
+        -- Pas de commission sur ses propres customisations (sinon le mécanicien se rembourserait une partie)
+        if not (q.mechanicCid and q.mechanicCid == q.customerCid) or Q.selfCommission == true then
+            P.Commission(q.mechanicCid, amount, ('Devis %s · %s'):format(q.uid, q.customerName or ''), invoiceUid)
+        end
     end
     Save(q, ', `invoice_uid` = ?, `note` = ?', { invoiceUid, refundNote })
     -- Persistance : modifications sur la carte grise, CarPlay lié au véhicule, historique
@@ -577,42 +594,43 @@ end
 
 -- Réponse du client : paiement immédiat du total à l'acceptation
 local answering = {}
-RegisterNetEvent('meca:server:quoteAnswer', function(uid, accept)
-    local src = source
-    local q = P.quotes[tostring(uid or '')]
-    if not q or q.status ~= 'pending' or q.customer ~= src or answering[q.uid] then return end
+-- Acceptation (paiement immédiat du total) ou refus. Renvoie { ok, message }.
+Answer = function(src, q, accept)
     answering[q.uid] = true
     local mech = q.mechanic
-    local function tellMech(msg, kind) if GetPlayerName(mech) then P.Notify(mech, msg, kind) TriggerClientEvent('meca:client:quoteUpdate', mech, QuoteView(q)) end end
+    local self = q.customer == mech
+    local function tellMech(msg, kind)
+        if self then return end
+        if GetPlayerName(mech) then P.Notify(mech, msg, kind) TriggerClientEvent('meca:client:quoteUpdate', mech, QuoteView(q)) end
+    end
+    local function done(ok, msg, kind) answering[q.uid] = nil P.Notify(src, msg, kind) return { ok = ok, message = msg } end
     if os.time() > q.expires then
-        q.status = 'expired' Save(q) P.quotes[q.uid] = nil answering[q.uid] = nil
+        q.status = 'expired' Save(q) P.quotes[q.uid] = nil
         tellMech(('Devis %s expiré.'):format(q.uid), 'error')
-        return P.Notify(src, 'Le devis a expiré.', 'error')
+        return done(false, 'Le devis a expiré.', 'error')
     end
     if accept ~= true then
-        q.status = 'refused' Save(q) P.quotes[q.uid] = nil answering[q.uid] = nil
+        q.status = 'refused' Save(q) P.quotes[q.uid] = nil
         tellMech(('Le client a refusé le devis %s.'):format(q.uid), 'error')
-        return P.Notify(src, 'Devis refusé.', 'inform')
+        return done(false, 'Devis refusé.', 'inform')
     end
     local method = P.Charge(src, q.total, ('Devis garage %s'):format(q.uid))
     if not method then
-        q.status = 'refused' q.note = 'fonds insuffisants' Save(q, ', `note` = ?', { 'Fonds insuffisants' }) P.quotes[q.uid] = nil answering[q.uid] = nil
+        q.status = 'refused' q.note = 'fonds insuffisants' Save(q, ', `note` = ?', { 'Fonds insuffisants' }) P.quotes[q.uid] = nil
         tellMech(('Le client n\'a pas assez d\'argent (%d $) : devis %s annulé.'):format(q.total, q.uid), 'error')
-        return P.Notify(src, ('Fonds insuffisants (%d $).'):format(q.total), 'error')
+        return done(false, ('Fonds insuffisants (%d $).'):format(q.total), 'error')
     end
     if q.total > 0 and not P.SocietyAdd(q.total, ('Devis %s · %s'):format(q.uid, q.customerName), q.job) then
         P.Refund(q.customerCid, q.total, method, 'Annulation ' .. q.uid)
-        q.status = 'failed' Save(q, ', `note` = ?', { 'Compte société indisponible' }) P.quotes[q.uid] = nil answering[q.uid] = nil
+        q.status = 'failed' Save(q, ', `note` = ?', { 'Compte société indisponible' }) P.quotes[q.uid] = nil
         tellMech('Compte de l\'entreprise indisponible : client remboursé.', 'error')
-        return P.Notify(src, 'Paiement annulé et remboursé.', 'error')
+        return done(false, 'Paiement annulé et remboursé.', 'error')
     end
     q.status, q.paid, q.method = 'accepted', q.total, method == 'free' and nil or method
-    q.txid = q.total > 0 and P.Tx({ job = q.job, type = 'in', category = 'invoice', amount = q.total, reason = 'Devis accepté', actorCid = q.mechanicCid, actorName = q.mechanicName,
-        targetCid = q.customerCid, targetName = q.customerName, ref = q.uid }) or nil
+    q.txid = q.total > 0 and P.Tx({ job = q.job, type = 'in', category = 'invoice', amount = q.total, reason = self and 'Devis personnel' or 'Devis accepté',
+        actorCid = q.mechanicCid, actorName = q.mechanicName, targetCid = q.customerCid, targetName = q.customerName, ref = q.uid }) or nil
     q.acceptedAt = os.time()
     Save(q)
-    answering[q.uid] = nil
-    P.Notify(src, ('Devis accepté : %d $ payés. Les prestations non installées vous seront remboursées.'):format(q.total), 'success')
     -- Prestations seules (réparations déjà faites…) : facture tout de suite
     local onlyServices = true
     for _, l in ipairs(q.items) do if l.kind ~= 'service' and l.kind ~= 'custom' then onlyServices = false end end
@@ -621,9 +639,19 @@ RegisterNetEvent('meca:server:quoteAnswer', function(uid, accept)
         for i = 1, #q.items do res[i] = true end
         local r = Finalize(q, res, mech)
         tellMech(('Devis %s accepté et facturé : %d $.'):format(q.uid, r.amount), 'success')
-        return
+        return done(true, ('Devis %s payé et facturé : %d $.'):format(q.uid, r.amount), 'success')
     end
     tellMech(('Devis %s accepté (%d $) : installez les prestations.'):format(q.uid, q.total), 'success')
+    if self then return done(true, ('Devis %s payé (%d $) : cliquez sur « Installer » pour faire votre custom.'):format(q.uid, q.total), 'success') end
+    return done(true, ('Devis accepté : %d $ payés. Les prestations non installées vous seront remboursées.'):format(q.total), 'success')
+end
+
+-- Réponse du client (fenêtre de devis)
+RegisterNetEvent('meca:server:quoteAnswer', function(uid, accept)
+    local src = source
+    local q = P.quotes[tostring(uid or '')]
+    if not q or q.status ~= 'pending' or q.customer ~= src or answering[q.uid] then return end
+    Answer(src, q, accept == true)
 end)
 
 -- Installation animée : le serveur verrouille le point et le mécanicien, puis donne la liste

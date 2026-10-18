@@ -48,6 +48,8 @@ local function NearbyIds(radius)
         end
     end
     table.sort(list, function(a, b) return a.distance < b.distance end)
+    -- Soi-même en dernier : prestations sur son propre véhicule (payées à l'envoi)
+    if Config.Quotes.allowSelf ~= false then list[#list + 1] = { id = GetPlayerServerId(PlayerId()), self = true, distance = 0 } end
     return list
 end
 

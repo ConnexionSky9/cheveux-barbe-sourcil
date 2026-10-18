@@ -138,6 +138,8 @@ Config.Quotes = {
     installTimeout = 1800,        -- secondes après acceptation pour installer (sinon remboursement automatique)
     maxItems = 40,
     payWith = 'bank_then_cash',   -- prélevé à l'acceptation : banque, puis liquide
+    allowSelf = true,             -- le mécanicien peut s'envoyer le devis à lui-même (ses propres customs : il paie à l'envoi)
+    selfCommission = false,       -- commission du mécanicien sur ses propres devis
 }
 
 -- Catalogue de départ : copié en base au premier démarrage, ensuite modifiable dans la tablette.

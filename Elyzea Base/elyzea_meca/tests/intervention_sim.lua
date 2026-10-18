@@ -273,7 +273,7 @@ Meca = {
     SocietyAdd = function(a) money.society = money.society + a return true end,
     SocietyRemove = function(a) money.society = money.society - a return true end,
     Refund = function(cid, a) money.cust = money.cust + a money.refunds = money.refunds + a return true end,
-    Tx = function() return 'TX' end, Commission = function() end, History = function() end,
+    Tx = function() return 'TX' end, Commission = function(cid, amount) W.commissions = (W.commissions or 0) + 1 end, History = function() end,
     SaveMods = function(id, patch) W.saved = patch return true end, Log = function() end,
 }
 local function cat(code, name, kind, category, mod, level, price) Meca.catalog[code] = { code = code, name = name, kind = kind, category = category, mod = mod, level = level, price = price, enabled = true } end
@@ -572,6 +572,31 @@ threads = {}
 check(r11.ok, 'intervention terminée malgré la chute')
 check(ents[W.ped].pos.z > 29.0, ('personnage replacé au-dessus du sol (z = %.1f)'):format(ents[W.ped].pos.z))
 check(ents[W.ped].ragdoll == true, 'chute / ragdoll rétabli à la fin')
+
+print('\n[12] Devis envoyé à soi-même (custom personnel)')
+newWorld() W.applied = {}
+threads = {}
+loadFile('client/lift.lua')
+local open12 = P.Actions.wsOpen.fn(1, { ws = 'WS1', net = 900 })
+local selfOpt
+for _, c in ipairs(open12.customers or {}) do if c.self then selfOpt = c end end
+check(selfOpt and selfOpt.id == 1, '« Moi-même » proposé dans la liste des clients')
+local charges12, offers = money.charges, 0
+for _, e in ipairs(sentToClients) do if e.name == 'meca:client:quoteOffer' then offers = offers + 1 end end
+local q12 = P.Actions.quoteCreate.fn(1, { ws = 'WS1', net = 900, customer = 1, items = { { code = 'turbo' }, { code = 'engine_2' } }, model = 'Sultan' })
+local offers2 = 0
+for _, e in ipairs(sentToClients) do if e.name == 'meca:client:quoteOffer' then offers2 = offers2 + 1 end end
+check(q12.ok and q12.quote.status == 'accepted', 'devis payé tout de suite : ' .. tostring(q12.message))
+check(money.charges == charges12 + 1 and offers2 == offers, 'un seul prélèvement, aucune fenêtre d\'acceptation')
+W.commissions = 0
+local r12 = run(q12.quote.uid)
+threads = {}
+check(r12.ok and r12.amount == 10500 and r12.failed == 0, ('custom personnel installé et facturé : %s $'):format(tostring(r12.amount)))
+check(W.commissions == 0, 'aucune commission sur son propre devis')
+Config.Quotes.allowSelf = false
+local q12b = P.Actions.quoteCreate.fn(1, { ws = 'WS1', net = 900, customer = 1, items = { { code = 'turbo' } }, model = 'Sultan' })
+check(q12b.error ~= nil, 'option désactivable (allowSelf = false)')
+Config.Quotes.allowSelf = true
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails
