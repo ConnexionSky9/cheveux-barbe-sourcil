@@ -28,12 +28,25 @@ RegisterCommand('eau_diagnostic', function(src)
     end
     local found = list()
     local lines = {}
-    if #found == 0 then
+    -- elyzea_eau remplace l'eau VOLONTAIREMENT (eau d'origine complète + zones ajoutées) : c'est normal
+    local others = {}
+    for _, f in ipairs(found) do if f.res ~= 'elyzea_eau' then others[#others + 1] = f end end
+    if #found > 0 and #others == 0 then
+        lines[1] = 'Eau : elyzea_eau est la seule ressource qui gère l\'eau. C\'est normal (eau d\'origine du jeu complète + tes zones).'
+        lines[2] = 'Vérifie dans la console la ligne [EAU] de ton joueur : verte = fichier chargé, rouge = non chargé. /eau_etat en jeu donne la même info.'
+        found = {}
+    elseif #others > 0 then
+        found = others
+        lines[#lines + 1] = 'ATTENTION : une autre ressource que elyzea_eau remplace aussi l\'eau. Seule la DERNIÈRE démarrée compte : garde seulement elyzea_eau.'
+    end
+    if #lines > 0 and #found == 0 then
+        -- rien d'autre à signaler
+    elseif #found == 0 then
         lines[1] = 'Aucune ressource ne remplace l\'eau du jeu par WATER_FILE.'
         lines[2] = 'Autre cause fréquente : un script Cayo Perico (ex. cayo-perico-ultimate-main) charge l\'eau de l\'île. En jeu, à l\'endroit bugué : /eau_zone puis /eau_principale.'
         lines[3] = 'Si l\'eau ne revient pas : c\'est une map qui couvre la zone (sol / collision) ; arrête-les une par une pour trouver laquelle.'
     else
-        lines[1] = ('%d ressource(s) remplacent l\'eau du jeu (seule la DERNIÈRE démarrée compte) :'):format(#found)
+        lines[#lines + 1] = ('%d autre(s) ressource(s) remplacent l\'eau du jeu :'):format(#found)
         for _, f in ipairs(found) do lines[#lines + 1] = ('  - %s (%s) : %s'):format(f.res, f.state, f.file) end
         lines[#lines + 1] = 'Corriger : dans le fxmanifest de cette ressource, mets « -- » devant la ligne data_file \'WATER_FILE\', puis redémarre le serveur.'
         lines[#lines + 1] = 'Ou garde-la et utilise un water.xml complet (eau du jeu + eau de la map). En jeu : /eau_vanilla pour comparer.'
