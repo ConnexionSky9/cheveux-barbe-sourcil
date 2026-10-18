@@ -113,9 +113,73 @@ Comme les coupes sont dans le menu, un `restart admin_menu` renvoie aussi les fi
 Après un ajout, préfère redémarrer **tout le serveur** : les joueurs déjà connectés ne voient la
 nouvelle coupe qu'après s'être reconnectés.
 
-**Coupe « addon » (qui s'ajoute en fin de liste au lieu de remplacer)**
-Ces packs contiennent en plus des fichiers `.ymt` et `.meta` : ils se créent avec un outil comme
-*Durty Cloth Tool*. Le plus simple est de passer la coupe en « remplacement » comme ci-dessus.
+### 4.3 bis Packs de coupes « addon » (fichiers `.ymt` + `.meta`)
+Un pack addon **ajoute** des coupes après celles du jeu (rien n'est remplacé). Le salon les trouve tout seul :
+il demande au jeu les coupes qui existent vraiment pour le personnage, avec leur pack (« collection »).
+
+**Ce que doit contenir la ressource du pack** (exemple : collection `mp_f_freemode_01_mp_f_vm_female_hair`)
+```
+ma_ressource_cheveux/
+├── fxmanifest.lua
+├── mp_f_freemode_01_mp_f_vm_female_hair.meta                 ← à la RACINE (pas dans stream/)
+└── stream/                                                   ← sous-dossiers autorisés
+    ├── mp_f_freemode_01_mp_f_vm_female_hair.ymt
+    ├── mp_f_freemode_01_mp_f_vm_female_hair^hair_000_u.ydd
+    ├── mp_f_freemode_01_mp_f_vm_female_hair^hair_diff_000_a_uni.ytd
+    ├── mp_f_freemode_01_mp_f_vm_female_hair^hair_001_u.ydd
+    └── …
+```
+```lua
+-- fxmanifest.lua du pack
+fx_version 'cerulean'
+game 'gta5'
+files { 'mp_f_freemode_01_mp_f_vm_female_hair.meta' }
+data_file 'SHOP_PED_APPAREL_META_FILE' 'mp_f_freemode_01_mp_f_vm_female_hair.meta'
+```
+Dans le `.meta` : `<pedName>mp_f_freemode_01</pedName>`, `<dlcName>mp_f_vm_female_hair</dlcName>`,
+`<fullDlcName>mp_f_freemode_01_mp_f_vm_female_hair</fullDlcName>`.
+
+**Les 4 règles qui évitent une tête chauve**
+1. Le `.ymt` s'appelle exactement `<fullDlcName>.ymt`.
+2. Chaque `.ydd` / `.ytd` commence par `<fullDlcName>^` (pas `mp_f_freemode_01^`, pas un autre nom de pack).
+3. Les n° des fichiers suivent l'ordre du `.ymt` : `hair_000`, `hair_001`… sans trou.
+4. Le suffixe correspond au `.ymt` : `_u` (universel) ou `_r` (selon la couleur de peau) ; textures `_uni` ou `_whi`…
+
+Si le `.ymt` déclare 26 coupes mais que les fichiers ne portent pas ces noms, le jeu **compte** bien
+26 coupes de plus (le salon les affiche, par ex. n°126 à 151) mais ne trouve **aucun modèle** :
+le personnage est chauve. Le salon garde maintenant la coupe actuelle et marque la carte « ⚠ ».
+
+**Installation** : mets la ressource dans `resources/[vetements]/` (déjà lancé par `ensure [vetements]`)
+ou ajoute `ensure ma_ressource_cheveux` dans la partie VÊTEMENTS de `server.cfg`, avant `elyzea_clothing`.
+Redémarre le serveur puis reconnecte-toi (un pack relancé à chaud n'est vu qu'après reconnexion).
+
+**Noms des coupes addon** : une carte sans nom affiche « Coupe n°130 · vm_female_hair ».
+Le numéro d'une coupe addon **change** si tu ajoutes ou retires un pack avant le sien : un nom donné
+dans `barber_data.lua` (`[130] = '…'`) peut alors tomber sur une autre coupe. Les têtes ACHETÉES,
+elles, sont enregistrées avec leur pack et leur n° dans le pack : elles restent justes.
+
+### 4.3 ter Diagnostic (`Config.Barber.debug = true`)
+Dans `config.lua` › `Config.Barber`, mets `debug = true`, puis `restart admin_menu`.
+À l'ouverture du salon, la console **F8** (et la console du serveur) affiche :
+- le modèle du personnage, le nombre de coupes déclarées et utilisables, les n° sans texture ;
+- chaque collection (jeu de base, DLC, packs) avec ses n° (ex : `mp_f_vm_female_hair n° 126 à 151`) ;
+- pour chaque pack addon : la ressource qui le déclare, son `.meta`, la présence du `.ymt`,
+  les n° de coupes **sans `.ydd` au bon nom** et les fichiers rangés sous un **autre préfixe** ;
+- à chaque coupe essayée : n°, texture, collection, n° dans la collection, ou la raison du refus
+  (n'existe pas, modèle non chargé + nom de fichier attendu).
+
+Remets `debug = false` en production.
+
+**Test en jeu conseillé**
+1. Personnage femme, salon ouvert : survole une coupe du jeu (ex : n°10), puis une coupe du pack (n°126 et suivantes).
+2. Coupe à plusieurs textures : clique dessus, puis « Variante 2 » sous la liste.
+3. « ✕ » / Échap : la tête d'origine revient. Paye une coupe : elle reste, et revient après reconnexion.
+4. Coupe marquée ⚠ : regarde F8 (debug) pour le nom de fichier attendu, corrige le pack.
+5. Même chose avec un personnage homme. Arrête le pack (`stop ma_ressource_cheveux`) puis reconnecte-toi :
+   le salon s'ouvre sans ses coupes et la tête enregistrée garde la coupe actuelle.
+
+**Tests hors jeu** (logique du salon, natives imitées) : `pip install lupa` puis, depuis `admin_menu/`,
+`python3 tests/run_barber_sim.py`.
 
 ### 4.4 Barbes, sourcils, maquillages, blush, rouges à lèvres, peau
 Même principe, dans `BarberData.overlays`. Chaque calque a sa liste `styles` :

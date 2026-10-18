@@ -98,6 +98,13 @@ local function cleanLook(look)
         if look[key] ~= nil then out[key] = cleanValue(key, look[key], nil) end
     end
     if out.hair == nil then return nil end
+    -- Coupe d'un pack addon : texture + collection + n° dans la collection (retrouvée même si les n° globaux changent)
+    out.hairTex = int(look.hairTex, 0, 63, 0)
+    if type(look.hairCol) == 'string' and look.hairCol:match('^[%w_%-]+$') and #look.hairCol <= 64 then
+        out.hairCol = look.hairCol
+        out.hairLi = int(look.hairLi, 0, 1000, nil)
+        if out.hairLi == nil then out.hairCol = nil end
+    end
     return out
 end
 
@@ -197,6 +204,146 @@ RegisterNetEvent('adminmenu:barber:pay', function(id, cart, look, method)
 end)
 
 AddEventHandler('playerDropped', function() Paying[source] = nil end)
+
+-- ---------------------------------------------------------
+--  Diagnostic des packs de coupes addon (Config.Barber.debug = true)
+--  Le client envoie les collections de coupes qu'il voit ; le serveur retrouve
+--  la ressource qui les déclare (SHOP_PED_APPAREL_META_FILE) et vérifie ses fichiers :
+--  .meta, .ymt et un .ydd / .ytd au bon nom pour CHAQUE coupe déclarée.
+-- ---------------------------------------------------------
+local function say(src, fmt, ...)
+    local ok, msg = pcall(string.format, fmt, ...)
+    msg = ok and msg or fmt
+    print('^5[Salon]^7 ' .. msg)
+    if src then TriggerClientEvent('adminmenu:barber:debug', src, msg) end
+end
+
+-- Liste (minuscules) de tous les fichiers d'une ressource, sous-dossiers compris
+local function listFiles(res)
+    local path = GetResourcePath(res)
+    if not path or path == '' or not io or not io.popen then return nil end
+    local win = package.config:sub(1, 1) == '\\'
+    local cmd = win and ('dir /b /s /a-d "%s" 2>nul'):format(path:gsub('/', '\\')) or ('find "%s" -type f 2>/dev/null'):format(path)
+    local ok, h = pcall(io.popen, cmd)
+    if not ok or not h then return nil end
+    local out = {}
+    for line in h:lines() do
+        local name = line:match('[^\\/]+$')
+        if name then out[name:lower()] = line end
+    end
+    h:close()
+    return out
+end
+
+local function metaFiles(res)
+    local out = {}
+    local n = GetNumResourceMetadata(res, 'data_file') or 0
+    for i = 0, n - 1 do
+        if GetResourceMetadata(res, 'data_file', i) == 'SHOP_PED_APPAREL_META_FILE' then
+            local extra = GetResourceMetadata(res, 'data_file_extra', i) or ''
+            extra = extra:gsub('^%s*"', ''):gsub('"%s*$', '')
+            out[#out + 1] = extra
+        end
+    end
+    return out
+end
+
+local function declaredInFiles(res, file)
+    local n = GetNumResourceMetadata(res, 'file') or 0
+    for i = 0, n - 1 do
+        local f = GetResourceMetadata(res, 'file', i) or ''
+        if f == file or f:find('[%*]') then return true end
+    end
+    return false
+end
+
+-- Toutes les collections déclarées par les ressources démarrées : dlc → infos
+local function apparelPacks()
+    local packs = {}
+    for i = 0, GetNumResources() - 1 do
+        local res = GetResourceByFindIndex(i)
+        if res and GetResourceState(res) == 'started' then
+            for _, file in ipairs(metaFiles(res)) do
+                local xml = LoadResourceFile(res, file)
+                local p = { res = res, meta = file, found = xml ~= nil, listed = declaredInFiles(res, file) }
+                if xml then
+                    p.ped = xml:match('<pedName>%s*(.-)%s*</pedName>')
+                    p.dlc = xml:match('<dlcName>%s*(.-)%s*</dlcName>')
+                    p.full = xml:match('<fullDlcName>%s*(.-)%s*</fullDlcName>')
+                end
+                local key = (p.dlc or file):lower()
+                packs[key] = p
+                if p.full then packs[p.full:lower()] = p end
+            end
+        end
+    end
+    return packs
+end
+
+RegisterNetEvent('adminmenu:barber:checkPacks', function(ped, cols)
+    local src = source
+    if not CFG.debug then return end
+    if not AM.rateLimit(src, 'barber_check', 1, 10000) then return end
+    if type(cols) ~= 'table' or (ped ~= 'mp_m_freemode_01' and ped ~= 'mp_f_freemode_01') then return end
+    local packs = apparelPacks()
+    if #cols == 0 then
+        say(src, 'Aucune collection addon de coupes chargée pour %s : seules les coupes du jeu sont disponibles.', ped)
+    end
+    for i, c in ipairs(cols) do
+        if i > 30 then break end
+        local col, count = tostring(c.col or ''), math.floor(tonumber(c.count) or 0)
+        local p = packs[col:lower()] or packs[(ped .. '_' .. col):lower()]
+        if not p then
+            say(src, '%s (%d coupes) : déclarée par un DLC du jeu ou par une ressource sans data_file lisible.', col, count)
+        else
+            local prefix = (p.full or (ped .. '_' .. col)):lower()
+            say(src, '%s : ressource « %s », meta « %s »%s', col, p.res, p.meta, p.listed and '' or ' ^1(absent de files {} du fxmanifest)^7')
+            if p.ped and p.ped:lower() ~= ped then say(src, '  ^1pedName du .meta = %s, attendu %s^7', p.ped, ped) end
+            if p.full and p.dlc and p.full:lower() ~= (ped .. '_' .. p.dlc):lower() then
+                say(src, '  ^1fullDlcName (%s) ≠ pedName + "_" + dlcName (%s_%s)^7', p.full, ped, p.dlc)
+            end
+            local files = listFiles(p.res)
+            if not files then
+                -- Pas de liste des dossiers sur ce serveur : on cherche aux emplacements habituels
+                files = {}
+                local dirs = { '', 'stream/', ('stream/%s/'):format(p.dlc or col), ('stream/%s/'):format(prefix), 'stream/hair/', ('stream/%s/'):format(ped) }
+                local function probe(name)
+                    for _, d in ipairs(dirs) do
+                        if LoadResourceFile(p.res, d .. name) then files[name:lower()] = d .. name return end
+                    end
+                end
+                probe(prefix .. '.ymt')
+                for li = 0, count - 1 do
+                    probe(('%s^hair_%03d_u.ydd'):format(prefix, li)); probe(('%s^hair_%03d_r.ydd'):format(prefix, li))
+                    probe(('%s^hair_diff_%03d_a_uni.ytd'):format(prefix, li)); probe(('%s^hair_diff_%03d_a_whi.ytd'):format(prefix, li))
+                end
+                say(src, '  (recherche limitée à stream/ et à ses sous-dossiers habituels : un fichier rangé ailleurs sera signalé manquant)')
+            end
+            do
+                say(src, '  .ymt %s : %s', prefix .. '.ymt', files[prefix .. '.ymt'] and 'trouvé' or '^1MANQUANT^7')
+                local missing, wrongSuffix, noTex = {}, {}, {}
+                for li = 0, count - 1 do
+                    local u = files[('%s^hair_%03d_u.ydd'):format(prefix, li)]
+                    local r = files[('%s^hair_%03d_r.ydd'):format(prefix, li)]
+                    if not u and not r then missing[#missing + 1] = li end
+                    if not files[('%s^hair_diff_%03d_a_uni.ytd'):format(prefix, li)] and not files[('%s^hair_diff_%03d_a_whi.ytd'):format(prefix, li)] then noTex[#noTex + 1] = li end
+                end
+                -- Fichiers de coupes présents mais sous un AUTRE préfixe (cause classique de tête chauve)
+                for name in pairs(files) do
+                    local pre = name:match('^(.-)%^hair_%d%d%d_[ur]%.ydd$')
+                    if pre and pre ~= prefix then wrongSuffix[pre] = (wrongSuffix[pre] or 0) + 1 end
+                end
+                say(src, '  coupes déclarées : %d · .ydd manquants : %d · textures « a » manquantes : %d', count, #missing, #noTex)
+                if #missing > 0 then
+                    say(src, '  ^1n° locaux sans .ydd au bon nom : %s → ces coupes s\'affichent CHAUVES^7', table.concat(missing, ', ', 1, math.min(#missing, 30)))
+                end
+                for pre, n in pairs(wrongSuffix) do
+                    say(src, '  ^3%d fichier(s) .ydd nommés « %s^hair_… » dans cette ressource : préfixe différent de « %s »^7', n, pre, prefix)
+                end
+            end
+        end
+    end
+end)
 
 -- Statistiques simples pour d'autres ressources
 exports('GetBarberLook', function(src) local k = charKey(src) return k and Looks[k] or nil end)

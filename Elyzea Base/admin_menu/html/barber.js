@@ -34,12 +34,25 @@
     const priceOf = (k) => (B.shop.prices[k] ?? 0);
     const chosen = (k) => (B.cart[k] ? B.cart[k].value : B.current[k]);
     const same = (k, a, b) => (STYLE[k] ? a.s === b.s && Math.abs(a.o - b.o) < 0.005 : a === b);
+    const sameHair = (v, tex) => v === B.current.hair && (tex || 0) === (B.current.hairTex || 0);
     const sameStyle = (k, a, b) => (STYLE[k] ? a.s === b.s : a === b);
     const tabOn = (t) => t.modes.some((m) => B.shop.prices[m.key] !== undefined);
 
+    /* ---------- Coupes réellement disponibles (envoyées par le client Lua) ---------- */
+    // { v: n° global, t: nb de textures, c: collection du pack (absent = jeu), l: n° dans la collection }
+    const hairEntry = (v) => (B.hairMap ? B.hairMap[v] : null);
+    const packLabel = (c) => String(c).replace(/^mp_[mf]_freemode_01_/i, '').replace(/^mp_[mf]_/i, '');
+    // Texture de coupe choisie (panier) ou d'origine
+    const hairTexOf = (v) => (B.cart.hair && B.cart.hair.value === v ? B.cart.hair.tex
+        : (v === B.current.hair ? (B.current.hairTex || 0) : 0));
+
     function labelOf(k, v) {
         const C = B.catalog;
-        if (k === 'hair') return C.hair[String(v)] || `Coupe n°${v}`;
+        if (k === 'hair') {
+            if (C.hair[String(v)]) return C.hair[String(v)];
+            const e = hairEntry(v);
+            return e && e.c ? `Coupe n°${v} · ${packLabel(e.c)}` : `Coupe n°${v}`;
+        }
         if (k === 'eyes') return (C.eyes[v] || [`Couleur n°${v + 1}`])[0];
         if (COLOR[k]) return `Teinte n°${v + 1}`;
         const ov = OV()[k] || {};
@@ -121,7 +134,9 @@
         if (k === 'hair') {
             const q = B.search.trim().toLowerCase();
             const out = [];
-            for (let i = 0; i < c.hair; i++) {
+            // Seulement les coupes qui existent pour ce personnage (sinon : ancien comportement 0 → nombre de coupes)
+            const ids = B.hairList ? B.hairList.map((e) => e.v) : Array.from({ length: c.hair || 0 }, (_, i) => i);
+            for (const i of ids) {
                 if (B.catalog.hair[String(i)] === false) continue;   // coupe cachée dans barber_data.lua
                 const label = labelOf('hair', i);
                 if (q && !label.toLowerCase().includes(q) && String(i) !== q) continue;
@@ -172,7 +187,7 @@
         } else {
             list.className = 'bb-list';
             list.innerHTML = items.length
-                ? `<div class="bb-grid">${items.map((i) => `<button class="bb-item${flags(i.v)}" data-v="${i.v}">
+                ? `<div class="bb-grid">${items.map((i) => `<button class="bb-item${flags(i.v)}${k === 'hair' && B.bad.has(i.v) ? ' bad' : ''}" data-v="${i.v}"${k === 'hair' && B.bad.has(i.v) ? ' title="Cette coupe ne se charge pas : fichiers du pack manquants ou mal nommés"' : ''}>
                         <b>${i.v < 0 ? '∅' : i.v + (k === 'hair' ? 0 : 1)}</b><span>${esc(i.label)}</span></button>`).join('')}</div>`
                 : (k === 'hair' ? `<div class="bb-empty">Aucune coupe ne correspond à « ${esc(B.search)} ». Essaie un autre mot ou un numéro.</div>`
                     : '<div class="bb-empty">Ce style n\'est pas disponible pour ton personnage.</div>');
@@ -183,6 +198,16 @@
     function drawFoot() {
         const k = currentKey();
         const foot = document.getElementById('bb-foot');
+        // Coupes : variantes de texture disponibles pour la coupe choisie
+        if (k === 'hair') {
+            const v = chosen('hair');
+            const e = hairEntry(v);
+            const n = e ? e.t : 0;
+            const cur = hairTexOf(v);
+            foot.innerHTML = n > 1 ? `<div class="bb-modes wrap">${Array.from({ length: n }, (_, t) =>
+                `<button class="bb-mode ${t === cur ? 'on' : ''}" data-hairtex="${t}">Variante ${t + 1}</button>`).join('')}</div>` : '';
+            return;
+        }
         if (!STYLE[k] || chosen(k).s < 0) { foot.innerHTML = ''; return; }
         const o = Math.round(chosen(k).o * 100);
         foot.innerHTML = `<label class="bb-range"><span>Densité <b id="bb-op">${o} %</b></span>
@@ -232,9 +257,19 @@
             <button class="btn bb-reset" id="bb-reset" ${!keys.length || B.paying ? 'disabled' : ''}>Vider le panier</button>`;
     }
 
-    function addToCart(k, value) {
+    function addToCart(k, value, tex) {
         B.error = null;
-        if (same(k, value, B.current[k]) || (STYLE[k] && value.s < 0 && B.current[k].s < 0)) {
+        if (k === 'hair') {
+            if (B.bad.has(value)) { B.error = 'Cette coupe ne se charge pas (fichiers du pack manquants). Ta coupe actuelle est conservée.'; return drawCart(); }
+            tex = tex === undefined ? (value === B.current.hair ? (B.current.hairTex || 0) : 0) : tex;
+            if (sameHair(value, tex)) {
+                if (B.cart.hair) { delete B.cart.hair; send('barber_unset', { key: k }); }
+            } else {
+                const e = hairEntry(value);
+                B.cart.hair = { value, tex, label: labelOf(k, value) + (e && e.t > 1 ? ` (variante ${tex + 1})` : ''), price: priceOf(k) };
+                send('barber_set', { key: k, value, tex });
+            }
+        } else if (same(k, value, B.current[k]) || (STYLE[k] && value.s < 0 && B.current[k].s < 0)) {
             if (B.cart[k]) { delete B.cart[k]; send('barber_unset', { key: k }); }
         } else {
             B.cart[k] = { value, label: labelOf(k, value), price: priceOf(k) };
@@ -270,7 +305,7 @@
         if (!it || B.paying) return;
         const k = currentKey();
         const v = valueFor(k, it.dataset.v);
-        wantPreview({ key: k, value: v });
+        wantPreview(k === 'hair' ? { key: k, value: v, tex: hairTexOf(v) } : { key: k, value: v });
     });
     root.addEventListener('mouseout', (e) => {
         const list = document.getElementById('bb-list');
@@ -288,6 +323,11 @@
             setCam(t.cam);
             root.querySelectorAll('.bb-tab').forEach((x) => x.classList.toggle('on', x === n));
             return drawTab();
+        }
+        if ((n = e.target.closest('[data-hairtex]'))) {
+            const t = Number(n.dataset.hairtex);
+            addToCart('hair', chosen('hair'), t);
+            return drawFoot();
         }
         if ((n = e.target.closest('[data-mode]'))) { B.mode = n.dataset.mode; return drawTab(); }
         if ((n = e.target.closest('[data-cam]'))) return setCam(n.dataset.cam);
@@ -383,10 +423,25 @@
         if (!m || m.action !== 'barber') return;
         if (m.event === 'payfail') { B.paying = false; B.error = m.msg; return B.open && drawCart(); }
         if (m.event === 'paid') { B.paying = false; B.done = m.msg || 'Payé !'; return B.open && drawCart(); }
+        if (m.event === 'hairfail') {
+            // Coupe impossible à charger : marquée, retirée du panier, la coupe actuelle reste en place
+            if (!B.open) return;
+            const v = Number(m.v);
+            B.bad.add(v);
+            if (B.cart.hair && B.cart.hair.value === v) { delete B.cart.hair; send('barber_unset', { key: 'hair' }); }
+            B.error = `Coupe n°${v} : ${m.why === 'absente' ? 'elle n\'existe pas pour ton personnage' : 'son modèle ne se charge pas (fichiers du pack manquants ou mal nommés)'}. Ta coupe actuelle est conservée.`;
+            const el = document.querySelector(`#bb-list [data-v="${v}"]`);
+            if (el && currentKey() === 'hair') { el.classList.add('bad'); el.title = 'Cette coupe ne se charge pas'; }
+            if (currentKey() === 'hair') { markList(); drawFoot(); }
+            return drawCart();
+        }
         if (m.open) {
             Object.assign(B, {
                 open: true, shop: m.shop, gender: m.gender, counts: m.counts || {},
                 palettes: m.palettes || { hair: [], makeup: [] }, current: m.current, catalog: m.catalog,
+                hairList: Array.isArray(m.hairList) ? m.hairList : null,
+                hairMap: Array.isArray(m.hairList) ? Object.fromEntries(m.hairList.map((e) => [e.v, e])) : null,
+                bad: new Set(),
                 tab: (m.catalog.tabs[0] || {}).id, mode: null, search: '', cart: {}, cam: 'head',
                 method: (m.shop.wallet && m.shop.wallet.cash === undefined) ? 'bank' : 'cash',
                 paying: false, error: null, done: null,

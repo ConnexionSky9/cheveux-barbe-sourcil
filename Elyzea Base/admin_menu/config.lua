@@ -1089,6 +1089,15 @@ Config.Barber = {
     chestForFemale = false,   -- montrer la pilosité du torse aux personnages féminins
     hideAccessories = true,   -- retire chapeau, lunettes et masque pendant la coupe (remis à la sortie)
 
+    -- Coupes addon : temps maximum (ms) pour charger le modèle d'une coupe avant de la déclarer
+    -- « non chargée » (la coupe actuelle reste alors en place au lieu d'une tête chauve)
+    hairLoadTimeout = 4000,
+
+    -- Diagnostic (console F8 + console serveur) : modèle, nombre de coupes, collections des packs,
+    -- coupe / texture appliquée, raison d'un refus, vérification des fichiers des packs addon.
+    -- À laisser sur false en production.
+    debug = false,
+
     -- Noms des coupes, barbes, maquillages… et coupes cachées : voir barber_data.lua
 }
 

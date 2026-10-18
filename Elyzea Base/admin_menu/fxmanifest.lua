@@ -16,6 +16,7 @@ shared_scripts {
 }
 
 client_scripts {
+    '@elyzea_core/lib/clothing.lua',   -- coupes de packs addon : collection + n° local
     'client/main.lua',
     'client/noclip.lua',
     'client/spectate.lua',

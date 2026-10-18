@@ -7,6 +7,15 @@
 local CFG = Config.Barber or {}
 local MALE, FEMALE = `mp_m_freemode_01`, `mp_f_freemode_01`
 local HEAD_BONE = 31086
+local HAIR = 2                                  -- composant « cheveux » du personnage
+local HAIR_LOAD_MS = tonumber(CFG.hairLoadTimeout) or 4000
+
+-- Journal de diagnostic (Config.Barber.debug = true) : console F8
+local function dbg(fmt, ...)
+    if not CFG.debug then return end
+    local ok, msg = pcall(string.format, fmt, ...)
+    print('^5[Salon]^7 ' .. (ok and msg or fmt))
+end
 
 BarberOpen = false
 
@@ -49,6 +58,108 @@ local function normalize(key, v)
 end
 
 -- ---------------------------------------------------------
+--  Coupes réellement disponibles pour CE personnage
+--  GTA numérote toutes les coupes à la suite : d'abord celles du jeu et de ses
+--  mises à jour, puis celles des packs addon (une « collection » par pack).
+--  On ne propose que les n° qui existent (au moins une texture) et on garde,
+--  pour chaque coupe, sa collection et son n° dans la collection.
+-- ---------------------------------------------------------
+local hairInfo -- { count, list = { {v, t, c, l} }, byIndex = { [v] = entrée }, invalid = { v… } }
+
+local function pedName(m) return m == FEMALE and 'mp_f_freemode_01' or 'mp_m_freemode_01' end
+
+local function hairCollection(p, d)
+    if not (ElyCloth and ElyCloth.enabled) then return nil, nil end
+    local col, li = ElyCloth.info(p, 'component', HAIR, d)
+    if col == '' or li == nil or li < 0 then return nil, nil end
+    return col, li
+end
+
+-- Nom que doivent porter les fichiers d'une coupe addon dans le pack
+local function expectedFiles(p, col, li)
+    if not col then return nil end
+    local ped = pedName(GetEntityModel(p))
+    local prefix = col:lower():find('freemode_01', 1, true) and col or (ped .. '_' .. col)
+    return ('%s^hair_%03d_u.ydd (ou _r) + %s^hair_diff_%03d_a_uni.ytd'):format(prefix, li, prefix, li)
+end
+
+local function scanHair(p)
+    local count = GetNumberOfPedDrawableVariations(p, HAIR)
+    local info = { count = count, list = {}, byIndex = {}, invalid = {} }
+    for d = 0, count - 1 do
+        local t = GetNumberOfPedTextureVariations(p, HAIR, d)
+        local col, li = hairCollection(p, d)
+        local e = { v = d, t = t, c = col, l = li }
+        if t and t > 0 then
+            info.list[#info.list + 1] = e
+            info.byIndex[d] = e
+        else
+            info.invalid[#info.invalid + 1] = d
+        end
+    end
+    if CFG.debug then
+        dbg('Modèle : %s · coupes déclarées : %d · utilisables : %d · sans texture (ignorées) : %d',
+            pedName(GetEntityModel(p)), count, #info.list, #info.invalid)
+        if not (ElyCloth and ElyCloth.enabled) then
+            dbg('^3Natives de collection absentes : impossible de distinguer coupes du jeu et addon (sv_enforceGameBuild trop ancien ?).^7')
+        else
+            local packs = {}
+            for _, r in ipairs(ElyCloth.ranges(p, 'component', HAIR)) do
+                dbg('  collection %-40s n° %d à %d (%d coupe(s))', r.col == '' and '(jeu de base)' or r.col, r.first, r.first + r.count - 1, r.count)
+                if r.col ~= '' then packs[#packs + 1] = { col = r.col, first = r.first, count = r.count } end
+            end
+            -- Vérification des fichiers des packs côté serveur (noms, .ymt, .meta)
+            TriggerServerEvent('adminmenu:barber:checkPacks', pedName(GetEntityModel(p)), packs)
+        end
+        if #info.invalid > 0 then
+            dbg('  n° sans texture : %s', table.concat(info.invalid, ', ', 1, math.min(#info.invalid, 40)))
+        end
+    end
+    return info
+end
+
+-- Applique une coupe une fois son modèle chargé : la coupe actuelle reste visible pendant le
+-- chargement (plus de tête chauve), et seule la DERNIÈRE coupe demandée est appliquée.
+local hairToken = 0
+local function setHair(p, d, t, color, highlight, onFail)
+    hairToken = hairToken + 1
+    local token = hairToken
+    local e = hairInfo and hairInfo.byIndex[d]
+    if not e then
+        dbg('^1Coupe n°%s refusée : elle n\'existe pas pour ce personnage (0 texture ou hors limites, %d coupes).^7', tostring(d), hairInfo and hairInfo.count or -1)
+        if onFail then onFail('absente') end
+        return false
+    end
+    if not t or t < 0 or t >= e.t then t = 0 end
+    local function finish()
+        SetPedComponentVariation(p, HAIR, d, t, 0)
+        if color then SetPedHairColor(p, color, highlight or color) end
+        dbg('Coupe appliquée : n°%d texture %d/%d%s', d, t, e.t, e.c and (' · collection %s n° local %d'):format(e.c, e.l) or ' · jeu')
+    end
+    if GetPedDrawableVariation(p, HAIR) == d and GetPedTextureVariation(p, HAIR) == t then finish() return true end
+    if not (SetPedPreloadVariationData and HasPedPreloadVariationDataFinished) then finish() return true end
+    SetPedPreloadVariationData(p, HAIR, d, t)
+    CreateThread(function()
+        local start = GetGameTimer()
+        while not HasPedPreloadVariationDataFinished(p) do
+            if token ~= hairToken then return end            -- une autre coupe a été demandée entre-temps
+            if GetGameTimer() - start > HAIR_LOAD_MS then
+                ReleasePedPreloadVariationData(p)
+                dbg('^1Coupe n°%d non chargée après %d ms : le modèle n\'est pas trouvé.%s^7', d, HAIR_LOAD_MS,
+                    e.c and (' Fichiers attendus dans le pack : ' .. expectedFiles(p, e.c, e.l)) or '')
+                if onFail then onFail('non chargée') end
+                return
+            end
+            Wait(0)
+        end
+        if token ~= hairToken then return end
+        finish()
+        ReleasePedPreloadVariationData(p)
+    end)
+    return true
+end
+
+-- ---------------------------------------------------------
 --  Lecture / application de la tête
 -- ---------------------------------------------------------
 local function overlayOf(p, idx)
@@ -59,7 +170,7 @@ end
 
 local function snapshot(p)
     local s = {
-        hair = GetPedDrawableVariation(p, 2), hairTex = GetPedTextureVariation(p, 2),
+        hair = GetPedDrawableVariation(p, HAIR), hairTex = math.max(0, GetPedTextureVariation(p, HAIR)),
         hair_color = math.max(0, GetPedHairColor(p)), hair_highlight = math.max(0, GetPedHairHighlightColor(p)),
         eyes = math.max(0, GetPedEyeColor(p)),
     }
@@ -79,12 +190,24 @@ local function val(key)
     return state[key]
 end
 
+-- Texture de la coupe affichée : celle choisie dans le salon, sinon celle d'origine si c'est la même coupe
+local function hairTex(d)
+    if preview and preview.key == 'hair' and preview.tex then return preview.tex end
+    if d == state.hair and state.hairTex then return state.hairTex end
+    if orig and d == orig.hair then return orig.hairTex end
+    return 0
+end
+
+local function hairFailed(d, why)
+    SendNUIMessage({ action = 'barber', event = 'hairfail', v = d, why = why })
+end
+
 local function applyGroup(g)
     local p = PlayerPedId()
     if g == 'hair' then
         local d = val('hair')
-        SetPedComponentVariation(p, 2, d, (orig and d == orig.hair) and orig.hairTex or 0, 0)
         SetPedHairColor(p, val('hair_color'), val('hair_highlight'))
+        setHair(p, d, hairTex(d), val('hair_color'), val('hair_highlight'), function(why) hairFailed(d, why) end)
     elseif g == 'eyes' then
         SetPedEyeColor(p, val('eyes'))
     else
@@ -110,8 +233,22 @@ local function applyLook(look)
     local p = PlayerPedId()
     local m = GetEntityModel(p)
     if (look.model == 'female' and m ~= FEMALE) or (look.model ~= 'female' and m ~= MALE) then return end
-    local keep = GetPedDrawableVariation(p, 2) == look.hair and GetPedTextureVariation(p, 2) or 0
-    SetPedComponentVariation(p, 2, look.hair, keep, 0)
+    -- Coupe d'un pack : retrouvée par sa collection (son n° global change si on ajoute / retire un pack)
+    local d = look.hair
+    if look.hairCol and ElyCloth and ElyCloth.enabled then
+        d = ElyCloth.resolve(p, 'component', HAIR, { drawable = look.hair, col = look.hairCol, li = look.hairLi })
+        if d == nil then
+            dbg('^3Coupe enregistrée introuvable : le pack « %s » n\'est pas chargé. Coupe actuelle conservée.^7', look.hairCol)
+        end
+    end
+    if d and d >= 0 and d < GetNumberOfPedDrawableVariations(p, HAIR) and GetNumberOfPedTextureVariations(p, HAIR, d) > 0 then
+        local t = look.hairTex
+        if t == nil then t = GetPedDrawableVariation(p, HAIR) == d and GetPedTextureVariation(p, HAIR) or 0 end
+        if t < 0 or t >= GetNumberOfPedTextureVariations(p, HAIR, d) then t = 0 end
+        SetPedComponentVariation(p, HAIR, d, t, 0)
+    elseif d then
+        dbg('^3Coupe enregistrée n°%s non valide pour ce personnage : coupe actuelle conservée.^7', tostring(d))
+    end
     SetPedHairColor(p, look.hair_color, look.hair_highlight)
     for name, ov in pairs(OVERLAY) do
         local st = look[name]
@@ -317,7 +454,8 @@ RegisterNetEvent('adminmenu:barber:show', function(data)
     DisplayRadar(false)
     startCamera(p)
 
-    local counts = { hair = GetNumberOfPedDrawableVariations(p, 2) }
+    hairInfo = scanHair(p)
+    local counts = { hair = hairInfo.count }
     for name, ov in pairs(OVERLAY) do counts[name] = GetPedHeadOverlayNum(ov.index) end
 
     BarberOpen = true
@@ -330,9 +468,20 @@ RegisterNetEvent('adminmenu:barber:show', function(data)
         palettes = getPalettes(),
         current = orig,
         catalog = getCatalog(gender),
+        hairList = hairInfo.list,      -- coupes utilisables : { v = n° global, t = nb de textures, c = collection, l = n° dans la collection }
     })
     frameLoop()
 end)
+
+-- Tête à enregistrer : coupe + texture + collection du pack (pour la retrouver même si les n° changent)
+local function lookOf(st)
+    local look = copy(st)
+    look.model = gender
+    local e = hairInfo and hairInfo.byIndex[st.hair]
+    look.hairTex = st.hairTex or 0
+    if e and e.c then look.hairCol, look.hairLi = e.c, e.l else look.hairCol, look.hairLi = nil, nil end
+    return look
+end
 
 -- ---------------------------------------------------------
 --  Callbacks de l'interface
@@ -348,7 +497,7 @@ RegisterNUICallback('barber_preview', function(d, cb)
         if old then applyGroup(GROUP[old.key]) end
         return
     end
-    preview = { key = key, value = v }
+    preview = { key = key, value = v, tex = key == 'hair' and tonumber(d.tex) and math.floor(d.tex) or nil }
     if old and GROUP[old.key] ~= GROUP[key] then applyGroup(GROUP[old.key]) end
     applyGroup(GROUP[key])
 end)
@@ -358,7 +507,9 @@ RegisterNUICallback('barber_set', function(d, cb)
     if not BarberOpen or awaiting or not GROUP[d.key] then return end
     local v = normalize(d.key, d.value)
     if v == nil then return end
+    if d.key == 'hair' and not (hairInfo and hairInfo.byIndex[v]) then return hairFailed(v, 'absente') end
     state[d.key] = v
+    if d.key == 'hair' then state.hairTex = math.max(0, math.floor(tonumber(d.tex) or 0)) end
     inCart[d.key] = true
     preview = nil
     applyGroup(GROUP[d.key])
@@ -368,6 +519,7 @@ RegisterNUICallback('barber_unset', function(d, cb)
     cb('ok')
     if not BarberOpen or awaiting or not GROUP[d.key] then return end
     state[d.key] = copy({ v = orig[d.key] }).v
+    if d.key == 'hair' then state.hairTex = orig.hairTex end
     inCart[d.key] = nil
     preview = nil
     applyGroup(GROUP[d.key])
@@ -414,8 +566,7 @@ RegisterNUICallback('barber_pay', function(d, cb)
     local cart, n = {}, 0
     for key in pairs(inCart) do cart[key] = state[key] n = n + 1 end
     if n == 0 then return SendNUIMessage({ action = 'barber', event = 'payfail', msg = 'Ton panier est vide.' }) end
-    local look = copy(state)
-    look.hairTex, look.model = nil, gender
+    local look = lookOf(state)
     awaiting = true
     TriggerServerEvent('adminmenu:barber:pay', shop.id, cart, look, d.method == 'bank' and 'bank' or 'cash')
     SetTimeout(10000, function()
@@ -445,8 +596,7 @@ RegisterNetEvent('adminmenu:barber:result', function(ok, msg)
     preview = nil
     restoreAccessories()            -- remis AVANT l'enregistrement pour ne pas perdre le chapeau
     applyAll()
-    local look = copy(state)
-    look.hairTex, look.model = nil, gender
+    local look = lookOf(state)
     orig = copy(state)              -- la nouvelle tête devient la tête d'origine
     saveAppearance(look)
     SendNUIMessage({ action = 'barber', event = 'paid', msg = msg })
@@ -532,5 +682,10 @@ function BarberAdminConfig()
         blipSprite = CFG.blipSprite or 71, blipColor = CFG.blipColor or 4,
     }
 end
+
+-- Résultat du diagnostic des packs (serveur) affiché dans la console F8
+RegisterNetEvent('adminmenu:barber:debug', function(msg)
+    if CFG.debug and type(msg) == 'string' then print('^5[Salon]^7 ' .. msg) end
+end)
 
 exports('IsBarberOpen', function() return BarberOpen end)
