@@ -56,6 +56,7 @@ class World:
         self.commands = {}
         self.prints = []
         self.bebes = {}
+        self.admins = set()
 
     def add_player(self, src, cid, gender, birthdate, pos=(0.0, 0.0, 30.0)):
         self.players[src] = {'cid': cid, 'gender': gender, 'birthdate': birthdate, 'pos': pos}
@@ -198,6 +199,7 @@ api = {
     'client': lambda name, target, args: W.client_events.append((name, int(target), from_lua(args))),
     'notify': lambda src, msg, kind: W.notifs.append((int(src), msg, kind)),
     'json': lambda v: json.dumps(from_lua(v), ensure_ascii=False),
+    'unjson': lambda t: to_lua(json.loads(t)),
     'read': lambda path: open(os.path.join(RES_DIR, path), encoding='utf-8').read() if os.path.isfile(os.path.join(RES_DIR, path)) else None,
     'net': lambda name, fn: W.net.__setitem__(name, fn),
     'on': lambda name, fn: W.events.setdefault(name, []).append(fn),
@@ -205,6 +207,7 @@ api = {
     'cmd': lambda name, fn: W.commands.__setitem__(name, fn),
     'print': lambda s: W.prints.append(s),
     'porte_bebe': lambda s: W.bebes.get(int(s)),
+    'admin': lambda s, perm: int(s) in W.admins and perm == 'famille_manage',
 }
 G.py = to_lua({})
 for k, f in api.items():
@@ -236,14 +239,14 @@ function RegisterNetEvent(name, fn) if fn then py.net(name, fn) end end
 function AddEventHandler(name, fn) py.on(name, fn) end
 function TriggerEvent(name, ...) end
 function RegisterCommand(name, fn) py.cmd(name, fn) end
-json = { encode = function(v) return py.json(v) end }
+json = { encode = function(v) return py.json(v) end, decode = function(t) return py.unjson(t) end }
 local function m(kind)
     return setmetatable({ await = function(sql, params) return py.sql(kind, sql, params) end },
         { __call = function(_, sql, params, cb) local r = py.sql(kind, sql, params) if type(params) == 'function' then params(r) elseif cb then cb(r) end end })
 end
 MySQL = { query = m('query'), single = m('single'), scalar = m('scalar'), insert = m('insert'), update = m('update') }
 MySQL.transaction = { await = function(q) return py.tx(q) end }
-MySQL.ready = function(cb) cb() end
+MySQL.ready = function(cb) CreateThread(cb) end   -- comme elyzea_core : rappel au tick suivant
 Ely = { callback = { register = function(name, fn) py.cb(name, fn) end } }
 exports = {
     elyzea_core = {
@@ -259,13 +262,26 @@ exports = {
     elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end },
     elyzea_police = { IsCuffed = function() return false end },
     elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end },
+    admin_menu = { HasPermission = function(_, s, perm) return py.admin(s, perm) end },
 }
+EXPORTS_LUA = {}
+setmetatable(exports, { __call = function(_, name, fn) EXPORTS_LUA[name] = fn end })
 ''')
 
-for f in ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/consentement.lua', 'server/contraception.lua',
-          'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/staff.lua'):
-    lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
-advance(1)   # enregistrement des objets utilisables (Wait 500)
+SERVER_FILES = ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua', 'server/consentement.lua',
+                'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/staff.lua')
+
+
+def start_resource():
+    """Démarrage (ou redémarrage) de la ressource : tous les fichiers sont rechargés, comme dans FiveM."""
+    W.net.clear(); W.events.clear(); W.callbacks.clear(); W.usables.clear(); W.commands.clear()
+    for f in SERVER_FILES:
+        lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
+    advance(1)   # tables, réglages, objets utilisables (Wait 500)
+
+
+start_resource()
+EXPORTS = G.EXPORTS_LUA
 
 # ───────────────────────────── outils de test ─────────────────────────────
 OK, KO = 0, 0
@@ -532,16 +548,97 @@ check('18. 13 jours plus tard : étape avancée, calculée depuis les dates', re
 
 # 15. redémarrage : une session restée « active » est interrompue
 q("INSERT INTO rp_intimacy_sessions (id, a_cid, b_cid, status, duree, started_at) VALUES ('SES-TEST', 'A', 'B', 'active', 30, %s)", (W.now,))
-lua.execute(open(os.path.join(RES_DIR, 'server/base.lua'), encoding='utf-8').read())
-advance(1)
+start_resource()
 check('15. redémarrage : session active interrompue', q("SELECT status FROM rp_intimacy_sessions WHERE id = 'SES-TEST'")[0]['status'] == 'interrompue')
 
 # 19. mise à jour depuis la version 0.1 (table sans la colonne bebes_connus)
 q('ALTER TABLE rp_pregnancies DROP COLUMN bebes_connus')
-lua.execute(open(os.path.join(RES_DIR, 'server/base.lua'), encoding='utf-8').read())
-advance(1)
+start_resource()
 cols = {r['COLUMN_NAME'] for r in q("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME='rp_pregnancies'", (DB,))}
 check('19. mise à jour 0.1 -> 0.2 : colonne ajoutée automatiquement, données conservées', 'bebes_connus' in cols and q("SELECT 1 FROM rp_pregnancies WHERE porteur_cid='F001'"))
+
+# 20-26. Réglages depuis le menu admin (cahier des charges §34)
+def admin(src, name, data=None):
+    G.source = src
+    r = lua.eval('function(f, s, n, d) return table.pack(f(s, n, d)) end')(EXPORTS['AdminAction'], src, name, to_lua(data or {}))
+    advance(0)
+    return r[1], r[2]
+
+
+def admin_data(src):
+    return from_lua(EXPORTS['AdminData'](src))
+
+
+def last_session_duration():
+    return session_rows()[-1]['duree']
+
+
+W.admins.add(3)
+vals = admin_data(3)['values']
+check('20. le staff autorisé lit les réglages actuels', vals['intimite.duree'] == 15 and 'conception.probaAccidentelle' in vals, vals.get('intimite.duree'))
+vals['intimite.duree'] = 8
+ok, msg = admin(3, 'save', {'values': vals})
+check('20. durée réduite à 8 s : enregistrée', ok is True and G.Config.Intimite.duree == 8, msg)
+wait_delay(); W.bebes.clear()
+net('elyzea_famille:intime:demande', 2, 1, {})
+answer(1, True, {})
+started = last_client('elyzea_famille:client:intimeDebut', 1)
+check('20. le nouveau moment utilise 8 s (envoyé au client et enregistré)', started[0]['duree'] == 8 and last_session_duration() == 8)
+sid = session_rows()[-1]['id']
+advance((G.Config.Intimite.delaiAvantNoir + G.Config.Intimite.fondu) / 1000 + 8 + 1)
+check('20. il se termine après 8 s et le calcul du risque a lieu', q('SELECT status FROM rp_intimacy_sessions WHERE id=%s', (sid,))[0]['status'] == 'terminee'
+      and q('SELECT 1 FROM rp_conception_attempts WHERE session_id=%s', (sid,)))
+
+vals = admin_data(3)['values']
+vals['intimite.duree'] = 90
+ok, msg = admin(3, 'save', {'values': vals})
+wait_delay()
+net('elyzea_famille:intime:demande', 2, 1, {})
+answer(1, True, {})
+sid = session_rows()[-1]['id']
+check('21. durée augmentée à 90 s : appliquée', ok is True and last_session_duration() == 90, msg)
+vals['intimite.duree'] = 10
+admin(3, 'save', {'values': vals})
+advance(12)
+check('21. changement pendant un moment : le moment en cours garde 90 s', q('SELECT status FROM rp_intimacy_sessions WHERE id=%s', (sid,))[0]['status'] == 'active')
+advance(100)
+check('21. ... puis se termine normalement', q('SELECT status FROM rp_intimacy_sessions WHERE id=%s', (sid,))[0]['status'] == 'terminee')
+
+ok, msg = admin(2, 'save', {'values': {'intimite.duree': 5, 'conception.probaAccidentelle': 1.0}})
+check('22. joueur non autorisé : refusé, rien ne change, tentative journalisée', ok is False and G.Config.Intimite.duree == 10
+      and G.Config.Conception.probaAccidentelle == 0.12 and q("SELECT 1 FROM rp_famille_logs WHERE action='suspect' AND acteur='M002'"), msg)
+check('22. le joueur non autorisé ne lit pas les réglages', admin_data(2).get('denied') is True)
+
+for bad, why in (({'intimite.duree': 2}, 'sous la borne'), ({'intimite.duree': 200}, 'au-dessus de dureeMax'),
+                 ({'conception.probaAccidentelle': 1.5}, 'probabilité > 100 %'), ({'intimite.duree': 'abc'}, 'texte'),
+                 ({'intimite.dureeMin': 60, 'intimite.dureeMax': 30}, 'min > max'), ({'conception.accidentelle': 'oui'}, 'booléen invalide')):
+    v = admin_data(3)['values']; v.update(bad)
+    ok, msg = admin(3, 'save', {'values': v})
+    check(f'23. valeur invalide refusée ({why})', ok is False and G.Config.Intimite.duree == 10, msg)
+
+v = admin_data(3)['values']
+v['conception.probaAccidentelle'] = 0.5
+v['contraception.preservatif.fiabilite'] = 0.9
+admin(3, 'save', {'values': v})
+start_resource()   # config.lua est relu (valeurs d'origine), puis les réglages enregistrés sont réappliqués
+check('24. redémarrage : réglages enregistrés réappliqués', G.Config.Intimite.duree == 10 and G.Config.Conception.probaAccidentelle == 0.5
+      and abs(G.Config.Contraception.preservatif.fiabilite - 0.9) < 1e-9)
+
+# 25. le risque et la contraception suivent les réglages (porteuse sans pilule active : on attend son expiration)
+advance(40 * 24 * H)
+q("UPDATE rp_pregnancies SET status='terminee', active_key=NULL, ended_at=%s WHERE porteur_cid='F001'", (W.now - 10 * 24 * H,))
+W.inv[2]['preservatif'] = 1
+net('elyzea_famille:intime:demande', 2, 1, {'preservatif': True})
+answer(1, True, {})
+sid = session_rows()[-1]['id']
+advance(30)
+att = q('SELECT probabilite, protections FROM rp_conception_attempts WHERE session_id=%s', (sid,))
+check('25. risque = 50 % × (1 − 90 %) avec les nouveaux réglages', att and abs(att[0]['probabilite'] - 0.05) < 1e-9 and att[0]['protections'] == 'preservatif', att)
+
+ok, msg = admin(3, 'reset')
+check('26. valeurs par défaut rétablies (config.lua) et table vidée', ok is True and G.Config.Intimite.duree == 15
+      and G.Config.Conception.probaAccidentelle == 0.12 and not q('SELECT 1 FROM rp_famille_reglages'), msg)
+check('26. chaque modification est journalisée', len(q("SELECT 1 FROM rp_famille_logs WHERE action IN ('reglages_enregistres','reglages_reinitialises')")) >= 4)
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

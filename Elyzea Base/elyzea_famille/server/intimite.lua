@@ -115,9 +115,12 @@ local function demarrer(a, b, ja, jb, optA, optB)
 
     local id = Fam.NouvelId('SES')
     local now = os.time()
+    -- réglages lus au démarrage du moment : un changement dans le menu admin ne modifie pas un moment en cours
+    local duree = math.max(I.dureeMin or 1, math.min(I.dureeMax or 600, I.duree))
+    local fondu, delaiNoir = I.fondu, I.delaiAvantNoir
     local s = {
-        id = id, a = a, b = b, duree = I.duree, debut = now,
-        noirA = now + math.ceil((I.delaiAvantNoir + I.fondu) / 1000),
+        id = id, a = a, b = b, duree = duree, debut = now,
+        noirA = now + math.ceil((delaiNoir + fondu) / 1000),
         volontaire = optA.enfant == true and optB.enfant == true,
         preservatif = fournisseurCid,
         -- instantané des fiches : la conception se calcule même si quelqu'un se déconnecte ensuite
@@ -126,7 +129,7 @@ local function demarrer(a, b, ja, jb, optA, optB)
     }
     local ok = pcall(MySQL.insert.await,
         'INSERT INTO `rp_intimacy_sessions` (`id`, `a_cid`, `b_cid`, `status`, `volontaire`, `preservatif`, `duree`, `started_at`) VALUES (?, ?, ?, \'active\', ?, ?, ?, ?)',
-        { id, ja.cid, jb.cid, s.volontaire and 1 or 0, fournisseurCid, I.duree, now })
+        { id, ja.cid, jb.cid, s.volontaire and 1 or 0, fournisseurCid, duree, now })
     if not ok then
         if fournisseur then Fam.Rendre(fournisseur, CP.item) end
         for _, p in ipairs({ a, b }) do Fam.Notify(p, 'Erreur, réessayez.', 'error') end
@@ -135,11 +138,11 @@ local function demarrer(a, b, ja, jb, optA, optB)
     if fournisseur then Fam.JournalContraception(fournisseurCid, 'preservatif', 'utilise', fournisseurCid, nil, id) end
     sessions[id] = s
     parJoueur[a], parJoueur[b] = id, id
-    local base = { id = id, duree = I.duree, fondu = I.fondu, delaiAvantNoir = I.delaiAvantNoir,
+    local base = { id = id, duree = duree, fondu = fondu, delaiAvantNoir = delaiNoir,
         distance = I.distanceCouple, touche = I.toucheAnnuler, preservatif = fournisseur ~= nil }
     TriggerClientEvent('elyzea_famille:client:intimeDebut', a, base, 'demandeur', b, I.anim.demandeur)
     TriggerClientEvent('elyzea_famille:client:intimeDebut', b, base, 'partenaire', a, I.anim.partenaire)
-    local total = I.delaiAvantNoir + I.fondu + I.duree * 1000
+    local total = delaiNoir + fondu + duree * 1000
     SetTimeout(total, function() terminer(id, 'terminee', 'fin') end)
 end
 

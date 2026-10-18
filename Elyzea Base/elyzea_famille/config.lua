@@ -24,7 +24,9 @@ Config.Intimite = {
     expirationDemande = 30,      -- secondes pour accepter
     attenteEntreDemandes = 60,   -- secondes entre deux demandes vers la même personne
     demandesParMinute = 3,       -- demandes max envoyées par minute (toutes personnes confondues)
-    duree = 30,                  -- secondes d'écran noir (durée de l'interaction)
+    duree = 15,                  -- secondes d'écran noir (durée de l'interaction) — modifiable dans admin_menu › Famille
+    dureeMin = 5,                -- bornes que la durée ne peut pas dépasser (aussi modifiables dans le menu)
+    dureeMax = 120,
     dureeMinPourConception = 0.6, -- utilisé seulement si Config.Conception.siInterrompu = true
     delaiEntreMoments = 30,      -- minutes : délai pour chaque personne après un moment intime terminé (0 = aucun)
     distanceCouple = 1.0,        -- distance entre les deux personnages pendant l'étreinte (mètres)

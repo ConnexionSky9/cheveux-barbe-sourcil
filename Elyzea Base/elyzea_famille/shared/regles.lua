@@ -143,7 +143,8 @@ end
 
 -- Avancement d'une grossesse : jour (1..), étape, terme atteint
 function R.avancement(g, now, G)
-    local total = G.duree * HEURE
+    -- durée propre à CETTE grossesse (terme enregistré) : un changement de réglage ne touche pas les grossesses en cours
+    local total = math.max(HEURE, (tonumber(g.due_at) or 0) - (tonumber(g.conceived_at) or 0))
     local ecoule = math.max(0, now - g.conceived_at)
     local jour = math.floor(ecoule / (24 * HEURE)) + 1
     local etape = G.etapes[#G.etapes].label

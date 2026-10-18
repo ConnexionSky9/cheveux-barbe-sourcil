@@ -176,6 +176,8 @@ MySQL.ready(function()
     colonne('rp_pregnancies', 'bebes_connus', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER `bebes`')
     -- Un redémarrage interrompt les moments intimes en cours : aucune conception pour eux
     MySQL.update.await("UPDATE `rp_intimacy_sessions` SET `status` = 'interrompue', `ended_at` = ?, `end_reason` = 'redemarrage' WHERE `status` = 'active'", { os.time() })
+    Fam.TablesPretes = true
+    if Fam.ChargerReglages then Fam.ChargerReglages() end   -- sinon : appelé par reglages.lua à son chargement
     Fam.Pret = true
     print(('^2[%s] Prêt (modules : intimité %s, contraception %s, conception %s).^0'):format(RES,
         tostring(Config.Modules.intimite), tostring(Config.Modules.contraception), tostring(Config.Modules.conception)))

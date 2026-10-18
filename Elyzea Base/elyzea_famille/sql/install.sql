@@ -111,3 +111,12 @@ CREATE TABLE IF NOT EXISTS `rp_famille_logs` (
     KEY `idx_at` (`at`),
     KEY `idx_acteur` (`acteur`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Réglages modifiés depuis le menu admin (admin_menu › Famille). Vide = valeurs de config.lua.
+CREATE TABLE IF NOT EXISTS `rp_famille_reglages` (
+    `cle`        VARCHAR(64) NOT NULL,
+    `valeur`     TEXT        NOT NULL,
+    `updated_at` BIGINT      NOT NULL,
+    `par`        VARCHAR(64) NULL,
+    PRIMARY KEY (`cle`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
