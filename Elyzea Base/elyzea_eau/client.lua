@@ -15,6 +15,11 @@ local K = {
 }
 local ed = nil   -- éditeur ouvert : { points, z, quads, aim, ground }
 
+-- Touche appuyée, qu'elle soit active ou désactivée par un autre script
+-- (le noclip d'admin_menu désactive toutes les touches du jeu à chaque image)
+local function pressed(c) return IsControlJustPressed(0, c) or IsDisabledControlJustPressed(0, c) end
+local function held(c) return IsControlPressed(0, c) or IsDisabledControlPressed(0, c) end
+
 RegisterCommand('eau_ajouter', function(_, args)
     local c = GetEntityCoords(PlayerPedId())
     local ok, gz = GetGroundZFor_3dCoord(c.x, c.y, c.z + 2.0, false)
@@ -29,7 +34,7 @@ RegisterCommand('eau_editeur', function()
 end, false)
 
 -- ---------------------------------------------------------------- outils
-local function aimPoint()
+local function aimPoint(planeZ)
     local from = GetFinalRenderedCamCoord()
     local rot = GetFinalRenderedCamRot(2)
     local zr, xr = math.rad(rot.z), math.rad(rot.x)
@@ -39,6 +44,15 @@ local function aimPoint()
     local ray = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1 + 16, PlayerPedId(), 7)
     local _, hit, pos = GetShapeTestResult(ray)
     if hit == 1 then return pos end
+    -- Rien touché (vide, trop loin) : point du rayon à la hauteur de l'eau
+    if planeZ and math.abs(dir.z) > 0.01 then
+        local t = (planeZ - from.z) / dir.z
+        if t > 0 and t < 1500.0 then
+            local p = from + dir * t
+            local ok, gz = GetGroundZFor_3dCoord(p.x, p.y, planeZ + 50.0, false)
+            return vector3(p.x, p.y, ok and gz or planeZ)
+        end
+    end
     return nil
 end
 
@@ -83,10 +97,10 @@ local function editorLoop()
     while ed do
         local e = ed
         local me = GetEntityCoords(PlayerPedId())
-        for _, c in ipairs({ 24, 25, 14, 15, 16, 17, 37, 44, 140, 141, 142, 200 }) do DisableControlAction(0, c, true) end
+        for _, c in ipairs({ 24, 25, 14, 15, 16, 17, 37, 44, 140, 141, 142 }) do DisableControlAction(0, c, true) end
 
         -- Visée
-        local aim = aimPoint()
+        local aim = aimPoint(e.z)
         e.aim = aim
         if aim then
             DrawMarker(28, aim.x, aim.y, aim.z, 0, 0, 0, 0, 0, 0, 0.3, 0.3, 0.3, 80, 200, 255, 230, false, false, 2, false, nil, nil, false)
@@ -95,17 +109,22 @@ local function editorLoop()
         end
 
         -- Hauteur de l'eau
-        local step = IsControlPressed(0, K.fast) and 1.0 or 0.1
-        if IsDisabledControlJustPressed(0, K.up) or IsControlJustPressed(0, K.up2) then e.z = e.z + step end
-        if IsDisabledControlJustPressed(0, K.down) or IsControlJustPressed(0, K.down2) then e.z = e.z - step end
+        -- Chat ouvert, menu pause : on ne lit aucune touche
+        local typing = IsNuiFocused() or IsPauseMenuActive()
+        local step = held(K.fast) and 1.0 or 0.1
+        if not typing and (pressed(K.up) or pressed(K.up2)) then e.z = e.z + step end
+        if not typing and (pressed(K.down) or pressed(K.down2)) then e.z = e.z - step end
 
         -- Coins
-        if IsControlJustPressed(0, K.corner) and aim then
+        if not typing and pressed(K.corner) and not aim then
+            PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+        end
+        if not typing and pressed(K.corner) and aim then
             e.points[#e.points + 1] = { x = aim.x, y = aim.y, gz = aim.z }
             PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
             preview()
         end
-        if IsControlJustPressed(0, K.undo) or IsDisabledControlJustPressed(0, 200) then
+        if not typing and pressed(K.undo) then
             if #e.points > 0 then
                 table.remove(e.points)
                 preview()
@@ -115,7 +134,7 @@ local function editorLoop()
                 break
             end
         end
-        if IsControlJustPressed(0, K.finish) then
+        if not typing and pressed(K.finish) then
             if #e.points < 3 then
                 PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
             else
@@ -163,7 +182,7 @@ local function editorLoop()
                 #e.rects > EauGeo.MAX_RECTS and ' ~r~(trop découpée)' or '')) y = y + 0.03
         end
         y = y + 0.01
-        text(0.015, y, ('~INPUT_CONTEXT~ Poser un coin (%d posé(s))'):format(#pts), 0.32) y = y + 0.027
+        text(0.015, y, ('E : poser un coin (%d posé(s))'):format(#pts), 0.32) y = y + 0.027
         text(0.015, y, 'Molette / flèches : hauteur de l\'eau (Maj = 1 m)', 0.32) y = y + 0.027
         text(0.015, y, 'Retour arrière : ' .. (#pts > 0 and 'retirer le dernier coin' or 'fermer l\'éditeur'), 0.32) y = y + 0.027
         text(0.015, y, 'Entrée : enregistrer la zone' .. (#pts < 3 and ' (3 coins minimum)' or ''), 0.32)
