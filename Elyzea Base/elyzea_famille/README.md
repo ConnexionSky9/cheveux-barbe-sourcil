@@ -2,7 +2,7 @@
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
 > - règles de calcul : **51/51 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques sur 200 000 essais ;
-> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **71/71 contrôles** (`python3 tests/integration_test.py`), dont les réglages du menu admin ;
+> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **79/79 contrôles** (`python3 tests/integration_test.py`), dont les réglages du menu admin et la section bébés ;
 > - syntaxe Lua et JavaScript ; interfaces affichées dans Chromium (dont l'onglet admin « Famille » : `docs/famille/captures/menu_admin_famille.png`).
 >
 > À tester en jeu : placement face à face, animation, fondu au noir, touche X, menu ALT.
@@ -56,6 +56,7 @@ Aucun second menu : un onglet **Famille** est ajouté au menu admin existant (`a
 | Conditions | expiration de la demande, attente entre deux demandes, demandes par minute, délai entre deux moments |
 | Risque de grossesse | probabilité volontaire, accidentelle (oui/non + valeur), jumeaux, triplés, durée de grossesse |
 | Contraception | fiabilité préservatif / pilule / implant, durée et fenêtre de renouvellement de la pilule, durée de l'implant |
+| Bébés et équipements (V4) | porte-bébé ventral, dorsal, poussette (activés ou non), pas de course avec la poussette, délai avant de ranger une poussette vide abandonnée, journal de diagnostic — transmis à `elyzea_bebe_modele` |
 
 - **Enregistrer** : chaque valeur est revalidée par `elyzea_famille` (type, bornes, règles croisées : minimum ≤ durée ≤ maximum,
   jumeaux + triplés ≤ 100 %, renouvellement ≤ durée de la pilule). Une seule valeur invalide = rien n'est enregistré, message précis.

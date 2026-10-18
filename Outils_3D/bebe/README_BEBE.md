@@ -1,4 +1,4 @@
-# Bébé Elyzea — modèle 3D original (version 3)
+# Bébé Elyzea — modèle 3D original et équipements (version 4)
 
 Modèle de nouveau-né **créé de A à Z par génération procédurale**, sans modèle acheté ni modélisation manuelle.
 Toute la chaîne (forme, maillage, UV, textures, squelette, poids, poses, conversion GTA V) est automatisée par les scripts de ce dossier.
@@ -6,6 +6,25 @@ Toute la chaîne (forme, maillage, UV, textures, squelette, poids, poses, conver
 ![Poses](build/rendus/planche_poses.png)
 ![Variantes](build/rendus/galerie_variantes.png)
 ![Tenues](build/rendus/galerie_tenues.png)
+
+## Version 4 (refonte : bébé plus naturel, porte-bébés, poussette)
+
+![V2 / V3 / V4](build/rendus/comparaison_v2_v3_v4.png)
+![Équipements](build/rendus/equipements.png)
+
+| Élément | V4 (régénéré, converti, contrôlé) |
+|---|---|
+| Yeux | coussin de paupière qui recouvre le globe, fente en amande (17 mm) ; bords qui épousent l'œil ; globe aux proportions d'un nouveau-né |
+| Bébé endormi | pièce « paupières fermées » (6 teintes) qui remplace les yeux : `ely_bebe_<pose>_paup_<teinte>` |
+| Bouche, nez, oreilles | bouche fermée et détendue, narines discrètes, rebord de l'oreille (hélix) |
+| Peau | reflet du jeu faible et large (`specularIntensityMult` 0,05, `specularFalloffMult` 14) : fini l'aspect « plastique » |
+| Cheveux | deux couches décalées (volume, bord moins « peint ») |
+| Pyjama | jersey fin, poignets / chevilles / col côtelés, plis souples aux coudes et genoux (calculés en 3D puis cuits) |
+| Porte-bébé ventral et dorsal | `scripts/equipements.py` : construits sur un mannequin adulte, bébé placé automatiquement sans contact avec le corps, 3 coloris |
+| Poussette | `scripts/equipements.py` : châssis, roues à rayons, poignée, nacelle, matelas, capote plissée, panier, 2 coloris |
+
+Aperçu rapide du visage pendant les réglages (≈ 1 min au lieu d'une chaîne complète) : `python3 scripts/apercu_visage.py sortie.png`.
+Images d'inventaire des équipements : `python3 scripts/icones_equipements.py`.
 
 ## Version 3 (demande « bébés beaucoup plus réalistes »)
 
@@ -68,7 +87,7 @@ Comparaison (rendus Blender, même éclairage) : `build/rendus/comparaison_v1_v2
 | Ressource FiveM avec commandes de test | `Elyzea Base/elyzea_bebe_modele/` | Écrite, syntaxe Lua vérifiée |
 | **Affichage dans FiveM** | — | **NON TESTÉ** : aucun client GTA V / FiveM dans mon environnement |
 
-Contrôles automatiques : `python3 scripts/validate.py` → **26/26** (dont UV sans superposition, peau peu étirée par pose, fichiers < 16 Mo) (résultat dans `build/validation.json`).
+Contrôles automatiques : `python3 scripts/validate.py` → **37/37** (V4) (dont UV sans superposition, peau peu étirée par pose, fichiers < 16 Mo) (résultat dans `build/validation.json`).
 
 ## Choix techniques
 
@@ -85,7 +104,7 @@ pose est un modèle statique. Changer de pose = remplacer le modèle (instantan�
 - cheveux : 10 variantes (coque de cheveux à alpha découpé), ou « chauve » (aucune pièce).
 
 Les yeux et les cheveux s'attachent au corps **avec un décalage nul** : aucun angle à deviner, aucun risque de décalage.
-4 poses × (12 + 5 + 10) = **108 modèles**, deux dictionnaires de textures (chacun sous la limite de 16 Mo de FiveM).
+4 poses × (12 + 5 + 10 + 6 paupières) = **132 modèles** de bébé + 8 équipements = **140 modèles**, trois dictionnaires de textures (chacun sous la limite de 16 Mo de FiveM).
 
 **Héritage génétique (module suivant).** Le modèle ne contient aucune règle génétique : l'apparence d'un enfant est un simple trio
 `{ teinte, tenue, yeux, coiffure }` enregistré à la naissance. Les règles de transmission seront dans la ressource famille.
@@ -119,7 +138,7 @@ Outils_3D/bebe/
 1. Python 3.13 : `pip install bpy==5.2.* numpy pillow scikit-image szio==1.3.0.dev9`
 2. Sollumz v2.9.0 (extension Blender, GPL) : `git clone --depth 1 --branch v2.9.0 https://github.com/Sollumz/Sollumz.git ~/.config/blender/5.2/scripts/addons/sollumz`
 3. .NET 8 SDK et git (le convertisseur clone CodeWalker tout seul).
-4. `./construire.sh` (≈ 25 minutes sur 4 cœurs, dont 8 pour le modèle).
+4. `./construire.sh` (≈ 35 minutes sur 4 cœurs : bébé 9 min, équipements 2 min, export et conversion, rendus).
 
 Pour ajouter une teinte, une couleur d'yeux ou de cheveux : ajouter une ligne dans `SKIN_TONES`, `EYE_COLORS` ou `HAIR_COLORS`
 (`generate_baby.py`) puis relancer `construire.sh`. Pour une nouvelle pose : ajouter une entrée dans `POSES` (rotations des os en degrés).

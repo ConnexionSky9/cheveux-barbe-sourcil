@@ -6,7 +6,7 @@
 (() => {
     TABS.push({
         id: 'famille', group: 5, label: 'Famille', ico: '👪',
-        sub: 'Moment intime (durée, conditions), risque de grossesse, contraception.',
+        sub: 'Moment intime (durée, conditions), risque de grossesse, contraception, bébés et équipements.',
         show: () => has('famille_manage') && !!(D && D.famille),
     });
 
