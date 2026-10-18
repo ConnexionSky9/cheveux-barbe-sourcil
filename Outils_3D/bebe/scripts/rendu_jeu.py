@@ -10,6 +10,7 @@ Lancement : python3 rendu_jeu.py [--build ../build]
 Sortie    : build/rendus/fichiers_du_jeu.png
 """
 import argparse
+import json
 import math
 import os
 import subprocess
@@ -43,11 +44,26 @@ def main():
     rendus = os.path.join(build, 'rendus')
     os.makedirs(rendus, exist_ok=True)
 
-    noms = set()
-    for _, pose, corps, yeux, chev, _, _ in VUES:
-        noms |= {f'ely_bebe_{pose}_{corps}', f'ely_bebe_{pose}_yeux_{yeux}'}
+    # chaque vue = liste de (modèle, position, rotation z) ; positions des équipements : celles de la ressource
+    vues = []
+    for titre, pose, corps, yeux, chev, direction, _ in VUES:
+        items = [(f'ely_bebe_{pose}_{corps}', (0, 0, 0), 0), (f'ely_bebe_{pose}_yeux_{yeux}', (0, 0, 0), 0)]
         if chev:
-            noms.add(f'ely_bebe_{pose}_chev_{chev}')
+            items.append((f'ely_bebe_{pose}_chev_{chev}', (0, 0, 0), 0))
+        vues.append((titre, items, direction))
+    mj = os.path.join(build, 'gta_xml', 'modeles.json')
+    eq = json.load(open(mj, encoding='utf-8')).get('equipements') if os.path.isfile(mj) else None
+    if eq:
+        g = eq['geo']
+        for kind, col, d in (('ventral', 'marine', (0.8, 1, 0.3)), ('dorsal', 'sauge', (-0.8, -1, 0.3))):
+            p_, r_ = g[kind]['pos'], g[kind]['rot'][2]
+            bebe = [(f'ely_bebe_ventral_peau3_pyjama', p_, r_), (f'ely_bebe_ventral_yeux_ardoise', p_, r_),
+                    (f'ely_bebe_ventral_chev_duvet_brun', p_, r_)]
+            vues.append((f'porte-bébé {kind} · {col}', [(eq[f'pb_{kind}'][col], (0, 0, 0), 0)] + bebe, d))
+        n_ = g['poussette']['nacelle']
+        bebe = [(f'ely_bebe_allonge_peau2_couche', n_['pos'], n_['rot'][2]), (f'ely_bebe_allonge_paup_peau2', n_['pos'], n_['rot'][2])]
+        vues.append(('poussette · sable · bébé endormi', [(eq['poussette']['sable'], (0, 0, 0), 0)] + bebe, (0.8, 1, 0.6)))
+    noms = {n for _, items, _ in vues for n, _, _ in items}
     fichiers = [os.path.join(stream, n + '.ydr') for n in sorted(noms)]
     fichiers += [os.path.join(stream, f) for f in sorted(os.listdir(stream)) if f.endswith('.ytd')]
     if a.depuis_xml:
@@ -93,11 +109,18 @@ def main():
 
     manquantes = set()
     tuiles = []
-    for i, (titre, pose, corps, yeux, chev, direction, _) in enumerate(VUES):
-        avant = set(bpy.data.objects)
-        noms_vue = [f'ely_bebe_{pose}_{corps}', f'ely_bebe_{pose}_yeux_{yeux}'] + ([f'ely_bebe_{pose}_chev_{chev}'] if chev else [])
-        bpy.ops.sollumz.import_assets(directory=relu, files=[{'name': n + '.ydr.xml'} for n in noms_vue])
-        objs = [o for o in bpy.data.objects if o not in avant]
+    for i, (titre, items, direction) in enumerate(vues):
+        objs = []
+        for nom_m, pos, rz in items:
+            avant = set(bpy.data.objects)
+            bpy.ops.sollumz.import_assets(directory=relu, files=[{'name': nom_m + '.ydr.xml'}])
+            nouveaux = [o for o in bpy.data.objects if o not in avant]
+            M = mathutils.Matrix.Translation(pos) @ mathutils.Matrix.Rotation(math.radians(rz), 4, 'Z')
+            for o in nouveaux:
+                if o.parent is None:
+                    o.matrix_world = M @ o.matrix_world
+            objs += nouveaux
+        bpy.context.view_layer.update()
         for o in objs:
             if o.type != 'MESH':
                 continue
@@ -136,7 +159,7 @@ def main():
 
     from PIL import Image, ImageDraw
     S = 600
-    planche = Image.new('RGB', (S * len(tuiles), S + 34), 'white')
+    planche = Image.new('RGB', (S * min(4, len(tuiles)), (S + 34) * (-(-len(tuiles) // 4))), 'white')
     dr = ImageDraw.Draw(planche)
     try:
         from PIL import ImageFont
@@ -144,8 +167,9 @@ def main():
     except OSError:
         police = None
     for i, (p, titre) in enumerate(tuiles):
-        planche.paste(Image.open(p).convert('RGB'), (i * S, 34))
-        dr.text((i * S + 10, 8), titre, fill=(20, 20, 20), font=police)
+        x, y = (i % 4) * S, (i // 4) * (S + 34)
+        planche.paste(Image.open(p).convert('RGB'), (x, y + 34))
+        dr.text((x + 10, y + 8), titre, fill=(20, 20, 20), font=police)
         os.remove(p)
     sortie = os.path.join(rendus, 'export_xml.png' if a.depuis_xml else 'fichiers_du_jeu.png')
     planche.save(sortie)

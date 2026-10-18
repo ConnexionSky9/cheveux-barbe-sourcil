@@ -4,8 +4,8 @@
   "etapes": [
     {
       "surface_hd": {
-        "sommets": 390978,
-        "triangles": 781964
+        "sommets": 392424,
+        "triangles": 784856
       }
     },
     {
@@ -23,26 +23,26 @@
       "squelette": {
         "os": 20,
         "sommets_par_os": {
-          "main.R": 421,
-          "avantbras.R": 257,
-          "bras.R": 293,
-          "clavicule.R": 231,
-          "cuisse.R": 519,
-          "bassin": 431,
-          "colonne": 359,
-          "tete": 1979,
-          "tibia.R": 262,
-          "pied.R": 481,
-          "cou": 157,
-          "poitrine": 60,
-          "racine": 125,
-          "cuisse.L": 494,
-          "clavicule.L": 219,
-          "tibia.L": 259,
-          "pied.L": 461,
+          "main.R": 414,
+          "avantbras.R": 252,
+          "bras.R": 291,
+          "clavicule.R": 218,
+          "cuisse.R": 514,
+          "bassin": 415,
+          "colonne": 338,
+          "tete": 2098,
+          "tibia.R": 255,
+          "pied.R": 490,
+          "cou": 134,
+          "poitrine": 85,
+          "racine": 123,
+          "cuisse.L": 492,
+          "clavicule.L": 206,
+          "tibia.L": 237,
+          "pied.L": 462,
           "bras.L": 295,
-          "avantbras.L": 266,
-          "main.L": 427
+          "avantbras.L": 259,
+          "main.L": 418
         }
       }
     }
@@ -58,14 +58,16 @@
       ],
       "max": [
         0.1547,
-        0.3047,
-        0.1685
+        0.3059,
+        0.1698
       ],
       "objets": [
         "ely_bebe_allonge_corps",
         "ely_bebe_allonge_cheveux",
         "ely_bebe_allonge_oeil_G",
-        "ely_bebe_allonge_oeil_D"
+        "ely_bebe_allonge_oeil_D",
+        "ely_bebe_allonge_paupiere_G",
+        "ely_bebe_allonge_paupiere_D"
       ]
     },
     "porte": {
@@ -73,19 +75,21 @@
       "origine": "pelvis",
       "min": [
         -0.1115,
-        -0.1138,
-        -0.0494
+        -0.1398,
+        -0.0523
       ],
       "max": [
         0.1115,
-        0.3017,
-        0.112
+        0.303,
+        0.1136
       ],
       "objets": [
         "ely_bebe_porte_corps",
         "ely_bebe_porte_cheveux",
         "ely_bebe_porte_oeil_G",
-        "ely_bebe_porte_oeil_D"
+        "ely_bebe_porte_oeil_D",
+        "ely_bebe_porte_paupiere_G",
+        "ely_bebe_porte_paupiere_D"
       ]
     },
     "assis": {
@@ -93,39 +97,43 @@
       "origine": "seat",
       "min": [
         -0.1377,
-        -0.1684,
+        -0.1681,
         0.0
       ],
       "max": [
         0.1377,
-        0.1752,
-        0.3329
+        0.1766,
+        0.3341
       ],
       "objets": [
         "ely_bebe_assis_corps",
         "ely_bebe_assis_cheveux",
         "ely_bebe_assis_oeil_G",
-        "ely_bebe_assis_oeil_D"
+        "ely_bebe_assis_oeil_D",
+        "ely_bebe_assis_paupiere_G",
+        "ely_bebe_assis_paupiere_D"
       ]
     },
     "ventral": {
-      "label": "Porte-bébé ventral (face au parent, position en M)",
+      "label": "Porte-bébé ventral ou dorsal (face au parent, position en M)",
       "origine": "pelvis",
       "min": [
         -0.1317,
         -0.1487,
-        -0.092
+        -0.0919
       ],
       "max": [
         0.1318,
-        0.0483,
-        0.3011
+        0.0487,
+        0.3025
       ],
       "objets": [
         "ely_bebe_ventral_corps",
         "ely_bebe_ventral_cheveux",
         "ely_bebe_ventral_oeil_G",
-        "ely_bebe_ventral_oeil_D"
+        "ely_bebe_ventral_oeil_D",
+        "ely_bebe_ventral_paupiere_G",
+        "ely_bebe_ventral_paupiere_D"
       ]
     }
   },
@@ -162,6 +170,14 @@
       "touffe_brun": "ely_bebe_cheveux_touffe_brun.png",
       "touffe_noir": "ely_bebe_cheveux_touffe_noir.png",
       "touffe_roux": "ely_bebe_cheveux_touffe_roux.png"
+    },
+    "paupieres": {
+      "peau1": "ely_bebe_paupieres_peau1.png",
+      "peau2": "ely_bebe_paupieres_peau2.png",
+      "peau3": "ely_bebe_paupieres_peau3.png",
+      "peau4": "ely_bebe_paupieres_peau4.png",
+      "peau5": "ely_bebe_paupieres_peau5.png",
+      "peau6": "ely_bebe_paupieres_peau6.png"
     }
   },
   "teintes": {
@@ -282,5 +298,5 @@
     "tibia.R",
     "pied.R"
   ],
-  "duree_s": 445.2
+  "duree_s": 508.4
 }

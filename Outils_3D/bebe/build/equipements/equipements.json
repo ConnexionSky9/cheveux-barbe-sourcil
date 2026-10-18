@@ -1,0 +1,169 @@
+{
+  "version": 4,
+  "mannequin": "approximation d'un personnage GTA adulte (homme 1,80 m ; femme 1,69 m)",
+  "bebe": {
+    "ventral": {
+      "pos": [
+        0.0,
+        0.24,
+        0.2625
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ecart_tronc_tete_cm": 1.39,
+      "ecart_bras_jambes_cm": -0.76,
+      "decalage_femme": [
+        0.0,
+        0.016,
+        -0.07
+      ]
+    },
+    "dorsal": {
+      "pos": [
+        0.0,
+        -0.224,
+        0.2975
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "ecart_tronc_tete_cm": 1.31,
+      "ecart_bras_jambes_cm": -0.93,
+      "decalage_femme": [
+        0.0,
+        0.004,
+        -0.07
+      ]
+    }
+  },
+  "pb_ventral": {
+    "triangles": 7904,
+    "dans_le_corps_cm": 0.0,
+    "part_sommets_dans_le_corps": 0.0,
+    "ecart_min_bebe_cm": 0.22,
+    "boite": [
+      [
+        -0.174,
+        -0.148,
+        0.112
+      ],
+      [
+        0.174,
+        0.31,
+        0.651
+      ]
+    ],
+    "uv_superposees": 0
+  },
+  "pb_dorsal": {
+    "triangles": 8248,
+    "dans_le_corps_cm": 0.0,
+    "part_sommets_dans_le_corps": 0.0,
+    "ecart_min_bebe_cm": 0.23,
+    "boite": [
+      [
+        -0.174,
+        -0.294,
+        0.112
+      ],
+      [
+        0.174,
+        0.166,
+        0.658
+      ]
+    ],
+    "uv_superposees": 0
+  },
+  "poussette": {
+    "triangles": 12040,
+    "bebe_nacelle": {
+      "pos": [
+        0.0,
+        0.0923,
+        0.585
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    "attache_poussee": {
+      "pos": [
+        0.0,
+        0.9,
+        -0.98
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "poignee": {
+      "y": -0.5,
+      "z": 1.0
+    },
+    "bebe_dans_nacelle_x_cm": [
+      -15.5,
+      15.5
+    ],
+    "bebe_au_dessus_matelas_cm": 0.0,
+    "ecart_min_bebe_poussette_cm": 1.94,
+    "boite": [
+      [
+        -0.312,
+        -0.518,
+        0.0
+      ],
+      [
+        0.312,
+        0.435,
+        1.018
+      ]
+    ],
+    "roues_au_sol_cm": 0.0,
+    "uv_superposees": 0
+  },
+  "textures": {
+    "pb_ventral": {
+      "n": "ely_bebe_pb_ventral_n.png",
+      "gris": "ely_bebe_pb_ventral_gris.png",
+      "marine": "ely_bebe_pb_ventral_marine.png",
+      "sauge": "ely_bebe_pb_ventral_sauge.png"
+    },
+    "pb_dorsal": {
+      "n": "ely_bebe_pb_dorsal_n.png",
+      "gris": "ely_bebe_pb_dorsal_gris.png",
+      "marine": "ely_bebe_pb_dorsal_marine.png",
+      "sauge": "ely_bebe_pb_dorsal_sauge.png"
+    },
+    "poussette": {
+      "n": "ely_bebe_poussette_n.png",
+      "graphite": "ely_bebe_poussette_graphite.png",
+      "sable": "ely_bebe_poussette_sable.png"
+    }
+  },
+  "coloris": {
+    "pb": [
+      "gris",
+      "marine",
+      "sauge"
+    ],
+    "poussette": [
+      "graphite",
+      "sable"
+    ]
+  },
+  "objets": {
+    "pb_ventral": "ely_bebe_pb_ventral",
+    "pb_dorsal": "ely_bebe_pb_dorsal",
+    "poussette": "ely_bebe_poussette"
+  },
+  "duree_s": 122.6
+}

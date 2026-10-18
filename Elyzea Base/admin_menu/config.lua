@@ -783,6 +783,15 @@ Config.Editor = {
                       { item = 'test_grossesse',       price = 20,  cat = 'Grossesse',     max = 5 },
                       { item = 'bandage',              price = 45,  cat = 'Soins',         max = 20 },
                   } } } },
+        -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette, objets non consommés
+        { id = 'puericulture', icon = '🍼', label = 'Puériculture', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse puériculture',
+          npc = { payment = 'cash', market = { name = 'Puériculture', payChoice = true, blip = true, blipSprite = 52, blipColor = 8,
+                  items = {
+                      { item = 'porte_bebe_ventral', price = 180, cat = 'Portage',   max = 2 },
+                      { item = 'porte_bebe_dorsal',  price = 220, cat = 'Portage',   max = 2 },
+                      { item = 'poussette',          price = 650, cat = 'Poussette', max = 1 },
+                      { item = 'test_grossesse',     price = 25,  cat = 'Grossesse', max = 3 },
+                  } } } },
         { id = 'gunshop', icon = '🔫', label = 'Armurerie', scenario = 'WORLD_HUMAN_GUARD_STAND', name = 'Armurier',
           npc = { payment = 'cash', gunshop = { name = 'Ammu-Nation', payChoice = true, blip = true, useDefaults = true,
                   licence = false, trial = true, trialDuration = 60, isolate = true, trialRadius = 60 } } },

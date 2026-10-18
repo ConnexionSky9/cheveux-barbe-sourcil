@@ -120,7 +120,25 @@ def main():
     # ressource FiveM
     stream = os.path.join(RESOURCE, 'stream')
     files = set(os.listdir(stream)) if os.path.isdir(stream) else set()
-    expected = 3 + len(rep['poses']) * (len(rep['teintes']) * len(rep['tenues']) + len(rep['yeux']) + len(rep['textures']['cheveux']))
+    expected = 3 + len(rep['poses']) * (len(rep['teintes']) * len(rep['tenues']) + len(rep['yeux']) + len(rep['textures']['cheveux'])
+                                        + len(rep['teintes']))
+    eqp = os.path.join(b, 'equipements', 'equipements.json')
+    if os.path.isfile(eqp):
+        eq = json.load(open(eqp, encoding='utf-8'))
+        expected += 1 + sum(len([c for c in t if c != 'n']) for t in eq['textures'].values())
+        # équipements : rien dans le corps du mannequin, bébé hors du corps, UV propres, poussette au sol
+        for k in ('pb_ventral', 'pb_dorsal'):
+            check(f'{k} : rien dans le corps du parent (mannequin)', eq[k]['dans_le_corps_cm'] == 0.0, f"{eq[k]['dans_le_corps_cm']} cm")
+            check(f'{k} : UV sans superposition', eq[k]['uv_superposees'] == 0, f"{eq[k]['uv_superposees']} face(s)")
+        for k in ('ventral', 'dorsal'):
+            e = eq['bebe'][k]
+            check(f'bébé {k} : tronc et tête hors du corps du parent', e['ecart_tronc_tete_cm'] >= 1.0, f"{e['ecart_tronc_tete_cm']} cm")
+            check(f'bébé {k} : bras / jambes au contact sans traverser (≤ 1,5 cm)', e['ecart_bras_jambes_cm'] >= -1.5, f"{e['ecart_bras_jambes_cm']} cm")
+        po = eq['poussette']
+        check('poussette : roues posées au sol', abs(po['roues_au_sol_cm']) < 0.5, f"{po['roues_au_sol_cm']} cm")
+        check('poussette : bébé sur le matelas, dans la nacelle', po['bebe_au_dessus_matelas_cm'] >= 0 and po['ecart_min_bebe_poussette_cm'] >= 0.5,
+              f"{po['bebe_au_dessus_matelas_cm']} cm au-dessus, {po['ecart_min_bebe_poussette_cm']} cm de la poussette")
+        check('poussette : UV sans superposition', po['uv_superposees'] == 0, f"{po['uv_superposees']} face(s)")
     have = len([f for f in files if f.startswith('ely_bebe')])
     check('ressource FiveM : fichiers binaires', have == expected, f'{have}/{expected} dans stream/')
     # FiveM avertit au-delà de 16 Mo par fichier diffusé (« oversized asset »)

@@ -104,3 +104,14 @@ Config.Grossesse = {
 Config.Staff = {
     etat = 'famille_etat',       -- /famille_etat [id] : contraception, grossesse, dernier moment intime
 }
+
+-- ─────────── Bébés et équipements (valeurs par défaut ; modifiables dans le menu admin › Famille) ───────────
+-- Transmis à la ressource elyzea_bebe_modele (porte-bébés, poussette). Mêmes valeurs que sa config.lua.
+Config.Bebe = {
+    ventral = true,           -- porte-bébé ventral utilisable
+    dorsal = true,            -- porte-bébé dorsal utilisable
+    poussette = true,         -- poussette utilisable
+    courseInterdite = true,   -- pas de course en poussant
+    abandon = 20,             -- minutes avant de ranger une poussette vide abandonnée
+    diagnostic = false,       -- journal détaillé dans la console serveur
+}

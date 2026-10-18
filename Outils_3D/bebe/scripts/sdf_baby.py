@@ -1,5 +1,5 @@
 """
-Bébé Elyzea (V3) : forme du nouveau-né décrite par une fonction de distance signée (SDF).
+Bébé Elyzea (V4) : forme du nouveau-né décrite par une fonction de distance signée (SDF).
 
 Le corps est une union lissée de volumes simples (ellipsoïdes orientés, cônes arrondis) :
 les jonctions sont douces comme sur un vrai nouveau-né (bourrelets, joues, ventre rond).
@@ -13,6 +13,11 @@ V3 (référence : photo de nouveau-nés fournie par le propriétaire du serveur)
     menton fuyant, double menton, paupières gonflées, lobe des oreilles, occiput ;
   · le bébé porte une COUCHE (géométrie) ; le pyjama est une variante de texture.
 
+V4 (demande : bébé doux et naturel, pas « poupée ») :
+  · vraies paupières : un coussin de paupière recouvre le globe et s'ouvre en amande (fente ~17 mm),
+    les bords des paupières épousent l'œil (plus de trou creusé dans le visage, plus de blanc visible tout autour) ;
+  · globe plus petit (proportions d'un nouveau-né), bouche fermée et détendue, narines discrètes,
+    double menton allégé, joues hautes et rondes, rebord de l'oreille (hélix).
 Unités : mètres. Repère : Z vers le haut, le bébé regarde vers -Y, son côté gauche est en +X.
 Pose de repos : debout, bras légèrement écartés (pose utilisée pour le squelette).
 Taille de référence : 50 cm (nouveau-né à terme).
@@ -110,11 +115,27 @@ SKELETON = {
 
 # Yeux : globe séparé (maillage « yeux », couleur d'iris interchangeable) logé dans l'orbite
 # Ouverture plus basse et plus étroite que l'œil : la peau recouvre le haut du globe comme une paupière
-EYE = {'center': (0.0195, -0.0398, 0.4165), 'radius': 0.0108,
-       'socket': (0.0195, -0.0512, 0.4152), 'socket_r': (0.0102, 0.0060, 0.0055)}
+EYE = {'center': (0.0195, -0.0398, 0.4165), 'radius': 0.0095,
+       # coussin de paupière autour du globe, et fente en amande (demi-largeur, hauteur au-dessus / au-dessous du centre)
+       'lid_r': (0.0128, 0.0114, 0.0112), 'demi_largeur': 0.0094, 'haut': 0.0053, 'bas': 0.0036}
+
+
+def eye_almond(p, s):
+    """Fente des paupières (côté s) : distance approchée au bord de l'amande, mesurée dans le plan du visage
+    (négative à l'intérieur). Renvoie aussi u (-1 coin interne … +1 coin externe) et la hauteur relative."""
+    c = np.asarray(mirror(EYE['center'], s), np.float32)
+    w = EYE['demi_largeur']
+    xl = (p[..., 0] - c[0]) * s            # vers l'extérieur du visage
+    u = np.clip(xl / w, -1.0, 1.0)
+    zl = p[..., 2] - c[2] + 0.0004 * u      # coin externe très légèrement plus haut
+    base = np.clip(1.0 - u * u, 0.0, 1.0)
+    up = EYE['haut'] * base ** 0.70
+    lo = -EYE['bas'] * base ** 0.85
+    d = np.maximum(np.maximum(zl - up, lo - zl), (np.abs(xl) - w) * 0.6)
+    return d, u, zl
 
 HEAD_PARTS = {'cranium', 'occiput', 'face', 'cheek', 'chin', 'jowl', 'nose', 'ala', 'nosebridge', 'upperlip', 'lipbow',
-              'lowerlip', 'ear', 'lobe'}
+              'lowerlip', 'ear', 'lobe', 'lid', 'helix'}
 HAND_PARTS = {'palm', 'finger', 'thumb'}
 FOOT_PARTS = {'foot', 'heel', 'toe', 'sole'}
 
@@ -181,9 +202,11 @@ def parts():
     add('occiput', lambda p: ellipsoid(p, (0, 0.034, 0.432), (0.050, 0.044, 0.050)), 'skin', 0.016)
     add('face', lambda p: ellipsoid(p, (0, -0.011, 0.402), (0.049, 0.045, 0.040)), 'skin', 0.016)
     for s in (L, R_):
-        add('cheek', (lambda s: lambda p: ellipsoid(p, mirror((0.029, -0.028, 0.389), s), (0.0265, 0.0235, 0.0245)))(s), 'skin', 0.013)
-    add('chin', lambda p: ellipsoid(p, (0, -0.036, 0.377), (0.013, 0.010, 0.010)), 'skin', 0.008)
-    add('jowl', lambda p: ellipsoid(p, (0, -0.017, 0.367), (0.039, 0.032, 0.019)), 'skin', 0.013)
+        add('cheek', (lambda s: lambda p: ellipsoid(p, mirror((0.0285, -0.0295, 0.3915), s), (0.0260, 0.0230, 0.0235)))(s), 'skin', 0.013)
+        # coussin des paupières (recouvre le globe ; la fente est creusée dans field())
+        add('lid', (lambda s: lambda p: ellipsoid(p, mirror(EYE['center'], s), EYE['lid_r']))(s), 'skin', 0.0050)
+    add('chin', lambda p: ellipsoid(p, (0, -0.0365, 0.3775), (0.0125, 0.0095, 0.0095)), 'skin', 0.008)
+    add('jowl', lambda p: ellipsoid(p, (0, -0.015, 0.3700), (0.0280, 0.0250, 0.0140)), 'skin', 0.011)
     # nez large et plat (bébé) : pointe ronde, ailes visibles, arête basse
     add('nose', lambda p: ellipsoid(p, (0, -0.0555, 0.4025), (0.0088, 0.0064, 0.0066)), 'skin', 0.005)
     for s in (L, R_):
@@ -191,12 +214,16 @@ def parts():
     add('nosebridge', lambda p: ellipsoid(p, (0, -0.0505, 0.4115), (0.0068, 0.0050, 0.0075)), 'skin', 0.006)
     # bouche : lèvre supérieure en arc (deux bombés + tubercule), lèvre inférieure pleine
     for s in (L, R_):
-        add('lipbow', (lambda s: lambda p: ellipsoid(p, mirror((0.0032, -0.0505, 0.3893), s), (0.0040, 0.0030, 0.0022)))(s), 'skin', 0.0030)
-    add('upperlip', lambda p: ellipsoid(p, (0, -0.0513, 0.3886), (0.0022, 0.0028, 0.0019)), 'skin', 0.0020)
-    add('lowerlip', lambda p: ellipsoid(p, (0, -0.0478, 0.3836), (0.0058, 0.0040, 0.0029)), 'skin', 0.0045)
+        add('lipbow', (lambda s: lambda p: ellipsoid(p, mirror((0.0034, -0.0506, 0.3889), s), (0.0045, 0.0033, 0.0026)))(s), 'skin', 0.0030)
+    add('upperlip', lambda p: ellipsoid(p, (0, -0.0516, 0.3882), (0.0026, 0.0030, 0.0021)), 'skin', 0.0020)
+    add('lowerlip', lambda p: ellipsoid(p, (0, -0.0486, 0.3836), (0.0064, 0.0042, 0.0034)), 'skin', 0.0040)
     for s in (L, R_):
         add('ear', (lambda s: lambda p: ellipsoid(p, mirror((0.0570, 0.014, 0.414), s), (0.0075, 0.0150, 0.0200)))(s), 'skin', 0.006)
         add('lobe', (lambda s: lambda p: ellipsoid(p, mirror((0.0572, 0.011, 0.3985), s), (0.0055, 0.0068, 0.0058)))(s), 'skin', 0.004)
+        # hélix : rebord roulé de l'oreille, du haut de l'avant jusqu'au lobe en passant par l'arrière
+        pts = [(0.0612, 0.0150 + 0.0125 * np.sin(a), 0.4145 + 0.0172 * np.cos(a)) for a in np.linspace(-0.55, 2.55, 8)]
+        for a_, b_ in zip(pts[:-1], pts[1:]):
+            add('helix', (lambda a_, b_, s: lambda p: cone(p, mirror(a_, s), mirror(b_, s), 0.0021, 0.0021))(a_, b_, s), 'skin', 0.0022)
 
     # Bras potelés et vraies mains
     for s in (L, R_):
@@ -238,9 +265,9 @@ def creases():
     return out
 
 
-def field(p, want_labels=False):
-    """Distance signée du corps complet. p : (N, 3) float32."""
-    P = parts()
+def field(p, want_labels=False, filtre=None):
+    """Distance signée du corps complet. p : (N, 3) float32. filtre : noms de parties à garder (aperçus rapides)."""
+    P = [x for x in parts() if filtre is None or x[0] in filtre]
     d = None
     best = None
     label = None
@@ -263,12 +290,16 @@ def field(p, want_labels=False):
         else:   # pli intérieur de la cuisse : petit creux allongé côté intérieur
             d = ssub(d, ellipsoid(p, c, (0.0030, 0.0120, 0.0016)), 0.0016)
     for s in (L, R_):
-        d = ssub(d, ellipsoid(p, mirror(EYE['socket'], s), EYE['socket_r']), 0.0025)
-        d = ssub(d, ellipsoid(p, mirror((0.0058, -0.0565, 0.3978), s), (0.0018, 0.0016, 0.0011)), 0.0008)   # narines
+        # fente des paupières : on retire la peau devant le globe, à l'intérieur de l'amande seulement
+        # (le globe, pièce séparée, apparaît ; les bords des paupières gardent l'épaisseur du coussin)
+        amande, _, _ = eye_almond(p, s)
+        devant = p[..., 1] - (EYE['center'][1] + 0.001)
+        d = ssub(d, np.maximum(amande, devant), 0.0009)
+        d = ssub(d, ellipsoid(p, mirror((0.0054, -0.0558, 0.3970), s), (0.0013, 0.0012, 0.0007)), 0.0006)   # narines (vers le bas)
         d = ssub(d, ellipsoid(p, mirror((0.0610, 0.010, 0.412), s), (0.0040, 0.0095, 0.0130)), 0.003)      # conque
-        d = ssub(d, ellipsoid(p, mirror((0.0072, -0.0522, 0.3866), s), (0.0018, 0.0020, 0.0016)), 0.0010)  # commissures
+        d = ssub(d, ellipsoid(p, mirror((0.0076, -0.0512, 0.3864), s), (0.0011, 0.0013, 0.0010)), 0.0008)  # commissures
     d = ssub(d, ellipsoid(p, (0, -0.0560, 0.3935), (0.0019, 0.0012, 0.0034)), 0.0014)    # philtrum
-    d = ssub(d, ellipsoid(p, (0, -0.0522, 0.3864), (0.0060, 0.0030, 0.0008)), 0.0012)   # fente des lèvres
+    d = ssub(d, ellipsoid(p, (0, -0.0530, 0.3862), (0.0060, 0.0016, 0.0003)), 0.0006)   # bouche fermée : simple ligne entre les lèvres
     d = ssub(d, ellipsoid(p, (0, -0.0695, 0.232), (0.0032, 0.0030, 0.0036)), 0.0018)    # nombril
 
     if want_labels:

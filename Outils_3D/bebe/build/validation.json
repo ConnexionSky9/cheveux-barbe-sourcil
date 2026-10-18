@@ -4,17 +4,17 @@
     {
       "controle": "fichier bebe_elyzea.blend",
       "ok": true,
-      "detail": "2686 Ko"
+      "detail": "3200 Ko"
     },
     {
       "controle": "fichier bebe_elyzea_squelette.glb",
       "ok": true,
-      "detail": "9281 Ko"
+      "detail": "9066 Ko"
     },
     {
       "controle": "fichier bebe_elyzea_squelette.fbx",
       "ok": true,
-      "detail": "799 Ko"
+      "detail": "847 Ko"
     },
     {
       "controle": "pose allonge (.obj)",
@@ -39,7 +39,7 @@
     {
       "controle": "textures (présentes, puissance de 2)",
       "ok": true,
-      "detail": "29 fichiers"
+      "detail": "35 fichiers"
     },
     {
       "controle": "squelette",
@@ -69,7 +69,7 @@
     {
       "controle": "corps : volume positif (normales vers l'extérieur)",
       "ok": true,
-      "detail": "volume 4.12 L"
+      "detail": "volume 4.09 L"
     },
     {
       "controle": "corps : maillage fermé",
@@ -79,42 +79,42 @@
     {
       "controle": "pose allonge : objets",
       "ok": true,
-      "detail": "ely_bebe_allonge_corps, ely_bebe_allonge_cheveux, ely_bebe_allonge_oeil_G, ely_bebe_allonge_oeil_D"
+      "detail": "ely_bebe_allonge_corps, ely_bebe_allonge_cheveux, ely_bebe_allonge_oeil_G, ely_bebe_allonge_oeil_D, ely_bebe_allonge_paupiere_G, ely_bebe_allonge_paupiere_D"
     },
     {
       "controle": "pose allonge : peau peu étirée",
       "ok": true,
-      "detail": "66 arêtes > 2 cm (repos : 35)"
+      "detail": "80 arêtes > 2 cm (repos : 44)"
     },
     {
       "controle": "pose porte : objets",
       "ok": true,
-      "detail": "ely_bebe_porte_corps, ely_bebe_porte_cheveux, ely_bebe_porte_oeil_G, ely_bebe_porte_oeil_D"
+      "detail": "ely_bebe_porte_corps, ely_bebe_porte_cheveux, ely_bebe_porte_oeil_G, ely_bebe_porte_oeil_D, ely_bebe_porte_paupiere_G, ely_bebe_porte_paupiere_D"
     },
     {
       "controle": "pose porte : peau peu étirée",
       "ok": true,
-      "detail": "111 arêtes > 2 cm (repos : 35)"
+      "detail": "100 arêtes > 2 cm (repos : 44)"
     },
     {
       "controle": "pose assis : objets",
       "ok": true,
-      "detail": "ely_bebe_assis_corps, ely_bebe_assis_cheveux, ely_bebe_assis_oeil_G, ely_bebe_assis_oeil_D"
+      "detail": "ely_bebe_assis_corps, ely_bebe_assis_cheveux, ely_bebe_assis_oeil_G, ely_bebe_assis_oeil_D, ely_bebe_assis_paupiere_G, ely_bebe_assis_paupiere_D"
     },
     {
       "controle": "pose assis : peau peu étirée",
       "ok": true,
-      "detail": "91 arêtes > 2 cm (repos : 35)"
+      "detail": "90 arêtes > 2 cm (repos : 44)"
     },
     {
       "controle": "pose ventral : objets",
       "ok": true,
-      "detail": "ely_bebe_ventral_corps, ely_bebe_ventral_cheveux, ely_bebe_ventral_oeil_G, ely_bebe_ventral_oeil_D"
+      "detail": "ely_bebe_ventral_corps, ely_bebe_ventral_cheveux, ely_bebe_ventral_oeil_G, ely_bebe_ventral_oeil_D, ely_bebe_ventral_paupiere_G, ely_bebe_ventral_paupiere_D"
     },
     {
       "controle": "pose ventral : peau peu étirée",
       "ok": true,
-      "detail": "138 arêtes > 2 cm (repos : 35)"
+      "detail": "131 arêtes > 2 cm (repos : 44)"
     },
     {
       "controle": ".glb réimporté",
@@ -122,14 +122,69 @@
       "detail": "1 squelette, actions ['pose_allonge', 'pose_assis', 'pose_porte', 'pose_ventral']"
     },
     {
+      "controle": "pb_ventral : rien dans le corps du parent (mannequin)",
+      "ok": true,
+      "detail": "0.0 cm"
+    },
+    {
+      "controle": "pb_ventral : UV sans superposition",
+      "ok": true,
+      "detail": "0 face(s)"
+    },
+    {
+      "controle": "pb_dorsal : rien dans le corps du parent (mannequin)",
+      "ok": true,
+      "detail": "0.0 cm"
+    },
+    {
+      "controle": "pb_dorsal : UV sans superposition",
+      "ok": true,
+      "detail": "0 face(s)"
+    },
+    {
+      "controle": "bébé ventral : tronc et tête hors du corps du parent",
+      "ok": true,
+      "detail": "1.39 cm"
+    },
+    {
+      "controle": "bébé ventral : bras / jambes au contact sans traverser (≤ 1,5 cm)",
+      "ok": true,
+      "detail": "-0.76 cm"
+    },
+    {
+      "controle": "bébé dorsal : tronc et tête hors du corps du parent",
+      "ok": true,
+      "detail": "1.31 cm"
+    },
+    {
+      "controle": "bébé dorsal : bras / jambes au contact sans traverser (≤ 1,5 cm)",
+      "ok": true,
+      "detail": "-0.93 cm"
+    },
+    {
+      "controle": "poussette : roues posées au sol",
+      "ok": true,
+      "detail": "0.0 cm"
+    },
+    {
+      "controle": "poussette : bébé sur le matelas, dans la nacelle",
+      "ok": true,
+      "detail": "0.0 cm au-dessus, 1.94 cm de la poussette"
+    },
+    {
+      "controle": "poussette : UV sans superposition",
+      "ok": true,
+      "detail": "0 face(s)"
+    },
+    {
       "controle": "ressource FiveM : fichiers binaires",
       "ok": true,
-      "detail": "111/111 dans stream/"
+      "detail": "144/144 dans stream/"
     },
     {
       "controle": "ressource FiveM : chaque fichier < 16 Mo",
       "ok": true,
-      "detail": "le plus gros : ely_bebe_corps_txd.ytd 6.7 Mo"
+      "detail": "le plus gros : ely_bebe_corps_txd.ytd 6.5 Mo"
     }
   ]
 }

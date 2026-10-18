@@ -27,9 +27,12 @@ CreateThread(function()
     check('ely_bebe.ytyp')
     for _, d in ipairs(BebeModeles.dictionnaires or { 'ely_bebe_txd' }) do check(d .. '.ytd') end
     for _, p in pairs(BebeModeles.poses) do
-        for _, group in ipairs({ 'corps', 'yeux', 'cheveux' }) do
-            for _, n in pairs(p[group]) do check(n .. '.ydr') end
+        for _, group in ipairs({ 'corps', 'yeux', 'cheveux', 'paupieres' }) do
+            for _, n in pairs(p[group] or {}) do check(n .. '.ydr') end
         end
+    end
+    for k, cols in pairs(BebeModeles.equipements or {}) do
+        if k ~= 'geo' then for _, n in pairs(cols) do check(n .. '.ydr') end end
     end
     if #manquants > 0 then
         print(('^1[elyzea_bebe_modele] %d fichier(s) manquant(s) dans stream/ (ex. %s)^0'):format(#manquants, manquants[1]))

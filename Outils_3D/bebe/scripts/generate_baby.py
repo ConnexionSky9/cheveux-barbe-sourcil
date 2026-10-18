@@ -101,7 +101,7 @@ POSES = {
         'label': 'Porté dans les bras (berceau des bras)',
         'bones': [
             ('colonne', 'X', 10), ('poitrine', 'X', 8),
-            ('cuisse.S', 'X', -80), ('cuisse.S', 'ABD', 22), ('tibia.S', 'X', 95), ('pied.S', 'X', -10),
+            ('cuisse.S', 'X', -58), ('cuisse.S', 'ABD', 18), ('tibia.S', 'X', 68), ('pied.S', 'X', -10),
             ('bras.S', 'X', -50), ('bras.S', 'ABD', -4), ('avantbras.S', 'X', -115),
             ('tete', 'Z', 22), ('tete', 'X', -6),
         ],
@@ -120,7 +120,7 @@ POSES = {
         'origin': 'seat',
     },
     'ventral': {
-        'label': 'Porte-bébé ventral (face au parent, position en M)',
+        'label': 'Porte-bébé ventral ou dorsal (face au parent, position en M)',
         'bones': [
             ('colonne', 'X', 12), ('poitrine', 'X', 6),
             ('cuisse.S', 'X', -100), ('cuisse.S', 'ABD', 40), ('tibia.S', 'X', 105),
@@ -282,21 +282,23 @@ def vertex_masks(v, zones, part):
     lips = np.clip((1.0 - (qx * qx + qz * qz)) / 0.35, 0, 1) * (y < -0.043)
     lips = lips.astype(np.float32) * skin
     # intérieur de la bouche (fond de la fente) : assombri via le canal « cils » (même effet : peau plus sombre)
-    bouche = (np.abs(zl) < 0.0011) & (np.abs(x) < 0.0062) & (y > -0.0535) & (y < -0.040)
+    bouche = np.exp(-(zl / 0.0007) ** 2) * (np.abs(x) < 0.0060) * (y > -0.0545) * (y < -0.040)
 
     # sourcils : arc très léger au-dessus de chaque œil
     zb = 0.4270 - 22.0 * (ax - 0.0205) ** 2
     brow = np.exp(-((z - zb) / 0.0013) ** 2) * ((ax > 0.008) & (ax < 0.034) & (y < -0.035))
     brow = brow.astype(np.float32) * skin
 
-    # cils / bord des paupières : anneau autour de l'ouverture de l'orbite (plus marqué en haut)
-    sc, sr = np.array(sdf_baby.EYE['socket'], np.float32), np.array(sdf_baby.EYE['socket_r'], np.float32)
-    q = np.stack([ax - sc[0], y - sc[1], z - sc[2]], 1) / sr
-    k = np.linalg.norm(q, axis=1)
-    upper = np.clip(0.15 + 0.85 * (q[:, 2] > -0.1), 0, 1)
-    lash = np.exp(-((k - 1.10) / 0.14) ** 2) * upper
-    crease = np.exp(-((k - 1.70) / 0.10) ** 2) * (q[:, 2] > 0.25) * 0.18
-    lash = np.clip(lash + crease + bouche * 0.9, 0, 1).astype(np.float32) * skin
+    # cils / bord des paupières : liseré le long de la fente en amande (plus marqué en haut), léger pli au-dessus
+    lash = np.zeros(len(v), np.float32)
+    for sgn in (1.0, -1.0):
+        am, u, zl = sdf_baby.eye_almond(v, sgn)
+        cote = (x * sgn > 0) & (y < sdf_baby.EYE['center'][1] + 0.002)
+        haut = zl > 0
+        bord = np.exp(-((am - 0.00025) / 0.00045) ** 2) * np.where(haut, 1.0, 0.35)
+        pli = np.exp(-((am - 0.0034) / 0.0006) ** 2) * haut * 0.12
+        lash = np.maximum(lash, ((bord + pli) * cote).astype(np.float32))
+    lash = np.clip(lash + bouche * 0.85, 0, 1).astype(np.float32) * skin
 
     # cuir chevelu : au-dessus de la ligne d'implantation (front, tempes, nuque)
     head_parts = np.isin(part, ('cranium', 'occiput', 'face', 'cheek'))
@@ -328,7 +330,56 @@ def vertex_masks(v, zones, part):
     m1 = np.stack([couche, red, lips], 1)
     m2 = np.stack([brow, lash, scalp.astype(np.float32)], 1)
     m3 = np.stack([crown.astype(np.float32), zones['pyjama'].astype(np.float32), nails], 1)
-    return m1, m2, m3
+    m4 = tissu_masques(v, part, zones['pyjama'].astype(np.float32))
+    return m1, m2, m3, m4
+
+
+def tissu_masques(v, part, pyjama):
+    """Pyjama : bords côtelés (poignets, chevilles, col) et plis souples (coudes, genoux), calculés en 3D puis cuits :
+    les côtes suivent vraiment le membre et les plis restent continus d'une île UV à l'autre."""
+    S = sdf_baby.SKELETON
+    side = np.where(v[:, 0] >= 0, 1.0, -1.0)
+
+    def seg(a, b):
+        A = np.stack([np.array(sdf_baby.mirror(S[a], sv)) for sv in side]).astype(np.float32)
+        B = np.stack([np.array(sdf_baby.mirror(S[b], sv)) for sv in side]).astype(np.float32)
+        ab = B - A
+        L = np.linalg.norm(ab, axis=1, keepdims=True)
+        d = ab / L
+        rel = v - A
+        t = np.sum(rel * d, 1)
+        radial = rel - t[:, None] * d
+        # repère autour du membre : axe de référence non parallèle au membre (membres presque verticaux)
+        axe = np.where(np.abs(d[:, 2:3]) > 0.8, np.array([[1.0, 0.0, 0.0]], np.float32), np.array([[0.0, 0.0, 1.0]], np.float32))
+        ref = np.cross(d, axe)
+        ref /= np.maximum(np.linalg.norm(ref, axis=1, keepdims=True), 1e-6)
+        ang = np.arctan2(np.sum(np.cross(ref, radial) * d, 1), np.sum(ref * radial, 1))
+        return t / L[:, 0], t, ang
+
+    rib = np.zeros(len(v), np.float32)
+    band = np.zeros(len(v), np.float32)
+    plis = np.zeros(len(v), np.float32)
+    for nom, a, b in (('forearm', 'elbow', 'wrist'), ('shin', 'knee', 'ankle')):
+        tn, t, ang = seg(a, b)
+        m = (part == nom) & (tn > 0.78) & (tn < 0.905)
+        band[m] = 1.0
+        rib[m] = 0.5 + 0.5 * np.sin(ang[m] * 30)
+    # col : bande sous la ligne du cou
+    z = v[:, 2]
+    col = np.isin(part, ('neck', 'chest', 'shoulder')) & (z > 0.343) & (z < 0.3545)
+    band[col] = 1.0
+    ang = np.arctan2(v[col, 0], -v[col, 1])
+    rib[col] = 0.5 + 0.5 * np.sin(ang * 40)
+    # plis : vagues douces autour des coudes et des genoux (côté pli surtout)
+    for a, b, c in (('shoulder', 'elbow', 'wrist'), ('hip', 'knee', 'ankle')):
+        J = np.stack([np.array(sdf_baby.mirror(S[b], sv)) for sv in side]).astype(np.float32)
+        tn, t, ang = seg(a, c)
+        d = np.linalg.norm(v - J, axis=1)
+        w = np.exp(-(d / 0.016) ** 2)
+        # 2 à 3 plis souples et irréguliers (pas des rayures régulières) : période ~1,3 cm, phase qui varie autour du membre
+        onde = 0.5 + 0.5 * np.sin(t * 2 * np.pi / 0.013 + np.sin(ang * 2.0) * 1.6 + np.cos(ang * 3.0) * 0.7)
+        plis = np.maximum(plis, onde * w * (0.55 + 0.45 * np.cos(ang - 0.5) ** 2))
+    return np.stack([rib * band * pyjama, plis * pyjama * (1 - band), band * pyjama], 1).astype(np.float32)
 
 
 def set_point_colors(me, name, rgb):
@@ -469,7 +520,7 @@ def bake(high, low, kind, img, extrusion=0.004, margin=12):
 
 # ─────────────────────────── 5. Textures finales ───────────────────────────
 
-def compose_body(m1, m2, m3, ao, tone, tenue):
+def compose_body(m1, m2, m3, m4, ao, tone, tenue):
     """m1, m2, m3 : (H, W, 3) linéaires 0-1 · ao : (H, W) · tenue : 'couche' ou 'pyjama'."""
     H, W = ao.shape
     couche, red, lips = m1[..., 0], m1[..., 1], m1[..., 2]
@@ -505,7 +556,9 @@ def compose_body(m1, m2, m3, ao, tone, tenue):
         quilt = 0.95 + 0.07 * value_noise((H, W), 2.5, 31)
         fabric = srgb_to_lin((246, 246, 244))[None, None, :] * quilt[..., None]
     else:
-        knit = 0.95 + 0.06 * value_noise((H, W), 2.0, 11) + 0.02 * value_noise((H, W), 8, 12)
+        # jersey fin (peu de bruit) ; bords côtelés un peu plus denses ; ombre douce dans le creux des plis
+        knit = 0.975 + 0.025 * value_noise((H, W), 1.5, 11) + 0.015 * value_noise((H, W), 10, 12)
+        knit = knit * (1 - 0.05 * m4[..., 2]) * (0.97 + 0.06 * m4[..., 0])
         fabric = srgb_to_lin(ONESIE_COLOR)[None, None, :] * knit[..., None]
         # couche visible en transparence : légèrement plus claire sous le pyjama
         fabric = fabric * (1 + 0.04 * couche[..., None])
@@ -516,12 +569,15 @@ def compose_body(m1, m2, m3, ao, tone, tenue):
     return lin_to_srgb(col * occ)
 
 
-def detail_normal(nrm, m1, m3, tenue, seed=5):
-    """Ajoute au relief cuit un micro-relief : grain de peau sur la peau, maille du tissu sur les vêtements."""
+def detail_normal(nrm, m1, m3, m4, tenue, seed=5):
+    """Ajoute au relief cuit un micro-relief : grain de peau très léger, maille du tissu, côtes et plis du pyjama.
+    La hauteur est dérivée dans l'espace UV : c'est justement le repère des cartes de normales tangentes."""
     H, W = nrm.shape[:2]
     couche, pyjama = m1[..., 0], m3[..., 1]
     cloth = couche if tenue == 'couche' else np.maximum(couche, pyjama)
-    h = (value_noise((H, W), 3.0, seed) - 0.5) * (1 - cloth) * 0.18 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 1.2
+    h = (value_noise((H, W), 3.0, seed) - 0.5) * (1 - cloth) * 0.18 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 0.6
+    if tenue == 'pyjama':
+        h = h + blur(m4[..., 0], 0.7) * 1.4 + blur(m4[..., 1], 2.5) * 2.2
     gy, gx = np.gradient(h)
     n = nrm * 2 - 1
     n[..., 0] -= gx * 0.6
@@ -552,6 +608,25 @@ def make_iris(color, size=256):
     # reflet humide
     hl = np.exp(-(((dx + 0.07) ** 2 + (dz - 0.08) ** 2) / (2 * 0.018 ** 2)))
     col = col + hl[..., None] * 0.6
+    return lin_to_srgb(col)
+
+
+def make_lid(tone, size=128):
+    """Paupières fermées (bébé endormi) : peau de la teinte, liseré des cils légèrement incurvé, léger pli au-dessus.
+    Même projection que l'iris (vue de face, côté externe à droite pour les deux yeux)."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / (size - 1)
+    Rl = sdf_baby.EYE['radius'] + 0.0021
+    wx, wz = (xx - 0.5) * 2 * Rl, (yy - 0.5) * 2 * Rl
+    u = np.clip(wx / sdf_baby.EYE['demi_largeur'], -1.2, 1.2)
+    ligne = -0.0011 - 0.0009 * u * u + 0.0004 * u
+    cils = np.exp(-((wz - ligne) / 0.00030) ** 2) * (np.abs(u) < 1.05)
+    pli = np.exp(-((wz - (0.0042 * np.clip(1 - u * u, 0, 1) ** 0.7 + 0.0008)) / 0.0005) ** 2) * (np.abs(u) < 1.0)
+    tone_l = srgb_to_lin(tone)
+    flush = srgb_to_lin((226, 140, 128))
+    rose = 0.16 * np.exp(-(wz / 0.0045) ** 2)[..., None]
+    col = tone_l[None, None, :] * (1 - rose) + flush[None, None, :] * rose
+    col = col * (1 - 0.10 * pli[..., None])
+    col = col * (1 - cils[..., None] * 0.85) + np.array((0.035, 0.024, 0.020), np.float32) * cils[..., None] * 0.85
     return lin_to_srgb(col)
 
 
@@ -876,10 +951,11 @@ def main():
     v, f, zones, part = sdf_baby.build(a.voxel)
     high = mesh_object(f'{PREFIX}_HD', v, f)
     orient_outward(high)
-    m1, m2, m3 = vertex_masks(v, zones, part)
+    m1, m2, m3, m4 = vertex_masks(v, zones, part)
     set_point_colors(high.data, 'm1', m1)
     set_point_colors(high.data, 'm2', m2)
     set_point_colors(high.data, 'm3', m3)
+    set_point_colors(high.data, 'm4', m4)
     report['etapes'].append({'surface_hd': {'sommets': len(v), 'triangles': len(f)}})
     log(f'HD : {len(v)} sommets, {len(f)} triangles')
 
@@ -905,6 +981,31 @@ def main():
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         eyes.append(ob)
 
+    # paupières fermées (variante « endormi ») : calotte légèrement plus grande que le globe, limitée à la fente
+    # (+1,5 mm, au niveau de la peau des paupières ; ses bords passent sous la peau : aucune couture visible)
+    lids = []
+    for side, sgn in (('G', 1), ('D', -1)):
+        c = sdf_baby.EYE['center']
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=28, radius=sdf_baby.EYE['radius'] + 0.0021)
+        bmesh.ops.translate(bm, verts=bm.verts, vec=(c[0] * sgn, c[1], c[2]))
+        centres = np.array([tuple(f.calc_center_median()) for f in bm.faces], np.float32)
+        am, _, _ = sdf_baby.eye_almond(centres, sgn)
+        drop = [f for f, a, cc in zip(bm.faces, am, centres) if not (a < 0.0012 and cc[1] < c[1])]
+        bmesh.ops.delete(bm, geom=drop, context='FACES')
+        me = bpy.data.meshes.new(f'{PREFIX}_paupiere_{side}')
+        bm.to_mesh(me)
+        bm.free()
+        uv = me.uv_layers.new(name='UVMap')
+        for loop in me.loops:
+            co = (me.vertices[loop.vertex_index].co - mathutils.Vector((c[0] * sgn, c[1], c[2]))).normalized()
+            uv.data[loop.index].uv = (0.5 + co.x * 0.5 * sgn, 0.5 + co.z * 0.5)
+        for p in me.polygons:
+            p.use_smooth = True
+        ob = bpy.data.objects.new(me.name, me)
+        sc.collection.objects.link(ob)
+        lids.append(ob)
+
     # 2-3. maillage de jeu + UV
     tex_size = 256 if a.quick else a.tex
     low = make_low(high, a.tris)
@@ -924,7 +1025,7 @@ def main():
 
     # 4. cuissons
     imgs = {}
-    for key, attr in (('m1', 'm1'), ('m2', 'm2'), ('m3', 'm3')):
+    for key, attr in (('m1', 'm1'), ('m2', 'm2'), ('m3', 'm3'), ('m4', 'm4')):
         high.data.materials.clear()
         high.data.materials.append(emission_material(f'emit_{key}', attr))
         imgs[key] = image(f'{PREFIX}_{key}', tex_size, non_color=True)
@@ -938,11 +1039,12 @@ def main():
     M1 = image_to_np(imgs['m1'])[..., :3]
     M2 = image_to_np(imgs['m2'])[..., :3]
     M3 = image_to_np(imgs['m3'])[..., :3]
+    M4 = image_to_np(imgs['m4'])[..., :3]
     AO = image_to_np(imgs['ao'])[..., 0]
     NRM = image_to_np(imgs['n'])[..., :3]
     T = dirs['textures']
     for tenue in TENUES:
-        save_png(detail_normal(NRM, M1, M3, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))
+        save_png(detail_normal(NRM, M1, M3, M4, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))
     save_png(np.stack([M1[..., 0], M1[..., 1], M1[..., 2]], 2), os.path.join(T, 'masque_couche_rougeurs_levres.png'))
     save_png(np.stack([M2[..., 0], M2[..., 1], M2[..., 2]], 2), os.path.join(T, 'masque_sourcils_cils_cuir.png'))
     save_png(np.repeat(AO[..., None], 3, 2), os.path.join(T, 'occlusion.png'))
@@ -951,12 +1053,17 @@ def main():
     for tname, tone in SKIN_TONES.items():
         for tenue in TENUES:
             p = os.path.join(T, f'{PREFIX}_corps_{tname}_{tenue}.png')
-            save_png(compose_body(M1, M2, M3, AO, tone, tenue), p)
+            save_png(compose_body(M1, M2, M3, M4, AO, tone, tenue), p)
             textures['corps'][f'{tname}_{tenue}'] = os.path.basename(p)
     for ename, ecol in EYE_COLORS.items():
         p = os.path.join(T, f'{PREFIX}_yeux_{ename}.png')
         save_png(make_iris(ecol, 128 if a.quick else 256), p)
         textures['yeux'][ename] = os.path.basename(p)
+    textures['paupieres'] = {}
+    for tname, tone in SKIN_TONES.items():
+        p = os.path.join(T, f'{PREFIX}_paupieres_{tname}.png')
+        save_png(make_lid(tone, 64 if a.quick else 128), p)
+        textures['paupieres'][tname] = os.path.basename(p)
     hair_size = max(256, tex_size // 2)
     from PIL import Image as _I
     scalp_small = np.asarray(_I.fromarray((M2[..., 2] * 255).astype(np.uint8)).resize((hair_size, hair_size)), np.float32) / 255
@@ -985,11 +1092,28 @@ def main():
     bm.normal_update()
     for vv in bm.verts:
         vv.co += vv.normal * 0.0012
+    # deuxième couche, 1,4 mm plus haut, mèches décalées : du volume et un bord moins « peint »
+    bm2 = bm.copy()
+    bm2.normal_update()
+    for vv in bm2.verts:
+        vv.co += vv.normal * 0.0014
+    uvl2 = bm2.loops.layers.uv.active
+    for fc in bm2.faces:
+        for lp in fc.loops:
+            lp[uvl2].uv += mathutils.Vector((0.0031, 0.0023))
     hair_me = bpy.data.meshes.new(f'{PREFIX}_cheveux')
     bm.to_mesh(hair_me)
     bm.free()
+    hair2_me = bpy.data.meshes.new(f'{PREFIX}_cheveux2')
+    bm2.to_mesh(hair2_me)
+    bm2.free()
     hair = bpy.data.objects.new(hair_me.name, hair_me)
     sc.collection.objects.link(hair)
+    hair2 = bpy.data.objects.new(hair2_me.name, hair2_me)
+    sc.collection.objects.link(hair2)
+    select_only([hair, hair2], active=hair)
+    bpy.ops.object.join()
+    hair_me = hair.data
     for p in hair_me.polygons:
         p.use_smooth = True
     log(f'coque des cheveux : {len(hair_me.polygons)} triangles')
@@ -1003,6 +1127,10 @@ def main():
     eye_mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.15
     for e in eyes:
         e.data.materials.append(eye_mat)
+    lid_mat, _ = preview_material('paupieres', os.path.join(T, textures['paupieres']['peau3']))
+    for e in lids:
+        e.data.materials.append(lid_mat)
+        e.hide_render = True        # aperçus : yeux ouverts ; la variante endormie a sa propre planche
     hair_mat, _ = preview_material('cheveux', os.path.join(T, textures['cheveux']['touffe_brun']), alpha=True)
     hair.data.materials.append(hair_mat)
 
@@ -1011,13 +1139,14 @@ def main():
 
     # 6. squelette + poids
     arm = build_armature()
-    counts = skin_to_armature(arm, low, eyes + [hair], v, part)
+    counts = skin_to_armature(arm, low, eyes + lids + [hair], v, part)
     report['etapes'].append({'squelette': {'os': len(arm.data.bones), 'sommets_par_os': counts}})
 
     # actions de pose (pour le .glb / .fbx et les futures animations)
     setup_render_scene(a.samples if not a.quick else 8)
-    rest_objs = [low, hair] + eyes
+    rest_objs = [low, hair] + eyes + lids
     render_view(os.path.join(dirs['rendus'], 'repos_face.png'), (0, 0, 0.25), (0, -1, 0.05), 0.56, (700, 900))
+    render_view(os.path.join(dirs['rendus'], 'repos_dos.png'), (0, 0, 0.25), (0, 1, 0.05), 0.56, (700, 900))
     render_view(os.path.join(dirs['rendus'], 'repos_profil.png'), (0, 0, 0.25), (1, 0, 0.05), 0.56, (700, 900))
     render_view(os.path.join(dirs['rendus'], 'repos_visage.png'), (0, 0, 0.415), (0.35, -1, 0.08), 0.15, (800, 800))
 
@@ -1048,9 +1177,12 @@ def main():
         ctr = [(bmin[i] + bmax[i]) / 2 for i in range(3)]
         size = max(bmax[i] - bmin[i] for i in range(3)) * 1.15
         for vname, vdir in (('', (0.55, -1, 0.6)), ('_profil', (1, 0, 0.08)), ('_dessus', (0.15, -0.3, 1))):
-            render_view(os.path.join(dirs['rendus'], f'pose_{pname}{vname}.png'), ctr, vdir, size, (700, 700), only=baked)
+            render_view(os.path.join(dirs['rendus'], f'pose_{pname}{vname}.png'), ctr, vdir, size, (700, 700),
+                        only=[b for b in baked if 'paupiere' not in b.name])
         for o in rest_objs + [arm]:
             o.hide_render = False
+        for o in lids + [b for b in baked if 'paupiere' in b.name]:
+            o.hide_render = True
         log(f'pose {pname} : boîte {bmin} → {bmax}')
     # retour au repos
     arm.animation_data.action = None
@@ -1060,6 +1192,16 @@ def main():
         if c.name.startswith('pose_'):
             c.hide_render = True
             c.hide_viewport = True
+    # bébé endormi (paupières fermées à la place des yeux), au repos
+    for o in eyes:
+        o.hide_render = True
+    for o in lids:
+        o.hide_render = False
+    render_view(os.path.join(dirs['rendus'], 'repos_endormi.png'), (0, 0, 0.415), (0.35, -1, 0.08), 0.15, (800, 800))
+    for o in eyes:
+        o.hide_render = False
+    for o in lids:
+        o.hide_render = True
 
     # 8. fichiers sources
     for img in bpy.data.images:

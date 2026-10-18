@@ -56,6 +56,7 @@ class World:
         self.commands = {}
         self.prints = []
         self.bebes = {}
+        self.bebe_reglages = []
         self.admins = set()
 
     def add_player(self, src, cid, gender, birthdate, pos=(0.0, 0.0, 30.0)):
@@ -207,6 +208,7 @@ api = {
     'cmd': lambda name, fn: W.commands.__setitem__(name, fn),
     'print': lambda s: W.prints.append(s),
     'porte_bebe': lambda s: W.bebes.get(int(s)),
+    'bebe_reglages': lambda v: W.bebe_reglages.append(dict(v.items())),
     'admin': lambda s, perm: int(s) in W.admins and perm == 'famille_manage',
 }
 G.py = to_lua({})
@@ -261,7 +263,8 @@ exports = {
     },
     elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end },
     elyzea_police = { IsCuffed = function() return false end },
-    elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end },
+    elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end,
+                           AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end },
     admin_menu = { HasPermission = function(_, s, perm) return py.admin(s, perm) end },
 }
 EXPORTS_LUA = {}
@@ -639,6 +642,32 @@ ok, msg = admin(3, 'reset')
 check('26. valeurs par défaut rétablies (config.lua) et table vidée', ok is True and G.Config.Intimite.duree == 15
       and G.Config.Conception.probaAccidentelle == 0.12 and not q('SELECT 1 FROM rp_famille_reglages'), msg)
 check('26. chaque modification est journalisée', len(q("SELECT 1 FROM rp_famille_logs WHERE action IN ('reglages_enregistres','reglages_reinitialises')")) >= 4)
+
+# 27-28. V4 : section « Bébés et équipements » du même onglet admin (valeurs transmises à elyzea_bebe_modele)
+W.bebe_reglages.clear()
+d = admin_data(3)
+check('27. section « Bébés et équipements » présente dans l\'onglet existant',
+      any(sct['id'] == 'bebe' for sct in d['sections'].values()) if isinstance(d['sections'], dict) else any(sct['id'] == 'bebe' for sct in d['sections'])
+      , d['sections'])
+v = d['values']; v['bebe.dorsal'] = False; v['bebe.abandon'] = 45
+ok, msg = admin(3, 'save', {'values': v})
+check('27. enregistré et transmis à elyzea_bebe_modele', ok is True and W.bebe_reglages and W.bebe_reglages[-1]['bebe.dorsal'] is False
+      and W.bebe_reglages[-1]['bebe.abandon'] == 45, (msg, W.bebe_reglages[-1:]))
+for bad, why in (({'bebe.abandon': 2}, 'délai trop court'), ({'bebe.ventral': 'non'}, 'booléen invalide')):
+    v = admin_data(3)['values']; v.update(bad)
+    ok, msg = admin(3, 'save', {'values': v})
+    check(f'27. valeur invalide refusée ({why})', ok is False and G.Config.Bebe.abandon == 45, msg)
+ok, msg = admin(2, 'save', {'values': {'bebe.poussette': False}})
+check('27. joueur non autorisé : refusé', ok is False and G.Config.Bebe.poussette is True, msg)
+W.bebe_reglages.clear()
+start_resource()
+check('28. redémarrage : réglages des bébés réappliqués et retransmis', G.Config.Bebe.dorsal is False and G.Config.Bebe.abandon == 45
+      and W.bebe_reglages and W.bebe_reglages[-1]['bebe.dorsal'] is False)
+rb = G.EXPORTS_LUA['ReglagesBebe']()
+check('28. export ReglagesBebe (lu par elyzea_bebe_modele à son démarrage)', rb['bebe.dorsal'] is False and rb['bebe.abandon'] == 45
+      and rb['bebe.ventral'] is True)
+ok, msg = admin(3, 'reset')
+check('28. valeurs par défaut : bébés aussi', ok is True and G.Config.Bebe.dorsal is True and W.bebe_reglages[-1]['bebe.dorsal'] is True)
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

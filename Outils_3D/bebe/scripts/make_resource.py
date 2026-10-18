@@ -29,8 +29,12 @@ def main():
     dicos = m['txd'] if isinstance(m['txd'], list) else [m['txd']]
     expected = [f"{m['ytyp']}.ytyp"] + [f'{d}.ytd' for d in dicos]
     for pose in m['poses'].values():
-        for group in ('corps', 'yeux', 'cheveux'):
+        for group in ('corps', 'yeux', 'cheveux', 'paupieres'):
             expected += [f'{n}.ydr' for n in pose[group].values()]
+    eq = m.get('equipements') or {}
+    for key, cols in eq.items():
+        if key != 'geo':
+            expected += [f'{n}.ydr' for n in cols.values()]
     missing = [f for f in expected if not os.path.isfile(os.path.join(stream, f))]
 
     L = ['-- =====================================================================',
@@ -50,11 +54,32 @@ def main():
         L.append(f'            label = {lua_str(label)},')
         L.append(f"            boite = {{ min = vector3({', '.join(f'{v:.4f}' for v in p['boite'][0])}), "
                  f"max = vector3({', '.join(f'{v:.4f}' for v in p['boite'][1])}) }},")
-        for group in ('corps', 'yeux', 'cheveux'):
+        for group in ('corps', 'yeux', 'cheveux', 'paupieres'):
             items = ', '.join(f'[{lua_str(k)}] = {lua_str(v)}' for k, v in p[group].items())
             L.append(f'            {group} = {{ {items} }},')
         L.append('        },')
-    L += ['    },', '}', '']
+    L.append('    },')
+
+    def lua_val(v):
+        if isinstance(v, dict):
+            return '{ ' + ', '.join(f'{k} = {lua_val(x)}' for k, x in v.items()) + ' }'
+        if isinstance(v, (list, tuple)):
+            return '{ ' + ', '.join(lua_val(x) for x in v) + ' }'
+        if isinstance(v, str):
+            return lua_str(v)
+        return repr(v)
+    if eq:
+        L.append('    -- porte-bébés et poussette (equipements.py) ; geo = positions calculées sur le mannequin')
+        L.append('    equipements = {')
+        for key, cols in eq.items():
+            if key == 'geo':
+                geo = {k: {kk: vv for kk, vv in v.items() if kk in ('pos', 'rot', 'decalage_femme', 'nacelle', 'poussee')}
+                       for k, v in cols.items()}
+                L.append(f'        geo = {lua_val(geo)},')
+            else:
+                L.append(f"        {key} = {{ {', '.join(f'[{lua_str(c)}] = {lua_str(n)}' for c, n in cols.items())} }},")
+        L.append('    },')
+    L += ['}', '']
     os.makedirs(os.path.join(res, 'shared'), exist_ok=True)
     with open(os.path.join(res, 'shared', 'modeles.lua'), 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(L))

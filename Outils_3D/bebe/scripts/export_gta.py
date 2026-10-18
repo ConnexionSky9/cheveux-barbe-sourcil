@@ -34,7 +34,8 @@ from dds import write_dds  # noqa: E402
 PREFIX = 'ely_bebe'
 TXD = 'ely_bebe_txd'              # yeux + cheveux
 TXD_CORPS = 'ely_bebe_corps_txd'  # peau / tenues + reliefs (séparé : chaque .ytd reste sous 16 Mo)
-TAILLE = {'corps': 1024, 'relief': 2048, 'yeux': 256, 'cheveux': 512}
+TXD_EQUIP = 'ely_bebe_equip_txd'  # porte-bébés et poussette (V4)
+TAILLE = {'corps': 1024, 'relief': 2048, 'yeux': 256, 'cheveux': 512, 'paupieres': 128, 'equip': 1024}
 LOD_DIST = 60.0
 
 
@@ -72,12 +73,27 @@ def main():
     jobs += [(os.path.splitext(f)[0], f, 'DXT1', 'corps') for f in report['textures']['corps'].values()]
     jobs += [(os.path.splitext(f)[0], f, 'DXT1', 'yeux') for f in report['textures']['yeux'].values()]
     jobs += [(os.path.splitext(f)[0], f, 'DXT5', 'cheveux') for f in report['textures']['cheveux'].values()]
+    jobs += [(os.path.splitext(f)[0], f, 'DXT1', 'paupieres') for f in report['textures'].get('paupieres', {}).values()]
+    # équipements (equipements.py) : textures dans leur propre dictionnaire
+    eq_path = os.path.join(build, 'equipements', 'equipements.json')
+    equip = json.load(open(eq_path, encoding='utf-8')) if os.path.isfile(eq_path) else None
+    if equip:
+        eq_tex = os.path.join(build, 'equipements', 'textures')
+        for key, tx in equip['textures'].items():
+            for nom, f in tx.items():
+                src = os.path.join(eq_tex, f)
+                if nom == 'n':
+                    _n = _np.asarray(_Img.open(src).convert('RGBA')).copy()
+                    _n[..., 1] = 255 - _n[..., 1]          # convention DirectX (voir plus haut)
+                    src = os.path.join(dds_dir, os.path.splitext(f)[0] + '_gta.png')
+                    _Img.fromarray(_n, 'RGBA').save(src)
+                jobs.append((os.path.splitext(f)[0], src, 'DXT1', 'equip'))
     dico = {}
     for name, png, fmt, groupe in jobs:
         p = os.path.join(dds_dir, name + '.dds')
         write_dds(png if os.path.isabs(png) else os.path.join(tex_dir, png), p, fmt, max_size=TAILLE[groupe])
         dds[name] = p
-        dico[name] = TXD_CORPS if groupe in ('corps', 'relief') else TXD
+        dico[name] = TXD_CORPS if groupe in ('corps', 'relief') else (TXD_EQUIP if groupe == 'equip' else TXD)
     log(f'{len(dds)} textures DDS (mipmaps compris)')
 
     # ── 2. Blender + Sollumz
@@ -107,21 +123,31 @@ def main():
             images[name] = im
         return images[name]
 
-    def material(shader, samplers, label):
+    def material(shader, samplers, label, params=None):
         mat = create_shader(shader)
         mat.name = label
         for node in mat.node_tree.nodes:
             if node.bl_idname == 'ShaderNodeTexImage' and node.name in samplers:
                 node.image = img(samplers[node.name])
                 node.texture_properties.embedded = False
+        for nom, val in (params or {}).items():
+            node = mat.node_tree.nodes.get(nom)
+            if node is None:
+                raise SystemExit(f'paramètre {nom} absent du shader {shader}')
+            node.set('X', val)
         return mat
+
+    # peau : reflet faible et large (une peau de bébé est mate ; un reflet serré donne l'aspect « plastique »)
+    PEAU = {'specularIntensityMult': 0.05, 'specularFalloffMult': 14.0, 'specularFresnel': 0.55}
+    TISSU = {'specularIntensityMult': 0.04, 'specularFalloffMult': 8.0, 'specularFresnel': 0.5}
 
     mats = {}
     for tone in report['teintes']:
         for tenue in report['tenues']:
             mats[('corps', tone, tenue)] = material('normal.sps', {'DiffuseSampler': f'{PREFIX}_corps_{tone}_{tenue}',
                                                                    'BumpSampler': f'{PREFIX}_corps_{tenue}_n'},
-                                                    f'corps_{tone}_{tenue}')
+                                                    f'corps_{tone}_{tenue}', PEAU)
+        mats[('paupieres', tone)] = material('default.sps', {'DiffuseSampler': f'{PREFIX}_paupieres_{tone}'}, f'paupieres_{tone}')
     for eye in report['yeux']:
         mats[('yeux', eye)] = material('default.sps', {'DiffuseSampler': f'{PREFIX}_yeux_{eye}'}, f'yeux_{eye}')
     for key in report['textures']['cheveux']:
@@ -178,7 +204,8 @@ def main():
         objs = {n.split(f'{PREFIX}_{pose}_', 1)[1]: bpy.data.objects[n] for n in info['objets']}
         body, hair = objs['corps'], objs['cheveux']
         eyes = [objs['oeil_G'], objs['oeil_D']]
-        entry = {'corps': {}, 'yeux': {}, 'cheveux': {}, 'boite': [info['min'], info['max']]}
+        paup = [objs['paupiere_G'], objs['paupiere_D']]
+        entry = {'corps': {}, 'yeux': {}, 'cheveux': {}, 'paupieres': {}, 'boite': [info['min'], info['max']]}
         for tone in report['teintes']:
             for tenue in report['tenues']:
                 n = f'{PREFIX}_{pose}_{tone}_{tenue}'
@@ -192,9 +219,38 @@ def main():
             n = f'{PREFIX}_{pose}_chev_{key}'
             drawables.append(variant([hair], n, mats[('cheveux', key)]))
             entry['cheveux'][key] = n
+        for tone in report['teintes']:
+            n = f'{PREFIX}_{pose}_paup_{tone}'
+            drawables.append(variant(paup, n, mats[('paupieres', tone)]))
+            entry['paupieres'][tone] = n
         models['poses'][pose] = entry
-        for s in [body, hair] + eyes:
+        for s in [body, hair] + eyes + paup:
             bpy.data.objects.remove(s, do_unlink=True)
+    # ── équipements : un modèle par objet et par coloris (même repère que dans equipements.blend)
+    if equip:
+        with bpy.data.libraries.load(os.path.join(build, 'equipements', 'equipements.blend'), link=False) as (src_, dst_):
+            dst_.objects = list(equip['objets'].values())
+        models['equipements'] = {}
+        par_nom = {o.name: o for o in dst_.objects}
+        for key, nom_obj in equip['objets'].items():
+            ob = par_nom[nom_obj]
+            bpy.context.scene.collection.objects.link(ob)
+            for attr in list(ob.data.color_attributes):
+                ob.data.color_attributes.remove(attr)
+            models['equipements'][key] = {}
+            for col, f in equip['textures'][key].items():
+                if col == 'n':
+                    continue
+                mat = material('normal.sps', {'DiffuseSampler': os.path.splitext(f)[0],
+                                              'BumpSampler': os.path.splitext(equip['textures'][key]['n'])[0]}, f'{key}_{col}', TISSU)
+                n = f'{PREFIX}_{key}_{col}'
+                drawables.append(variant([ob], n, mat))
+                models['equipements'][key][col] = n
+            bpy.data.objects.remove(ob, do_unlink=True)
+        models['equipements']['geo'] = {
+            'ventral': equip['bebe']['ventral'], 'dorsal': equip['bebe']['dorsal'],
+            'poussette': {'nacelle': equip['poussette']['bebe_nacelle'], 'poussee': equip['poussette']['attache_poussee']},
+        }
     log(f'{len(drawables)} drawables préparés')
     too_long = [d.name for d in drawables if len(d.name) > 63]
     if too_long:
@@ -213,7 +269,11 @@ def main():
     for arch in yt.archetypes:
         arch.lod_dist = LOD_DIST
         arch.hd_texture_dist = 15.0
-        arch.texture_dictionary = TXD_CORPS if arch.name.endswith(tuple('_' + t for t in report['tenues'])) else TXD
+        if arch.name.startswith((f'{PREFIX}_pb_', f'{PREFIX}_poussette')):
+            arch.texture_dictionary = TXD_EQUIP
+            arch.lod_dist = 90.0
+        else:
+            arch.texture_dictionary = TXD_CORPS if arch.name.endswith(tuple('_' + t for t in report['tenues'])) else TXD
     log(f'ytyp : {len(yt.archetypes)} archétypes')
 
     # ── 4. export CodeWalker XML (drawables + ytyp)
@@ -226,7 +286,7 @@ def main():
     from szio.gta5.textures import AssetTextureDictionary, EmbeddedTexture
     from szio.types import DataSource
     from PIL import Image
-    for nom_dico in (TXD, TXD_CORPS):
+    for nom_dico in (TXD, TXD_CORPS, TXD_EQUIP):
         txd = AssetTextureDictionary()
         txd_dir = os.path.join(out, nom_dico)
         os.makedirs(txd_dir, exist_ok=True)
@@ -243,7 +303,7 @@ def main():
     ydr = [f for f in files if f.endswith('.ydr.xml')]
     log(f'fichiers : {len(ydr)} .ydr.xml, ytyp : {[f for f in files if f.endswith(".ytyp.xml")]}, '
         f'ytd : {[f for f in files if f.endswith(".ytd.xml")]}')
-    models['txd'] = [TXD, TXD_CORPS]
+    models['txd'] = [TXD, TXD_CORPS] + ([TXD_EQUIP] if equip else [])
     models['ytyp'] = PREFIX
     with open(os.path.join(out, 'modeles.json'), 'w', encoding='utf-8') as fh:
         json.dump(models, fh, ensure_ascii=False, indent=2)

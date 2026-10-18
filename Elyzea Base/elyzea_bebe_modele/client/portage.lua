@@ -1,20 +1,21 @@
 -- =====================================================================
---  ELYZEA BÉBÉ (modèle) - client : porter, poser, changer de prise (bébé réseau, visible par tous)
---  Le serveur crée les objets et décide de qui porte quoi (server/bebes.lua). Ici :
+--  ELYZEA BÉBÉ (modèle) - client : porter, porte-bébés, poussette (bébé réseau, visible par tous) — V4
+--  Le serveur crée les objets et décide de qui porte / pousse quoi (server/bebes.lua). Ici :
 --   · attache des pièces au personnage quand le serveur le demande (l'attache est synchronisée par FiveM) ;
---   · animation de portage ;
---   · pendant le portage : coups de poing / pied / mêlée bloqués (le serveur annule aussi ces dégâts),
---     aucune protection pour le porteur ;
+--   · animations natives (porter à deux bras, pousser un chariot) ;
+--   · poussette : pas de course (réglable), arrêt devant un obstacle, hauteur ajustée au relief ;
+--   · pendant le portage / la poussée : coups bloqués (le serveur annule aussi ces dégâts), aucune protection ;
 --   · menu ALT (fournisseur « elyzea_bebe_modele ») et commandes.
 -- =====================================================================
-local P = Config.Portage
+local P, EQ, PO = Config.Portage, Config.Equipements, Config.Poussette
 local Notify = BebeNotify
-local porte = nil   -- { id, mode, nets = {...}, pos, rot }
+local porte = nil        -- bébé porté : { id, mode, nets, pos, rot }
+local pousse = nil       -- poussette poussée : { id, net, zoff, bebe = { id, nets } }
+local equipement = nil   -- porte-bébé équipé : { net, type, pos, rot }
 
 -- Attaques de mêlée (coups de poing, de pied, crosse, arme blanche) : toujours bloquées pendant le portage
 local CONTROLES_MELEE = { 140, 141, 142, 143, 263, 264 }
--- « Attaquer » (24 / 257) : bloqué seulement poings ou arme de mêlée en main (pour une arme à feu, c'est le tir :
--- non concerné ; en pratique l'arme est rangée dans les prises « mains occupées »)
+-- « Attaquer » (24 / 257) : bloqué seulement poings ou arme de mêlée en main
 local CONTROLES_ATTAQUE = { 24, 257 }
 local UNARMED = joaat('WEAPON_UNARMED')
 local GROUPE_MELEE, GROUPE_POINGS = 3566412244, 2685387236
@@ -27,6 +28,9 @@ local function armeDeMelee(ped)
 end
 
 local function etat() return LocalPlayer.state.bebePorte end
+local function etatPoussette() return LocalPlayer.state.bebePoussette end
+local function equipeType() return LocalPlayer.state.bebeEquipement end
+local function reglages() return GlobalState.bebeReglages or {} end
 
 local function entite(net, delai)
     local t = GetGameTimer() + (delai or 5000)
@@ -59,22 +63,36 @@ local function jouerAnim(anim)
     end
 end
 
-local function arreterAnim()
+local function arreterAnim(seulement)
     local ped = PlayerPedId()
-    for _, m in pairs(P.modes) do
-        if m.anim and IsEntityPlayingAnim(ped, m.anim.dict, m.anim.clip, 3) then
-            StopAnimTask(ped, m.anim.dict, m.anim.clip, 2.0)
-        end
+    local liste = {}
+    if seulement ~= 'poussette' then for _, m in pairs(P.modes) do if m.anim then liste[#liste + 1] = m.anim end end end
+    if seulement ~= 'bebe' then liste[#liste + 1] = PO.anim end
+    for _, a in ipairs(liste) do
+        if IsEntityPlayingAnim(ped, a.dict, a.clip, 3) then StopAnimTask(ped, a.dict, a.clip, 2.0) end
     end
 end
 
--- Attache demandée par le serveur (prise en main ou changement de prise)
-RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode)
-    local m = P.modes[mode]
-    if not m or type(nets) ~= 'table' then return end
+-- Personnage féminin (ou autre morphologie déclarée) : décalage du bébé et du porte-bébé, selon la prise
+local function morpho(mode)
+    local m = P.morphologies[GetEntityModel(PlayerPedId())]
+    if not m then return vector3(0.0, 0.0, 0.0) end
+    return m[mode] or m.defaut or vector3(0.0, 0.0, 0.0)
+end
+
+-- Bébé dans la nacelle d'une poussette poussée : position = attache de la poussette ∘ nacelle (rotation autour de Z)
+local function composer(zoff)
+    local r = math.rad(PO.rot.z)
+    local n = PO.nacelle.pos
+    local x = PO.pos.x + n.x * math.cos(r) - n.y * math.sin(r)
+    local y = PO.pos.y + n.x * math.sin(r) + n.y * math.cos(r)
+    return vector3(x, y, PO.pos.z + n.z + (zoff or 0.0)), vector3(PO.rot.x, PO.rot.y, PO.rot.z + PO.nacelle.rot.z)
+end
+
+local function attacherPieces(nets, pos, rot)
     local ped = PlayerPedId()
     local corps = nets.corps and entite(nets.corps)
-    if not corps or not controle(corps) then return end
+    if not corps or not controle(corps) then return false end
     for _, k in ipairs({ 'yeux', 'cheveux' }) do
         local e = nets[k] and entite(nets[k])
         if e and controle(e) then
@@ -83,14 +101,32 @@ RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode)
             AttachEntityToEntity(e, corps, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 2, true)
         end
     end
-    local pos, rot = m.pos, m.rot
-    if porte and porte.id == id and porte.mode == mode and porte.pos then pos, rot = porte.pos, porte.rot end
     SetEntityCollision(corps, false, false)
     FreezeEntityPosition(corps, false)
     AttachEntityToEntity(corps, ped, 0, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, false, false, false, false, 2, true)
+    return true
+end
+
+-- Attache demandée par le serveur (prise en main, changement de prise, bébé dans la poussette poussée)
+RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode)
+    if type(nets) ~= 'table' then return end
+    local ped = PlayerPedId()
+    if mode == 'poussette' then
+        local pos, rot = composer(pousse and pousse.zoff)
+        if attacherPieces(nets, pos, rot) then
+            if pousse then pousse.bebe = { id = id, nets = nets } end
+            TriggerServerEvent('elyzea_bebe_modele:attache', id)
+        end
+        return
+    end
+    local m = P.modes[mode]
+    if not m then return end
+    local pos, rot = m.pos + morpho(mode), m.rot
+    if porte and porte.id == id and porte.mode == mode and porte.pos then pos, rot = porte.pos, porte.rot end
+    if not attacherPieces(nets, pos, rot) then return end
     porte = { id = id, mode = mode, nets = nets, pos = pos, rot = rot }
     if m.mainsOccupees and P.rangerArme then SetCurrentPedWeapon(ped, UNARMED, true) end
-    arreterAnim()
+    arreterAnim('bebe')
     jouerAnim(m.anim)
     TriggerServerEvent('elyzea_bebe_modele:attache', id)
 end)
@@ -99,52 +135,171 @@ end)
 RegisterNetEvent('elyzea_bebe_modele:lache', function(id)
     if porte and porte.id ~= id then return end
     porte = nil
-    arreterAnim()
+    arreterAnim('bebe')
 end)
 
--- Boucle pendant le portage : mêlée bloquée, arme rangée (mains occupées), animation maintenue
+-- ─────────── Porte-bébé ───────────
+
+RegisterNetEvent('elyzea_bebe_modele:equipement:attacher', function(net, typ)
+    local cfg = EQ[typ]
+    local e = cfg and net and entite(net)
+    if not e or not controle(e) then return end
+    local pos, rot = cfg.pos + morpho(typ), cfg.rot
+    if equipement and equipement.type == typ and equipement.pos then pos, rot = equipement.pos, equipement.rot end
+    SetEntityCollision(e, false, false)
+    FreezeEntityPosition(e, false)
+    AttachEntityToEntity(e, PlayerPedId(), 0, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, false, false, false, false, 2, true)
+    equipement = { net = net, type = typ, pos = pos, rot = rot }
+    TriggerServerEvent('elyzea_bebe_modele:equipement:attache')
+end)
+
+-- ─────────── Poussette ───────────
+
+local function attacherPoussette(e, zoff)
+    AttachEntityToEntity(e, PlayerPedId(), 0, PO.pos.x, PO.pos.y, PO.pos.z + (zoff or 0.0), PO.rot.x, PO.rot.y, PO.rot.z,
+        false, false, false, false, 2, true)
+end
+
+RegisterNetEvent('elyzea_bebe_modele:poussette:attacher', function(pid, net)
+    local e = net and entite(net)
+    if not e or not controle(e) then return end
+    SetEntityCollision(e, false, false)
+    FreezeEntityPosition(e, false)
+    local zoff = (pousse and pousse.id == pid) and pousse.zoff or 0.0
+    attacherPoussette(e, zoff)
+    pousse = { id = pid, net = net, zoff = zoff, bebe = pousse and pousse.id == pid and pousse.bebe or nil }
+    SetCurrentPedWeapon(PlayerPedId(), UNARMED, true)
+    arreterAnim('poussette')
+    jouerAnim(PO.anim)
+    TriggerServerEvent('elyzea_bebe_modele:poussette:attache', pid)
+end)
+
+RegisterNetEvent('elyzea_bebe_modele:poussette:lache', function(pid)
+    if pousse and pousse.id ~= pid then return end
+    pousse = nil
+    arreterAnim('poussette')
+end)
+
+-- Point au sol devant soi (sortir / garer la poussette)
+local function solDevant(dist)
+    local ped = PlayerPedId()
+    local c = GetOffsetFromEntityInWorldCoords(ped, 0.0, dist, 0.0)
+    local ok, z = GetGroundZFor_3dCoord(c.x, c.y, c.z + 0.6, false)
+    if not ok then z = GetEntityCoords(ped).z - 0.98 end
+    return vector3(c.x, c.y, z), GetEntityHeading(ped)
+end
+
+RegisterNetEvent('elyzea_bebe_modele:poussette:placer', function()
+    if IsPedInAnyVehicle(PlayerPedId(), false) then return Notify('Impossible en véhicule.', 'error') end
+    local c, cap = solDevant(1.0)
+    TriggerServerEvent('elyzea_bebe_modele:poussette:sortir', c, cap)
+end)
+
+local function garer()
+    if not pousse then return Notify('Vous ne poussez pas de poussette.', 'error') end
+    local e = NetworkGetEntityFromNetworkId(pousse.net)
+    local ped = PlayerPedId()
+    local c
+    if e ~= 0 and DoesEntityExist(e) then c = GetEntityCoords(e) else c = GetOffsetFromEntityInWorldCoords(ped, 0.0, PO.pos.y, 0.0) end
+    local ok, z = GetGroundZFor_3dCoord(c.x, c.y, c.z + 1.0, false)
+    if not ok then z = GetEntityCoords(ped).z + PO.pos.z end
+    TriggerServerEvent('elyzea_bebe_modele:poussette:garer', vector3(c.x, c.y, z), GetEntityHeading(ped) + PO.rot.z)
+end
+
+-- Obstacle devant la poussette (mur, voiture, objet) : rayon depuis la hauteur de la nacelle
+local function obstacleDevant()
+    local ped = PlayerPedId()
+    local depart = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.25, -0.35)
+    local fin = GetOffsetFromEntityInWorldCoords(ped, 0.0, PO.pos.y + PO.obstacle - 0.5, -0.35)
+    local ignorer = pousse and NetworkGetEntityFromNetworkId(pousse.net) or ped
+    local h = StartShapeTestCapsule(depart.x, depart.y, depart.z, fin.x, fin.y, fin.z, 0.22, 1 + 16, ignorer, 7)
+    local _, touche = GetShapeTestResult(h)
+    return touche == 1 or touche == true
+end
+
+-- Hauteur du sol sous la poussette : réattache plus haut / plus bas dans les pentes et sur les marches
+local function suivreSol()
+    if not pousse or not PO.suiviSol then return end
+    local e = NetworkGetEntityFromNetworkId(pousse.net)
+    if e == 0 or not DoesEntityExist(e) then return end
+    local ped = PlayerPedId()
+    local c = GetOffsetFromEntityInWorldCoords(ped, 0.0, PO.pos.y, 0.0)
+    local ok, z = GetGroundZFor_3dCoord(c.x, c.y, c.z + 0.6, false)
+    if not ok then return end
+    local voulu = z - (GetEntityCoords(ped).z + PO.pos.z)
+    if math.abs(voulu) > 0.45 then return end
+    if math.abs(voulu - (pousse.zoff or 0.0)) < 0.03 then return end
+    pousse.zoff = voulu
+    attacherPoussette(e, voulu)
+    if pousse.bebe then
+        local pos, rot = composer(voulu)
+        local corps = pousse.bebe.nets.corps and NetworkGetEntityFromNetworkId(pousse.bebe.nets.corps)
+        if corps and corps ~= 0 and IsEntityAttachedToEntity(corps, ped) then
+            AttachEntityToEntity(corps, ped, 0, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, false, false, false, false, 2, true)
+        end
+    end
+end
+
+-- Boucle pendant le portage / la poussée : mêlée bloquée, arme rangée (mains occupées), animations maintenues
 CreateThread(function()
-    local dernierSol = 0
+    local dernierSol, dernierObstacle, dernierSuivi, obstacle = 0, 0, 0, false
     while true do
-        local e = etat()
-        if e then
+        local e, ep = etat(), etatPoussette()
+        if e or ep then
             local ped = PlayerPedId()
+            local now = GetGameTimer()
             if P.bloquerMelee then
                 for _, c in ipairs(CONTROLES_MELEE) do DisableControlAction(0, c, true) end
                 if armeDeMelee(ped) then
                     for _, c in ipairs(CONTROLES_ATTAQUE) do DisableControlAction(0, c, true) end
                 end
             end
-            if e.mains and P.rangerArme and GetSelectedPedWeapon(ped) ~= UNARMED then
+            if ((e and e.mains) or ep) and P.rangerArme and GetSelectedPedWeapon(ped) ~= UNARMED then
                 SetCurrentPedWeapon(ped, UNARMED, true)
             end
-            local m = P.modes[e.mode]
-            if m and m.anim and porte and not IsPedRagdoll(ped) and not IsEntityDead(ped)
-                and not IsEntityPlayingAnim(ped, m.anim.dict, m.anim.clip, 3) and not IsPedInAnyVehicle(ped, false) then
+            local libre = not IsPedRagdoll(ped) and not IsEntityDead(ped) and not IsPedInAnyVehicle(ped, false)
+            local m = e and P.modes[e.mode]
+            if m and m.anim and porte and libre and not IsEntityPlayingAnim(ped, m.anim.dict, m.anim.clip, 3) then
                 jouerAnim(m.anim)
             end
-            if GetGameTimer() - dernierSol > 3000 then
-                dernierSol = GetGameTimer()
+            if ep and pousse then
+                if libre and not IsEntityPlayingAnim(ped, PO.anim.dict, PO.anim.clip, 3) then jouerAnim(PO.anim) end
+                local r = reglages()
+                if r.courseInterdite ~= false and PO.courseInterdite then DisableControlAction(0, 21, true) end   -- sprint
+                if now - dernierObstacle > 200 then
+                    dernierObstacle = now
+                    obstacle = obstacleDevant()
+                end
+                if obstacle then DisableControlAction(0, 32, true) end                                     -- avancer
+                if now - dernierSuivi > 300 then
+                    dernierSuivi = now
+                    suivreSol()
+                end
+            end
+            if now - dernierSol > 3000 then
+                dernierSol = now
                 local c = GetEntityCoords(ped)
                 local ok, z = GetGroundZFor_3dCoord(c.x, c.y, c.z, false)
                 if ok then TriggerServerEvent('elyzea_bebe_modele:sol', z) end
             end
             Wait(0)
         else
-            if porte then porte = nil arreterAnim() end
+            if porte then porte = nil arreterAnim('bebe') end
+            if pousse then pousse = nil arreterAnim('poussette') end
             Wait(250)
         end
+        if not equipeType() and equipement then equipement = nil end
     end
 end)
 
 -- ─────────── Actions ───────────
 
-local function bebeAuSolProche(rayon)
+local function objetsProches(cle, rayon, filtre)
     local pc = GetEntityCoords(PlayerPedId())
     local best, bestD
     for _, obj in ipairs(GetGamePool('CObject')) do
         local st = Entity(obj).state
-        if st.bebePiece == 'corps' and st.bebe and not IsEntityAttached(obj) then
+        if st[cle] and (not filtre or filtre(obj, st)) then
             local d = #(pc - GetEntityCoords(obj))
             if d <= rayon and (not bestD or d < bestD) then best, bestD = obj, d end
         end
@@ -152,46 +307,100 @@ local function bebeAuSolProche(rayon)
     return best
 end
 
+local function bebeProche(rayon)
+    -- bébé posé ou couché dans une poussette garée (pas un bébé porté par quelqu'un)
+    return objetsProches('bebe', rayon, function(obj, st) return st.bebePiece == 'corps' and not IsEntityAttached(obj) end)
+end
+
+local function poussetteProche(rayon) return objetsProches('bebePoussette', rayon) end
+
 local function prendre(mode, obj)
-    obj = obj or bebeAuSolProche(P.distancePrendre)
+    obj = obj or bebeProche(P.distancePrendre)
     if not obj then return Notify('Aucun bébé à portée.', 'error') end
-    TriggerServerEvent('elyzea_bebe_modele:prendre', Entity(obj).state.bebe, mode or 'bras')
+    TriggerServerEvent('elyzea_bebe_modele:prendre', Entity(obj).state.bebe, P.alias[mode] or mode or 'bras')
 end
 
 local function poser(pose)
     if not etat() then return Notify('Vous ne portez pas de bébé.', 'error') end
-    local ped = PlayerPedId()
-    local c = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.65, 0.0)
-    local ok, z = GetGroundZFor_3dCoord(c.x, c.y, c.z + 0.5, false)
-    if not ok then z = GetEntityCoords(ped).z - 0.98 end
-    TriggerServerEvent('elyzea_bebe_modele:poser', pose or 'allonge', vector3(c.x, c.y, z), GetEntityHeading(ped) + 90.0)
+    local c, cap = solDevant(0.65)
+    TriggerServerEvent('elyzea_bebe_modele:poser', pose or 'allonge', c, cap + 90.0)
 end
 
 local function changerMode(mode)
     if not etat() then return Notify('Vous ne portez pas de bébé.', 'error') end
-    if not P.modes[mode] then return Notify('Prises : bras, face, portebebe', 'error') end
+    mode = P.alias[mode] or mode
+    if not P.modes[mode] then return Notify('Prises : bras, face, ventral, dorsal', 'error') end
     TriggerServerEvent('elyzea_bebe_modele:mode', mode)
+end
+
+local function installer(obj)
+    obj = obj or (pousse and NetworkGetEntityFromNetworkId(pousse.net)) or poussetteProche(PO.distance)
+    if not obj or obj == 0 then return Notify('Aucune poussette à portée.', 'error') end
+    TriggerServerEvent('elyzea_bebe_modele:poussette:installer', Entity(obj).state.bebePoussette)
 end
 
 RegisterCommand(Config.Commandes.prendre, function(_, args) prendre(args[1]) end, false)
 RegisterCommand(Config.Commandes.poser, function(_, args) poser(args[1]) end, false)
 RegisterCommand(Config.Commandes.mode, function(_, args) changerMode(args[1]) end, false)
+RegisterCommand('bebe_dormir', function()
+    local id = (etat() and etat().id) or (pousse and pousse.bebe and pousse.bebe.id)
+    if not id then
+        local obj = bebeProche(P.distancePrendre)
+        id = obj and Entity(obj).state.bebe
+    end
+    if not id then return Notify('Aucun bébé à portée.', 'error') end
+    TriggerServerEvent('elyzea_bebe_modele:dormir', id)
+end, false)
+RegisterCommand('poussette', function(_, args)
+    if args[1] == 'garer' or (not args[1] and pousse) then return garer() end
+    if args[1] == 'installer' then return installer() end
+    local obj = poussetteProche(PO.distance)
+    if not obj then return Notify('Aucune poussette à portée.', 'error') end
+    if args[1] == 'ranger' then return TriggerServerEvent('elyzea_bebe_modele:poussette:ranger', Entity(obj).state.bebePoussette) end
+    TriggerServerEvent('elyzea_bebe_modele:poussette:pousser', Entity(obj).state.bebePoussette)
+end, false)
+RegisterCommand('coloris_porte_bebe', function(_, args) TriggerServerEvent('elyzea_bebe_modele:coloris', 'pb', args[1]) end, false)
+RegisterCommand('coloris_poussette', function(_, args) TriggerServerEvent('elyzea_bebe_modele:coloris', 'poussette', args[1]) end, false)
 
--- /bebe_ajuster (staff, autorisé par le serveur) : déplace le bébé porté en direct et affiche les valeurs à recopier
-RegisterNetEvent('elyzea_bebe_modele:ajuster', function(args)
-    if not porte then return end
+-- /bebe_ajuster (staff, autorisé par le serveur) : déplace en direct et affiche les valeurs à recopier dans config.lua
+RegisterNetEvent('elyzea_bebe_modele:ajuster', function(cible, args)
     local v = {}
     for i = 1, 6 do v[i] = tonumber(args and args[i]) end
-    if v[1] then
-        porte.pos = vector3(v[1] or porte.pos.x, v[2] or porte.pos.y, v[3] or porte.pos.z)
-        porte.rot = vector3(v[4] or porte.rot.x, v[5] or porte.rot.y, v[6] or porte.rot.z)
-        local corps = porte.nets.corps and NetworkGetEntityFromNetworkId(porte.nets.corps)
-        if corps and corps ~= 0 and controle(corps) then
-            AttachEntityToEntity(corps, PlayerPedId(), 0, porte.pos.x, porte.pos.y, porte.pos.z, porte.rot.x, porte.rot.y, porte.rot.z, false, false, false, false, 2, true)
+    local ped = PlayerPedId()
+    local function appliquer(cur)
+        if v[1] then
+            cur.pos = vector3(v[1] or cur.pos.x, v[2] or cur.pos.y, v[3] or cur.pos.z)
+            cur.rot = vector3(v[4] or cur.rot.x, v[5] or cur.rot.y, v[6] or cur.rot.z)
         end
     end
-    print(('[elyzea_bebe_modele] Config.Portage.modes.%s : pos = vector3(%.3f, %.3f, %.3f), rot = vector3(%.1f, %.1f, %.1f),'):format(
-        porte.mode, porte.pos.x, porte.pos.y, porte.pos.z, porte.rot.x, porte.rot.y, porte.rot.z))
+    if cible == 'equipement' and equipement then
+        appliquer(equipement)
+        local e = NetworkGetEntityFromNetworkId(equipement.net)
+        if e ~= 0 and controle(e) then
+            AttachEntityToEntity(e, ped, 0, equipement.pos.x, equipement.pos.y, equipement.pos.z, equipement.rot.x, equipement.rot.y, equipement.rot.z,
+                false, false, false, false, 2, true)
+        end
+        print(('[elyzea_bebe_modele] Config.Equipements.%s : pos = vector3(%.3f, %.3f, %.3f), rot = vector3(%.1f, %.1f, %.1f),'):format(
+            equipement.type, equipement.pos.x, equipement.pos.y, equipement.pos.z, equipement.rot.x, equipement.rot.y, equipement.rot.z))
+    elseif cible == 'poussette' and pousse then
+        local cur = { pos = PO.pos, rot = PO.rot }
+        appliquer(cur)
+        PO.pos, PO.rot = cur.pos, cur.rot
+        local e = NetworkGetEntityFromNetworkId(pousse.net)
+        if e ~= 0 and controle(e) then attacherPoussette(e, pousse.zoff) end
+        print(('[elyzea_bebe_modele] Config.Poussette : pos = vector3(%.3f, %.3f, %.3f), rot = vector3(%.1f, %.1f, %.1f),'):format(
+            PO.pos.x, PO.pos.y, PO.pos.z, PO.rot.x, PO.rot.y, PO.rot.z))
+    elseif porte then
+        appliquer(porte)
+        local corps = porte.nets.corps and NetworkGetEntityFromNetworkId(porte.nets.corps)
+        if corps and corps ~= 0 and controle(corps) then
+            AttachEntityToEntity(corps, ped, 0, porte.pos.x, porte.pos.y, porte.pos.z, porte.rot.x, porte.rot.y, porte.rot.z, false, false, false, false, 2, true)
+        end
+        print(('[elyzea_bebe_modele] Config.Portage.modes.%s : pos = vector3(%.3f, %.3f, %.3f), rot = vector3(%.1f, %.1f, %.1f),'):format(
+            porte.mode, porte.pos.x, porte.pos.y, porte.pos.z, porte.rot.x, porte.rot.y, porte.rot.z))
+    else
+        return
+    end
     Notify('Valeurs affichées dans la console F8 (à recopier dans config.lua).', 'success')
 end)
 
@@ -203,45 +412,101 @@ local function corpsPorte()
     return e ~= 0 and DoesEntityExist(e) and e or nil
 end
 
+local function modesPossibles()
+    local r, eq = reglages(), equipeType()
+    local out = {}
+    for k, m in pairs(P.modes) do
+        local ok = true
+        if m.equipement then ok = eq == m.equipement and r[m.equipement] ~= false end
+        if m.mainsOccupees and etatPoussette() then ok = false end
+        if ok then out[k] = m end
+    end
+    return out
+end
+
 exports('AltTarget', function(ent)
-    if ent and ent ~= 0 and DoesEntityExist(ent) and Entity(ent).state.bebe then return 'Bébé' end
+    if not ent or ent == 0 or not DoesEntityExist(ent) then return nil end
+    local st = Entity(ent).state
+    if st.bebe then return 'Bébé' end
+    if st.bebePoussette then return 'Poussette' end
     return nil
 end)
 
 exports('AltNearby', function()
     local mien = etat() and corpsPorte()
     if mien then return mien, 'Bébé (porté)' end
-    local obj = bebeAuSolProche(P.distancePrendre)
+    if pousse then
+        local e = NetworkGetEntityFromNetworkId(pousse.net)
+        if e ~= 0 and DoesEntityExist(e) then return e, 'Poussette' end
+    end
+    local obj = bebeProche(P.distancePrendre)
     if obj then return obj, 'Bébé' end
+    obj = poussetteProche(PO.distance)
+    if obj then return obj, 'Poussette' end
     return nil
 end)
 
 exports('AltOptions', function(ctx)
     local out = {}
     if type(ctx) ~= 'table' or not ctx.entity then return out end
+    local st = Entity(ctx.entity).state
     local e = etat()
+    local r = reglages()
     if e and corpsPorte() == ctx.entity then
         for k, p in pairs(P.poses) do out[#out + 1] = { id = 'poser:' .. k, label = p.label, icon = 'out' } end
-        for k, m in pairs(P.modes) do
+        for k, m in pairs(modesPossibles()) do
             if k ~= e.mode then out[#out + 1] = { id = 'mode:' .. k, label = 'Prise : ' .. m.label, icon = 'carry' } end
         end
-    elseif not e and Entity(ctx.entity).state.bebe then
-        for k, m in pairs(P.modes) do out[#out + 1] = { id = 'prendre:' .. k, label = 'Prendre · ' .. m.label, icon = 'carry' } end
+        if r.poussette ~= false and (pousse or poussetteProche(PO.distance)) then
+            out[#out + 1] = { id = 'installer:x', label = 'Installer dans la poussette', icon = 'carry' }
+        end
+        out[#out + 1] = { id = 'dormir:' .. st.bebe, label = 'Endormir / réveiller', icon = 'out' }
+    elseif st.bebePoussette then
+        local mienne = pousse and pousse.id == st.bebePoussette
+        if mienne then
+            out[#out + 1] = { id = 'garer:x', label = 'Garer la poussette', icon = 'out' }
+        elseif not (e and e.mains) then
+            out[#out + 1] = { id = 'pousser:' .. st.bebePoussette, label = 'Pousser la poussette', icon = 'carry' }
+        end
+        if e and not st.bebeDedans then
+            out[#out + 1] = { id = 'installer:' .. st.bebePoussette, label = 'Installer le bébé dans la poussette', icon = 'carry' }
+        end
+        if st.bebeDedans and not e then
+            for k, m in pairs(modesPossibles()) do
+                out[#out + 1] = { id = 'prendrepo:' .. k, label = 'Sortir le bébé · ' .. m.label, icon = 'carry' }
+            end
+            out[#out + 1] = { id = 'dormir:' .. st.bebeDedans, label = 'Endormir / réveiller le bébé', icon = 'out' }
+        end
+        if not mienne and not st.bebeDedans then
+            out[#out + 1] = { id = 'ranger:' .. st.bebePoussette, label = 'Ranger la poussette', icon = 'out' }
+        end
+    elseif not e and st.bebe then
+        for k, m in pairs(modesPossibles()) do out[#out + 1] = { id = 'prendre:' .. k, label = 'Prendre · ' .. m.label, icon = 'carry' } end
+        out[#out + 1] = { id = 'dormir:' .. st.bebe, label = 'Endormir / réveiller', icon = 'out' }
     end
     table.sort(out, function(a, b) return a.id < b.id end)
     return out
 end)
 
 exports('AltSelect', function(id, ctx)
-    local action, arg = tostring(id):match('^(%w+):(%w+)$')
+    local action, arg = tostring(id):match('^(%w+):([%w%-_]+)$')
+    local ent = ctx and ctx.entity
     CreateThread(function()
-        if action == 'prendre' then prendre(arg, ctx and ctx.entity)
+        if action == 'prendre' then prendre(arg, ent)
+        elseif action == 'prendrepo' then
+            local bid = ent and Entity(ent).state.bebeDedans
+            if bid then TriggerServerEvent('elyzea_bebe_modele:prendre', bid, arg) end
         elseif action == 'poser' then poser(arg)
-        elseif action == 'mode' then changerMode(arg) end
+        elseif action == 'mode' then changerMode(arg)
+        elseif action == 'dormir' then TriggerServerEvent('elyzea_bebe_modele:dormir', arg)
+        elseif action == 'installer' then installer(arg ~= 'x' and ent or nil)
+        elseif action == 'pousser' then TriggerServerEvent('elyzea_bebe_modele:poussette:pousser', arg)
+        elseif action == 'garer' then garer()
+        elseif action == 'ranger' then TriggerServerEvent('elyzea_bebe_modele:poussette:ranger', arg) end
     end)
     return true
 end)
 
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() and porte then arreterAnim() end
+    if res == GetCurrentResourceName() and (porte or pousse) then arreterAnim() end
 end)

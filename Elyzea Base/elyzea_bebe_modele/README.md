@@ -1,66 +1,93 @@
-# elyzea_bebe_modele — bébé 3D, portage visible par tous
+# elyzea_bebe_modele — bébé 3D, portage, porte-bébés, poussette (V4)
 
-> **Non testé en jeu.** Vérifié hors du jeu : fichiers du jeu produits et relus par la bibliothèque de CodeWalker (111/111),
-> rendus faits à partir de ces fichiers relus, contrôles du modèle (26/26), code serveur du portage exécuté avec FiveM simulé
-> (33/33 contrôles), syntaxe Lua.
-> Les tests à deux joueurs ci-dessous restent à faire sur ton serveur.
+> **Non testé en jeu** (pas de client GTA V / FiveM dans l'environnement de développement). Vérifié hors du jeu :
+> fichiers du jeu produits et relus par la bibliothèque de CodeWalker, rendus faits à partir de ces fichiers relus,
+> contrôles du modèle et des équipements (`Outils_3D/bebe/build/validation.json`), code serveur exécuté avec FiveM simulé
+> (`python3 tests/test_portage.py`), syntaxe Lua. Les tests à deux joueurs ci-dessous restent à faire sur ton serveur.
 
-Sources et fabrication du modèle : `Outils_3D/bebe/README_BEBE.md`.
+Sources et fabrication des modèles : `Outils_3D/bebe/README_BEBE.md` · rapport complet : `docs/famille/LIVRAISON_V4.md`.
 
 ## Installation
-1. Dossier `elyzea_bebe_modele` dans `Elyzea Base` ; `server.cfg` : `ensure elyzea_bebe_modele`.
-2. **OneSync obligatoire** (standard avec txAdmin) : le bébé est un objet réseau créé par le serveur.
-3. Console : `[elyzea_bebe_modele] Prêt : 111 fichiers de modèle présents.`
+1. Dossier `elyzea_bebe_modele` dans `Elyzea Base` (remplacer l'ancien dossier **en entier**, `stream/` compris) ; `server.cfg` : `ensure elyzea_bebe_modele`.
+2. **OneSync obligatoire** (standard avec txAdmin) : bébés, porte-bébés et poussettes sont des objets réseau créés par le serveur.
+3. Objets d'inventaire (dans `elyzea_inventory/shared/items.lua`, avec image) : `porte_bebe_ventral`, `porte_bebe_dorsal`, `poussette`.
+   Vendus par le nouveau préréglage de PNJ **« Puériculture »** de l'éditeur (F10 › Éditeur › PNJ), ou `/giveitem`.
+4. Console au démarrage : `[elyzea_bebe_modele] Prêt : N fichiers de modèle présents.`
 
-## Utilisation
+## Utilisation (interactions normales : menu ALT, aucun droit d'administration)
 | Action | Comment |
 |---|---|
-| Prendre un bébé posé | **ALT** près du bébé › *Prendre · Dans les bras / Face à moi / Porte-bébé* (ou `/bebe_prendre [bras\|face\|portebebe]`) |
-| Changer de prise | **ALT** (le bébé porté est proposé) › *Prise : …* (ou `/bebe_mode …`) |
-| Poser | **ALT** › *Poser allongé* / *Poser assis* (ou `/bebe_poser [allonge\|assis]`), 65 cm devant soi, au sol |
-| Staff : créer un bébé (visible par tous) | `/bebe_creer [teinte] [yeux] [coiffure\|chauve] [pyjama\|couche]` |
-| Staff : supprimer | `/bebe_supprimer` (le plus proche) · `/bebe_supprimer tous` |
-| Staff : régler la position portée | `/bebe_ajuster x y z rx ry rz` (valeurs à recopier dans `Config.Portage.modes`, affichées en F8) |
-| Staff : aperçus locaux (visibles par soi seul) | `/bebe_test [pose] [teinte] [yeux] [coiffure] [tenue]`, `/bebe_galerie [pose]`, `/bebe_retirer` |
+| Prendre un bébé (posé ou dans une poussette garée) | **ALT** sur le bébé › *Prendre · Dans les bras / Face à moi / Porte-bébé ventral / Porte-bébé dorsal* |
+| Changer de prise | **ALT** sur le bébé porté › *Prise : …* (`/bebe_mode bras\|face\|ventral\|dorsal`) |
+| Poser | **ALT** › *Poser allongé / assis* (`/bebe_poser allonge\|assis`) |
+| Endormir / réveiller (paupières fermées, visible par tous) | **ALT** › *Endormir / réveiller* (`/bebe_dormir`) |
+| Équiper / retirer un porte-bébé | **utiliser l'objet** dans l'inventaire (un seul porte-bébé à la fois ; impossible de le retirer avec le bébé dedans) |
+| Sortir la poussette | **utiliser l'objet** `poussette` : elle apparaît au sol devant soi (une poussette par personnage) |
+| Pousser / garer | **ALT** sur la poussette › *Pousser* / *Garer* (`/poussette`) |
+| Installer le bébé dans la poussette | **ALT** sur le bébé porté › *Installer dans la poussette*, ou ALT sur la poussette |
+| Sortir le bébé de la poussette | **ALT** sur la poussette › *Sortir le bébé · …* (ou ALT sur le bébé) |
+| Ranger la poussette | **ALT** › *Ranger* (garée, vide, et seulement par son propriétaire ou le staff) |
+| Coloris | `/coloris_porte_bebe gris\|marine\|sauge` · `/coloris_poussette graphite\|sable` (mémorisés par personnage) |
 
-Teintes `peau1` (claire) … `peau6` (foncée) · tenues `pyjama` (par défaut) ou `couche` · yeux `ardoise`, `bleu`, `vert`, `noisette`, `marron` ·
-coiffures `duvet_` / `touffe_` + `blond|chatain|brun|noir|roux`, ou `chauve`.
+## États du bébé (un seul à la fois)
+`pose` (au sol) · `porte` (prise `bras`, `face`, `ventral`, `dorsal`) · `poussette` (garée : figé dans la nacelle ; poussée : attaché au pousseur).
+Chaque changement est décidé par le serveur, sous verrou : état actuel vérifié, conditions vérifiées (distance, équipement,
+mains libres, joueur debout, hors véhicule, poussette libre…), anciennes pièces supprimées, nouvelles créées, état mis à jour,
+attache demandée au bon joueur puis vérifiée toutes les 2 s (3 essais, sinon repli sûr). Les doubles clics et les demandes
+simultanées de deux joueurs sont refusés pendant un changement : jamais deux bébés, jamais de bébé perdu.
 
-## Fonctionnement réseau
-- Un bébé existe **une seule fois**, sur le serveur. Ses 3 pièces (corps, yeux, cheveux) sont des objets réseau créés par le serveur :
-  tous les joueurs proches voient les mêmes objets (pas de copie par joueur).
-- **Posé** : les 3 pièces sont figées au même endroit, avec le même angle (elles partagent la même origine) ; aucun joueur n'est nécessaire.
-- **Porté** : le porteur prend le contrôle des pièces et les attache à son personnage ; FiveM synchronise l'attache pour tout le monde.
-  Le serveur vérifie toutes les 2 s que le bébé est bien attaché au bon personnage ; sinon il redemande l'attache (3 essais), puis repose le bébé.
-- **Un seul porteur** : un bébé porté ne peut pas être pris par quelqu'un d'autre ; demandes répétées ignorées.
-- **Mort, coma (EMS), déconnexion** : le bébé est reposé allongé à l'endroit où était le porteur (hauteur du sol envoyée régulièrement par le porteur).
-- **Arrêt / redémarrage de la ressource** : toutes les pièces sont supprimées.
+| Événement | Ce qui se passe |
+|---|---|
+| Mort / coma du porteur | bébé reposé allongé au sol à sa place |
+| Mort / coma du pousseur | poussette garée sur place (le bébé reste dedans) |
+| Déconnexion ou changement de personnage | idem, et le porte-bébé est retiré |
+| Poussette **vide** abandonnée (propriétaire parti ou à plus de 60 m) | rangée après 20 min (réglable) ; une poussette **avec** un bébé n'est jamais supprimée |
+| Arrêt / redémarrage de la ressource | toutes les entités sont supprimées (les bébés ne sont pas encore enregistrés en base : module « enfants » à venir) |
 
-## Combat pendant le portage
-- Le porteur **ne peut pas frapper** : coups de poing, de pied, coups de crosse et armes blanches sont bloqués chez lui,
-  **et** le serveur annule les dégâts de mêlée qu'il enverrait (protection contre un client modifié, événement `weaponDamageEvent`).
-- Le porteur **reste vulnérable** : aucune invincibilité, aucune réduction de dégâts. Les coups qu'il reçoit ne sont jamais touchés.
-- Prises « mains occupées » (bras, face à moi) : l'arme en main est rangée tant que l'on porte (les deux mains tiennent le bébé).
-  Porte-bébé : mains libres, seules les attaques de mêlée sont bloquées (pas de restriction ajoutée sur les armes à feu).
-- Dès que le bébé est posé (ou lâché à la mort / déconnexion), plus rien n'est bloqué : le blocage est recalculé à chaque image
-  à partir de l'état envoyé par le serveur ; rien ne reste coincé.
+## Combat
+- Le porteur (toutes prises) et le pousseur **ne peuvent pas frapper** : contrôles bloqués chez eux **et** dégâts de mêlée annulés par le serveur.
+- Ils **restent vulnérables** : aucune invincibilité, aucune réduction de dégâts. Les règles de combat du serveur ne sont pas modifiées.
+- Prises « mains occupées » (bras, face) et poussette : l'arme en main est rangée. Porte-bébés : mains libres.
+
+## Poussette (choix techniques)
+- C'est un **objet**, pas un véhicule. Poussée : attachée devant le personnage, qui joue l'animation native du chariot
+  (`amb@prop_human_bum_shopping_cart@male@base`). Garée : figée au sol, à l'endroit et dans l'angle choisis.
+- **Pas de course** en poussant (réglable), **arrêt devant un obstacle** (rayon devant la poussette : on ne peut plus avancer),
+  **hauteur réajustée** au relief (pentes, trottoirs, jusqu'à 45 cm) pour que les roues ne s'enfoncent pas.
+- Garée, la poussette n'a pas de collision (comme le bébé) : on peut la traverser à pied.
+
+## Réglages
+- `config.lua` : positions des prises (`Config.Portage.modes`), des porte-bébés (`Config.Equipements`), de la poussette
+  (`Config.Poussette`), décalage pour les personnages féminins (`Config.Portage.morphologies`). Les valeurs par défaut viennent de
+  `shared/modeles.lua` (positions calculées par la chaîne 3D).
+- **Menu admin existant** (F10 › Autres › **Famille** › section « Bébés et équipements », permission `famille_manage`) :
+  activer / désactiver le porte-bébé ventral, le dorsal, la poussette ; course interdite ; délai d'abandon ; journal de diagnostic.
+  Valeurs vérifiées par le serveur, enregistrées en base (table existante `rp_famille_reglages`), réappliquées au démarrage.
+
+## Commandes staff (ACE `command.<nom>`)
+`/bebe_creer [teinte] [yeux] [coiffure|chauve] [pyjama|couche]` · `/bebe_supprimer [tous]` (bébé ou poussette vide le plus proche) ·
+`/bebe_ajuster x y z rx ry rz` (bébé porté) · `/bebe_ajuster equipement …` · `/bebe_ajuster poussette …` (valeurs à recopier, affichées en F8) ·
+`/bebe_diag` (état de tous les bébés, poussettes et porte-bébés) · aperçus locaux `/bebe_test`, `/bebe_galerie`, `/bebe_retirer`.
 
 ## Exports
-Serveur : `CreerBebe(apparence, coords, cap, { responsables, bucket, pose })` → id (`apparence` = `{ teinte, tenue, yeux, coiffure }`, valeur inconnue = valeur par défaut de `Config.Defaut`) · `SupprimerBebe(id)` · `EtatBebe(id)` · `BebePortePar(src)`.
-Client (aperçus locaux) : `Creer`, `Supprimer`, `Poses`. Menu ALT : `AltTarget`, `AltNearby`, `AltOptions`, `AltSelect`.
+Serveur : `CreerBebe(apparence, coords, cap, { responsables, bucket, pose })` → id (`apparence` = `{ teinte, tenue, yeux, coiffure }`) ·
+`SupprimerBebe(id)` · `EtatBebe(id)` · `BebePortePar(src)` · `AppliquerReglages(valeurs)` (appelé par elyzea_famille).
+Client : menu ALT `AltTarget`, `AltNearby`, `AltOptions`, `AltSelect` ; aperçus `Creer`, `Supprimer`, `Poses`.
 
 ## Tests à faire en jeu (deux joueurs, A et B)
-1. `/bebe_creer` : A et B voient le même bébé au sol.
-2. A le prend (ALT) : B le voit dans les bras de A ; A marche, court : le bébé suit.
-3. A frappe B : aucun coup ne part. B frappe A : dégâts normaux.
-4. A pose le bébé : B le voit au bon endroit ; A peut de nouveau frapper.
-5. A reprend le bébé puis se déconnecte (ou meurt) : le bébé est au sol, une seule fois ; A n'a plus rien de bloqué.
-6. Prises bras / face / porte-bébé : régler les positions avec `/bebe_ajuster` si le bébé traverse le personnage.
+1. `/bebe_creer` : A et B voient le même bébé. A le prend dans les bras : B le voit, A marche et court, le bébé suit.
+2. A utilise `porte_bebe_ventral` : B voit le porte-bébé. A › *Prise : Porte-bébé ventral* : le bébé est contre la poitrine de A, dans le panneau.
+3. Idem avec `porte_bebe_dorsal` : bébé dans le dos. Vérifier personnage homme **et** femme ; régler avec `/bebe_ajuster` si besoin.
+4. A utilise `poussette`, y installe le bébé, la pousse, la gare, reprend le bébé, le remet : B voit tout au même endroit ; jamais deux bébés.
+5. A et B cliquent en même temps sur *Pousser* / *Prendre* : un seul réussit.
+6. A pousse puis se déconnecte : la poussette reste garée avec le bébé. Poussette vide abandonnée : rangée après le délai.
+7. B frappe A pendant le portage : dégâts normaux. A ne peut pas frapper.
+8. Menu F10 › Famille : désactiver la poussette, enregistrer, redémarrer le serveur : toujours désactivée.
 
 ## Limites connues
-- Rendu réel dans GTA V non vérifié (éclairage du moteur, distance d'affichage, transparence des cheveux) : à contrôler avec `/bebe_galerie`.
-- Les poses sont des modèles figés obtenus en pliant le corps : la peau des aisselles et des aines reste un peu étirée dans les poses les plus ouvertes.
-- Positions des prises : valeurs de départ, à ajuster une fois en jeu (`/bebe_ajuster`).
-- Animation de portage : animation native GTA (porter un carton), la plus proche disponible sans fichier d'animation sur mesure.
-- Les bébés n'existent pas encore « tout seuls » : ils sont créés par le staff (`/bebe_creer`) ou par l'export `CreerBebe`,
-  que le futur module de naissance utilisera. Ils ne sont pas sauvegardés en base pour l'instant (ce sera le rôle du module enfants).
+- Aucune animation de bercement n'existe dans GTA ; la V4 utilise l'animation native « porter à deux bras » et un bébé posé pour
+  épouser cette posture. Une animation sur mesure demande les fichiers du squelette des personnages GTA (voir `docs/famille/AUDIT_V4.md`).
+- Porte-bébés ajustés sur un mannequin adulte (approximation d'un personnage GTA) : un léger flottement ou contact est possible
+  selon la tenue et la morphologie ; positions réglables en jeu.
+- Poussette : objet attaché (pas de physique de roues) ; dans les escaliers raides, elle peut traverser une marche.
+- Rendu réel dans GTA (éclairage, transparence des cheveux) non vérifié.

@@ -68,6 +68,19 @@ local SCHEMA = {
       l = 'Fiabilité de l\'implant', a = 'Appliquée tant que l\'implant est actif.' },
     { s = 'contraception', k = 'contraception.implant.duree', p = { 'Contraception', 'implant', 'duree' }, t = 'int', min = 24, max = 8760, u = 'h',
       l = 'Durée de l\'implant', a = 'S\'applique aux implants posés ensuite.' },
+    -- Bébés et équipements (ressource elyzea_bebe_modele : valeurs transmises à chaque enregistrement et au démarrage)
+    { s = 'bebe', k = 'bebe.ventral', p = { 'Bebe', 'ventral' }, t = 'bool',
+      l = 'Porte-bébé ventral', a = 'Désactivé : l\'objet ne peut plus être équipé ni recevoir le bébé (les porte-bébés déjà en cours restent jusqu\'à leur retrait).' },
+    { s = 'bebe', k = 'bebe.dorsal', p = { 'Bebe', 'dorsal' }, t = 'bool',
+      l = 'Porte-bébé dorsal', a = 'Désactivé : l\'objet ne peut plus être équipé ni recevoir le bébé.' },
+    { s = 'bebe', k = 'bebe.poussette', p = { 'Bebe', 'poussette' }, t = 'bool',
+      l = 'Poussette', a = 'Désactivé : impossible de sortir, pousser une poussette ou d\'y installer le bébé (on peut encore en sortir le bébé et la ranger).' },
+    { s = 'bebe', k = 'bebe.courseInterdite', p = { 'Bebe', 'courseInterdite' }, t = 'bool',
+      l = 'Pas de course avec la poussette', a = 'Activé : en poussant, la touche de course est bloquée (marche et petit trot).' },
+    { s = 'bebe', k = 'bebe.abandon', p = { 'Bebe', 'abandon' }, t = 'int', min = 5, max = 240, u = 'min',
+      l = 'Poussette vide abandonnée', a = 'Une poussette vide, garée loin de son propriétaire (ou propriétaire parti), est rangée après ce délai.' },
+    { s = 'bebe', k = 'bebe.diagnostic', p = { 'Bebe', 'diagnostic' }, t = 'bool',
+      l = 'Journal de diagnostic', a = 'Activé : chaque prise, pose, attache refusée… est écrite dans la console serveur (pour le développement).' },
 }
 
 local SECTIONS = {
@@ -77,6 +90,7 @@ local SECTIONS = {
     { id = 'conditions', label = 'Conditions de déclenchement' },
     { id = 'grossesse', label = 'Risque de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
+    { id = 'bebe', label = 'Bébés et équipements' },
 }
 
 local PAR_CLE = {}
@@ -135,11 +149,30 @@ local function validerTout(valeurs)
     return out
 end
 
-local function appliquer(valeurs)
+local function appliquerLocal(valeurs)
     for _, d in ipairs(SCHEMA) do
         if valeurs[d.k] ~= nil then ecrire(d.p, valeurs[d.k]) end
     end
 end
+
+-- Réglages des bébés : transmis à elyzea_bebe_modele (qui les applique et les publie aux clients)
+local function reglagesBebe()
+    local v = {}
+    for _, d in ipairs(SCHEMA) do if d.s == 'bebe' then v[d.k] = lire(d.p) end end
+    return v
+end
+
+local function transmettreBebe()
+    if GetResourceState('elyzea_bebe_modele') ~= 'started' then return end
+    pcall(function() exports.elyzea_bebe_modele:AppliquerReglages(reglagesBebe()) end)
+end
+
+local function appliquer(valeurs)
+    appliquerLocal(valeurs)
+    transmettreBebe()
+end
+
+exports('ReglagesBebe', reglagesBebe)
 
 local function actuelles()
     local v = {}
