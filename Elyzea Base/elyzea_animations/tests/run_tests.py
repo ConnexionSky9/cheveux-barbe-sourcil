@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Exécute les tests hors jeu de rp_animations dans un vrai Lua 5.4 (pip install lupa).
+"""Tests hors jeu d'elyzea_animations dans un vrai Lua 5.4 (pip install lupa).
 
-Usage : python3 run_tests.py
-Les natives FiveM sont simulées (fivem_mock.lua) : ces tests vérifient la logique
-(invitations, consentement, sessions, sécurité), pas le rendu des animations en jeu.
+Usage : python3 tests/run_tests.py
+Les natives FiveM sont simulées (fivem_mock.lua, client_mock.lua) : ces tests vérifient la logique
+(menu K, invitations, consentement, sessions duo et groupe, sécurité), pas le rendu des animations en jeu.
 """
-import os, sys
+import glob, os, sys
 from lupa import lua54
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-SHARED = ['config.lua', 'shared/catalog.lua']
-SERVER = ['server/security.lua', 'server/sessions.lua', 'server/invitations.lua', 'server/main.lua']
-CLIENT = ['client/anim.lua', 'client/positioning.lua', 'client/session.lua', 'client/menu.lua', 'client/calibrate.lua']
+SHARED = ['danses/config.lua', 'danses/catalog.lua']
+SERVER = ['danses/server/security.lua', 'danses/server/sessions.lua', 'danses/server/invitations.lua',
+          'danses/server/main.lua', 'shared_emotes.lua', 'server.lua']
+CLIENT = ['danses/client/anim.lua', 'danses/client/positioning.lua', 'danses/client/session.lua',
+          'danses/client/calibrate.lua', 'anim_data.lua', 'client.lua']
 
 
 def read(rel):
@@ -29,7 +31,8 @@ def syntax():
     lua = lua54.LuaRuntime()
     compile_ = lua.eval('function(src, name) local f, err = load(src, "@" .. name) return err end')
     bad = 0
-    for rel in SHARED + SERVER + CLIENT + ['fxmanifest.lua']:
+    files = sorted(set(SHARED + SERVER + CLIENT + ['fxmanifest.lua']))
+    for rel in files:
         err = compile_(read(rel), rel)
         print(('  OK   ' if not err else '  ERR  ') + rel + ('' if not err else ' : ' + err))
         bad += 1 if err else 0
@@ -66,8 +69,8 @@ if __name__ == '__main__':
     bad = syntax()
     total_p = total_f = 0
     for title, test_file, files in [
-        ('Serveur', 'tests/server_tests.lua', SHARED + SERVER),
-        ('Client (natives simulées)', 'tests/client_tests.lua', SHARED + ['tests/client_mock.lua'] + CLIENT),
+        ('Serveur (natives simulées)', 'tests/server_tests.lua', SHARED + SERVER),
+        ('Client et menu K (natives simulées)', 'tests/client_tests.lua', SHARED + ['tests/client_mock.lua'] + CLIENT),
     ]:
         if not os.path.exists(os.path.join(ROOT, test_file)):
             continue

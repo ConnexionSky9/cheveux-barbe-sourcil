@@ -2,6 +2,8 @@
 
 Menu d'animations pour le serveur Elyzea RP. Il s'ouvre avec **K**, l'animation s'arrête avec **X**, et les favoris peuvent recevoir leur propre touche de raccourci.
 
+Les danses sont dans ce même menu, quatre catégories en tête : **Danses lentes**, **Danses en duo**, **Danses en groupe** et **Danses solo** (voir la section « Danses » plus bas et `docs/DANSES.md`).
+
 ## Contenu du dossier
 
 ```
@@ -12,8 +14,15 @@ elyzea_animations/
 ├── shared_emotes.lua   Liste des animations partagées de rpemotes et de leur partenaire
 ├── anim_data.lua       Données des animations (aperçu 3D et vérification)
 ├── README.md           Ce fichier
-└── html/
-    └── index.html      L'interface (menu, logo, liste des animations)
+├── html/
+│   └── index.html      L'interface (menu, logo, liste des animations)
+├── danses/             Danses à deux et en groupe
+│   ├── config.lua      Réglages (invitations, groupes, distances)
+│   ├── catalog.lua     Liste des danses lentes, duo et groupe, avec leurs positions
+│   ├── client/         Lecture, positionnement, danse en cours, calibrage
+│   └── server/         Invitations, consentement, sessions, sécurité
+├── docs/               DANSES.md (catalogue, vidéos, limites), TESTS.md (résultats, test à deux)
+└── tests/              Tests hors jeu (pas chargés par FiveM)
 ```
 
 ## Prérequis
@@ -266,17 +275,32 @@ Un autre script utilise peut-être cette touche. Change-la dans Paramètres GTA 
 **Une touche changée ne prend pas effet.**
 FiveM garde en mémoire les raccourcis déjà créés. Va dans Paramètres GTA > Raccourcis > FiveM et vérifie la touche liée à « Elyzea animations ».
 
-## Slows et danses à deux (rp_animations)
+## Danses
 
-Si la ressource `rp_animations` est démarrée, un bouton **Slows & duos** apparaît sous « Récents ». Il ferme ce menu et
-ouvre celui des danses (slows, danses de couple, invitations avec consentement). Le bouton « ‹ Animations » du menu des
-danses ramène ici.
+Tout se passe dans ce menu (pas d'autre menu à ouvrir).
 
-Les deux ressources sont coordonnées :
+| Catégorie | Utilisation |
+|---|---|
+| Danses lentes / Danses en duo | Clic sur la danse, choix de son rôle (« je reste sur place » ou « je viens me placer ») puis de la personne (moins de 3 m). Elle reçoit la demande en haut de l'écran : **Y** accepter, **L** refuser. Si elle accepte, le serveur revérifie tout, la personne marche jusqu'à sa place, puis la danse démarre chez les deux en même temps. |
+| Danses en groupe | Clic sur la danse, cocher les participants (moins de 8 m, 8 danseurs maximum), choisir **en ligne** ou **en cercle**, « Inviter et danser ». La danse démarre quand tout le monde a répondu (ou tout de suite avec `/danse_lancer`). |
+| Danses solo | Comme toutes les animations du menu. |
 
-- **X** (ou le bouton Arrêter) arrête aussi une danse rp_animations en cours, et le partenaire est prévenu.
-- Lancer une danse arrête d'abord l'animation Elyzea en cours et libère un personnage figé par un placement.
-- Sans rp_animations, rien ne change : le bouton n'apparaît pas.
+Arrêter ou quitter : **X**, `/stopanim`, ou avancer. En groupe, un participant qui part laisse les autres continuer ;
+si le meneur part, la danse s'arrête pour tous. Une déconnexion, un véhicule, des menottes, un état « à terre » ou un
+éloignement arrêtent aussi la danse proprement : personne ne reste attaché ni bloqué.
 
-Exports ajoutés : `exports.elyzea_animations:StopEmote()` et `exports.elyzea_animations:OpenMenu()`.
+Une danse dont un fichier d'animation manque est masquée automatiquement (`elyzea_anim_check` en F8).
 
+**Staff** (permission `admin` de `group.admin`, ou `add_ace group.mod elyzea_animations.admin allow`) :
+- `/danse_calib` pendant une danse à deux, dans le rôle de celui qui vient se placer : corriger la position (flèches,
+  Page ↑/↓, molette, Maj = fin, Entrée enregistre pour tout le monde).
+- `/danse_valider <id>` après un essai réussi, `/danse_reset <id>` pour revenir aux positions d'origine.
+
+**Diagnostic** : `animdiag` en F8 écrit la version de rpemotes trouvée, les touches, le nombre d'animations masquées
+et l'état en cours. Envoie-moi ce texte si quelque chose ne marche pas.
+
+Réglages : `danses/config.lua`. Ajouter une danse : copier une fiche de `danses/catalog.lua`.
+
+**Animations partagées et rpemotes récent.** Le menu prévient maintenant les deux versions de rpemotes (anciens
+événements `SyncPlayEmote` et `rpemotes:client:syncEmote` de rpemotes-reborn) : les animations partagées fonctionnent
+avec l'une comme avec l'autre.

@@ -70,6 +70,8 @@ end
 
 -- Personnage figé après un placement en hauteur (assis sur un muret, une chaise...)
 local placed = nil
+-- Placement en cours (fantôme). Déclaré ici : stopEmote doit pouvoir l'annuler.
+local placing = nil
 local function releasePlaced()
     if not placed then return end
     placed = nil
@@ -110,6 +112,27 @@ local function getEnv()
     return { hidden = hiddenList, inVehicle = IsPedInAnyVehicle(ped, false), male = IsPedMale(ped),
         dances = GetResourceState('rp_animations') == 'started' }
 end
+
+-- Diagnostic à copier pour le support : /animdiag (F8 pour le détail)
+RegisterCommand('animdiag', function()
+    local function res(name)
+        local st = GetResourceState(name)
+        if st == 'missing' then return nil end
+        return ('%s (%s, version %s)'):format(name, st, GetResourceMetadata(name, 'version', 0) or '?')
+    end
+    local emotes = res('rpemotes') or res('rpemotes-reborn') or res('dpemotes') or 'AUCUN script d\'emotes trouvé (rpemotes) : les animations classiques passent par le secours Elyzea'
+    local cur = Danse.Current()
+    local lines = {
+        'Script d\'emotes : ' .. emotes,
+        ('Touches : menu %s, arrêt %s, accepter %s, refuser %s'):format(settings.openKey, settings.stopKey, Config.AcceptKey, Config.RefuseKey),
+        ('Animations masquées (fichiers absents) : %d%s'):format(#hiddenList, availabilityChecked and '' or ' (vérification pas encore faite)'),
+        ('Animation en cours : %s ; danse en cours : %s'):format(tostring(currentEmote), cur and (cur.e.id .. ' / ' .. cur.state) or 'aucune'),
+        ('Placement en cours : %s ; personnage figé : %s ; menu ouvert : %s'):format(tostring(placing ~= nil), tostring(placed ~= nil), tostring(menuOpen)),
+        ('OneSync : %s'):format(GetConvar('onesync', 'inconnu')),
+    }
+    for _, l in ipairs(lines) do print('[Elyzea animations] ' .. l) end
+    notify('Diagnostic écrit dans la console F8', 'ok')
+end, false)
 
 RegisterCommand('elyzea_anim_check', function()
     print(('[Elyzea animations] %d animations masquées car indisponibles :'):format(#hiddenList))
@@ -288,8 +311,17 @@ RegisterNetEvent('elyzea_anim:notify', function(text, kind) notify(text, kind) e
 
 local function respond(accept)
     if not pendingRequest then return end
+    local req = pendingRequest
     pendingRequest = nil
     SendNUIMessage({ action = 'requestEnd' })
+    if req.danse then
+        if accept and Danse.SelfBlocked() then
+            notify(Danse.SelfBlocked(), 'err')
+            accept = false
+        end
+        if accept and req.kind == 'groupe' then Danse.SetMaybeLobby(true) end
+        return TriggerServerEvent('elyzea_danse:sv:respond', req.id, accept == true)
+    end
     TriggerServerEvent('elyzea_anim:respond', accept)
 end
 
@@ -301,8 +333,9 @@ RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une deman
 -- ---------------------------------------------------------
 --  Animations solo
 -- ---------------------------------------------------------
-local function playEmote(emote, etype, label, target)
+local function playEmote(emote, etype, label, target, role)
     if not emote then return end
+    if emote:sub(1, 6) == 'danse:' then return Danse.Ask(emote:sub(7), target or nearestPlayer(), role) end
 
     -- Si une animation de secours précédente avait créé des objets, on les enlève
     -- avant de demander une nouvelle animation à rpemotes.
@@ -365,17 +398,19 @@ local function playEmote(emote, etype, label, target)
     end
 end
 
-local function stopEmote()
+local function stopEmote(keepDance)
     -- X doit toujours arrêter l'animation, y compris une animation placée/fixée.
     local ped = PlayerPedId()
 
+    -- Danse à plusieurs en cours (ou groupe en attente) : arrêt propre, les autres danseurs sont prévenus
+    if not keepDance and Danse.Stop('stop') then
+        currentEmote, currentLabel = nil, nil
+        SendNUIMessage({ action = 'stopped' })
+        return
+    end
+
     -- Demande d'abord à rpemotes de nettoyer son propre état (partagées incluses).
     ExecuteCommand(Config.CancelCommand)
-
-    -- Danse rp_animations en cours (solo ou à deux) : arrêt propre, le partenaire est prévenu
-    if GetResourceState('rp_animations') == 'started' then
-        pcall(function() exports.rp_animations:Stop() end)
-    end
 
     -- Nettoyage local de secours : indispensable si l'animation a été lancée
     -- directement par Elyzea après un placement ou si rpemotes ne répond pas.
@@ -389,7 +424,7 @@ local function stopEmote()
     clearFallbackProps()
     currentEmote, currentLabel = nil, nil
     releasePlaced()
-    placing = nil
+    if placing then placing.abort = true end
     SendNUIMessage({ action = 'stopped' })
 end
 
@@ -398,6 +433,10 @@ RegisterNetEvent('SyncPlayEmote')
 RegisterNetEvent('SyncPlayEmoteSource')
 AddEventHandler('SyncPlayEmote', function() releasePlaced() end)
 AddEventHandler('SyncPlayEmoteSource', function() releasePlaced() end)
+RegisterNetEvent('rpemotes:client:syncEmote')
+RegisterNetEvent('rpemotes:client:syncEmoteSource')
+AddEventHandler('rpemotes:client:syncEmote', function() releasePlaced() end)
+AddEventHandler('rpemotes:client:syncEmoteSource', function() releasePlaced() end)
 
 -- ---------------------------------------------------------
 --  Menu et touches
@@ -422,8 +461,6 @@ end
 --  Placement : un fantôme de ton personnage fait l'animation,
 --  tu le déplaces où tu veux, puis tu valides.
 -- ---------------------------------------------------------
-local placing = nil
-
 local function rayHit(x1, y1, z1, x2, y2, z2, flags, ignore)
     local ray = StartExpensiveSynchronousShapeTestLosProbe(x1, y1, z1, x2, y2, z2, flags, ignore or 0, 7)
     local _, hit, pos = GetShapeTestResult(ray)
@@ -705,7 +742,7 @@ RegisterCommand(Config.Placement.Command, function(_, args)
     if not Config.Placement.Enabled or placing or menuOpen then return end
     local cmd = args[1] and args[1]:lower()
     if not cmd then return ExecuteCommand('elyzea_anim_place') end
-    if not ElyzeaAnims[cmd] then return notify('Animation inconnue : ' .. cmd, 'err') end
+    if not ElyzeaAnims[cmd] or cmd:sub(1, 6) == 'danse:' then return notify('Animation inconnue : ' .. cmd, 'err') end
     startPlacement(cmd, cmd)
 end, false)
 
@@ -735,20 +772,88 @@ end
 -- ---------------------------------------------------------
 RegisterNUICallback('close', function(_, cb) closeMenu() cb(true) end)
 
--- Bouton « Slows & danses à deux » : ouvre le menu de rp_animations
-RegisterNUICallback('openDances', function(_, cb)
+-- ---------------------------------------------------------
+--  Danses lentes, en duo et en groupe (moteur : danses/client)
+-- ---------------------------------------------------------
+local function danseList()
+    local list = {}
+    for _, e in ipairs(DanseCatalog.List) do
+        if DanseCatalog.IsPlayable(e) then
+            list[#list + 1] = { id = e.id, label = e.label, desc = e.desc, cat = e.cat, type = e.type,
+                formations = e.formations, validated = DanseCatalog.Validated[e.id] == true }
+        end
+    end
+    return { cats = DanseCatalog.Categories, list = list }
+end
+
+-- Chaque danse a une entrée d'aperçu (clip du meneur) : l'aperçu 3D et la vérification des fichiers la traitent
+-- comme les autres animations ; une danse dont un fichier manque est masquée du menu.
+for _, e in ipairs(DanseCatalog.List) do
+    local a = e.steps[1] and e.steps[1].A
+    if a then ElyzeaAnims['danse:' .. e.id] = { d = a.d, a = a.c, l = 1, k = 'd' } end
+end
+
+Danse.UI = {
+    Notify = function(text, kind) notify(text, kind) end,
+    Release = function() stopEmote(true) end,          -- avant une danse : arrête l'animation du menu, libère un placement
+    StopEmote = function() stopEmote(true) end,
+    Playing = function(label, preparing)
+        currentEmote, currentLabel = nil, label
+        SendNUIMessage({ action = 'playing', label = label, preparing = preparing })
+    end,
+    Stopped = function() SendNUIMessage({ action = 'stopped' }) end,
+    Catalog = function() SendNUIMessage({ action = 'danses', danses = danseList() }) end,
+    Invite = function(data)
+        pendingRequest = { danse = true, id = data.id, kind = data.kind }
+        PlaySoundFrontend(-1, 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+        local label = data.kind == 'groupe' and ('danse de groupe « %s » (%d danseurs)'):format(data.label, data.count or 2) or data.label
+        SendNUIMessage({ action = 'request', name = data.from, label = label, timeout = data.timeout })
+    end,
+    InviteEnd = function(id)
+        if pendingRequest and pendingRequest.danse and pendingRequest.id == id then
+            pendingRequest = nil
+            SendNUIMessage({ action = 'requestEnd' })
+        end
+    end,
+}
+
+-- Inviter quelqu'un pour une danse en duo (depuis le menu ou un raccourci)
+function Danse.Ask(id, target, role)
+    local e = DanseCatalog.Get(id)
+    if not e or not DanseCatalog.IsPlayable(e) then return notify('Danse inconnue', 'err') end
+    if e.type ~= 'duo' then return notify('Ouvre le menu (' .. settings.openKey .. ') pour inviter un groupe', 'err') end
+    if not target then return notify('Personne à côté de toi', 'err') end
+    local blocked = Danse.SelfBlocked()
+    if blocked then return notify(blocked, 'err') end
+    CreateThread(function()
+        local ok, why = Danse.Anim.CheckEntry(e, role == 'B' and 'B' or 'A')
+        if not ok then
+            print('[Elyzea danses] ' .. e.id .. ' : ' .. tostring(why))
+            return notify('Danse indisponible : fichiers d\'animation absents (voir F8)', 'err')
+        end
+        TriggerServerEvent('elyzea_danse:sv:invite', target, e.id, role == 'B' and 'B' or 'A')
+    end)
+end
+
+RegisterNUICallback('danseGroup', function(data, cb)
     cb(true)
-    if GetResourceState('rp_animations') ~= 'started' then return notify('Le menu des danses n\'est pas démarré', 'err') end
-    closeMenu()   -- l'interface s'est déjà masquée elle-même (index.html)
-    pcall(function() exports.rp_animations:Open() end)
+    local e = data and DanseCatalog.Get(data.id)
+    if not e or e.type ~= 'groupe' or type(data.targets) ~= 'table' then return end
+    local blocked = Danse.SelfBlocked()
+    if blocked then return notify(blocked, 'err') end
+    CreateThread(function()
+        local ok, why = Danse.Anim.CheckEntry(e, 'A')
+        if not ok then
+            print('[Elyzea danses] ' .. e.id .. ' : ' .. tostring(why))
+            return notify('Danse indisponible : fichiers d\'animation absents (voir F8)', 'err')
+        end
+        Danse.SetMaybeLobby(true)
+        TriggerServerEvent('elyzea_danse:sv:group', e.id, data.formation, data.targets)
+    end)
 end)
 
--- Utilisés par rp_animations : libérer le personnage avant une danse, revenir à ce menu
-exports('StopEmote', stopEmote)
-exports('OpenMenu', function() openMenu() end)
-
 RegisterNUICallback('playEmote', function(data, cb)
-    playEmote(data.emote, data.type, data.label, data.target)
+    playEmote(data.emote, data.type, data.label, data.target, data.role)
     cb(true)
     -- Menu toujours ouvert : la copie fait aussi l'animation, pour que tu la voies
     if menuOpen and pv.active and type(data.emote) == 'string' then
@@ -796,13 +901,14 @@ RegisterNUICallback('saveBinds', function(data, cb)
     cb(true)
 end)
 
-RegisterNUICallback('getNearbyPlayers', function(_, cb)
+RegisterNUICallback('getNearbyPlayers', function(data, cb)
     local list, me = {}, PlayerId()
     local pos = GetEntityCoords(PlayerPedId())
+    local radius = (type(data) == 'table' and data.radius == 'groupe') and DanseConfig.Group.InviteDistance or Config.NearbyRadius
     for _, pid in ipairs(GetActivePlayers()) do
         if pid ~= me then
             local dist = #(GetEntityCoords(GetPlayerPed(pid)) - pos)
-            if dist <= Config.NearbyRadius then
+            if dist <= radius then
                 list[#list + 1] = { id = GetPlayerServerId(pid), name = GetPlayerName(pid), dist = dist }
             end
         end
@@ -825,6 +931,8 @@ CreateThread(function()
         })
     end
     Wait(1500)
+    SendNUIMessage({ action = 'danses', danses = danseList() })
+    TriggerServerEvent('elyzea_danse:sv:hello')
     SendNUIMessage({ action = 'init', settings = settings, binds = binds,
         keys = { accept = Config.AcceptKey, refuse = Config.RefuseKey,
                  place = Config.Placement.Enabled and Config.Placement.Key or nil } })
@@ -832,6 +940,13 @@ CreateThread(function()
     while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
     Wait(5000)
     checkAvailability()
+    -- Danses à plusieurs : tous les clips (meneur et partenaire) doivent exister
+    local p = promise.new()
+    Danse.Anim.CheckAll(function(missing) p:resolve(missing) end)
+    for _, m in ipairs(Citizen.Await(p)) do
+        hiddenList[#hiddenList + 1] = 'danse:' .. m.id
+        print(('[Elyzea danses] %s masquée : %s'):format(m.label, m.why))
+    end
     SendNUIMessage({ action = 'env', env = getEnv() })
     print(('[Elyzea animations] %d animations masquées car indisponibles (tape elyzea_anim_check pour la liste)'):format(#hiddenList))
 end)

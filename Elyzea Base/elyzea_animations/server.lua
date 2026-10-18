@@ -81,8 +81,12 @@ RegisterNetEvent('elyzea_anim:respond', function(accept)
     -- Lancement par rpemotes : même logique que son propre système d'acceptation
     -- src = celui qui accepte, from = celui qui a demandé
     local other = ElyzeaSharedPartners[p.emote] or p.emote
+    -- Anciens rpemotes : SyncPlayEmote / SyncPlayEmoteSource. rpemotes-reborn (2.x) : rpemotes:client:syncEmote(Source).
+    -- On envoie les deux : seule la version installée réagit, l'autre événement n'a pas de destinataire.
     TriggerClientEvent('SyncPlayEmote', src, other, from)
     TriggerClientEvent('SyncPlayEmoteSource', from, p.emote, src)
+    TriggerClientEvent('rpemotes:client:syncEmote', src, other, from)
+    TriggerClientEvent('rpemotes:client:syncEmoteSource', from, p.emote, src)
     notify(from, ('%s a accepté : %s'):format(name(src), p.label), 'ok')
 end)
 

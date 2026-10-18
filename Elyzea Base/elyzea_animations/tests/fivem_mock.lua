@@ -1,5 +1,5 @@
 -- =====================================================================
---  Simulation minimale de l'environnement FiveM pour tester rp_animations hors jeu.
+--  Simulation minimale de l'environnement FiveM pour tester elyzea_animations hors jeu.
 --  Ce n'est PAS le jeu : les natives sont remplacées par des fonctions qui imitent
 --  leur comportement documenté. Sert à tester la logique (invitations, sessions, sécurité).
 -- =====================================================================
@@ -23,6 +23,16 @@ function CreateThread(fn)
     Mock.threads[#Mock.threads + 1] = { co = co, at = Mock.now }
 end
 Citizen = { CreateThread = CreateThread, Wait = function(ms) coroutine.yield(ms or 0) end }
+-- promise / Citizen.Await (fournis par FiveM)
+promise = { new = function()
+    local p = { done = false }
+    function p:resolve(v) self.done, self.value = true, v end
+    return p
+end }
+function Citizen.Await(p)
+    while not p.done do coroutine.yield(1) end
+    return p.value
+end
 function Wait(ms) coroutine.yield(ms or 0) end
 
 local function runDue()
@@ -103,12 +113,12 @@ function GetVehiclePedIsIn(ped) local p = byPed(ped) return p and p.vehicle or 0
 function GetPlayerRoutingBucket(id) local p = Mock.players[tonumber(id)] return p and p.bucket or 0 end
 function Player(id) local p = Mock.players[tonumber(id)] return { state = p and p.state or {} } end
 function IsPlayerAceAllowed(id, ace) return Mock.aces[tonumber(id) .. ':' .. ace] == true end
-function GetCurrentResourceName() return 'rp_animations' end
+function GetCurrentResourceName() return 'elyzea_animations' end
 function GetResourceKvpString(k) return Mock.kvp[k] end
 function SetResourceKvp(k, v) Mock.kvp[k] = v end
 function GetConvar(k, d) return Mock.convars[k] or d end
 -- exports('Nom', fn) enregistre ; exports.ressource:Nom() appelle Mock.foreign[ressource][Nom] s'il existe
-Mock.exported, Mock.foreign, Mock.resources = {}, {}, { rp_animations = 'started' }
+Mock.exported, Mock.foreign, Mock.resources = {}, {}, { elyzea_animations = 'started' }
 exports = setmetatable({}, {
     __call = function(_, name, fn) Mock.exported[name] = fn end,
     __index = function(_, res)

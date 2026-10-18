@@ -1,9 +1,9 @@
 -- =====================================================================
---  rp_animations : contrôles serveur (limites d'appels, état des joueurs)
+--  Danses : contrôles serveur (limites d'appels, état des joueurs, distances, droits)
 -- =====================================================================
-RPA = RPA or {}
+Danse = Danse or {}
 local Sec = {}
-RPA.Sec = Sec
+Danse.Sec = Sec
 
 local limits = {}   -- [src][clé] = { n, resetAt }
 
@@ -20,7 +20,7 @@ function Sec.Allow(src, key, max, window)
     l.n = l.n + 1
     if l.n > max then
         if l.n == max + 1 then
-            print(('[rp_animations] %s (%d) : trop d\'appels « %s », ignorés'):format(GetPlayerName(src) or '?', src, key))
+            print(('[Elyzea danses] %s (%d) : trop d\'appels « %s », ignorés'):format(GetPlayerName(src) or '?', src, key))
         end
         return false
     end
@@ -33,14 +33,14 @@ function Sec.Online(src)
     return type(src) == 'number' and src > 0 and GetPlayerName(src) ~= nil
 end
 
--- Raison pour laquelle ce joueur ne peut pas participer à une animation en duo (nil = il peut)
+-- Raison pour laquelle ce joueur ne peut pas danser avec d'autres (nil = il peut)
 function Sec.Blocker(src)
     if not Sec.Online(src) then return 'absent' end
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return 'onesync' end
     if GetEntityHealth(ped) <= 100 then return 'mort' end
     local st = Player(src).state
-    for _, key in ipairs(Config.BlockingStates) do
+    for _, key in ipairs(DanseConfig.BlockingStates) do
         local v = st[key]
         if v ~= nil and v ~= false then return 'etat' end
     end
@@ -52,13 +52,13 @@ Sec.BlockerText = {
     absent   = "n'est plus là",
     onesync  = 'est introuvable (OneSync requis)',
     mort     = "n'est pas en état (inconscient ou blessé)",
-    etat     = "ne peut pas bouger librement (menotté, porté, escorté ou à terre)",
+    etat     = 'ne peut pas bouger librement (menotté, porté, escorté ou à terre)',
     vehicule = 'est dans un véhicule',
 }
 
 Sec.SelfText = {
     absent   = 'Action impossible',
-    onesync  = 'Animation en duo impossible : OneSync requis',
+    onesync  = 'Danse à plusieurs impossible : OneSync requis',
     mort     = "Tu n'es pas en état de le faire",
     etat     = 'Tu ne peux pas bouger librement',
     vehicule = "Descends d'abord du véhicule",
@@ -72,12 +72,11 @@ function Sec.Distance(a, b)
 end
 
 function Sec.IsAdmin(src)
-    -- 'admin' : permission déjà donnée à group.admin dans permissions.cfg
-    return IsPlayerAceAllowed(src, Config.AdminAce) == true or IsPlayerAceAllowed(src, 'admin') == true
+    return IsPlayerAceAllowed(src, DanseConfig.AdminAce) == true or IsPlayerAceAllowed(src, 'admin') == true
 end
 
 -- Offset reçu d'un client admin (calibrage) : nombres bornés
-function Sec.CleanOffset(o)
+function Sec.CleanOffset(o, bone)
     if type(o) ~= 'table' then return nil end
     local function num(v, lim)
         v = tonumber(v)
@@ -86,5 +85,5 @@ function Sec.CleanOffset(o)
     end
     local x, y, z, h = num(o.x, 2.0), num(o.y, 2.0), num(o.z, 1.0), num(o.h, 360.0)
     if not (x and y and z and h) then return nil end
-    return { x = x, y = y, z = z, h = h }
+    return { x = x, y = y, z = z, h = h, bone = bone }
 end
