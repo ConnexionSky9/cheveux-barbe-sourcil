@@ -46,7 +46,7 @@ def main():
         check(f'pose {pose} (.obj)', os.path.isfile(os.path.join(b, 'poses', f'ely_bebe_{pose}.obj')))
 
     # textures
-    tex = [t for g in rep['textures'].values() for t in g.values()] + ['ely_bebe_corps_n.png']
+    tex = [t for g in rep['textures'].values() for t in g.values()] + [f'ely_bebe_corps_{t}_n.png' for t in rep['tenues']]
     bad = []
     for t in tex:
         p = os.path.join(b, 'textures', t)
@@ -95,9 +95,14 @@ def main():
     # ressource FiveM
     stream = os.path.join(RESOURCE, 'stream')
     files = set(os.listdir(stream)) if os.path.isdir(stream) else set()
-    expected = 2 + len(rep['poses']) * (len(rep['teintes']) + len(rep['yeux']) + len(rep['textures']['cheveux']))
+    expected = 3 + len(rep['poses']) * (len(rep['teintes']) * len(rep['tenues']) + len(rep['yeux']) + len(rep['textures']['cheveux']))
     have = len([f for f in files if f.startswith('ely_bebe')])
     check('ressource FiveM : fichiers binaires', have == expected, f'{have}/{expected} dans stream/')
+    # FiveM avertit au-delà de 16 Mo par fichier diffusé (« oversized asset »)
+    gros = {f: os.path.getsize(os.path.join(stream, f)) for f in files if f.startswith('ely_bebe')}
+    pire = max(gros, key=gros.get) if gros else None
+    check('ressource FiveM : chaque fichier < 16 Mo', pire is not None and gros[pire] < 16 * 1024 * 1024,
+          f'le plus gros : {pire} {gros[pire] / 1048576:.1f} Mo' if pire else 'aucun fichier')
 
     ok = all(c['ok'] for c in checks)
     with open(os.path.join(b, 'validation.json'), 'w', encoding='utf-8') as fh:

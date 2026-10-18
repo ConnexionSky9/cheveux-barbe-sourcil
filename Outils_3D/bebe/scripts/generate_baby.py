@@ -248,11 +248,14 @@ def value_noise(shape, scale, seed):
 
 # ─────────────────────────── 1. Masques par sommet (maillage HD) ───────────────────────────
 
-def vertex_masks(v, zone, part):
+TENUES = ('couche', 'pyjama')     # couche seule (corps visible) ou pyjama (texture par-dessus le même corps)
+
+
+def vertex_masks(v, zones, part):
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
     ax = np.abs(x)
-    skin = 1.0 - zone.astype(np.float32)
-    skin = np.clip((skin - 0.5) * 4 + 0.5, 0, 1)
+    couche = zones['couche'].astype(np.float32)
+    skin = 1.0 - couche
 
     def g(c, s):
         c = np.asarray(c, np.float32)
@@ -262,17 +265,20 @@ def vertex_masks(v, zone, part):
         c = np.asarray(c, np.float32)
         return np.maximum(g(c, s), g((-c[0], c[1], c[2]), s))
 
-    red = (gm((0.033, -0.043, 0.392), 0.0115) * 1.0 + g((0, -0.0605, 0.404), 0.0055) * 0.55
-           + g((0, -0.044, 0.378), 0.008) * 0.25)
-    for name, w in (('ear', 0.5), ('hand', 0.3), ('knuckles', 0.45), ('thumb', 0.35),
-                    ('foot', 0.35), ('heel', 0.45), ('toe', 0.6)):
+    S = sdf_baby.SKELETON
+    # rougeurs : joues, nez, menton ; mains et pieds bien rosés (nouveau-né) ; genoux, coudes, oreilles
+    red = (gm((0.034, -0.040, 0.390), 0.0120) * 1.0 + g((0, -0.0585, 0.401), 0.0060) * 0.55
+           + g((0, -0.040, 0.378), 0.008) * 0.25
+           + gm(S['knee'], 0.014) * 0.35 + gm(S['elbow'], 0.010) * 0.25)
+    for name, w in (('ear', 0.45), ('lobe', 0.55), ('ala', 0.35), ('palm', 0.45), ('finger', 0.65), ('thumb', 0.6),
+                    ('foot', 0.45), ('heel', 0.6), ('sole', 0.6), ('toe', 0.75)):
         red = red + (part == name) * w
     red = np.clip(red, 0, 1) * skin
 
-    lips = np.isin(part, ('upperlip', 'lowerlip')).astype(np.float32) * skin
+    lips = np.isin(part, ('upperlip', 'lowerlip', 'lipbow')).astype(np.float32) * skin
 
     # sourcils : arc très léger au-dessus de chaque œil
-    zb = 0.4280 - 22.0 * (ax - 0.0205) ** 2
+    zb = 0.4270 - 22.0 * (ax - 0.0205) ** 2
     brow = np.exp(-((z - zb) / 0.0013) ** 2) * ((ax > 0.008) & (ax < 0.034) & (y < -0.035))
     brow = brow.astype(np.float32) * skin
 
@@ -280,13 +286,13 @@ def vertex_masks(v, zone, part):
     sc, sr = np.array(sdf_baby.EYE['socket'], np.float32), np.array(sdf_baby.EYE['socket_r'], np.float32)
     q = np.stack([ax - sc[0], y - sc[1], z - sc[2]], 1) / sr
     k = np.linalg.norm(q, axis=1)
-    upper = np.clip(0.12 + 0.88 * (q[:, 2] > -0.1), 0, 1)
-    lash = np.exp(-((k - 1.12) / 0.16) ** 2) * upper
-    crease = np.exp(-((k - 1.75) / 0.08) ** 2) * (q[:, 2] > 0.25) * 0.08
+    upper = np.clip(0.15 + 0.85 * (q[:, 2] > -0.1), 0, 1)
+    lash = np.exp(-((k - 1.10) / 0.14) ** 2) * upper
+    crease = np.exp(-((k - 1.70) / 0.10) ** 2) * (q[:, 2] > 0.25) * 0.18
     lash = np.clip(lash + crease, 0, 1).astype(np.float32) * skin
 
     # cuir chevelu : au-dessus de la ligne d'implantation (front, tempes, nuque)
-    head_parts = np.isin(part, ('cranium', 'face', 'cheek'))
+    head_parts = np.isin(part, ('cranium', 'occiput', 'face', 'cheek'))
     t = np.clip((y + 0.035) / 0.10, 0, 1)            # 0 = front, 1 = nuque
     hline = 0.452 * (1 - t) + 0.386 * t               # ligne d'implantation
     hline = hline + np.clip(0.030 - ax, 0, None) * 0.25 * (1 - t)
@@ -294,16 +300,27 @@ def vertex_masks(v, zone, part):
     hline = hline - 0.012 * side * (1 - t)            # tempes plus basses
     scalp = 1.0 / (1.0 + np.exp(-(z - hline) / 0.0025))
     scalp *= head_parts
-    # pas de cheveux autour des oreilles
     ear_c = np.array((0.057, 0.014, 0.414), np.float32)
     d_ear = np.sqrt((ax - ear_c[0]) ** 2 + (y - ear_c[1]) ** 2 + (z - ear_c[2]) ** 2)
     scalp *= np.clip((d_ear - 0.020) / 0.006, 0, 1)
-    # sommet du crâne (sert à la coiffure « duvet », moins étendue)
     crown = np.clip(1 - np.sqrt(x ** 2 + (y - 0.004) ** 2) / 0.065, 0, 1) * np.clip((z - 0.43) / 0.05, 0, 1)
 
-    m1 = np.stack([zone.astype(np.float32), red, lips], 1)
+    # ongles : bout des doigts (côté dos de la main) et dessus des orteils
+    nails = np.zeros(len(v), np.float32)
+    for s in (1.0, -1.0):
+        w, d, inward, front = sdf_baby.hand_frame(s)
+        on_side = (x * s) > 0
+        rel = v - w.astype(np.float32)
+        dist = rel @ d.astype(np.float32)
+        dors = rel @ (-inward).astype(np.float32)
+        m = on_side & (part == 'finger') & (dist > 0.043) & (dors > 0.0005)
+        nails[m] = 1.0
+    toe_top = (part == 'toe') & (z > 0.0135) & (y < -0.046)
+    nails[toe_top] = 1.0
+
+    m1 = np.stack([couche, red, lips], 1)
     m2 = np.stack([brow, lash, scalp.astype(np.float32)], 1)
-    m3 = np.stack([crown.astype(np.float32), np.zeros_like(crown), np.zeros_like(crown)], 1)
+    m3 = np.stack([crown.astype(np.float32), zones['pyjama'].astype(np.float32), nails], 1)
     return m1, m2, m3
 
 
@@ -348,7 +365,19 @@ def make_low(high, target_tris):
     return low
 
 
-def unwrap(obj, margin=0.006):
+def unwrap(obj, margin=0.006, poids=None):
+    """Dépliage automatique. poids (par sommet, 1 = normal) : agrandit temporairement certaines zones
+    (visage, mains) avant le dépliage pour leur donner plus de pixels de texture, puis remet la forme."""
+    orig = None
+    if poids is not None:
+        me = obj.data
+        orig = np.empty(len(me.vertices) * 3, np.float32)
+        me.vertices.foreach_get('co', orig)
+        co = orig.reshape(-1, 3).copy()
+        centre_tete = np.array((0.0, 0.008, 0.425), np.float32)
+        co = centre_tete + (co - centre_tete) * poids[:, None]
+        me.vertices.foreach_set('co', co.ravel())
+        me.update()
     select_only([obj])
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
@@ -359,6 +388,9 @@ def unwrap(obj, margin=0.006):
     except Exception:  # noqa: BLE001
         pass
     bpy.ops.object.mode_set(mode='OBJECT')
+    if orig is not None:
+        obj.data.vertices.foreach_set('co', orig)
+        obj.data.update()
 
 
 # ─────────────────────────── 4. Cuisson Cycles ───────────────────────────
@@ -413,35 +445,63 @@ def bake(high, low, kind, img, extrusion=0.004, margin=12):
 
 # ─────────────────────────── 5. Textures finales ───────────────────────────
 
-def compose_body(m1, m2, ao, tone):
-    """m1, m2 : (H, W, 3) linéaires 0-1 · ao : (H, W)."""
+def compose_body(m1, m2, m3, ao, tone, tenue):
+    """m1, m2, m3 : (H, W, 3) linéaires 0-1 · ao : (H, W) · tenue : 'couche' ou 'pyjama'."""
     H, W = ao.shape
-    cloth, red, lips = m1[..., 0], m1[..., 1], m1[..., 2]
+    couche, red, lips = m1[..., 0], m1[..., 1], m1[..., 2]
     brow, lash = m2[..., 0], m2[..., 1]
-    cloth = np.clip((cloth - 0.5) * 3 + 0.5, 0, 1)        # bord net du pyjama
-    lips = blur(lips, 1.2)
+    pyjama, nails = m3[..., 1], m3[..., 2]
+    cloth = couche if tenue == 'couche' else np.maximum(couche, blur(pyjama, 1.0))
+    cloth = np.clip((cloth - 0.5) * 3 + 0.5, 0, 1)
+    lips = blur(lips, 1.5)
+    nails = blur(nails, 1.0)
 
-    base = srgb_to_lin(tone)[None, None, :] * np.ones((H, W, 1), np.float32)
-    lum = float(np.dot(srgb_to_lin(tone), (0.2126, 0.7152, 0.0722)))
-    flush = srgb_to_lin((222, 112, 100)) if lum > 0.25 else srgb_to_lin(tone) * np.array((1.05, 0.78, 0.72))
-    rw = 0.32 if lum > 0.25 else 0.22
+    tone_l = srgb_to_lin(tone)
+    lum = float(np.dot(tone_l, (0.2126, 0.7152, 0.0722)))
+    base = tone_l[None, None, :] * np.ones((H, W, 1), np.float32)
+    # peau marbrée (très légère) : variations chaudes / froides à basse fréquence, comme une vraie peau de bébé
+    m_a = value_noise((H, W), 40, 21) - 0.5
+    m_b = value_noise((H, W), 12, 22) - 0.5
+    base = base * (1 + m_a[..., None] * np.array((0.06, 0.02, 0.0), np.float32) + m_b[..., None] * np.array((0.03, 0.03, 0.03), np.float32))
+    flush = srgb_to_lin((226, 116, 104)) if lum > 0.25 else tone_l * np.array((1.08, 0.80, 0.74))
+    rw = 0.40 if lum > 0.25 else 0.26
     skin = base * (1 - red[..., None] * rw) + flush[None, None, :] * red[..., None] * rw
-    lipc = srgb_to_lin(tone) * np.array((0.92, 0.62, 0.60), np.float32) + np.array((0.10, 0.02, 0.02), np.float32)
-    skin = skin * (1 - lips[..., None] * 0.75) + lipc[None, None, :] * lips[..., None] * 0.75
+    lipc = tone_l * np.array((0.95, 0.62, 0.62), np.float32) + np.array((0.10, 0.025, 0.03), np.float32)
+    skin = skin * (1 - lips[..., None] * 0.8) + lipc[None, None, :] * lips[..., None] * 0.8
+    nailc = tone_l * 0.55 + np.array((0.42, 0.33, 0.32), np.float32) * 0.45
+    skin = skin * (1 - nails[..., None] * 0.7) + nailc[None, None, :] * nails[..., None] * 0.7
     skin = skin * (1 - brow[..., None] * 0.18)
     skin = skin * (1 - lash[..., None] * 0.55)
-    # grain de peau très léger + chaleur dans les plis (aspect de peau vivante plutôt que grise)
-    grain = value_noise((H, W), 6, 3) * 0.035 + 0.985
+    grain = value_noise((H, W), 4, 3) * 0.03 + 0.985
     skin = skin * grain[..., None]
     pli = np.clip(1.0 - ao, 0, 1)[..., None]
-    skin = skin * (1 - pli * 0.45 * (1 - np.array((1.0, 0.80, 0.74), np.float32)))
+    skin = skin * (1 - pli * 0.5 * (1 - np.array((1.0, 0.78, 0.72), np.float32)))
 
-    fabric = srgb_to_lin(ONESIE_COLOR)[None, None, :] * (0.96 + 0.06 * value_noise((H, W), 3, 11)[..., None])
+    if tenue == 'couche':
+        quilt = 0.95 + 0.07 * value_noise((H, W), 2.5, 31)
+        fabric = srgb_to_lin((246, 246, 244))[None, None, :] * quilt[..., None]
+    else:
+        knit = 0.95 + 0.06 * value_noise((H, W), 2.0, 11) + 0.02 * value_noise((H, W), 8, 12)
+        fabric = srgb_to_lin(ONESIE_COLOR)[None, None, :] * knit[..., None]
+        # couche visible en transparence : légèrement plus claire sous le pyjama
+        fabric = fabric * (1 + 0.04 * couche[..., None])
     col = skin * (1 - cloth[..., None]) + fabric * cloth[..., None]
-    # occlusion plus douce sur la peau que sur le tissu (le jeu ajoute déjà son propre ombrage)
-    occ = (0.68 + 0.32 * ao)[..., None] * (1 - cloth[..., None]) + (0.55 + 0.45 * ao)[..., None] * cloth[..., None]
-    col = col * occ
-    return lin_to_srgb(col)
+    occ = (0.70 + 0.30 * ao)[..., None] * (1 - cloth[..., None]) + (0.55 + 0.45 * ao)[..., None] * cloth[..., None]
+    return lin_to_srgb(col * occ)
+
+
+def detail_normal(nrm, m1, m3, tenue, seed=5):
+    """Ajoute au relief cuit un micro-relief : grain de peau sur la peau, maille du tissu sur les vêtements."""
+    H, W = nrm.shape[:2]
+    couche, pyjama = m1[..., 0], m3[..., 1]
+    cloth = couche if tenue == 'couche' else np.maximum(couche, pyjama)
+    h = (value_noise((H, W), 1.4, seed) - 0.5) * (1 - cloth) * 0.9 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 1.4
+    gy, gx = np.gradient(h)
+    n = nrm * 2 - 1
+    n[..., 0] -= gx * 0.6
+    n[..., 1] -= gy * 0.6
+    n /= np.maximum(np.linalg.norm(n, axis=2, keepdims=True), 1e-6)
+    return n * 0.5 + 0.5
 
 
 def make_iris(color, size=256):
@@ -519,7 +579,7 @@ def build_armature():
     return arm
 
 
-HEAD_PARTS = {'cranium', 'face', 'cheek', 'chin', 'nose', 'nosebridge', 'upperlip', 'lowerlip', 'ear', 'lid'}
+HEAD_PARTS = set(sdf_baby.HEAD_PARTS) - {'jowl'}
 PART_BONES = {
     # partie : os autorisés (« .s » = côté du sommet) ; le poids se répartit selon la distance aux os
     'jowl': ['tete', 'cou'],
@@ -528,13 +588,13 @@ PART_BONES = {
     'shoulder': ['clavicule.s', 'bras.s', 'poitrine'],
     'belly': ['colonne', 'poitrine', 'bassin'],
     'pelvis': ['bassin', 'racine', 'colonne', 'cuisse.s'],
-    'diaper': ['bassin', 'racine', 'cuisse.s'],
+    'couche': ['bassin', 'racine', 'cuisse.s'],
     'upperarm': ['bras.s', 'clavicule.s', 'avantbras.s'],
     'forearm': ['avantbras.s', 'bras.s', 'main.s'],
-    'hand': ['main.s', 'avantbras.s'], 'knuckles': ['main.s'], 'thumb': ['main.s'],
+    'palm': ['main.s', 'avantbras.s'], 'finger': ['main.s'], 'thumb': ['main.s'],
     'thigh': ['cuisse.s', 'bassin', 'tibia.s'],
     'shin': ['tibia.s', 'cuisse.s', 'pied.s'],
-    'foot': ['pied.s', 'tibia.s'], 'heel': ['pied.s', 'tibia.s'], 'toe': ['pied.s'],
+    'foot': ['pied.s', 'tibia.s'], 'heel': ['pied.s', 'tibia.s'], 'sole': ['pied.s'], 'toe': ['pied.s'],
 }
 
 
@@ -744,9 +804,9 @@ def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default=os.path.join(HERE, '..', 'build'))
-    ap.add_argument('--voxel', type=float, default=0.0011)
-    ap.add_argument('--tris', type=int, default=11000, help='triangles visés pour le maillage de jeu')
-    ap.add_argument('--tex', type=int, default=1024)
+    ap.add_argument('--voxel', type=float, default=0.0009)
+    ap.add_argument('--tris', type=int, default=16000, help='triangles visés pour le maillage de jeu')
+    ap.add_argument('--tex', type=int, default=2048, help='résolution de cuisson (les couleurs sont réduites à 1024 pour le jeu)')
     ap.add_argument('--samples', type=int, default=48)
     ap.add_argument('--quick', action='store_true', help='essai rapide (petites textures, peu d\'échantillons)')
     a = ap.parse_args(argv)
@@ -755,7 +815,7 @@ def main():
     for d in dirs.values():
         os.makedirs(d, exist_ok=True)
     t0 = time.time()
-    report = {'version': 1, 'outil': f'Blender {bpy.app.version_string}', 'etapes': []}
+    report = {'version': 3, 'outil': f'Blender {bpy.app.version_string}', 'etapes': []}
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
@@ -766,10 +826,10 @@ def main():
 
     # 1. surface HD
     log(f'surface HD (voxel {a.voxel * 1000:.2f} mm)…')
-    v, f, zone, part = sdf_baby.build(a.voxel)
+    v, f, zones, part = sdf_baby.build(a.voxel)
     high = mesh_object(f'{PREFIX}_HD', v, f)
     orient_outward(high)
-    m1, m2, m3 = vertex_masks(v, zone, part)
+    m1, m2, m3 = vertex_masks(v, zones, part)
     set_point_colors(high.data, 'm1', m1)
     set_point_colors(high.data, 'm2', m2)
     set_point_colors(high.data, 'm3', m3)
@@ -801,7 +861,17 @@ def main():
     # 2-3. maillage de jeu + UV
     tex_size = 256 if a.quick else a.tex
     low = make_low(high, a.tris)
-    unwrap(low)
+    # plus de pixels pour le visage et les mains (là où le regard se pose)
+    kd = mathutils.kdtree.KDTree(len(v))
+    for i, co in enumerate(v):
+        kd.insert(co, i)
+    kd.balance()
+    low_parts = np.array([part[kd.find(tuple(vv.co))[1]] for vv in low.data.vertices])
+    poids = np.ones(len(low_parts), np.float32)
+    poids[np.isin(low_parts, ('face', 'cheek', 'chin', 'nose', 'ala', 'nosebridge', 'upperlip', 'lipbow', 'lowerlip'))] = 1.6
+    poids[np.isin(low_parts, tuple(sdf_baby.HAND_PARTS))] = 1.8
+    poids[np.isin(low_parts, tuple(sdf_baby.FOOT_PARTS))] = 1.3
+    unwrap(low, poids=poids)
     report['etapes'].append({'maillage_jeu': {'sommets': len(low.data.vertices), 'triangles': len(low.data.polygons)}})
 
     # 4. cuissons
@@ -823,16 +893,18 @@ def main():
     AO = image_to_np(imgs['ao'])[..., 0]
     NRM = image_to_np(imgs['n'])[..., :3]
     T = dirs['textures']
-    save_png(NRM, os.path.join(T, f'{PREFIX}_corps_n.png'))
-    save_png(np.stack([M1[..., 0], M1[..., 1], M1[..., 2]], 2), os.path.join(T, 'masque_pyjama_rougeurs_levres.png'))
+    for tenue in TENUES:
+        save_png(detail_normal(NRM, M1, M3, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))
+    save_png(np.stack([M1[..., 0], M1[..., 1], M1[..., 2]], 2), os.path.join(T, 'masque_couche_rougeurs_levres.png'))
     save_png(np.stack([M2[..., 0], M2[..., 1], M2[..., 2]], 2), os.path.join(T, 'masque_sourcils_cils_cuir.png'))
     save_png(np.repeat(AO[..., None], 3, 2), os.path.join(T, 'occlusion.png'))
 
     textures = {'corps': {}, 'yeux': {}, 'cheveux': {}}
     for tname, tone in SKIN_TONES.items():
-        p = os.path.join(T, f'{PREFIX}_corps_{tname}.png')
-        save_png(compose_body(M1, M2, AO, tone), p)
-        textures['corps'][tname] = os.path.basename(p)
+        for tenue in TENUES:
+            p = os.path.join(T, f'{PREFIX}_corps_{tname}_{tenue}.png')
+            save_png(compose_body(M1, M2, M3, AO, tone, tenue), p)
+            textures['corps'][f'{tname}_{tenue}'] = os.path.basename(p)
     for ename, ecol in EYE_COLORS.items():
         p = os.path.join(T, f'{PREFIX}_yeux_{ename}.png')
         save_png(make_iris(ecol, 128 if a.quick else 256), p)
@@ -875,8 +947,8 @@ def main():
     log(f'coque des cheveux : {len(hair_me.polygons)} triangles')
 
     # matériaux d'aperçu (Blender) : corps peau3, yeux marron, cheveux touffe brun
-    body_mat, _ = preview_material('corps', os.path.join(T, textures['corps']['peau3']))
-    add_normal_map(body_mat, os.path.join(T, f'{PREFIX}_corps_n.png'))
+    body_mat, _ = preview_material('corps', os.path.join(T, textures['corps']['peau3_pyjama']))
+    add_normal_map(body_mat, os.path.join(T, f'{PREFIX}_corps_pyjama_n.png'))
     low.data.materials.clear()
     low.data.materials.append(body_mat)
     eye_mat, _ = preview_material('yeux', os.path.join(T, textures['yeux']['marron']))
@@ -969,6 +1041,7 @@ def main():
     report['poses'] = poses_info
     report['textures'] = textures
     report['teintes'] = {k: list(v) for k, v in SKIN_TONES.items()}
+    report['tenues'] = list(TENUES)
     report['yeux'] = {k: list(v) for k, v in EYE_COLORS.items()}
     report['cheveux'] = {'styles': list(HAIR_STYLES), 'couleurs': {k: list(v) for k, v in HAIR_COLORS.items()}}
     report['os'] = [b.name for b in arm.data.bones]

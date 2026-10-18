@@ -20,10 +20,13 @@ def _level_payload(img, fmt):
     return buf.getvalue()[128:]   # en-tête DDS standard de 128 octets (pas d'en-tête DX10 pour DXT1/5)
 
 
-def write_dds(src, dst, fmt='DXT1', min_size=4):
-    """src : chemin PNG ou image PIL · fmt : 'DXT1' (opaque) ou 'DXT5' (avec alpha). Renvoie le nombre de mips."""
+def write_dds(src, dst, fmt='DXT1', min_size=4, max_size=None):
+    """src : chemin PNG ou image PIL · fmt : 'DXT1' (opaque) ou 'DXT5' (avec alpha) ·
+    max_size : réduit l'image si elle est plus grande (mémoire du jeu). Renvoie le nombre de mips."""
     img = Image.open(src) if isinstance(src, str) else src
     img = img.convert('RGBA')
+    if max_size and max(img.size) > max_size:
+        img = img.resize((max_size, max_size), Image.LANCZOS)
     w, h = img.size
     assert w & (w - 1) == 0 and h & (h - 1) == 0, 'dimensions en puissance de 2 requises'
     levels = []

@@ -1,5 +1,6 @@
 // ElyConvert : CodeWalker XML -> binaires GTA V, puis relecture de contrôle de chaque fichier produit.
 // Usage : ElyConvert <dossier_xml> <dossier_sortie>
+//         ElyConvert --relire <dossier_sortie_xml> <fichier.ydr|fichier.ytd>...   (binaire du jeu -> XML, pour contrôle visuel)
 using System;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ static class Program
 {
     static int Main(string[] args)
     {
+        if (args.Length >= 3 && args[0] == "--relire") return Relire(args[1], args.Skip(2).ToArray());
         if (args.Length < 2) { Console.WriteLine("Usage : ElyConvert <dossier_xml> <dossier_sortie>"); return 2; }
         string inDir = Path.GetFullPath(args[0]), outDir = Path.GetFullPath(args[1]);
         Directory.CreateDirectory(outDir);
@@ -48,6 +50,39 @@ static class Program
             }
         }
         Console.WriteLine($"Terminé : {ok} fichier(s) converti(s), {fail} échec(s).");
+        return fail == 0 ? 0 : 1;
+    }
+
+    // Binaires du jeu (tels que FiveM les diffusera) -> XML CodeWalker + textures .dds, sans passer par les sources
+    static int Relire(string outDir, string[] files)
+    {
+        Directory.CreateDirectory(outDir);
+        int fail = 0;
+        foreach (var path in files)
+        {
+            string name = Path.GetFileName(path);
+            try
+            {
+                byte[] data = File.ReadAllBytes(path);
+                string xml;
+                if (name.EndsWith(".ydr"))
+                {
+                    var y = RpfFile.GetResourceFile<YdrFile>(data); y.Name = name;
+                    xml = YdrXml.GetXml(y, outDir);
+                }
+                else if (name.EndsWith(".ytd"))
+                {
+                    var t = RpfFile.GetResourceFile<YtdFile>(data); t.Name = name;
+                    string texDir = Path.Combine(outDir, Path.GetFileNameWithoutExtension(name));
+                    Directory.CreateDirectory(texDir);
+                    xml = YtdXml.GetXml(t, texDir);
+                }
+                else continue;
+                File.WriteAllText(Path.Combine(outDir, name + ".xml"), xml);
+                Console.WriteLine($"RELU  {name}");
+            }
+            catch (Exception ex) { Console.WriteLine($"ECHEC {name} : {ex.Message}"); fail++; }
+        }
         return fail == 0 ? 0 : 1;
     }
 

@@ -11,10 +11,10 @@ Sortie  : build/gta_xml/   fichiers CodeWalker XML :
 Choix techniques (expliqués dans README_BEBE.md) :
   · Le bébé est un OBJET (prop) attaché au parent ou posé (lit, poussette), pas un PNJ :
     un PNJ GTA exige le squelette humain complet du jeu et ses animations.
-  · Une pose = un modèle figé. Variantes : teinte de peau (corps), couleur des yeux (yeux),
+  · Une pose = un modèle figé. Variantes : teinte de peau × tenue (corps : couche ou pyjama), couleur des yeux (yeux),
     coiffure + couleur (cheveux). Les trois pièces d'une même pose ont la même origine :
     elles s'attachent l'une à l'autre avec un décalage nul (aucun réglage d'angle à deviner).
-  · Les textures sont dans un seul dictionnaire (.ytd) partagé par tous les modèles.
+  · Textures : deux dictionnaires (.ytd) partagés, corps (peau, tenues, reliefs) et yeux + cheveux.
 
 Lancement : python3 export_gta.py [--build ../build]
 """
@@ -32,7 +32,9 @@ sys.path.insert(0, HERE)
 from dds import write_dds  # noqa: E402
 
 PREFIX = 'ely_bebe'
-TXD = 'ely_bebe_txd'
+TXD = 'ely_bebe_txd'              # yeux + cheveux
+TXD_CORPS = 'ely_bebe_corps_txd'  # peau / tenues + reliefs (séparé : chaque .ytd reste sous 16 Mo)
+TAILLE = {'corps': 1024, 'relief': 2048, 'yeux': 256, 'cheveux': 512}
 LOD_DIST = 60.0
 
 
@@ -61,17 +63,21 @@ def main():
     # (vert inversé ; Sollumz inverse le vert quand il affiche une carte du jeu). On inverse donc le vert ici.
     from PIL import Image as _Img
     import numpy as _np
-    _n = _np.asarray(_Img.open(os.path.join(tex_dir, f'{PREFIX}_corps_n.png')).convert('RGBA')).copy()
-    _n[..., 1] = 255 - _n[..., 1]
-    _Img.fromarray(_n, 'RGBA').save(os.path.join(dds_dir, f'{PREFIX}_corps_n_gta.png'))
-    jobs = [(f'{PREFIX}_corps_n', os.path.join(dds_dir, f'{PREFIX}_corps_n_gta.png'), 'DXT1')]
-    jobs += [(os.path.splitext(f)[0], f, 'DXT1') for f in report['textures']['corps'].values()]
-    jobs += [(os.path.splitext(f)[0], f, 'DXT1') for f in report['textures']['yeux'].values()]
-    jobs += [(os.path.splitext(f)[0], f, 'DXT5') for f in report['textures']['cheveux'].values()]
-    for name, png, fmt in jobs:
+    jobs = []
+    for tenue in report['tenues']:
+        _n = _np.asarray(_Img.open(os.path.join(tex_dir, f'{PREFIX}_corps_{tenue}_n.png')).convert('RGBA')).copy()
+        _n[..., 1] = 255 - _n[..., 1]
+        _Img.fromarray(_n, 'RGBA').save(os.path.join(dds_dir, f'{PREFIX}_corps_{tenue}_n_gta.png'))
+        jobs.append((f'{PREFIX}_corps_{tenue}_n', os.path.join(dds_dir, f'{PREFIX}_corps_{tenue}_n_gta.png'), 'DXT1', 'relief'))
+    jobs += [(os.path.splitext(f)[0], f, 'DXT1', 'corps') for f in report['textures']['corps'].values()]
+    jobs += [(os.path.splitext(f)[0], f, 'DXT1', 'yeux') for f in report['textures']['yeux'].values()]
+    jobs += [(os.path.splitext(f)[0], f, 'DXT5', 'cheveux') for f in report['textures']['cheveux'].values()]
+    dico = {}
+    for name, png, fmt, groupe in jobs:
         p = os.path.join(dds_dir, name + '.dds')
-        n = write_dds(png if os.path.isabs(png) else os.path.join(tex_dir, png), p, fmt)
+        write_dds(png if os.path.isabs(png) else os.path.join(tex_dir, png), p, fmt, max_size=TAILLE[groupe])
         dds[name] = p
+        dico[name] = TXD_CORPS if groupe in ('corps', 'relief') else TXD
     log(f'{len(dds)} textures DDS (mipmaps compris)')
 
     # ── 2. Blender + Sollumz
@@ -112,8 +118,10 @@ def main():
 
     mats = {}
     for tone in report['teintes']:
-        mats[('corps', tone)] = material('normal.sps', {'DiffuseSampler': f'{PREFIX}_corps_{tone}',
-                                                        'BumpSampler': f'{PREFIX}_corps_n'}, f'corps_{tone}')
+        for tenue in report['tenues']:
+            mats[('corps', tone, tenue)] = material('normal.sps', {'DiffuseSampler': f'{PREFIX}_corps_{tone}_{tenue}',
+                                                                   'BumpSampler': f'{PREFIX}_corps_{tenue}_n'},
+                                                    f'corps_{tone}_{tenue}')
     for eye in report['yeux']:
         mats[('yeux', eye)] = material('default.sps', {'DiffuseSampler': f'{PREFIX}_yeux_{eye}'}, f'yeux_{eye}')
     for key in report['textures']['cheveux']:
@@ -164,7 +172,7 @@ def main():
         return d
 
     drawables = []
-    models = {'poses': {}, 'teintes': list(report['teintes']), 'yeux': list(report['yeux']),
+    models = {'poses': {}, 'teintes': list(report['teintes']), 'tenues': list(report['tenues']), 'yeux': list(report['yeux']),
               'cheveux': list(report['textures']['cheveux'])}
     for pose, info in report['poses'].items():
         objs = {n.split(f'{PREFIX}_{pose}_', 1)[1]: bpy.data.objects[n] for n in info['objets']}
@@ -172,9 +180,10 @@ def main():
         eyes = [objs['oeil_G'], objs['oeil_D']]
         entry = {'corps': {}, 'yeux': {}, 'cheveux': {}, 'boite': [info['min'], info['max']]}
         for tone in report['teintes']:
-            n = f'{PREFIX}_{pose}_{tone}'
-            drawables.append(variant([body], n, mats[('corps', tone)]))
-            entry['corps'][tone] = n
+            for tenue in report['tenues']:
+                n = f'{PREFIX}_{pose}_{tone}_{tenue}'
+                drawables.append(variant([body], n, mats[('corps', tone, tenue)]))
+                entry['corps'][f'{tone}_{tenue}'] = n
         for eye in report['yeux']:
             n = f'{PREFIX}_{pose}_yeux_{eye}'
             drawables.append(variant(eyes, n, mats[('yeux', eye)]))
@@ -204,7 +213,7 @@ def main():
     for arch in yt.archetypes:
         arch.lod_dist = LOD_DIST
         arch.hd_texture_dist = 15.0
-        arch.texture_dictionary = TXD
+        arch.texture_dictionary = TXD_CORPS if arch.name.endswith(tuple('_' + t for t in report['tenues'])) else TXD
     log(f'ytyp : {len(yt.archetypes)} archétypes')
 
     # ── 4. export CodeWalker XML (drawables + ytyp)
@@ -217,21 +226,24 @@ def main():
     from szio.gta5.textures import AssetTextureDictionary, EmbeddedTexture
     from szio.types import DataSource
     from PIL import Image
-    txd = AssetTextureDictionary()
-    txd_dir = os.path.join(out, TXD)
-    os.makedirs(txd_dir, exist_ok=True)
-    for name, path in dds.items():
-        w, h = Image.open(path).size
-        txd.textures[name] = EmbeddedTexture(name, w, h, DataSource.create(Path(path), name + '.dds'))
-        shutil.copy(path, os.path.join(txd_dir, name + '.dds'))
-    save_asset(txd, [AssetTarget(AssetFormat.CWXML, AssetVersion.GEN8)], Path(out), TXD)
+    for nom_dico in (TXD, TXD_CORPS):
+        txd = AssetTextureDictionary()
+        txd_dir = os.path.join(out, nom_dico)
+        os.makedirs(txd_dir, exist_ok=True)
+        for name, path in dds.items():
+            if dico[name] != nom_dico:
+                continue
+            w, h = Image.open(path).size
+            txd.textures[name] = EmbeddedTexture(name, w, h, DataSource.create(Path(path), name + '.dds'))
+            shutil.copy(path, os.path.join(txd_dir, name + '.dds'))
+        save_asset(txd, [AssetTarget(AssetFormat.CWXML, AssetVersion.GEN8)], Path(out), nom_dico)
 
     # ── 6. bilan
     files = sorted(os.listdir(out))
     ydr = [f for f in files if f.endswith('.ydr.xml')]
     log(f'fichiers : {len(ydr)} .ydr.xml, ytyp : {[f for f in files if f.endswith(".ytyp.xml")]}, '
         f'ytd : {[f for f in files if f.endswith(".ytd.xml")]}')
-    models['txd'] = TXD
+    models['txd'] = [TXD, TXD_CORPS]
     models['ytyp'] = PREFIX
     with open(os.path.join(out, 'modeles.json'), 'w', encoding='utf-8') as fh:
         json.dump(models, fh, ensure_ascii=False, indent=2)

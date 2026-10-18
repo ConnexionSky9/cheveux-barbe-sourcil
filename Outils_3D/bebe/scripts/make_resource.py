@@ -26,7 +26,8 @@ def main():
     res = os.path.abspath(a.ressource)
     stream = os.path.join(res, 'stream')
 
-    expected = [f"{m['ytyp']}.ytyp", f"{m['txd']}.ytd"]
+    dicos = m['txd'] if isinstance(m['txd'], list) else [m['txd']]
+    expected = [f"{m['ytyp']}.ytyp"] + [f'{d}.ytd' for d in dicos]
     for pose in m['poses'].values():
         for group in ('corps', 'yeux', 'cheveux'):
             expected += [f'{n}.ydr' for n in pose[group].values()]
@@ -37,7 +38,9 @@ def main():
          '--  Ne pas modifier à la main : relancer la chaîne de génération.',
          '-- =====================================================================',
          'BebeModeles = {',
+         f"    dictionnaires = {{ {', '.join(lua_str(d) for d in dicos)} }},",
          f"    teintes = {{ {', '.join(lua_str(t) for t in m['teintes'])} }},",
+         f"    tenues = {{ {', '.join(lua_str(t) for t in m.get('tenues', []))} }},",
          f"    yeux = {{ {', '.join(lua_str(t) for t in m['yeux'])} }},",
          f"    coiffures = {{ {', '.join(lua_str(t) for t in m['cheveux'])} }},",
          '    poses = {']
