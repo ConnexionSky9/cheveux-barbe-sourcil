@@ -82,7 +82,14 @@ Config.Interventions = {
     -- Objet d'inventaire « Pont roulant » (5 kg)
     -- Posé (utilisé) à côté d'un véhicule garé sur un point d'atelier ; H à côté du pont pour le reprendre
     liftItem = { name = 'pont_roulant', perm = 'workshop', range = 3.0, vehicleRange = 5.0, pickupKey = 74 },
-    underLiftScenarios = { 'PROP_HUMAN_MOVIE_BULB', 'WORLD_HUMAN_WELDING' },   -- debout sous le véhicule, bras levés
+    -- Sous le véhicule levé : debout, bras levés au-dessus de la tête, clé en main (le premier qui existe)
+    underLiftAnims = {
+        { 'amb@prop_human_movie_bulb@base', 'base', 1 },
+        { 'amb@prop_human_movie_bulb@idle_a', 'idle_b', 1 },
+    },
+    underLiftScenarios = { 'PROP_HUMAN_MOVIE_BULB' },   -- repli si aucune animation ci-dessus n'existe
+    settleSpeed = 1.2,        -- recalage fin sur le point de travail (m/s), après la marche
+    settleMax = 0.9,          -- au-delà de cette distance, pas de recalage (le trajet a échoué)
     walkMargin = 0.85,        -- distance gardée autour de la carrosserie quand le mécanicien fait le tour
     collisionPad = 0.3,
     jackHeight = 0.12,        -- roue changée sans pont : le véhicule se soulève légèrement au cric

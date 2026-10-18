@@ -349,7 +349,7 @@ end
 C.WsApplyPatch = function(veh, patch)
     W.applied = W.applied or {}
     for k, v in pairs(patch) do ents[veh].mods[k] = v end
-    W.applied[#W.applied + 1] = { t = TIME, patch = patch, lifted = ents[veh].pos.z - 30.5, hoodBroken = ents[veh].broken[4] == true, anim = ents[W.ped].anim, scenario = ents[W.ped].scenario }
+    W.applied[#W.applied + 1] = { t = TIME, patch = patch, lifted = ents[veh].pos.z - 30.5, hoodBroken = ents[veh].broken[4] == true, anim = ents[W.ped].anim, scenario = ents[W.ped].scenario, pedPos = ents[W.ped].pos, vehPos = ents[veh].pos, vehHeading = ents[veh].heading or 0.0 }
     if W.failKey and patch[W.failKey] ~= nil then return false end
     return true
 end
@@ -580,7 +580,14 @@ check(maxLift > 1.9, ('véhicule monté à hauteur d\'homme sur le pont (%.2f m)
 check(W.walkedUnder, 'le mécanicien est passé SOUS le véhicule')
 check(armsBeforeUp == true and armsWhenUp, 'les 4 bras du pont sont sous la voiture avant et pendant la montée')
 check(not (ents[W.veh].state and ents[W.veh].state.mecaLift), 'bras repliés à la fin')
-check(W.applied[1].scenario == 'PROP_HUMAN_MOVIE_BULB' and W.applied[1].lifted > 1.9, 'transmission posée debout sous la voiture, bras levés')
+check(W.applied[1].anim == 'amb@prop_human_movie_bulb@base/base' and W.applied[1].lifted > 1.9, ('transmission posée debout sous la voiture, bras levés au-dessus de la tête (%s)'):format(tostring(W.applied[1].anim)))
+do
+    local a = W.applied[1]
+    local h = math.rad(a.vehHeading)
+    local dx, dy = a.pedPos.x - a.vehPos.x, a.pedPos.y - a.vehPos.y
+    local lx = dx * math.cos(h) + dy * math.sin(h)
+    check(math.abs(lx) < 0.05, ('mécanicien pile dans l\'axe sous la voiture (écart %.2f m)'):format(lx))
+end
 check(W.applied[2].lifted < 0.6 and W.applied[2].lifted > 0.4, 'freins : véhicule redescendu à hauteur des roues')
 check(W.bumps == 0 and W.pedSnaps == 0, 'aucun contact avec la carrosserie, aucune téléportation')
 check(math.abs(ents[W.veh].pos.z - 30.5) < 0.001, 'véhicule redescendu au sol')

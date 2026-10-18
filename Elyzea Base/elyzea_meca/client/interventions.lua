@@ -296,6 +296,35 @@ local function WalkTo(pos, heading, fn, final)
     return #(GetEntityCoords(ped).xy - pos.xy) < 0.7
 end
 
+-- Recalage fin : la marche s'arrête à quelques dizaines de cm du point ; le mécanicien glisse
+-- doucement (pas à pas, jamais de saut) jusqu'au point exact et prend l'orientation exacte,
+-- pour que l'animation tombe pile sur la roue / le capot / le dessous de caisse.
+local function AngleLerp(a, b, t)
+    local d = ((b - a + 540.0) % 360.0) - 180.0
+    return (a + d * t) % 360.0
+end
+local function Settle(pos, heading, fn)
+    local ped = PlayerPedId()
+    local start = GetEntityCoords(ped)
+    local dist = #(start.xy - pos.xy)
+    if dist > (IC.settleMax or 0.9) then return true end   -- trop loin : on ne force rien
+    local h0 = GetEntityHeading(ped)
+    local ms = math.max(150, math.floor(dist / (IC.settleSpeed or 1.2) * 1000))
+    ClearPedTasks(ped)
+    local t0 = GetGameTimer()
+    while true do
+        if not Check() then return false end
+        local k = math.min(1.0, (GetGameTimer() - t0) / ms)
+        local z = GetEntityCoords(ped).z
+        SetEntityCoordsNoOffset(ped, start.x + (pos.x - start.x) * k, start.y + (pos.y - start.y) * k, z, false, false, false)
+        if heading then SetEntityHeading(ped, AngleLerp(h0, heading, k)) end
+        if fn then fn() end
+        if k >= 1.0 then break end
+        Wait(0)
+    end
+    return true
+end
+
 -- Se rendre à un point en faisant le tour du véhicule, puis s'orienter
 local function GoTo(pos, heading, fn)
     local ped = PlayerPedId()
@@ -312,6 +341,7 @@ local function GoTo(pos, heading, fn)
             if fn then fn() end
             Wait(0)
         end
+        if not Settle(pos, heading, fn) then return false end
     end
     return Check()
 end
@@ -360,6 +390,8 @@ end
 local function Scenario(name, pos, heading, ms, label, lines)
     local ped = PlayerPedId()
     local names = type(name) == 'table' and name or { name }
+    local here = GetEntityCoords(ped)
+    if #(here.xy - pos.xy) < 0.6 then pos = here end   -- déjà placé : le scénario démarre exactement là
     for i, n in ipairs(names) do
         TaskStartScenarioAtPosition(ped, n, pos.x, pos.y, pos.z, heading, 0, false, false)   -- jamais de téléportation
         local t = GetGameTimer() + 1500
@@ -604,7 +636,12 @@ local function UnderCar(lines, y, label, ms)
         if I.liftH < (I.liftTop or 0) - 0.05 and not LiftTo(I.liftTop, D('liftUp', 4000)) then return false end
         local p = Around(0.0, y)
         if not GoTo(p, I.base.heading) then return false end
-        return Scenario(IC.underLiftScenarios or { 'PROP_HUMAN_MOVIE_BULB', 'WORLD_HUMAN_WELDING' }, p, I.base.heading, ms, label, lines)
+        -- Bras levés, clé en main, comme s'il réparait le dessous de caisse au-dessus de sa tête
+        for _, spec in ipairs(IC.underLiftAnims or {}) do
+            if C.LoadDict(spec[1]) then return WithTool(spec, ms, label, PROPS.wrench, lines) end
+            Log(('animation absente : %s / %s'):format(spec[1], spec[2]))
+        end
+        return Scenario(IC.underLiftScenarios or { 'PROP_HUMAN_MOVIE_BULB' }, p, I.base.heading, ms, label, lines)
     end
     -- Le mécanicien se met dos au véhicule, puis s'allonge : la tête et le buste passent dessous
     local side = IC.underSide or 'left'
