@@ -175,15 +175,15 @@ add_player(2, 140.0, 100.0)
 add_player(3, 101.0, 100.0)
 
 # 1. création (staff)
-G.Cmd('bebe_creer', 1, L("{ 'peau4', 'bleu', 'touffe_roux' }"))
+G.Cmd('bebe_creer', 1, L("{ 'peau4', 'bleu', 'touffe_roux', 'couche' }"))
 bebes, _ = baby()
 bid = list(bebes.keys())[0]
 e = ents_of(bid)
 check('1. bébé créé : 3 pièces réseau', len(e) == 3 and G.CountEnts() == 3)
 check('1. pièces posées : figées, même position et même angle',
       all(W.ents[x].frozen for x in e.values()) and len({(W.ents[x].pos.x, W.ents[x].pos.y, W.ents[x].pos.z, W.ents[x].heading) for x in e.values()}) == 1)
-check('1. modèles = pose « allonge », teinte peau4, yeux bleus, cheveux touffe roux',
-      model_name(e['corps']) == 'ely_bebe_allonge_peau4' and model_name(e['yeux']) == 'ely_bebe_allonge_yeux_bleu'
+check('1. modèles = pose « allonge », teinte peau4, yeux bleus, cheveux touffe roux, couche',
+      model_name(e['corps']) == 'ely_bebe_allonge_peau4_couche' and model_name(e['yeux']) == 'ely_bebe_allonge_yeux_bleu'
       and model_name(e['cheveux']) == 'ely_bebe_allonge_chev_touffe_roux', [model_name(x) for x in e.values()])
 check('1. pièces identifiées pour les clients (state bag « bebe »)', all(W.ents[x].state['bebe'] == bid for x in e.values()))
 
@@ -196,7 +196,7 @@ G.Net('elyzea_bebe_modele:prendre', 1, bid, 'bras')
 b = baby()[0][bid]
 e = ents_of(bid)
 check('3. porté par le joueur 1', b.etat == 'porte' and b.porteur == 1 and baby()[1][1] == bid)
-check('3. anciennes pièces supprimées, 3 nouvelles (pose « porte »)', G.CountEnts() == 3 and model_name(e['corps']) == 'ely_bebe_porte_peau4')
+check('3. anciennes pièces supprimées, 3 nouvelles (pose « porte »)', G.CountEnts() == 3 and model_name(e['corps']) == 'ely_bebe_porte_peau4_couche')
 check('3. état réseau du joueur (state bag) = bébé porté', W.pstate[1]['bebePorte'].id == bid and W.pstate[1]['bebePorte'].mains is True)
 check('3. demande d\'attache envoyée au porteur seulement', G.LastClient('elyzea_bebe_modele:attacher', 1) and not G.LastClient('elyzea_bebe_modele:attacher', 3))
 G.ClientAttache(1)
@@ -219,7 +219,7 @@ check('5. porteur avec arme à feu : non concerné (pas de restriction ajoutée)
 # 6. changement de prise
 G.Net('elyzea_bebe_modele:mode', 1, 'face')
 e = ents_of(bid)
-check('6. prise « face » : modèles ventral, toujours 3 pièces', model_name(e['corps']) == 'ely_bebe_ventral_peau4' and G.CountEnts() == 3)
+check('6. prise « face » : modèles ventral, toujours 3 pièces', model_name(e['corps']) == 'ely_bebe_ventral_peau4_couche' and G.CountEnts() == 3)
 G.ClientAttache(1)
 before = dict(e)
 G.Net('elyzea_bebe_modele:mode', 1, 'portebebe')
@@ -232,7 +232,7 @@ G.Net('elyzea_bebe_modele:poser', 1, 'assis', L('vector3(130.0, 100.0, 30.0)'), 
 check('7. poser trop loin : refus', G.Notified(1, 'trop loin') and baby()[0][bid].etat == 'porte')
 G.Net('elyzea_bebe_modele:poser', 1, 'assis', L('vector3(100.6, 100.0, 30.0)'), 45)
 e = ents_of(bid)
-check('7. posé assis : figé à l\'endroit choisi', baby()[0][bid].etat == 'pose' and model_name(e['corps']) == 'ely_bebe_assis_peau4'
+check('7. posé assis : figé à l\'endroit choisi', baby()[0][bid].etat == 'pose' and model_name(e['corps']) == 'ely_bebe_assis_peau4_couche'
       and all(W.ents[x].frozen and abs(W.ents[x].pos.x - 100.6) < 1e-6 for x in e.values()))
 check('7. état du joueur effacé, client prévenu', W.pstate[1]['bebePorte'] is None and G.LastClient('elyzea_bebe_modele:lache', 1) is not None and not baby()[1][1])
 check('7. après la pose, le joueur peut frapper à nouveau', G.Damage(1, UNARMED) is False)
@@ -267,6 +267,17 @@ for _ in range(10):
 check('11. 10 demandes de prise : un seul portage, 3 pièces', baby()[0][bid].porteur == 1 and G.CountEnts() == 3)
 G.Net('elyzea_bebe_modele:prendre', 1, 'BB-FAUX', 'bras')
 check('11. identifiant inconnu ignoré', G.CountEnts() == 3)
+
+# 11 bis. tenue par défaut / inconnue
+G.Cmd('bebe_creer', 3, L("{ 'peau2', 'vert', 'chauve', 'smoking' }"))
+autre = [k for k in baby()[0] if k != bid][0]
+e2 = ents_of(autre)
+check('11 bis. tenue inconnue -> pyjama par défaut, sans cheveux (chauve)',
+      model_name(e2['corps']) == 'ely_bebe_allonge_peau2_pyjama' and 'cheveux' not in e2, [model_name(x) for x in e2.values()])
+G.Cmd('bebe_creer', 3, L("{ 'peau9', 'violet' }"))
+e3 = ents_of([k for k in baby()[0] if k not in (bid, autre)][0])
+check('11 bis. teinte et yeux inconnus -> valeurs par défaut',
+      model_name(e3['corps']) == 'ely_bebe_allonge_peau3_pyjama' and model_name(e3['yeux']) == 'ely_bebe_allonge_yeux_ardoise')
 
 # 12. arrêt de la ressource
 for h in W.handlers['onResourceStop'].values():

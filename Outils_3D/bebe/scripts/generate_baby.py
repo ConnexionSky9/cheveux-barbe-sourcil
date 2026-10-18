@@ -90,8 +90,8 @@ POSES = {
     'allonge': {
         'label': 'Allongé sur le dos (lit, berceau, tapis)',
         'bones': [
-            ('cuisse.S', 'X', -60), ('cuisse.S', 'ABD', 38), ('tibia.S', 'X', 85), ('pied.S', 'X', -15),
-            ('bras.S', 'ABD', 75), ('bras.S', 'X', -10), ('avantbras.S', 'FOLD', 100),
+            ('cuisse.S', 'X', -55), ('cuisse.S', 'ABD', 28), ('tibia.S', 'X', 80), ('pied.S', 'X', -15),
+            ('bras.S', 'ABD', 48), ('bras.S', 'X', -22), ('avantbras.S', 'FOLD', 100),
             ('tete', 'Z', 28),
         ],
         'root': [('X', -90)],
@@ -275,7 +275,14 @@ def vertex_masks(v, zones, part):
         red = red + (part == name) * w
     red = np.clip(red, 0, 1) * skin
 
-    lips = np.isin(part, ('upperlip', 'lowerlip', 'lipbow')).astype(np.float32) * skin
+    # lèvres : ellipse autour de la fente buccale (bord net mais doux), lèvre inférieure un peu plus pleine
+    zl = z - 0.3862
+    qx = x / 0.0082
+    qz = np.where(zl > 0, zl / 0.0034, zl / 0.0046)
+    lips = np.clip((1.0 - (qx * qx + qz * qz)) / 0.35, 0, 1) * (y < -0.043)
+    lips = lips.astype(np.float32) * skin
+    # intérieur de la bouche (fond de la fente) : assombri via le canal « cils » (même effet : peau plus sombre)
+    bouche = (np.abs(zl) < 0.0011) & (np.abs(x) < 0.0062) & (y > -0.0535) & (y < -0.040)
 
     # sourcils : arc très léger au-dessus de chaque œil
     zb = 0.4270 - 22.0 * (ax - 0.0205) ** 2
@@ -289,7 +296,7 @@ def vertex_masks(v, zones, part):
     upper = np.clip(0.15 + 0.85 * (q[:, 2] > -0.1), 0, 1)
     lash = np.exp(-((k - 1.10) / 0.14) ** 2) * upper
     crease = np.exp(-((k - 1.70) / 0.10) ** 2) * (q[:, 2] > 0.25) * 0.18
-    lash = np.clip(lash + crease, 0, 1).astype(np.float32) * skin
+    lash = np.clip(lash + crease + bouche * 0.9, 0, 1).astype(np.float32) * skin
 
     # cuir chevelu : au-dessus de la ligne d'implantation (front, tempes, nuque)
     head_parts = np.isin(part, ('cranium', 'occiput', 'face', 'cheek'))
@@ -383,10 +390,27 @@ def unwrap(obj, margin=0.006, poids=None):
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=margin, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
-    try:
+    bpy.ops.uv.pack_islands(margin=margin, rotate=True)
+    # dépliage automatique : certaines îles se replient sur elles-mêmes (doigts, plis) et deux zones du corps
+    # partageraient alors la même portion de texture. On repère ces faces et on les redéplie à part, jusqu'à 0.
+    ts = bpy.context.scene.tool_settings
+    sync = ts.use_uv_select_sync
+    ts.use_uv_select_sync = True
+    obj.data.update()
+    for essai in range(6):
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.uv.select_overlap()
+        bm = bmesh.from_edit_mesh(obj.data)
+        n = sum(f.select for f in bm.faces)
+        log(f'UV : {n} face(s) superposée(s) (passe {essai + 1})')
+        if n == 0:
+            break
+        bpy.ops.uv.smart_project(angle_limit=math.radians(30 - essai * 4), island_margin=margin, area_weight=0.0,
+                                 correct_aspect=True, scale_to_bounds=False)
+        bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.uv.pack_islands(margin=margin, rotate=True)
-    except Exception:  # noqa: BLE001
-        pass
+    unwrap.superposees = n
+    ts.use_uv_select_sync = sync
     bpy.ops.object.mode_set(mode='OBJECT')
     if orig is not None:
         obj.data.vertices.foreach_set('co', orig)
@@ -486,7 +510,9 @@ def compose_body(m1, m2, m3, ao, tone, tenue):
         # couche visible en transparence : légèrement plus claire sous le pyjama
         fabric = fabric * (1 + 0.04 * couche[..., None])
     col = skin * (1 - cloth[..., None]) + fabric * cloth[..., None]
-    occ = (0.70 + 0.30 * ao)[..., None] * (1 - cloth[..., None]) + (0.55 + 0.45 * ao)[..., None] * cloth[..., None]
+    # occlusion adoucie : un tissu épais ne suit pas les plis profonds de la peau (évite les traits noirs aux aines)
+    ao_tissu = np.maximum(blur(ao, 3.0), 0.45)
+    occ = (0.70 + 0.30 * ao)[..., None] * (1 - cloth[..., None]) + (0.78 + 0.22 * ao_tissu)[..., None] * cloth[..., None]
     return lin_to_srgb(col * occ)
 
 
@@ -495,7 +521,7 @@ def detail_normal(nrm, m1, m3, tenue, seed=5):
     H, W = nrm.shape[:2]
     couche, pyjama = m1[..., 0], m3[..., 1]
     cloth = couche if tenue == 'couche' else np.maximum(couche, pyjama)
-    h = (value_noise((H, W), 1.4, seed) - 0.5) * (1 - cloth) * 0.9 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 1.4
+    h = (value_noise((H, W), 3.0, seed) - 0.5) * (1 - cloth) * 0.18 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 1.2
     gy, gx = np.gradient(h)
     n = nrm * 2 - 1
     n[..., 0] -= gx * 0.6
@@ -515,11 +541,13 @@ def make_iris(color, size=256):
     fib = sum(np.cos(ang * f + rng.random() * 6.28) * w for f, w in ((17, 0.4), (31, 0.3), (53, 0.2), (97, 0.1)))
     radial = 0.85 + 0.25 * np.clip((r - 0.08) / 0.20, 0, 1) * (0.5 + 0.5 * fib)
     col = np.ones((size, size, 3), np.float32) * sclera
-    iris_mask = np.clip((0.300 - r) / 0.012, 0, 1)
-    ring = np.exp(-((r - 0.292) / 0.012) ** 2)
+    # blanc d'œil de nouveau-né : légèrement bleuté et ombré vers les coins (cachés par les paupières)
+    col = col * (1 - 0.55 * np.clip((r - 0.33) / 0.17, 0, 1))[..., None] * np.array((0.97, 0.98, 1.0), np.float32)
+    iris_mask = np.clip((0.335 - r) / 0.014, 0, 1)
+    ring = np.exp(-((r - 0.322) / 0.016) ** 2)
     icol = iris[None, None, :] * radial[..., None] * (1 - 0.6 * ring[..., None])
     col = col * (1 - iris_mask[..., None]) + icol * iris_mask[..., None]
-    pupil = np.clip((0.105 - r) / 0.010, 0, 1)
+    pupil = np.clip((0.115 - r) / 0.010, 0, 1)
     col = col * (1 - pupil[..., None]) + np.array((0.01, 0.01, 0.012)) * pupil[..., None]
     # reflet humide
     hl = np.exp(-(((dx + 0.07) ** 2 + (dz - 0.08) ** 2) / (2 * 0.018 ** 2)))
@@ -616,13 +644,15 @@ def skin_to_armature(arm, body, rigid_head_objs, high_v, high_part):
     V = np.array([tuple(v.co) for v in body.data.vertices], np.float32)
     parts = np.array([high_part[kd.find(tuple(co))[1]] for co in V])
     bones = {b.name: (np.array(b.head_local, np.float32), np.array(b.tail_local, np.float32)) for b in arm.data.bones}
-    groups = {name: body.vertex_groups.new(name=name) for name in bones}
-    counts = {}
+    noms = list(bones)
+    col = {n: j for j, n in enumerate(noms)}
+    W = np.zeros((len(V), len(noms)), np.float32)
+    tete = np.zeros(len(V), bool)
     for i, (co, part) in enumerate(zip(V, parts)):
         side = '.L' if co[0] >= 0 else '.R'
         if part in HEAD_PARTS:
-            groups['tete'].add([i], 1.0, 'REPLACE')
-            counts['tete'] = counts.get('tete', 0) + 1
+            W[i, col['tete']] = 1.0
+            tete[i] = True
             continue
         cand = [b.replace('.s', side) for b in PART_BONES.get(part, ['colonne'])]
         d = np.array([seg_dist(co[None, :], *bones[b])[0] for b in cand], np.float32)
@@ -631,9 +661,26 @@ def skin_to_armature(arm, body, rigid_head_objs, high_v, high_part):
         w[w < 0.03] = 0
         w /= w.sum()
         for b, wi in zip(cand, w):
-            if wi > 0:
-                groups[b].add([i], float(wi), 'REPLACE')
-        counts[cand[int(np.argmax(w))]] = counts.get(cand[int(np.argmax(w))], 0) + 1
+            W[i, col[b]] = wi
+    # lissage des poids sur le maillage : transitions progressives (aisselles, aines) au lieu de triangles étirés
+    # quand un membre bouge. La tête reste rigide (yeux et cheveux sont des pièces attachées au seul os « tete »).
+    E = np.array([e.vertices[:] for e in body.data.edges])
+    deg = np.bincount(E.ravel(), minlength=len(V)).astype(np.float32)[:, None]
+    for _ in range(6):
+        acc = np.zeros_like(W)
+        np.add.at(acc, E[:, 0], W[E[:, 1]])
+        np.add.at(acc, E[:, 1], W[E[:, 0]])
+        lisse = 0.5 * W + 0.5 * acc / np.maximum(deg, 1)
+        W = np.where(tete[:, None], W, lisse)
+    W[W < 0.02] = 0
+    W /= W.sum(1, keepdims=True)
+    groups = {name: body.vertex_groups.new(name=name) for name in noms}
+    counts = {}
+    for i in range(len(V)):
+        for j in np.nonzero(W[i])[0]:
+            groups[noms[j]].add([i], float(W[i, j]), 'REPLACE')
+        principal = noms[int(np.argmax(W[i]))]
+        counts[principal] = counts.get(principal, 0) + 1
     body.parent = arm
     mod = body.modifiers.new('squelette', 'ARMATURE')
     mod.object = arm
@@ -872,6 +919,7 @@ def main():
     poids[np.isin(low_parts, tuple(sdf_baby.HAND_PARTS))] = 1.8
     poids[np.isin(low_parts, tuple(sdf_baby.FOOT_PARTS))] = 1.3
     unwrap(low, poids=poids)
+    report['etapes'].append({'uv': {'faces_superposees': unwrap.superposees}})
     report['etapes'].append({'maillage_jeu': {'sommets': len(low.data.vertices), 'triangles': len(low.data.polygons)}})
 
     # 4. cuissons

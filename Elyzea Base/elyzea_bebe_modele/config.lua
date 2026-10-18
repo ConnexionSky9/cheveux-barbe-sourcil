@@ -7,7 +7,7 @@ Config = {}
 Config.Debug = false
 
 -- Apparence par défaut quand une valeur manque ou est inconnue
-Config.Defaut = { teinte = 'peau3', yeux = 'ardoise', coiffure = 'duvet_brun' }
+Config.Defaut = { teinte = 'peau3', tenue = 'pyjama', yeux = 'ardoise', coiffure = 'duvet_brun' }   -- tenue : 'pyjama' ou 'couche'
 
 -- ─────────────────────────── Portage (visible par tous les joueurs) ───────────────────────────
 -- Le bébé porté est attaché au personnage (pas à un os du bras) : il reste stable pendant l'animation.
@@ -55,10 +55,10 @@ Config.Commandes = {
 
 -- Commandes staff (permission ACE command.<nom> ; le groupe admin a déjà « command allow »)
 Config.Staff = {
-    creer = 'bebe_creer',        -- /bebe_creer [teinte] [yeux] [coiffure|chauve] : bébé posé devant soi, visible par tous
+    creer = 'bebe_creer',        -- /bebe_creer [teinte] [yeux] [coiffure|chauve] [pyjama|couche] : bébé posé devant soi, visible par tous
     supprimer = 'bebe_supprimer',-- supprime le bébé posé le plus proche (ou tous : /bebe_supprimer tous)
     ajuster = 'bebe_ajuster',    -- /bebe_ajuster x y z rx ry rz : règle la position du bébé porté (affiche les valeurs)
-    test = 'bebe_test',          -- aperçu LOCAL (visible par soi seul) : /bebe_test [pose] [teinte] [yeux] [coiffure]
+    test = 'bebe_test',          -- aperçu LOCAL (visible par soi seul) : /bebe_test [pose] [teinte] [yeux] [coiffure] [tenue]
     galerie = 'bebe_galerie',    -- aperçu LOCAL des 6 teintes : /bebe_galerie [pose]
     retirer = 'bebe_retirer',    -- supprime les aperçus locaux
 }

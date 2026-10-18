@@ -60,7 +60,7 @@ local function nomsModeles(b, pose)
     local M = BebeModeles.poses[pose]
     local a = b.apparence
     return {
-        corps = M.corps[a.teinte],
+        corps = M.corps[a.teinte .. '_' .. a.tenue],
         yeux = M.yeux[a.yeux],
         cheveux = a.coiffure ~= 'chauve' and M.cheveux[a.coiffure] or nil,
     }
@@ -159,7 +159,8 @@ local function apparencePropre(a)
     a = type(a) == 'table' and a or {}
     local function un(liste, v, def) for _, x in ipairs(liste) do if x == v then return v end end return def end
     local coiffure = a.coiffure == 'chauve' and 'chauve' or un(BebeModeles.coiffures, a.coiffure, Config.Defaut.coiffure)
-    return { teinte = un(BebeModeles.teintes, a.teinte, Config.Defaut.teinte), yeux = un(BebeModeles.yeux, a.yeux, Config.Defaut.yeux), coiffure = coiffure }
+    return { teinte = un(BebeModeles.teintes, a.teinte, Config.Defaut.teinte), tenue = un(BebeModeles.tenues, a.tenue, Config.Defaut.tenue),
+             yeux = un(BebeModeles.yeux, a.yeux, Config.Defaut.yeux), coiffure = coiffure }
 end
 
 function CreerBebe(apparence, coords, cap, opts)
@@ -375,7 +376,7 @@ end
 RegisterCommand(Config.Staff.creer, function(src, args)
     if src == 0 then return print('Commande à lancer en jeu.') end
     local c, cap = devant(src, 0.9)
-    local id = CreerBebe({ teinte = args[1], yeux = args[2], coiffure = args[3] }, c, cap + 90.0, { bucket = GetPlayerRoutingBucket(src) })
+    local id = CreerBebe({ teinte = args[1], yeux = args[2], coiffure = args[3], tenue = args[4] }, c, cap + 90.0, { bucket = GetPlayerRoutingBucket(src) })
     if id then
         notify(src, ('Bébé %s créé devant vous (visible par tous). ALT pour le prendre.'):format(id), 'success')
     else

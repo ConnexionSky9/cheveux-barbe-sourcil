@@ -25,7 +25,7 @@ CreateThread(function()
         if not LoadResourceFile(res, 'stream/' .. name) then manquants[#manquants + 1] = name end
     end
     check('ely_bebe.ytyp')
-    check('ely_bebe_txd.ytd')
+    for _, d in ipairs(BebeModeles.dictionnaires or { 'ely_bebe_txd' }) do check(d .. '.ytd') end
     for _, p in pairs(BebeModeles.poses) do
         for _, group in ipairs({ 'corps', 'yeux', 'cheveux' }) do
             for _, n in pairs(p[group]) do check(n .. '.ydr') end

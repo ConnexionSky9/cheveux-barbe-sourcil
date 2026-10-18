@@ -1,9 +1,9 @@
-# elyzea_famille — moment intime, contraception, conception, grossesse (version 0.2)
+# elyzea_famille — moment intime, contraception, conception, grossesse (version 0.3)
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
 > - règles de calcul : **51/51 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques sur 200 000 essais ;
-> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **52/52 contrôles** (`python3 tests/integration_test.py`) ;
-> - syntaxe Lua et JavaScript ; interfaces affichées dans Chromium.
+> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **71/71 contrôles** (`python3 tests/integration_test.py`), dont les réglages du menu admin ;
+> - syntaxe Lua et JavaScript ; interfaces affichées dans Chromium (dont l'onglet admin « Famille » : `docs/famille/captures/menu_admin_famille.png`).
 >
 > À tester en jeu : placement face à face, animation, fondu au noir, touche X, menu ALT.
 
@@ -40,9 +40,31 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
    ni à terre ni menottés, pas déjà occupés, **ne portant pas de bébé**, limite de demandes (3/min, 60 s entre deux demandes
    à la même personne) et **délai de 30 min** après un moment terminé (`delaiEntreMoments`).
 2. L'autre personne accepte → nouvelle vérification → préservatif retiré **une seule fois** s'il a été coché.
-3. Les deux personnages se placent face à face, étreinte (animation native GTA `mp_ped_interaction`), **fondu au noir** pendant 30 s.
+3. Les deux personnages se placent face à face, étreinte (animation native GTA `mp_ped_interaction`), **fondu au noir** pendant la durée réglée (15 s par défaut, modifiable dans le menu admin).
    Aucune image explicite : l'écran reste noir. Commandes bloquées sauf la voix et X.
 4. Fin (durée écoulée, X, déconnexion, ressource arrêtée, redémarrage) : chacun retrouve son état normal.
+
+## Réglages depuis le menu admin (F10 › Autres › Famille)
+Aucun second menu : un onglet **Famille** est ajouté au menu admin existant (`admin_menu`). Il n'apparaît qu'aux rangs ayant la permission
+**`famille_manage`** (donnée automatiquement au rang `superadmin` ; à cocher dans Administration › Rangs pour les autres).
+
+| Section | Réglages (bornes vérifiées par le serveur) |
+|---|---|
+| Durée | durée de l'écran noir (5–600 s, entre le minimum et le maximum), durée minimale et maximale autorisées, fondu (ms), étreinte visible avant le noir (ms) |
+| Annulation | tentative de conception si le moment est arrêté avant la fin (oui/non), part minimale du moment à atteindre |
+| Placement | distance entre les deux personnages, distance maximale pour proposer |
+| Conditions | expiration de la demande, attente entre deux demandes, demandes par minute, délai entre deux moments |
+| Risque de grossesse | probabilité volontaire, accidentelle (oui/non + valeur), jumeaux, triplés, durée de grossesse |
+| Contraception | fiabilité préservatif / pilule / implant, durée et fenêtre de renouvellement de la pilule, durée de l'implant |
+
+- **Enregistrer** : chaque valeur est revalidée par `elyzea_famille` (type, bornes, règles croisées : minimum ≤ durée ≤ maximum,
+  jumeaux + triplés ≤ 100 %, renouvellement ≤ durée de la pilule). Une seule valeur invalide = rien n'est enregistré, message précis.
+- Les valeurs sont stockées dans la table `rp_famille_reglages` et **réappliquées à chaque démarrage** ; `config.lua` n'est jamais modifié.
+- **Valeurs par défaut** : supprime les valeurs enregistrées et revient à `config.lua`.
+- **Moment déjà commencé** : il garde la durée et le fondu de son démarrage ; les nouveaux réglages valent pour les moments suivants.
+- La permission est vérifiée **deux fois côté serveur** (admin_menu, puis `elyzea_famille`) ; un appel sans permission est refusé
+  et journalisé (`rp_famille_logs`, action `suspect`). Chaque modification est journalisée (`reglages_enregistres`, `reglages_reinitialises`).
+- X arrête toujours un moment, pour les deux personnes : ce n'est pas un réglage.
 
 ## Contraception et conception (valeurs par défaut, `config.lua`)
 | Réglage | Défaut |
@@ -80,7 +102,9 @@ Pas encore fait : symptômes, tenues de grossesse, accouchement (module suivant)
 
 ## Fichiers modifiés ailleurs
 - `elyzea_inventory/shared/items.lua` : 4 objets ; `elyzea_inventory/html/img/` : 4 images (rendues dans Blender, `Outils_3D/icones`).
-- `admin_menu/config.lua` : rayon « Santé » de la supérette + préréglage de PNJ « Pharmacie ».
+- `admin_menu/config.lua` : rayon « Santé » de la supérette, préréglage de PNJ « Pharmacie », permission `famille_manage`.
+- `admin_menu/server/famille.lua` (nouveau), `admin_menu/html/famille.js` (nouveau), `admin_menu/fxmanifest.lua`, `admin_menu/html/index.html`
+  (chargement de l'onglet), `admin_menu/server/main.lua` (migration : `famille_manage` donnée au rang superadmin).
 - `elyzea_police/client/alt.lua` : fournisseurs `elyzea_famille` et `elyzea_bebe_modele` ; `elyzea_police/html/app.js` : 3 icônes.
 - `Serveur cfg/server.cfg` : `ensure elyzea_famille`.
 

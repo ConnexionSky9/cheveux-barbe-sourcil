@@ -35,10 +35,11 @@ local function Creer(pose, apparence, coords, cap)
     local P = M.poses[pose or '']
     if not P then return nil, ('pose inconnue : %s'):format(tostring(pose)) end
     apparence = apparence or {}
-    local teinte = pick(P.corps, apparence.teinte, Config.Defaut.teinte)
+    local teinte = P.corps[tostring(apparence.teinte) .. '_' .. Config.Defaut.tenue] and apparence.teinte or Config.Defaut.teinte
+    local tenue = P.corps[teinte .. '_' .. tostring(apparence.tenue)] and apparence.tenue or Config.Defaut.tenue
     local yeux = pick(P.yeux, apparence.yeux, Config.Defaut.yeux)
     local coiffure = apparence.coiffure == 'chauve' and 'chauve' or pick(P.cheveux, apparence.coiffure, Config.Defaut.coiffure)
-    local noms = { corps = P.corps[teinte], yeux = P.yeux[yeux] }
+    local noms = { corps = P.corps[teinte .. '_' .. tenue], yeux = P.yeux[yeux] }
     if coiffure ~= 'chauve' then noms.cheveux = P.cheveux[coiffure] end
     local hashes = {}
     for k, n in pairs(noms) do
@@ -47,7 +48,7 @@ local function Creer(pose, apparence, coords, cap)
         hashes[k] = h
     end
     coords = coords or GetEntityCoords(PlayerPedId())
-    local b = { pose = pose, apparence = { teinte = teinte, yeux = yeux, coiffure = coiffure } }
+    local b = { pose = pose, apparence = { teinte = teinte, tenue = tenue, yeux = yeux, coiffure = coiffure } }
     for _, k in ipairs({ 'corps', 'yeux', 'cheveux' }) do
         if hashes[k] then
             local o = CreateObjectNoOffset(hashes[k], coords.x, coords.y, coords.z, false, false, false)
@@ -104,20 +105,20 @@ RegisterNetEvent('elyzea_bebe_modele:test', function(action, args)
         local ped = PlayerPedId()
         for i, teinte in ipairs(M.teintes) do
             local off = GetOffsetFromEntityInWorldCoords(ped, (i - 3.5) * 0.45, 1.5, 0.0)
-            local b, err = Creer(pose, { teinte = teinte, yeux = M.yeux[((i - 1) % #M.yeux) + 1], coiffure = M.coiffures[i] }, vector3(off.x, off.y, base.z), cap + 180.0)
+            local b, err = Creer(pose, { teinte = teinte, tenue = M.tenues[((i - 1) % #M.tenues) + 1], yeux = M.yeux[((i - 1) % #M.yeux) + 1], coiffure = M.coiffures[i] }, vector3(off.x, off.y, base.z), cap + 180.0)
             if not b then return Notify(err, 'error') end
             tests[#tests + 1] = b
         end
-        return Notify(('Aperçu local : pose « %s », 6 teintes.'):format(pose), 'success')
+        return Notify(('Aperçu local : pose « %s », 6 teintes (pyjama / couche en alternance).'):format(pose), 'success')
     end
     ViderTests()
     local pose = args[1] or 'allonge'
     if not M.poses[pose] then return Notify('Poses : allonge, porte, assis, ventral', 'error') end
     local coords, cap = DevantMoi(1.2)
-    local b, err = Creer(pose, { teinte = args[2], yeux = args[3], coiffure = args[4] }, coords, cap + 180.0)
+    local b, err = Creer(pose, { teinte = args[2], yeux = args[3], coiffure = args[4], tenue = args[5] }, coords, cap + 180.0)
     if not b then return Notify(err, 'error') end
     tests[#tests + 1] = b
-    Notify(('Aperçu local : %s · %s · yeux %s · %s'):format(pose, b.apparence.teinte, b.apparence.yeux, b.apparence.coiffure), 'success')
+    Notify(('Aperçu local : %s · %s · %s · yeux %s · %s'):format(pose, b.apparence.teinte, b.apparence.tenue, b.apparence.yeux, b.apparence.coiffure), 'success')
 end)
 
 AddEventHandler('onResourceStop', function(res)

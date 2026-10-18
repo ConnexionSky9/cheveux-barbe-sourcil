@@ -67,6 +67,19 @@ def main():
     check('maillage du corps', body is not None and 5000 <= tris <= 20000, f'{tris} triangles')
     check('UV du corps', body is not None and len(body.data.uv_layers) >= 1)
     if body is not None:
+        # deux zones du corps ne doivent jamais partager la même portion de texture
+        for o in bpy.context.view_layer.objects:
+            o.select_set(False)
+        bpy.context.view_layer.objects.active = body
+        body.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.scene.tool_settings.use_uv_select_sync = True
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.uv.select_overlap()
+        n_over = sum(f.select for f in bmesh.from_edit_mesh(body.data).faces)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        check('UV du corps : aucune superposition', n_over == 0, f'{n_over} face(s) superposée(s)')
+    if body is not None:
         unweighted = sum(1 for v in body.data.vertices if not any(g.weight > 0 for g in v.groups))
         check('poids de déformation (tous les sommets)', unweighted == 0, f'{unweighted} sommet(s) sans poids')
 
@@ -82,9 +95,21 @@ def main():
         oe, vol = mesh_stats(body)
         check('corps : volume positif (normales vers l\'extérieur)', vol > 0, f'volume {vol * 1e3:.2f} L')
         check('corps : maillage fermé', oe == 0, f'{oe} arête(s) ouverte(s)')
+    def aretes_longues(ob, seuil=0.02):
+        me = ob.data
+        co = np.array([v.co[:] for v in me.vertices])
+        e = np.array([ed.vertices[:] for ed in me.edges])
+        return int((np.linalg.norm(co[e[:, 0]] - co[e[:, 1]], axis=1) > seuil).sum())
+
+    repos = aretes_longues(body) if body is not None else 0
     for pose, info in rep['poses'].items():
         objs = [bpy.data.objects.get(n) for n in info['objets']]
         check(f'pose {pose} : objets', all(objs), ', '.join(o.name for o in objs if o))
+        corps = bpy.data.objects.get(f'ely_bebe_{pose}_corps')
+        if corps is not None:
+            # peau étirée par la pose (aisselles, aines) : arêtes de plus de 2 cm, comparées au repos
+            n = aretes_longues(corps)
+            check(f'pose {pose} : peau peu étirée', n <= max(3 * repos, repos + 150), f'{n} arêtes > 2 cm (repos : {repos})')
     # .glb
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=os.path.join(src, 'bebe_elyzea_squelette.glb'))

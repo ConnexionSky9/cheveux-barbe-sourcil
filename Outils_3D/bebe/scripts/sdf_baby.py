@@ -111,7 +111,7 @@ SKELETON = {
 # Yeux : globe séparé (maillage « yeux », couleur d'iris interchangeable) logé dans l'orbite
 # Ouverture plus basse et plus étroite que l'œil : la peau recouvre le haut du globe comme une paupière
 EYE = {'center': (0.0195, -0.0398, 0.4165), 'radius': 0.0108,
-       'socket': (0.0195, -0.0512, 0.4152), 'socket_r': (0.0102, 0.0060, 0.0050)}
+       'socket': (0.0195, -0.0512, 0.4152), 'socket_r': (0.0102, 0.0060, 0.0055)}
 
 HEAD_PARTS = {'cranium', 'occiput', 'face', 'cheek', 'chin', 'jowl', 'nose', 'ala', 'nosebridge', 'upperlip', 'lipbow',
               'lowerlip', 'ear', 'lobe'}

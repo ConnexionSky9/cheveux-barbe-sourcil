@@ -1,10 +1,43 @@
-# Bébé Elyzea — modèle 3D original (version 2)
+# Bébé Elyzea — modèle 3D original (version 3)
 
 Modèle de nouveau-né **créé de A à Z par génération procédurale**, sans modèle acheté ni modélisation manuelle.
 Toute la chaîne (forme, maillage, UV, textures, squelette, poids, poses, conversion GTA V) est automatisée par les scripts de ce dossier.
 
 ![Poses](build/rendus/planche_poses.png)
 ![Variantes](build/rendus/galerie_variantes.png)
+![Tenues](build/rendus/galerie_tenues.png)
+
+## Version 3 (demande « bébés beaucoup plus réalistes »)
+
+> **Le niveau de l'image de référence (poupées « reborn » photographiées) n'est pas atteint.** Le modèle reste un modèle de jeu
+> généré par programme (16 000 triangles, textures 1024 px), sans sculpture à la main. Comparaison : `build/rendus/comparaison_v2_v3.png`.
+
+| Point demandé | Ce qui a été fait (régénéré, converti, contrôlé) |
+|---|---|
+| Mains | paumes, 4 doigts à 3 phalanges légèrement repliés, pouce à 2 segments, ongles, plis des poignets ; plus de pixels de texture pour les mains |
+| Pieds | talon, voûte, 5 orteils, ongles, plis des chevilles |
+| Corps potelé | ventre rond, nombril, cuisses et bras plus pleins, plis internes des cuisses |
+| Visage | joues plus rondes, nez petit (arête basse, ailes, narines), bouche de nouveau-né (lèvre supérieure en arc, lèvre inférieure pleine, intérieur sombre), menton ; orbites redessinées, iris plus grand, blanc de l'œil ombré dans les coins ; plus de pixels de texture pour le visage |
+| Peau | peau légèrement marbrée, rougeurs (joues, nez, mains, pieds, genoux, coudes, oreilles), lèvres, ongles ; micro-relief très léger |
+| Tenues | **nouveau** : `couche` (corps visible) ou `pyjama` (par défaut), pour les 6 teintes (même forme, textures différentes) |
+| Toutes les variantes | 4 poses × (6 teintes × 2 tenues + 5 yeux + 10 coiffures) = **108 modèles** |
+
+Défauts trouvés et corrigés pendant la V3 (constatés sur les rendus, pas supposés) :
+- **UV superposées** (905 faces partageaient la même zone de texture → morceaux de peau sur le pyjama, tache sur le menton) :
+  le dépliage repère maintenant ces faces et les redéplie jusqu'à 0 ; contrôle ajouté dans `validate.py`.
+- **Peau étirée dans la pose allongée** (bras levé : « membrane » entre le bras et le torse, couche étirée sur la cuisse), visible
+  uniquement en rendant **les fichiers du jeu** : poids de déformation lissés (la tête reste rigide), pose moins ouverte
+  (704 → 66 arêtes de plus de 2 cm) ; contrôle ajouté.
+- Traits noirs du pyjama aux aines (occlusion trop forte sur le tissu), relief de peau trop granuleux, masque des lèvres mal placé.
+
+Limites qui restent : expression encore figée (yeux un peu petits, regard fixe), cheveux en « coque » peinte (pas de mèches en relief),
+petites marques sombres aux aines dans certaines poses, nombril visible à travers le pyjama (même forme pour les deux tenues).
+
+**Rendu à partir des fichiers du jeu** (`scripts/rendu_jeu.py`, étape 7 de `construire.sh`) : les `.ydr` / `.ytd` du dossier `stream/`
+sont relus par CodeWalker (`convertisseur/relire.sh`), réimportés par Sollumz et rendus → `build/rendus/fichiers_du_jeu.png`.
+Cela vérifie le contenu exact de ce que FiveM chargera (forme, UV, textures compressées, carte de normales), **pas** le rendu du moteur de GTA V.
+
+![Fichiers du jeu](build/rendus/fichiers_du_jeu.png)
 
 ## Version 2 (ce qui a changé par rapport à la version 1)
 
@@ -24,18 +57,18 @@ Comparaison (rendus Blender, même éclairage) : `build/rendus/comparaison_v1_v2
 |---|---|---|
 | Forme du bébé (anatomie, 50 cm, proportions de nouveau-né) | `scripts/sdf_baby.py` | Exécuté |
 | Maillage source HD (≈ 518 000 triangles, recalculé à chaque génération) | — (non conservé, reproductible) | Exécuté |
-| Maillage de jeu : 11 000 triangles, fermé, normales vers l'extérieur | `build/source/bebe_elyzea.blend` | Exécuté, contrôlé |
+| Maillage de jeu : 16 000 triangles, fermé, normales vers l'extérieur, UV sans superposition | `build/source/bebe_elyzea.blend` | Exécuté, contrôlé |
 | UV automatiques | dans le `.blend` / `.glb` / `.fbx` | Exécuté |
 | Cartes cuites (Cycles) : normales, occlusion, masques | `build/textures/` | Exécuté |
-| Textures finales : 6 teintes de peau, 5 couleurs d'yeux, 2 coiffures × 5 couleurs | `build/textures/` | Exécuté |
+| Textures finales : 6 teintes × 2 tenues, 2 cartes de relief, 5 couleurs d'yeux, 2 coiffures × 5 couleurs | `build/textures/` | Exécuté |
 | Squelette 20 os (racine, bassin, colonne, poitrine, cou, tête, clavicules, bras, avant-bras, mains, cuisses, tibias, pieds) | `.blend`, `.glb`, `.fbx` | Exécuté, contrôlé |
 | Poids de déformation (100 % des sommets) | `.blend`, `.glb`, `.fbx` | Exécuté, contrôlé |
 | 4 poses : allongé, porté dans les bras, assis (poussette/siège-auto), porte-bébé ventral | actions dans le `.glb`, `.obj` figés dans `build/poses/` | Exécuté, contrôlé visuellement (rendus) |
-| Conversion GTA : 84 modèles `.ydr`, 1 dictionnaire de textures `.ytd` (22 textures DXT avec mipmaps), 1 `.ytyp` (84 archétypes) | `Elyzea Base/elyzea_bebe_modele/stream/` | **Converti et relu** par le lecteur de CodeWalker (sommets, triangles, textures, archétypes) |
+| Conversion GTA : 108 modèles `.ydr`, 2 dictionnaires `.ytd` (corps : 14 textures, 6,7 Mo ; yeux + cheveux : 15 textures), 1 `.ytyp` (108 archétypes) | `Elyzea Base/elyzea_bebe_modele/stream/` | **Converti et relu** par le lecteur de CodeWalker (111/111), puis rendu à partir des fichiers relus |
 | Ressource FiveM avec commandes de test | `Elyzea Base/elyzea_bebe_modele/` | Écrite, syntaxe Lua vérifiée |
 | **Affichage dans FiveM** | — | **NON TESTÉ** : aucun client GTA V / FiveM dans mon environnement |
 
-Contrôles automatiques : `python3 scripts/validate.py` → **20/20** (résultat dans `build/validation.json`).
+Contrôles automatiques : `python3 scripts/validate.py` → **26/26** (dont UV sans superposition, peau peu étirée par pose, fichiers < 16 Mo) (résultat dans `build/validation.json`).
 
 ## Choix techniques
 
@@ -47,15 +80,15 @@ Les scripts de bébé FiveM qui marchent utilisent donc des objets attachés au 
 pose est un modèle statique. Changer de pose = remplacer le modèle (instantané, invisible pour le joueur).
 
 **Variantes sans explosion du nombre de fichiers.** Une pose = 3 pièces qui partagent la même origine :
-- corps : 6 teintes de peau (le pyjama blanc cassé fait partie du corps) ;
+- corps : 6 teintes de peau × 2 tenues (couche ou pyjama blanc cassé, peints sur le corps) ;
 - yeux : 5 couleurs (globes séparés) ;
 - cheveux : 10 variantes (coque de cheveux à alpha découpé), ou « chauve » (aucune pièce).
 
 Les yeux et les cheveux s'attachent au corps **avec un décalage nul** : aucun angle à deviner, aucun risque de décalage.
-4 poses × (6 + 5 + 10) = **84 modèles**, tous dans un seul dictionnaire de textures (≈ 12 Mo au total).
+4 poses × (12 + 5 + 10) = **108 modèles**, deux dictionnaires de textures (chacun sous la limite de 16 Mo de FiveM).
 
 **Héritage génétique (module suivant).** Le modèle ne contient aucune règle génétique : l'apparence d'un enfant est un simple trio
-`{ teinte, yeux, coiffure }` enregistré à la naissance. Les règles de transmission seront dans la ressource famille.
+`{ teinte, tenue, yeux, coiffure }` enregistré à la naissance. Les règles de transmission seront dans la ressource famille.
 
 ## Arborescence
 
@@ -66,18 +99,19 @@ Outils_3D/bebe/
 │   ├── sdf_baby.py          anatomie (fonction de distance signée) + extraction de surface
 │   ├── generate_baby.py     Blender : maillage, UV, cuissons, textures, squelette, poids, poses, exports, rendus
 │   ├── dds.py               textures DDS DXT1/DXT5 avec mipmaps
-│   ├── export_gta.py        Blender + Sollumz : 84 drawables, ytyp, ytd -> CodeWalker XML
+│   ├── export_gta.py        Blender + Sollumz : 108 drawables, ytyp, 2 ytd -> CodeWalker XML
 │   ├── make_resource.py     shared/modeles.lua de la ressource FiveM
 │   ├── validate.py          contrôles automatiques
-│   └── render_galerie.py    planches de rendu
-├── convertisseur/           ElyConvert (C#, CodeWalker.Core) : XML -> .ydr/.ytd/.ytyp + relecture de contrôle
+│   ├── render_galerie.py    planches de rendu (teintes, tenues, poses)
+│   └── rendu_jeu.py         rendu à partir des fichiers du jeu relus
+├── convertisseur/           ElyConvert (C#, CodeWalker.Core) : XML -> .ydr/.ytd/.ytyp + relecture ; relire.sh : binaire -> XML
 └── build/
     ├── source/              bebe_elyzea.blend, bebe_elyzea_squelette.glb / .fbx
     ├── poses/               4 poses figées en .obj (+ .mtl)
-    ├── textures/            PNG : corps (6 teintes), normales, yeux (5), cheveux (10), masques, occlusion
+    ├── textures/            PNG : corps (6 teintes × 2 tenues), reliefs (2), yeux (5), cheveux (10), masques, occlusion
     ├── rendus/              rendus de contrôle Cycles
     ├── rapport_generation.json, validation.json
-    └── (gta_xml/, dds/ : intermédiaires régénérés, non versionnés)
+    └── (gta_xml/, dds/, relu/ : intermédiaires régénérés, non versionnés)
 ```
 
 ## Régénérer ou modifier le modèle
@@ -85,7 +119,7 @@ Outils_3D/bebe/
 1. Python 3.13 : `pip install bpy==5.2.* numpy pillow scikit-image szio==1.3.0.dev9`
 2. Sollumz v2.9.0 (extension Blender, GPL) : `git clone --depth 1 --branch v2.9.0 https://github.com/Sollumz/Sollumz.git ~/.config/blender/5.2/scripts/addons/sollumz`
 3. .NET 8 SDK et git (le convertisseur clone CodeWalker tout seul).
-4. `./construire.sh` (≈ 5 minutes sur 4 cœurs).
+4. `./construire.sh` (≈ 25 minutes sur 4 cœurs, dont 8 pour le modèle).
 
 Pour ajouter une teinte, une couleur d'yeux ou de cheveux : ajouter une ligne dans `SKIN_TONES`, `EYE_COLORS` ou `HAIR_COLORS`
 (`generate_baby.py`) puis relancer `construire.sh`. Pour une nouvelle pose : ajouter une entrée dans `POSES` (rotations des os en degrés).

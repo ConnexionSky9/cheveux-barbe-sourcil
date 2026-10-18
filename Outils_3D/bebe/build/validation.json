@@ -4,17 +4,17 @@
     {
       "controle": "fichier bebe_elyzea.blend",
       "ok": true,
-      "detail": "1527 Ko"
+      "detail": "2686 Ko"
     },
     {
       "controle": "fichier bebe_elyzea_squelette.glb",
       "ok": true,
-      "detail": "2273 Ko"
+      "detail": "9281 Ko"
     },
     {
       "controle": "fichier bebe_elyzea_squelette.fbx",
       "ok": true,
-      "detail": "585 Ko"
+      "detail": "799 Ko"
     },
     {
       "controle": "pose allonge (.obj)",
@@ -39,7 +39,7 @@
     {
       "controle": "textures (présentes, puissance de 2)",
       "ok": true,
-      "detail": "22 fichiers"
+      "detail": "29 fichiers"
     },
     {
       "controle": "squelette",
@@ -49,12 +49,17 @@
     {
       "controle": "maillage du corps",
       "ok": true,
-      "detail": "11000 triangles"
+      "detail": "16000 triangles"
     },
     {
       "controle": "UV du corps",
       "ok": true,
       "detail": ""
+    },
+    {
+      "controle": "UV du corps : aucune superposition",
+      "ok": true,
+      "detail": "0 face(s) superposée(s)"
     },
     {
       "controle": "poids de déformation (tous les sommets)",
@@ -64,7 +69,7 @@
     {
       "controle": "corps : volume positif (normales vers l'extérieur)",
       "ok": true,
-      "detail": "volume 4.19 L"
+      "detail": "volume 4.12 L"
     },
     {
       "controle": "corps : maillage fermé",
@@ -77,9 +82,19 @@
       "detail": "ely_bebe_allonge_corps, ely_bebe_allonge_cheveux, ely_bebe_allonge_oeil_G, ely_bebe_allonge_oeil_D"
     },
     {
+      "controle": "pose allonge : peau peu étirée",
+      "ok": true,
+      "detail": "66 arêtes > 2 cm (repos : 35)"
+    },
+    {
       "controle": "pose porte : objets",
       "ok": true,
       "detail": "ely_bebe_porte_corps, ely_bebe_porte_cheveux, ely_bebe_porte_oeil_G, ely_bebe_porte_oeil_D"
+    },
+    {
+      "controle": "pose porte : peau peu étirée",
+      "ok": true,
+      "detail": "111 arêtes > 2 cm (repos : 35)"
     },
     {
       "controle": "pose assis : objets",
@@ -87,9 +102,19 @@
       "detail": "ely_bebe_assis_corps, ely_bebe_assis_cheveux, ely_bebe_assis_oeil_G, ely_bebe_assis_oeil_D"
     },
     {
+      "controle": "pose assis : peau peu étirée",
+      "ok": true,
+      "detail": "91 arêtes > 2 cm (repos : 35)"
+    },
+    {
       "controle": "pose ventral : objets",
       "ok": true,
       "detail": "ely_bebe_ventral_corps, ely_bebe_ventral_cheveux, ely_bebe_ventral_oeil_G, ely_bebe_ventral_oeil_D"
+    },
+    {
+      "controle": "pose ventral : peau peu étirée",
+      "ok": true,
+      "detail": "138 arêtes > 2 cm (repos : 35)"
     },
     {
       "controle": ".glb réimporté",
@@ -99,7 +124,12 @@
     {
       "controle": "ressource FiveM : fichiers binaires",
       "ok": true,
-      "detail": "86/86 dans stream/"
+      "detail": "111/111 dans stream/"
+    },
+    {
+      "controle": "ressource FiveM : chaque fichier < 16 Mo",
+      "ok": true,
+      "detail": "le plus gros : ely_bebe_corps_txd.ytd 6.7 Mo"
     }
   ]
 }

@@ -36,6 +36,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--build', default=os.path.join(HERE, '..', 'build'))
     ap.add_argument('--stream', default=STREAM)
+    ap.add_argument('--depuis-xml', action='store_true', help='diagnostic : rendre le XML exporté par Sollumz (avant conversion)')
     a = ap.parse_args(argv)
     build, stream = os.path.abspath(a.build), os.path.abspath(a.stream)
     relu = os.path.join(build, 'relu')
@@ -49,7 +50,10 @@ def main():
             noms.add(f'ely_bebe_{pose}_chev_{chev}')
     fichiers = [os.path.join(stream, n + '.ydr') for n in sorted(noms)]
     fichiers += [os.path.join(stream, f) for f in sorted(os.listdir(stream)) if f.endswith('.ytd')]
-    subprocess.run([os.path.join(HERE, '..', 'convertisseur', 'relire.sh'), relu, *fichiers], check=True)
+    if a.depuis_xml:
+        relu = os.path.join(build, 'gta_xml')
+    else:
+        subprocess.run([os.path.join(HERE, '..', 'convertisseur', 'relire.sh'), relu, *fichiers], check=True)
 
     # textures relues : <relu>/<dictionnaire>/<nom>.dds
     dds = {}
@@ -105,7 +109,11 @@ def main():
                         continue
                     nom = (node.image.name if node.image else node.name).split('.')[0].lower()
                     if nom in dds:
+                        espace = node.image.colorspace_settings.name if node.image else None
                         node.image = bpy.data.images.load(dds[nom], check_existing=True)
+                        # carte de normales : données brutes (pas de correction gamma), comme dans le jeu
+                        if espace == 'Non-Color' or nom.endswith('_n'):
+                            node.image.colorspace_settings.name = 'Non-Color'
                     elif node.image is None or not node.image.has_data:
                         manquantes.add(nom)
         meshes = [o for o in objs if o.type == 'MESH']
@@ -130,11 +138,16 @@ def main():
     S = 600
     planche = Image.new('RGB', (S * len(tuiles), S + 34), 'white')
     dr = ImageDraw.Draw(planche)
+    try:
+        from PIL import ImageFont
+        police = ImageFont.truetype('DejaVuSans.ttf', 18)
+    except OSError:
+        police = None
     for i, (p, titre) in enumerate(tuiles):
         planche.paste(Image.open(p).convert('RGB'), (i * S, 34))
-        dr.text((i * S + 10, 10), titre, fill=(20, 20, 20))
+        dr.text((i * S + 10, 8), titre, fill=(20, 20, 20), font=police)
         os.remove(p)
-    sortie = os.path.join(rendus, 'fichiers_du_jeu.png')
+    sortie = os.path.join(rendus, 'export_xml.png' if a.depuis_xml else 'fichiers_du_jeu.png')
     planche.save(sortie)
     print(f'[jeu] {sortie} écrit' + (f' — textures introuvables : {sorted(manquantes)}' if manquantes else ' — toutes les textures trouvées'))
 

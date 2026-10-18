@@ -1,43 +1,48 @@
 {
-  "version": 1,
+  "version": 3,
   "outil": "Blender 5.2.2 LTS",
   "etapes": [
     {
       "surface_hd": {
-        "sommets": 259146,
-        "triangles": 518288
+        "sommets": 390978,
+        "triangles": 781964
+      }
+    },
+    {
+      "uv": {
+        "faces_superposees": 0
       }
     },
     {
       "maillage_jeu": {
-        "sommets": 5502,
-        "triangles": 11000
+        "sommets": 7996,
+        "triangles": 16000
       }
     },
     {
       "squelette": {
         "os": 20,
         "sommets_par_os": {
-          "main.R": 222,
-          "avantbras.R": 199,
-          "bras.R": 189,
-          "clavicule.R": 196,
-          "cuisse.R": 361,
-          "bassin": 248,
-          "colonne": 220,
-          "tete": 1352,
-          "tibia.R": 202,
-          "pied.R": 316,
-          "cou": 216,
-          "poitrine": 38,
-          "racine": 94,
-          "cuisse.L": 346,
-          "clavicule.L": 193,
-          "tibia.L": 208,
-          "pied.L": 299,
-          "bras.L": 196,
-          "avantbras.L": 192,
-          "main.L": 215
+          "main.R": 421,
+          "avantbras.R": 257,
+          "bras.R": 293,
+          "clavicule.R": 231,
+          "cuisse.R": 519,
+          "bassin": 431,
+          "colonne": 359,
+          "tete": 1979,
+          "tibia.R": 262,
+          "pied.R": 481,
+          "cou": 157,
+          "poitrine": 60,
+          "racine": 125,
+          "cuisse.L": 494,
+          "clavicule.L": 219,
+          "tibia.L": 259,
+          "pied.L": 461,
+          "bras.L": 295,
+          "avantbras.L": 266,
+          "main.L": 427
         }
       }
     }
@@ -47,14 +52,14 @@
       "label": "Allongé sur le dos (lit, berceau, tapis)",
       "origine": "floor",
       "min": [
-        -0.1373,
-        -0.1334,
+        -0.1548,
+        -0.1412,
         0.0
       ],
       "max": [
-        0.1371,
-        0.3044,
-        0.167
+        0.1547,
+        0.3047,
+        0.1685
       ],
       "objets": [
         "ely_bebe_allonge_corps",
@@ -67,14 +72,14 @@
       "label": "Porté dans les bras (berceau des bras)",
       "origine": "pelvis",
       "min": [
-        -0.1134,
-        -0.1131,
-        -0.0495
+        -0.1115,
+        -0.1138,
+        -0.0494
       ],
       "max": [
-        0.1138,
-        0.301,
-        0.1119
+        0.1115,
+        0.3017,
+        0.112
       ],
       "objets": [
         "ely_bebe_porte_corps",
@@ -87,14 +92,14 @@
       "label": "Assis incliné (poussette, siège-auto, transat)",
       "origine": "seat",
       "min": [
-        -0.1439,
-        -0.1683,
+        -0.1377,
+        -0.1684,
         0.0
       ],
       "max": [
-        0.1438,
-        0.17,
-        0.3311
+        0.1377,
+        0.1752,
+        0.3329
       ],
       "objets": [
         "ely_bebe_assis_corps",
@@ -107,14 +112,14 @@
       "label": "Porte-bébé ventral (face au parent, position en M)",
       "origine": "pelvis",
       "min": [
-        -0.1373,
-        -0.142,
-        -0.0914
+        -0.1317,
+        -0.1487,
+        -0.092
       ],
       "max": [
-        0.1374,
-        0.0496,
-        0.3001
+        0.1318,
+        0.0483,
+        0.3011
       ],
       "objets": [
         "ely_bebe_ventral_corps",
@@ -126,12 +131,18 @@
   },
   "textures": {
     "corps": {
-      "peau1": "ely_bebe_corps_peau1.png",
-      "peau2": "ely_bebe_corps_peau2.png",
-      "peau3": "ely_bebe_corps_peau3.png",
-      "peau4": "ely_bebe_corps_peau4.png",
-      "peau5": "ely_bebe_corps_peau5.png",
-      "peau6": "ely_bebe_corps_peau6.png"
+      "peau1_couche": "ely_bebe_corps_peau1_couche.png",
+      "peau1_pyjama": "ely_bebe_corps_peau1_pyjama.png",
+      "peau2_couche": "ely_bebe_corps_peau2_couche.png",
+      "peau2_pyjama": "ely_bebe_corps_peau2_pyjama.png",
+      "peau3_couche": "ely_bebe_corps_peau3_couche.png",
+      "peau3_pyjama": "ely_bebe_corps_peau3_pyjama.png",
+      "peau4_couche": "ely_bebe_corps_peau4_couche.png",
+      "peau4_pyjama": "ely_bebe_corps_peau4_pyjama.png",
+      "peau5_couche": "ely_bebe_corps_peau5_couche.png",
+      "peau5_pyjama": "ely_bebe_corps_peau5_pyjama.png",
+      "peau6_couche": "ely_bebe_corps_peau6_couche.png",
+      "peau6_pyjama": "ely_bebe_corps_peau6_pyjama.png"
     },
     "yeux": {
       "ardoise": "ely_bebe_yeux_ardoise.png",
@@ -185,6 +196,10 @@
       41
     ]
   },
+  "tenues": [
+    "couche",
+    "pyjama"
+  ],
   "yeux": {
     "ardoise": [
       88,
@@ -267,5 +282,5 @@
     "tibia.R",
     "pied.R"
   ],
-  "duree_s": 200.9
+  "duree_s": 445.2
 }

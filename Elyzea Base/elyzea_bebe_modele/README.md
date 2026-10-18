@@ -1,7 +1,8 @@
 # elyzea_bebe_modele — bébé 3D, portage visible par tous
 
-> **Non testé en jeu.** Vérifié hors du jeu : fichiers du jeu produits et relus par la bibliothèque de CodeWalker (86/86),
-> contrôles du modèle (20/20), code serveur du portage exécuté avec FiveM simulé (31/31 contrôles), syntaxe Lua.
+> **Non testé en jeu.** Vérifié hors du jeu : fichiers du jeu produits et relus par la bibliothèque de CodeWalker (111/111),
+> rendus faits à partir de ces fichiers relus, contrôles du modèle (26/26), code serveur du portage exécuté avec FiveM simulé
+> (33/33 contrôles), syntaxe Lua.
 > Les tests à deux joueurs ci-dessous restent à faire sur ton serveur.
 
 Sources et fabrication du modèle : `Outils_3D/bebe/README_BEBE.md`.
@@ -9,7 +10,7 @@ Sources et fabrication du modèle : `Outils_3D/bebe/README_BEBE.md`.
 ## Installation
 1. Dossier `elyzea_bebe_modele` dans `Elyzea Base` ; `server.cfg` : `ensure elyzea_bebe_modele`.
 2. **OneSync obligatoire** (standard avec txAdmin) : le bébé est un objet réseau créé par le serveur.
-3. Console : `[elyzea_bebe_modele] Prêt : 86 fichiers de modèle présents.`
+3. Console : `[elyzea_bebe_modele] Prêt : 111 fichiers de modèle présents.`
 
 ## Utilisation
 | Action | Comment |
@@ -17,12 +18,12 @@ Sources et fabrication du modèle : `Outils_3D/bebe/README_BEBE.md`.
 | Prendre un bébé posé | **ALT** près du bébé › *Prendre · Dans les bras / Face à moi / Porte-bébé* (ou `/bebe_prendre [bras\|face\|portebebe]`) |
 | Changer de prise | **ALT** (le bébé porté est proposé) › *Prise : …* (ou `/bebe_mode …`) |
 | Poser | **ALT** › *Poser allongé* / *Poser assis* (ou `/bebe_poser [allonge\|assis]`), 65 cm devant soi, au sol |
-| Staff : créer un bébé (visible par tous) | `/bebe_creer [teinte] [yeux] [coiffure\|chauve]` |
+| Staff : créer un bébé (visible par tous) | `/bebe_creer [teinte] [yeux] [coiffure\|chauve] [pyjama\|couche]` |
 | Staff : supprimer | `/bebe_supprimer` (le plus proche) · `/bebe_supprimer tous` |
 | Staff : régler la position portée | `/bebe_ajuster x y z rx ry rz` (valeurs à recopier dans `Config.Portage.modes`, affichées en F8) |
-| Staff : aperçus locaux (visibles par soi seul) | `/bebe_test`, `/bebe_galerie [pose]`, `/bebe_retirer` |
+| Staff : aperçus locaux (visibles par soi seul) | `/bebe_test [pose] [teinte] [yeux] [coiffure] [tenue]`, `/bebe_galerie [pose]`, `/bebe_retirer` |
 
-Teintes `peau1` (claire) … `peau6` (foncée) · yeux `ardoise`, `bleu`, `vert`, `noisette`, `marron` ·
+Teintes `peau1` (claire) … `peau6` (foncée) · tenues `pyjama` (par défaut) ou `couche` · yeux `ardoise`, `bleu`, `vert`, `noisette`, `marron` ·
 coiffures `duvet_` / `touffe_` + `blond|chatain|brun|noir|roux`, ou `chauve`.
 
 ## Fonctionnement réseau
@@ -45,7 +46,7 @@ coiffures `duvet_` / `touffe_` + `blond|chatain|brun|noir|roux`, ou `chauve`.
   à partir de l'état envoyé par le serveur ; rien ne reste coincé.
 
 ## Exports
-Serveur : `CreerBebe(apparence, coords, cap, { responsables, bucket, pose })` → id · `SupprimerBebe(id)` · `EtatBebe(id)` · `BebePortePar(src)`.
+Serveur : `CreerBebe(apparence, coords, cap, { responsables, bucket, pose })` → id (`apparence` = `{ teinte, tenue, yeux, coiffure }`, valeur inconnue = valeur par défaut de `Config.Defaut`) · `SupprimerBebe(id)` · `EtatBebe(id)` · `BebePortePar(src)`.
 Client (aperçus locaux) : `Creer`, `Supprimer`, `Poses`. Menu ALT : `AltTarget`, `AltNearby`, `AltOptions`, `AltSelect`.
 
 ## Tests à faire en jeu (deux joueurs, A et B)
@@ -57,6 +58,8 @@ Client (aperçus locaux) : `Creer`, `Supprimer`, `Poses`. Menu ALT : `AltTarget`
 6. Prises bras / face / porte-bébé : régler les positions avec `/bebe_ajuster` si le bébé traverse le personnage.
 
 ## Limites connues
+- Rendu réel dans GTA V non vérifié (éclairage du moteur, distance d'affichage, transparence des cheveux) : à contrôler avec `/bebe_galerie`.
+- Les poses sont des modèles figés obtenus en pliant le corps : la peau des aisselles et des aines reste un peu étirée dans les poses les plus ouvertes.
 - Positions des prises : valeurs de départ, à ajuster une fois en jeu (`/bebe_ajuster`).
 - Animation de portage : animation native GTA (porter un carton), la plus proche disponible sans fichier d'animation sur mesure.
 - Les bébés n'existent pas encore « tout seuls » : ils sont créés par le staff (`/bebe_creer`) ou par l'export `CreerBebe`,
