@@ -146,6 +146,7 @@ CreateThread(function()
     while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
     Wait(3000)
     scanPool()
+    TriggerServerEvent('elyzea_eau:report', { natives = Live.natives, pool = #Live.pool, total = Live.total or 0 })
     TriggerServerEvent('elyzea_eau:zones:get')
 end)
 

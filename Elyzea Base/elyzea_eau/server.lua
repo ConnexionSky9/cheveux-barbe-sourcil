@@ -279,12 +279,26 @@ RegisterCommand('eau_ajouter_console', function(src, args)
     add(0, x, y, tonumber(args[3]), tonumber(args[4]), nil)
 end, true)
 
--- water.xml manquant ou périmé (ex. après une mise à jour de la ressource) : régénéré
--- water.xml toujours à jour (eau du jeu + zones + réserve). S'il a changé, les joueurs ne l'auront
--- qu'au prochain démarrage : un redémarrage complet est nécessaire UNE fois.
-CreateThread(function()
+-- water.xml toujours à jour (eau du jeu + zones + réserve), écrit DÈS le chargement du script
+-- (avant que les joueurs ne téléchargent la ressource). S'il a quand même changé, un redémarrage
+-- complet de plus est nécessaire.
+do
     local before = LoadResourceFile(RES, 'water.xml')
     if build(loadZones()) and LoadResourceFile(RES, 'water.xml') ~= before then
-        print('^3[EAU] water.xml mis à jour : REDÉMARRE le serveur une fois (pas seulement ensure) pour que l\'eau en direct fonctionne.^0')
+        print('^3[EAU] water.xml mis à jour : si l\'eau n\'apparaît pas, REDÉMARRE le serveur encore une fois.^0')
+    end
+end
+
+-- Rapport envoyé par chaque joueur après le chargement : le jeu a-t-il chargé le fichier d'eau ?
+RegisterNetEvent('elyzea_eau:report', function(r)
+    local src = source
+    if type(r) ~= 'table' then return end
+    local pool, total = tonumber(r.pool) or 0, tonumber(r.total) or 0
+    if not r.natives then
+        print(('^3[EAU] %s : FiveM trop ancien pour l\'eau en direct (zones d\'eau du jeu : %d).^0'):format(GetPlayerName(src) or src, total))
+    elseif pool >= EauGeo.POOL.count then
+        print(('^2[EAU] %s : fichier d\'eau du serveur bien chargé (%d zones d\'eau, réserve %d/%d).^0'):format(GetPlayerName(src) or src, total, pool, EauGeo.POOL.count))
+    else
+        print(('^1[EAU] %s : fichier d\'eau du serveur NON chargé (%d zones d\'eau, réserve %d/%d). Une autre ressource remplace-t-elle l\'eau (WATER_FILE) ? /eau_diagnostic^0'):format(GetPlayerName(src) or src, total, pool, EauGeo.POOL.count))
     end
 end)
