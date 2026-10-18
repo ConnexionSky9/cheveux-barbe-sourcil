@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!-- Formulaire du tag (bombe de peinture) : texte, couleur, style, aperçu -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&family=Bangers&family=Permanent+Marker&family=Rock+Salt&family=Rubik+Wet+Paint&family=Sedgwick+Ave+Display&display=swap">
+<style>
+    :root {
+        --bezel: #0a0d16; --panel: #151d30; --panel-2: #1c2640; --line: #2a3754;
+        --text: #ecf0f8; --muted: #8e9ab3; --signal: #d9b56a; --danger: #e0433b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; color: var(--text); font-size: 14px; user-select: none; }
+    .hidden { display: none !important; }
+    #box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px; background: var(--panel); border: 1px solid var(--line);
+        border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+    header { padding: 16px 20px; background: var(--bezel); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; color: var(--signal); }
+    header span { color: var(--muted); font-size: 13px; }
+    main { padding: 18px 20px; display: grid; gap: 14px; }
+    #preview { height: 150px; border-radius: 10px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden;
+        background: repeating-linear-gradient(0deg, #3a3f49 0 22px, #343843 22px 24px), #3a3f49; }
+    #previewText { white-space: nowrap; line-height: 1; transform: rotate(-4deg); font-size: 64px; padding: 0 8px; paint-order: stroke fill; }
+    label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+    input[type=text] { width: 100%; padding: 11px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 16px; outline: none; }
+    input[type=text]:focus { border-color: var(--signal); }
+    .count { float: right; color: var(--muted); text-transform: none; letter-spacing: 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sw { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--line); cursor: pointer; position: relative; }
+    .sw.on { border-color: var(--signal); box-shadow: 0 0 0 2px rgba(217,181,106,.35); }
+    .sw.group::after { content: '★'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; text-shadow: 0 0 3px #000; }
+    .font { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font-size: 18px; }
+    .font.on { border-color: var(--signal); color: var(--signal); }
+    #err { color: var(--danger); min-height: 18px; font-size: 13px; }
+    footer { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; background: var(--bezel); }
+    button { font-family: inherit; font-size: 14px; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; }
+    button.primary { background: var(--signal); border-color: var(--signal); color: #1a1408; font-weight: 600; }
+    button:disabled { opacity: .5; cursor: default; }
+    .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="box" class="hidden">
+    <header><h1>🎨 Bombe de peinture</h1><span id="group"></span></header>
+    <main>
+        <div id="preview"><div id="previewText">TAG</div></div>
+        <div>
+            <label>Texte <span class="count" id="count"></span></label>
+            <input type="text" id="text" autocomplete="off" spellcheck="false" placeholder="Ton tag…">
+        </div>
+        <div><label>Couleur</label><div class="row" id="colors"></div></div>
+        <div><label>Style</label><div class="row" id="fonts"></div></div>
+        <div id="err"></div>
+        <p class="hint">Ensuite : vise un mur, <b>molette</b> pour la taille, <b>E</b> pour peindre. Les tags insultants sont effacés et sanctionnés par le staff.</p>
+    </main>
+    <footer><button id="cancel">Annuler</button><button class="primary" id="ok">Choisir l'emplacement</button></footer>
+</div>
+<script>
+    const RES = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'elyzea_tags';
+    const post = (name, body = {}) => fetch(`https://${RES}/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then((r) => r.json()).catch(() => ({}));
+    const $ = (id) => document.getElementById(id);
+    const S = { color: '#f2f2f2', font: null, fonts: [], max: 20, sending: false };
+
+    function outline(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+        return l > 0.35 ? 'rgba(10,10,10,0.9)' : 'rgba(240,240,240,0.85)';
+    }
+    function family() { const f = S.fonts.find((x) => x.key === S.font); return f ? f.family : 'Impact'; }
+    function preview() {
+        const t = $('previewText'), v = $('text').value.trim();
+        t.textContent = v || 'TAG';
+        t.style.fontFamily = `"${family()}", Impact, sans-serif`;
+        t.style.color = S.color;
+        const o = outline(S.color);
+        t.style.webkitTextStroke = `3px ${o}`;
+        t.style.textShadow = `3px 4px 0 ${o}`;
+        t.style.fontSize = '64px';
+        const k = Math.min(1, 500 / t.scrollWidth, 120 / t.scrollHeight);
+        t.style.fontSize = Math.floor(64 * k) + 'px';
+        $('count').textContent = `${[...$('text').value].length} / ${S.max}`;
+    }
+    function render(d) {
+        $('colors').innerHTML = '';
+        const colors = (d.groupColor ? [d.groupColor] : []).concat(d.colors || []);
+        colors.forEach((c, i) => {
+            const e = document.createElement('div');
+            e.className = 'sw' + (c === S.color ? ' on' : '') + (d.groupColor && i === 0 ? ' group' : '');
+            e.style.background = c;
+            if (d.groupColor && i === 0) e.title = `Couleur de ${d.groupLabel || 'ton groupe'}`;
+            e.onclick = () => { S.color = c; render(d); };
+            $('colors').appendChild(e);
+        });
+        $('fonts').innerHTML = '';
+        S.fonts.forEach((f) => {
+            const e = document.createElement('div');
+            e.className = 'font' + (f.key === S.font ? ' on' : '');
+            e.textContent = f.label;
+            e.style.fontFamily = `"${f.family}", Impact, sans-serif`;
+            e.onclick = () => { S.font = f.key; render(d); };
+            $('fonts').appendChild(e);
+        });
+        preview();
+    }
+    function close() { $('box').classList.add('hidden'); }
+
+    window.addEventListener('message', (e) => {
+        const m = e.data || {};
+        if (m.action !== 'open') return;
+        const d = m.data || {};
+        S.fonts = d.fonts || [];
+        S.max = d.maxLength || 20;
+        S.font = S.font && S.fonts.some((f) => f.key === S.font) ? S.font : (S.fonts[0] && S.fonts[0].key);
+        S.color = d.groupColor || S.color;
+        S.d = d;
+        $('text').maxLength = S.max;
+        $('group').textContent = d.groupLabel ? `Pour ${d.groupLabel}` : '';
+        $('err').textContent = '';
+        $('box').classList.remove('hidden');
+        render(d);
+        setTimeout(() => $('text').focus(), 50);
+    });
+    document.fonts.ready.then(preview);
+
+    $('text').addEventListener('input', () => { $('err').textContent = ''; preview(); });
+    async function submit() {
+        const text = $('text').value.trim();
+        if (!text) { $('err').textContent = 'Écris quelque chose.'; return; }
+        if (S.sending) return;
+        S.sending = true; $('ok').disabled = true;
+        const r = await post('submit', { text, color: S.color, font: S.font });
+        S.sending = false; $('ok').disabled = false;
+        if (r && r.ok) close(); else $('err').textContent = (r && r.error) || 'Texte refusé.';
+    }
+    $('ok').onclick = submit;
+    $('cancel').onclick = () => { close(); post('close'); };
+    document.addEventListener('keydown', (e) => {
+        if ($('box').classList.contains('hidden')) return;
+        if (e.key === 'Escape') { close(); post('close'); }
+        if (e.key === 'Enter') submit();
+    });
+</script>
+</body>
+</html>

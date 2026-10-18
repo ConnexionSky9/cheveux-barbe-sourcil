@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v50 then
+        -- Tags des quartiers (elyzea_tags) : modération dès Modérateur (le Fondateur a toujours tout)
+        for _, r in ipairs({ 'moderateur', 'administrateur', 'superadmin' }) do if Ranks[r] then Ranks[r].perms.tags_manage = true end end
+        meta.v50 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v49 then
         -- Agences des métiers (elyzea_agences) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.agencies_manage = true end
@@ -233,6 +239,12 @@ do
             Ranks.superadmin.perms.view_debts = true
         end
         meta.v31 = true
+        Storage.save('meta', meta)
+    end
+    if not meta.famille1 then
+        -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end
+        meta.famille1 = true
         Storage.save('meta', meta)
     end
     if not meta.v30 then
@@ -1165,6 +1177,56 @@ Actions.vehcustom_save = { perm = 'vehicle_custom', noRefresh = true, fn = funct
     MySQL.update.await('UPDATE `player_vehicles` SET `mods` = ? WHERE `id` = ?', { json.encode(saved), row.id })
     notify(src, ('Personnalisation enregistrée sur la carte grise du véhicule %s.'):format(plate), 'success')
     addLog(src, 'Personnalisation de véhicule', plate .. (row.citizenid and (' · véhicule de joueur ' .. row.citizenid) or ''))
+end }
+
+-- Ajouter le véhicule (staff) au garage du Fondateur / SuperAdmin qui est dedans
+local function newStaffPlate()
+    local chars = 'ABCDEFGHJKLMNPRSTUVWXYZ'
+    local mid = (Config.StaffGaragePlatePrefix or 'ST'):upper():gsub('[^A-Z0-9]', ''):sub(1, 2)
+    for _ = 1, 40 do
+        local a, b = math.random(1, #chars), math.random(1, #chars)
+        local p = chars:sub(a, a) .. chars:sub(b, b) .. mid .. ('%04d'):format(math.random(0, 9999))
+        if not MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { p, ' ' .. p }) then return p end
+    end
+end
+local function sameModel(name, model)
+    if type(name) ~= 'string' or name == '' or not name:match('^[%w_]+$') then return false end
+    return (GetHashKey(name) % 4294967296) == (model % 4294967296)
+end
+Actions.vehcustom_garage = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
+    local veh = staffVehicle(src, d.netId)          -- SuperAdmin / Fondateur, et dans le véhicule
+    if not veh then return end
+    local plate = cleanPlate(GetVehicleNumberPlateText(veh))
+    if MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { plate, ' ' .. plate }) then
+        return notify(src, 'Ce véhicule appartient déjà à quelqu\'un (carte grise existante).', 'error')
+    end
+    -- Nom exact du modèle (le garage ressort le véhicule par ce nom) : vérifié contre le modèle réel du véhicule
+    local model = GetEntityModel(veh)
+    local name
+    for _, cand in ipairs({ Entity(veh).state.spawnModel, d.model }) do
+        if sameModel(cand, model) then name = cand:lower() break end
+    end
+    if not name then return notify(src, 'Modèle du véhicule inconnu : fais-le apparaître avec le menu (Véhicules › Faire apparaître), puis réessaie.', 'error') end
+    local pdOk, pd = pcall(function() return exports.elyzea_core:GetPlayer(src).PlayerData end)
+    if not pdOk or not pd or not pd.citizenid then return notify(src, 'Personnage introuvable.', 'error') end
+    local newPlate = newStaffPlate()
+    if not newPlate then return notify(src, 'Aucune plaque libre, réessaie.', 'error') end
+    local props = type(d.props) == 'table' and d.props or {}
+    local mods = {}
+    for k, v in pairs(props) do
+        if k ~= 'plate' and k:sub(1, 1) ~= '_' then mods[k] = v end
+    end
+    mods.model, mods.plate = model, newPlate
+    mods.fuelLevel = tonumber(mods.fuelLevel) or 100.0
+    local ok, id = pcall(function()
+        return MySQL.insert.await([[INSERT INTO `player_vehicles` (`license`, `citizenid`, `vehicle`, `hash`, `mods`, `plate`, `garage`, `fuel`, `engine`, `body`, `state`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 100, 1000, 1000, 1)]], { pd.license or getLicense(src) or '', pd.citizenid, name, tostring(model), json.encode(mods), newPlate, Config.StaffGarageName or 'public' })
+    end)
+    if not ok or not id then return notify(src, 'Enregistrement impossible (base de données).', 'error') end
+    SetVehicleNumberPlateText(veh, newPlate)
+    pcall(function() exports.elyzea_core:GiveKeys(src, newPlate) end)
+    notify(src, ('Véhicule ajouté à ton garage : %s (plaque %s). Range-le au garage comme tes autres véhicules.'):format(name, newPlate), 'success')
+    addLog(src, 'Véhicule staff ajouté au garage', ('%s · plaque %s · %s'):format(name, newPlate, pd.citizenid))
 end }
 
 Actions.delete_vehicle = { perm = 'vehicle_tools', noRefresh = true, fn = function(src, d)

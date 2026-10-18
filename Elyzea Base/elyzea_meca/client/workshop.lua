@@ -250,16 +250,18 @@ end
 
 -- La ligne est-elle réellement posée ? (relecture des propriétés du véhicule)
 local IGNORE = { modBackWheels = true, paintType1 = true, paintType2 = true, xenonColor = true }
+-- Vrai / faux : certains natifs renvoient 1 / 0 (ou 1 / false) au lieu de true / false
+local function Truthy(v) return v == true or v == 1 end
 local function Same(a, b)
     if type(a) == 'table' and type(b) == 'table' then
         for i = 1, math.max(#a, 3) do
             local x, y = a[i], b[i]
-            if type(x) == 'boolean' or type(y) == 'boolean' then if (x == true) ~= (y == true) then return false end
+            if type(x) == 'boolean' or type(y) == 'boolean' then if Truthy(x) ~= Truthy(y) then return false end
             elseif x ~= nil and y ~= nil and math.abs((tonumber(x) or 0) - (tonumber(y) or 0)) > 3 then return false end
         end
         return true
     end
-    if type(a) == 'boolean' or type(b) == 'boolean' then return (a == true) == (b == true) end
+    if type(a) == 'boolean' or type(b) == 'boolean' then return Truthy(a) == Truthy(b) end
     if tonumber(a) and tonumber(b) then
         local x, y = tonumber(a), tonumber(b)
         if x == y then return true end
@@ -273,8 +275,8 @@ local function Verify(veh, patch)
         if not IGNORE[k] then
             local got = props[k]
             if k == 'modXenon' or k == 'modTurbo' or k == 'modSmokeEnabled' or k == 'bulletProofTyres' or k == 'modCustomTiresF' or k == 'modCustomTiresR' then
-                got = props[k] == true or props[k] == 1
-                v = v == true or v == 1
+                got = Truthy(props[k])
+                v = Truthy(v)
             end
             if k == 'extras' then
                 for id, val in pairs(v) do if (tonumber((got or {})[tostring(id)]) or -1) ~= tonumber(val) then return false, k, got, v end end

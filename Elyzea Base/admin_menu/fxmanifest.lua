@@ -38,6 +38,7 @@ client_scripts {
     'client/respawn.lua',
     'client/welcome.lua',
     'client/barber.lua',
+    'client/water.lua',
     'client/tattoo.lua',
     'client/market.lua',
     'client/gunshop.lua',
@@ -67,6 +68,7 @@ server_scripts {
     'server/wipe.lua',
     'server/illegal.lua',
     'server/barber.lua',
+    'server/water.lua',
     'server/tattoo.lua',
     'server/market.lua',
     'server/gunshop.lua',
@@ -76,9 +78,11 @@ server_scripts {
     'server/staffjob.lua',
     'server/trunks.lua',
     'server/drugsale.lua',
+    'server/tags.lua',
     'server/jewelry.lua',
     'server/bankheist.lua',
     'server/noirx.lua',
+    'server/famille.lua',
     'server/guards.lua',
 }
 
@@ -112,6 +116,7 @@ files {
     'html/staffjob.js',
     'html/trunks.js',
     'html/drugsale.js',
+    'html/tags.js',
     'html/guards.js',
     'html/dynasty.js',
     'html/dealer.js',
@@ -119,5 +124,6 @@ files {
     'html/jewelry.js',
     'html/bankheist.js',
     'html/noirx.js',
+    'html/famille.js',
     'html/logo.png',
 }

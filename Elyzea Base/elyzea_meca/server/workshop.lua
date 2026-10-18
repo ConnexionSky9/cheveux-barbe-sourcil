@@ -466,7 +466,9 @@ local function BuildLines(src, w, list, ctx)
                 patch = nil
             end
             line.patch = patch
-            line.label = ('%s : %s'):format(it.name, P.Clean(req.label, 60))
+            local lbl = P.Clean(req.label, 60)
+            -- « Néons : Or » déjà préfixé par l'interface : pas de « Néons : Néons : Or »
+            line.label = lbl:sub(1, #it.name) == it.name and lbl or ('%s : %s'):format(it.name, lbl)
         elseif it.kind == 'carplay' then
             if not ctx.vehicleId then return nil, 'Le CarPlay ne s\'installe que sur un véhicule de joueur (carte grise).' end
             if seen.carplay then return nil, 'Le CarPlay apparaît deux fois.' end

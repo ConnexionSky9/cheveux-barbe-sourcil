@@ -88,7 +88,19 @@ AddEventHandler('playerDropped', function() onUnload(source) end)
 exports('GetPlayerGroup', function(src)
     local g, _, grade = Cache.membership(Players.cid(src))
     if not g then return nil end
-    return { id = g.id, name = g.name, label = g.label, type = g.type, grade = grade.name, gradeLabel = grade.label, gradeLevel = grade.level, boss = grade.boss }
+    return { id = g.id, name = g.name, label = g.label, type = g.type, color = g.color, grade = grade.name, gradeLabel = grade.label, gradeLevel = grade.level, boss = grade.boss }
+end)
+
+-- Territoire à une position (elyzea_tags) : { id, name, owner = { id, label, color } | nil } ou nil
+exports('GetTerritoryAt', function(coords)
+    if type(coords) ~= 'table' and type(coords) ~= 'vector3' then return nil end
+    local z = Territory.at(vector3(tonumber(coords.x) or 0.0, tonumber(coords.y) or 0.0, tonumber(coords.z) or 0.0))
+    if not z then return nil end
+    local owner
+    for _, t in ipairs(Territory.list(nil)) do
+        if t.id == z.id then owner = t.owner break end
+    end
+    return { id = z.id, name = z.name, owner = owner and { id = owner.id, label = owner.label, color = owner.color } or nil }
 end)
 
 exports('HasGroupPermission', function(src, perm)

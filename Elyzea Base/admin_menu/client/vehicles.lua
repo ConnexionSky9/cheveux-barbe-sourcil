@@ -38,6 +38,8 @@ RegisterNetEvent('adminmenu:spawnVehicle', function(model)
     SetNetworkIdCanMigrate(NetworkGetNetworkIdFromEntity(veh), true)
     SetPedIntoVehicle(ped, veh, -1)
     SetModelAsNoLongerNeeded(hash)
+    -- Nom exact du modèle (pour « Ajouter à mon garage » : le garage ressort le véhicule par ce nom)
+    pcall(function() Entity(veh).state:set('spawnModel', model, true) end)
 
     Notify(('%s est prêt.'):format(GetLabelText(GetDisplayNameFromVehicleModel(hash))), 'success')
 end)

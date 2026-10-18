@@ -109,6 +109,7 @@
                     <button class="btn" data-vtool="repair">🔧 Réparer</button>
                     ${i.canRevert ? '<button class="btn" data-vca="revert">↺ Annuler mes changements</button>' : ''}
                     ${i.canSave ? '<button class="btn primary" data-vca="save">💾 Enregistrer sur le véhicule</button>' : ''}
+                    ${i.canSave && D.me && D.me.topStaff ? '<button class="btn" data-vca="garage" title="Fondateur et SuperAdmin : le véhicule est mis à ton nom">🅿️ Ajouter à mon garage</button>' : ''}
                     <button class="btn" data-vca="reload" title="Après avoir changé de véhicule">↻</button>
                 </span></div>
             <div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -195,6 +196,10 @@
                 await post('vc_revert'); toast('Changements annulés.', 'success');
                 if (VC.cat) return loadOptions(VC.cat, VC.wheelType);
                 return;
+            }
+            if (a === 'garage') {
+                if (!(await confirmBox('Ajouter ce véhicule à ton garage ?', 'Le véhicule est mis à ton nom avec une nouvelle plaque unique et sa personnalisation actuelle. Tu reçois les clés ; il se range ensuite comme tes autres véhicules. Impossible sur un véhicule qui appartient déjà à quelqu\'un.'))) return;
+                await post('vc_garage'); setTimeout(() => { VC.info = null; loadInfo(); }, 900); return;
             }
             if (a === 'save') { if (!(await confirmBox('Enregistrer sur la carte grise ?', 'Les modifications et effets animés restent sur ce véhicule, même après un passage au garage.'))) return; await post('vc_save'); return; }
             if (a === 'plate') {

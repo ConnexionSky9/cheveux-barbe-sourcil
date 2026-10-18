@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Texture d'un tag (DUI) : fond transparent, texte ajusté à la surface -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&family=Rock+Salt&family=Rubik+Wet+Paint&family=Sedgwick+Ave+Display&display=block">
+<style>
+    html, body { margin: 0; width: 1024px; height: 512px; overflow: hidden; background: transparent; }
+    #wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    #tag { white-space: nowrap; line-height: 1; transform: rotate(-4deg); padding: 0 12px; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="tag"></div></div>
+<script>
+    const el = document.getElementById('tag');
+    let cur = null;
+
+    // Contour sombre sur les couleurs claires, clair sur les couleurs sombres
+    function outline(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+        return l > 0.35 ? 'rgba(10,10,10,0.9)' : 'rgba(240,240,240,0.85)';
+    }
+
+    function fit() {
+        if (!cur) return;
+        el.style.fontSize = '300px';
+        const w = el.scrollWidth, h = el.scrollHeight;
+        const k = Math.min((1024 * 0.9) / w, (512 * 0.78) / h);
+        el.style.fontSize = Math.floor(300 * k) + 'px';
+    }
+
+    function show(d) {
+        cur = d;
+        const o = outline(d.color);
+        el.textContent = d.text;
+        el.style.fontFamily = `"${d.font}", Impact, "Arial Black", sans-serif`;
+        el.style.color = d.color;
+        el.style.webkitTextStroke = `6px ${o}`;
+        el.style.paintOrder = 'stroke fill';
+        el.style.textShadow = `6px 8px 0 ${o}, 0 0 18px rgba(0,0,0,0.35)`;
+        fit();
+        document.fonts.load(`300px "${d.font}"`).then(fit).catch(() => {});
+    }
+
+    window.addEventListener('message', (e) => {
+        let d = e.data;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { return; } }
+        if (d && typeof d.text === 'string') show(d);
+    });
+    document.fonts.ready.then(fit);
+</script>
+</body>
+</html>

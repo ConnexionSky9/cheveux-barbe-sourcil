@@ -175,8 +175,10 @@ Config.Permissions = {
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     -- Illégal (ressource elyzea_illegal)
     { key = 'drugsale_manage', label = 'Vente de drogue : réglages du mode vente (clients PNJ, prix, vols, appels à la police)', cat = 'Illégal' },
+    { key = 'tags_manage',     label = 'Tags : graffitis des quartiers (réglages, mots interdits, voir l\'auteur, supprimer un tag / ceux d\'un joueur / tous), /taginfo et /tagclean', cat = 'Illégal' },
     { key = 'heist_manage',    label = 'Braquage bijouterie : bijouteries, butin, bijoux, sac, police, racheteurs (jewelry_heist)', cat = 'Illégal' },
     { key = 'bankheist_manage', label = 'Braquage de banque : banques, marchands, prix, piratage, coffre, dépôts, sessions (bank_heist)', cat = 'Illégal' },
+    { key = 'famille_manage', label = 'Famille : durée du moment intime, risque de grossesse, contraception (elyzea_famille)', cat = 'Joueurs' },
     { key = 'noirx_staff', label = 'NOIR X (téléphone clandestin) : informateurs, informations, blanchiments, réglages, paiements (noirx)', cat = 'Illégal' },
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
     { key = 'wipe_character',  label = 'Wipe : supprimer définitivement un personnage d\'un joueur', cat = 'Gestion' },
@@ -535,13 +537,13 @@ local function with(base, extra)
 end
 
 local P_SUPPORT = { 'reports', 'goto', 'spectate', 'warn', 'noclip', 'tp_waypoint', 'player_ids', 'heal', 'staff_pm', 'staff_chat' }
-local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail' })
+local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail', 'tags_manage' })
 local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmode', 'invisible', 'tp_coords',
                                  'weather', 'time', 'announce', 'clear_area', 'view_logs', 'wallhack', 'revive_area', 'armor',
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },
@@ -605,6 +607,15 @@ Config.Wallhack = {
 --  VÉHICULES
 -- =========================================================
 Config.VehiclePlate = 'STAFF'
+-- « Ajouter à mon garage » (Véhicules › Personnalisation, Fondateur et SuperAdmin) : garage d'enregistrement
+-- (nom de garage d'elyzea_garage) et 2 lettres au milieu des nouvelles plaques (ex. KTST1234)
+Config.StaffGarageName = 'public'
+
+-- Eau buguée (lac / rivière sans eau, bord noir) : une map remplace l'eau du jeu (data_file 'WATER_FILE').
+-- /eau_diagnostic (console ou Fondateur) donne la ressource fautive ; /eau_vanilla teste l'eau d'origine sur ton écran.
+-- true : l'eau d'origine est remise pour tout le monde (l'eau propre à une map, ex. Cayo Perico, disparaît).
+Config.WaterReset = false
+Config.StaffGaragePlatePrefix = 'ST'
 Config.DeletePreviousVehicle = true
 
 Config.QuickVehicles = {
@@ -774,6 +785,23 @@ Config.Editor = {
           npc = { payment = 'cash', tattoo = { name = 'Salon de tatouage', payChoice = true, blip = true, removal = true } } },
         { id = 'market', icon = '🏪', label = 'Supérette', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeur',
           npc = { payment = 'cash', market = { name = 'Supérette 24/7', payChoice = true, blip = true, useDefaults = true } } },
+        { id = 'pharmacie', icon = '💊', label = 'Pharmacie', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Pharmacien',
+          npc = { payment = 'cash', market = { name = 'Pharmacie', payChoice = true, blip = true, blipSprite = 51, blipColor = 2,
+                  items = {
+                      { item = 'preservatif',          price = 12,  cat = 'Contraception', max = 20 },
+                      { item = 'pilule_contraceptive', price = 35,  cat = 'Contraception', max = 10 },
+                      { item = 'test_grossesse',       price = 20,  cat = 'Grossesse',     max = 5 },
+                      { item = 'bandage',              price = 45,  cat = 'Soins',         max = 20 },
+                  } } } },
+        -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette, objets non consommés
+        { id = 'puericulture', icon = '🍼', label = 'Puériculture', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse puériculture',
+          npc = { payment = 'cash', market = { name = 'Puériculture', payChoice = true, blip = true, blipSprite = 52, blipColor = 8,
+                  items = {
+                      { item = 'porte_bebe_ventral', price = 180, cat = 'Portage',   max = 2 },
+                      { item = 'porte_bebe_dorsal',  price = 220, cat = 'Portage',   max = 2 },
+                      { item = 'poussette',          price = 650, cat = 'Poussette', max = 1 },
+                      { item = 'test_grossesse',     price = 25,  cat = 'Grossesse', max = 3 },
+                  } } } },
         { id = 'gunshop', icon = '🔫', label = 'Armurerie', scenario = 'WORLD_HUMAN_GUARD_STAND', name = 'Armurier',
           npc = { payment = 'cash', gunshop = { name = 'Ammu-Nation', payChoice = true, blip = true, useDefaults = true,
                   licence = false, trial = true, trialDuration = 60, isolate = true, trialRadius = 60 } } },
@@ -1130,13 +1158,17 @@ Config.Market = {
     enabled = true,
     blipSprite = 52, blipColor = 2, blipScale = 0.75,
     imagePath = 'nui://elyzea_inventory/html/img/%s.png',   -- images des objets
-    categories = { 'Boissons', 'Nourriture', 'Snacks', 'Hygiène', 'Utilitaires', 'Tabac', 'Divers' },
+    categories = { 'Boissons', 'Nourriture', 'Snacks', 'Hygiène', 'Santé', 'Utilitaires', 'Tabac', 'Divers' },
     defaultItems = {
         { item = 'water',    price = 5,   cat = 'Boissons' },
         { item = 'cola',     price = 7,   cat = 'Boissons' },
         { item = 'burger',   price = 12,  cat = 'Nourriture' },
         { item = 'sandwich', price = 10,  cat = 'Nourriture' },
         { item = 'bandage',  price = 50,  cat = 'Hygiène' },
+        -- Santé (elyzea_famille) : préservatif, pilule, test de grossesse
+        { item = 'preservatif',          price = 15,  cat = 'Santé', max = 10 },
+        { item = 'pilule_contraceptive', price = 40,  cat = 'Santé', max = 5 },
+        { item = 'test_grossesse',       price = 25,  cat = 'Santé', max = 3 },
         { item = 'phone',    price = 450, cat = 'Utilitaires' },
         { item = 'radio',    price = 250, cat = 'Utilitaires' },
     },
