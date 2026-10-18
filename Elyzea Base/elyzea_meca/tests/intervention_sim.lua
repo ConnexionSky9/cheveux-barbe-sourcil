@@ -71,6 +71,7 @@ local function newWorld()
     W.mech2 = newEnt('ped', { pos = vector3(97.0, 200.0, 30.0) })
     if Meca then for k in pairs(Meca.quotes or {}) do Meca.quotes[k] = nil end end
     W.pressX, W.missingModels, W.missingDicts = false, {}, {}
+    if W.resetDb then W.resetDb() end   -- les n° de devis recommencent à chaque scénario
     W.workshops = W.workshops or { { id = 'WS1', label = 'Pont 1', coords = { x = 100.0, y = 200.0, z = 30.5 }, radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'carplay' }, minLevel = 1 } }
     W.bumps, W.pedSnaps, W.teleports, W.scenarioFar, W.walkedUnder, W.navmesh = 0, 0, 0, 0, false, 0
     W.log = {}
@@ -239,17 +240,40 @@ exports = setmetatable({ elyzea_inventory = {
 } }, { __call = function() end })
 
 -- MySQL imité : enregistre les écritures
-local DB = { updates = {}, inserts = {} }
+local DB = { updates = {}, inserts = {}, invoices = {}, badSql = 0 }
+-- Comme un vrai pilote : chaque « ? » doit recevoir exactement une valeur, sans trou
+local function strict(sql, args)
+    local need = select(2, sql:gsub('%?', ''))
+    local n = 0
+    for k in pairs(args or {}) do n = math.max(n, k) end
+    local count = 0 for _ in pairs(args or {}) do count = count + 1 end
+    if need ~= n or count ~= n then DB.badSql = DB.badSql + 1 print(('      SQL mal formé : %d « ? » pour %d valeurs'):format(need, count)) end
+end
 MySQL = {
-    update = setmetatable({ await = function(sql, args) DB.updates[#DB.updates + 1] = { sql = sql, args = args } return 1 end },
-        { __call = function(_, sql, args) DB.updates[#DB.updates + 1] = { sql = sql, args = args } end }),
-    insert = setmetatable({ await = function(sql, args) DB.inserts[#DB.inserts + 1] = { sql = sql, args = args } return 1 end },
-        { __call = function(_, sql, args) DB.inserts[#DB.inserts + 1] = { sql = sql, args = args } end }),
+    update = setmetatable({ await = function(sql, args) strict(sql, args) DB.updates[#DB.updates + 1] = { sql = sql, args = args } return 1 end },
+        { __call = function(_, sql, args) strict(sql, args) DB.updates[#DB.updates + 1] = { sql = sql, args = args } end }),
+    insert = setmetatable({ await = function(sql, args)
+            strict(sql, args)
+            if sql:find('INSERT INTO `meca_invoices`') then
+                local q = args[3]
+                if DB.invoices[q] then error('Duplicate entry \'' .. q .. '\' for key \'quote_uid\'', 0) end
+                DB.invoices[q] = args[2]
+            end
+            DB.inserts[#DB.inserts + 1] = { sql = sql, args = args } return 1 end },
+        { __call = function(_, sql, args) strict(sql, args) DB.inserts[#DB.inserts + 1] = { sql = sql, args = args } end }),
     query = setmetatable({ await = function(sql) if sql:find("status` = 'accepted'") then return W.acceptedRows or {} end return {} end },
         { __call = function() end }),
-    scalar = { await = function() return nil end },
+    scalar = { await = function(sql, args) if sql:find('FROM `meca_invoices` WHERE `quote_uid`') then return DB.invoices[args[1]] end return nil end },
     single = { await = function() return nil end },
 }
+W.resetDb = function() DB.invoices = {} end
+-- Dernier statut enregistré pour un devis (UPDATE … WHERE uid = ?)
+local function savedStatus(uid)
+    for i = #DB.updates, 1, -1 do
+        local u = DB.updates[i]
+        if u.sql:find('UPDATE `meca_quotes` SET `status` = %?') and u.args[#u.args] == uid then return u.args[1] end
+    end
+end
 
 -- ---------------------------------------------------------------- Meca (serveur) imité autour du vrai fichier
 local money = { cust = 100000, society = 0, refunds = 0, charges = 0 }
@@ -597,6 +621,27 @@ Config.Quotes.allowSelf = false
 local q12b = P.Actions.quoteCreate.fn(1, { ws = 'WS1', net = 900, customer = 1, items = { { code = 'turbo' } }, model = 'Sultan' })
 check(q12b.error ~= nil, 'option désactivable (allowSelf = false)')
 Config.Quotes.allowSelf = true
+
+print('\n[13] Statut des devis bien enregistré, redémarrage sans double facture')
+newWorld() W.applied = {}
+threads = {}
+loadFile('client/lift.lua')
+DB.badSql = 0
+local uid13 = newQuote({ { code = 'engine_2' } })
+local r13 = run(uid13)
+threads = {}
+check(r13.ok and savedStatus(uid13) == 'installed', ('statut « installed » enregistré en base (%s)'):format(tostring(savedStatus(uid13))))
+check(DB.badSql == 0, 'aucune requête SQL avec des paramètres décalés')
+-- Le devis est resté « accepted » en base (ancien bug) avec une facture : au démarrage, rien n'est refait
+W.lastJson = { { code = 'engine_2', kind = 'perf', total = 4500, installed = true, patch = { modEngine = 1 } } }
+W.acceptedRows = { { uid = uid13, job = 'mechanic', items = '<json>', paid = 4500, method = 'bank', customer_cid = 'CUST', customer_name = 'Client', plate = 'ABC123', vehicle_id = 7, mechanic_name = 'Nom1', mechanic_cid = 'MECH' } }
+local before13, soc13 = money.cust, money.society
+local okReady = true
+for _, fn in ipairs(P.OnReady) do local ok, err = pcall(fn) if not ok then okReady = false print('      ' .. tostring(err)) end end
+check(okReady, 'démarrage sans erreur « Duplicate entry »')
+check(money.cust == before13 and money.society == soc13, 'aucun remboursement ni prélèvement en double')
+check(savedStatus(uid13) == 'installed', 'devis remis à « installed »')
+W.acceptedRows = nil
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

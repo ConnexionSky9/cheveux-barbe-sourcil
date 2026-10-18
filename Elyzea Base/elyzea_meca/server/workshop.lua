@@ -44,6 +44,22 @@ local INTERIOR_IDS = { [25] = true, [26] = true, [27] = true, [28] = true, [29] 
 local PERF_KEYS = { engine = 'modEngine', brakes = 'modBrakes', transmission = 'modTransmission', suspension = 'modSuspension', armor = 'modArmor' }
 
 local function N(v, mn, mx) v = tonumber(v) if not v or v ~= v then return nil end v = math.floor(v) if v < mn or v > mx then return nil end return v end
+-- Requête SQL dont certaines valeurs peuvent être vides (nil) : chaque nil devient NULL directement
+-- dans le texte SQL et n'est pas envoyé en paramètre. Sans ça, un nil décale les paramètres suivants
+-- (une table Lua s'arrête au premier trou) et la requête vise la mauvaise ligne.
+-- vals = { n = nombre de « ? », [1] = …, [2] = … }
+local function Bind(sql, vals)
+    local out, i = {}, 0
+    local sql2 = sql:gsub('%?', function()
+        i = i + 1
+        local v = vals[i]
+        if v == nil then return 'NULL' end
+        out[#out + 1] = v
+        return '?'
+    end)
+    return sql2, out
+end
+
 local function RGB(t)
     if type(t) ~= 'table' then return nil end
     local r, g, b = N(t[1], 0, 255), N(t[2], 0, 255), N(t[3], 0, 255)
@@ -505,9 +521,9 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
         mechanic = src, mechanicCid = P.Cid(src), mechanicName = P.Name(src), customer = cust, customerCid = P.Cid(cust), customerName = P.Name(cust),
         t = os.time(), expires = os.time() + Q.acceptTimeout }
     P.quotes[uid] = q
-    MySQL.insert.await([[INSERT INTO `meca_quotes` (`job`, `uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `model`, `mechanic_cid`, `mechanic_name`, `workshop`, `items`, `total`, `status`)
+    MySQL.insert.await(Bind([[INSERT INTO `meca_quotes` (`job`, `uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `model`, `mechanic_cid`, `mechanic_name`, `workshop`, `items`, `total`, `status`)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')]], { q.job, uid, q.customerCid, q.customerName, q.vehicleId, plate, q.model, q.mechanicCid, q.mechanicName, q.workshop,
-        json.encode(lines), total })
+        json.encode(lines), total }))
     -- Devis pour soi-même : le mécanicien a validé l'envoi, il paie tout de suite (pas de fenêtre d'acceptation)
     if cust == src then
         local r = Answer(src, q, true)
@@ -518,17 +534,29 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     return { ok = true, quote = QuoteView(q), message = ('Devis %s envoyé (%d $).'):format(uid, total) }
 end }
 
+-- Enregistre l'état du devis. extra = colonnes en plus (« , `col` = ? »), args = leurs valeurs (nil accepté)
 local function Save(q, extra, args)
-    local sql = 'UPDATE `meca_quotes` SET `status` = ?, `paid` = ?, `refunded` = ?, `method` = ?, `updated_at` = NOW()' .. (extra or '') .. ' WHERE `uid` = ?'
-    local params = { q.status, q.paid or 0, q.refunded or 0, q.method }
-    for _, a in ipairs(args or {}) do params[#params + 1] = a end
-    params[#params + 1] = q.uid
-    MySQL.update.await(sql, params)
+    extra = extra or ''
+    local sql = 'UPDATE `meca_quotes` SET `status` = ?, `paid` = ?, `refunded` = ?, `method` = ?, `updated_at` = NOW()' .. extra .. ' WHERE `uid` = ?'
+    local vals = { q.status, q.paid or 0, q.refunded or 0, q.method }
+    local k = select(2, extra:gsub('%?', ''))
+    for i = 1, k do vals[4 + i] = args and args[i] end   -- valeurs à leur place exacte, même vides
+    vals[5 + k] = q.uid
+    local ok, err = pcall(function() MySQL.update.await(Bind(sql, vals)) end)
+    if not ok then print(('^1[MECA] Devis %s : enregistrement impossible : %s^0'):format(tostring(q.uid), tostring(err))) end
 end
 
 -- Facture finale : seulement les lignes réellement posées
 local function Finalize(q, results, actorSrc)
     Release(q, false)
+    -- Déjà facturé (facture existante pour ce devis) : rien n'est refait (ni remboursement, ni facture, ni commission)
+    local existing = MySQL.scalar.await('SELECT `uid` FROM `meca_invoices` WHERE `quote_uid` = ? LIMIT 1', { q.uid })
+    if existing then
+        q.status = (q.status == 'accepted' or q.status == 'pending') and 'installed' or q.status
+        Save(q, ', `invoice_uid` = ?', { existing })
+        P.quotes[q.uid] = nil
+        return { ok = true, status = q.status, amount = 0, refund = 0, invoice = existing, failed = 0, already = true }
+    end
     local done, failed, amount = {}, {}, 0
     for i, line in ipairs(q.items) do
         if results[i] then done[#done + 1] = line amount = amount + line.total else failed[#failed + 1] = line end
@@ -554,9 +582,9 @@ local function Finalize(q, results, actorSrc)
     local invoiceUid
     if #done > 0 then
         invoiceUid = P.Uid('FAC')
-        MySQL.insert.await([[INSERT INTO `meca_invoices` (`job`, `uid`, `quote_uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `txid`, `note`)
+        MySQL.insert.await(Bind([[INSERT INTO `meca_invoices` (`job`, `uid`, `quote_uid`, `customer_cid`, `customer_name`, `vehicle_id`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `txid`, `note`)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)]], { q.job, invoiceUid, q.uid, q.customerCid, q.customerName, q.vehicleId, q.plate, q.mechanicName,
-            json.encode(done), amount, q.method, q.txid, refundNote })
+            json.encode(done), amount, q.method, q.txid, refundNote }))
         -- Commission du mécanicien sur le montant final (lignes réellement posées)
         -- Pas de commission sur ses propres customisations (sinon le mécanicien se rembourserait une partie)
         if not (q.mechanicCid and q.mechanicCid == q.customerCid) or Q.selfCommission == true then
@@ -835,6 +863,11 @@ end)
 P.OnReady = P.OnReady or {}
 P.OnReady[#P.OnReady + 1] = function()
     MySQL.update.await("UPDATE `meca_quotes` SET `status` = 'expired', `updated_at` = NOW() WHERE `status` = 'pending'")
+    -- Réparation : devis déjà facturés mais restés « accepted » (ancien bug d'enregistrement du statut).
+    -- Ils ne doivent être ni remboursés ni refacturés au démarrage.
+    local fixed = MySQL.update.await([[UPDATE `meca_quotes` q JOIN `meca_invoices` i ON i.`quote_uid` = q.`uid`
+        SET q.`status` = 'installed', q.`invoice_uid` = i.`uid`, q.`updated_at` = NOW() WHERE q.`status` = 'accepted']])
+    if (tonumber(fixed) or 0) > 0 then print(('^3[MECA] %d devis déjà facturé(s) remis à l\'état « installé » (aucun remboursement ni double facture).^0'):format(fixed)) end
     for _, r in ipairs(MySQL.query.await("SELECT * FROM `meca_quotes` WHERE `status` = 'accepted'") or {}) do
         local okj, items = pcall(json.decode, r.items or '[]')
         local q = { uid = r.uid, job = r.job, items = okj and type(items) == 'table' and items or {}, paid = tonumber(r.paid) or 0, method = r.method, customerCid = r.customer_cid, customerName = r.customer_name,
@@ -857,8 +890,8 @@ P.OnReady[#P.OnReady + 1] = function()
                 P.SocietyAdd(refund, ('Annulation remboursement %s'):format(q.uid), q.job)
             end
         end
-        MySQL.update.await('UPDATE `meca_quotes` SET `status` = ?, `refunded` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?',
-            { 'expired', done and refund or 0, done and nil or ('Remboursement de %d $ à faire'):format(refund), q.uid })
+        MySQL.update.await(Bind('UPDATE `meca_quotes` SET `status` = ?, `refunded` = ?, `note` = ?, `updated_at` = NOW() WHERE `uid` = ?',
+            { 'expired', done and refund or 0, (not done) and ('Remboursement de %d $ à faire'):format(refund) or nil, q.uid }))
         ::continue::
     end
 end
