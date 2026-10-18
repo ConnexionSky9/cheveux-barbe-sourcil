@@ -83,6 +83,7 @@ server_scripts {
     'server/bankheist.lua',
     'server/noirx.lua',
     'server/famille.lua',
+    'server/animaux.lua',
     'server/guards.lua',
 }
 
@@ -125,5 +126,6 @@ files {
     'html/bankheist.js',
     'html/noirx.js',
     'html/famille.js',
+    'html/animaux.js',
     'html/logo.png',
 }

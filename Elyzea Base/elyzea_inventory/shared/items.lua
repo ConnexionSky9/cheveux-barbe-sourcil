@@ -235,6 +235,24 @@ Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max 
 Items.sprayremover = { label = 'Solvant anti-graffiti', weight = 500, stack = true, max = 10, image = 'sprayremover.png', icon = '🧽',
     description = 'Efface un tag peint sur un mur.' }
 
+-- ───────── Animaux (ressource elyzea_animaux) ─────────
+-- En vente chez les vendeurs PNJ d'elyzea_animaux (animalerie : onglet Accessoires). Utilisés et retirés par
+-- elyzea_animaux après vérification par le serveur (rien n'est consommé automatiquement).
+-- Pas d'image fournie : l'icône (emoji) s'affiche ; pour une image, ajouter html/img/<nom>.png (256 × 256).
+Items.pet_harness = { label = 'Harnais pour chien', weight = 250, stack = false, max = 1, icon = '🦺', close = true,
+    description = 'Utiliser près de son chien (ou ALT sur lui) : il le porte, visible de tous. Style et couleur choisis à l\'achat.' }
+Items.pet_leash = { label = 'Laisse', weight = 150, stack = false, max = 1, icon = '🦮', close = true,
+    description = 'À garder sur soi : ALT sur son chien › Attacher la laisse. Se détache en montant en véhicule.' }
+Items.pet_food = { label = 'Croquettes', weight = 200, stack = true, max = 20, icon = '🥣', close = true,
+    description = 'Nourrit son animal (faim +40 %). Utiliser près de lui ou ALT sur lui.' }
+Items.pet_treat = { label = 'Friandise pour animal', weight = 20, stack = true, max = 30, icon = '🦴', close = true,
+    description = 'Petite récompense (faim +10 %).' }
+Items.pet_medkit = { label = 'Trousse vétérinaire', weight = 600, stack = true, max = 5, icon = '🩹', close = true,
+    description = 'Soigne son animal (santé +50 %) ; remet sur pattes un animal blessé, même resté à la maison. Soigne aussi les animaux de la ferme.' }
+Items.farm_feed = { label = 'Aliment pour bétail', weight = 1000, stack = true, max = 20, icon = '🌾', close = true,
+    description = 'Pour les animaux de la ferme : ALT sur un animal d\'enclos › Nourrir.' }
+Items.farm_egg = { label = 'Œuf frais', weight = 60, stack = true, max = 30, icon = '🥚', description = 'Ramassé à la basse-cour de la ferme.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

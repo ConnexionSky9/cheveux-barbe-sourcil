@@ -133,6 +133,12 @@ Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_polic
 **Plusieurs agences par métier** (`elyzea_agences`, voir `Elyzea Base/elyzea_agences/README.md`) : plusieurs polices (LSPD, BCSO…), plusieurs EMS, plusieurs garages mécano et agences Dynasty 8, créées en jeu (`/agences` ou admin_menu › **Agences des métiers**, permission `agencies_manage`), chacune avec son métier, ses grades, son compte, son téléphone de service et sa **zone d'alerte dessinée sur la carte ou en jeu**.
 Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
+### 3.9 Animaux (`elyzea_animaux`)
+Animaux de compagnie achetés auprès de PNJ (animalerie de Los Santos, vendeur d'exotiques), pelages réels, harnais et laisse visibles,
+faim / soif / santé sauvegardées, ferme avec enclos placés où l'on veut (aucune dépendance à Cayo Perico).
+Joueurs : **E** au vendeur, **F7** pour ses animaux, **ALT** sur l'animal. Staff : admin_menu › Économie et services › **Gestion des animaux**
+(permissions `animaux_manage` et `animaux_owned`). Détails, tests et limites : `Elyzea Base/elyzea_animaux/README.md` — non testé en jeu.
+
 ### 3.7 Touches du serveur (aucune ne se chevauche)
 Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis › FiveM.
 
@@ -149,6 +155,7 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F6** | Police : menu rapide | Policiers |
 | **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
+| **F7** | Mes animaux (sortir, ranger, ordres, fiche) — ordres aussi par **ALT** sur l'animal | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |
 | **N** | Parler (pma-voice) · **²** changer la portée de la voix | Tous |
 | **Verr. Maj** | Parler à la radio | Avec une radio |

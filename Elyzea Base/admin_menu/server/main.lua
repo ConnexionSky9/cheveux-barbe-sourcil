@@ -241,6 +241,15 @@ do
         meta.v31 = true
         Storage.save('meta', meta)
     end
+    if not meta.animaux1 then
+        -- Gestion des animaux (elyzea_animaux) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then
+            Ranks.superadmin.perms.animaux_manage = true
+            Ranks.superadmin.perms.animaux_owned = true
+        end
+        meta.animaux1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.famille1 then
         -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end
