@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA FAMILLE - configuration
---  Toutes les durées « réelles » sont en heures sauf mention contraire.
+--  Toutes les durées « réelles » sont en heures sauf mention contraire (minutes : « Minutes » dans le nom).
 --  Les probabilités sont entre 0 et 1 (0.25 = 25 %).
 -- =====================================================================
 Config = {}
@@ -27,7 +27,7 @@ Config.Intimite = {
     duree = 15,                  -- secondes d'écran noir (durée de l'interaction) — modifiable dans admin_menu › Famille
     dureeMin = 5,                -- bornes que la durée ne peut pas dépasser (aussi modifiables dans le menu)
     dureeMax = 120,
-    dureeMinPourConception = 0.6, -- utilisé seulement si Config.Conception.siInterrompu = true
+    dureeMinPourConception = 0.6, -- seulement pour un moment ARRÊTÉ, si Config.Conception.siInterrompu = true (un moment terminé compte toujours)
     delaiEntreMoments = 30,      -- minutes : délai pour chaque personne après un moment intime terminé (0 = aucun)
     distanceCouple = 1.0,        -- distance entre les deux personnages pendant l'étreinte (mètres)
     fondu = 1500,                -- millisecondes du fondu au noir / retour
@@ -86,17 +86,18 @@ Config.Conception = {
 -- ─────────────────────────── Grossesse (utilisé dès la conception) ───────────────────────────
 Config.Grossesse = {
     duree = 336,                 -- heures réelles (14 jours) entre conception et terme
-    -- Test de grossesse (objet) : positif seulement après ce délai depuis la conception
-    test = { item = 'test_grossesse', delai = 24, fiabilite = 0.99 },   -- heures · 0.99 = 1 faux négatif sur 100
+    -- Test de grossesse (objet) : négatif avant ce délai depuis la conception, positif après (fiabilité 1 = toujours)
+    test = { item = 'test_grossesse', delaiMinutes = 60, fiabilite = 1.0 },
     examenEms = true,            -- EMS en service : « Examen de grossesse » (menu ALT) = résultat sûr + nombre de bébés
     commande = 'grossesse',      -- /grossesse : suivi privé (si la grossesse est connue)
-    -- Étapes affichées (jour de grossesse -> description) ; la dernière s'applique au-delà
+    -- Étapes (part de la grossesse écoulée -> description) : en POURCENTAGE de la durée, pour rester justes
+    -- quelle que soit la durée réglée (0.25 = jusqu'au quart de la grossesse). La dernière s'applique au-delà et au terme.
     etapes = {
-        { jusqua = 3, label = 'Ventre presque plat' },
-        { jusqua = 7, label = 'Léger arrondi' },
-        { jusqua = 11, label = 'Ventre visible' },
-        { jusqua = 13, label = 'Ventre très arrondi' },
-        { jusqua = 999, label = 'Terme atteint' },
+        { jusqua = 0.20, label = 'Ventre presque plat' },
+        { jusqua = 0.50, label = 'Léger arrondi' },
+        { jusqua = 0.80, label = 'Ventre visible' },
+        { jusqua = 0.95, label = 'Ventre très arrondi' },
+        { jusqua = 1.00, label = 'Terme atteint' },
     },
 }
 

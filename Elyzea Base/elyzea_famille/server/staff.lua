@@ -29,10 +29,25 @@ RegisterCommand(Config.Staff.etat, function(src, args)
     else
         ligne(src, 'Aucune grossesse en cours.')
     end
-    local t = MySQL.query.await("SELECT `session_id`, `resultat`, `raison`, `probabilite`, `protections`, `created_at` FROM `rp_conception_attempts` WHERE `porteur_cid` = ? OR `partenaire_cid` = ? ORDER BY `id` DESC LIMIT 3", { j.cid, j.cid }) or {}
+    -- derniers moments de la personne (A ou B), avec la tentative éventuelle : les tentatives refusées
+    -- (moment arrêté, même sexe, âge…) n'ont pas de « porteuse » mais doivent apparaître ici
+    local t = MySQL.query.await([[SELECT s.`id` AS sid, s.`status`, s.`end_reason`, s.`volontaire` AS sv, s.`preservatif`, s.`started_at`,
+            t.`resultat`, t.`raison`, t.`volontaire`, t.`probabilite`, t.`tirage`, t.`protections`
+        FROM `rp_intimacy_sessions` s LEFT JOIN `rp_conception_attempts` t ON t.`session_id` = s.`id`
+        WHERE s.`a_cid` = ? OR s.`b_cid` = ? ORDER BY s.`started_at` DESC LIMIT 5]], { j.cid, j.cid }) or {}
+    if #t == 0 then ligne(src, 'Aucun moment intime enregistré.') end
     for _, r in ipairs(t) do
-        ligne(src, ('%s · %s%s · p = %.2f %% · protections : %s · %s'):format(r.session_id, r.resultat, r.raison and (' (' .. r.raison .. ')') or '',
-            (tonumber(r.probabilite) or 0) * 100, (r.protections and r.protections ~= '') and r.protections or 'aucune', date(r.created_at)))
+        local volontaire = tonumber(r.volontaire or r.sv) == 1
+        local risque = volontaire and 'risque « les deux souhaitent un enfant »' or 'risque « accidentel » (au moins une personne n\'a pas coché)'
+        if not r.resultat then
+            ligne(src, ('%s · %s%s · aucune tentative (%s) · %s'):format(r.sid, r.status, r.end_reason and (' / ' .. r.end_reason) or '',
+                r.status == 'active' and 'en cours' or 'moment arrêté avant la fin', date(r.started_at)))
+        else
+            ligne(src, ('%s · %s · %s%s · %s · p = %.2f %% · tirage = %s · protections : %s · %s'):format(r.sid, r.status, r.resultat,
+                r.raison and (' (' .. r.raison .. ')') or '', risque, (tonumber(r.probabilite) or 0) * 100,
+                r.tirage and ('%.4f'):format(tonumber(r.tirage)) or '—',
+                (r.protections and r.protections ~= '') and r.protections or 'aucune', date(r.started_at)))
+        end
     end
     ligne(src, ('Moments intimes en cours sur le serveur : %d'):format(Fam.SessionsEnCours()))
     local acteur = src == 0 and 'console' or ((Fam.Joueur(src) or {}).cid or ('src:' .. src))

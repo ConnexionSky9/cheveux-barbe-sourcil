@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA FAMILLE - serveur : découverte et suivi d'une grossesse
---  · Test de grossesse (objet) : résultat privé, positif après le délai configuré (faux négatif possible).
+--  · Test de grossesse (objet) : résultat privé, négatif avant le délai réglé (menu admin), positif après.
 --  · Examen EMS (menu ALT, patient consentant) : résultat sûr, nombre de bébés.
 --  · /grossesse : suivi privé (jour, étape, terme) — seulement si la grossesse a été découverte.
 --  L'avancement est calculé à partir des dates enregistrées : il continue hors ligne et après un redémarrage.
@@ -35,13 +35,16 @@ Fam.Utilisable(G.test.item, function(src)
     local ok, err = pcall(function()
         if not Fam.Retirer(src, G.test.item) then return Fam.Notify(src, 'Vous n\'avez pas de test de grossesse.', 'error') end
         local g = enCours(j.cid)
-        local positif = Regles.testGrossesse(g, os.time(), G.test, math.random)
+        local positif, tropTot = Regles.testGrossesse(g, os.time(), G.test, math.random)
         if g then
-            evenement(g.id, 'test', { resultat = positif and 'positif' or 'negatif' })
+            evenement(g.id, 'test', { resultat = positif and 'positif' or 'negatif', tropTot = tropTot or nil })
             if positif then decouvrir(g, 'test') end
         end
         TriggerClientEvent('elyzea_famille:client:resultatTest', src, positif)
-        Fam.Notify(src, positif and 'Test de grossesse : POSITIF. « /grossesse » pour votre suivi.' or 'Test de grossesse : négatif.', positif and 'success' or 'inform')
+        -- même message négatif avec ou sans grossesse trop récente (le test ne révèle rien), avec le rappel RP du délai
+        Fam.Notify(src, positif and 'Test de grossesse : POSITIF. « /grossesse » pour votre suivi.'
+            or ('Test de grossesse : négatif. Un test fait trop tôt peut être négatif : refaites-en un dans %s.'):format(Regles.texteDelai(G.test)),
+            positif and 'success' or 'inform')
     end)
     occupe[j.cid] = nil
     if not ok then Fam.err('test de grossesse : ' .. tostring(err)) end

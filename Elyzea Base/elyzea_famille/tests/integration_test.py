@@ -516,13 +516,13 @@ W.inv[1]['test_grossesse'] = 2
 G.source = 1
 res = from_lua(W.callbacks['famille:grossesse'](1))
 check('16. avant le test : grossesse inconnue de la joueuse', res.get('aucune') is True)
+G.Config.Grossesse.test.delaiMinutes = 24 * 60   # scénario d'un délai de 24 h (réglable dans le menu admin)
 use('test_grossesse', 1)
 check('16. test trop tôt (grossesse de moins de 24 h) : négatif', notif(1, 'négatif') and W.inv[1]['test_grossesse'] == 1)
 W.inv[1]['test_grossesse'] = 2
 advance(24 * H)
-G.Config.Grossesse.test.fiabilite = 1.0   # résultat déterministe pour le test (0,99 en production)
 use('test_grossesse', 1)
-G.Config.Grossesse.test.fiabilite = 0.99
+G.Config.Grossesse.test.delaiMinutes = 60
 check('16. test : objet consommé, résultat positif (grossesse de plus de 24 h)', W.inv[1]['test_grossesse'] == 1 and notif(1, 'POSITIF'))
 gid = q("SELECT id FROM rp_pregnancies WHERE porteur_cid='F001'")[0]['id']
 check('16. découverte enregistrée', q('SELECT discovered_at FROM rp_pregnancies WHERE id=%s', (gid,))[0]['discovered_at'] is not None)
@@ -668,6 +668,88 @@ check('28. export ReglagesBebe (lu par elyzea_bebe_modele à son démarrage)', r
       and rb['bebe.ventral'] is True)
 ok, msg = admin(3, 'reset')
 check('28. valeurs par défaut : bébés aussi', ok is True and G.Config.Bebe.dorsal is True and W.bebe_reglages[-1]['bebe.dorsal'] is True)
+
+# ═══════════ V5 : bug « test toujours négatif » (reproduction puis vérification de la correction) ═══════════
+def moment_complet(demandeur=2, cible=1, opts_a=None, opts_b=None):
+    net('elyzea_famille:intime:demande', demandeur, cible, opts_a or {})
+    answer(cible, True, opts_b or {})
+    sid_ = session_rows()[-1]['id']
+    advance(200)
+    return sid_
+
+
+def derniere_tentative(sid_):
+    r = q('SELECT * FROM rp_conception_attempts WHERE session_id=%s', (sid_,))
+    return r[0] if r else None
+
+
+def fin_grossesses():
+    q("UPDATE rp_pregnancies SET status='terminee', active_key=NULL, ended_at=%s WHERE active_key IS NOT NULL", (W.now - 10 * 24 * H,))
+
+
+advance(2 * H)
+fin_grossesses()
+v = admin_data(3)['values']
+v.update({'conception.probaAccidentelle': 1.0, 'intimite.dureeMinPourConception': 1.0})
+ok, msg = admin(3, 'save', {'values': v})
+sid = moment_complet()
+t = derniere_tentative(sid)
+check('29. B1 : risque 100 %, seuil 100 %, moment TERMINÉ, sans protection : grossesse enregistrée',
+      t and t['resultat'] == 'conception' and q("SELECT 1 FROM rp_pregnancies WHERE porteur_cid='F001' AND active_key='F001'"), t)
+
+W.inv[1]['test_grossesse'] = 5
+W.notifs.clear()
+use('test_grossesse', 1)
+advance(1)
+check('30. B2 : test 3 min après la conception (délai 60 min) = négatif, avec le rappel « trop tôt »',
+      notif(1, 'négatif') and notif(1, 'trop tôt') and notif(1, 'dans 1 h'))
+advance(58 * 60)
+W.notifs.clear()
+use('test_grossesse', 1)
+advance(1)
+check('31. B2/B3 : test 61 min après = POSITIF (fiabilité 100 %)', notif(1, 'POSITIF'))
+check('31. grossesse découverte et test journalisé', q("SELECT discovered_at FROM rp_pregnancies WHERE active_key='F001'")[0]['discovered_at']
+      and len(q("SELECT 1 FROM rp_pregnancy_events WHERE kind='test'")) >= 2)
+
+# délai réglé à 0 dans le menu admin : positif tout de suite
+fin_grossesses()
+advance(49 * H)
+v = admin_data(3)['values']
+v.update({'grossesse.test.delaiMinutes': 0})
+ok, msg = admin(3, 'save', {'values': v})
+check('32. menu admin : délai du test enregistré (0 min) et appliqué', ok is True and G.Config.Grossesse.test.delaiMinutes == 0)
+sid = moment_complet()
+W.notifs.clear()
+use('test_grossesse', 1)
+advance(1)
+check('32. délai 0 : positif juste après le moment', notif(1, 'POSITIF'))
+
+# B5 : diagnostic staff, tentatives refusées visibles avec la raison et le risque appliqué
+fin_grossesses()
+advance(49 * H)
+net('elyzea_famille:intime:demande', 2, 1, {})
+answer(1, True, {})
+sid_stop = session_rows()[-1]['id']
+advance(6)
+net('elyzea_famille:intime:arreter', 1, sid_stop)
+advance(10)
+lignes = []
+G.TriggerClientEvent_orig = None
+avant = len(W.client_events)
+W.commands['famille_etat'](3, to_lua(['1']), '')
+advance(0)
+txt = ' | '.join(str(a) for n, t, a in W.client_events[avant:] if n == 'chat:addMessage')
+check('33. B5 : /famille_etat montre le moment arrêté (sans tentative) et le moment réussi avec le risque appliqué',
+      sid_stop in txt and 'aucune tentative' in txt and 'conception' in txt and 'accidentel' in txt, txt[:400])
+v = admin_data(3)['values']
+v.update({'grossesse.etape2': 0.1})
+ok, msg = admin(3, 'save', {'values': v})
+check('34. B6 : étapes dans le désordre refusées', ok is False and 'étape 2' in msg, msg)
+v.update({'grossesse.etape2': 0.5, 'modules.conception': False})
+ok, msg = admin(3, 'save', {'values': v})
+check('34. module conception désactivable depuis le menu', ok is True and G.Config.Modules.conception is False)
+ok, msg = admin(3, 'reset')
+check('34. valeurs par défaut rétablies (conception, délai 60 min)', G.Config.Modules.conception is True and G.Config.Grossesse.test.delaiMinutes == 60)
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

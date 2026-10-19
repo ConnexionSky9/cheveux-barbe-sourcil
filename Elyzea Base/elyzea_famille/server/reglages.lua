@@ -43,18 +43,32 @@ local SCHEMA = {
     { s = 'conditions', k = 'intimite.delaiEntreMoments', p = { 'Intimite', 'delaiEntreMoments' }, t = 'int', min = 0, max = 1440, u = 'min',
       l = 'Délai après un moment terminé', a = 'Pour chaque personne, avant un nouveau moment intime (0 = aucun).' },
     -- Risque de grossesse
+    { s = 'grossesse', k = 'modules.conception', p = { 'Modules', 'conception' }, t = 'bool',
+      l = 'Conception activée', a = 'Désactivé : aucun moment intime ne peut donner de grossesse, le test est toujours négatif.' },
     { s = 'grossesse', k = 'conception.probaVolontaire', p = { 'Conception', 'probaVolontaire' }, t = 'pct', min = 0, max = 1,
-      l = 'Risque si les deux souhaitent un enfant', a = 'Pour un moment terminé, sans contraception.' },
+      l = 'Risque si LES DEUX ont coché « souhaiter un enfant »', a = 'Utilisé seulement si les deux personnes ont coché la case dans la demande. Moment terminé, sans contraception. Le diagnostic /famille_etat indique quel risque a été appliqué.' },
     { s = 'grossesse', k = 'conception.accidentelle', p = { 'Conception', 'accidentelle' }, t = 'bool',
       l = 'Grossesses accidentelles', a = 'Désactivé : seule une tentative où les deux ont coché « souhaiter un enfant » peut aboutir.' },
     { s = 'grossesse', k = 'conception.probaAccidentelle', p = { 'Conception', 'probaAccidentelle' }, t = 'pct', min = 0, max = 1,
-      l = 'Risque accidentel', a = 'Pour un moment terminé, sans contraception, quand au moins une personne n\'a pas coché la case.' },
+      l = 'Risque accidentel (case non cochée)', a = 'Utilisé dès qu\'au moins une personne n\'a PAS coché « souhaiter un enfant ». Moment terminé, sans contraception. Pour tester à 100 %, réglez les DEUX risques à 100 %.' },
     { s = 'grossesse', k = 'conception.jumeaux', p = { 'Conception', 'multiples', 'jumeaux' }, t = 'pct', min = 0, max = 0.5,
       l = 'Jumeaux', a = 'Tiré séparément, seulement après une conception.' },
     { s = 'grossesse', k = 'conception.triples', p = { 'Conception', 'multiples', 'triples' }, t = 'pct', min = 0, max = 0.2,
       l = 'Triplés', a = 'Tiré séparément, seulement après une conception.' },
     { s = 'grossesse', k = 'grossesse.duree', p = { 'Grossesse', 'duree' }, t = 'int', min = 24, max = 2160, u = 'h',
       l = 'Durée de la grossesse', a = 'Heures réelles entre conception et terme (s\'applique aux nouvelles grossesses).' },
+    { s = 'grossesse', k = 'grossesse.test.delaiMinutes', p = { 'Grossesse', 'test', 'delaiMinutes' }, t = 'int', min = 0, max = 10080, u = 'min',
+      l = 'Délai de détection du test', a = 'Temps après la conception avant qu\'un test de grossesse puisse être positif. Avant : négatif (le message rappelle qu\'un test trop tôt peut être négatif). 0 = détectable tout de suite.' },
+    { s = 'grossesse', k = 'grossesse.test.fiabilite', p = { 'Grossesse', 'test', 'fiabilite' }, t = 'pct', min = 0.5, max = 1,
+      l = 'Fiabilité du test après le délai', a = '100 % = toujours positif après le délai en cas de grossesse.' },
+    { s = 'etapes', k = 'grossesse.etape1', p = { 'Grossesse', 'etapes', 1, 'jusqua' }, t = 'pct', min = 0.01, max = 0.99,
+      l = 'Fin de l\'étape « Ventre presque plat »', a = 'Part de la grossesse écoulée (les étapes suivent la durée réglée).' },
+    { s = 'etapes', k = 'grossesse.etape2', p = { 'Grossesse', 'etapes', 2, 'jusqua' }, t = 'pct', min = 0.01, max = 0.99,
+      l = 'Fin de l\'étape « Léger arrondi »', a = 'Doit être plus grand que l\'étape précédente.' },
+    { s = 'etapes', k = 'grossesse.etape3', p = { 'Grossesse', 'etapes', 3, 'jusqua' }, t = 'pct', min = 0.01, max = 0.99,
+      l = 'Fin de l\'étape « Ventre visible »', a = 'Doit être plus grand que l\'étape précédente.' },
+    { s = 'etapes', k = 'grossesse.etape4', p = { 'Grossesse', 'etapes', 4, 'jusqua' }, t = 'pct', min = 0.01, max = 0.99,
+      l = 'Fin de l\'étape « Ventre très arrondi »', a = 'Ensuite : « Terme atteint » (au terme réel seulement).' },
     -- Contraception
     { s = 'contraception', k = 'contraception.preservatif.fiabilite', p = { 'Contraception', 'preservatif', 'fiabilite' }, t = 'pct', min = 0, max = 1,
       l = 'Fiabilité du préservatif', a = '98 % = le risque est multiplié par 0,02.' },
@@ -89,6 +103,7 @@ local SECTIONS = {
     { id = 'position', label = 'Positionnement des personnages' },
     { id = 'conditions', label = 'Conditions de déclenchement' },
     { id = 'grossesse', label = 'Risque de grossesse' },
+    { id = 'etapes', label = 'Étapes de la grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
 }
@@ -141,6 +156,11 @@ local function validerTout(valeurs)
             err[#err + 1] = ('La durée doit être entre %d et %d s.'):format(out['intimite.dureeMin'], out['intimite.dureeMax'])
         end
         if out['conception.jumeaux'] + out['conception.triples'] > 1 then err[#err + 1] = 'Jumeaux + triplés ne peuvent pas dépasser 100 %.' end
+        for i = 2, 4 do
+            if out['grossesse.etape' .. i] <= out['grossesse.etape' .. (i - 1)] then
+                err[#err + 1] = ('L\'étape %d doit finir après l\'étape %d.'):format(i, i - 1)
+            end
+        end
         if out['contraception.pilule.renouvellement'] > out['contraception.pilule.duree'] then
             err[#err + 1] = 'Le renouvellement de la pilule ne peut pas dépasser sa durée de protection.'
         end

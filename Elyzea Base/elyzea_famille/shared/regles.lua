@@ -90,7 +90,8 @@ function R.decider(e, cfg, now, rng)
     local d = { resultat = 'aucune', protections = {}, probabilite = 0, tirage = nil, bebes = 0 }
     if not cfg.Modules.conception then d.resultat = 'desactive' return d end
     if e.interrompu and not CC.siInterrompu then d.resultat = 'interrompu' return d end
-    if (e.dureePct or 0) < cfg.Intimite.dureeMinPourConception then d.resultat = 'interrompu' return d end
+    -- seuil de durée : seulement pour un moment arrêté avant la fin (option « tentative si arrêté »)
+    if e.interrompu and (e.dureePct or 0) < cfg.Intimite.dureeMinPourConception then d.resultat = 'interrompu' return d end
     if not e.volontaire and not CC.accidentelle then d.resultat = 'accidentelle_desactivee' return d end
     local who, raison = R.porteur(e.a, e.b, CC, now)
     if not who then d.resultat = 'impossible' d.raison = raison return d end
@@ -134,23 +135,48 @@ function R.poseImplant(etat, now, I)
     return true, now + I.duree * HEURE
 end
 
--- Test de grossesse : renvoie true (positif) ou false. enceinte = { conceived_at } ou nil
-function R.testGrossesse(enceinte, now, T, rng)
-    if not enceinte then return false end
-    if now - (tonumber(enceinte.conceived_at) or now) < T.delai * HEURE then return false end
-    return rng() < T.fiabilite
+-- Délai de détection d'un test, en secondes (réglage en minutes ; ancien réglage en heures accepté)
+function R.delaiTest(T)
+    if T.delaiMinutes then return math.floor(T.delaiMinutes * 60) end
+    return math.floor((T.delai or 0) * HEURE)
 end
 
--- Avancement d'une grossesse : jour (1..), étape, terme atteint
+-- Délai en texte (« 60 min », « 2 h », « 1 h 30 »)
+function R.texteDelai(T)
+    local m = math.floor(R.delaiTest(T) / 60 + 0.5)
+    if m < 60 then return ('%d min'):format(m) end
+    if m % 60 == 0 then return ('%d h'):format(m // 60) end
+    return ('%d h %02d'):format(m // 60, m % 60)
+end
+
+-- Test de grossesse : renvoie true (positif) ou false, et « trop tôt » (grossesse trop récente pour être détectée).
+-- enceinte = { conceived_at } ou nil. Après le délai : positif avec la fiabilité réglée (1 = toujours).
+function R.testGrossesse(enceinte, now, T, rng)
+    if not enceinte then return false, false end
+    if now - (tonumber(enceinte.conceived_at) or now) < R.delaiTest(T) then return false, true end
+    return rng() < (T.fiabilite or 1), false
+end
+
+-- Étape d'une grossesse selon la part écoulée (0..1) ; étapes en pourcentage (Config.Grossesse.etapes)
+function R.etape(pct, etapes)
+    for i, e in ipairs(etapes) do
+        if pct < e.jusqua or i == #etapes then return e.label, i end
+    end
+end
+
+-- Avancement d'une grossesse : jour (1..), part écoulée, étape, terme atteint
 function R.avancement(g, now, G)
     -- durée propre à CETTE grossesse (terme enregistré) : un changement de réglage ne touche pas les grossesses en cours
     local total = math.max(HEURE, (tonumber(g.due_at) or 0) - (tonumber(g.conceived_at) or 0))
     local ecoule = math.max(0, now - g.conceived_at)
-    local jour = math.floor(ecoule / (24 * HEURE)) + 1
-    local etape = G.etapes[#G.etapes].label
-    for _, e in ipairs(G.etapes) do if jour <= e.jusqua then etape = e.label break end end
-    if now >= g.due_at then etape = G.etapes[#G.etapes].label end
-    return { jour = jour, jours = math.ceil(total / (24 * HEURE)), pct = math.min(1, ecoule / total), etape = etape, terme = now >= g.due_at }
+    local pct = math.min(1, ecoule / total)
+    local terme = now >= tonumber(g.due_at)
+    local etape, n = R.etape(terme and 1 or pct, G.etapes)
+    -- la dernière étape (« Terme atteint ») n'est affichée qu'au terme réel
+    if terme then etape, n = G.etapes[#G.etapes].label, #G.etapes
+    elseif n == #G.etapes and n > 1 then n = n - 1 etape = G.etapes[n].label end
+    return { jour = math.floor(ecoule / (24 * HEURE)) + 1, jours = math.ceil(total / (24 * HEURE)), pct = pct,
+        etape = etape, numeroEtape = n, terme = terme }
 end
 
 -- Date prévue d'accouchement

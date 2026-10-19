@@ -62,7 +62,7 @@ local function entree(t)
     return e
 end
 test('module désactivé', R.decider(entree(), (function() local c = copie(Config) c.Modules.conception = false return c end)(), NOW, fixe(0)).resultat == 'desactive')
-test('interrompu trop tôt', R.decider(entree({ dureePct = 0.3 }), Config, NOW, fixe(0)).resultat == 'interrompu')
+test('arrêté à 30 % : aucune tentative', R.decider(entree({ interrompu = true, dureePct = 0.3 }), Config, NOW, fixe(0)).resultat == 'interrompu')
 test('tirage réussi sans protection = conception', R.decider(entree(), Config, NOW, fixe(0.01)).resultat == 'conception')
 test('tirage raté = aucune', R.decider(entree(), Config, NOW, fixe(0.99)).resultat == 'aucune')
 test('protégé', R.decider(entree({ preservatif = true }), Config, NOW, fixe(0.01)).resultat == 'protege')
@@ -110,15 +110,36 @@ test('interrompu autorisé mais trop tôt', R.decider(entree({ interrompu = true
 -- Test de grossesse et avancement
 local GG = Config.Grossesse
 test('test négatif sans grossesse', R.testGrossesse(nil, NOW, GG.test, fixe(0)) == false)
-test('test négatif avant 24 h', R.testGrossesse({ conceived_at = NOW - 10 * H }, NOW, GG.test, fixe(0)) == false)
-test('test positif après 24 h', R.testGrossesse({ conceived_at = NOW - 30 * H }, NOW, GG.test, fixe(0.5)) == true)
-test('faux négatif possible (1 %)', R.testGrossesse({ conceived_at = NOW - 30 * H }, NOW, GG.test, fixe(0.995)) == false)
+do
+    local pos, tot = R.testGrossesse({ conceived_at = NOW - 30 * 60 }, NOW, GG.test, fixe(0))
+    test('test négatif 30 min après (délai 60 min), signalé « trop tôt »', pos == false and tot == true)
+    pos, tot = R.testGrossesse({ conceived_at = NOW - 61 * 60 }, NOW, GG.test, fixe(0.999))
+    test('test positif 61 min après, même avec un tirage de 0,999 (fiabilité 100 %)', pos == true and tot == false)
+    pos, tot = R.testGrossesse(nil, NOW, GG.test, fixe(0))
+    test('sans grossesse : négatif, pas « trop tôt »', pos == false and tot == false)
+    test('délai 0 : positif tout de suite', (R.testGrossesse({ conceived_at = NOW }, NOW, { delaiMinutes = 0, fiabilite = 1 }, fixe(0.5))))
+    test('ancien réglage en heures accepté (delai = 24)', R.delaiTest({ delai = 24 }) == 24 * H and R.delaiTest({ delaiMinutes = 90 }) == 5400)
+    test('fiabilité réglée à 90 % : tirage 0,95 = négatif', R.testGrossesse({ conceived_at = NOW - 2 * H }, NOW, { delaiMinutes = 60, fiabilite = 0.9 }, fixe(0.95)) == false)
+end
+-- B1 : un moment TERMINÉ conçoit à 100 % même si le seuil « moment arrêté » est à 100 %
+do
+    local C1 = copie(Config) C1.Conception.probaAccidentelle = 1.0 C1.Intimite.dureeMinPourConception = 1.0
+    test('B1 : moment terminé, risque 100 %, seuil 100 % : conception', R.decider(entree({ dureePct = 0.93 }), C1, NOW, fixe(0.999)).resultat == 'conception')
+    C1.Conception.siInterrompu = true
+    test('B1 : moment arrêté à 93 %, seuil 100 % : pas de tentative', R.decider(entree({ interrompu = true, dureePct = 0.93 }), C1, NOW, fixe(0)).resultat == 'interrompu')
+end
 local g0 = { conceived_at = NOW, due_at = NOW + 336 * H }
 test('jour 1 : ventre presque plat', R.avancement(g0, NOW + H, GG).jour == 1 and R.avancement(g0, NOW + H, GG).etape == 'Ventre presque plat')
 test('jour 5 : léger arrondi', R.avancement(g0, NOW + 4 * 24 * H + H, GG).etape == 'Léger arrondi')
 test('jour 9 : ventre visible', R.avancement(g0, NOW + 8 * 24 * H + H, GG).etape == 'Ventre visible')
 test('jour 13 : très arrondi', R.avancement(g0, NOW + 12 * 24 * H + H, GG).etape == 'Ventre très arrondi')
 test('jour 14 révolu : terme atteint', R.avancement(g0, NOW + 336 * H, GG).terme and R.avancement(g0, NOW + 336 * H, GG).etape == 'Terme atteint')
+-- B6 : étapes en pourcentage, justes pour une grossesse courte (48 h)
+local g2 = { conceived_at = NOW, due_at = NOW + 48 * H }
+test('B6 : grossesse de 48 h, à 30 h (62 %) : ventre visible', R.avancement(g2, NOW + 30 * H, GG).etape == 'Ventre visible')
+test('B6 : grossesse de 48 h, à 47 h (98 %) : pas encore « terme »', R.avancement(g2, NOW + 47 * H, GG).etape == 'Ventre très arrondi'
+    and not R.avancement(g2, NOW + 47 * H, GG).terme)
+test('B6 : grossesse de 48 h, à 48 h : terme', R.avancement(g2, NOW + 48 * H, GG).terme and R.avancement(g2, NOW + 48 * H, GG).numeroEtape == 5)
 
 -- Terme
 test('terme à 336 h', R.terme(NOW, Config.Grossesse) == NOW + 336 * H)
