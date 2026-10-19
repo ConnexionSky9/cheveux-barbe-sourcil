@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `meca_invoices` (
     `note` VARCHAR(160) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NULL,
-    INDEX (`customer_cid`), INDEX (`vehicle_id`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX (`customer_cid`), INDEX (`vehicle_id`), INDEX (`created_at`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `meca_vehicle_history` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS `meca_vehicle_history` (
     `ref` VARCHAR(40) NULL,
     `mechanic_cid` VARCHAR(50) NULL, `mechanic_name` VARCHAR(100) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX (`vehicle_id`), INDEX (`plate`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX (`vehicle_id`), INDEX (`plate`), INDEX (`created_at`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `meca_carplay` (
     `vehicle_id` INT NOT NULL PRIMARY KEY,
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `meca_tow` (
     `assigned_cid` VARCHAR(50) NULL, `assigned_name` VARCHAR(100) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `closed_at` DATETIME NULL,
-    INDEX (`status`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX (`status`), INDEX (`created_at`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `meca_tow_log` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

@@ -214,7 +214,7 @@ P.Tables = {
         `note` VARCHAR(160) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` DATETIME NULL,
-        INDEX (`customer_cid`), INDEX (`vehicle_id`) ) ]],
+        INDEX (`customer_cid`), INDEX (`vehicle_id`), INDEX (`created_at`) ) ]],
     meca_vehicle_history = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `vehicle_id` INT NULL, `plate` VARCHAR(15) NULL,
@@ -223,7 +223,7 @@ P.Tables = {
         `ref` VARCHAR(40) NULL,
         `mechanic_cid` VARCHAR(50) NULL, `mechanic_name` VARCHAR(100) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX (`vehicle_id`), INDEX (`plate`) ) ]],
+        INDEX (`vehicle_id`), INDEX (`plate`), INDEX (`created_at`) ) ]],
     meca_carplay = [[ (
         `vehicle_id` INT NOT NULL PRIMARY KEY,
         `plate` VARCHAR(15) NULL,
@@ -244,7 +244,7 @@ P.Tables = {
         `assigned_cid` VARCHAR(50) NULL, `assigned_name` VARCHAR(100) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `closed_at` DATETIME NULL,
-        INDEX (`status`) ) ]],
+        INDEX (`status`), INDEX (`created_at`) ) ]],
     meca_tow_log = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `tow_id` INT NOT NULL,
@@ -260,6 +260,11 @@ local function InitDb()
     for _, name in ipairs(P.TableOrder) do pcall(CheckTable, name) end
     for _, name in ipairs(P.TableOrder) do
         Q(('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
+    end
+    -- Compteurs « aujourd'hui / 7 jours » des tablettes (rafraîchis toutes les quelques secondes) : index sur la date
+    -- pour les bases créées avant son ajout (MariaDB ; ignoré sans erreur bloquante ailleurs)
+    for _, t in ipairs({ 'meca_tow', 'meca_vehicle_history', 'meca_invoices' }) do
+        pcall(MySQL.query.await, ('CREATE INDEX IF NOT EXISTS `created_at` ON `%s` (`created_at`)'):format(t))
     end
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
     P.AddJobColumns({ 'meca_grades', 'meca_employees' }, { 'meca_admin_log', 'meca_transactions', 'meca_tow', 'meca_quotes', 'meca_invoices' }, 'meca_grades')

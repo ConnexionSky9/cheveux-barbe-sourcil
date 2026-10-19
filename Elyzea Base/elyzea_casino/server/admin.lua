@@ -44,7 +44,12 @@ local function refreshStats()
 end
 CreateThread(function()
     while not Casino.ready do Wait(500) end
-    while true do refreshStats() Wait(60000) end
+    refreshStats()
+    -- recalcul toutes les minutes seulement si un admin a ouvert l'onglet récemment (sinon à l'ouverture)
+    while true do
+        Wait(60000)
+        if os.time() - (Stats.viewed or 0) < 300 then refreshStats() end
+    end
 end)
 
 -- ---------------------------------------------------------------- données pour l'onglet
@@ -74,6 +79,7 @@ end
 function AdminData(src)
     if not Casino.IsAdmin(src) then return { available = true, denied = true } end
     if not Casino.ready then return { available = false, loading = true } end
+    Stats.viewed = os.time()
     if os.time() - Stats.at > 60 then refreshStats() end
     local wheels = {}
     for i, w in ipairs(S.wheels) do

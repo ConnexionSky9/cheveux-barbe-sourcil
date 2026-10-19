@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `ems_calls` (
     `assigned_cid` VARCHAR(50) NULL, `assigned_name` VARCHAR(100) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `closed_at` DATETIME NULL,
-    INDEX (`status`), INDEX (`patient_cid`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX (`status`), INDEX (`patient_cid`), INDEX (`created_at`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `ems_call_log` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS `ems_treatments` (
     `call_id` INT NULL,
     `invoice_uid` VARCHAR(40) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX (`patient_cid`), INDEX (`invoice_uid`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX (`patient_cid`), INDEX (`invoice_uid`), INDEX (`created_at`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `ems_invoices` (
     `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

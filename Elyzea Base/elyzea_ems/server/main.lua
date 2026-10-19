@@ -177,7 +177,7 @@ P.Tables = {
         `assigned_cid` VARCHAR(50) NULL, `assigned_name` VARCHAR(100) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `closed_at` DATETIME NULL,
-        INDEX (`status`), INDEX (`patient_cid`) ) ]],
+        INDEX (`status`), INDEX (`patient_cid`), INDEX (`created_at`) ) ]],
     ems_call_log = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `call_id` INT NOT NULL,
@@ -204,7 +204,7 @@ P.Tables = {
         `call_id` INT NULL,
         `invoice_uid` VARCHAR(40) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX (`patient_cid`), INDEX (`invoice_uid`) ) ]],
+        INDEX (`patient_cid`), INDEX (`invoice_uid`), INDEX (`created_at`) ) ]],
     ems_invoices = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `uid` VARCHAR(40) NOT NULL UNIQUE,
@@ -308,6 +308,11 @@ local function InitDb()
     for _, name in ipairs(P.TableOrder) do pcall(CheckTable, name) end
     for _, name in ipairs(P.TableOrder) do
         Q(('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
+    end
+    -- Compteurs « aujourd'hui / 7 jours » des tablettes (rafraîchis toutes les quelques secondes) : index sur la date
+    -- pour les bases créées avant son ajout (MariaDB ; ignoré sans erreur bloquante ailleurs)
+    for _, t in ipairs({ 'ems_calls', 'ems_treatments' }) do
+        pcall(MySQL.query.await, ('CREATE INDEX IF NOT EXISTS `created_at` ON `%s` (`created_at`)'):format(t))
     end
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
     P.AddJobColumns({ 'ems_grades', 'ems_employees' }, { 'ems_admin_log', 'ems_transactions', 'ems_calls', 'ems_support', 'ems_invoices' }, 'ems_grades')
