@@ -100,6 +100,7 @@ function RefreshZones()
     local ids = {}
     for _, z in ipairs(Editor.zones or {}) do ids[z.id] = true end
     for id in pairs(inside) do if not ids[id] then inside[id] = nil end end
+    if RefreshVoiceZones then RefreshVoiceZones() end
 end
 
 local function isPolice()
@@ -209,8 +210,9 @@ end
 local function drawZone(z, p)
     local r, g, b = rgb((colorById[z.color] or {}).hex)
     local zMin, zMax = p.z - 2.0, p.z + 8.0
+    if z.soundproof then zMin, zMax = z.minZ, z.maxZ end   -- la vraie boîte (pièce insonorisée)
     if z.shape == 'circle' then
-        DrawMarker(1, z.center.x, z.center.y, p.z - 2.0, 0, 0, 0, 0, 0, 0, z.radius * 2.0, z.radius * 2.0, 10.0,
+        DrawMarker(1, z.center.x, z.center.y, zMin, 0, 0, 0, 0, 0, 0, z.radius * 2.0, z.radius * 2.0, zMax - zMin,
             r, g, b, 45, false, false, 2, false, nil, nil, false)
         return
     end
@@ -334,23 +336,48 @@ local function drawLoop()
         local r, g, b = rgb((colorById[(d.settings or {}).color] or {}).hex)
         DrawMarker(28, aim.x, aim.y, aim.z, 0, 0, 0, 0, 0, 0, 0.35, 0.35, 0.35, r, g, b, 220, false, false, 2, false, nil, nil, false)
 
+        -- Hauteur / profondeur réglées en direct : ↑ ↓ (hauteur), ← → (profondeur)
+        local st = d.settings or {}
+        d.settings = st
+        local hasH = not d.target   -- zones de l'éditeur seulement (pas les zones de PNJ / d'agence)
+        local hgt = hasH and (tonumber(st.height) or ZC.height) or 5.0
+        local dep = hasH and (tonumber(st.depth) or ZC.depth) or 0.5
+        if hasH then
+            for _, c in ipairs({ 172, 173, 174, 175 }) do DisableControlAction(0, c, true) end
+            local step = (IsControlPressed(0, 21) or IsDisabledControlPressed(0, 21)) and 5.0 or 0.5   -- Maj = pas de 5 m
+            if IsDisabledControlJustPressed(0, 172) then hgt = math.min(500.0, hgt + step) end
+            if IsDisabledControlJustPressed(0, 173) then hgt = math.max(0.5, hgt - step) end
+            if IsDisabledControlJustPressed(0, 175) then dep = math.min(200.0, dep + step) end
+            if IsDisabledControlJustPressed(0, 174) then dep = math.max(0.0, dep - step) end
+            st.height, st.depth = hgt, dep
+        end
+
         local pts = d.points
+        local lo, hi = aim.z, aim.z
+        for _, p in ipairs(pts) do lo, hi = math.min(lo, p.z), math.max(hi, p.z) end
+        local wMin, wMax = lo - dep, hi + hgt
         for i, p in ipairs(pts) do
             DrawMarker(1, p.x, p.y, p.z - 1.0, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 6.0, r, g, b, 200, false, false, 2, false, nil, nil, false)
-            DrawText3D(vector3(p.x, p.y, p.z + 5.5), ('Coin %d'):format(i), 0.32)
+            DrawText3D(vector3(p.x, p.y, p.z + 1.5), ('Coin %d'):format(i), 0.32)
             local nx = pts[i + 1] or aim
             DrawLine(p.x, p.y, p.z + 0.2, nx.x, nx.y, nx.z + 0.2, r, g, b, 255)
-            drawWall(p, nx, math.min(p.z, nx.z) - 0.5, math.max(p.z, nx.z) + 5.0, r, g, b, 50)
+            drawWall(p, nx, wMin, wMax, r, g, b, 50)
+            DrawLine(p.x, p.y, wMax, nx.x, nx.y, wMax, r, g, b, 230)
         end
         if #pts >= 2 then
             DrawLine(aim.x, aim.y, aim.z + 0.2, pts[1].x, pts[1].y, pts[1].z + 0.2, r, g, b, 120)
         end
 
-        ShowKeysHud('zonedraw', d.target and (d.target.agency and ('Zone d\'alerte : ' .. (d.target.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', {
+        local rows = {
             { keys = { EK('confirm') }, label = 'Poser un coin ici' },
             { keys = { EK('cancel') }, label = #pts > 0 and 'Retirer le dernier coin' or 'Annuler' },
             { keys = { EK('finish') }, label = 'Terminer la zone' },
-        }, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
+        }
+        if hasH then
+            rows[#rows + 1] = { keys = { '↑', '↓' }, label = ('Hauteur : +%.1f m (Maj = 5 m)'):format(hgt) }
+            rows[#rows + 1] = { keys = { '←', '→' }, label = ('Profondeur : -%.1f m'):format(dep) }
+        end
+        ShowKeysHud('zonedraw', d.target and (d.target.agency and ('Zone d\'alerte : ' .. (d.target.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', rows, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
     end
     if HudOwner == 'zonedraw' then HideKeysHud() end
 end
@@ -379,8 +406,68 @@ AddEventHandler('adminmenu:client:drawAgencyZone', function(id, name)
     StartZoneDraw(nil, { color = 'blue', name = name }, { agency = tonumber(id), name = name })
 end)
 
+-- ---------------------------------------------------------
+--  ZONES INSONORISÉES (pma-voice)
+--  Chaque joueur décide à qui il ENVOIE sa voix : seulement aux joueurs de la même zone
+--  insonorisée (ou à ceux hors de toute zone insonorisée s'il est dehors). Comme tout le monde
+--  applique la même règle, dedans on n'entend que ceux de dedans, et dehors on n'entend pas dedans.
+--  Les appels téléphoniques et la radio ne sont pas concernés.
+-- ---------------------------------------------------------
+local voiceZones = {}
+local voiceHooked = false
+local myVZ, myVZAt = 0, 0
+
+local function voiceZoneAt(p)
+    for i = 1, #voiceZones do
+        local z = voiceZones[i]
+        if inZone(z, p) then return z.id end
+    end
+    return 0
+end
+
+local function proximityCheck(ply)
+    local me = GetEntityCoords(PlayerPedId())
+    local tp = GetEntityCoords(GetPlayerPed(ply))
+    local range = MumbleGetTalkerProximity()
+    if GetConvar('voice_useNativeAudio', 'false') == 'true' then range = range * 3 end
+    local d = #(me - tp)
+    if d >= range then return false, d end
+    if #voiceZones == 0 then return true, d end
+    local now = GetGameTimer()
+    if now - myVZAt > 150 then myVZ, myVZAt = voiceZoneAt(me), now end
+    return voiceZoneAt(tp) == myVZ, d
+end
+
+local function hookVoice()
+    if GetResourceState('pma-voice') ~= 'started' then voiceHooked = false return end
+    if #voiceZones > 0 then
+        local ok, err = pcall(function() exports['pma-voice']:overrideProximityCheck(proximityCheck) end)
+        if not ok then print(('^3[AdminMenu] Zones insonorisées : pma-voice trop ancien (overrideProximityCheck absent) : %s^7'):format(tostring(err))) end
+        voiceHooked = ok
+    elseif voiceHooked then
+        pcall(function() exports['pma-voice']:resetProximityCheck() end)
+        voiceHooked = false
+    end
+end
+
+function RefreshVoiceZones()
+    local list = {}
+    for _, z in ipairs(Editor.zones or {}) do if z.soundproof then list[#list + 1] = z end end
+    voiceZones = list
+    myVZAt = 0
+    hookVoice()
+end
+
+AddEventHandler('onClientResourceStart', function(res)
+    if res == 'pma-voice' then SetTimeout(1000, hookVoice) end
+end)
+
+-- Indicateur pour le joueur (et export pour d'autres ressources)
+exports('IsInSoundproofZone', function() return voiceZoneAt(GetEntityCoords(PlayerPedId())) ~= 0 end)
+
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
+    if voiceHooked then pcall(function() exports['pma-voice']:resetProximityCheck() end) end
     for _, b in ipairs(zoneBlips) do if DoesBlipExist(b) then RemoveBlip(b) end end
     if wasInvincible and not State.godmode then SetEntityInvincible(PlayerPedId(), false) end
     SetPlayerCanDoDriveBy(PlayerId(), true)

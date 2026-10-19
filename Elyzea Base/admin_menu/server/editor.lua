@@ -751,6 +751,11 @@ local function zoneSettings(d, base)
         blipScale   = num(d.blipScale, 0.4, 1.6, base.blipScale or 0.8),
         -- Territoire : seul endroit où l'on peut vendre de la drogue (elyzea_illegal), contrôlé par les groupes
         territory   = bool(d.territory, base.territory),
+        -- Zone insonorisée : à l'intérieur on n'entend que ceux qui y sont, et l'extérieur n'entend pas l'intérieur
+        soundproof  = bool(d.soundproof, base.soundproof),
+        -- Hauteur couverte au-dessus du coin le plus haut / profondeur sous le coin le plus bas (mètres)
+        height      = round(num(d.height, 0.5, 500, base.height or Config.Zones.height)),
+        depth       = round(num(d.depth, 0, 200, base.depth or Config.Zones.depth)),
     }
     if z.name == '' then z.name = 'Zone' end
     return z
@@ -763,7 +768,7 @@ local function zoneShape(src, d, z)
         z.shape, z.points = 'circle', nil
         z.center = { x = round(c.x), y = round(c.y) }
         z.radius = round(r)
-        z.minZ, z.maxZ = round(c.z - Config.Zones.depth), round(c.z + Config.Zones.height)
+        z.floorZ, z.topZ = round(c.z - 1.0), round(c.z - 1.0)   -- niveau des pieds
         return true
     end
     local pts, minZ, maxZ = {}, math.huge, -math.huge
@@ -777,8 +782,19 @@ local function zoneShape(src, d, z)
     end
     if #pts < 3 then return false end
     z.shape, z.points, z.center, z.radius = 'poly', pts, nil, nil
-    z.minZ, z.maxZ = round(minZ - Config.Zones.depth), round(maxZ + Config.Zones.height)
+    z.floorZ, z.topZ = round(minZ), round(maxZ)
     return true
+end
+
+-- Hauteur couverte : du coin le plus bas - profondeur au coin le plus haut + hauteur
+local function zoneHeight(z)
+    if not z.floorZ then   -- zone créée avant le réglage de hauteur
+        z.floorZ = (z.minZ or 0) + Config.Zones.depth
+        z.topZ = (z.maxZ or 0) - Config.Zones.height
+        if z.topZ < z.floorZ then z.topZ = z.floorZ end
+    end
+    z.minZ = round(z.floorZ - (z.depth or Config.Zones.depth))
+    z.maxZ = round(z.topZ + (z.height or Config.Zones.height))
 end
 
 def('editor_save_zone', 'editor_zones', function(src, d)
@@ -788,10 +804,12 @@ def('editor_save_zone', 'editor_zones', function(src, d)
             if not zoneShape(src, d, z) then return AM.notify(src, 'Il faut au moins 3 coins pour une zone.', 'error') end
         end
         if d.settings then for k, v in pairs(zoneSettings(d.settings, z)) do z[k] = v end end
+        zoneHeight(z)
         AM.addLog(src, 'Zone modifiée', ('#%d %s'):format(z.id, z.name))
     else
         z = zoneSettings(d.settings or {})
         if not zoneShape(src, d, z) then return AM.notify(src, 'Il faut au moins 3 coins pour une zone.', 'error') end
+        zoneHeight(z)
         z.id = nextId(Data.zones)
         table.insert(Data.zones, z)
         AM.addLog(src, 'Zone créée', ('#%d %s (%s)'):format(z.id, z.name, z.shape == 'circle' and 'cercle' or (#z.points .. ' coins')))

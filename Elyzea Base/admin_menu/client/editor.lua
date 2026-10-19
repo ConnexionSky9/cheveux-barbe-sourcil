@@ -889,6 +889,8 @@ function EditorMenuData()
             safe = z.safe, noWeapons = z.noWeapons, invincible = z.invincible, exemptPolice = z.exemptPolice,
             speedLimit = z.speedLimit, blip = z.blip, showBorder = z.showBorder, shape = z.shape,
             blipSprite = z.blipSprite or 0, blipScale = z.blipScale or 0.8,
+            territory = z.territory, soundproof = z.soundproof,
+            height = z.height or Config.Zones.height, depth = z.depth or Config.Zones.depth,
             corners = z.points and #z.points or 0, radius = z.radius, dist = math.floor(#(pos - zz)),
         }
     end

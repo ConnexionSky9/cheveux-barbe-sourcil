@@ -2403,6 +2403,8 @@ const ZONE_PRESETS = [
         enterMsg: 'Bienvenue', exitMsg: '' } },
     { id: 'territory', icon: '🌿', label: 'Territoire (drogue)', s: { name: 'Territoire', color: 'white', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
         territory: true, enterMsg: '', exitMsg: '' } },
+    { id: 'soundproof', icon: '🔇', label: 'Zone insonorisée', s: { name: 'Salle insonorisée', color: 'purple', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
+        soundproof: true, height: 4, depth: 1, enterMsg: 'Zone insonorisée : seules les personnes à l\'intérieur vous entendent', exitMsg: '' } },
     { id: 'slow', icon: '🚸', label: 'Zone 30 km/h', s: { name: 'Zone piétonne', color: 'blue', safe: true, noWeapons: false, invincible: false, exemptPolice: true, speedLimit: 30, blip: true, showBorder: false,
         enterMsg: 'Zone limitée à 30 km/h', exitMsg: '' } },
 ];
@@ -2417,7 +2419,9 @@ const zoneSettingsOf = (z) => ({
     safe: !!z.safe, noWeapons: !!z.noWeapons, invincible: !!z.invincible, exemptPolice: !!z.exemptPolice,
     speedLimit: Number(z.speedLimit) || 0, blip: !!z.blip, showBorder: !!z.showBorder,
     blipSprite: Math.max(0, Math.floor(Number(z.blipSprite) || 0)), blipScale: Number(z.blipScale) || 0.8,
-    territory: !!z.territory,
+    territory: !!z.territory, soundproof: !!z.soundproof,
+    height: Number(z.height) > 0 ? Number(z.height) : ((D.config.editor && D.config.editor.zoneHeight) || 80),
+    depth: Number(z.depth) >= 0 && z.depth !== undefined && z.depth !== '' ? Number(z.depth) : ((D.config.editor && D.config.editor.zoneDepth) || 15),
 });
 // Icônes de zone : celle choisie, ou l'icône automatique
 let zoneIconSearch = '';
@@ -2461,6 +2465,8 @@ function zoneBadges(z) {
     if (z.blip) b.push(`${zoneIconOf(z).emoji} Carte : ${esc(zoneIconOf(z).label)}`);
     if (z.showBorder) b.push('👁️ Limites visibles');
     if (z.territory) b.push('🌿 Territoire de vente');
+    if (z.soundproof) b.push('🔇 Insonorisée');
+    if (z.height !== undefined) b.push(`↕️ +${Number(z.height)} m / −${Number(z.depth)} m`);
     return b.map((x) => `<span class="zbadge">${x}</span>`).join('');
 }
 function edZones() {
@@ -2488,6 +2494,15 @@ function edZones() {
             ${tog('blip', '📍 Sur la carte', 'Zone colorée + nom')}
             ${tog('showBorder', '👁️ Limites visibles', 'Murs colorés pour tous')}
             ${tog('territory', '🌿 Territoire de vente', 'Drogue vendable ici · contrôlé par les groupes (F5 › Map)')}
+            ${tog('soundproof', '🔇 Zone insonorisée', 'Dedans on n\'entend que ceux qui y sont · dehors on ne les entend pas')}
+        </div>
+        <div class="card recipe"><h3 class="sub-h" style="font-size:17px">↕️ Hauteur de la zone</h3>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:620px">
+                <div><label>Hauteur au-dessus du coin le plus haut (m)</label><input class="input" type="number" min="0.5" max="500" step="0.5" data-zf="height" value="${esc(z.height)}"></div>
+                <div><label>Profondeur sous le coin le plus bas (m)</label><input class="input" type="number" min="0" max="200" step="0.5" data-zf="depth" value="${esc(z.depth)}"></div>
+            </div>
+            <p class="hint" style="margin-top:8px">${z.soundproof ? 'Pour une pièce : pose les coins au sol aux 4 coins de la pièce, hauteur ≈ 3 à 4 m (jusqu\'au plafond), profondeur ≈ 1 m. Au-dessus ou en dessous, on est « dehors ».' : 'Partie couverte par la zone en hauteur.'}
+                Pendant le dessin, <span class="keycap">↑</span> / <span class="keycap">↓</span> règlent la hauteur en direct (murs visibles).</p>
         </div>
         ${z.blip ? zoneIconPicker(z) : ''}
         ${z.safe ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">Règles de la safe zone</h3>
