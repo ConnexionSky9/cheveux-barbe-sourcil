@@ -749,6 +749,7 @@ window.addEventListener("message",e=>{
   const d=e.data||{};
   if(d.env) setEnv(d.env);
   if(d.action==="env") return;
+  if(d.action==="ping"){nui("opened");return}
   if(d.action==="open") open();
   if(d.action==="close") close();
   if(d.action==="stopped"){playing=null;$("now").textContent="";renderList()}

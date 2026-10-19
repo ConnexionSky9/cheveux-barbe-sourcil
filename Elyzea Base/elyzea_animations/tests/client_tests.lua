@@ -320,12 +320,15 @@ T('K : réglages enregistrés abîmés → le menu marche quand même', function
     check(CM.focus == true, 'menu ouvert')
 end)
 
-T('K : interface qui ne s\'affiche pas → déblocage automatique après 2,5 s, K rouvre', function()
+T('K : interface qui ne s\'affiche pas → relance, puis déblocage et menu masqué, K rouvre', function()
     boot()
     Mock.commands['animations']()
     check(CM.focus == true, 'ouvert')
     Mock.Advance(2600)
+    check(CM.focus == true and lastNui('ping'), 'relance de l\'interface avant d\'abandonner')
+    Mock.Advance(2600)
     check(CM.focus == false, 'souris rendue au jeu')
+    check(lastNui('close'), 'menu masqué aussi : jamais visible sans la souris')
     local found = false
     for _, l in ipairs(Mock.prints) do if l:find('ne s\'est pas affichée') then found = true end end
     check(found, 'cause écrite en F8')
@@ -379,4 +382,25 @@ T('/danse_mesure : face à face détecté en jeu à partir des os des épaules',
     CM.peds[102].heading = 0.0
     Mock.commands['danse_mesure']()
     check(lastNui('notify').text:find('MÊME DIRECTION'), 'même direction détectée')
+end)
+
+T('Menu affiché : survoler ou cliquer vaut confirmation, le menu reste utilisable', function()
+    boot()
+    Mock.commands['animations']()
+    CM.Nui('preview', { emote = 'dance' })
+    Mock.Advance(6000)
+    check(CM.focus == true, 'menu toujours actif après 6 s')
+    CM.Nui('playEmote', { emote = 'wave', type = 'emote', label = 'Wave' })
+    check(CM.Ran('e wave'), 'clic : animation lancée')
+end)
+
+T('Animation qui ne peut pas démarrer : message clair et détail en F8', function()
+    boot()
+    CM.missingDicts[ElyzeaAnims['dance'].d] = true
+    CM.Nui('playEmote', { emote = 'dance', type = 'emote', label = 'Dance' })
+    Mock.Advance(1500)
+    check(lastNui('notify') and lastNui('notify').text:find('introuvable'), 'message : ' .. tostring(lastNui('notify') and lastNui('notify').text))
+    local found = false
+    for _, l in ipairs(Mock.prints) do if l:find('n\'a pas démarré') then found = true end end
+    check(found, 'détail en F8')
 end)

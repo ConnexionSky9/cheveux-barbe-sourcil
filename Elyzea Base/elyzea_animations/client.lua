@@ -56,6 +56,7 @@ RegisterKeyMapping('animations_arreter', 'Animations : arrêter l\'animation', '
 
 -- ---------------------------------------------------------
 local menuOpen = false
+local menuAck = 0   -- dernier signe de vie de l'interface (toute action dans le menu compte)
 local registered = {}
 local pendingRequest = nil   -- demande reçue en attente
 
@@ -69,6 +70,14 @@ local settings = loadKvp('elyzea_anim_settings')
 if type(settings.openKey) ~= 'string' or settings.openKey == '' then settings.openKey = Config.DefaultOpenKey end
 if type(settings.stopKey) ~= 'string' or settings.stopKey == '' then settings.stopKey = Config.DefaultStopKey end
 local binds = loadKvp('elyzea_anim_binds')
+
+-- Toute réponse de l'interface prouve qu'elle est affichée et reçoit la souris
+local function nuiCallback(name, fn)
+    RegisterNUICallback(name, function(data, cb)
+        menuAck = GetGameTimer()
+        return fn(data, cb)
+    end)
+end
 
 local function notify(text, kind)
     SendNUIMessage({ action = 'notify', text = text, kind = kind })
@@ -415,6 +424,16 @@ local function playEmote(emote, etype, label, target, role)
             applyEmoteToPed(ped, e, fallbackProps, function()
                 return currentEmote == requested and not IsEntityDead(PlayerPedId())
             end)
+            Wait(800)
+            if currentEmote == requested and not isPlayingEmote(PlayerPedId(), requested) then
+                local emotes = GetResourceState('rpemotes')
+                local dictOk = e.d and (e.d:find('Scenario') or DoesAnimDictExist(e.d))
+                print(('[Elyzea animations] « %s » n\'a pas démarré : rpemotes %s, dictionnaire %s %s'):format(
+                    requested, emotes, tostring(e.d), dictOk and 'présent' or 'INTROUVABLE'))
+                notify(not dictOk and 'Animation introuvable sur ce serveur (fichier absent, voir F8)'
+                    or (emotes ~= 'started' and 'rpemotes n\'est pas démarré : animation impossible (voir F8)')
+                    or 'L\'animation n\'a pas pu démarrer (voir F8 : animdiag)', 'err')
+            end
 
             -- Le placement doit pouvoir surveiller cette animation comme une animation rpemotes.
             if placed and placed.cmd == requested then
@@ -467,7 +486,6 @@ AddEventHandler('rpemotes:client:syncEmoteSource', function() releasePlaced() en
 -- ---------------------------------------------------------
 --  Menu et touches
 -- ---------------------------------------------------------
-local menuAck = 0
 local function closeMenu()
     menuOpen = false
     SetNuiFocus(false, false)
@@ -489,6 +507,11 @@ local function openMenu()
     CreateThread(function()
         Wait(2500)
         if menuOpen and menuAck < asked then
+            SendNUIMessage({ action = 'ping' })   -- l'interface répond « opened » si elle est là
+            Wait(2500)
+        end
+        if menuOpen and menuAck < asked then
+            SendNUIMessage({ action = 'close' })  -- on la masque aussi : jamais visible sans la souris
             closeMenu()
             print('[Elyzea animations] l\'interface du menu ne s\'est pas affichée (html/index.html non chargé ou erreur JavaScript)')
             chat('Le menu ne s\'est pas affiché. Tape /animreset puis réessaie avec K ; si ça recommence, envoie la console F8.')
@@ -843,8 +866,8 @@ end
 -- ---------------------------------------------------------
 --  Callbacks NUI
 -- ---------------------------------------------------------
-RegisterNUICallback('close', function(_, cb) closeMenu() cb(true) end)
-RegisterNUICallback('opened', function(_, cb) menuAck = GetGameTimer() cb(true) end)
+nuiCallback('close', function(_, cb) closeMenu() cb(true) end)
+nuiCallback('opened', function(_, cb) menuAck = GetGameTimer() cb(true) end)
 
 -- ---------------------------------------------------------
 --  Danses lentes, en duo et en groupe (moteur : danses/client)
@@ -921,7 +944,7 @@ function Danse.Ask(id, target, role)
     end)
 end
 
-RegisterNUICallback('danseGroup', function(data, cb)
+nuiCallback('danseGroup', function(data, cb)
     cb(true)
     local e = data and DanseCatalog.Get(data.id)
     if not e or e.type ~= 'groupe' or type(data.targets) ~= 'table' then return end
@@ -938,7 +961,7 @@ RegisterNUICallback('danseGroup', function(data, cb)
     end)
 end)
 
-RegisterNUICallback('playEmote', function(data, cb)
+nuiCallback('playEmote', function(data, cb)
     playEmote(data.emote, data.type, data.label, data.target, data.role)
     cb(true)
     -- Menu toujours ouvert : la copie fait aussi l'animation, pour que tu la voies
@@ -947,26 +970,26 @@ RegisterNUICallback('playEmote', function(data, cb)
     end
 end)
 
-RegisterNUICallback('preview', function(data, cb)
+nuiCallback('preview', function(data, cb)
     cb(true)
     if type(data.emote) == 'string' then CreateThread(function() previewEmote(data.emote) end) end
 end)
 
-RegisterNUICallback('previewEnd', function(_, cb)
+nuiCallback('previewEnd', function(_, cb)
     cb(true)
     CreateThread(function() previewEmote('__idle') end)
 end)
 
-RegisterNUICallback('stopEmote', function(_, cb) stopEmote() cb(true) end)
+nuiCallback('stopEmote', function(_, cb) stopEmote() cb(true) end)
 
-RegisterNUICallback('placeEmote', function(data, cb)
+nuiCallback('placeEmote', function(data, cb)
     cb(true)
     if type(data.emote) == 'string' then startPlacement(data.emote, data.label) end
 end)
 
-RegisterNUICallback('respond', function(data, cb) respond(data.accept == true) cb(true) end)
+nuiCallback('respond', function(data, cb) respond(data.accept == true) cb(true) end)
 
-RegisterNUICallback('saveSettings', function(data, cb)
+nuiCallback('saveSettings', function(data, cb)
     settings = data or settings
     if settings.preview == false or not menuOpen then closePreview()
     elseif pv.active then
@@ -980,14 +1003,14 @@ RegisterNUICallback('saveSettings', function(data, cb)
     cb(true)
 end)
 
-RegisterNUICallback('saveBinds', function(data, cb)
+nuiCallback('saveBinds', function(data, cb)
     binds = (data and data.binds) or {}
     for key in pairs(binds) do ensureKey(key) end
     SetResourceKvp('elyzea_anim_binds', json.encode(binds))
     cb(true)
 end)
 
-RegisterNUICallback('getNearbyPlayers', function(data, cb)
+nuiCallback('getNearbyPlayers', function(data, cb)
     local list, me = {}, PlayerId()
     local pos = GetEntityCoords(PlayerPedId())
     local radius = (type(data) == 'table' and data.radius == 'groupe') and DanseConfig.Group.InviteDistance or Config.NearbyRadius
