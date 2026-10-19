@@ -4,8 +4,8 @@
 
 :root {
   --ink: #070a12;
-  --glass: rgba(14, 18, 32, 0.66);
-  --glass-strong: rgba(18, 23, 40, 0.82);
+  --glass: rgba(14, 18, 32, 0.86);
+  --glass-strong: rgba(18, 23, 40, 0.92);
   --line: rgba(255, 255, 255, 0.07);
   --line-hi: rgba(92, 242, 230, 0.32);
   --neon: #5cf2e6;
@@ -82,7 +82,6 @@ kbd {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
-  backdrop-filter: blur(14px) saturate(130%);
   box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   padding: var(--pad);
 }
@@ -136,7 +135,6 @@ kbd {
   border-radius: var(--r-panel);
   background: var(--glass-strong);
   border: 1px solid var(--line);
-  backdrop-filter: blur(14px);
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 .weight-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
@@ -341,7 +339,6 @@ kbd {
   border-radius: var(--r-slot);
   border: 1px solid var(--line);
   background: var(--glass);
-  backdrop-filter: blur(10px);
   transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
 .eicon {

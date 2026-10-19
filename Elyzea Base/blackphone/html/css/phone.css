@@ -63,7 +63,7 @@ html, body { background: transparent; overflow: hidden; font-family: var(--font)
 /* Accueil */
 .home { position: absolute; inset: 0; z-index: 5; padding: 18% 7% 0; animation: zin .3s ease; }
 @keyframes zin { from { opacity: 0; transform: scale(1.04); } }
-.widget { border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .035); border: 1px solid var(--line); backdrop-filter: blur(8px); margin-bottom: 22px; }
+.widget { border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .035); border: 1px solid var(--line); margin-bottom: 22px; }
 .widget .t { font-size: 40px; font-weight: 200; font-variant-numeric: tabular-nums; }
 .widget .d { font-size: 12px; color: var(--mut); margin-top: 2px; text-transform: capitalize; }
 .widget .net { margin-top: 10px; display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--fnt); letter-spacing: .08em; text-transform: uppercase; }

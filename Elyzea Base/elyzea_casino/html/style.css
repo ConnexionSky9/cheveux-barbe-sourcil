@@ -16,8 +16,8 @@ input, select { font-family: inherit; }
 input[type=number]::-webkit-inner-spin-button { opacity: .4; }
 
 /* ---------- verre ---------- */
-.glass { background: linear-gradient(160deg, rgba(20, 26, 58, .82), rgba(6, 8, 20, .86)); border: 1px solid var(--line); border-radius: 18px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset, 0 20px 60px rgba(0,0,0,.55), 0 0 40px rgba(0, 229, 255, .06); backdrop-filter: blur(14px); }
+.glass { background: linear-gradient(160deg, rgba(20, 26, 58, .93), rgba(6, 8, 20, .95)); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset, 0 20px 60px rgba(0,0,0,.55), 0 0 40px rgba(0, 229, 255, .06); }
 .glow-edge { position: absolute; inset: -1px; border-radius: 18px; pointer-events: none; padding: 1px;
     background: linear-gradient(120deg, var(--cyan), transparent 30%, transparent 70%, var(--mag));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .7; }

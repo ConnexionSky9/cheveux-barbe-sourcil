@@ -98,7 +98,7 @@ function CS.Seats(id)
         local b = GetEntityBoneIndexByName(e.table, ('Chair_Base_0%d'):format(i))
         if b ~= -1 then
             local pos = GetWorldPositionOfEntityBone(e.table, b)
-            seats[i] = { pos = pos }
+            seats[i] = { pos = pos, rot = GetWorldRotationOfEntityBone(e.table, b) }
         end
     end
     if #seats < Config.MaxPlayers then
@@ -120,6 +120,7 @@ function CS.Seats(id)
     for _, s in ipairs(seats) do
         local d = center - s.pos
         s.heading = (math.deg(math.atan(d.y, d.x)) - 90.0) % 360.0
+        if not s.rot then s.rot = vector3(0.0, 0.0, s.heading) end
     end
     e.seats = seats
     return seats
@@ -210,35 +211,95 @@ local function dropCam()
     end
 end
 
+-- Scènes synchronisées du casino de GTA, ancrées sur l'os de la chaise : le personnage s'assoit
+-- exactement sur l'assise et se relève sur le côté (jamais sur la table).
+local SEAT_DICT = A.seatDict or 'anim_casino_b@amb@casino@games@shared@player@'
+local seatScene
+
+local function clipOk(dict, clip) return clip and GetAnimDuration(dict, clip) > 0.0 end
+
+local function playSeatScene(seat, dict, clip, loop)
+    local ped = PlayerPedId()
+    local r = seat.rot
+    local sc = NetworkCreateSynchronisedScene(seat.pos.x, seat.pos.y, seat.pos.z, r.x, r.y, r.z, 2, not loop, loop, 1.0, 0.0, 1.0)
+    NetworkAddPedToSynchronisedScene(ped, sc, dict, clip, 2.0, -2.0, 13, 16, 1000.0, 0)
+    NetworkStartSynchronisedScene(sc)
+    if seatScene and seatScene ~= sc then NetworkStopSynchronisedScene(seatScene) end
+    seatScene = sc
+    return (GetAnimDuration(dict, clip) or 0.0) * 1000
+end
+
+local function idleClip()
+    for _, c in ipairs(A.seatIdle or { 'idle_cardgames', 'idle_a' }) do
+        if clipOk(SEAT_DICT, c) then return c end
+    end
+end
+
+-- Remet le joueur en position assise (après un geste)
+function CS.SeatIdle()
+    local s = CS.seated
+    if not s or not s.scene then return end
+    local seat = CS.Seats(s.id)[s.idx]
+    local clip = seat and idleClip()
+    if clip then playSeatScene(seat, SEAT_DICT, clip, true) end
+end
+
+-- Geste assis (miser, tirer, rester) puis retour à l'attente
+function CS.SeatGesture(spec)
+    local s = CS.seated
+    if not s or not spec then return end
+    local ped = PlayerPedId()
+    if s.scene and CS.LoadDict(spec[1]) and clipOk(spec[1], spec[2]) then
+        local seat = CS.Seats(s.id)[s.idx]
+        local ms = playSeatScene(seat, spec[1], spec[2], false)
+        local token = {}
+        s.gesture = token
+        SetTimeout(math.max(600, math.floor(ms) - 120), function()
+            if CS.seated == s and s.gesture == token then CS.SeatIdle() end
+        end)
+    elseif not s.scene then
+        CS.PlayAnim(ped, spec, 48, 1600)
+    end
+end
+
 function CS.SitDown(id, idx)
     if CS.seated or CS.sitting then return end
     local p = CS.points[id]
     if not p or not CS.ents[id] then return end
     CS.sitting = true
     local ok, err, info = Ely.callback.await('elyzea_casino:sit', false, id, idx)
-    CS.sitting = false
-    if not ok then return CS.Notify(err or 'Impossible de s\'asseoir.', 'error') end
+    if not ok then CS.sitting = false return CS.Notify(err or 'Impossible de s\'asseoir.', 'error') end
     local seat = CS.Seats(id)[idx]
     local ped = PlayerPedId()
     CS.seated = { id = id, idx = idx, game = info and info.game or p.role }
-    -- Le personnage marche jusqu'à la chaise puis s'assoit face à la table (jamais de téléportation brutale)
-    local approach = seat.pos + (seat.pos - vec(p.table)) * 0.45
-    TaskGoStraightToCoord(ped, approach.x, approach.y, approach.z, 1.0, 6000, seat.heading, 0.1)
-    local t = GetGameTimer() + 6000
-    while GetGameTimer() < t and #(GetEntityCoords(ped).xy - approach.xy) > 0.35 do Wait(50) end
-    local sz = seat.pos.z + Config.Table.seatZ
-    local back = (seat.pos - vec(p.table))
-    back = vector3(back.x, back.y, 0.0)
-    back = #back > 0 and back / #back * Config.Table.seatBack or back
-    CS.seated.sit = { x = seat.pos.x + back.x, y = seat.pos.y + back.y, z = sz, h = seat.heading }
-    TaskStartScenarioAtPosition(ped, A.sitScenario, seat.pos.x + back.x, seat.pos.y + back.y, sz, seat.heading, 0, true, true)
-    Wait(800)
-    if not IsPedUsingScenario(ped, A.sitScenario) then
-        -- repli : position assise jouée sur place
-        SetEntityCoords(ped, seat.pos.x + back.x, seat.pos.y + back.y, sz - 0.5, false, false, false, false)
-        SetEntityHeading(ped, seat.heading)
-        CS.PlayAnim(ped, { 'amb@prop_human_seat_chair@male@generic@base', 'base' }, 1)
+    local r = seat.rot
+    local useScene = CS.LoadDict(SEAT_DICT) and clipOk(SEAT_DICT, 'sit_enter_left') and idleClip() ~= nil
+    if useScene then
+        -- marche jusqu'au point de départ exact de l'animation (à gauche de la chaise)
+        local start = GetAnimInitialOffsetPosition(SEAT_DICT, 'sit_enter_left', seat.pos.x, seat.pos.y, seat.pos.z, r.x, r.y, r.z, 0.01, 2)
+        local srot = GetAnimInitialOffsetRotation(SEAT_DICT, 'sit_enter_left', seat.pos.x, seat.pos.y, seat.pos.z, r.x, r.y, r.z, 0.01, 2)
+        TaskGoStraightToCoord(ped, start.x, start.y, start.z, 1.0, 5000, srot.z, 0.05)
+        local t = GetGameTimer() + 5000
+        while GetGameTimer() < t and #(GetEntityCoords(ped).xy - start.xy) > 0.25 do Wait(50) end
+        if #(GetEntityCoords(ped).xy - start.xy) > 1.0 then
+            SetEntityCoordsNoOffset(ped, start.x, start.y, start.z, false, false, false)
+            SetEntityHeading(ped, srot.z)
+        end
+        if not CS.seated then CS.sitting = false return end
+        CS.seated.scene = true
+        local ms = playSeatScene(seat, SEAT_DICT, 'sit_enter_left', false)
+        Wait(math.max(500, math.floor(ms) - 150))
+        if CS.seated and CS.seated.id == id then CS.SeatIdle() end
+    else
+        -- repli : scénario de chaise
+        local sz = seat.pos.z + Config.Table.seatZ
+        local back = (seat.pos - vec(p.table))
+        back = vector3(back.x, back.y, 0.0)
+        back = #back > 0 and back / #back * Config.Table.seatBack or back
+        TaskStartScenarioAtPosition(ped, A.sitScenario, seat.pos.x + back.x, seat.pos.y + back.y, sz, seat.heading, 0, true, true)
     end
+    CS.sitting = false
+    if not CS.seated then return end
     tableCam(id, seat)
     CS.uiOpen = CS.seated.game == 'roulette' and 'rl' or 'bj'
     CS.Focus(true)
@@ -256,12 +317,33 @@ function CS.StandUp(quiet)
     CS.UI({ action = 'unseat' })
     if CS.uiOpen == 'bj' or CS.uiOpen == 'rl' then CS.uiOpen = nil CS.Focus(false) end
     local ped = PlayerPedId()
-    ClearPedTasks(ped)
     local p = CS.points[s.id]
     local seat = p and CS.Seats(s.id)[s.idx]
-    if seat then
-        local out = seat.pos + (seat.pos - vec(p.table)) * 0.6
-        TaskGoStraightToCoord(ped, out.x, out.y, out.z, 1.0, 2000, seat.heading + 180.0, 0.2)
+    if IsEntityDead(ped) or IsPedRagdoll(ped) then
+        if seatScene then NetworkStopSynchronisedScene(seatScene) seatScene = nil end
+        return
+    end
+    if seat and s.scene and clipOk(SEAT_DICT, 'sit_exit_left') then
+        -- se relève sur le côté de la chaise, comme au casino du jeu
+        local ms = playSeatScene(seat, SEAT_DICT, 'sit_exit_left', false)
+        local sc = seatScene
+        SetTimeout(math.max(400, math.floor(ms) - 100), function()
+            if CS.seated then return end
+            if seatScene == sc then NetworkStopSynchronisedScene(sc) seatScene = nil end
+            ClearPedTasks(PlayerPedId())
+        end)
+    else
+        if seatScene then NetworkStopSynchronisedScene(seatScene) seatScene = nil end
+        ClearPedTasksImmediately(ped)
+        if seat then
+            -- posé au sol, derrière la chaise, dos à la table : impossible de finir sur le plateau
+            local dir = vector3(seat.pos.x - p.table.x, seat.pos.y - p.table.y, 0.0)
+            dir = #dir > 0 and dir / #dir or vector3(0.0, -1.0, 0.0)
+            local out = seat.pos + dir * 0.75
+            local found, gz = GetGroundZFor_3dCoord(out.x, out.y, seat.pos.z + 1.0, false)
+            SetEntityCoords(ped, out.x, out.y, found and gz or seat.pos.z, false, false, false, false)
+            SetEntityHeading(ped, (seat.heading + 180.0) % 360.0)
+        end
     end
 end
 

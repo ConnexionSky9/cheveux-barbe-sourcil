@@ -84,7 +84,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     background: rgba(6, 8, 13, 0.88);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    backdrop-filter: blur(14px);
 }
 
 .rail button {
@@ -139,7 +138,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     background: linear-gradient(180deg, rgba(10, 13, 21, 0.94), rgba(6, 8, 13, 0.94));
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    backdrop-filter: blur(16px);
     overflow: hidden;
 }
 .panel::before {
@@ -505,7 +503,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     border-radius: var(--radius-lg);
     background: rgba(6, 8, 13, 0.88);
     border: 1px solid var(--line);
-    backdrop-filter: blur(14px);
 }
 .cam-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 3px; border-radius: var(--radius); background: rgba(0, 0, 0, 0.25); }
 .cam-buttons button {
@@ -529,7 +526,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     display: grid;
     place-items: center;
     background: rgba(6, 8, 15, 0.6);
-    backdrop-filter: blur(6px);
     z-index: 20;
 }
 .modal-box {

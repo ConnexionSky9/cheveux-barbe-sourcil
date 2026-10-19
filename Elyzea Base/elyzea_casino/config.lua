@@ -104,7 +104,9 @@ end
 
 -- Animations (vérifiées au chargement : absente = repli plus simple, jamais de blocage)
 Config.Anims = {
-    sitScenario = 'PROP_HUMAN_SEAT_CHAIR_MP_PLAYER',
+    seatDict = 'anim_casino_b@amb@casino@games@shared@player@',   -- s'asseoir / se lever (scènes du casino)
+    seatIdle = { 'idle_cardgames', 'idle_a' },                     -- attente assise (premier clip existant)
+    sitScenario = 'PROP_HUMAN_SEAT_CHAIR_MP_PLAYER',               -- repli si les animations du casino manquent
     playerIdle = { 'anim_casino_b@amb@casino@games@shared@player@', 'idle_a' },
     playerHit = { 'anim_casino_b@amb@casino@games@blackjack@player', 'request_card' },
     playerStand = { 'anim_casino_b@amb@casino@games@blackjack@player', 'decline_card_001' },
