@@ -250,21 +250,18 @@ Config.Illegal = {
 -- =========================================================
 Config.Minimap = {
     enabled = true,           -- false : le menu ne touche pas à la mini-carte
-    shape = 'square',         -- 'square' (carrée), 'round' (ronde), 'default' (rectangle GTA)
-    position = 'bottom-left', -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
-    size = 0.185,             -- hauteur (part de l'écran)
-    widthAdjust = 160,        -- % de largeur (100 = carré parfait, 160 = rectangle façon HUD)
-    marginX = 0.014,          -- écart avec le bord gauche / droit
-    marginY = 0.030,          -- écart avec le bord haut / bas
-    -- Verrou : position, taille, forme et marges ci-dessus s'appliquent TOUJOURS, pour tout le monde
-    -- (le réglage du menu, un aperçu ou un autre script ne peuvent plus déplacer la carte). false = réglable dans le menu.
-    locked = true,
+    shape = 'square',         -- 'square' (rectangle net, masque carré), 'round' (ronde)
+    position = 'bottom-left', -- 'bottom-left' conseillé ('bottom-right', 'top-left', 'top-right' possibles)
+    size = 0.183,             -- hauteur visible de la carte (part de l'écran) ; 0.183 = taille de référence
+    marginX = 0.010,          -- écart avec le bord gauche
+    marginY = 0.000,          -- écart supplémentaire avec le bas
     hideHealthBars = true,    -- cacher les barres de vie / armure de GTA sous la carte
     onlyInVehicle = false,    -- mini-carte seulement en véhicule
-    -- Masque net (minimap/radarmask.png) à la place de celui de GTA. Désactivé : sur certains PC la
-    -- texture remplacée ne découpe plus la carte, qui déborde alors sur tout le coin de l'écran.
-    -- Le masque de GTA découpe toujours la carte correctement (bords légèrement flous).
-    sharpMask = false,
+    -- Verrou : forme, position, taille et marges ci-dessus s'appliquent TOUJOURS, pour tout le monde
+    -- (le réglage du menu, un aperçu ou un autre script ne peuvent plus déplacer la carte). false = réglable dans le menu.
+    locked = true,
+    -- Masque carré (minimap/radarmask.png) à la place du masque arrondi et flou de GTA : la carte remplit son cadre.
+    sharpMask = true,
     -- Commandes d'autres scripts qui déplacent la mini-carte : désactivées (la position est celle du staff)
     blockCommands = { 'carte', 'minimap' },
 }

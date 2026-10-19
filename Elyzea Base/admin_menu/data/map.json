@@ -49,12 +49,12 @@
             "minimap"
         ],
         "enabled": true,
-        "marginY": 0.03,
-        "size": 0.185,
+        "marginY": 0,
+        "size": 0.183,
         "position": "bottom-left",
         "widthAdjust": 160,
         "hideHealthBars": true,
-        "marginX": 0.014,
+        "marginX": 0.01,
         "onlyInVehicle": false,
         "shape": "square"
     },

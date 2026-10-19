@@ -25,8 +25,10 @@ local function SharpMask(on)
             CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
         end
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
+        AddReplaceTexture('platform:/textures/graphics', 'radarmask1g', 'elyzea_minimap', 'radarmasksm')
     else
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
     end
     maskOn = on
 end
@@ -35,30 +37,36 @@ local function sendRect()
     SendNUIMessage({ action = 'rect', rect = rect })
 end
 
--- Placement autonome (sans admin_menu, ou pendant son redémarrage) : même calcul et même coin que admin_menu
+-- Placement autonome (sans admin_menu, ou pendant son redémarrage) : exactement la même disposition
+-- que admin_menu (carte rectangulaire « square map », masque et flou dans leurs propres proportions)
+local GEO = {
+    map  = { dx = 0.0,   dy = 0.0,   w = 0.1638, h = 0.183 },
+    mask = { dx = 0.0,   dy = 0.047, w = 0.128,  h = 0.20 },
+    blur = { dx = -0.01, dy = 0.072, w = 0.262,  h = 0.300 },
+}
 local function setupMinimap()
     local m = Config.Minimap
-    local h = m.size
-    local w = h * (9 / 16) * (m.widthAdjust / 100)
+    local sc = (m.size or 0.183) / 0.183
     local rx, ry = GetActiveScreenResolution()
     local aspect = rx / math.max(ry, 1)
     local k = aspect > 16 / 9 + 0.01 and (16 / 9) / aspect or 1.0
     local off = (1.0 - GetSafeZoneSize()) * 0.5
-    local right = (m.position or 'bottom-right'):find('right') ~= nil
-    local realW = w * k
-    local left = right and (1.0 - off - m.marginX - realW) or (off + m.marginX)
-    local top = 1.0 - off - m.marginY - h
+    local right = (m.position or 'bottom-left'):find('right') ~= nil
+    local mapW, mapH = GEO.map.w * sc, GEO.map.h * sc
+    local base = -0.047 * sc - (m.marginY or 0.0)
+    local bottom = 1.0 - off + base
+    local left = right and (1.0 - off - m.marginX - mapW * k) or (off + m.marginX * k)
     local gx = (0.5 + (left - 0.5) / k) - off
-    local gy = (top + h) - (1.0 - off)
     SetMinimapClipType(0)
-    SharpMask(false)   -- masque de GTA : découpe toujours la carte (le masque remplacé échoue sur certains PC)
-    SetMinimapComponentPosition('minimap', 'L', 'B', gx, gy, w, h)
-    SetMinimapComponentPosition('minimap_mask', 'L', 'B', gx, gy, w, h)
-    SetMinimapComponentPosition('minimap_blur', 'L', 'B', gx, gy, w, h)
+    SharpMask(true)
+    for name, comp in pairs({ map = 'minimap', mask = 'minimap_mask', blur = 'minimap_blur' }) do
+        local g = GEO[name]
+        SetMinimapComponentPosition(comp, 'L', 'B', gx + g.dx * sc, base + g.dy * sc, g.w * sc, g.h * sc)
+    end
     SetBigmapActive(true, false)
     Wait(0)
     SetBigmapActive(false, false)
-    rect = { x = left, y = top, w = realW, h = h, align = right and 'RB' or 'LB' }
+    rect = { x = left, y = bottom - mapH, w = mapW * k, h = mapH, align = right and 'RB' or 'LB' }
     sendRect()
 end
 
@@ -298,5 +306,8 @@ end)
 
 -- Ressource arrêtée : on rend à GTA son masque d'origine
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() and maskOn then RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm') end
+    if res == GetCurrentResourceName() and maskOn then
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
+    end
 end)

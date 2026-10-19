@@ -12,10 +12,10 @@ Config.ToggleCommand = 'hud'
 -- identique à celle d'admin_menu pour que la carte ne bouge jamais :
 Config.Minimap = {
     position = 'bottom-left',
-    size = 0.185,          -- hauteur (part de l'écran)
+    size = 0.183,          -- hauteur visible (part de l'écran)
     widthAdjust = 160,     -- % de largeur (100 = carré)
-    marginX = 0.014,       -- écart avec le bord gauche
-    marginY = 0.030,       -- écart avec le bas
+    marginX = 0.010,       -- écart avec le bord gauche
+    marginY = 0.000,       -- écart supplémentaire avec le bas
     onlyInVehicle = false, -- true = mini-carte seulement en véhicule
 }
 
