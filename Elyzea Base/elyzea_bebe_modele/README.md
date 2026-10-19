@@ -79,4 +79,6 @@ grossesse + rang déjà enregistrée renvoie le même bébé) · `SupprimerBebe(
   Une animation sur mesure demande les fichiers du squelette des personnages (`mp_f_freemode_01.yft`, `mp_m_freemode_01.yft`).
 - Positions (bébé, porte-bébés, poussette, roues, sens de rotation des roues et du roulis) calculées sur un mannequin : à vérifier en jeu,
   réglables dans le menu admin (décalages) et `/bebe_ajuster`.
-- Physique simulée : pas de collision réelle avec les joueurs (la poussette s'arrête devant eux, elle ne les pousse pas).
+- Physique simulée : la poussette qui roule s'arrête devant les joueurs, elle ne les pousse pas.
+- Collision (V7) : le modèle de la poussette contient une collision en 4 boîtes ; solide garée, renversée ou en roulement.
+  Pendant la poussée (attachée au personnage), sa collision est coupée. Non vérifié en jeu : `docs/famille/LIVRAISON_V7.md`.

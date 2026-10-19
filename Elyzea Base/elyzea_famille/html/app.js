@@ -106,7 +106,7 @@ function openGrossesse(d) {
     $('#g-etape').textContent = g.etape || '';
     $('#g-barre').style.width = `${Math.round((g.pct || 0) * 100)}%`;
     $('#g-infos').innerHTML = [
-      ligne('Temps écoulé', `${g.ecouleTexte} (${g.joursEcoules} jour${g.joursEcoules > 1 ? 's' : ''})`),
+      ligne('Temps écoulé', (g.joursTotal || 0) >= 1 ? `${g.ecouleTexte} (${g.joursEcoules} jour${g.joursEcoules > 1 ? 's' : ''})` : g.ecouleTexte),
       ligne('Durée totale', g.totalTexte),
       g.avantTrimestreTexte ? ligne('Avant le trimestre suivant', g.avantTrimestreTexte) : '',
       ligne('Avant l\'accouchement', g.terme ? 'terme atteint' : g.avantTermeTexte),

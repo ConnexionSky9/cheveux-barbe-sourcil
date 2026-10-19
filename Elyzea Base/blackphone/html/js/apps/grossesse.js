@@ -24,14 +24,15 @@
     if (r.statut === 'en_cours') {
       const g = r.grossesse || {};
       const pct = Math.round((g.pct || 0) * 100);
+      const j = (n) => ((g.joursTotal || 0) >= 1 ? ` · ${n} j` : '');   // jours affichés seulement pour une grossesse d'au moins un jour
       el.innerHTML = `<div class="group"><h3>Grossesse en cours</h3>
           <div class="row"><span class="lb"><b>${g.terme ? 'Terme atteint' : `${g.trimestre}${g.trimestre === 1 ? 'er' : 'e'} trimestre`}</b></span><span class="vl">${esc(g.etape || '')}</span></div>
           <div class="row"><div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden">
             <div style="width:${pct}%;height:100%;background:#b3161b"></div></div><span class="vl" style="margin-left:8px">${pct} %</span></div>
-          ${ligne('Temps écoulé', `${g.ecouleTexte} · ${g.joursEcoules} j`)}
+          ${ligne('Temps écoulé', `${g.ecouleTexte}${j(g.joursEcoules)}`)}
           ${ligne('Durée totale', g.totalTexte)}
           ${g.avantTrimestreTexte ? ligne('Avant le trimestre suivant', g.avantTrimestreTexte) : ''}
-          ${ligne('Avant l\'accouchement', g.terme ? 'terme atteint' : `${g.avantTermeTexte} · ${g.joursAvantTerme} j`)}
+          ${ligne('Avant l\'accouchement', g.terme ? 'terme atteint' : `${g.avantTermeTexte}${j(g.joursAvantTerme)}`)}
           ${ligne('Début (calendrier du serveur)', g.debutTexte)}
           ${ligne('Bébés', g.bebes ? (g.bebes === 1 ? 'un bébé' : (g.bebes === 2 ? 'jumeaux' : 'triplés')) : 'examen EMS nécessaire')}</div>${blocHisto}`;
     } else if (r.statut === 'terminee') {

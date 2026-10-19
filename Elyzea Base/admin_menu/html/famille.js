@@ -63,6 +63,12 @@
         const t = ['grossesse.t1', 'grossesse.t2', 'grossesse.t3'].map((k) => { const v = Number(d[k]); return Number.isFinite(v) && v > 0 ? v : 0; });
         return (t[0] + t[1] + t[2]) * u;
     };
+    // Durées cumulées depuis le début : passage au 2e, au 3e trimestre, terme
+    const cumul = (d) => {
+        const u = UNITES[d['grossesse.unite']] ?? 3600;
+        const t = ['grossesse.t1', 'grossesse.t2', 'grossesse.t3'].map((k) => { const v = Number(d[k]); return Number.isFinite(v) && v > 0 ? v * u : 0; });
+        return `Depuis le début : 2e trimestre à <b>${esc(duree(t[0]))}</b> · 3e trimestre à <b>${esc(duree(t[0] + t[1]))}</b> · terme à <b>${esc(duree(t[0] + t[1] + t[2]))}</b>.`;
+    };
     // Tests : grossesse de test pour un joueur (ID en jeu), puis fin sans naissance (historique conservé)
     const tests = () => `<div class="section"><h2>Tests de grossesse</h2>
         <div class="btn-row"><input class="input" type="number" min="1" id="famTestSid" placeholder="ID du joueur" style="max-width:160px">
@@ -89,7 +95,8 @@
             const nums = fields.filter((d) => d.type !== 'bool').map(field).join('');
             return `<div class="section"><h2>${esc(s.label)}</h2>
                 ${bools ? `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));margin-bottom:12px">${bools}</div>` : ''}
-                ${nums ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1150px">${nums}</div>` : ''}</div>`;
+                ${nums ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1150px">${nums}</div>` : ''}
+                ${s.id === 'progression' ? `<p class="hint" id="famCumul">${cumul(F.draft)}</p>` : ''}</div>`;
         }).join('');
         const d = F.draft;
         const exemple = d['conception.probaAccidentelle'] * (1 - d['contraception.preservatif.fiabilite']) * (1 - d['contraception.pilule.fiabilite']);
@@ -108,7 +115,10 @@
     document.addEventListener('input', (ev) => {
         if (!on()) return;
         const t = ev.target;
-        const majTotal = () => { const el = document.getElementById('famTotal'); if (el) el.textContent = duree(totalBrouillon(F.draft)); };
+        const majTotal = () => {
+            const el = document.getElementById('famTotal'); if (el) el.textContent = duree(totalBrouillon(F.draft));
+            const c = document.getElementById('famCumul'); if (c) c.innerHTML = cumul(F.draft);
+        };
         if (t.dataset.fs) { F.draft[t.dataset.fs] = t.value; majTotal(); return; }
         if (!t.dataset.ff) return;
         if (t.value === '') { F.draft[t.dataset.ff] = null; return; }
