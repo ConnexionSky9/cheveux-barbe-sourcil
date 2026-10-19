@@ -62,13 +62,20 @@ local function ExtTarget(ent)
         end
     end
 end
+-- Cible proche la plus proche, toutes ressources confondues (avant : la 1re ressource qui répondait gagnait)
 local function ExtNearby()
+    local me = GetEntityCoords(PlayerPedId())
+    local bRes, bEnt, bTitle, bD
     for _, prov in ipairs(ALT_PROVIDERS) do
         if prov.target and GetResourceState(prov.res) == 'started' then
             local ok, ent, title = pcall(function() return exports[prov.res]:AltNearby() end)
-            if ok and ent then return prov.res, ent, title end
+            if ok and ent and ent ~= 0 and DoesEntityExist(ent) then
+                local d = #(GetEntityCoords(ent) - me)
+                if not bD or d < bD then bRes, bEnt, bTitle, bD = prov.res, ent, title, d end
+            end
         end
     end
+    return bRes, bEnt, bTitle, bD
 end
 
 local function Context()
@@ -78,7 +85,8 @@ local function Context()
     local myPos = GetEntityCoords(me)
     local from, dir = CursorRay()
     local to = from + dir * 25.0
-    local ray = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1 | 2 | 4 | 8, me, 7)
+    -- 16 = objets (bébé, poussette, sacs… des ressources famille et braquages)
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1 | 2 | 4 | 8 | 16, me, 7)
     local _, hit, _, _, ent = GetShapeTestResult(ray)
     local ctx = { kind = 'none' }
     if (hit == 1 or hit == true) and ent and ent ~= 0 and DoesEntityExist(ent) then
@@ -94,16 +102,23 @@ local function Context()
             ctx.kind, ctx.entity = 'vehicle', GetVehiclePedIsIn(ent, false)
         elseif IsEntityAVehicle(ent) and d <= D.vehicle then
             ctx.kind, ctx.entity = 'vehicle', ent
+        elseif not IsEntityAPed(ent) and not IsEntityAVehicle(ent) and d <= D.alt + 1.5 then
+            -- objet visé (bébé, poussette, sac de butin…) : cible d'une ressource ?
+            local res, title = ExtTarget(ent)
+            if res then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title end
         end
     end
     if ctx.kind == 'none' then
+        -- rien de visé : la cible la plus proche entre la personne en face et une cible de ressource (bébé, sac…).
+        -- Avant, la personne en face passait toujours en premier : un bébé à côté d'un autre joueur n'était jamais proposé.
         local f = FacingPlayer()
-        if f then ctx.kind, ctx.entity = 'player', f end
-    end
-    if ctx.kind == 'none' then
-        -- rien de visé : cible proche d'une ressource (sac posé au sol, PNJ)
-        local res, ent, title = ExtNearby()
-        if res then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title end
+        local res, ent, title, dExt = ExtNearby()
+        local dF = f and #(GetEntityCoords(f) - myPos) or nil
+        if res and (not dF or dExt <= dF) then
+            ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title
+        elseif f then
+            ctx.kind, ctx.entity = 'player', f
+        end
     end
     if ctx.kind == 'player' then
         if IsPedInAnyVehicle(ctx.entity, false) then
@@ -262,6 +277,8 @@ RegisterNUICallback('altSelect', function(body, cb)
     end)
 end)
 RegisterNUICallback('altClose', function(_, cb) cb({}) CloseMenu() end)
+
+C.AltContext = Context      -- pour les tests hors du jeu (tests/test_alt.lua)
 
 RegisterCommand('+police_alt', Start, false)
 RegisterCommand('-police_alt', Stop, false)
