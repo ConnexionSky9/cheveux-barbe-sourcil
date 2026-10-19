@@ -410,13 +410,14 @@ local function drawLine(text, r, g, b)
 end
 
 -- Surveille un personnage figé : il se relève quand l'animation s'arrête ou quand il bouge
+local PLACED_CANCEL_KEYS = { 22, 32, 33, 34, 35 }   -- table créée une seule fois (pas à chaque frame)
 local function watchPlaced(state)
     CreateThread(function()
         local nextCheck = 0
         while placed == state do
             local ped = PlayerPedId()
             if not placing then
-                for _, c in ipairs({ 22, 32, 33, 34, 35 }) do
+                for _, c in ipairs(PLACED_CANCEL_KEYS) do
                     if IsControlJustPressed(0, c) then
                         ExecuteCommand(Config.CancelCommand)
                         currentEmote, currentLabel = nil, nil

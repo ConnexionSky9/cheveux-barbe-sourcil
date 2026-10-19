@@ -911,10 +911,11 @@ end
 -- ---------------------------------------------------------------------
 -- Séquence complète
 -- ---------------------------------------------------------------------
+local BLOCKED_CONTROLS = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 75, 140, 141, 142, 257, 263 }   -- créée une seule fois
 local function DisableControls()
     CreateThread(function()
         while I.running do
-            for _, c in ipairs({ 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 75, 140, 141, 142, 257, 263 }) do DisableControlAction(0, c, true) end
+            for _, c in ipairs(BLOCKED_CONTROLS) do DisableControlAction(0, c, true) end
             DisableControlAction(0, 73, true)   -- X : lu par Check() pour interrompre
             Wait(0)
         end

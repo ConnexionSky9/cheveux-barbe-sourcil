@@ -59,6 +59,7 @@ local function ResurrectHere()
     return ped
 end
 
+local DOWN_ALLOWED = { 1, 2, 245, 249, 38, 47, 200, 166, 167, 288, 289 }   -- touches laissées actives (créée une seule fois)
 local function Loop()
     CreateThread(function()
         local holdStart, nextUi = nil, 0
@@ -68,7 +69,7 @@ local function Loop()
             SetEntityInvincible(ped, true)
             Lie(ped)
             DisableAllControlActions(0)
-            for _, k in ipairs({ 1, 2, 245, 249, 38, 47, 200, 166, 167, 288, 289 }) do EnableControlAction(0, k, true) end
+            for _, k in ipairs(DOWN_ALLOWED) do EnableControlAction(0, k, true) end
             local left = math.max(0, math.ceil((localUntil - GetGameTimer()) / 1000))
             local canRespawn = info ~= nil and left <= 0
             -- E maintenu : réapparition

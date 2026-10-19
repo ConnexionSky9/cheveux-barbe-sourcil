@@ -238,6 +238,7 @@ end
 -- Boucle principale
 ------------------------------------------------------------
 local radarForced = nil
+local lastSent, nextForcedSend = {}, 0   -- dernières valeurs envoyées à la NUI
 CreateThread(function()
     while true do
         local ped = PlayerPedId()
@@ -256,18 +257,32 @@ CreateThread(function()
         end
 
         local mode, dist = getVoice()
-        SendNUIMessage({
-            action  = 'update',
-            show    = show,
-            map     = show and not IsRadarHidden() and not IsBigmapActive(),
-            health  = maxHp > 0 and (hp / maxHp * 100) or 0,
-            armor   = GetPedArmour(ped),
-            hunger  = hunger,
-            thirst  = thirst,
-            voice   = { mode = mode, distance = dist },
-            talking = NetworkIsPlayerTalking(PlayerId()),
-            radio   = radioActive,
-        })
+        local map     = show and not IsRadarHidden() and not IsBigmapActive()
+        local health  = maxHp > 0 and (hp / maxHp * 100) or 0
+        local armor   = GetPedArmour(ped)
+        local talking = NetworkIsPlayerTalking(PlayerId())
+        -- On n'envoie à la NUI que si une valeur a changé (renvoi forcé toutes les 2 s par sécurité)
+        local now = GetGameTimer()
+        local l = lastSent
+        if now >= nextForcedSend or l.show ~= show or l.map ~= map or l.health ~= health or l.armor ~= armor
+            or l.hunger ~= hunger or l.thirst ~= thirst or l.mode ~= mode or l.dist ~= dist
+            or l.talking ~= talking or l.radio ~= radioActive then
+            l.show, l.map, l.health, l.armor, l.hunger, l.thirst = show, map, health, armor, hunger, thirst
+            l.mode, l.dist, l.talking, l.radio = mode, dist, talking, radioActive
+            nextForcedSend = now + 2000
+            SendNUIMessage({
+                action  = 'update',
+                show    = show,
+                map     = map,
+                health  = health,
+                armor   = armor,
+                hunger  = hunger,
+                thirst  = thirst,
+                voice   = { mode = mode, distance = dist },
+                talking = talking,
+                radio   = radioActive,
+            })
+        end
         Wait(Config.UpdateRate)
     end
 end)

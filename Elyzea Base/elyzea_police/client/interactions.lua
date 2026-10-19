@@ -88,6 +88,7 @@ RegisterNetEvent('police:client:cuffed', function(state)
 end)
 function C.IsCuffed() return cuffed end
 
+local CUFF_BLOCKED = { 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 75, 140, 141, 142, 143, 257, 263, 264, 289 }   -- créée une seule fois
 CreateThread(function()
     while true do
         if cuffed then
@@ -95,7 +96,7 @@ CreateThread(function()
             if not IsPedInAnyVehicle(ped, false) and not IsEntityPlayingAnim(ped, 'mp_arresting', 'idle', 3) and C.LoadDict('mp_arresting') then
                 TaskPlayAnim(ped, 'mp_arresting', 'idle', 8.0, -8.0, -1, 49, 0, false, false, false)
             end
-            for _, ctrl in ipairs({ 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 75, 140, 141, 142, 143, 257, 263, 264, 289 }) do
+            for _, ctrl in ipairs(CUFF_BLOCKED) do
                 DisableControlAction(0, ctrl, true)
             end
             if escortedBy then

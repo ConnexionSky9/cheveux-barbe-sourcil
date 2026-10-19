@@ -29,7 +29,8 @@ CreateThread(function()
                 local gp = vector3(pts.garage.x, pts.garage.y, pts.garage.z)
                 local d = #(pos - gp)
                 if d < 30.0 then
-                    sleep = 0
+                    -- en véhicule hors du rayon de rangement : rien à afficher, contrôle plus espacé
+                    sleep = (veh == 0 or d < Config.Garage.storeRadius + 3.0) and 0 or 250
                     if veh == 0 then
                         Marker(gp, 239, 68, 68)
                         if d < 1.6 and not C.AnyOpen() then
