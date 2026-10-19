@@ -92,3 +92,103 @@ RegisterNetEvent('elyzea_casino:wheel:result', function(id, idx, label, prize)
     CS.UI({ action = 'wheelResult', id = id, idx = idx, label = label, prize = prize })
     PlaySoundFrontend(-1, prize and 'WIN' or 'LOSER', 'HUD_AWARDS', true)
 end)
+
+-- ---------------------------------------------------------------- voiture à gagner exposée sur le podium
+-- Véhicule local (visible par chacun chez soi), fermé à clé, figé, qui tourne doucement.
+-- Il disparaît dès que la voiture est gagnée (le serveur retire le segment de la roue).
+local podiums = {}   -- [wheelId] = { veh, model, x, y, z, h }
+
+local function wantedPodiums()
+    local out = {}
+    for _, p in pairs(CS.points or {}) do
+        local w = p.wheel
+        if w and w.podium and w.car and w.car.model and not out[w.id] then
+            out[w.id] = { model = w.car.model, label = w.car.label, pos = w.podium, spin = w.podiumSpin ~= false }
+        end
+    end
+    return out
+end
+
+local function clearPodium(id)
+    local d = podiums[id]
+    if d and d.veh and DoesEntityExist(d.veh) then DeleteEntity(d.veh) end
+    podiums[id] = nil
+end
+
+local function spawnCar(want)
+    local hash = GetHashKey(want.model)
+    if not IsModelInCdimage(hash) or not IsModelAVehicle(hash) then return nil end
+    RequestModel(hash)
+    local t = GetGameTimer() + 8000
+    while not HasModelLoaded(hash) and GetGameTimer() < t do Wait(50) end
+    if not HasModelLoaded(hash) then return nil end
+    local p = want.pos
+    local v = CreateVehicle(hash, p.x, p.y, p.z + 0.6, p.h or 0.0, false, false)
+    SetModelAsNoLongerNeeded(hash)
+    if v == 0 then return nil end
+    SetEntityAsMissionEntity(v, true, true)
+    SetVehicleOnGroundProperly(v)
+    Wait(100)
+    FreezeEntityPosition(v, true)
+    SetEntityInvincible(v, true)
+    SetVehicleDoorsLocked(v, 2)
+    SetVehicleDoorsLockedForAllPlayers(v, true)
+    SetVehicleUndriveable(v, true)
+    SetVehicleDirtLevel(v, 0.0)
+    SetVehicleNumberPlateText(v, 'CASINO')
+    SetVehicleLights(v, 2)
+    return v
+end
+
+CreateThread(function()
+    local warned = {}
+    while true do
+        local want = wantedPodiums()
+        local me = GetEntityCoords(PlayerPedId())
+        local near = false
+        for id, d in pairs(podiums) do
+            local w = want[id]
+            if not w or w.model ~= d.model or w.pos.x ~= d.x or w.pos.y ~= d.y or w.pos.z ~= d.z then clearPodium(id) end
+        end
+        for id, w in pairs(want) do
+            local dist = #(me - vector3(w.pos.x, w.pos.y, w.pos.z))
+            local d = podiums[id]
+            if dist < 120.0 then
+                if not d then
+                    local v = spawnCar(w)
+                    if v then
+                        podiums[id] = { veh = v, model = w.model, x = w.pos.x, y = w.pos.y, z = w.pos.z, h = w.pos.h or 0.0, spin = w.spin }
+                    elseif not warned[w.model] then
+                        warned[w.model] = true
+                        print(('^3[elyzea_casino] Voiture du podium introuvable : modèle « %s » (vérifie le nom dans l\'admin).^0'):format(w.model))
+                    end
+                elseif w.spin and dist < 60.0 then
+                    near = true
+                end
+            elseif d and dist > 140.0 then
+                clearPodium(id)
+            end
+        end
+        if near then
+            -- rotation douce : un tour en ~40 s, tant qu'on est à moins de 60 m
+            local untilT = GetGameTimer() + 1000
+            while GetGameTimer() < untilT do
+                local step = GetFrameTime() * 9.0
+                for _, d in pairs(podiums) do
+                    if d.spin and DoesEntityExist(d.veh) then
+                        d.h = (d.h + step) % 360.0
+                        SetEntityHeading(d.veh, d.h)
+                    end
+                end
+                Wait(0)
+            end
+        else
+            Wait(1000)
+        end
+    end
+end)
+
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    for id in pairs(podiums) do clearPodium(id) end
+end)

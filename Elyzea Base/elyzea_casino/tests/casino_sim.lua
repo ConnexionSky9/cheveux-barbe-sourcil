@@ -45,7 +45,7 @@ local function run(ms)
 end
 
 -- ---------------------------------------------------------------- base de données en mémoire
-local DB = { settings = {}, log = {}, tx = {}, pending = {}, daily = {} }
+local DB = { settings = {}, log = {}, tx = {}, pending = {}, daily = {}, vehicles = {} }
 local autoid = 0
 local function nid() autoid = autoid + 1 return autoid end
 local function exec(sql, p)
@@ -70,6 +70,8 @@ local function exec(sql, p)
     end
     if sql:find('SELECT `spins` FROM `casino_wheel_daily`') then return DB.daily[p[1] .. ':' .. p[2]] end
     if sql:find('INSERT INTO `casino_wheel_daily`') then local k = p[1] .. ':' .. p[2] DB.daily[k] = (DB.daily[k] or 0) + 1 return 1 end
+    if sql:find('FROM `player_vehicles` WHERE `plate`') then for _, v in ipairs(DB.vehicles) do if v.plate == p[1] then return v.id end end return nil end
+    if sql:find('INSERT INTO `player_vehicles`') then local r = { id = nid(), license = p[1], cid = p[2], model = p[3], plate = p[6], garage = p[7] } DB.vehicles[#DB.vehicles + 1] = r return r.id end
     if sql:find('DELETE FROM') then return 0 end
     if sql:find('SELECT') then return {} end
     return 0
@@ -476,6 +478,57 @@ TriggerEvent('adminmenu:pedsChanged')
 run(1000)
 check(P[41].items.jetons_casino == 500 and not Tables[2] and not SeatOf[41], 'PNJ / table supprimé : mise rendue, joueur relevé, autres tables intactes')
 check(Tables[1] ~= nil or Casino.points[1] ~= nil, 'la table de blackjack existe toujours')
+
+
+section('Roue : voiture à gagner (un seul gagnant)')
+joaat = joaat or function(s) local h = 0 for i = 1, #s do h = (h * 31 + s:byte(i)) % 4294967296 end return h end
+GetResourceState = GetResourceState or function() return 'missing' end
+GetPlayerIdentifiers = GetPlayerIdentifiers or function(src) return { 'license:' .. tostring(src) } end
+local keysGiven = {}
+EXP.elyzea_core.GiveKeys = function(_, src, plate) keysGiven[#keysGiven + 1] = plate end
+ok, msg = AdminAction(1, 'wheel_save', { wheel = { id = 'deuxv', name = 'X', segments = {
+    { label = 'V1', reward = 'vehicle', model = 'zentorno', weight = 50 }, { label = 'V2', reward = 'vehicle', model = 'adder', weight = 50 } } } })
+check(not ok, 'deux voitures sur une roue : refusé (' .. tostring(msg) .. ')')
+ok, msg = AdminAction(1, 'wheel_save', { wheel = { id = 'sansm', name = 'X', segments = {
+    { label = 'V1', reward = 'vehicle', model = '', weight = 50 }, { label = 'B', weight = 50 } } } })
+check(not ok, 'voiture sans modèle : refusé')
+ok, msg = AdminAction(1, 'wheel_save', { originalId = 'lucky', wheel = { id = 'lucky', name = 'Roue', enabled = true, cost = 10, cooldown = 0, segments = {
+    { label = 'Zentorno', reward = 'vehicle', model = 'Zentorno', weight = 100 }, { label = 'Perdu', reward = 'none', weight = 0 }, { label = '50 jetons', reward = 'chips', value = 50, weight = 0 } } } })
+check(ok, 'roue avec voiture enregistrée : ' .. tostring(msg))
+P[31].pos = vector3(20.5, -1.0, 0)
+ok, msg = AdminAction(31, 'wheel_podium_here', { id = 'lucky' })
+check(not ok, 'joueur sans permission : podium refusé')
+P[1] = P[1] or { cid = 'ADMIN', name = 'Admin', cash = 0, bank = 0, items = {}, online = true, pos = vector3(30, 30, 1) }
+local pubCar = nil
+for _, pp in ipairs(Casino.PublicPoints()) do if pp.wheel and pp.wheel.car then pubCar = pp.wheel.car end end
+check(pubCar and pubCar.model == 'zentorno', 'voiture annoncée aux joueurs pour le podium (modèle en minuscules)')
+-- deuxième point de roue sur la même roue : deux joueurs lancent en même temps
+table.insert(POINTS, { id = 9, name = 'Animatrice 2', x = 40.0, y = 0.8, z = 0.0, h = 180.0, casino = { role = 'wheel', name = 'Roue 2', wheel = 'lucky', table = { x = 40.0, y = 0.0, z = 0.0, h = 0.0 } } })
+TriggerEvent('adminmenu:pedsChanged')
+run(1000)
+addPlayer(32, 'CID32', 0) P[32].items.jetons_casino = 1000 P[32].pos = vector3(40.5, -1.0, 0)
+run(2000)
+local ok1 = call('elyzea_casino:wheel:spin', 31, { pedId = 3, nonce = 'car1' })
+local ok2 = call('elyzea_casino:wheel:spin', 32, { pedId = 9, nonce = 'car2' })
+check(ok1 and ok2, 'les deux roues tournent en même temps')
+run(10000)
+local mine = 0
+for _, v in ipairs(DB.vehicles) do if v.model == 'zentorno' then mine = mine + 1 end end
+check(mine == 1 and DB.vehicles[#DB.vehicles].cid == 'CID31', 'une seule voiture donnée, au premier gagnant (' .. mine .. ')')
+check(DB.vehicles[#DB.vehicles].garage == 'public' and #keysGiven == 1, 'voiture rangée au garage public, clés données')
+local Wl = Casino.WheelById('lucky')
+local still = false
+for _, sg in ipairs(Wl.segments) do if sg.reward == 'vehicle' then still = true end end
+check(not still and #Wl.segments == 2 and Rules.WeightsValid(Wl.segments), 'segment voiture retiré, chances ramenées à 100 %')
+pubCar = nil
+for _, pp in ipairs(Casino.PublicPoints()) do if pp.wheel and pp.wheel.car then pubCar = pp.wheel.car end end
+check(not pubCar, 'plus de voiture sur le podium')
+run(3000)
+ok = call('elyzea_casino:wheel:spin', 31, { pedId = 3, nonce = 'car3' })
+run(10000)
+mine = 0
+for _, v in ipairs(DB.vehicles) do if v.model == 'zentorno' then mine = mine + 1 end end
+check(mine == 1, 'nouveaux tours : la voiture ne peut plus être regagnée')
 
 print(('\nRésultat : %d réussis, %d échecs'):format(PASS, FAIL))
 return FAIL

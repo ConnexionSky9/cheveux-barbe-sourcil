@@ -9,6 +9,7 @@ Config = {}
 Config.ChipItem = 'jetons_casino'     -- objet d'inventaire « Jetons de casino » (elyzea_inventory)
 Config.Permission = 'casino_manage'   -- permission admin_menu pour tout régler
 Config.InteractDistance = 2.2         -- distance pour s'asseoir / utiliser une roue
+Config.CarGarage = 'public'               -- garage où arrive la voiture gagnée à la roue
 Config.ServerDistance = 6.0           -- distance maximale vérifiée par le serveur (anti-triche)
 Config.MaxPlayers = 4                 -- places par table (blackjack et roulette), jamais plus de 4
 

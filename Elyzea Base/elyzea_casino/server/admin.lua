@@ -127,7 +127,7 @@ local function cleanRoulette(d)
     return c
 end
 
-local REWARDS = { none = true, chips = true, money = true, item = true, custom = true }
+local REWARDS = { none = true, chips = true, money = true, item = true, custom = true, vehicle = true }
 local function cleanWheel(d, old)
     local id = tostring(d.id or ''):lower():gsub('[^%w_]', ''):sub(1, 30)
     if id == '' then return nil, 'Identifiant obligatoire (lettres, chiffres, _).' end
@@ -138,8 +138,13 @@ local function cleanWheel(d, old)
         model = tostring(d.model or 'vw_prop_vw_luckywheel_02a'):gsub('[^%w_]', ''):sub(1, 60),
         baseModel = tostring(d.baseModel or ''):gsub('[^%w_]', ''):sub(1, 60), wheelZ = num(d.wheelZ, -5, 5, 0.0),
         segments = {},
+        -- Podium où la voiture à gagner est exposée (posé depuis le menu admin)
+        podium = (type(d.podium) == 'table' and tonumber(d.podium.x) and tonumber(d.podium.y) and tonumber(d.podium.z))
+            and { x = d.podium.x + 0.0, y = d.podium.y + 0.0, z = d.podium.z + 0.0, h = (tonumber(d.podium.h) or 0.0) + 0.0 } or nil,
+        podiumSpin = d.podiumSpin == nil and true or bool(d.podiumSpin),
     }
     if w.name == '' then w.name = id end
+    local cars = 0
     for i, s in ipairs(type(d.segments) == 'table' and d.segments or {}) do
         if i > 40 then break end
         local reward = REWARDS[s.reward] and s.reward or 'none'
@@ -148,12 +153,18 @@ local function cleanWheel(d, old)
             reward = reward, value = int(s.value, 0, 100000000, 0), weight = num(s.weight, 0, 100, 0),
             item = reward == 'item' and tostring(s.item or ''):gsub('[^%w_%-]', ''):sub(1, 50) or nil,
             count = reward == 'item' and int(s.count, 1, 1000, 1) or nil,
+            model = reward == 'vehicle' and tostring(s.model or ''):lower():gsub('[^%w_]', ''):sub(1, 40) or nil,
         }
         seg.weight = math.floor(seg.weight * 100 + 0.5) / 100
         if seg.label == '' then seg.label = ('Segment %d'):format(i) end
         if reward == 'item' then
             if not seg.item or seg.item == '' then return nil, ('Segment %d : choisis un objet.'):format(i) end
             if not Casino.ItemExists(seg.item) then return nil, ('Segment %d : l\'objet « %s » n\'existe pas dans l\'inventaire.'):format(i, seg.item) end
+        end
+        if reward == 'vehicle' then
+            if not seg.model or seg.model == '' then return nil, ('Segment %d : écris le nom du modèle de la voiture (ex : zentorno).'):format(i) end
+            cars = cars + 1
+            if cars > 1 then return nil, 'Une seule voiture à gagner par roue (un seul gagnant).' end
         end
         w.segments[#w.segments + 1] = seg
     end
@@ -229,7 +240,10 @@ A.wheel_save = function(src, d)
     local replaced = false
     local origId = tostring(d.originalId or w.id)
     for i, x in ipairs(S.wheels) do
-        if x.id == origId then S.wheels[i] = w replaced = true break end
+        if x.id == origId then
+            w.podium = x.podium   -- le podium se règle avec « Poser le podium ici »
+            S.wheels[i] = w replaced = true break
+        end
     end
     if not replaced then
         for _, x in ipairs(S.wheels) do if x.id == w.id then return false, 'Cet identifiant est déjà utilisé.' end end
@@ -239,6 +253,28 @@ A.wheel_save = function(src, d)
     Casino.SaveKey('wheels')
     Casino.PushPoints(-1)
     return true, ('Roue « %s » enregistrée.%s'):format(w.name, note)
+end
+
+-- Podium de la voiture : position et orientation actuelles de l'admin (debout sur le podium)
+A.wheel_podium_here = function(src, d)
+    local w = Casino.WheelById(tostring(d.id or ''))
+    if not w then return false, 'Roue introuvable.' end
+    local ped = GetPlayerPed(src)
+    if ped == 0 then return false, 'Position introuvable.' end
+    local c = GetEntityCoords(ped)
+    w.podium = { x = c.x + 0.0, y = c.y + 0.0, z = c.z - 1.0, h = GetEntityHeading(ped) + 0.0 }
+    Casino.SaveKey('wheels')
+    Casino.PushPoints(-1)
+    return true, 'Podium enregistré : la voiture à gagner y sera exposée.'
+end
+
+A.wheel_podium_clear = function(src, d)
+    local w = Casino.WheelById(tostring(d.id or ''))
+    if not w then return false, 'Roue introuvable.' end
+    w.podium = nil
+    Casino.SaveKey('wheels')
+    Casino.PushPoints(-1)
+    return true, 'Podium retiré.'
 end
 
 A.wheel_delete = function(src, d)
@@ -260,6 +296,7 @@ A.wheel_duplicate = function(src, d)
     local base, n = c.id, 2
     while Casino.WheelById(('%s_%d'):format(base, n)) do n = n + 1 end
     c.id, c.name, c.enabled = ('%s_%d'):format(base, n), c.name .. ' (copie)', false
+    c.podium = nil   -- une seule voiture exposée par podium
     S.wheels[#S.wheels + 1] = c
     Casino.SaveKey('wheels')
     return true, ('Copie « %s » créée (désactivée).'):format(c.name)

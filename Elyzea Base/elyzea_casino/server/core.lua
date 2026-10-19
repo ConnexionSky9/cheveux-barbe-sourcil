@@ -118,7 +118,7 @@ function Casino.Player(src)
     if not ok or type(pd) ~= 'table' or not pd.citizenid then return nil end
     local ci = pd.charinfo or {}
     local name = ((ci.firstname or '') .. ' ' .. (ci.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
-    return { cid = pd.citizenid, name = name ~= '' and name or GetPlayerName(src) or ('#' .. src) }
+    return { cid = pd.citizenid, license = pd.license, name = name ~= '' and name or GetPlayerName(src) or ('#' .. src) }
 end
 
 function Casino.Notify(src, msg, kind)
@@ -269,7 +269,8 @@ function Casino.PublicPoints()
             maxPlayers = cfg and cfg.maxPlayers or nil, variant = cfg and cfg.variant or nil,
             wheel = w and { id = w.id, name = w.name, model = w.model, baseModel = w.baseModel, wheelZ = w.wheelZ or 0.0,
                 segments = (function() local s = {} for i, g in ipairs(w.segments or {}) do s[i] = { label = g.label, color = g.color, text = g.text, icon = g.icon } end return s end)(),
-                cost = w.cost, costType = w.costType } or nil,
+                cost = w.cost, costType = w.costType, podium = w.podium, podiumSpin = w.podiumSpin ~= false,
+                car = Casino.WheelCar and Casino.WheelCar(w) or nil } or nil,
         }
     end
     return out

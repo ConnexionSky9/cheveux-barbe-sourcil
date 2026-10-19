@@ -16,7 +16,7 @@
     const clone = (x) => JSON.parse(JSON.stringify(x));
     const ROLE = { blackjack: '🃏 Blackjack', roulette: '🎡 Roulette', wheel: '🎰 Roue', cashier: '💰 Guichet' };
     const PHASE = { idle: 'libre', betting: 'mises', dealing: 'distribution', players: 'joueurs', dealer: 'croupier', payout: 'paiement', spinning: 'roue lancée', result: 'résultat' };
-    const REWARD = { none: 'Rien (perdu)', chips: 'Jetons', money: 'Argent ($)', item: 'Objet', custom: 'Récompense spéciale' };
+    const REWARD = { none: 'Rien (perdu)', chips: 'Jetons', money: 'Argent ($)', item: 'Objet', custom: 'Récompense spéciale', vehicle: '🚗 Voiture (1 gagnant)' };
     const SUBS = [['home', '📊 Général'], ['blackjack', '🃏 Blackjack'], ['roulette', '🎡 Roulette'], ['wheels', '🎰 Roues'], ['cashier', '💰 Guichet'], ['map', '🗺️ PNJ et map'], ['history', '📜 Historique']];
 
     const tile = (key, label, help, on) => `<div class="tile toggle-tile ${on ? 'on' : ''}" data-ck="${key}"><div><strong>${esc(label)}</strong><span>${esc(help)}</span></div><div class="switch"></div></div>`;
@@ -129,6 +129,21 @@
         const diff = Math.round((100 - total(segs)) * 100) / 100;
         if (diff) { let b = 0; segs.forEach((s, i) => { if (s.weight > segs[b].weight) b = i; }); segs[b].weight = Math.round((segs[b].weight + diff) * 100) / 100; }
     }
+    // Voiture à gagner : exposée sur un podium, un seul gagnant, retirée de la roue une fois gagnée
+    function podiumCard(w) {
+        const car = (w.segments || []).find((s) => s.reward === 'vehicle');
+        const p = w.podium;
+        return `<div class="card" style="margin-top:14px"><h3 class="sub-h" style="font-size:16px;margin-top:0">🚗 Voiture à gagner</h3>
+            <p class="hint">Mets un segment avec la récompense <b>Voiture (1 gagnant)</b> et le nom du modèle. La voiture est exposée sur le podium ;
+                le premier qui tombe dessus la gagne (elle arrive dans son garage avec les clés), puis le segment est <b>retiré de la roue</b> automatiquement
+                (les autres chances sont ramenées à 100 %). Une seule voiture par roue.</p>
+            <p>${car ? `Voiture en jeu : <b>${esc(car.label)}</b> (${esc(car.model || 'modèle manquant')}) · chance ${esc(car.weight)} %` : '<span class="muted">Aucune voiture en jeu sur cette roue.</span>'}<br>
+                Podium : ${p ? `<b>posé</b> <span class="muted">(${Math.round(p.x)}, ${Math.round(p.y)}, ${Math.round(p.z)})</span>` : '<b>pas encore posé</b>'}</p>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));margin-bottom:10px">${tile('w:podiumSpin', 'Plateau tournant', 'La voiture tourne doucement sur elle-même.', w.podiumSpin !== false)}</div>
+            <div class="btn-row"><button class="btn primary" data-ca="wheel_podium_here" ${w._new ? 'disabled' : ''}>📍 Poser le podium ici (debout au centre, tourné vers l'avant voulu)</button>
+                ${p ? '<button class="btn danger" data-ca="wheel_podium_clear">Retirer le podium</button>' : ''}</div>
+            ${w._new ? '<p class="hint">Enregistre d\'abord la roue.</p>' : ''}</div>`;
+    }
     function viewWheels(c) {
         const ws = c.wheels || [];
         if (C.wheel === null && ws.length) C.wheel = ws[0].id;
@@ -147,6 +162,7 @@
             <td><input class="input" data-cg="${i}:icon" value="${esc(s.icon || '')}" maxlength="4" style="width:56px" placeholder="🎁"></td>
             <td><select class="input" data-cg="${i}:reward">${Object.entries(REWARD).map(([k, l]) => `<option value="${k}" ${s.reward === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
             <td>${s.reward === 'item' ? `<input class="input" list="known-items" data-cg="${i}:item" value="${esc(s.item || '')}" placeholder="objet" style="min-width:110px"> × <input class="input" type="number" min="1" data-cg="${i}:count" value="${esc(s.count || 1)}" style="width:64px">`
+                : s.reward === 'vehicle' ? `<input class="input" data-cg="${i}:model" value="${esc(s.model || '')}" placeholder="modèle (ex : zentorno)" style="min-width:150px">`
                 : s.reward === 'none' || s.reward === 'custom' ? '<span class="muted">—</span>' : `<input class="input" type="number" min="0" data-cg="${i}:value" value="${esc(s.value)}" style="width:110px">`}</td>
             <td><input class="input" type="number" min="0" max="100" step="0.01" data-cg="${i}:weight" value="${esc(s.weight)}" style="width:90px"> %</td>
             <td>${sim && sim[i] ? `<span class="muted">${sim[i].got} %</span>` : ''}</td>
@@ -167,6 +183,7 @@
                     <div><label>Modèle du socle (vide = aucun)</label><input class="input" data-cw="baseModel" value="${esc(w.baseModel || '')}"></div>
                     <div><label>Hauteur de la roue sur le socle (m, 1,25 = centre de l'anneau)</label><input class="input" type="number" step="0.01" data-cw="wheelZ" value="${esc(w.wheelZ || 0)}"></div>
                 </div>
+                ${podiumCard(w)}
                 <h3 class="sub-h" style="margin-top:14px">Segments (${w.segments.length}) · total des chances <b style="color:${ok ? 'var(--success, #4caf50)' : 'var(--danger)'}">${t} %</b>${ok ? '' : ' — doit faire 100 %'}</h3>
                 <table class="loot wide"><tr><th>Texte</th><th>Couleurs</th><th>Icône</th><th>Récompense</th><th>Valeur</th><th>Chance</th><th>${sim ? 'Simulé' : ''}</th><th></th></tr>${rows}</table>
                 <div class="btn-row" style="margin-top:10px"><button class="btn" data-cseg="add">+ Segment</button>
@@ -253,7 +270,7 @@
             const [scope, key] = t.dataset.ck.split(':');
             if (scope === 'g') C.gdraft[key] = !C.gdraft[key];
             if (scope === 't') C.tdraft[key] = (key === 'allowInsurance' || key === 'allowSurrender') ? C.tdraft[key] === false : !C.tdraft[key];
-            if (scope === 'w') C.wdraft[key] = !C.wdraft[key];
+            if (scope === 'w') C.wdraft[key] = key === 'podiumSpin' ? C.wdraft[key] === false : !C.wdraft[key];
             if (scope === 'c') { if (key === 'cash' || key === 'bank') C.cdraft.accounts[key] = !C.cdraft.accounts[key]; else C.cdraft[key] = !C.cdraft[key]; }
             return reRender();
         }
@@ -293,6 +310,7 @@
             }
             if (a === 'wheel_delete') { const id = C.wheel; C.wheel = null; C.wdraft = null; return send(a, { id }); }
             if (['wheel_test', 'wheel_simulate', 'wheel_duplicate'].includes(a)) return send(a, { id: C.wheel, n: 10000 });
+            if (a === 'wheel_podium_here' || a === 'wheel_podium_clear') { C.wdraft = null; return send(a, { id: C.wheel }); }
             return send(a, {});
         }
     });

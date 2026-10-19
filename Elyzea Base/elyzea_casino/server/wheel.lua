@@ -48,6 +48,59 @@ local function refund(src, w, cost, how, cid)
     else exports.elyzea_core:AddMoney(src, how, cost, 'casino-roue-remboursement') end
 end
 
+-- ---------------------------------------------------------------- voiture à gagner (un seul gagnant)
+local claimed = {}   -- [wheelId] = true pendant la remise de la voiture (personne d'autre ne peut la tirer)
+
+-- Voiture encore à gagner sur cette roue (affichée sur le podium)
+function Casino.WheelCar(w)
+    for _, s in ipairs(w.segments or {}) do
+        if s.reward == 'vehicle' and s.model and s.model ~= '' then
+            return { model = s.model, label = s.label }
+        end
+    end
+end
+
+local function newPlate()
+    for _ = 1, 50 do
+        local p = ('CASI%04d'):format(math.random(0, 9999))
+        if not MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { p, ' ' .. p }) then return p end
+    end
+end
+
+-- Inscrit la voiture au nom du gagnant (garage public), clés s'il est connecté
+local function giveVehicle(src, seg, who)
+    local plate = newPlate()
+    if not plate then return nil, 'aucune plaque libre' end
+    local model = seg.model:lower()
+    local hash = joaat(model)
+    local license = who.license
+    if (not license or license == '') and src and GetPlayerName(src) then
+        for _, id in ipairs(GetPlayerIdentifiers(src)) do if id:find('^license:') then license = id break end end
+    end
+    local ok, vid = pcall(function()
+        return MySQL.insert.await([[INSERT INTO `player_vehicles` (`license`, `citizenid`, `vehicle`, `hash`, `mods`, `plate`, `garage`, `fuel`, `engine`, `body`, `state`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 100, 1000, 1000, 1)]], { license or '', who.cid, model, tostring(hash),
+            json.encode({ model = hash, plate = plate, fuelLevel = 100.0 }), plate, Config.CarGarage or 'public' })
+    end)
+    if not ok or not vid then return nil, 'enregistrement du véhicule impossible' end
+    if src and GetPlayerName(src) then
+        pcall(function() exports.elyzea_core:GiveKeys(src, plate) end)
+        if GetResourceState('elyzea_concess') == 'started' then pcall(function() exports.elyzea_concess:EnsureKey(src, plate, model) end) end
+    end
+    return plate
+end
+
+-- La voiture est partie : son segment est retiré de la roue, les chances sont ramenées à 100 %
+local function removeCar(wheelId)
+    local w = Casino.WheelById(wheelId)   -- la roue a pu être réenregistrée pendant la rotation
+    if not w then return end
+    for i = #w.segments, 1, -1 do
+        if w.segments[i].reward == 'vehicle' then table.remove(w.segments, i) end
+    end
+    if #w.segments >= 2 then Rules.Normalize(w.segments) else w.enabled = false end
+    Casino.SaveKey('wheels')
+end
+
 -- Remise du lot (une seule fois : appelée par un seul SetTimeout par tirage)
 local function grant(src, w, seg, cid, who)
     local r = seg.reward or 'none'
@@ -67,6 +120,10 @@ local function grant(src, w, seg, cid, who)
         if online then ok, res = pcall(function() return exports.elyzea_inventory:AddItem(src, seg.item, count) end) end
         if not (ok and res == true) then return nil, 0, 'inventaire plein ou joueur parti' end
         return ('%d × %s'):format(count, seg.item), 0
+    elseif r == 'vehicle' and seg.model and seg.model ~= '' then
+        local plate, why = giveVehicle(online and src or nil, seg, who)
+        if not plate then return nil, 0, why end
+        return ('la voiture %s (plaque %s, au garage)'):format(seg.label, plate), 0
     elseif r == 'custom' then
         TriggerEvent('elyzea_casino:customReward', src, cid, w.id, seg)   -- pour une autre ressource
         return seg.label or 'Récompense spéciale', 0
@@ -95,9 +152,18 @@ local function spin(src, d)
     local okPay, how = pay(src, w, cost)
     if not okPay then return false, (w.costType == 'money') and ('Il te faut %d $.'):format(cost) or ('Il te faut %d jetons.'):format(cost) end
 
-    -- Tirage serveur
-    local idx = Rules.Draw(w.segments, math.random())
+    -- Tirage serveur (la voiture déjà en cours de remise ne peut plus sortir)
+    local pool = w.segments
+    if claimed[w.id] then
+        pool = {}
+        for i, sg in ipairs(w.segments) do pool[i] = { weight = sg.reward == 'vehicle' and 0 or sg.weight } end
+    end
+    local idx = Rules.Draw(pool, math.random())
     local seg = w.segments[idx]
+    local isCar = seg.reward == 'vehicle'
+    if isCar then
+        claimed[w.id] = true   -- réservée tout de suite : un seul gagnant même si deux roues tournent
+    end
     spinSeq = spinSeq + 1
     local id = spinSeq
     spinning[pt.id] = { src = src, id = id }
@@ -118,6 +184,15 @@ local function spin(src, d)
         if not spinning[pt.id] or spinning[pt.id].id ~= id then return end
         spinning[pt.id] = nil
         local label, chipsWon, failed = grant(src, w, seg, p.cid, p)
+        if isCar then
+            if not failed then removeCar(w.id) end
+            claimed[w.id] = nil
+            Casino.PushPoints(-1)
+            if not failed then
+                print(('[elyzea_casino] Voiture « %s » (%s) gagnée à la roue %s par %s (%s).'):format(seg.label, seg.model, w.id, p.name, p.cid))
+                TriggerClientEvent('elyzea_casino:notify', -1, ('🎉 %s a gagné la voiture %s à la roue de la fortune !'):format(p.name, seg.label), 'success')
+            end
+        end
         if failed then
             refund(GetPlayerName(src) and src or nil, w, cost, how, p.cid)
             Casino.Log('wheel', w.id, nil, cost, 0, ('%s : lot non remis (%s), participation remboursée'):format(seg.label, failed), false, p)

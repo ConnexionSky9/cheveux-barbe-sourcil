@@ -51,6 +51,12 @@ function CS.DealerPed(id)
 end
 
 -- ---------------------------------------------------------------- points
+-- Ce qui change l'aspect 3D d'une roue (les lots seuls ne la font pas réapparaître)
+local function wheelLook(w)
+    if not w then return nil end
+    return { w.id, w.model, w.baseModel, w.wheelZ, #(w.segments or {}) }
+end
+
 RegisterNetEvent('elyzea_casino:points', function(list, enabled)
     local new = {}
     for _, p in ipairs(list or {}) do new[p.id] = p end
@@ -58,7 +64,7 @@ RegisterNetEvent('elyzea_casino:points', function(list, enabled)
     for id, e in pairs(CS.ents) do
         local p, old = new[id], CS.points[id]
         if not p or not old or json.encode(p.table) ~= json.encode(old.table) or p.model ~= old.model
-            or json.encode(p.wheel) ~= json.encode(old.wheel) then CS.Despawn(id) end
+            or json.encode(wheelLook(p.wheel)) ~= json.encode(wheelLook(old.wheel)) then CS.Despawn(id) end
     end
     CS.points = new
     CS.enabled = enabled ~= false
