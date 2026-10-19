@@ -247,6 +247,15 @@ do
         meta.casino1 = true
         Storage.save('meta', meta)
     end
+    if not meta.animaux1 then
+        -- Gestion des animaux (elyzea_animaux) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then
+            Ranks.superadmin.perms.animaux_manage = true
+            Ranks.superadmin.perms.animaux_owned = true
+        end
+        meta.animaux1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.pvp1 then
         -- Arène PvP (pvp_arena) : commandes d'administration pour le SuperAdmin
         if Ranks.superadmin then Ranks.superadmin.perms.pvp_manage = true end

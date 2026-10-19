@@ -84,6 +84,7 @@ server_scripts {
     'server/noirx.lua',
     'server/famille.lua',
     'server/casino.lua',
+    'server/animaux.lua',
     'server/guards.lua',
 }
 
@@ -127,5 +128,6 @@ files {
     'html/noirx.js',
     'html/famille.js',
     'html/casino.js',
+    'html/animaux.js',
     'html/logo.png',
 }

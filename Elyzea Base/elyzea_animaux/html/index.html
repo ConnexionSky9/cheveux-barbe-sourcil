@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Elyzea Animaux : boutique des vendeurs (aperçu réel en jeu à gauche) et « Mes animaux » -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="shop" class="panel side hidden">
+    <header><div><h1 id="shopTitle">Animalerie</h1><span id="shopSub"></span></div><button class="x" data-close>✕</button></header>
+    <nav id="shopTabs"></nav>
+    <main id="shopBody"></main>
+    <div class="rotate" id="rotate"><button data-rot="-30">⟲ Tourner</button><button data-rot="30">Tourner ⟳</button></div>
+</div>
+
+<div id="pets" class="panel center hidden">
+    <header><div><h1>🐾 Mes animaux</h1><span id="petsSub"></span></div><button class="x" data-close>✕</button></header>
+    <main id="petsBody"></main>
+</div>
+
+<div id="modal" class="hidden"><div class="box"><h2 id="mTitle"></h2><p id="mText"></p><div class="btns"><button id="mNo">Annuler</button><button id="mYes" class="primary">Confirmer</button></div></div></div>
+<script src="app.js"></script>
+</body>
+</html>
