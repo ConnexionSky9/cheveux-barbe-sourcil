@@ -164,4 +164,19 @@ Config.Bebe = {
     courseInterdite = true,   -- pas de course en poussant
     abandon = 20,             -- minutes avant de ranger une poussette vide abandonnée
     diagnostic = false,       -- journal détaillé dans la console serveur
+    -- V6
+    reserve = true,           -- seuls les parents (et les personnes à qui ils l'ont confié) peuvent prendre le bébé
+    garder = true,            -- porteur déconnecté : le bébé reste avec lui et revient à sa connexion
+    physique = true,          -- poussette lâchée sans frein : elle roule selon la pente
+    crr = 0.035,              -- résistance au roulement
+    seuilDepart = 0.045,      -- pente minimale (tan) pour qu'une poussette arrêtée parte toute seule
+    vChoc = 2.6,              -- m/s : choc au-delà duquel elle se renverse
+    roues = true,             -- roues qui tournent
+    colorisPb = 'gris',       -- coloris par défaut des porte-bébés (gris, marine, sauge)
+    colorisPoussette = 'graphite', -- coloris par défaut de la poussette (graphite, sable)
+    -- décalages de chaque prise (cm, degrés), ajoutés aux positions calculées : réglage fin après essai en jeu
+    decalages = {
+        bras = { x = 0, y = 0, z = 0, rz = 0 }, face = { x = 0, y = 0, z = 0, rz = 0 },
+        ventral = { x = 0, y = 0, z = 0, rz = 0 }, dorsal = { x = 0, y = 0, z = 0, rz = 0 },
+    },
 }

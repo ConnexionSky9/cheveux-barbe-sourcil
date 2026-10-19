@@ -249,7 +249,8 @@ def main():
             bpy.data.objects.remove(ob, do_unlink=True)
         models['equipements']['geo'] = {
             'ventral': equip['bebe']['ventral'], 'dorsal': equip['bebe']['dorsal'],
-            'poussette': {'nacelle': equip['poussette']['bebe_nacelle'], 'poussee': equip['poussette']['attache_poussee']},
+            'poussette': {'nacelle': equip['poussette']['bebe_nacelle'], 'poussee': equip['poussette']['attache_poussee'],
+                          'roues': equip['poussette'].get('roues')},
         }
     log(f'{len(drawables)} drawables préparés')
     too_long = [d.name for d in drawables if len(d.name) > 63]
@@ -269,7 +270,7 @@ def main():
     for arch in yt.archetypes:
         arch.lod_dist = LOD_DIST
         arch.hd_texture_dist = 15.0
-        if arch.name.startswith((f'{PREFIX}_pb_', f'{PREFIX}_poussette')):
+        if arch.name.startswith((f'{PREFIX}_pb_', f'{PREFIX}_poussette', f'{PREFIX}_roue')):
             arch.texture_dictionary = TXD_EQUIP
             arch.lod_dist = 90.0
         else:

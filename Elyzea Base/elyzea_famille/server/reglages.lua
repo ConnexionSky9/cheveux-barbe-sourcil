@@ -10,7 +10,7 @@
 local RES = GetCurrentResourceName()
 local PERM = 'famille_manage'
 
--- section, clé, chemin dans Config, type (int | num | pct | bool | str), bornes, libellé, aide
+-- section, clé, chemin dans Config, type (int | num | pct | bool | str | choix), bornes, libellé, aide
 local SCHEMA = {
     -- Moment intime : durée
     { s = 'duree', k = 'intimite.duree', p = { 'Intimite', 'duree' }, t = 'int', min = 5, max = 600, u = 's',
@@ -160,6 +160,56 @@ local SCHEMA = {
       l = 'Poussette vide abandonnée', a = 'Une poussette vide, garée loin de son propriétaire (ou propriétaire parti), est rangée après ce délai.' },
     { s = 'bebe', k = 'bebe.diagnostic', p = { 'Bebe', 'diagnostic' }, t = 'bool',
       l = 'Journal de diagnostic', a = 'Activé : chaque prise, pose, attache refusée… est écrite dans la console serveur (pour le développement).' },
+    { s = 'bebe', k = 'bebe.reserve', p = { 'Bebe', 'reserve' }, t = 'bool',
+      l = 'Bébé réservé aux parents', a = 'Activé : seuls les parents (et les personnes à qui un parent l\'a confié, /bebe_confier) peuvent prendre le bébé. Les bébés de test restent libres.' },
+    { s = 'bebe', k = 'bebe.garder', p = { 'Bebe', 'garder' }, t = 'bool',
+      l = 'Bébé gardé à la déconnexion', a = 'Activé : un bébé porté par un joueur qui se déconnecte reste avec ce personnage et revient à ses pieds à sa connexion. Désactivé : posé au sol.' },
+    { s = 'bebe', k = 'bebe.physique', p = { 'Bebe', 'physique' }, t = 'bool',
+      l = 'Poussette : physique', a = 'Activé : lâchée sans frein (ou frein desserré), elle roule selon la pente, s\'arrête aux obstacles, peut se renverser. Désactivé : toujours garée frein serré.' },
+    { s = 'bebe', k = 'bebe.roues', p = { 'Bebe', 'roues' }, t = 'bool',
+      l = 'Poussette : roues qui tournent', a = 'Roues séparées animées par chaque joueur (aucun coût réseau).' },
+    { s = 'bebe', k = 'bebe.crr', p = { 'Bebe', 'crr' }, t = 'num', min = 0.005, max = 0.2, step = 0.005,
+      l = 'Poussette : résistance au roulement', a = 'Plus haut = s\'arrête plus vite (0,035 ≈ roues gonflées sur bitume).' },
+    { s = 'bebe', k = 'bebe.seuilDepart', p = { 'Bebe', 'seuilDepart' }, t = 'num', min = 0, max = 0.3, step = 0.005,
+      l = 'Poussette : pente de départ', a = 'Pente (0,045 = 4,5 %) à partir de laquelle une poussette arrêtée, frein desserré, se met à rouler.' },
+    { s = 'bebe', k = 'bebe.vChoc', p = { 'Bebe', 'vChoc' }, t = 'num', min = 1, max = 8, step = 0.1, u = 'm/s',
+      l = 'Poussette : choc qui la renverse', a = 'Vitesse au moment d\'un choc au-delà de laquelle elle se renverse (le bébé est posé à côté).' },
+    { s = 'bebe', k = 'bebe.colorisPb', p = { 'Bebe', 'colorisPb' }, t = 'choix', choix = { 'gris', 'marine', 'sauge' },
+      l = 'Coloris par défaut des porte-bébés', a = 'Chaque joueur peut choisir le sien (/coloris_porte_bebe).' },
+    { s = 'bebe', k = 'bebe.colorisPoussette', p = { 'Bebe', 'colorisPoussette' }, t = 'choix', choix = { 'graphite', 'sable' },
+      l = 'Coloris par défaut de la poussette', a = 'Chaque joueur peut choisir le sien (/coloris_poussette).' },
+    { s = 'decalages', k = 'bebe.dec.bras.x', p = { 'Bebe', 'decalages', 'bras', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.y', p = { 'Bebe', 'decalages', 'bras', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.z', p = { 'Bebe', 'decalages', 'bras', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.rz', p = { 'Bebe', 'decalages', 'bras', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Dans les bras : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.x', p = { 'Bebe', 'decalages', 'face', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.y', p = { 'Bebe', 'decalages', 'face', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.z', p = { 'Bebe', 'decalages', 'face', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.rz', p = { 'Bebe', 'decalages', 'face', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Contre moi : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.x', p = { 'Bebe', 'decalages', 'ventral', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.y', p = { 'Bebe', 'decalages', 'ventral', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.z', p = { 'Bebe', 'decalages', 'ventral', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.rz', p = { 'Bebe', 'decalages', 'ventral', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Porte-bébé ventral : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.x', p = { 'Bebe', 'decalages', 'dorsal', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.y', p = { 'Bebe', 'decalages', 'dorsal', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.z', p = { 'Bebe', 'decalages', 'dorsal', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.rz', p = { 'Bebe', 'decalages', 'dorsal', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Porte-bébé dorsal : rotation', a = '' },
 }
 
 local SECTIONS = {
@@ -174,6 +224,7 @@ local SECTIONS = {
     { id = 'ventre', label = 'Ventre de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
+    { id = 'decalages', label = 'Position du bébé porté (réglage fin)' },
 }
 
 local PAR_CLE = {}
@@ -200,6 +251,10 @@ local function valider(d, v)
     if d.t == 'bool' then
         if type(v) ~= 'boolean' then return nil, 'oui / non attendu' end
         return v
+    end
+    if d.t == 'choix' then
+        for _, c in ipairs(d.choix) do if v == c then return v end end
+        return nil, 'choix : ' .. table.concat(d.choix, ', ')
     end
     if d.t == 'str' then
         if type(v) ~= 'string' then return nil, 'texte attendu' end
@@ -257,7 +312,7 @@ end
 -- Réglages des bébés : transmis à elyzea_bebe_modele (qui les applique et les publie aux clients)
 local function reglagesBebe()
     local v = {}
-    for _, d in ipairs(SCHEMA) do if d.s == 'bebe' then v[d.k] = lire(d.p) end end
+    for _, d in ipairs(SCHEMA) do if d.s == 'bebe' or d.s == 'decalages' then v[d.k] = lire(d.p) end end
     return v
 end
 
@@ -329,13 +384,18 @@ exports('AdminData', function(src)
     if not autorise(src) then return { available = true, denied = true } end
     local schema = {}
     for _, d in ipairs(SCHEMA) do
-        schema[#schema + 1] = { section = d.s, key = d.k, type = d.t, min = d.min, max = d.max, step = d.step, unit = d.u, label = d.l, help = d.a }
+        schema[#schema + 1] = { section = d.s, key = d.k, type = d.t, min = d.min, max = d.max, step = d.step, unit = d.u, label = d.l, help = d.a, choices = d.choix }
     end
     return {
         available = true,
         sections = SECTIONS, schema = schema,
         values = actuelles(), defaults = DEFAUTS,
         sessions = Fam.SessionsEnCours and Fam.SessionsEnCours() or 0,
+        diagnostic = (function()
+            if GetResourceState('elyzea_bebe_modele') ~= 'started' then return nil end
+            local ok, l = pcall(function() return exports.elyzea_bebe_modele:Diagnostic() end)
+            return ok and l or nil
+        end)(),
     }
 end)
 

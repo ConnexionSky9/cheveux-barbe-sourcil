@@ -28,6 +28,12 @@
         if (d.type === 'bool') {
             return `<div class="tile toggle-tile ${v ? 'on' : ''}" data-ft="${esc(d.key)}"><div><strong>${esc(d.label)}</strong><span>${esc(d.help)}</span>${tag}</div><div class="switch"></div></div>`;
         }
+        if (d.type === 'choix') {
+            const opts = (d.choices || []).map((c) => `<option value="${esc(c)}" ${c === v ? 'selected' : ''}>${esc(c)}</option>`).join('');
+            return `<div class="field"><label>${esc(d.label)}</label>
+            <select class="input" data-fs="${esc(d.key)}">${opts}</select>
+            <p class="hint" style="margin:4px 0 0">${esc(d.help)}</p>${tag}</div>`;
+        }
         if (d.type === 'str') {
             return `<div class="field"><label>${esc(d.label)}</label>
             <input class="input" type="text" data-fs="${esc(d.key)}" maxlength="${d.max || 64}" value="${esc(v ?? '')}">
@@ -42,6 +48,11 @@
             <input class="input" type="number" data-ff="${esc(d.key)}" data-pct="${isPct ? 1 : 0}" min="${min}" max="${max}" step="${step}" value="${esc(val ?? '')}">
             <p class="hint" style="margin:4px 0 0">${esc(d.help)} <span class="muted">(${esc(String(min))} à ${esc(String(max))})</span></p>${tag}</div>`;
     }
+
+    // Diagnostic des bébés, porte-bébés et poussettes (lu à l'ouverture de l'onglet)
+    const diag = (lignes) => (Array.isArray(lignes) ? `<div class="section"><h2>Diagnostic : bébés, porte-bébés, poussettes</h2>
+        <pre style="white-space:pre-wrap;font-size:12px;max-height:260px;overflow:auto;margin:0">${esc(lignes.length ? lignes.join('\n') : 'Aucun bébé, porte-bébé ni poussette en jeu.')}</pre>
+        <p class="hint">Rouvrez l'onglet pour actualiser. Détail complet : /bebe_diag (console serveur).</p></div>` : '');
 
     VIEWS.famille = () => {
         const f = D.famille;
@@ -68,7 +79,7 @@
                 <div class="stat"><b>${esc(String(f.sessions || 0))}</b><span>Moment(s) en cours</span></div></div>
             <p class="hint">Exemple avec le brouillon : moment accidentel + préservatif + pilule = <b>${pct(exemple)}</b> de risque.
                 X arrête toujours un moment, pour les deux personnes (non désactivable).</p>
-            ${bar}${sections}${bar}`;
+            ${bar}${sections}${diag(f.diagnostic)}${bar}`;
     };
 
     const on = () => isOpen && tab === 'famille' && F.draft;

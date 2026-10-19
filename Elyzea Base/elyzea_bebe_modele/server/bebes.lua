@@ -166,7 +166,9 @@ local function demanderAttache(b)
     b.attacheDemandee = GetGameTimer()
     b.essais = (b.essais or 0) + 1
     local qui = b.etat == 'porte' and b.porteur or b.pousseur
-    TriggerClientEvent('elyzea_bebe_modele:attacher', qui, b.id, b.nets, b.etat == 'porte' and b.mode or 'poussette')
+    -- poussette poussée (V6) : le bébé est attaché à la POUSSETTE (il suit son inclinaison sur les pentes)
+    local po = b.etat == 'poussette' and Poussettes[b.poussette or ''] or nil
+    TriggerClientEvent('elyzea_bebe_modele:attacher', qui, b.id, b.nets, b.etat == 'porte' and b.mode or 'poussette', po and po.net or nil)
 end
 
 -- ─────────── Poussettes ───────────
@@ -184,7 +186,10 @@ end
 
 local function creerPoussetteEnt(po, coords, cap, figer)
     supprimer(po.ent)
-    po.ent, po.net = creerObjet(nomPoussette(po), coords, cap, figer, po.bucket, { bebePoussette = po.id, bebeDedans = po.bebe or false })
+    -- états lus par les clients : nacelle occupée, coloris (roues locales), frein, renversée
+    po.ent, po.net = creerObjet(nomPoussette(po), coords, cap, figer, po.bucket, { bebePoussette = po.id, bebeDedans = po.bebe or false,
+        bebeColoris = po.coloris, bebeFrein = po.frein ~= false, bebeRenversee = po.etat == 'renversee' })
+    if po.ent and po.etat == 'renversee' then pcall(SetEntityRotation, po.ent, 0.0, 80.0, cap + 0.0, 2, false) end
     return po.ent ~= nil
 end
 
@@ -209,7 +214,7 @@ local function placer(b)
     elseif b.etat == 'poussette' then
         local po = Poussettes[b.poussette]
         if not po then return false end
-        if po.etat == 'garee' then
+        if po.etat == 'garee' or po.etat == 'libre' then
             local c, cap = nacelleMonde(po)
             return creerEntites(b, 'allonge', c, cap, true)
         end
@@ -273,8 +278,8 @@ local function poserDeSecours(b, raison)
     poserA(b, 'allonge', c, cap)
 end
 
--- Gare une poussette (poussée) là où elle est ; le bébé éventuel reste dedans.
-local function garerA(po, coords, cap)
+-- Gare une poussette (poussée) là où elle est ; le bébé éventuel reste dedans. frein : false = frein desserré
+local function garerA(po, coords, cap, frein)
     local pousseur = po.pousseur
     if pousseur then
         parPousseur[pousseur] = nil
@@ -285,6 +290,8 @@ local function garerA(po, coords, cap)
         end
     end
     po.etat, po.coords, po.cap, po.essais = 'garee', coords, cap, 0
+    po.frein = frein ~= false
+    po.simulateur, po.simDebut = nil, nil
     if not creerPoussetteEnt(po, coords, cap, true) then return false end
     local b = Bebes[po.bebe or '']
     if b then
@@ -319,6 +326,60 @@ local function supprimerPoussette(po)
     supprimer(po.ent)
     Poussettes[po.id] = nil
     if Persist then Persist.oublierPoussette(po.id) end
+end
+
+-- ─────────── Physique : poussette lâchée sans frein (V6) ───────────
+-- Le calcul (shared/physique.lua) est fait par UN client proche qui contrôle l'objet (comme les véhicules dans FiveM) :
+-- tous les joueurs voient la poussette rouler. À l'arrêt, le client renvoie la position ; le serveur la vérifie,
+-- regare la poussette (et le bébé dedans) à cet endroit. Client parti ou silencieux : la poussette est garée là où elle est.
+local PH = PO.physique
+
+local function simulateurPour(po, prefere)
+    local function proche(src)
+        return present(src) and GetPlayerRoutingBucket(src) == (po.bucket or 0)
+            and #(GetEntityCoords(GetPlayerPed(src)) - po.coords) <= PH.distanceSimulation
+    end
+    if prefere and proche(prefere) then return prefere end
+    local best, bd
+    for _, s in ipairs(GetPlayers()) do
+        local src = tonumber(s)
+        if proche(src) then
+            local d = #(GetEntityCoords(GetPlayerPed(src)) - po.coords)
+            if not bd or d < bd then best, bd = src, d end
+        end
+    end
+    return best
+end
+
+local function demarrerSimulation(po, src)
+    if not PH.actif or po.frein or po.etat ~= 'garee' or not po.ent then return false end
+    local sim = simulateurPour(po, src)
+    if not sim then return false end
+    po.etat, po.simulateur, po.simDebut = 'libre', sim, GetGameTimer()
+    Entity(po.ent).state:set('bebeFrein', false, true)
+    local b = Bebes[po.bebe or '']
+    TriggerClientEvent('elyzea_bebe_modele:poussette:simuler', sim, po.id, po.net, b and b.nets or nil,
+        { x = po.coords.x, y = po.coords.y, z = po.coords.z, cap = po.cap }, PH.parametres)
+    log('poussette libre', po.id, 'simulée par', sim)
+    return true
+end
+
+local function finSimulation(po, coords, cap, renversee)
+    po.simulateur, po.simDebut = nil, nil
+    if renversee then
+        local b = Bebes[po.bebe or '']
+        po.etat, po.coords, po.cap, po.frein, po.bebe = 'renversee', coords, cap, true, nil
+        if b then
+            -- le bébé n'est jamais perdu : il est posé au sol à côté de la poussette renversée
+            local r = math.rad(cap)
+            b.poussette, b.pousseur = nil, nil
+            poserA(b, 'allonge', vector3(coords.x + math.cos(r) * 0.65, coords.y + math.sin(r) * 0.65, coords.z), cap)
+        end
+        creerPoussetteEnt(po, coords, cap, true)
+        log('poussette renversée', po.id)
+        return
+    end
+    garerA(po, coords, cap, po.frein)
 end
 
 -- ─────────── Porte-bébés ───────────
@@ -357,10 +418,14 @@ end
 
 -- ─────────── Réglages enregistrés (menu admin, via elyzea_famille) ───────────
 
+local MODES_DEC = { 'bras', 'face', 'ventral', 'dorsal' }
+P.decalages = P.decalages or {}
+
 local function publierReglages()
     GlobalState.bebeReglages = {
         ventral = EQ.ventral.actif, dorsal = EQ.dorsal.actif, poussette = PO.actif,
         courseInterdite = PO.courseInterdite, debug = Config.Debug,
+        roues = PO.roues ~= false, physique = PO.physique.actif, decalages = P.decalages,
     }
 end
 
@@ -374,6 +439,30 @@ local function appliquerReglages(v)
     local ab = tonumber(v['bebe.abandon'])
     if ab and ab >= 5 and ab <= 240 then PO.abandon = math.floor(ab) end
     Config.Debug = bool(v['bebe.diagnostic'], Config.Debug)
+    -- V6
+    local function num(k, min, max, cur)
+        local x = tonumber(v[k])
+        if x and x == x and x >= min and x <= max then return x end
+        return cur
+    end
+    P.reserveAuxResponsables = bool(v['bebe.reserve'], P.reserveAuxResponsables)
+    Config.Persistance.garderALaDeconnexion = bool(v['bebe.garder'], Config.Persistance.garderALaDeconnexion)
+    PO.physique.actif = bool(v['bebe.physique'], PO.physique.actif)
+    PO.roues = bool(v['bebe.roues'], PO.roues ~= false)
+    local PP, D = PO.physique.parametres, Physique.defaut
+    PP.crr = num('bebe.crr', 0.005, 0.2, PP.crr or D.crr)
+    PP.seuilDepart = num('bebe.seuilDepart', 0.0, 0.3, PP.seuilDepart or D.seuilDepart)
+    PP.vChoc = num('bebe.vChoc', 1.0, 8.0, PP.vChoc or D.vChoc)
+    local M = BebeModeles.equipements or {}
+    if M.pb_ventral and M.pb_ventral[v['bebe.colorisPb']] then EQ.coloris = v['bebe.colorisPb'] end
+    if M.poussette and M.poussette[v['bebe.colorisPoussette']] then PO.coloris = v['bebe.colorisPoussette'] end
+    for _, m in ipairs(MODES_DEC) do
+        local d = P.decalages[m] or {}
+        P.decalages[m] = {
+            x = num(('bebe.dec.%s.x'):format(m), -20, 20, d.x or 0), y = num(('bebe.dec.%s.y'):format(m), -20, 20, d.y or 0),
+            z = num(('bebe.dec.%s.z'):format(m), -20, 20, d.z or 0), rz = num(('bebe.dec.%s.rz'):format(m), -45, 45, d.rz or 0),
+        }
+    end
     publierReglages()
     return true
 end
@@ -542,6 +631,7 @@ RegisterNetEvent('elyzea_bebe_modele:prendre', function(id, mode)
         or modeRefuse(src, mode)
     local po = b.etat == 'poussette' and Poussettes[b.poussette] or nil
     if not err and po and po.etat == 'poussee' and po.pousseur ~= src then err = 'Quelqu\'un pousse cette poussette.' end
+    if not err and po and po.etat == 'libre' then err = 'La poussette roule : rattrapez-la d\'abord (ALT › Pousser).' end
     if err then return notify(src, err, 'error') end
     sousVerrou(src, { b, po or {} }, function()
         if po then
@@ -719,14 +809,20 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:pousser', function(pid)
     local b = Bebes[parPorteur[src] or '']
     local err = (not PO.actif and 'La poussette est désactivée sur ce serveur.') or peutAgir(src)
         or (parPousseur[src] and 'Vous poussez déjà une poussette.')
-        or (po.etat ~= 'garee' and 'Quelqu\'un pousse déjà cette poussette.')
+        or (po.etat == 'poussee' and 'Quelqu\'un pousse déjà cette poussette.')
+        or (po.etat == 'renversee' and 'La poussette est renversée : relevez-la d\'abord.')
         or (b and b.etat == 'porte' and P.modes[b.mode].mainsOccupees and 'Vos mains sont occupées (bébé dans les bras).')
         or (GetPlayerRoutingBucket(src) ~= (po.bucket or 0) and 'Poussette introuvable.')
         or (not procheDe(src, po.ent, PO.distance + 0.5) and 'La poussette est trop loin.')
     if err then return notify(src, err, 'error') end
     local bb = Bebes[po.bebe or '']
     sousVerrou(src, { po, bb or {} }, function()
-        po.etat, po.pousseur, po.essais = 'poussee', src, 0
+        if po.etat == 'libre' then
+            -- rattrapée en train de rouler : le client qui la simulait arrête (sa position finale sera ignorée)
+            if po.simulateur and present(po.simulateur) then TriggerClientEvent('elyzea_bebe_modele:poussette:stopsim', po.simulateur, po.id) end
+            po.simulateur, po.simDebut = nil, nil
+        end
+        po.etat, po.pousseur, po.essais, po.frein = 'poussee', src, 0, false
         parPousseur[src] = po.id
         local ped = GetPlayerPed(src)
         if not creerPoussetteEnt(po, GetEntityCoords(ped), GetEntityHeading(ped), true) then
@@ -742,7 +838,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:pousser', function(pid)
     end)
 end)
 
-RegisterNetEvent('elyzea_bebe_modele:poussette:garer', function(coords, cap)
+RegisterNetEvent('elyzea_bebe_modele:poussette:garer', function(coords, cap, sansFrein)
     local src = source
     if not limite(src, 'garer', 3, 3000) then return end
     local po = Poussettes[parPousseur[src] or '']
@@ -755,8 +851,65 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:garer', function(coords, cap)
     end
     local bb = Bebes[po.bebe or '']
     sousVerrou(src, { po, bb or {} }, function()
-        garerA(po, vector3(x, y, z), tonumber(cap) or GetEntityHeading(GetPlayerPed(src)))
+        local lache = sansFrein == true and PH.actif
+        garerA(po, vector3(x, y, z), tonumber(cap) or GetEntityHeading(GetPlayerPed(src)), not lache)
+        if lache then
+            if not demarrerSimulation(po, src) then po.frein = true Entity(po.ent).state:set('bebeFrein', true, true) end
+        end
     end)
+end)
+
+-- Serrer / desserrer le frein d'une poussette garée (n'importe quel joueur à côté) ; desserré : elle peut rouler
+RegisterNetEvent('elyzea_bebe_modele:poussette:frein', function(pid)
+    local src = source
+    if not limite(src, 'frein', 3, 3000) then return end
+    local po = Poussettes[pid or '']
+    if not po or po.verrou then return end
+    local err = peutAgir(src) or ((po.etat ~= 'garee' and po.etat ~= 'libre') and 'Impossible maintenant.')
+        or (not procheDe(src, po.ent, PO.distance + 0.5) and 'La poussette est trop loin.')
+    if err then return notify(src, err, 'error') end
+    if po.etat == 'libre' then
+        -- serrer en roulant : le client simulateur s'arrête et renvoie la position (gérée par « fin »)
+        po.frein = true
+        if po.simulateur and present(po.simulateur) then TriggerClientEvent('elyzea_bebe_modele:poussette:stopsim', po.simulateur, po.id, true) end
+        return notify(src, 'Frein serré.', 'inform')
+    end
+    po.frein = not po.frein
+    Entity(po.ent).state:set('bebeFrein', po.frein, true)
+    notify(src, po.frein and 'Frein serré.' or 'Frein desserré.', 'inform')
+    if not po.frein then demarrerSimulation(po, src) end
+end)
+
+-- Fin de la simulation (arrêt, renversement, frein serré) : position vérifiée par le serveur
+RegisterNetEvent('elyzea_bebe_modele:poussette:fin', function(pid, coords, cap, renversee)
+    local src = source
+    local po = Poussettes[pid or '']
+    if not po or po.etat ~= 'libre' or po.simulateur ~= src or po.verrou then return end
+    local x, y, z = tonumber(coords and coords.x), tonumber(coords and coords.y), tonumber(coords and coords.z)
+    cap = tonumber(cap)
+    if not x or not y or not z or not cap then return end
+    local c = vector3(x, y, z)
+    if #(c - po.coords) > PH.distanceMax then
+        -- trajet invraisemblable (client modifié ?) : on garde la position connue du serveur
+        log('position de poussette refusée', pid, src)
+        c = po.ent and DoesEntityExist(po.ent) and GetEntityCoords(po.ent) or po.coords
+        if #(c - po.coords) > PH.distanceMax then c = po.coords end
+        renversee = false
+    end
+    local bb = Bebes[po.bebe or '']
+    sousVerrou(src, { po, bb or {} }, function() finSimulation(po, c, cap % 360.0, renversee == true) end)
+end)
+
+-- Relever une poussette renversée (frein serré)
+RegisterNetEvent('elyzea_bebe_modele:poussette:relever', function(pid)
+    local src = source
+    if not limite(src, 'relever', 3, 3000) then return end
+    local po = Poussettes[pid or '']
+    if not po or po.etat ~= 'renversee' or po.verrou then return end
+    local err = peutAgir(src) or (not procheDe(src, po.ent, PO.distance + 0.5) and 'La poussette est trop loin.')
+    if err then return notify(src, err, 'error') end
+    sousVerrou(src, { po }, function() garerA(po, po.coords, po.cap, true) end)
+    notify(src, 'Poussette relevée (frein serré).', 'success')
 end)
 
 RegisterNetEvent('elyzea_bebe_modele:poussette:attache', function(pid)
@@ -774,6 +927,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:installer', function(pid)
     local err = (not PO.actif and 'La poussette est désactivée sur ce serveur.') or peutAgir(src)
         or (po.bebe and 'La nacelle est déjà occupée.')
         or (po.etat == 'poussee' and po.pousseur ~= src and 'Quelqu\'un pousse cette poussette.')
+        or ((po.etat == 'libre' or po.etat == 'renversee') and 'Impossible maintenant (poussette qui roule ou renversée).')
         or (not procheDe(src, po.ent, PO.distance + 0.5) and 'La poussette est trop loin.')
     if err then return notify(src, err, 'error') end
     sousVerrou(src, { b, po }, function()
@@ -795,7 +949,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:ranger', function(pid)
     if not limite(src, 'ranger', 3, 3000) then return end
     local po = Poussettes[pid or '']
     if not po then return end
-    local err = (po.verrou and 'Un instant…') or (po.etat ~= 'garee' and 'Garez d\'abord la poussette.')
+    local err = (po.verrou and 'Un instant…') or ((po.etat ~= 'garee' and po.etat ~= 'renversee') and 'Garez d\'abord la poussette.')
         or (po.bebe and 'Sortez d\'abord le bébé de la poussette.')
         or (po.cid ~= (citizenid(src) or ('src:' .. src)) and not IsPlayerAceAllowed(src, 'command.' .. Config.Staff.supprimer)
             and 'Ce n\'est pas votre poussette.')
@@ -947,7 +1101,7 @@ local function verifier()
                     local corps = bb.ents and bb.ents.corps
                     if not corps or not DoesEntityExist(corps) then
                         if not placer(bb) then poserDeSecours(bb, 'entite_perdue') end
-                    elseif GetEntityAttachedTo(corps) ~= ped then
+                    elseif GetEntityAttachedTo(corps) ~= po.ent then
                         if (bb.essais or 0) >= 3 then
                             po.bebe, bb.poussette, bb.pousseur = nil, nil, nil
                             majDedans(po)
@@ -985,10 +1139,20 @@ local function verifier()
             end
         end
     end
-    -- poussettes vides abandonnées (propriétaire parti ou loin) : supprimées après PO.abandon minutes
+    -- poussettes qui roulent : client simulateur parti, ou simulation trop longue -> garées là où elles sont
     local now = GetGameTimer()
     for _, po in pairs(Poussettes) do
-        if po.etat == 'garee' and not po.bebe and not po.verrou then
+        if po.etat == 'libre' and not po.verrou and (not present(po.simulateur) or now - (po.simDebut or now) > PH.dureeMax * 1000) then
+            local c = po.ent and DoesEntityExist(po.ent) and GetEntityCoords(po.ent) or po.coords
+            if #(c - po.coords) > PH.distanceMax then c = po.coords end
+            local cap = po.ent and DoesEntityExist(po.ent) and GetEntityHeading(po.ent) or po.cap
+            log('poussette libre sans simulateur : garée', po.id)
+            finSimulation(po, c, cap, false)
+        end
+    end
+    -- poussettes vides abandonnées (propriétaire parti ou loin) : supprimées après PO.abandon minutes
+    for _, po in pairs(Poussettes) do
+        if (po.etat == 'garee' or po.etat == 'renversee') and not po.bebe and not po.verrou then
             local loin = true
             if not (po.proprio and present(po.proprio)) then po.proprio = srcDeCid(po.cid) end   -- propriétaire revenu
             if po.proprio and present(po.proprio) and po.coords then
@@ -1125,7 +1289,7 @@ RegisterCommand(Config.Staff.ajuster, function(src, args)
     TriggerClientEvent('elyzea_bebe_modele:ajuster', src, cible, args)
 end, true)
 
-RegisterCommand(Config.Staff.diagnostic, function(src)
+local function diagnostic()
     local lignes = {}
     for id, b in pairs(Bebes) do
         lignes[#lignes + 1] = ('bébé %s : %s%s%s%s%s%s'):format(id, b.etat, b.mode and (' · ' .. b.mode) or '', b.porteur and (' · porteur ' .. b.porteur) or '',
@@ -1133,10 +1297,18 @@ RegisterCommand(Config.Staff.diagnostic, function(src)
             b.persistant and ' · enregistré' or ' · test (non enregistré)')
     end
     for id, po in pairs(Poussettes) do
-        lignes[#lignes + 1] = ('poussette %s : %s · %s%s%s'):format(id, po.etat, po.cid or '?', po.pousseur and (' · pousseur ' .. po.pousseur) or '',
+        lignes[#lignes + 1] = ('poussette %s : %s%s · %s%s%s'):format(id, po.etat, po.frein == false and ' (frein desserré)' or '', po.cid or '?',
+            po.pousseur and (' · pousseur ' .. po.pousseur) or '',
             po.bebe and (' · bébé ' .. po.bebe) or '')
     end
     for s, e in pairs(Equip) do lignes[#lignes + 1] = ('porte-bébé %s (%s) : joueur %s'):format(e.type, e.coloris, s) end
+    table.sort(lignes)
+    return lignes
+end
+exports('Diagnostic', diagnostic)        -- lu par le menu admin (onglet Famille)
+
+RegisterCommand(Config.Staff.diagnostic, function(src)
+    local lignes = diagnostic()
     local txt = #lignes > 0 and table.concat(lignes, '\n') or 'aucun bébé, aucune poussette, aucun porte-bébé'
     print('[elyzea_bebe_modele] diagnostic\n' .. txt)
     if src ~= 0 then notify(src, ('%d élément(s) : détail dans la console serveur.'):format(#lignes), 'inform') end

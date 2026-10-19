@@ -513,18 +513,24 @@ def roue(c, R, name):
     return pieces, [p for p in pieces]
 
 
+def roue_seule(R, name):
+    """V6 : roue séparée, centrée sur son axe (axe = X) : le jeu la fait tourner selon le déplacement de la poussette."""
+    pieces, _ = roue((0.0, 0.0, 0.0), R, name)
+    G.set_point_colors(pieces[0].data, 'mat2', np.tile(np.array((1, 0, 0), np.float32), (len(pieces[0].data.vertices), 1)))
+    G.set_point_colors(pieces[1].data, 'mat2', np.tile(np.array((0, 1, 0), np.float32), (len(pieces[1].data.vertices), 1)))
+    for p in pieces[2:]:
+        G.set_point_colors(p.data, 'mat2', np.tile(np.array((0, 0, 0), np.float32), (len(p.data.vertices), 1)))
+    return joindre(pieces, f'{PREFIX}_{name}')
+
+
+# position des 4 roues dans le repère de la poussette (x, y, z du centre, rayon)
+ROUES = {'ar': (X_AR, Y_AR, ROUE_AR, ROUE_AR), 'av': (X_AV, Y_AV, ROUE_AV, ROUE_AV)}
+
+
 def poussette():
+    """Châssis (sans les roues, V6) + roue arrière + roue avant (modèles séparés)."""
     parts = []
     mats_caoutchouc, mats_plastique = [], []
-    # roues
-    for s in (1, -1):
-        pr, _ = roue((s * X_AR, Y_AR, ROUE_AR), ROUE_AR, 'roue_ar')
-        pa, _ = roue((s * X_AV, Y_AV, ROUE_AV), ROUE_AV, 'roue_av')
-        for p in pr[:1] + pa[:1]:
-            mats_caoutchouc.append(p)
-        for p in pr[1:2] + pa[1:2]:
-            mats_plastique.append(p)
-        parts += pr + pa
     r = 0.0115
     yh, zh = POIGNEE
     for s in (1, -1):
@@ -631,7 +637,23 @@ def poussette():
             v = (0, 1, 0) if p in mats_plastique or p.name.startswith(('poignee', 'articulation')) else (0, 0, 0)
             G.set_point_colors(p.data, 'mat2', np.tile(np.array(v, np.float32), (len(p.data.vertices), 1)))
     ob = joindre(parts, f'{PREFIX}_poussette')
-    return ob
+    return ob, roue_seule(ROUE_AR, 'roue_ar'), roue_seule(ROUE_AV, 'roue_av')
+
+
+def roues_placees(ob_ar, ob_av, M=None):
+    """Copies des roues aux 4 emplacements (rendus et contrôles)."""
+    M = M or mathutils.Matrix.Identity(4)
+    out = []
+    for k, src in (('ar', ob_ar), ('av', ob_av)):
+        x, y, z, _ = ROUES[k]
+        for s in (1, -1):
+            c = src.copy()
+            c.data = src.data
+            c.name = f'{src.name}_copie'
+            c.matrix_world = M @ mathutils.Matrix.Translation((s * x, y, z))
+            bpy.context.scene.collection.objects.link(c)
+            out.append(c)
+    return out
 
 
 def apply_scale(ob):
@@ -793,9 +815,15 @@ def main():
         }
         log(f'porte-bébé {kind} : {rapport[f"pb_{kind}"]}')
 
-    pous = poussette()
+    pous, roue_ar, roue_av = poussette()
     objets['poussette'] = pous
-    Vp = verts_of([pous])
+    objets['roue_ar'], objets['roue_av'] = roue_ar, roue_av
+    copies_roues = roues_placees(roue_ar, roue_av)
+    Vp = verts_of([pous] + copies_roues)
+    for c in copies_roues:
+        bpy.data.objects.remove(c, do_unlink=True)
+    for k, ob_ in (('roue_ar', roue_ar), ('roue_av', roue_av)):
+        rapport[k] = {'triangles': len(ob_.data.polygons), 'rayon_m': ROUES[k[-2:]][3]}
     # bébé allongé dans la nacelle, tête côté poignée (rotation de 180°), centré dans la nacelle
     Va = verts_of(allonge)
     yc_bebe = float((Va[:, 1].min() + Va[:, 1].max()) / 2)
@@ -812,6 +840,8 @@ def main():
         'ecart_min_bebe_poussette_cm': round(float(dp.min()) * 100, 2),
         'boite': [[round(float(x), 3) for x in Vp.min(0)], [round(float(x), 3) for x in Vp.max(0)]],
         'roues_au_sol_cm': round(float(Vp[:, 2].min()) * 100, 2),
+        # V6 : roues séparées (le jeu les place et les fait tourner) : x, y, z du centre et rayon, dans le repère de la poussette
+        'roues': {k: [round(v, 4) for v in ROUES[k]] for k in ROUES},
     }
     log(f'poussette : {rapport["poussette"]}')
 
@@ -880,6 +910,8 @@ def main():
         bb = [o.matrix_world @ mathutils.Vector(c) for c in o.bound_box]
         log(f'contrôle rendu : {o.name} z {min(v.z for v in bb):.3f}..{max(v.z for v in bb):.3f}, caché={o.hide_render}')
     pous.matrix_world = mathutils.Matrix.Translation((0, pousse['pos'][1], pousse['pos'][2]))
+    roues_rendu = roues_placees(roue_ar, roue_av, pous.matrix_world)
+    roue_ar.hide_render = roue_av.hide_render = True
     for o in ventral + allonge:
         o.hide_render = True
 
@@ -895,7 +927,7 @@ def main():
             p = os.path.join(R, f'_eq_{kind}_{nom}.png')
             G.render_view(p, (0, 0, 0.35), d, 0.85, (560, 640))
             vues.append((p, f'porte-bébé {kind} · {nom}'))
-    montrer([manne, pous] + bebes['poussette'])
+    montrer([manne, pous] + roues_rendu + bebes['poussette'])
     for nom, d, tgt, scl in (('34', (0.8, 1, 0.5), (0, 0.5, -0.3), 1.75), ('profil', (1, 0, 0.05), (0, 0.5, -0.3), 1.75),
                              ('dessus', (0.1, 0.3, 1), (0, 0.9, -0.3), 1.0)):
         p = os.path.join(R, f'_eq_poussette_{nom}.png')
@@ -903,10 +935,12 @@ def main():
         vues.append((p, f'poussette · {nom}'))
     # coloris
     for key, ob in objets.items():
+        if key.startswith('roue_'):
+            continue                      # les roues suivent le coloris du châssis (rendus ci-dessous avec la poussette)
         for cname in [c for c in textures[key] if c != 'n'][1:]:
             img = bpy.data.images.load(os.path.join(T, textures[key][cname]))
             ob.data.materials[0].node_tree.nodes['Image Texture'].image = img
-            montrer([manne, ob] + (bebes[key.replace('pb_', '')] if key.startswith('pb_') else bebes['poussette']))
+            montrer([manne, ob] + (bebes[key.replace('pb_', '')] if key.startswith('pb_') else roues_rendu + bebes['poussette']))
             p = os.path.join(R, f'_eq_{key}_{cname}.png')
             tgt, scl = ((0, 0, 0.35), 0.85) if key.startswith('pb_') else ((0, 0.5, -0.3), 1.75)
             G.render_view(p, tgt, (0.8, 1, 0.3), scl, (560, 640))

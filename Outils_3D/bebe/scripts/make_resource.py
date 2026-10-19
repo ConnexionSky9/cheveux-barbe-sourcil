@@ -73,7 +73,7 @@ def main():
         L.append('    equipements = {')
         for key, cols in eq.items():
             if key == 'geo':
-                geo = {k: {kk: vv for kk, vv in v.items() if kk in ('pos', 'rot', 'decalage_femme', 'nacelle', 'poussee')}
+                geo = {k: {kk: vv for kk, vv in v.items() if kk in ('pos', 'rot', 'decalage_femme', 'nacelle', 'poussee', 'roues')}
                        for k, v in cols.items()}
                 L.append(f'        geo = {lua_val(geo)},')
             else:

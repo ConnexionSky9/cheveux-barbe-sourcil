@@ -71,6 +71,7 @@ function SetEntityOrphanMode() end
 function SetEntityRoutingBucket(e, b) W.ents[e].bucket = b end
 function SetEntityHeading(e, h) W.ents[e].heading = h end
 function FreezeEntityPosition(e, f) W.ents[e].frozen = f end
+function SetEntityRotation(e, x, y, z) W.ents[e].rot = { x, y, z } end
 function NetworkGetNetworkIdFromEntity(e) return e + 50000 end
 function GetEntityAttachedTo(e) return W.ents[e] and W.ents[e].attached or 0 end
 function Entity(e) return { state = { set = function(_, k, v) W.ents[e].state[k] = v end } } end
@@ -150,14 +151,15 @@ function ClientAttache(src)
     local corps = nets.corps - 50000
     if not W.ents[corps] then return false end
     for _, k in ipairs({ 'yeux', 'cheveux' }) do if nets[k] then W.ents[nets[k] - 50000].attached = corps end end
-    W.ents[corps].attached = src * 100
+    -- V6 : dans une poussette poussée, le bébé est attaché à la poussette (5e argument = son identifiant réseau)
+    if c.args[3] == 'poussette' and c.args[4] then W.ents[corps].attached = c.args[4] - 50000 else W.ents[corps].attached = src * 100 end
     W.ents[corps].frozen = false
     Net('elyzea_bebe_modele:attache', src, c.args[1])
     return true
 end
 ''')
 
-for f in ('shared/modeles.lua', 'config.lua', 'server/bebes.lua'):
+for f in ('shared/modeles.lua', 'config.lua', 'shared/physique.lua', 'server/bebes.lua'):
     src = open(os.path.join(RES, f), encoding='utf-8').read()
     lua.execute(src)
 
@@ -448,8 +450,8 @@ po = strollers()[pid]
 check('21. poussée par le joueur 1', po.etat == 'poussee' and po.pousseur == 1 and dbg()[3][1] == pid and W.pstate[1]['bebePoussette'].id == pid)
 check('21. poussette attachée devant le joueur', G.ClientPoussette(1) and W.ents[po.ent].attached == 100)
 att = G.LastClient('elyzea_bebe_modele:attacher', 1)
-check('21. bébé attaché au pousseur, dans la nacelle (mode « poussette »)', att and att.args[3] == 'poussette' and G.ClientAttache(1)
-      and W.ents[baby()[0][bid].ents.corps].attached == 100)
+check('21. bébé attaché à la poussette poussée, dans la nacelle (mode « poussette »)', att and att.args[3] == 'poussette' and G.ClientAttache(1)
+      and W.ents[baby()[0][bid].ents.corps].attached == po.ent)
 check('21. pousseur : coups bloqués côté serveur', G.Damage(1, UNARMED) is True)
 n_att = sum(1 for c_ in W.client.values() if c_.name in ('elyzea_bebe_modele:attacher', 'elyzea_bebe_modele:poussette:attacher'))
 G.Advance(10000)

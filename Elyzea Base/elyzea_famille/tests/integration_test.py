@@ -904,6 +904,23 @@ check('44. après un redémarrage : réglages du ventre rechargés depuis la bas
 ok, msg = admin(3, 'reset')
 check('44. valeurs par défaut : ventre désactivé', G.GlobalState.famVentre.actif is False)
 
+# ═══════════ V6 : réglages bébé étendus (transmis à elyzea_bebe_modele) ═══════════
+v = admin_data(3)['values']
+v.update({'bebe.dec.bras.y': -4.0, 'bebe.colorisPoussette': 'sable', 'bebe.physique': False, 'bebe.crr': 0.05})
+ok, msg = admin(3, 'save', {'values': v})
+dern = W.bebe_reglages[-1]
+check('45. décalages, coloris, physique : enregistrés et transmis à la ressource bébé', ok is True and dern['bebe.dec.bras.y'] == -4.0
+      and dern['bebe.colorisPoussette'] == 'sable' and dern['bebe.physique'] is False and abs(dern['bebe.crr'] - 0.05) < 1e-9, msg)
+v.update({'bebe.colorisPoussette': 'rose'})
+ok, msg = admin(3, 'save', {'values': v})
+check('45. coloris inconnu refusé (liste de choix)', ok is False and 'graphite' in msg, msg)
+v.update({'bebe.colorisPoussette': 'sable', 'bebe.dec.face.z': 50})
+ok, msg = admin(3, 'save', {'values': v})
+check('45. décalage hors bornes (50 cm) refusé', ok is False, msg)
+sch = {d['key']: d for d in admin_data(3)['schema']}
+check('45. liste de choix fournie au menu (coloris)', sch['bebe.colorisPb']['choices'] == ['gris', 'marine', 'sauge'])
+ok, msg = admin(3, 'reset')
+
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:
     c.execute(f'DROP DATABASE `{DB}`')

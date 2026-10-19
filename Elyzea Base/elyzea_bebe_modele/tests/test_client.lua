@@ -77,11 +77,15 @@ check('4. poussette avec bébé : pousser, sortir le bébé (bras / face / ventr
     and o:find('prendrepo:bras') and o:find('prendrepo:ventral') and o:find('dormir:BB%-1'), o)
 check('4. poussette avec bébé : pas de « ranger »', not o:find('ranger'), o)
 
--- ── position du bébé dans la poussette poussée = attache de la poussette + nacelle
-local PO = Config.Poussette
-local pos = PO.pos + vector3(PO.nacelle.pos.x, PO.nacelle.pos.y, PO.nacelle.pos.z)
-check('5. nacelle : décalage cohérent (devant le joueur, au-dessus du sol)', pos.y > 0.3 and pos.z > -0.6 and pos.z < 0.0,
-    ('%.3f %.3f %.3f'):format(pos.x, pos.y, pos.z))
+-- ── V6 : frein, lâcher, renversée
+LocalPlayer.state.bebePorte = nil
+ENT[21] = { pos = vector3(1.2, 0, 0), state = { bebePoussette = 'PO-2', bebeDedans = false, bebeFrein = true } }
+o = options(21)
+check('5. poussette garée, frein serré : « Desserrer le frein » et « Pousser »', o:find('frein:PO%-2') and o:find('pousser:PO%-2'), o)
+ENT[21].state.bebeRenversee = true
+o = options(21)
+check('5. poussette renversée : « Relever » seulement (ni pousser ni frein)', o:find('relever:PO%-2') and not o:find('pousser') and not o:find('frein'), o)
+ENT[21] = nil
 
 -- ── personnages féminins : décalage déclaré et appliqué
 local d = Config.Portage.morphologies[GetHashKey('mp_f_freemode_01')]

@@ -61,7 +61,7 @@ HAIR_COLORS = {
 }
 HAIR_STYLES = {
     # densité max, étendue (0 = sommet seulement, 1 = toute la zone du cuir chevelu)
-    'duvet': {'density': 0.55, 'extent': 0.55},
+    'duvet': {'density': 0.50, 'extent': 0.55, 'contraste': 1.8},   # V6 : duvet clairsemé (plus d'effet « casque »)
     'touffe': {'density': 0.85, 'extent': 1.0},
 }
 ONESIE_COLOR = (236, 234, 228)   # blanc cassé (pyjama / grenouillère)
@@ -101,8 +101,9 @@ POSES = {
         'label': 'Porté dans les bras (berceau des bras)',
         'bones': [
             ('colonne', 'X', 10), ('poitrine', 'X', 8),
-            ('cuisse.S', 'X', -58), ('cuisse.S', 'ABD', 18), ('tibia.S', 'X', 68), ('pied.S', 'X', -10),
-            ('bras.S', 'X', -50), ('bras.S', 'ABD', -4), ('avantbras.S', 'X', -115),
+            ('cuisse.S', 'X', -62), ('cuisse.S', 'ABD', 24), ('tibia.S', 'X', 74), ('pied.S', 'X', -10),
+            # V6 : bébé bercé, mains ramenées vers la poitrine (plus de bras écartés)
+            ('bras.S', 'X', -38), ('bras.S', 'ABD', -16), ('avantbras.S', 'X', -105), ('avantbras.S', 'Z', -32),
             ('tete', 'Z', 22), ('tete', 'X', -6),
         ],
         'root': [('X', -90)],
@@ -439,7 +440,8 @@ def unwrap(obj, margin=0.006, poids=None):
     select_only([obj])
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=margin, area_weight=0.0,
+    # V6 : angle plus large = îles plus grandes et moins nombreuses (moins de coutures visibles)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(72), island_margin=margin, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.pack_islands(margin=margin, rotate=True)
     # dépliage automatique : certaines îles se replient sur elles-mêmes (doigts, plis) et deux zones du corps
@@ -519,6 +521,26 @@ def bake(high, low, kind, img, extrusion=0.004, margin=12):
 
 
 # ─────────────────────────── 5. Textures finales ───────────────────────────
+
+def couverture_uv(obj, size):
+    """Masque (size, size) des pixels couverts par les îles UV (même orientation que image_to_np : ligne 0 = bas)."""
+    from PIL import Image, ImageDraw
+    im = Image.new('L', (size, size), 0)
+    dr = ImageDraw.Draw(im)
+    uv = obj.data.uv_layers.active.data
+    for poly in obj.data.polygons:
+        pts = [(uv[i].uv[0] * size, (1.0 - uv[i].uv[1]) * size) for i in poly.loop_indices]
+        dr.polygon(pts, fill=255, outline=255)
+    return np.flipud(np.asarray(im) > 0)
+
+
+def dilater(arr, couvert):
+    """Remplit chaque pixel hors des îles avec la valeur du pixel couvert le plus proche (« padding » complet) :
+    les niveaux de détail réduits du jeu (mipmaps) ne mélangent plus la couleur du fond aux bords des îles."""
+    from scipy import ndimage
+    _, (iy, ix) = ndimage.distance_transform_edt(~couvert, return_indices=True)
+    return arr[iy, ix]
+
 
 def compose_body(m1, m2, m3, m4, ao, tone, tenue):
     """m1, m2, m3 : (H, W, 3) linéaires 0-1 · ao : (H, W) · tenue : 'couche' ou 'pyjama'."""
@@ -642,7 +664,8 @@ def compose_hair(scalp, crown, style, color, seed):
     clumps = value_noise((H, W), 3.0, seed + 1)
     strands = np.clip(0.45 * fine + 0.30 * streak + 0.25 * clumps, 0, 1)
     edge = np.clip(region * 1.5, 0, 1) ** 1.6                        # implantation progressive, bord flou
-    a = np.clip(edge * st['density'] * (0.35 + 0.9 * strands), 0, 1)
+    k = st.get('contraste', 1.0)
+    a = np.clip(edge * st['density'] * ((0.35 + 0.9 * strands) if k <= 1.0 else (0.12 + 1.25 * strands ** k)), 0, 1)
     base = srgb_to_lin(color)
     shade = (0.85 + 0.3 * value_noise((H, W), 2.0, seed + 2))[..., None]
     rgb = lin_to_srgb(base[None, None, :] * shade)
@@ -1042,6 +1065,9 @@ def main():
     M4 = image_to_np(imgs['m4'])[..., :3]
     AO = image_to_np(imgs['ao'])[..., 0]
     NRM = image_to_np(imgs['n'])[..., :3]
+    couvert = couverture_uv(low, tex_size)
+    M1, M2, M3, M4, AO, NRM = (dilater(x, couvert) for x in (M1, M2, M3, M4, AO, NRM))
+    report['etapes'].append({'uv': {'couverture': round(float(couvert.mean()), 3)}})
     T = dirs['textures']
     for tenue in TENUES:
         save_png(detail_normal(NRM, M1, M3, M4, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))

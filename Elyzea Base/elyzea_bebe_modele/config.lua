@@ -23,14 +23,16 @@ Config.Portage = {
     modes = {
         bras = {
             label = 'Dans les bras', pose = 'porte', mainsOccupees = true,
-            -- animation native vérifiée : porter devant soi à deux bras (aucune animation de bercement n'existe dans GTA)
+            -- animation native vérifiée : avant-bras à l'horizontale devant soi (aucune animation de bercement n'existe
+            -- dans GTA) ; V6 : bébé couché en travers des avant-bras, un peu plus près du corps
             anim = { dict = 'anim@heists@box_carry@', clip = 'idle', flag = 49 },
-            pos = vector3(0.02, 0.33, 0.20), rot = vector3(0.0, 0.0, 90.0),
+            pos = vector3(0.02, 0.30, 0.20), rot = vector3(0.0, 0.0, 90.0),
         },
         face = {
-            label = 'Face à moi', pose = 'ventral', mainsOccupees = true,
-            anim = { dict = 'anim@heists@box_carry@', clip = 'idle', flag = 49 },
-            pos = vector3(0.0, 0.30, 0.12), rot = vector3(0.0, 0.0, 0.0),
+            -- V6 : contre soi, tenu dans les bras croisés (animation native vérifiée) ; plus proche du buste
+            label = 'Contre moi', pose = 'ventral', mainsOccupees = true,
+            anim = { dict = 'amb@world_human_hang_out_street@female_arms_crossed@base', clip = 'base', flag = 49 },
+            pos = vector3(0.0, 0.22, 0.16), rot = vector3(0.0, 0.0, 0.0),
         },
         ventral = {
             label = 'Porte-bébé ventral', pose = 'ventral', mainsOccupees = false, equipement = 'ventral',
@@ -49,6 +51,11 @@ Config.Portage = {
     poses = {
         allonge = { label = 'Poser allongé', pose = 'allonge' },
         assis = { label = 'Poser assis', pose = 'assis' },
+    },
+    -- Gestes natifs vérifiés (se pencher) pour prendre et déposer le bébé ; durée en ms
+    gestes = {
+        prendre = { dict = 'pickup_object', clip = 'pickup_low', duree = 1100 },
+        poser = { dict = 'pickup_object', clip = 'putdown_low', duree = 1100 },
     },
     distancePrendre = 2.0,       -- mètres entre le joueur et le bébé posé
     distancePoser = 2.5,         -- distance max du point où l'on pose le bébé
@@ -101,6 +108,18 @@ Config.Poussette = {
     suiviSol = true,             -- la poussette suit les pentes et marches (hauteur réajustée)
     abandon = 20,                -- minutes : une poussette VIDE et garée loin de son propriétaire (ou propriétaire parti) est supprimée
     distanceAbandon = 60.0,
+    -- V6 : physique (shared/physique.lua). Garée = frein serré ; « Lâcher sans frein » ou frein desserré : elle roule
+    -- si la pente le justifie, suit le terrain, s'arrête devant un obstacle, peut se renverser (le bébé est alors posé à côté).
+    physique = {
+        actif = true,
+        distanceSimulation = 120.0,  -- m : joueur le plus proche qui calcule le mouvement (vu par tous)
+        distanceMax = 250.0,         -- m : trajet maximal accepté par le serveur
+        dureeMax = 90,               -- s : au-delà, la poussette est garée là où elle est
+        parametres = {               -- valeurs de shared/physique.lua remplacées (vide = valeurs par défaut)
+            -- crr = 0.035, seuilDepart = 0.045, vChoc = 2.6, roulisMax = math.rad(32),
+        },
+    },
+    roues = true,                -- roues séparées qui tournent (objets locaux, vus par chaque joueur)
 }
 
 -- Commandes (joueurs)

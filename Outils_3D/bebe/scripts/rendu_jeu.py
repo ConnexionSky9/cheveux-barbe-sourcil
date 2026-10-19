@@ -62,7 +62,10 @@ def main():
             vues.append((f'porte-bébé {kind} · {col}', [(eq[f'pb_{kind}'][col], (0, 0, 0), 0)] + bebe, d))
         n_ = g['poussette']['nacelle']
         bebe = [(f'ely_bebe_allonge_peau2_couche', n_['pos'], n_['rot'][2]), (f'ely_bebe_allonge_paup_peau2', n_['pos'], n_['rot'][2])]
-        vues.append(('poussette · sable · bébé endormi', [(eq['poussette']['sable'], (0, 0, 0), 0)] + bebe, (0.8, 1, 0.6)))
+        roues = []
+        for k, (x, y, z, _r) in (g['poussette'].get('roues') or {}).items():
+            roues += [(eq[f'roue_{k}']['sable'], (sx * x, y, z), 0) for sx in (1, -1)]
+        vues.append(('poussette · sable · bébé endormi', [(eq['poussette']['sable'], (0, 0, 0), 0)] + roues + bebe, (0.8, 1, 0.6)))
     noms = {n for _, items, _ in vues for n, _, _ in items}
     fichiers = [os.path.join(stream, n + '.ydr') for n in sorted(noms)]
     fichiers += [os.path.join(stream, f) for f in sorted(os.listdir(stream)) if f.endswith('.ytd')]

@@ -32,8 +32,8 @@ def q(sql, params=()):
 # Simulation FiveM de tests/test_portage.py (tout ce qui précède les scénarios), réutilisée telle quelle
 SIM = open(os.path.join(RES, 'tests', 'test_portage.py'), encoding='utf-8').read()
 SIM = SIM[:SIM.index('add_player(1, 100.0, 100.0)')]
-SIM = SIM.replace("for f in ('shared/modeles.lua', 'config.lua', 'server/bebes.lua'):",
-                  "installer_mysql(lua)\nfor f in ('shared/modeles.lua', 'config.lua', 'server/bebes.lua', 'server/persistance.lua'):")
+SIM = SIM.replace("for f in ('shared/modeles.lua', 'config.lua', 'shared/physique.lua', 'server/bebes.lua'):",
+                  "installer_mysql(lua)\nfor f in ('shared/modeles.lua', 'config.lua', 'shared/physique.lua', 'server/bebes.lua', 'server/persistance.lua'):")
 
 
 def installer_mysql(lua):
