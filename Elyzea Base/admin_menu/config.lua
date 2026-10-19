@@ -175,9 +175,15 @@ Config.Permissions = {
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
     -- Illégal (ressource elyzea_illegal)
     { key = 'drugsale_manage', label = 'Vente de drogue : réglages du mode vente (clients PNJ, prix, vols, appels à la police)', cat = 'Illégal' },
+    { key = 'tags_manage',     label = 'Tags : graffitis des quartiers (réglages, mots interdits, voir l\'auteur, supprimer un tag / ceux d\'un joueur / tous), /taginfo et /tagclean', cat = 'Illégal' },
     { key = 'heist_manage',    label = 'Braquage bijouterie : bijouteries, butin, bijoux, sac, police, racheteurs (jewelry_heist)', cat = 'Illégal' },
     { key = 'bankheist_manage', label = 'Braquage de banque : banques, marchands, prix, piratage, coffre, dépôts, sessions (bank_heist)', cat = 'Illégal' },
     { key = 'famille_manage', label = 'Famille : durée du moment intime, risque de grossesse, contraception (elyzea_famille)', cat = 'Joueurs' },
+    -- Animaux (ressource elyzea_animaux)
+    { key = 'animaux_manage',  label = 'Gestion des animaux : vendeurs PNJ, prix et catalogues, pelages, harnais / laisses, besoins, ferme, diagnostic (elyzea_animaux)', cat = 'Gestion' },
+    { key = 'animaux_owned',   label = 'Animaux possédés : consulter, rechercher, ranger, corriger l\'état, retirer à un joueur (elyzea_animaux)', cat = 'Gestion' },
+    { key = 'casino_manage', label = 'Casino : tables, roues de la fortune (gains et chances), guichet des jetons, statistiques (elyzea_casino)', cat = 'Joueurs' },
+    { key = 'pvp_manage', label = 'Arène PvP : commandes /pvp_* (parties, annulation, sortie forcée, arènes, statistiques) (pvp_arena)', cat = 'Joueurs' },
     { key = 'noirx_staff', label = 'NOIR X (téléphone clandestin) : informateurs, informations, blanchiments, réglages, paiements (noirx)', cat = 'Illégal' },
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
     { key = 'wipe_character',  label = 'Wipe : supprimer définitivement un personnage d\'un joueur', cat = 'Gestion' },
@@ -244,18 +250,18 @@ Config.Illegal = {
 -- =========================================================
 Config.Minimap = {
     enabled = true,           -- false : le menu ne touche pas à la mini-carte
-    shape = 'square',         -- 'square' (carrée), 'round' (ronde), 'default' (rectangle GTA)
-    position = 'bottom-left', -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
-    size = 0.185,             -- hauteur (part de l'écran)
-    widthAdjust = 160,        -- % de largeur (100 = carré parfait, 160 = rectangle façon HUD)
-    marginX = 0.014,          -- écart avec le bord gauche / droit
-    marginY = 0.030,          -- écart avec le bord haut / bas
+    shape = 'square',         -- 'square' (rectangle net, masque carré), 'round' (ronde)
+    position = 'bottom-left', -- 'bottom-left' conseillé ('bottom-right', 'top-left', 'top-right' possibles)
+    size = 0.183,             -- hauteur visible de la carte (part de l'écran) ; 0.183 = taille de référence
+    marginX = 0.010,          -- écart avec le bord gauche
+    marginY = 0.000,          -- écart supplémentaire avec le bas
     hideHealthBars = true,    -- cacher les barres de vie / armure de GTA sous la carte
     onlyInVehicle = false,    -- mini-carte seulement en véhicule
-    -- Masque net (minimap/radarmask.png) à la place de celui de GTA. Désactivé : sur certains PC la
-    -- texture remplacée ne découpe plus la carte, qui déborde alors sur tout le coin de l'écran.
-    -- Le masque de GTA découpe toujours la carte correctement (bords légèrement flous).
-    sharpMask = false,
+    -- Verrou : forme, position, taille et marges ci-dessus s'appliquent TOUJOURS, pour tout le monde
+    -- (le réglage du menu, un aperçu ou un autre script ne peuvent plus déplacer la carte). false = réglable dans le menu.
+    locked = true,
+    -- Masque carré (minimap/radarmask.png) à la place du masque arrondi et flou de GTA : la carte remplit son cadre.
+    sharpMask = true,
     -- Commandes d'autres scripts qui déplacent la mini-carte : désactivées (la position est celle du staff)
     blockCommands = { 'carte', 'minimap' },
 }
@@ -536,13 +542,13 @@ local function with(base, extra)
 end
 
 local P_SUPPORT = { 'reports', 'goto', 'spectate', 'warn', 'noclip', 'tp_waypoint', 'player_ids', 'heal', 'staff_pm', 'staff_chat' }
-local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail' })
+local P_MODO    = with(P_SUPPORT, { 'bring', 'freeze', 'kick', 'delete_entity', 'vehicle_tools', 'revive', 'jail', 'tags_manage' })
 local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_vehicle', 'godmode', 'invisible', 'tp_coords',
                                  'weather', 'time', 'announce', 'clear_area', 'view_logs', 'wallhack', 'revive_area', 'armor',
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'animaux_manage', 'animaux_owned' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },
@@ -606,6 +612,18 @@ Config.Wallhack = {
 --  VÉHICULES
 -- =========================================================
 Config.VehiclePlate = 'STAFF'
+-- « Ajouter à mon garage » (Véhicules › Personnalisation, Fondateur et SuperAdmin) : garage d'enregistrement
+-- (nom de garage d'elyzea_garage) et 2 lettres au milieu des nouvelles plaques (ex. KTST1234)
+Config.StaffGarageName = 'public'
+
+-- Eau buguée (lac / rivière sans eau, bord noir) : une map remplace l'eau du jeu (data_file 'WATER_FILE').
+-- /eau_diagnostic (console ou Fondateur) donne la ressource fautive ; /eau_vanilla teste l'eau d'origine sur ton écran.
+-- true : l'eau d'origine est remise pour tout le monde (l'eau propre à une map, ex. Cayo Perico, disparaît).
+Config.WaterReset = false
+-- true = remet l'eau de Los Santos si un script Cayo Perico a basculé le jeu sur l'eau de l'île
+-- (corrige les lacs / criques sans eau ; l'eau propre aux lagons de Cayo Perico peut manquer). Tester d'abord avec /eau_principale.
+Config.WaterMainland = false
+Config.StaffGaragePlatePrefix = 'ST'
 Config.DeletePreviousVehicle = true
 
 Config.QuickVehicles = {
@@ -783,6 +801,15 @@ Config.Editor = {
                       { item = 'test_grossesse',       price = 20,  cat = 'Grossesse',     max = 5 },
                       { item = 'bandage',              price = 45,  cat = 'Soins',         max = 20 },
                   } } } },
+        -- Casino (elyzea_casino) : après l'enregistrement, « Poser la table / la roue » dans la fiche du PNJ
+        { id = 'casino_bj', icon = '🃏', label = 'Croupier de blackjack', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Croupier',
+          npc = { payment = 'cash', casino = { role = 'blackjack', name = 'Blackjack' } } },
+        { id = 'casino_rl', icon = '🎡', label = 'Croupier de roulette', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Croupière',
+          npc = { payment = 'cash', casino = { role = 'roulette', name = 'Roulette' } } },
+        { id = 'casino_wheel', icon = '🎰', label = 'Animateur roue de la fortune', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Animatrice',
+          npc = { payment = 'cash', casino = { role = 'wheel', name = 'Roue de la fortune', wheel = 'lucky' } } },
+        { id = 'casino_cashier', icon = '💰', label = 'Guichetier du casino', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Caissier',
+          npc = { payment = 'cash', casino = { role = 'cashier', name = 'Caisse du casino' } } },
         -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette, objets non consommés
         { id = 'puericulture', icon = '🍼', label = 'Puériculture', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse puériculture',
           npc = { payment = 'cash', market = { name = 'Puériculture', payChoice = true, blip = true, blipSprite = 52, blipColor = 8,
@@ -1106,6 +1133,15 @@ Config.Barber = {
     beardForFemale = false,   -- montrer la barbe aux personnages féminins
     chestForFemale = false,   -- montrer la pilosité du torse aux personnages féminins
     hideAccessories = true,   -- retire chapeau, lunettes et masque pendant la coupe (remis à la sortie)
+
+    -- Coupes addon : temps maximum (ms) pour charger le modèle d'une coupe avant de la déclarer
+    -- « non chargée » (la coupe actuelle reste alors en place au lieu d'une tête chauve)
+    hairLoadTimeout = 4000,
+
+    -- Diagnostic (console F8 + console serveur) : modèle, nombre de coupes, collections des packs,
+    -- coupe / texture appliquée, raison d'un refus, vérification des fichiers des packs addon.
+    -- À laisser sur false en production.
+    debug = false,
 
     -- Noms des coupes, barbes, maquillages… et coupes cachées : voir barber_data.lua
 }

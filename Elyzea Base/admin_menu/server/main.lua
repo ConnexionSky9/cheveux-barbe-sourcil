@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v50 then
+        -- Tags des quartiers (elyzea_tags) : modération dès Modérateur (le Fondateur a toujours tout)
+        for _, r in ipairs({ 'moderateur', 'administrateur', 'superadmin' }) do if Ranks[r] then Ranks[r].perms.tags_manage = true end end
+        meta.v50 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v49 then
         -- Agences des métiers (elyzea_agences) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.agencies_manage = true end
@@ -235,6 +241,27 @@ do
         meta.v31 = true
         Storage.save('meta', meta)
     end
+    if not meta.casino1 then
+        -- Onglet Casino (elyzea_casino) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.casino_manage = true end
+        meta.casino1 = true
+        Storage.save('meta', meta)
+    end
+    if not meta.animaux1 then
+        -- Gestion des animaux (elyzea_animaux) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then
+            Ranks.superadmin.perms.animaux_manage = true
+            Ranks.superadmin.perms.animaux_owned = true
+        end
+        meta.animaux1 = true
+        Storage.save('meta', meta)
+    end
+    if not meta.pvp1 then
+        -- Arène PvP (pvp_arena) : commandes d'administration pour le SuperAdmin
+        if Ranks.superadmin then Ranks.superadmin.perms.pvp_manage = true end
+        meta.pvp1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.famille1 then
         -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end
@@ -339,11 +366,27 @@ end
 -- Fondateurs : config.lua (Config.Owners) ET le menu lui-même (data/owners.json).
 -- Le fichier data/ n'est jamais écrasé par une mise à jour du menu.
 local Owners = Storage.load('owners', {})
+local OwnerNames = Storage.load('owner_names', {})   -- nom affiché des fondateurs nommés en jeu
 local function isOwner(lic)
     if not lic then return false end
     for _, o in ipairs(Config.Owners or {}) do if o == lic then return true end end
     for _, o in ipairs(Owners) do if o == lic then return true end end
     return false
+end
+-- Fondateur donné depuis le menu (data/owners.json) : retirable par un autre fondateur.
+-- Ceux de Config.Owners ne se retirent que dans config.lua.
+local function isConfigOwner(lic)
+    for _, o in ipairs(Config.Owners or {}) do if o == lic then return true end end
+    return false
+end
+local function isMenuOwner(lic)
+    if not lic or isConfigOwner(lic) then return false end
+    for _, o in ipairs(Owners) do if o == lic then return true end end
+    return false
+end
+local function removeMenuOwner(lic)
+    for i = #Owners, 1, -1 do if Owners[i] == lic then table.remove(Owners, i) end end
+    Storage.save('owners', Owners)
 end
 
 -- Grade venant des ACE de server.cfg (mis en cache 30 s par joueur)
@@ -652,6 +695,7 @@ local function buildAndSend(src)
             back = BringBack[id] ~= nil,
             warns = (lic and Warns[lic]) and #Warns[lic] or 0,
             license = showLicense and lic or nil,
+            menuOwner = isMenuOwner(lic) or nil,
         }
     end
 
@@ -667,6 +711,15 @@ local function buildAndSend(src)
             }
         end
         local o = Ranks[Config.OwnerRank]
+        for _, lic in ipairs(Owners) do
+            if isMenuOwner(lic) then
+                staff[#staff + 1] = {
+                    identifier = lic, name = online[lic] and GetPlayerName(online[lic]) or (OwnerNames[lic] or 'Fondateur'),
+                    rank = Config.OwnerRank, label = o.label, color = o.color, level = o.level,
+                    online = online[lic], owner = true, menuOwner = true,
+                }
+            end
+        end
         for _, lic in ipairs(Config.Owners) do
             staff[#staff + 1] = {
                 identifier = lic, name = online[lic] and GetPlayerName(online[lic]) or 'Fondateur (config)',
@@ -1147,6 +1200,56 @@ Actions.vehcustom_save = { perm = 'vehicle_custom', noRefresh = true, fn = funct
     addLog(src, 'Personnalisation de véhicule', plate .. (row.citizenid and (' · véhicule de joueur ' .. row.citizenid) or ''))
 end }
 
+-- Ajouter le véhicule (staff) au garage du Fondateur / SuperAdmin qui est dedans
+local function newStaffPlate()
+    local chars = 'ABCDEFGHJKLMNPRSTUVWXYZ'
+    local mid = (Config.StaffGaragePlatePrefix or 'ST'):upper():gsub('[^A-Z0-9]', ''):sub(1, 2)
+    for _ = 1, 40 do
+        local a, b = math.random(1, #chars), math.random(1, #chars)
+        local p = chars:sub(a, a) .. chars:sub(b, b) .. mid .. ('%04d'):format(math.random(0, 9999))
+        if not MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { p, ' ' .. p }) then return p end
+    end
+end
+local function sameModel(name, model)
+    if type(name) ~= 'string' or name == '' or not name:match('^[%w_]+$') then return false end
+    return (GetHashKey(name) % 4294967296) == (model % 4294967296)
+end
+Actions.vehcustom_garage = { perm = 'vehicle_custom', noRefresh = true, fn = function(src, d)
+    local veh = staffVehicle(src, d.netId)          -- SuperAdmin / Fondateur, et dans le véhicule
+    if not veh then return end
+    local plate = cleanPlate(GetVehicleNumberPlateText(veh))
+    if MySQL.scalar.await('SELECT `id` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { plate, ' ' .. plate }) then
+        return notify(src, 'Ce véhicule appartient déjà à quelqu\'un (carte grise existante).', 'error')
+    end
+    -- Nom exact du modèle (le garage ressort le véhicule par ce nom) : vérifié contre le modèle réel du véhicule
+    local model = GetEntityModel(veh)
+    local name
+    for _, cand in ipairs({ Entity(veh).state.spawnModel, d.model }) do
+        if sameModel(cand, model) then name = cand:lower() break end
+    end
+    if not name then return notify(src, 'Modèle du véhicule inconnu : fais-le apparaître avec le menu (Véhicules › Faire apparaître), puis réessaie.', 'error') end
+    local pdOk, pd = pcall(function() return exports.elyzea_core:GetPlayer(src).PlayerData end)
+    if not pdOk or not pd or not pd.citizenid then return notify(src, 'Personnage introuvable.', 'error') end
+    local newPlate = newStaffPlate()
+    if not newPlate then return notify(src, 'Aucune plaque libre, réessaie.', 'error') end
+    local props = type(d.props) == 'table' and d.props or {}
+    local mods = {}
+    for k, v in pairs(props) do
+        if k ~= 'plate' and k:sub(1, 1) ~= '_' then mods[k] = v end
+    end
+    mods.model, mods.plate = model, newPlate
+    mods.fuelLevel = tonumber(mods.fuelLevel) or 100.0
+    local ok, id = pcall(function()
+        return MySQL.insert.await([[INSERT INTO `player_vehicles` (`license`, `citizenid`, `vehicle`, `hash`, `mods`, `plate`, `garage`, `fuel`, `engine`, `body`, `state`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 100, 1000, 1000, 1)]], { pd.license or getLicense(src) or '', pd.citizenid, name, tostring(model), json.encode(mods), newPlate, Config.StaffGarageName or 'public' })
+    end)
+    if not ok or not id then return notify(src, 'Enregistrement impossible (base de données).', 'error') end
+    SetVehicleNumberPlateText(veh, newPlate)
+    pcall(function() exports.elyzea_core:GiveKeys(src, newPlate) end)
+    notify(src, ('Véhicule ajouté à ton garage : %s (plaque %s). Range-le au garage comme tes autres véhicules.'):format(name, newPlate), 'success')
+    addLog(src, 'Véhicule staff ajouté au garage', ('%s · plaque %s · %s'):format(name, newPlate, pd.citizenid))
+end }
+
 Actions.delete_vehicle = { perm = 'vehicle_tools', noRefresh = true, fn = function(src, d)
     deleteByNetId(src, d.netId, true)
 end }
@@ -1244,10 +1347,37 @@ Actions.set_rank = { perm = 'manage_staff', fn = function(src, d)
     if t == src then return notify(src, 'Vous ne pouvez pas modifier votre propre grade.', 'error') end
     local lic = getLicense(t)
     if not lic then return notify(src, 'Ce joueur n\'a pas de licence Rockstar.', 'error') end
-    if isOwner(lic) then return notify(src, 'Ce joueur est fondateur via la config.', 'error') end
-    if not checkHierarchy(src, t) then return end
-
+    if isConfigOwner(lic) then return notify(src, 'Ce joueur est fondateur via la config.', 'error') end
     local rank = tostring(d.rank or '')
+    local iAmOwner = getRankName(src) == Config.OwnerRank
+
+    -- Nommer Fondateur : réservé à un fondateur ; accès total (toutes les permissions, verrouillé)
+    if rank == Config.OwnerRank then
+        if not iAmOwner then return notify(src, 'Seul un fondateur peut nommer un fondateur.', 'error') end
+        if isOwner(lic) then return notify(src, ('%s est déjà fondateur.'):format(pname(t)), 'error') end
+        Owners[#Owners + 1] = lic
+        Storage.save('owners', Owners)
+        OwnerNames[lic] = pname(t)
+        Storage.saveLater('owner_names', OwnerNames)
+        Admins[lic] = nil
+        Storage.saveLater('admins', Admins)
+        AceCache[t] = nil
+        local r = Ranks[Config.OwnerRank]
+        notify(src, ('%s est maintenant %s : accès à tout.'):format(pname(t), r.label), 'success')
+        notify(t, ('Vous êtes maintenant %s : accès complet. Menu : %s'):format(r.label, Config.Keys[1].key), 'success')
+        addLog(src, 'Fondateur nommé', pname(t))
+        pushPerms(t)
+        return
+    end
+
+    -- Un fondateur nommé depuis le menu peut être rétrogradé par un autre fondateur
+    if isMenuOwner(lic) then
+        if not iAmOwner then return notify(src, 'Ce joueur a un grade égal ou supérieur au vôtre.', 'error') end
+        if rank ~= 'none' and rank ~= '' and not Ranks[rank] then return notify(src, 'Grade inconnu.', 'error') end
+        removeMenuOwner(lic)
+        addLog(src, 'Fondateur retiré', pname(t))
+    elseif not checkHierarchy(src, t) then return end
+
     if rank == 'none' or rank == '' then
         Admins[lic] = nil
         notify(src, ('%s ne fait plus partie du staff.'):format(pname(t)), 'success')
@@ -1268,6 +1398,18 @@ end }
 
 Actions.remove_staff = { perm = 'manage_staff', fn = function(src, d)
     local lic = tostring(d.identifier or '')
+    if isMenuOwner(lic) then
+        if getRankName(src) ~= Config.OwnerRank then return notify(src, 'Grade égal ou supérieur au vôtre.', 'error') end
+        if lic == getLicense(src) then return notify(src, 'Vous ne pouvez pas vous retirer vous-même.', 'error') end
+        removeMenuOwner(lic)
+        Admins[lic] = nil
+        Storage.saveLater('admins', Admins)
+        local online = onlineLicenses()
+        if online[lic] then pushPerms(online[lic]) notify(online[lic], 'Vous ne faites plus partie du staff.', 'warning') end
+        notify(src, ('%s n\'est plus fondateur.'):format(OwnerNames[lic] or lic), 'success')
+        addLog(src, 'Fondateur retiré', OwnerNames[lic] or lic)
+        return
+    end
     local a = Admins[lic]
     if not a then return notify(src, 'Membre introuvable.', 'error') end
     local r = Ranks[a.rank]
@@ -1282,6 +1424,21 @@ end }
 
 Actions.change_staff_rank = { perm = 'manage_staff', fn = function(src, d)
     local lic = tostring(d.identifier or '')
+    if isMenuOwner(lic) then
+        -- Rétrograder un fondateur (donné depuis le menu) : réservé à un fondateur
+        local r = Ranks[tostring(d.rank or '')]
+        if getRankName(src) ~= Config.OwnerRank then return notify(src, 'Grade égal ou supérieur au vôtre.', 'error') end
+        if lic == getLicense(src) then return notify(src, 'Vous ne pouvez pas modifier votre propre grade.', 'error') end
+        if not r or d.rank == Config.OwnerRank then return notify(src, 'Données invalides.', 'error') end
+        removeMenuOwner(lic)
+        Admins[lic] = { rank = d.rank, name = OwnerNames[lic] or lic }
+        Storage.saveLater('admins', Admins)
+        local online = onlineLicenses()
+        if online[lic] then pushPerms(online[lic]) end
+        notify(src, ('%s est maintenant %s.'):format(OwnerNames[lic] or lic, r.label), 'success')
+        addLog(src, 'Fondateur rétrogradé', ('%s → %s'):format(OwnerNames[lic] or lic, r.label))
+        return
+    end
     local a = Admins[lic]
     local r = Ranks[tostring(d.rank or '')]
     if not a or not r then return notify(src, 'Données invalides.', 'error') end
@@ -1413,7 +1570,7 @@ RegisterCommand('adminmenu_fondateur', function(src, args)
     for _, o in ipairs(Owners) do if o == lic then return print('^3Déjà Fondateur.^7') end end
     Owners[#Owners + 1] = lic
     Storage.save('owners', Owners)
-    if id then pushPerms(id) end
+    if id then OwnerNames[lic] = GetPlayerName(id) Storage.saveLater('owner_names', OwnerNames) pushPerms(id) end
     print(('^2[AdminMenu] %s est maintenant Fondateur (enregistré dans data/owners.json).^7'):format(id and GetPlayerName(id) or lic))
 end, true)
 RegisterCommand('adminmenu_retirer_fondateur', function(src, args)

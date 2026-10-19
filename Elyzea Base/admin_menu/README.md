@@ -74,7 +74,7 @@ rangés par catégorie et par ordre alphabétique, avec recherche.
 
 ## Zones (safe zones, quartiers, zones à message)
 Éditeur de map › 🗺️ **Zones** (permission `editor_zones`, SuperAdmin et Fondateur).
-1. Choisis un type : 🛡️ Safe zone, 🏘️ Quartier, 📢 Message seul, 🚸 Zone 30 km/h (tout reste modifiable).
+1. Choisis un type : 🛡️ Safe zone, 🏘️ Quartier, 📢 Message seul, 🌿 Territoire, 🔇 Zone insonorisée, 🚸 Zone 30 km/h (tout reste modifiable).
 2. Écris le **message d'entrée** et le **message de sortie** (aperçu en direct), choisis la couleur.
 3. Délimite la zone :
    - ✏️ **Forme libre** : vise le sol, E pour poser un coin, Retour pour retirer le dernier, Entrée pour
@@ -85,6 +85,20 @@ Options : **Safe zone** (pas d'armes ni de coups, joueurs invincibles, limite de
 exception pour la police en service), **sur la carte** (zone colorée + nom), **limites visibles** pour tous.
 Le bouton « Afficher les limites (staff) » montre toutes les zones avec des murs colorés.
 En quittant une safe zone, tout redevient normal (armes, dégâts, vitesse).
+
+### 🔇 Zone insonorisée (pma-voice)
+Type « 🔇 Zone insonorisée » (ou l'interrupteur du même nom sur n'importe quelle zone) :
+- dedans, on n'entend **que** les personnes qui sont dans la même zone ;
+- dehors, on n'entend **pas** les personnes qui sont dedans ;
+- deux zones insonorisées différentes ne s'entendent pas entre elles.
+La radio et les appels téléphoniques continuent de marcher normalement.
+
+**Hauteur** : réglable dans le menu (hauteur au-dessus du coin le plus haut, profondeur sous le coin le plus bas)
+et en direct pendant le dessin avec ↑ / ↓ (hauteur) et ← / → (profondeur), Maj = pas de 5 m. Les murs affichés
+montrent la boîte exacte. Pour une pièce : coins posés au sol, hauteur 3 à 4 m, profondeur 1 m.
+Toutes les zones ont maintenant ce réglage (par défaut +80 m / −15 m, comme avant).
+Fonctionne avec `overrideProximityCheck` de pma-voice (présent depuis pma-voice 6) ; s'il manque, un message
+s'affiche dans la console F8.
 
 ## Portes et portails verrouillables (permission `editor_doors`)
 Éditeur de map › 🚪 **Portes** › « Choisir la porte » : vise la porte (ou les 2 battants d'une porte double),
@@ -400,6 +414,13 @@ Au premier démarrage, les grades déjà sauvegardés reçoivent automatiquement
 | Administrateur | 30 |
 | SuperAdmin | 40 |
 | Fondateur | 100 (verrouillé, toutes les permissions) |
+
+### Nommer un autre fondateur en jeu
+Un **Fondateur** peut nommer quelqu'un Fondateur : Joueurs → le joueur → **Modifier le grade** →
+« Fondateur (accès à tout) » (confirmation demandée). Il obtient toutes les permissions, comme toi.
+- Enregistré dans `data/owners.json` (conservé aux redémarrages et mises à jour).
+- Seul un fondateur peut nommer ou retirer un fondateur (onglet Staff : changer son grade ou **Retirer**).
+- Les fondateurs de `Config.Owners` (config.lua) ne se retirent que dans config.lua ; personne ne peut se retirer lui-même.
 
 Règles de hiérarchie :
 - on ne peut sanctionner / ramener / modifier que quelqu'un de **niveau inférieur** ;

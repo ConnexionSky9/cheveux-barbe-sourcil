@@ -20,6 +20,9 @@
 --  ► AJOUTER UNE VRAIE NOUVELLE COUPE (fichiers .ydd / .ytd)
 --    Les fichiers vont dans admin_menu/stream/ : voir install/COIFFEUR.md,
 --    partie « 4.3 ».
+--    Pack de coupes ADDON (.ymt + .meta) : partie « 4.3 bis ». Le salon ne
+--    montre que les coupes qui existent vraiment pour le personnage ; leur
+--    numéro change si un pack est ajouté ou retiré AVANT le leur.
 -- =====================================================================
 
 BarberData = {}

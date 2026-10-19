@@ -412,6 +412,9 @@ local function confirmPlacement()
         d.searchId, d.idx = P.searchId, P.idx
         TriggerServerEvent('adminmenu:action', 'editor_save_searchpoint', d)
         if not P.idx then return end -- ajout de points à la chaîne
+    elseif P.kind == 'casinotable' then
+        d.pedId = P.pedId
+        TriggerServerEvent('adminmenu:action', 'editor_casino_table', d)
     elseif P.kind == 'garagespot' and P.target == 'dmv' then
         d.pedId = P.pedId
         TriggerServerEvent('adminmenu:action', 'editor_dmv_spot', d)
@@ -886,6 +889,8 @@ function EditorMenuData()
             safe = z.safe, noWeapons = z.noWeapons, invincible = z.invincible, exemptPolice = z.exemptPolice,
             speedLimit = z.speedLimit, blip = z.blip, showBorder = z.showBorder, shape = z.shape,
             blipSprite = z.blipSprite or 0, blipScale = z.blipScale or 0.8,
+            territory = z.territory, soundproof = z.soundproof,
+            height = z.height or Config.Zones.height, depth = z.depth or Config.Zones.depth,
             corners = z.points and #z.points or 0, radius = z.radius, dist = math.floor(#(pos - zz)),
         }
     end
@@ -1004,6 +1009,20 @@ RegisterNUICallback('editor', function(body, cb)
     elseif n == 'move' then
         CloseMenu()
         EditorMove({ kind = d.kind, id = tonumber(d.id) })
+    elseif n == 'dup_ped' and canEdit('editor_peds') then
+        -- Copie d'un PNJ : même modèle, scénario, nom et rôle ; posée où l'on veut.
+        -- Les points posés à part (zone pour parler, table de casino, sorties de garage…) restent à l'original.
+        for _, r in ipairs(Editor.peds) do
+            if r.id == tonumber(d.id) then
+                local npc = r.npc and json.decode(json.encode(r.npc)) or nil
+                if npc then npc.area = nil end
+                CloseMenu()
+                Notify('Copie du PNJ : place-la où tu veux puis valide.', 'info')
+                StartPlacement({ kind = 'ped', model = r.model, heading = r.h, scenario = r.scenario or '',
+                    name = (r.name and r.name ~= '') and (r.name .. ' (copie)') or '', npc = npc })
+                break
+            end
+        end
     elseif n == 'add_plants' and canEdit('editor_harvest') then
         for _, f in ipairs(Editor.fields) do
             if f.id == tonumber(d.id) then
@@ -1059,6 +1078,15 @@ RegisterNUICallback('editor', function(body, cb)
             local sp = r.id == tonumber(d.id) and r.npc and r.npc.pubgarage and (r.npc.pubgarage.spots or {})[tonumber(d.idx) or 0]
             if sp then CloseMenu() CreateThread(function() TeleportTo(vector3(sp.x + 2.5, sp.y, sp.z + 0.5), true) end) end
         end
+    elseif n == 'casino_table' and canEdit('editor_peds') then
+        CloseMenu()
+        Notify('Place la table / la roue (molette pour l\'orienter, le croupier de l\'autre côté des chaises), E pour valider.', 'info')
+        StartPlacement({ kind = 'casinotable', model = tostring(d.model or 'vw_prop_casino_blckjack_01'), pedId = tonumber(d.id), heading = tonumber(d.h) })
+    elseif n == 'casino_table_tp' and canEdit('editor_peds') then
+        for _, r in ipairs(Editor.peds) do
+            local sp = r.id == tonumber(d.id) and r.npc and r.npc.casino and r.npc.casino.table
+            if sp then CloseMenu() CreateThread(function() TeleportTo(vector3(sp.x + 2.0, sp.y, sp.z + 0.5), true) end) end
+        end
     elseif n == 'catalog_spot' and canEdit('editor_peds') then
         CloseMenu()
         Notify('Place la voiture là où les essais commenceront (molette pour l\'orienter), E pour valider.', 'info')
@@ -1091,6 +1119,18 @@ RegisterNUICallback('editor', function(body, cb)
     elseif n == 'npc_area_draw' and canEdit('editor_peds') then
         CloseMenu()
         StartZoneDraw(nil, { color = 'gold', name = d.name }, { ped = tonumber(d.id) })
+    elseif n == 'pvp_zone_draw' and HasPerm('pvp_manage') then
+        -- Arène PvP : dessiner la zone de combat en jeu (pvp_arena revérifie la permission et la forme)
+        CloseMenu()
+        local spawns = type(d.spawns) == 'table' and d.spawns or {}
+        StartZoneDraw(nil, { color = 'blue', name = d.name, height = tonumber(d.height) or 30.0, depth = tonumber(d.depth) or 3.0 },
+            { pvpZone = tostring(d.id or ''), name = d.name, spawns = spawns })
+    elseif n == 'pvp_spawns_draw' and HasPerm('pvp_manage') and (d.team == 'A' or d.team == 'B') then
+        -- Arène PvP : poser les apparitions d'une équipe en visant le sol
+        CloseMenu()
+        local spawns = type(d.spawns) == 'table' and d.spawns or {}
+        StartZoneDraw(nil, { color = 'blue', name = d.name }, { pvpSpawns = tostring(d.id or ''), team = d.team, teamName = d.teamName,
+            name = d.name, zone = type(d.zone) == 'table' and d.zone or nil, others = spawns[d.team == 'A' and 'B' or 'A'] or {} })
     elseif n == 'zone_draw' and canEdit('editor_zones') then
         CloseMenu()
         StartZoneDraw(tonumber(d.id), d.settings)
@@ -1235,7 +1275,7 @@ CreateThread(function()
         local sleep = 500
         local near = NearInteract
         if #near > 0 and not busy and not stationOpen and not NpcOpen and not Placing and not IsNoclipActive() and not clothingOpen() and not BarberOpen and not TattooOpen and not MarketOpen and not GunTrialActive then
-            sleep = 0
+            sleep = 100   -- dans les 25 m mais hors de portée : contrôle 10 fois/s suffit (touche mémorisée par la commande)
             local ped = PlayerPedId()
             local pos = GetEntityCoords(ped)
             local px, py, pz = pos.x, pos.y, pos.z
@@ -1260,6 +1300,7 @@ CreateThread(function()
             end
 
             if best and not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
+                sleep = 0   -- invite affichée : chaque image
                 local pressed = interactPressed and GetGameTimer() - editorKeyTime > 500
                 if best.interact == 'npc' and best.ref.npc and best.ref.npc.dmv then
                     ShowPrompt('Appuyer pour entrer', best.ref.npc.dmv.name or 'à l\'auto-école')
@@ -1279,6 +1320,14 @@ CreateThread(function()
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.tattoo then
                     ShowPrompt('Appuyer pour entrer chez', best.ref.npc.tattoo.name or 'le tatoueur')
                     if pressed then TriggerServerEvent('adminmenu:tattoo:request', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.casino then
+                    local cr = best.ref.npc.casino
+                    local verb = ({ blackjack = 'Appuyer pour jouer au', roulette = 'Appuyer pour jouer à la', wheel = 'Appuyer pour parler à', cashier = 'Appuyer pour aller à' })[cr.role] or 'Appuyer pour parler à'
+                    ShowPrompt(verb, (cr.name ~= '' and cr.name) or best.ref.name or 'Casino')
+                    if pressed then TriggerEvent('elyzea_casino:client:npc', best.ref.id, cr.role) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.pvp then
+                    ShowPrompt('Appuyer pour entrer dans', best.ref.npc.pvp.name or 'l\'arène')
+                    if pressed then TriggerEvent('pvp_arena:client:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.gunshop then
                     ShowPrompt('Appuyer pour parler à', best.ref.npc.gunshop.name or 'l\'armurier')
                     if pressed then TriggerServerEvent('adminmenu:gunshop:request', best.ref.id) end
@@ -1468,6 +1517,8 @@ end)
 
 -- Exports client pour les autres ressources
 exports('GetSpawnPoints', function() return Editor.spawns end)
+-- Entité locale d'un élément de l'éditeur (ex. 'ped:12') : utilisée par elyzea_casino pour animer le croupier
+exports('GetSpawnedEntity', function(key) local s = spawned[key] return s and s.ent or nil end)
 
 
 -- ---------------------------------------------------------

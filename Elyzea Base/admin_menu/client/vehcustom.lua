@@ -418,6 +418,18 @@ RegisterNUICallback('vc_save', function(_, cb)
     cb('ok')
 end)
 
+-- Ajouter le véhicule (staff) à mon garage : Fondateur et SuperAdmin, vérifié par le serveur
+RegisterNUICallback('vc_garage', function(_, cb)
+    local veh = myVehicle()
+    local L = ox()
+    if veh and L then
+        local props = L.getVehicleProperties(veh)
+        local model = Entity(veh).state.spawnModel or string.lower(GetDisplayNameFromVehicleModel(GetEntityModel(veh)) or '')
+        TriggerServerEvent('adminmenu:action', 'vehcustom_garage', { netId = netOf(veh), props = props, model = model })
+    end
+    cb('ok')
+end)
+
 -- Texte de la plaque : appliqué par le serveur (véhicule de joueur : carte grise, clés et coffre suivent)
 RegisterNUICallback('vc_plate', function(body, cb)
     local veh = myVehicle()

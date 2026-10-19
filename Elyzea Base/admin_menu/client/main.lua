@@ -426,7 +426,7 @@ RegisterNetEvent('adminmenu:data', function(data)
             craftPresets = Config.Editor.craftPresets,
             searchPresets = Config.Editor.searchPresets,
             craftScenarios = Config.Editor.craftScenarios,
-            zoneColors = Config.Zones.colors,
+            zoneColors = Config.Zones.colors, zoneHeight = Config.Zones.height, zoneDepth = Config.Zones.depth,
             zoneIcons = Config.Zones.icons or {},
             jailDurations = Config.Jail.durations,
         },

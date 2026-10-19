@@ -100,6 +100,7 @@ function RefreshZones()
     local ids = {}
     for _, z in ipairs(Editor.zones or {}) do ids[z.id] = true end
     for id in pairs(inside) do if not ids[id] then inside[id] = nil end end
+    if RefreshVoiceZones then RefreshVoiceZones() end
 end
 
 local function isPolice()
@@ -154,13 +155,14 @@ end)
 -- Effets de la safe zone (à chaque image seulement quand on y est)
 CreateThread(function()
     local UNARMED = GetHashKey('WEAPON_UNARMED')
+    local BLOCKED = { 24, 25, 37, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }   -- créée une seule fois
     while true do
         local s = safeActive
         if s then
             local ped, pid = PlayerPedId(), PlayerId()
             if s.noWeapons then
                 DisablePlayerFiring(pid, true)
-                for _, c in ipairs({ 24, 25, 37, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }) do DisableControlAction(0, c, true) end
+                for i = 1, #BLOCKED do DisableControlAction(0, BLOCKED[i], true) end
                 if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
                 SetPlayerCanDoDriveBy(pid, false)
                 noDriveBy = true
@@ -208,8 +210,9 @@ end
 local function drawZone(z, p)
     local r, g, b = rgb((colorById[z.color] or {}).hex)
     local zMin, zMax = p.z - 2.0, p.z + 8.0
+    if z.soundproof then zMin, zMax = z.minZ, z.maxZ end   -- la vraie boîte (pièce insonorisée)
     if z.shape == 'circle' then
-        DrawMarker(1, z.center.x, z.center.y, p.z - 2.0, 0, 0, 0, 0, 0, 0, z.radius * 2.0, z.radius * 2.0, 10.0,
+        DrawMarker(1, z.center.x, z.center.y, zMin, 0, 0, 0, 0, 0, 0, z.radius * 2.0, z.radius * 2.0, zMax - zMin,
             r, g, b, 45, false, false, 2, false, nil, nil, false)
         return
     end
@@ -292,7 +295,18 @@ function ZoneDrawKey(id)
     if not drawing then return false end
     if id == 'confirm' then
         local p = drawing.aim
-        if p then
+        local tg = drawing.target
+        if p and tg and tg.pvpSpawns then
+            -- apparition d'équipe : au sol visé, tournée dans la direction de la caméra
+            if #drawing.points >= 20 then return true, Notify('20 apparitions maximum par équipe.', 'error') end
+            local z = tg.zone
+            if z and #(z.points or {}) >= 3 and (not inPoly(z.points, p.x, p.y) or (z.minZ and p.z + 1.0 < z.minZ) or (z.maxZ and p.z + 1.0 > z.maxZ)) then
+                PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+                return true, Notify('Ce point est hors de la zone de combat : vise à l\'intérieur.', 'error')
+            end
+            drawing.points[#drawing.points + 1] = { x = p.x, y = p.y, z = p.z + 1.0, h = (GetGameplayCamRot(2).z + 360.0) % 360.0 }
+            PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+        elseif p then
             drawing.points[#drawing.points + 1] = { x = p.x, y = p.y, z = p.z }
             PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
         end
@@ -304,7 +318,25 @@ function ZoneDrawKey(id)
             Notify('Dessin de la zone annulé.', 'info')
         end
     elseif id == 'finish' then
+        local tg = drawing.target
+        if tg and tg.pvpSpawns then
+            if #drawing.points < 1 then return true, Notify('Pose au moins une apparition.', 'error') end
+            -- remplace les apparitions de l'équipe ; pvp_arena revérifie tout (zone, nombre, permission)
+            TriggerServerEvent('adminmenu:action', 'pvp', { name = 'arena_spawns', data = { id = tg.pvpSpawns, team = tg.team, points = drawing.points } })
+            drawing = nil
+            return true
+        end
         if #drawing.points < 3 then return true, Notify('Pose au moins 3 coins.', 'error') end
+        if tg and tg.pvpZone then
+            -- zone de combat d'une arène PvP : coins + sol (coin le plus bas − profondeur) et plafond (coin le plus haut + hauteur)
+            local st = drawing.settings or {}
+            local lo, hi = math.huge, -math.huge
+            for _, q in ipairs(drawing.points) do lo, hi = math.min(lo, q.z), math.max(hi, q.z) end
+            TriggerServerEvent('adminmenu:action', 'pvp', { name = 'arena_zone', data = { id = tg.pvpZone, points = drawing.points,
+                minZ = lo - (tonumber(st.depth) or 3.0), maxZ = hi + (tonumber(st.height) or 30.0) } })
+            drawing = nil
+            return true
+        end
         if drawing.target and drawing.target.agency then
             -- zone d'alerte d'une agence (elyzea_agences) : ajoutée comme nouvelle forme
             TriggerServerEvent('elyzea_agences:server:worldZone', drawing.target.agency, drawing.points)
@@ -321,6 +353,52 @@ function ZoneDrawKey(id)
     return true
 end
 
+-- Mode « apparitions d'une équipe » (arène PvP) : zone de l'arène affichée, une flèche par point posé
+local TEAMCOL = { A = { 34, 211, 238 }, B = { 249, 115, 98 } }
+local function drawPvpSpawns(d, aim)
+    local tg = d.target
+    local col = TEAMCOL[tg.team] or TEAMCOL.A
+    local other = TEAMCOL[tg.team == 'A' and 'B' or 'A']
+    local z = tg.zone or {}
+    local zp = z.points or {}
+    local inside = #zp < 3 or (inPoly(zp, aim.x, aim.y) and not (z.minZ and aim.z + 1.0 < z.minZ) and not (z.maxZ and aim.z + 1.0 > z.maxZ))
+    -- contour de la zone de combat
+    if #zp >= 3 then
+        local z0 = z.minZ or (aim.z - 2.0)
+        local z1 = math.min(z.maxZ or (aim.z + 10.0), z0 + 40.0)
+        for i = 1, #zp do
+            local p, q = zp[i], zp[i % #zp + 1]
+            DrawLine(p.x, p.y, z0, q.x, q.y, z0, 34, 211, 238, 255)
+            DrawLine(p.x, p.y, z1, q.x, q.y, z1, 34, 211, 238, 200)
+            drawWall(p, q, z0, z1, 34, 211, 238, 25)
+        end
+    end
+    -- apparitions de l'autre équipe (repère)
+    for _, sp in ipairs(tg.others or {}) do
+        DrawMarker(1, sp.x, sp.y, sp.z - 1.0, 0, 0, 0, 0, 0, 0, 0.8, 0.8, 1.0, other[1], other[2], other[3], 110, false, false, 2, false, nil, nil, false)
+    end
+    -- points posés
+    for i, sp in ipairs(d.points) do
+        local h = math.rad(sp.h or 0)
+        DrawMarker(1, sp.x, sp.y, sp.z - 1.0, 0, 0, 0, 0, 0, 0, 0.9, 0.9, 1.6, col[1], col[2], col[3], 170, false, false, 2, false, nil, nil, false)
+        DrawLine(sp.x, sp.y, sp.z - 0.6, sp.x - math.sin(h) * 1.6, sp.y + math.cos(h) * 1.6, sp.z - 0.6, col[1], col[2], col[3], 255)
+        DrawText3D(vector3(sp.x, sp.y, sp.z + 1.1), ('%s n°%d'):format(tg.teamName or tg.team, i), 0.32)
+    end
+    -- curseur : couleur de l'équipe dans la zone, rouge dehors ; flèche = direction de la caméra
+    local cr, cg, cb = col[1], col[2], col[3]
+    if not inside then cr, cg, cb = 230, 40, 40 end
+    local h = math.rad(GetGameplayCamRot(2).z)
+    DrawMarker(1, aim.x, aim.y, aim.z, 0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.4, cr, cg, cb, 160, false, false, 2, false, nil, nil, false)
+    DrawLine(aim.x, aim.y, aim.z + 0.3, aim.x - math.sin(h) * 2.0, aim.y + math.cos(h) * 2.0, aim.z + 0.3, cr, cg, cb, 255)
+    local rows = {
+        { keys = { EK('confirm') }, label = inside and 'Poser une apparition ici (tournée comme la caméra)' or 'Hors de la zone : impossible ici' },
+        { keys = { EK('cancel') }, label = #d.points > 0 and 'Retirer la dernière' or 'Annuler' },
+        { keys = { EK('finish') }, label = 'Enregistrer (remplace les apparitions de l\'équipe)' },
+    }
+    ShowKeysHud('zonedraw', ('Apparitions %s · %s'):format(tg.teamName or tg.team, tg.name or 'arène'), rows,
+        ('%d apparition(s) posée(s) · 1 minimum, 20 maximum · mets-en au moins une par joueur'):format(#d.points))
+end
+
 local function drawLoop()
     while drawing do
         Wait(0)
@@ -333,23 +411,59 @@ local function drawLoop()
         local r, g, b = rgb((colorById[(d.settings or {}).color] or {}).hex)
         DrawMarker(28, aim.x, aim.y, aim.z, 0, 0, 0, 0, 0, 0, 0.35, 0.35, 0.35, r, g, b, 220, false, false, 2, false, nil, nil, false)
 
+        -- Hauteur / profondeur réglées en direct : ↑ ↓ (hauteur), ← → (profondeur)
+        local st = d.settings or {}
+        d.settings = st
+        local tg = d.target
+        if tg and tg.pvpSpawns then drawPvpSpawns(d, aim) goto continue end
+        local hasH = not tg or tg.pvpZone ~= nil   -- zones de l'éditeur et arènes PvP (pas les zones de PNJ / d'agence)
+        local hgt = hasH and (tonumber(st.height) or ZC.height) or 5.0
+        local dep = hasH and (tonumber(st.depth) or ZC.depth) or 0.5
+        if hasH then
+            for _, c in ipairs({ 172, 173, 174, 175 }) do DisableControlAction(0, c, true) end
+            local step = (IsControlPressed(0, 21) or IsDisabledControlPressed(0, 21)) and 5.0 or 0.5   -- Maj = pas de 5 m
+            if IsDisabledControlJustPressed(0, 172) then hgt = math.min(500.0, hgt + step) end
+            if IsDisabledControlJustPressed(0, 173) then hgt = math.max(0.5, hgt - step) end
+            if IsDisabledControlJustPressed(0, 175) then dep = math.min(200.0, dep + step) end
+            if IsDisabledControlJustPressed(0, 174) then dep = math.max(0.0, dep - step) end
+            st.height, st.depth = hgt, dep
+        end
+
         local pts = d.points
+        local lo, hi = aim.z, aim.z
+        for _, p in ipairs(pts) do lo, hi = math.min(lo, p.z), math.max(hi, p.z) end
+        local wMin, wMax = lo - dep, hi + hgt
         for i, p in ipairs(pts) do
             DrawMarker(1, p.x, p.y, p.z - 1.0, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 6.0, r, g, b, 200, false, false, 2, false, nil, nil, false)
-            DrawText3D(vector3(p.x, p.y, p.z + 5.5), ('Coin %d'):format(i), 0.32)
+            DrawText3D(vector3(p.x, p.y, p.z + 1.5), ('Coin %d'):format(i), 0.32)
             local nx = pts[i + 1] or aim
             DrawLine(p.x, p.y, p.z + 0.2, nx.x, nx.y, nx.z + 0.2, r, g, b, 255)
-            drawWall(p, nx, math.min(p.z, nx.z) - 0.5, math.max(p.z, nx.z) + 5.0, r, g, b, 50)
+            drawWall(p, nx, wMin, wMax, r, g, b, 50)
+            DrawLine(p.x, p.y, wMax, nx.x, nx.y, wMax, r, g, b, 230)
         end
         if #pts >= 2 then
             DrawLine(aim.x, aim.y, aim.z + 0.2, pts[1].x, pts[1].y, pts[1].z + 0.2, r, g, b, 120)
         end
 
-        ShowKeysHud('zonedraw', d.target and (d.target.agency and ('Zone d\'alerte : ' .. (d.target.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', {
+        local rows = {
             { keys = { EK('confirm') }, label = 'Poser un coin ici' },
             { keys = { EK('cancel') }, label = #pts > 0 and 'Retirer le dernier coin' or 'Annuler' },
             { keys = { EK('finish') }, label = 'Terminer la zone' },
-        }, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
+        }
+        if hasH then
+            rows[#rows + 1] = { keys = { '↑', '↓' }, label = ('Hauteur : +%.1f m (Maj = 5 m)'):format(hgt) }
+            rows[#rows + 1] = { keys = { '←', '→' }, label = ('Profondeur : -%.1f m'):format(dep) }
+        end
+        if tg and tg.pvpZone then
+            -- apparitions déjà posées : on voit si elles resteront dans la zone
+            for t, col in pairs({ A = { 34, 211, 238 }, B = { 249, 115, 98 } }) do
+                for _, sp in ipairs((tg.spawns or {})[t] or {}) do
+                    DrawMarker(1, sp.x, sp.y, sp.z - 1.0, 0, 0, 0, 0, 0, 0, 0.8, 0.8, 1.2, col[1], col[2], col[3], 140, false, false, 2, false, nil, nil, false)
+                end
+            end
+        end
+        ShowKeysHud('zonedraw', tg and (tg.pvpZone and ('Zone de combat : ' .. (tg.name or 'arène')) or tg.agency and ('Zone d\'alerte : ' .. (tg.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', rows, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
+        ::continue::
     end
     if HudOwner == 'zonedraw' then HideKeysHud() end
 end
@@ -358,7 +472,9 @@ function StartZoneDraw(id, settings, target)
     if drawing then return end
     if IsPlacing() then return Notify('Termine d\'abord le placement en cours.', 'error') end
     drawing = { id = id, settings = settings, points = {}, target = target }
-    Notify(target and target.agency and 'Pose les coins de la zone d\'alerte un par un (le noclip marche aussi, vise le sol jusqu\'à 200 m).'
+    Notify(target and target.pvpSpawns and ('Vise le sol et pose les apparitions de l\'équipe %s une par une, la caméra donne la direction (le noclip marche aussi).'):format(target.teamName or target.team)
+        or target and target.pvpZone and 'Pose les coins de la zone de combat dans l\'ordre du tour (3 minimum). ↑ ↓ règle le plafond, ← → le sol. Les joueurs ne pourront pas en sortir.'
+        or target and target.agency and 'Pose les coins de la zone d\'alerte un par un (le noclip marche aussi, vise le sol jusqu\'à 200 m).'
         or target and 'Pose les coins de la zone dans laquelle on pourra parler au PNJ (le noclip marche aussi).'
         or 'Vise le sol et pose les coins de la zone un par un (le noclip marche aussi).', 'info')
     CreateThread(function()
@@ -378,8 +494,68 @@ AddEventHandler('adminmenu:client:drawAgencyZone', function(id, name)
     StartZoneDraw(nil, { color = 'blue', name = name }, { agency = tonumber(id), name = name })
 end)
 
+-- ---------------------------------------------------------
+--  ZONES INSONORISÉES (pma-voice)
+--  Chaque joueur décide à qui il ENVOIE sa voix : seulement aux joueurs de la même zone
+--  insonorisée (ou à ceux hors de toute zone insonorisée s'il est dehors). Comme tout le monde
+--  applique la même règle, dedans on n'entend que ceux de dedans, et dehors on n'entend pas dedans.
+--  Les appels téléphoniques et la radio ne sont pas concernés.
+-- ---------------------------------------------------------
+local voiceZones = {}
+local voiceHooked = false
+local myVZ, myVZAt = 0, 0
+
+local function voiceZoneAt(p)
+    for i = 1, #voiceZones do
+        local z = voiceZones[i]
+        if inZone(z, p) then return z.id end
+    end
+    return 0
+end
+
+local function proximityCheck(ply)
+    local me = GetEntityCoords(PlayerPedId())
+    local tp = GetEntityCoords(GetPlayerPed(ply))
+    local range = MumbleGetTalkerProximity()
+    if GetConvar('voice_useNativeAudio', 'false') == 'true' then range = range * 3 end
+    local d = #(me - tp)
+    if d >= range then return false, d end
+    if #voiceZones == 0 then return true, d end
+    local now = GetGameTimer()
+    if now - myVZAt > 150 then myVZ, myVZAt = voiceZoneAt(me), now end
+    return voiceZoneAt(tp) == myVZ, d
+end
+
+local function hookVoice()
+    if GetResourceState('pma-voice') ~= 'started' then voiceHooked = false return end
+    if #voiceZones > 0 then
+        local ok, err = pcall(function() exports['pma-voice']:overrideProximityCheck(proximityCheck) end)
+        if not ok then print(('^3[AdminMenu] Zones insonorisées : pma-voice trop ancien (overrideProximityCheck absent) : %s^7'):format(tostring(err))) end
+        voiceHooked = ok
+    elseif voiceHooked then
+        pcall(function() exports['pma-voice']:resetProximityCheck() end)
+        voiceHooked = false
+    end
+end
+
+function RefreshVoiceZones()
+    local list = {}
+    for _, z in ipairs(Editor.zones or {}) do if z.soundproof then list[#list + 1] = z end end
+    voiceZones = list
+    myVZAt = 0
+    hookVoice()
+end
+
+AddEventHandler('onClientResourceStart', function(res)
+    if res == 'pma-voice' then SetTimeout(1000, hookVoice) end
+end)
+
+-- Indicateur pour le joueur (et export pour d'autres ressources)
+exports('IsInSoundproofZone', function() return voiceZoneAt(GetEntityCoords(PlayerPedId())) ~= 0 end)
+
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
+    if voiceHooked then pcall(function() exports['pma-voice']:resetProximityCheck() end) end
     for _, b in ipairs(zoneBlips) do if DoesBlipExist(b) then RemoveBlip(b) end end
     if wasInvincible and not State.godmode then SetEntityInvincible(PlayerPedId(), false) end
     SetPlayerCanDoDriveBy(PlayerId(), true)

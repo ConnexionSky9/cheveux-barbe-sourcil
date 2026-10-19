@@ -13,81 +13,101 @@ local ALIGN = {
     ['bottom-left'] = { 'L', 'B' }, ['bottom-right'] = { 'R', 'B' },
 }
 
-local function current() return preview or saved end
+-- Verrou (Config.Minimap.locked) : position, taille, forme et marges viennent TOUJOURS de config.lua ;
+-- ni le réglage enregistré, ni un aperçu, ni un autre script ne peuvent déplacer la carte.
+-- La mini-carte est fixée par le code (Config.Minimap) : aucun réglage du menu, aucun aperçu,
+-- aucun autre script ne peut la déplacer.
+local function current() return Config.Minimap end
 
 -- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
 local maskTxd, maskOn = nil, false
 local function SharpMask(on)
-    -- Désactivé par défaut (Config.Minimap.sharpMask) : le masque de GTA découpe toujours la carte
-    if not (Config.Minimap and Config.Minimap.sharpMask == true) then on = false end
+    -- Carte rectangulaire : masque carré (minimap/radarmask.png) à la place du masque arrondi / flou de GTA.
+    -- Config.Minimap.sharpMask = false pour garder celui de GTA.
+    if Config.Minimap and Config.Minimap.sharpMask == false then on = false end
     if on == maskOn then return end
     if on then
         if not maskTxd then
             maskTxd = CreateRuntimeTxd('elyzea_minimap')
             CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
         end
-        -- Texture réellement chargée ? Sinon on garde le masque de GTA (sinon la carte n'est plus découpée)
-        local res = GetTextureResolution('elyzea_minimap', 'radarmasksm')
-        if not res or res.x < 8 then return end
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
+        AddReplaceTexture('platform:/textures/graphics', 'radarmask1g', 'elyzea_minimap', 'radarmasksm')
     else
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
     end
     maskOn = on
 end
 
--- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le HUD
+-- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le cadre du HUD
 MinimapRect = nil
-function RectOf(a, x, y, w, h, aspect, round)
-    local off = (1.0 - GetSafeZoneSize()) * 0.5
-    local left = (a[1] == 'R') and (1.0 - off + x) or (off + x)
-    local top = (a[2] == 'T') and (off + y) or (1.0 - off + y - h)
-    -- Écrans plus larges que 16:9 : GTA place la carte dans une zone 16:9 centrée
-    if aspect > 16 / 9 + 0.01 then
-        local k = (16 / 9) / aspect
-        left, w = 0.5 + (left - 0.5) * k, w * k
-    end
-    return { x = left, y = top, w = w, h = h, align = a[1] .. a[2], round = round == true }
-end
 exports('GetMinimapRect', function() return MinimapRect end)
 
--- Pose les trois éléments de la mini-carte
-local function apply()
-    local s = current()
-    if not s or s.enabled == false then return end
+-- Disposition éprouvée de la carte rectangulaire (celle des HUD « square map ») pour une hauteur de 0,183 :
+-- GTA ne place pas le masque et le flou dans le même repère que la carte : ils ont leurs propres
+-- proportions. On garde exactement ces rapports, multipliés par l'échelle choisie (Config.Minimap.size).
+local REF_H = 0.183
+local GEO = {
+    map  = { dx = 0.0,   dy = 0.0,   w = 0.1638, h = 0.183 },
+    mask = { dx = 0.0,   dy = 0.047, w = 0.128,  h = 0.20 },
+    blur = { dx = -0.01, dy = 0.072, w = 0.262,  h = 0.300 },
+}
 
-    -- Hauteur en part de l'écran ; largeur calculée pour un carré à l'écran (base 16:9)
-    local h = tonumber(s.size) or 0.20
-    local w = h * (9 / 16) * ((tonumber(s.widthAdjust) or 100) / 100)
-    if s.shape == 'default' then w = h * 0.80 end
-
-    -- Écrans plus larges que 16:9 : on rapproche du bord (même correction que les HUD courants)
+-- Renvoie les 3 rectangles GTA (ancrage gauche / bas) et le rectangle visible à l'écran
+local function layout(s)
+    local sc = (tonumber(s.size) or REF_H) / REF_H
     local rx, ry = GetActiveScreenResolution()
     local aspect = rx / math.max(ry, 1)
-    local extra = 0.0
-    if aspect > 16 / 9 + 0.01 then extra = ((16 / 9) - aspect) / 3.6 end
-
-    local a = ALIGN[s.position] or ALIGN['top-right']
-    local mx, my = tonumber(s.marginX) or 0.012, tonumber(s.marginY) or 0.018
-    -- Chaque élément est collé au bord choisi ; le décalage l'en éloigne
-    local x = (a[1] == 'R') and -(mx + extra) or (mx + extra)
-    local y = (a[2] == 'T') and my or -my
-
-    SetMinimapClipType(s.shape == 'round' and 1 or 0)
-    SharpMask(s.shape ~= 'round')
-    MinimapRect = RectOf(a, x, y, w, h, aspect, s.shape == 'round')
-    TriggerEvent('elyzea:minimapRect', MinimapRect)
-    SetMinimapComponentPosition('minimap', a[1], a[2], x, y, w, h)
-    SetMinimapComponentPosition('minimap_mask', a[1], a[2], x, y, w, h)
-    -- Flou de fond : même rectangle (sinon un halo sombre déborde autour de la carte)
-    SetMinimapComponentPosition('minimap_blur', a[1], a[2], x, y, w, h)
-
-    -- La position ne se met à jour qu'après un passage en grande carte
-    SetBigmapActive(true, false)
-    Wait(0)
-    SetBigmapActive(false, false)
+    local k = aspect > 16 / 9 + 0.01 and (16 / 9) / aspect or 1.0           -- repère 16:9 → écran
+    local off = (1.0 - GetSafeZoneSize()) * 0.5
+    local mx, my = tonumber(s.marginX) or 0.01, tonumber(s.marginY) or 0.0
+    local a = ALIGN[s.position] or ALIGN['bottom-left']
+    local mapW, mapH = GEO.map.w * sc, GEO.map.h * sc
+    local base = -0.047 * sc - my                                           -- décalage vertical de la carte
+    local bottom = 1.0 - off + base                                          -- bas visible de la carte
+    if a[2] == 'T' then bottom = off + my + mapH base = bottom - (1.0 - off) end
+    local left = (a[1] == 'R') and (1.0 - off - mx - mapW * k) or (off + mx * k)
+    local gx = (0.5 + (left - 0.5) / k) - off                               -- gauche de la carte dans le repère GTA
+    local comps = {}
+    for name, g in pairs(GEO) do
+        comps[name] = { gx + g.dx * sc, base + g.dy * sc, g.w * sc, g.h * sc }
+    end
+    return comps, { x = left, y = bottom - mapH, w = mapW * k, h = mapH, align = a[1] .. a[2], round = s.shape == 'round' }
 end
+function RectOf() return MinimapRect end
+
+local function place(relayout)
+    local s = current()
+    if not s or s.enabled == false then return end
+    local comps, rect = layout(s)
+    if s.shape == 'round' then
+        -- carte ronde : les trois éléments sur le même carré
+        local m = comps.map
+        SetMinimapClipType(1)
+        SharpMask(false)
+        for _, n in ipairs({ 'minimap', 'minimap_mask', 'minimap_blur' }) do SetMinimapComponentPosition(n, 'L', 'B', m[1], m[2], m[3], m[4]) end
+    else
+        SetMinimapClipType(0)
+        SharpMask(true)
+        SetMinimapComponentPosition('minimap', 'L', 'B', comps.map[1], comps.map[2], comps.map[3], comps.map[4])
+        SetMinimapComponentPosition('minimap_mask', 'L', 'B', comps.mask[1], comps.mask[2], comps.mask[3], comps.mask[4])
+        SetMinimapComponentPosition('minimap_blur', 'L', 'B', comps.blur[1], comps.blur[2], comps.blur[3], comps.blur[4])
+    end
+    local changed = not MinimapRect or MinimapRect.x ~= rect.x or MinimapRect.y ~= rect.y or MinimapRect.w ~= rect.w or MinimapRect.h ~= rect.h
+    MinimapRect = rect
+    if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
+    if relayout then
+        -- GTA ne recalcule la mini-carte qu'après un passage en grande carte
+        SetBigmapActive(true, false)
+        Wait(0)
+        SetBigmapActive(false, false)
+    end
+end
+
+-- Pose complète (avec recalcul de GTA)
+local function apply() place(true) end
 
 local function hideHealthBars()
     if not scaleform or not HasScaleformMovieLoaded(scaleform) then
@@ -135,10 +155,8 @@ local function enforce()
 end
 
 RegisterNetEvent('adminmenu:map', function(data)
-    local hadOnly = saved and saved.onlyInVehicle
-    saved = data and data.minimap or saved
-    if hadOnly and not (saved and saved.onlyInVehicle) then DisplayRadar(true) end
-    if not preview then enforce() end
+    saved = data and data.minimap or saved   -- gardé pour info : la carte suit Config.Minimap
+    enforce()
 end)
 
 -- ---------------------------------------------------------
@@ -147,7 +165,7 @@ end)
 local Blocked = {}   -- { command, resource }
 
 local function blockCommands()
-    if not saved or saved.enabled == false then return end
+    if Config.Minimap.enabled == false then return end
     local owners = {}
     for _, c in ipairs(GetRegisteredCommands() or {}) do owners[c.name] = c.resource end
     Blocked = {}
@@ -169,7 +187,7 @@ CreateThread(function()
     -- Une autre ressource gère aussi la mini-carte : on vérifie la position chaque minute
     while true do
         Wait(60000)
-        if #Blocked > 0 and not preview and not IsBigmapActive() and saved and saved.enabled ~= false then apply() end
+        if #Blocked > 0 and not preview and not IsBigmapActive() and Config.Minimap.enabled ~= false then apply() end
     end
 end)
 AddEventHandler('onClientResourceStart', function(res)
@@ -198,6 +216,30 @@ CreateThread(function()
     end
 end)
 
+-- Gardien : chaque seconde, la position est reposée (sans clignotement). Si un autre script ou GTA
+-- la change, c'est la nôtre qui est prise au prochain recalcul. Après le menu pause / la grande carte,
+-- la carte est recalculée tout de suite.
+CreateThread(function()
+    local wasPaused, wasBig = false, false
+    while true do
+        Wait(1000)
+        if not preview then
+            local paused, big = IsPauseMenuActive(), IsBigmapActive()
+            if not paused and not big then
+                if wasPaused or wasBig then apply() else place(false) end
+            end
+            wasPaused, wasBig = paused, big
+        end
+    end
+end)
+
+-- Pose immédiate au démarrage (sans attendre le serveur) : jamais la position par défaut de GTA
+CreateThread(function()
+    Wait(500)
+    apply()
+end)
+AddEventHandler('playerSpawned', function() SetTimeout(1000, apply) end)
+
 -- Le changement de résolution déplace la mini-carte : on la repose de temps en temps
 CreateThread(function()
     local lastRes = nil
@@ -220,20 +262,14 @@ end)
 -- ---------------------------------------------------------
 --  Aperçu en direct pour le staff (onglet Carte)
 -- ---------------------------------------------------------
-RegisterNUICallback('minimap_preview', function(body, cb)
-    cb('ok')
-    if type(body) ~= 'table' then return end
-    preview = body
-    CreateThread(apply)
-end)
+RegisterNUICallback('minimap_preview', function(_, cb) cb('ok') end)   -- plus d'aperçu : carte fixée par le code
 
-RegisterNUICallback('minimap_preview_end', function(_, cb)
-    cb('ok')
-    preview = nil
-    CreateThread(apply)
-end)
+RegisterNUICallback('minimap_preview_end', function(_, cb) cb('ok') end)
 
 -- Ressource arrêtée : on rend à GTA son masque d'origine
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() and maskOn then RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm') end
+    if res == GetCurrentResourceName() and maskOn then
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
+    end
 end)

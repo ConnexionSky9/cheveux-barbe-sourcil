@@ -58,8 +58,8 @@ const CATS = [
     { id: 'mod',     ico: '🛡️', label: 'Modération',         tabs: ['players', 'reports', 'bans', 'debts'] },
     { id: 'tools',   ico: '🧰', label: 'Mes outils',         tabs: ['self', 'items', 'vehicles', 'staffjob'] },
     { id: 'server',  ico: '🌍', label: 'Serveur et monde',   tabs: ['announce', 'world', 'events', 'map', 'respawn', 'welcome'] },
-    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis'] },
-    { id: 'illegal', ico: '🩸', label: 'Illégal',            tabs: ['illegal', 'drugsale', 'jewelry', 'bankheist', 'noirx'] },
+    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis', 'animaux', 'casino', 'pvp'] },
+    { id: 'illegal', ico: '🩸', label: 'Illégal',            tabs: ['illegal', 'drugsale', 'tags', 'jewelry', 'bankheist', 'noirx'] },
     { id: 'build',   ico: '🏗️', label: 'Construction',       tabs: ['editor'] },
     { id: 'admin',   ico: '⚙️', label: 'Administration',     tabs: ['staff', 'ranks', 'logs', 'wipe', 'keys'] },
     { id: 'other',   ico: '📦', label: 'Autres',             tabs: [] },
@@ -472,7 +472,8 @@ function playerDetail(p) {
                 b('give_weapon', 'give_weapon', 'Donner une arme'), b('kill', 'kill', 'Tuer', 'danger', above)].join('');
     const pm = !isMe ? b('staff_pm', 'pm', '✉️ Message privé', 'primary') : '';
     const sa = [b('jail', 'jail', '⛓️ Jail', '', above), b('warn', 'warn', 'Avertir', '', isMe || above), b('kick', 'kick', 'Expulser', 'danger', isMe || above), b('ban', 'ban', 'Bannir', 'danger', isMe || above)].join('');
-    const sf = has('manage_staff') && !isMe ? `<button class="btn" data-act="set_rank" ${above ? 'disabled' : ''}>Modifier le grade</button>` : '';
+    const rankLocked = above && !(D.me.isOwner && p.menuOwner);
+    const sf = has('manage_staff') && !isMe ? `<button class="btn" data-act="set_rank" ${rankLocked ? 'disabled' : ''}>Modifier le grade</button>` : '';
 
     const group = (title, html) => (html ? `<div class="group"><h3>${title}</h3><div class="btn-row">${html}</div></div>` : '');
     return `
@@ -885,9 +886,10 @@ function bansTable() {
 };
 
 /* ---------- Staff ---------- */
-function assignableRanks() {
+// withOwner : un fondateur peut nommer un autre fondateur (accès à tout)
+function assignableRanks(withOwner) {
     return Object.entries(D.ranks)
-        .filter(([, r]) => r.level < D.me.level)
+        .filter(([k, r]) => r.level < D.me.level || (withOwner && D.me.isOwner && k === D.me.rank))
         .sort((a, b) => b[1].level - a[1].level);
 }
 
@@ -898,11 +900,13 @@ VIEWS.staff = () => {
     ${list.length ? `<table>
         <tr><th>Membre</th><th>Grade</th><th>Statut</th><th>Identifiant</th><th></th></tr>
         ${list.map((s) => {
-            const editable = !s.owner && s.level < D.me.level;
+            const isSelf = s.online && s.online === D.me.id;
+            const editable = (!s.owner && s.level < D.me.level) || (D.me.isOwner && s.menuOwner && !isSelf);
             return `<tr>
                 <td>${esc(s.name)}</td>
                 <td>${editable
                     ? `<select class="input" data-staff-rank="${esc(s.identifier)}" style="width:170px">
+                        ${s.menuOwner ? `<option value="" selected disabled>${esc(s.label)}</option>` : ''}
                         ${ranks.map(([k, r]) => `<option value="${k}" ${k === s.rank ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}
                        </select>`
                     : `<span class="badge" style="color:${s.color}">${esc(s.label)}</span>`}</td>
@@ -1183,6 +1187,12 @@ function npcSummary(n) {
     }
     if (n.tattoo) parts.push(`🖋️ Tatoueur <b>${esc(n.tattoo.name)}</b> · torse ${(n.tattoo.prices || {}).torso ?? 0} $ · bras ${(n.tattoo.prices || {}).left_arm ?? 0} $${n.tattoo.removal ? ' · retrait au laser' : ''}${n.tattoo.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.gunshop) parts.push(`🔫 Armurerie <b>${esc(n.gunshop.name)}</b> · ${(n.gunshop.items || []).length} article(s)${n.gunshop.licence ? ' · permis exigé' : ''}${n.gunshop.trial ? ` · essai ${n.gunshop.trialDuration} s${n.gunshop.spot ? '' : ' (stand de tir à placer)'}` : ''}`);
+    if (n.casino) {
+        const CR = { blackjack: '🃏 Croupier de blackjack', roulette: '🎡 Croupier de roulette', wheel: '🎰 Roue de la fortune', cashier: '💰 Guichet des jetons' };
+        const wl = n.casino.role === 'wheel' ? ` · roue « ${esc(((D.casinoWheels || []).find((w) => w.id === n.casino.wheel) || {}).name || n.casino.wheel)} »` : '';
+        parts.push(`${CR[n.casino.role] || '🎰 Casino'} <b>${esc(n.casino.name || '')}</b>${wl}${n.casino.role !== 'cashier' ? (n.casino.table ? ' · posée' : ' · <b style="color:var(--danger)">table / roue à poser</b>') : ''}`);
+    }
+    if (n.pvp) parts.push(`⚔️ Arène PvP <b>${esc(n.pvp.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
@@ -1243,6 +1253,7 @@ function edPeds() {
                 <div class="btn-row">
                     <button class="btn primary" data-ed="edit_ped" data-id="${r.id}">Modifier son rôle</button>
                     <button class="btn" data-ed="move" data-kind="ped" data-id="${r.id}">Déplacer</button>
+                    <button class="btn" data-ed="dup_ped" data-id="${r.id}" title="Pose une copie (même modèle, même rôle et réglages)">⧉ Dupliquer</button>
                     <button class="btn" data-ed="tp" data-kind="ped" data-id="${r.id}">Y aller</button>
                     ${has('gofast_manage') && !r.npc ? `<button class="btn" data-gf="import_ped" data-id="${r.id}" title="Il devient un contact qui donne des Go Fast">🏎️ Contact GoFast</button>` : ''}
                     <button class="btn danger" data-ed="delete" data-kind="ped" data-id="${r.id}">Supprimer</button>
@@ -1295,11 +1306,46 @@ function toPedEdit(r) {
         ...tattooEdit(n.tattoo),
         ...marketEdit(n.market),
         ...gunshopEdit(n.gunshop),
+        ...casinoEdit(n.casino),
+        pvpOn: !!n.pvp, pvpName: n.pvp ? (n.pvp.name || '') : 'Arène PvP',
         areaMode: n.area ? n.area.shape : 'default',
         areaRadius: n.area && n.area.shape === 'circle' ? n.area.radius : 4,
         areaPoly: n.area && n.area.shape === 'poly' ? clone(n.area) : null,
     };
 }
+// Casino (elyzea_casino) : croupier blackjack / roulette, roue de la fortune, guichetier
+const CASINO_ROLES = [
+    { id: 'blackjack', label: '🃏 Croupier de blackjack', model: 'vw_prop_casino_blckjack_01' },
+    { id: 'roulette', label: '🎡 Croupier de roulette', model: 'vw_prop_casino_roulette_01' },
+    { id: 'wheel', label: '🎰 Animateur roue de la fortune', model: 'vw_prop_vw_luckywheel_01a' },
+    { id: 'cashier', label: '💰 Guichetier (jetons)', model: '' },
+];
+function casinoEdit(c) {
+    return { casinoOn: !!c, csRole: c ? c.role : 'blackjack', csName: c ? (c.name || '') : '', csModel: c ? (c.model || '') : '', csWheel: c ? (c.wheel || 'lucky') : 'lucky' };
+}
+function casinoCard(p) {
+    const live = ((D.editor && D.editor.peds || []).find((x) => x.id === p.id) || {}).npc;
+    const saved = !!(live && live.casino && live.casino.role === p.csRole);
+    const placed = saved && live.casino.table;
+    const role = CASINO_ROLES.find((r) => r.id === p.csRole) || CASINO_ROLES[0];
+    const wheels = D.casinoWheels || [];
+    return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🎰 Casino</h3>
+        <p class="hint">Le PNJ prend le rôle choisi. <b>Croupier</b> : pose la <b>table</b> juste devant lui (les chaises de l'autre côté) ; les joueurs s'assoient en appuyant sur E près d'une chaise (4 places).
+            <b>Roue</b> : pose la roue ; elle utilise le modèle de roue choisi (réglages et lots : <b>Casino › Roues</b>). <b>Guichetier</b> : achat et revente des jetons.
+            Règles, mises et statistiques : onglet <b>Casino</b>. Nécessite la ressource <b>elyzea_casino</b>.</p>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+            <div><label>Rôle</label><select class="input" data-pe="csRole">${CASINO_ROLES.map((r) => `<option value="${r.id}" ${r.id === p.csRole ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
+            <div><label>Nom affiché</label><input class="input" data-pe="csName" value="${esc(p.csName)}" placeholder="ex : Table VIP"></div>
+            ${p.csRole === 'wheel' ? `<div><label>Roue utilisée</label><select class="input" data-pe="csWheel">${wheels.map((w) => `<option value="${esc(w.id)}" ${w.id === p.csWheel ? 'selected' : ''}>${esc(w.name)} (${esc(w.id)})</option>`).join('') || `<option value="${esc(p.csWheel)}">${esc(p.csWheel)}</option>`}</select></div>` : ''}
+            ${p.csRole === 'blackjack' || p.csRole === 'roulette' ? `<div><label>Modèle de table (vide = celui du jeu)</label><input class="input" data-pe="csModel" value="${esc(p.csModel)}" placeholder="${esc(role.model)}"></div>` : ''}
+        </div>
+        ${p.csRole !== 'cashier' ? `<div class="btn-row">
+            ${saved ? `<button class="btn primary" data-ed="cs_table">📍 ${placed ? 'Déplacer' : 'Poser'} ${p.csRole === 'wheel' ? 'la roue' : 'la table'}</button>
+                ${placed ? '<button class="btn" data-ed="cs_table_tp">🚀 Y aller</button>' : ''}`
+                : '<span class="hint">Enregistre d\'abord le PNJ avec ce rôle, puis pose la table / la roue.</span>'}
+        </div>` : ''}</div>`;
+}
+
 // Armurerie : armes, munitions, accessoires + essai au stand de tir
 const GS_TYPES = [{ id: 'weapon', label: '🔫 Arme' }, { id: 'ammo', label: '🧨 Munitions' }, { id: 'item', label: '🔦 Accessoire' }];
 function gsGuess(item) {
@@ -1608,7 +1654,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
@@ -1658,6 +1704,8 @@ function pedEditPayload(p) {
             })),
             payChoice: !!p.mkPayChoice, blip: !!p.mkBlip, blipSprite: num(p.mkBlipSprite, 52), blipColor: num(p.mkBlipColor, 2),
         } : null,
+        casino: p.casinoOn ? { role: p.csRole, name: String(p.csName || '').trim(), model: String(p.csModel || '').trim(), wheel: p.csWheel } : null,
+        pvp: p.pvpOn ? { name: String(p.pvpName || '').trim() } : null,
         area: p.areaMode === 'circle' ? { shape: 'circle', radius: Math.max(1, Math.min(40, num(p.areaRadius, 4))) }
             : p.areaMode === 'poly' ? livePoly(p) : null,
         jobs: p.gJobsOn ? p.gJobs.filter((j) => String(j.job).trim()).map((j) => ({ job: String(j.job).trim().toLowerCase(), grade: num(j.grade, 0) })) : [],
@@ -1911,11 +1959,19 @@ function pedEditor() {
                 ${tog('tattooOn', '🖋️ Tatoueur', 'Tatouages par zone du corps, retrait au laser')}
                 ${tog('marketOn', '🏪 Supérette', 'Magasin avec rayons, panier et paiement')}
                 ${tog('gunshopOn', '🔫 Armurerie', 'Armes, munitions, accessoires, essai au stand de tir')}
+                ${tog('casinoOn', '🎰 Casino', 'Croupier (blackjack, roulette), roue de la fortune ou guichet des jetons')}
+                ${tog('pvpOn', '⚔️ Arène PvP', 'Parties en équipes avec mises et paris (ressource pvp_arena)')}
             </div>
+            ${p.pvpOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">⚔️ Arène PvP</h3>
+                <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le menu des parties : créer, rejoindre, miser, parier.
+                    Les arènes se règlent en jeu avec les commandes <b>/pvp_arena_*</b> (voir le README de pvp_arena). Nécessite la ressource <b>pvp_arena</b>.</p>
+                <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="pvpName" value="${esc(p.pvpName)}" placeholder="Arène PvP"></div>
+            </div>` : ''}
             ${p.barberOn ? barberCard(p, tog) : ''}
             ${p.tattooOn ? tattooCard(p, tog) : ''}
             ${p.marketOn ? marketCard(p, tog) : ''}
             ${p.gunshopOn ? gunshopCard(p, tog) : ''}
+            ${p.casinoOn ? casinoCard(p) : ''}
             ${p.dmvOn ? dmvCard(p, tog) : ''}
             ${p.farmOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🪓 Métier de farm</h3>
                 <p class="hint">En parlant à ce PNJ (E), les joueurs peuvent <b>commencer ou arrêter</b> le travail (la tenue change toute seule)
@@ -2357,6 +2413,8 @@ const ZONE_PRESETS = [
         enterMsg: 'Bienvenue', exitMsg: '' } },
     { id: 'territory', icon: '🌿', label: 'Territoire (drogue)', s: { name: 'Territoire', color: 'white', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
         territory: true, enterMsg: '', exitMsg: '' } },
+    { id: 'soundproof', icon: '🔇', label: 'Zone insonorisée', s: { name: 'Salle insonorisée', color: 'purple', safe: false, noWeapons: false, invincible: false, exemptPolice: false, speedLimit: 0, blip: false, showBorder: false,
+        soundproof: true, height: 4, depth: 1, enterMsg: 'Zone insonorisée : seules les personnes à l\'intérieur vous entendent', exitMsg: '' } },
     { id: 'slow', icon: '🚸', label: 'Zone 30 km/h', s: { name: 'Zone piétonne', color: 'blue', safe: true, noWeapons: false, invincible: false, exemptPolice: true, speedLimit: 30, blip: true, showBorder: false,
         enterMsg: 'Zone limitée à 30 km/h', exitMsg: '' } },
 ];
@@ -2371,7 +2429,9 @@ const zoneSettingsOf = (z) => ({
     safe: !!z.safe, noWeapons: !!z.noWeapons, invincible: !!z.invincible, exemptPolice: !!z.exemptPolice,
     speedLimit: Number(z.speedLimit) || 0, blip: !!z.blip, showBorder: !!z.showBorder,
     blipSprite: Math.max(0, Math.floor(Number(z.blipSprite) || 0)), blipScale: Number(z.blipScale) || 0.8,
-    territory: !!z.territory,
+    territory: !!z.territory, soundproof: !!z.soundproof,
+    height: Number(z.height) > 0 ? Number(z.height) : ((D.config.editor && D.config.editor.zoneHeight) || 80),
+    depth: Number(z.depth) >= 0 && z.depth !== undefined && z.depth !== '' ? Number(z.depth) : ((D.config.editor && D.config.editor.zoneDepth) || 15),
 });
 // Icônes de zone : celle choisie, ou l'icône automatique
 let zoneIconSearch = '';
@@ -2415,6 +2475,8 @@ function zoneBadges(z) {
     if (z.blip) b.push(`${zoneIconOf(z).emoji} Carte : ${esc(zoneIconOf(z).label)}`);
     if (z.showBorder) b.push('👁️ Limites visibles');
     if (z.territory) b.push('🌿 Territoire de vente');
+    if (z.soundproof) b.push('🔇 Insonorisée');
+    if (z.height !== undefined) b.push(`↕️ +${Number(z.height)} m / −${Number(z.depth)} m`);
     return b.map((x) => `<span class="zbadge">${x}</span>`).join('');
 }
 function edZones() {
@@ -2442,6 +2504,15 @@ function edZones() {
             ${tog('blip', '📍 Sur la carte', 'Zone colorée + nom')}
             ${tog('showBorder', '👁️ Limites visibles', 'Murs colorés pour tous')}
             ${tog('territory', '🌿 Territoire de vente', 'Drogue vendable ici · contrôlé par les groupes (F5 › Map)')}
+            ${tog('soundproof', '🔇 Zone insonorisée', 'Dedans on n\'entend que ceux qui y sont · dehors on ne les entend pas')}
+        </div>
+        <div class="card recipe"><h3 class="sub-h" style="font-size:17px">↕️ Hauteur de la zone</h3>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:620px">
+                <div><label>Hauteur au-dessus du coin le plus haut (m)</label><input class="input" type="number" min="0.5" max="500" step="0.5" data-zf="height" value="${esc(z.height)}"></div>
+                <div><label>Profondeur sous le coin le plus bas (m)</label><input class="input" type="number" min="0" max="200" step="0.5" data-zf="depth" value="${esc(z.depth)}"></div>
+            </div>
+            <p class="hint" style="margin-top:8px">${z.soundproof ? 'Pour une pièce : pose les coins au sol aux 4 coins de la pièce, hauteur ≈ 3 à 4 m (jusqu\'au plafond), profondeur ≈ 1 m. Au-dessus ou en dessous, on est « dehors ».' : 'Partie couverte par la zone en hauteur.'}
+                Pendant le dessin, <span class="keycap">↑</span> / <span class="keycap">↓</span> règlent la hauteur en direct (murs visibles).</p>
         </div>
         ${z.blip ? zoneIconPicker(z) : ''}
         ${z.safe ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">Règles de la safe zone</h3>
@@ -2570,6 +2641,7 @@ async function handleEditor(n) {
         }
         case 'prop_magnet': drafts.propMagnet = !drafts.propMagnet; return render();
         case 'move': return editorPost('move', { kind, id });
+        case 'dup_ped': return editorPost('dup_ped', { id });
         case 'prop_select': return editorPost('prop_select', {});
         case 'prop_show': return editorPost('prop_show', { ids: [id], label: `Prop #${id}` });
         case 'folder_new': {
@@ -2705,6 +2777,13 @@ async function handleEditor(n) {
         }
         case 'gs_clear': pedEdit.gsItems = []; return render();
         case 'gs_spot': return editorPost('gunshop_spot', { id: pedEdit.id });
+        case 'cs_table': {
+            const role = CASINO_ROLES.find((r) => r.id === pedEdit.csRole) || CASINO_ROLES[0];
+            const live = ((D.editor && D.editor.peds || []).find((x) => x.id === pedEdit.id) || {}).npc;
+            const t = live && live.casino && live.casino.table;
+            return editorPost('casino_table', { id: pedEdit.id, model: (pedEdit.csRole !== 'wheel' && String(pedEdit.csModel || '').trim()) || role.model, h: t ? t.h : undefined });
+        }
+        case 'cs_table_tp': return editorPost('casino_table_tp', { id: pedEdit.id });
         case 'gs_spot_tp': return editorPost('gunshop_spot_tp', { id: pedEdit.id });
         case 'area_draw': return editorPost('npc_area_draw', { id: pedEdit.id, name: pedEdit.name });
         case 'cl_all': pedEdit.clCats = CLOTHING_CATS.map((c) => c.id); return render();
@@ -3009,7 +3088,7 @@ content.addEventListener('input', (e) => {
     if (pedEdit && t.dataset.pe) {
         const v = t.dataset.pe === 'hoursOn' ? t.value === 'true' : t.value;
         pedEdit[t.dataset.pe] = v;
-        if (['payment', 'hoursOn'].includes(t.dataset.pe)) render();
+        if (['payment', 'hoursOn', 'csRole'].includes(t.dataset.pe)) render();
         if (t.dataset.pe === 'gsTrialDuration') { const l = document.getElementById('gs-dur'); if (l) l.textContent = `${t.value} s`; }
         if (t.dataset.pe === 'gsTrialRadius') { const l = document.getElementById('gs-rad'); if (l) l.textContent = `${t.value} m`; }
         if (t.dataset.pe === 'gsFilter') {
@@ -3297,9 +3376,12 @@ async function handleAct(act) {
             return;
         }
         case 'set_rank': {
-            const opts = [{ value: 'none', label: 'Aucun (retirer du staff)' }, ...assignableRanks().map(([k, r]) => ({ value: k, label: `${r.label} (niveau ${r.level})` }))];
+            const opts = [{ value: 'none', label: 'Aucun (retirer du staff)' }, ...assignableRanks(true).map(([k, r]) => ({ value: k, label: k === D.me.rank ? `${r.label} (accès à tout)` : `${r.label} (niveau ${r.level})` }))];
             const v = await formModal(`Grade de ${name}`, [{ name: 'rank', label: 'Grade', type: 'select', options: opts, value: p && p.rank }], 'Appliquer');
-            if (v) action('set_rank', { target: t, rank: v.rank });
+            if (!v) return;
+            if (D.me.isOwner && v.rank === D.me.rank
+                && !(await confirmBox('Nommer fondateur ?', `${name} aura accès à TOUT, comme vous (toutes les permissions, gestion du staff et des grades). Seul un fondateur pourra le lui retirer.`))) return;
+            action('set_rank', { target: t, rank: v.rank });
             return;
         }
         case 'tpc_go': {

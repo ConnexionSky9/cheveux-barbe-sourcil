@@ -19,7 +19,9 @@ CreateThread(function()
     local wasDown, deathPos = false, nil
     while true do
         Wait(500)
-        if not waking then
+        if LocalPlayer.state.pvpArena then
+            wasDown = false   -- arène PvP : morts et réapparitions gérées par pvp_arena (pas de lit d'hôpital)
+        elseif not waking then
             local down = isDown()
             if down and not wasDown then
                 wasDown, deathPos = true, GetEntityCoords(PlayerPedId())

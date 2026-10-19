@@ -817,11 +817,22 @@ end)
 -- Monter dans un véhicule de mes gardes : F (entrer) prend la première place libre
 -- (passager avant d'abord) au lieu d'essayer de sortir le garde au volant
 CreateThread(function()
+    local nearVeh, scanAt = false, 0   -- un véhicule de garde à moins de 12 m ? (vérifié 4 fois/s)
     while true do
         local wait = 1000
         if #Guards > 0 and not IsPedInAnyVehicle(Me(), false) then
-            wait = 0
-            if IsControlJustPressed(0, 23) then
+            local now = GetGameTimer()
+            if now >= scanAt then
+                scanAt = now + 250
+                nearVeh = false
+                local mc = GetEntityCoords(Me())
+                for _, g in ipairs(Guards) do
+                    local v = Alive(g) and (IsPedInAnyVehicle(g.ped, false) and GetVehiclePedIsIn(g.ped, false) or (g.mode == 'vehicle' and g.veh)) or nil
+                    if v and DoesEntityExist(v) and #(GetEntityCoords(v) - mc) < 12.0 then nearVeh = true break end
+                end
+            end
+            wait = nearVeh and 0 or 250
+            if nearVeh and IsControlJustPressed(0, 23) then
                 local me = Me()
                 local mc = GetEntityCoords(me)
                 local best, bestD

@@ -85,6 +85,8 @@ body.barber-open #prompt { display: none !important; }
 .bb-item:hover b { color: var(--gold-hi); }
 .bb-item.sel { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); background: linear-gradient(180deg, rgba(217, 181, 106, .14), rgba(217, 181, 106, .04)); }
 .bb-item.sel b { background: linear-gradient(180deg, var(--gold-hi), var(--signal)); color: #1a1406; }
+.bb-item.bad { opacity: .45; border-style: dashed; }
+.bb-item.bad b::after { content: " ⚠"; }
 .bb-item.orig::after, .bb-eye.orig::after {
     content: 'actuel'; position: absolute; top: -7px; right: 8px; padding: 0 6px; border-radius: 5px;
     font: 600 10px var(--body); line-height: 15px; color: var(--ok); background: var(--asphalt); border: 1px solid rgba(79, 179, 169, .5);

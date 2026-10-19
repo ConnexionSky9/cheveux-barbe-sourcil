@@ -78,6 +78,7 @@ local STORAGE_NAME = { propFolders = 'prop_folders' }
 local function save(kind)
     Storage.saveLater(STORAGE_NAME[kind] or kind, Data[kind])
     if kind == 'props' then TriggerEvent('adminmenu:propsChanged') end
+    if kind == 'peds' then TriggerEvent('adminmenu:pedsChanged') end
 end
 
 -- Envoi groupé : plusieurs modifications en 150 ms = un seul envoi à tous.
@@ -417,8 +418,15 @@ local function cleanNpc(n)
     if type(n.tattoo) == 'table' and TattooCleanRole then out.tattoo = TattooCleanRole(n.tattoo) end
     if type(n.market) == 'table' and MarketCleanRole then out.market = MarketCleanRole(n.market) end
     if type(n.gunshop) == 'table' and GunshopCleanRole then out.gunshop = GunshopCleanRole(n.gunshop) end
+    -- Casino (ressource elyzea_casino) : croupier blackjack / roulette, roue de la fortune, guichetier
+    if type(n.casino) == 'table' and CasinoCleanRole then out.casino = CasinoCleanRole(n.casino) end
+    -- Arène PvP (ressource pvp_arena) : ouvre le menu des parties
+    if type(n.pvp) == 'table' then
+        local name = cleanName(n.pvp.name, 40)
+        out.pvp = { name = name ~= '' and name or 'Arène PvP' }
+    end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -438,8 +446,10 @@ def('editor_save_ped', 'editor_peds', function(src, d)
             local oldStores = r.npc and r.npc.pubgarage and r.npc.pubgarage.stores
             local oldDmv = r.npc and r.npc.dmv
             local oldRange = r.npc and r.npc.gunshop and r.npc.gunshop.spot
+            local oldCasino = r.npc and r.npc.casino and r.npc.casino.table
             r.npc = cleanNpc(d.npc)
             if r.npc and r.npc.gunshop then r.npc.gunshop.spot = oldRange end   -- le stand de tir est gardé
+            if r.npc and r.npc.casino then r.npc.casino.table = oldCasino end   -- la table / roue posée est gardée
             if r.npc and r.npc.garage then r.npc.garage.spots = oldSpots or {} end   -- les points de sortie sont gardés
             if r.npc and r.npc.catalog then r.npc.catalog.testSpot = oldTest end     -- le point d'essai aussi
             if r.npc and r.npc.pubgarage then r.npc.pubgarage.spots = oldPub or {} r.npc.pubgarage.stores = oldStores or {} end
@@ -746,6 +756,11 @@ local function zoneSettings(d, base)
         blipScale   = num(d.blipScale, 0.4, 1.6, base.blipScale or 0.8),
         -- Territoire : seul endroit où l'on peut vendre de la drogue (elyzea_illegal), contrôlé par les groupes
         territory   = bool(d.territory, base.territory),
+        -- Zone insonorisée : à l'intérieur on n'entend que ceux qui y sont, et l'extérieur n'entend pas l'intérieur
+        soundproof  = bool(d.soundproof, base.soundproof),
+        -- Hauteur couverte au-dessus du coin le plus haut / profondeur sous le coin le plus bas (mètres)
+        height      = round(num(d.height, 0.5, 500, base.height or Config.Zones.height)),
+        depth       = round(num(d.depth, 0, 200, base.depth or Config.Zones.depth)),
     }
     if z.name == '' then z.name = 'Zone' end
     return z
@@ -758,7 +773,7 @@ local function zoneShape(src, d, z)
         z.shape, z.points = 'circle', nil
         z.center = { x = round(c.x), y = round(c.y) }
         z.radius = round(r)
-        z.minZ, z.maxZ = round(c.z - Config.Zones.depth), round(c.z + Config.Zones.height)
+        z.floorZ, z.topZ = round(c.z - 1.0), round(c.z - 1.0)   -- niveau des pieds
         return true
     end
     local pts, minZ, maxZ = {}, math.huge, -math.huge
@@ -772,8 +787,19 @@ local function zoneShape(src, d, z)
     end
     if #pts < 3 then return false end
     z.shape, z.points, z.center, z.radius = 'poly', pts, nil, nil
-    z.minZ, z.maxZ = round(minZ - Config.Zones.depth), round(maxZ + Config.Zones.height)
+    z.floorZ, z.topZ = round(minZ), round(maxZ)
     return true
+end
+
+-- Hauteur couverte : du coin le plus bas - profondeur au coin le plus haut + hauteur
+local function zoneHeight(z)
+    if not z.floorZ then   -- zone créée avant le réglage de hauteur
+        z.floorZ = (z.minZ or 0) + Config.Zones.depth
+        z.topZ = (z.maxZ or 0) - Config.Zones.height
+        if z.topZ < z.floorZ then z.topZ = z.floorZ end
+    end
+    z.minZ = round(z.floorZ - (z.depth or Config.Zones.depth))
+    z.maxZ = round(z.topZ + (z.height or Config.Zones.height))
 end
 
 def('editor_save_zone', 'editor_zones', function(src, d)
@@ -783,10 +809,12 @@ def('editor_save_zone', 'editor_zones', function(src, d)
             if not zoneShape(src, d, z) then return AM.notify(src, 'Il faut au moins 3 coins pour une zone.', 'error') end
         end
         if d.settings then for k, v in pairs(zoneSettings(d.settings, z)) do z[k] = v end end
+        zoneHeight(z)
         AM.addLog(src, 'Zone modifiée', ('#%d %s'):format(z.id, z.name))
     else
         z = zoneSettings(d.settings or {})
         if not zoneShape(src, d, z) then return AM.notify(src, 'Il faut au moins 3 coins pour une zone.', 'error') end
+        zoneHeight(z)
         z.id = nextId(Data.zones)
         table.insert(Data.zones, z)
         AM.addLog(src, 'Zone créée', ('#%d %s (%s)'):format(z.id, z.name, z.shape == 'circle' and 'cercle' or (#z.points .. ' coins')))
@@ -1603,6 +1631,19 @@ def('editor_gunshop_spot', 'editor_peds', function(src, d)
     AM.notify(src, 'Point d\'essai enregistré à ta position (et dans ta direction).', 'success')
 end)
 
+-- Casino : table de jeu / roue posée avec l'outil de placement (modèle, position, orientation)
+def('editor_casino_table', 'editor_peds', function(src, d)
+    local r = pedOf(tonumber(d.pedId))
+    if not r or not r.npc or not r.npc.casino then return AM.notify(src, 'Active d\'abord le rôle « Casino » sur ce PNJ et enregistre.', 'error') end
+    local x, y, z, h = coords(d)
+    if not x then return AM.notify(src, 'Position invalide.', 'error') end
+    if #(GetEntityCoords(GetPlayerPed(src)) - vector3(x, y, z)) > 250.0 then return AM.notify(src, 'Position trop loin de toi.', 'error') end
+    r.npc.casino.table = { x = x, y = y, z = z, h = h }
+    save('peds') broadcast('peds')
+    AM.addLog(src, 'Casino : table / roue posée', ('PNJ #%d (%s)'):format(r.id, r.npc.casino.role))
+    AM.notify(src, r.npc.casino.role == 'wheel' and 'Roue posée.' or 'Table posée. Les joueurs s\'assoient en approchant d\'une chaise (E).', 'success')
+end)
+
 def('editor_catalog_spot', 'editor_peds', function(src, d)
     local r = pedOf(tonumber(d.pedId))
     if not r or not r.npc or not r.npc.catalog then return AM.notify(src, 'Active d\'abord le rôle « Catalogue concession » sur ce PNJ et enregistre.', 'error') end
@@ -2220,6 +2261,17 @@ exports('GetPropsByRole', function(role)
     local out = {}
     for _, r in ipairs(Data.props) do
         if r.role == role then out[#out + 1] = { id = r.id, model = r.model, x = r.x, y = r.y, z = r.z, h = r.h } end
+    end
+    return out
+end)
+
+-- Points du casino (elyzea_casino) : PNJ ayant le rôle « Casino »
+exports('GetCasinoPoints', function()
+    local out = {}
+    for _, r in ipairs(Data.peds) do
+        if r.npc and r.npc.casino then
+            out[#out + 1] = { id = r.id, name = r.name, x = r.x, y = r.y, z = r.z, h = r.h, casino = r.npc.casino }
+        end
     end
     return out
 end)
