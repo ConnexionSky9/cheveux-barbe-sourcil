@@ -1252,6 +1252,7 @@ function edPeds() {
                 <div class="btn-row">
                     <button class="btn primary" data-ed="edit_ped" data-id="${r.id}">Modifier son rôle</button>
                     <button class="btn" data-ed="move" data-kind="ped" data-id="${r.id}">Déplacer</button>
+                    <button class="btn" data-ed="dup_ped" data-id="${r.id}" title="Pose une copie (même modèle, même rôle et réglages)">⧉ Dupliquer</button>
                     <button class="btn" data-ed="tp" data-kind="ped" data-id="${r.id}">Y aller</button>
                     ${has('gofast_manage') && !r.npc ? `<button class="btn" data-gf="import_ped" data-id="${r.id}" title="Il devient un contact qui donne des Go Fast">🏎️ Contact GoFast</button>` : ''}
                     <button class="btn danger" data-ed="delete" data-kind="ped" data-id="${r.id}">Supprimer</button>
@@ -2631,6 +2632,7 @@ async function handleEditor(n) {
         }
         case 'prop_magnet': drafts.propMagnet = !drafts.propMagnet; return render();
         case 'move': return editorPost('move', { kind, id });
+        case 'dup_ped': return editorPost('dup_ped', { id });
         case 'prop_select': return editorPost('prop_select', {});
         case 'prop_show': return editorPost('prop_show', { ids: [id], label: `Prop #${id}` });
         case 'folder_new': {

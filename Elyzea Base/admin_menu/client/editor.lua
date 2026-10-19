@@ -1009,6 +1009,20 @@ RegisterNUICallback('editor', function(body, cb)
     elseif n == 'move' then
         CloseMenu()
         EditorMove({ kind = d.kind, id = tonumber(d.id) })
+    elseif n == 'dup_ped' and canEdit('editor_peds') then
+        -- Copie d'un PNJ : même modèle, scénario, nom et rôle ; posée où l'on veut.
+        -- Les points posés à part (zone pour parler, table de casino, sorties de garage…) restent à l'original.
+        for _, r in ipairs(Editor.peds) do
+            if r.id == tonumber(d.id) then
+                local npc = r.npc and json.decode(json.encode(r.npc)) or nil
+                if npc then npc.area = nil end
+                CloseMenu()
+                Notify('Copie du PNJ : place-la où tu veux puis valide.', 'info')
+                StartPlacement({ kind = 'ped', model = r.model, heading = r.h, scenario = r.scenario or '',
+                    name = (r.name and r.name ~= '') and (r.name .. ' (copie)') or '', npc = npc })
+                break
+            end
+        end
     elseif n == 'add_plants' and canEdit('editor_harvest') then
         for _, f in ipairs(Editor.fields) do
             if f.id == tonumber(d.id) then
