@@ -90,13 +90,15 @@ end)
 -- ---------------------------------------------------------------------
 local COL = { catalog = { 59, 130, 246 }, exit = { 34, 197, 94 }, manage = { 245, 158, 11 } }
 CreateThread(function()
+    local st, stAt = nil, -1000   -- état employé (state bag) relu au plus toutes les 500 ms, pas à chaque image
     while true do
         local sleep = 800
         if #C.shops > 0 and not C.AnyOpen() then
             local ped = PlayerPedId()
             local pc = GetEntityCoords(ped)
             local inVeh = GetVehiclePedIsIn(ped, false) ~= 0
-            local st = C.State()
+            local now = GetGameTimer()
+            if now - stAt >= 500 then st, stAt = C.State(), now end
             local prompt, action
             for _, s in ipairs(C.shops) do
                 local c = s.catalog

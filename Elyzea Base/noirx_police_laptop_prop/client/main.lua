@@ -32,11 +32,15 @@ local function close()
 end
 
 CreateThread(function()
+    -- Liste des PC relue au plus toutes les 700 ms (lecture GlobalState coûteuse à chaque image)
+    local pcs, pcsAt = {}, -1000
     while true do
         local wait = 700
         if not isOpen then
             local pos = GetEntityCoords(PlayerPedId())
-            for _, pc in ipairs(GlobalState.policePCs or {}) do
+            local now = GetGameTimer()
+            if now - pcsAt >= 700 then pcs, pcsAt = GlobalState.policePCs or {}, now end
+            for _, pc in ipairs(pcs) do
                 if #(pos - vector3(pc.x + 0.0, pc.y + 0.0, pc.z + 0.0)) <= Config.InteractDistance then
                     wait = 0
                     help('~INPUT_CONTEXT~ PC Police')

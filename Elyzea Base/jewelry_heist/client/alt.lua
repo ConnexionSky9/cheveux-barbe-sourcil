@@ -136,14 +136,23 @@ end)
 
 -- Rappel à l'écran près d'un PNJ ou d'un sac
 CreateThread(function()
+    -- Cible recalculée toutes les 200 ms (lectures GlobalState coûteuses) ; l'aide reste affichée à chaque image
+    local text, at = nil, -1000
     while true do
         local sleep = 700
         if not C.ui and not LocalPlayer.state.jhBag then
-            local t = nearest()
-            if t then
-                sleep = 0
-                C.Help(('~INPUT_CHARACTER_WHEEL~ %s : %s'):format(titleOf(t), t.kind == 'bag' and 'ramasser / ouvrir' or 'interagir'))
+            local now = GetGameTimer()
+            if now - at >= 200 then
+                at = now
+                local t = nearest()
+                text = t and ('~INPUT_CHARACTER_WHEEL~ %s : %s'):format(titleOf(t), t.kind == 'bag' and 'ramasser / ouvrir' or 'interagir') or nil
             end
+            if text then
+                sleep = 0
+                C.Help(text)
+            end
+        else
+            at = -1000
         end
         Wait(sleep)
     end

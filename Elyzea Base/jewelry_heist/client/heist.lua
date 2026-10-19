@@ -26,10 +26,13 @@ end)
 
 -- Rappel à l'écran si le braqueur s'éloigne
 CreateThread(function()
+    local def, defId, defAt = nil, nil, -1000
     while true do
         local sleep = 1000
         if mine then
-            local def = C.PedDef('shop', mine.id)
+            -- Définition du bijoutier (GlobalState) relue au plus une fois par seconde
+            local now = GetGameTimer()
+            if defId ~= mine.id or now - defAt >= 1000 then def, defId, defAt = C.PedDef('shop', mine.id), mine.id, now end
             if def then
                 sleep = 0
                 local d = #(GetEntityCoords(PlayerPedId()) - vector3(def.ped.x, def.ped.y, def.ped.z))

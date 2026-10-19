@@ -142,23 +142,30 @@ local function mainOption(opts)
     for _, o in ipairs(opts) do if not o.disabled then return o end end
 end
 CreateThread(function()
+    -- Cible et options recalculées toutes les 200 ms (lectures GlobalState coûteuses) ; aide et touche à chaque image
+    local t, opts, main, at = nil, nil, nil, 0
     while true do
         local sleep = 700
         local blocking = false
         if not C.ui and not busy and not IsPedInAnyVehicle(PlayerPedId(), false) then
-            local t = nearest()
-            local opts = t and options(t) or {}
+            local now = GetGameTimer()
+            if not opts or now - at >= 200 then
+                at = now
+                t = nearest()
+                opts = t and options(t) or {}
+                main = mainOption(opts)
+            end
             if #opts > 0 and t.noE then
                 -- sac porté : E sert à poser le sac (jewelry_heist), l'argent se prend avec ALT
             elseif #opts > 0 then
                 sleep = 0
-                local main = mainOption(opts)
                 if main then
                     blocking = true
                     C.Help(('~INPUT_CONTEXT~ %s~n~~INPUT_CHARACTER_WHEEL~ %s'):format(main.label, t.title))
                     if IsControlJustReleased(0, 38) then
                         busy = true
-                        CreateThread(function() select(main.id, t) Wait(800) busy = false end)
+                        local id, tgt = main.id, t
+                        CreateThread(function() select(id, tgt) Wait(800) busy = false end)
                     end
                 else
                     local why = opts[1].desc or opts[1].label

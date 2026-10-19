@@ -67,9 +67,12 @@ RegisterCommand('sacargent', function() if bag and bag.money > 0 then CreateThre
 -- Encaissement : E près d'un point de dépôt en portant un sac de billets
 CreateThread(function()
     local blocking = false
+    local cfg, cfgAt = nil, -1000
     while true do
         local sleep = 700
-        local cfg = C.Cfg()
+        -- Réglages (GlobalState) relus au plus toutes les 500 ms, et seulement avec un sac
+        local now = GetGameTimer()
+        if bag and (not cfg or now - cfgAt >= 500) then cfg, cfgAt = C.Cfg(), now end
         local nearDp = nil
         if cfg and bag then
             local pc = GetEntityCoords(PlayerPedId())

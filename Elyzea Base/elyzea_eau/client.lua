@@ -257,11 +257,12 @@ local function close(msg)
     if msg then say(msg) end
 end
 
+local ED_BLOCKED = { 24, 25, 14, 15, 16, 17, 37, 44, 45, 74, 140, 141, 142 }   -- créée une fois, pas à chaque image
 local function editorLoop()
     while ed and not ed.close do
         local e = ed
         local me = GetEntityCoords(PlayerPedId())
-        for _, c in ipairs({ 24, 25, 14, 15, 16, 17, 37, 44, 45, 74, 140, 141, 142 }) do DisableControlAction(0, c, true) end
+        for _, c in ipairs(ED_BLOCKED) do DisableControlAction(0, c, true) end
         local typing = IsNuiFocused() or IsPauseMenuActive()
 
         local aim = aimPoint(e.z)

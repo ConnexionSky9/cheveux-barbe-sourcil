@@ -174,9 +174,12 @@ end
 
 -- Touche de dépôt (E par défaut) et rappel à l'écran
 CreateThread(function()
+    local cfg, cfgAt = nil, -1000
     while true do
         local sleep = 500
-        local cfg = C.Cfg()
+        -- Réglages (GlobalState) relus au plus toutes les 500 ms au lieu de chaque image
+        local now = GetGameTimer()
+        if not cfg or now - cfgAt >= 500 then cfg, cfgAt = C.Cfg(), now end
         -- jhNoDrop : posé par une autre ressource (ex. point de dépôt de bank_heist, où E sert à encaisser)
         if cfg and LocalPlayer.state.jhBag and not C.ui and not busy and not LocalPlayer.state.jhNoDrop then
             local ped = PlayerPedId()

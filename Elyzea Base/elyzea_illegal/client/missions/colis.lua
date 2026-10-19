@@ -171,6 +171,7 @@ M.registerType('colis', { update = update, stop = stop, progress = progress })
 --  Boucle : seulement pendant une mission « colis »
 -- ---------------------------------------------------------
 local lastVehicleReport = 0
+local guardBest, guardAt = nil, -1000   -- garde à fouiller : pool de PNJ parcouru au plus toutes les 250 ms
 CreateThread(function()
     while true do
         local run = M.run
@@ -204,13 +205,19 @@ CreateThread(function()
                         end
                     elseif not useTarget then
                         -- Gardes neutralisés à fouiller
-                        local best, bd
-                        for _, p in ipairs(GetGamePool('CPed')) do
-                            if isSearchable(p) then
+                        local now = GetGameTimer()
+                        if now - guardAt >= 250 then
+                            guardAt = now
+                            local best, bd
+                            for _, p in ipairs(GetGamePool('CPed')) do
                                 local d = #(me - GetEntityCoords(p))
-                                if d <= 2.2 and (not bd or d < bd) then best, bd = p, d end
+                                if d <= 2.2 and (not bd or d < bd) and isSearchable(p) then best, bd = p, d end
                             end
+                            guardBest = best
                         end
+                        local best = guardBest
+                        -- entre deux scans : le garde mémorisé doit rester valide et à portée
+                        if best and not (isSearchable(best) and #(me - GetEntityCoords(best)) <= 2.2) then best, guardBest = nil, nil end
                         if best then
                             shown = true
                             if M.alt(OWNER, 'Fouiller le garde', 'Garde neutralisé') then Prompt.hide(OWNER) searchGuard(best) end

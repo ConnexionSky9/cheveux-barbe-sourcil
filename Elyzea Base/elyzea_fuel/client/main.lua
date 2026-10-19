@@ -197,29 +197,43 @@ local function Refuel(veh, st, inside)
 end
 
 CreateThread(function()
+    -- Cible recalculée toutes les 250 ms (scan des véhicules) ; seule l'aide est affichée à chaque image
+    local cur, curAt = nil, 0
     while true do
         local sleep = 800
         if not refueling and #S.stations > 0 then
             local ped = PlayerPedId()
-            local pos = GetEntityCoords(ped)
-            local st = StationNear(pos)
-            if st then
-                sleep = 250
-                local veh, inside = TargetVehicle(ped)
-                if veh and UsesFuel(veh) and (not inside or GetPedInVehicleSeat(veh, -1) == ped) then
-                    local fuel = GetFuel(veh)
-                    if fuel < 99 then
-                        sleep = 0
-                        local liters = (100 - fuel) / 100 * TankOf(veh)
-                        local cost = math.ceil(liters * (st.price or 0))
-                        Help(('~INPUT_CONTEXT~ Faire le plein · %.0f L · ~g~%d $~s~ (%s $/L)'):format(liters, cost, tostring(st.price)))
-                        if IsControlJustPressed(0, 38) then
-                            if inside and GetEntitySpeed(veh) > 1.0 then Notify('Arrêtez-vous pour faire le plein.', 'error')
-                            elseif NetworkGetEntityIsNetworked(veh) then Refuel(veh, st, inside) end
+            local now = GetGameTimer()
+            if not cur or now - curAt >= 250 or not DoesEntityExist(cur.veh) then
+                curAt, cur = now, nil
+                local pos = GetEntityCoords(ped)
+                local st = StationNear(pos)
+                if st then
+                    sleep = 250
+                    local veh, inside = TargetVehicle(ped)
+                    if veh and UsesFuel(veh) and (not inside or GetPedInVehicleSeat(veh, -1) == ped) then
+                        local fuel = GetFuel(veh)
+                        if fuel < 99 then
+                            local liters = (100 - fuel) / 100 * TankOf(veh)
+                            local cost = math.ceil(liters * (st.price or 0))
+                            cur = { st = st, veh = veh, inside = inside,
+                                text = ('~INPUT_CONTEXT~ Faire le plein · %.0f L · ~g~%d $~s~ (%s $/L)'):format(liters, cost, tostring(st.price)) }
                         end
                     end
                 end
             end
+            if cur then
+                sleep = 0
+                Help(cur.text)
+                if IsControlJustPressed(0, 38) then
+                    local veh, st, inside = cur.veh, cur.st, cur.inside
+                    if inside and GetVehiclePedIsIn(ped, false) ~= veh then cur = nil   -- sorti du véhicule depuis le dernier calcul
+                    elseif inside and GetEntitySpeed(veh) > 1.0 then Notify('Arrêtez-vous pour faire le plein.', 'error')
+                    elseif NetworkGetEntityIsNetworked(veh) then cur = nil Refuel(veh, st, inside) end
+                end
+            end
+        else
+            cur = nil
         end
         Wait(sleep)
     end
