@@ -44,7 +44,7 @@
             Elle est désactivée par le menu, mais cette ressource peut encore reposer sa mini-carte au chargement : le menu repasse derrière elle.
             Pour éviter tout conflit, retire sa partie mini-carte ou arrête-la.</span></div>` : '';
         const locked = D.map.defaults && D.map.defaults.locked;
-        const lockNote = locked ? `<div class="protect" style="margin-bottom:14px">🔒 <span>La mini-carte est <b>verrouillée</b> en bas à droite par
+        const lockNote = locked ? `<div class="protect" style="margin-bottom:14px">🔒 <span>La mini-carte est <b>verrouillée</b> en bas à gauche par
             <span class="keycap">admin_menu/config.lua</span> (Config.Minimap.locked = true) : position, taille, forme et marges viennent de ce fichier,
             pour tout le monde, même après une reconnexion. Les réglages ci-dessous (options mises à part) ne s'appliquent pas tant que le verrou est actif.</span></div>` : '';
         return `${conflict}${lockNote}

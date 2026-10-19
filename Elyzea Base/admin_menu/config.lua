@@ -251,7 +251,7 @@ Config.Illegal = {
 Config.Minimap = {
     enabled = true,           -- false : le menu ne touche pas à la mini-carte
     shape = 'square',         -- 'square' (carrée), 'round' (ronde), 'default' (rectangle GTA)
-    position = 'bottom-right', -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
+    position = 'bottom-left', -- 'top-right', 'top-left', 'bottom-left', 'bottom-right'
     size = 0.185,             -- hauteur (part de l'écran)
     widthAdjust = 160,        -- % de largeur (100 = carré parfait, 160 = rectangle façon HUD)
     marginX = 0.014,          -- écart avec le bord gauche / droit

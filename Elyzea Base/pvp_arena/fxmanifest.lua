@@ -17,9 +17,11 @@ shared_scripts {
 server_scripts {
     '@elyzea_core/lib/MySQL.lua',
     'server/core.lua',
+    'server/settings.lua',
     'server/lobby.lua',
     'server/match.lua',
     'server/admin.lua',
+    'server/adminui.lua',
 }
 
 client_scripts {

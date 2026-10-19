@@ -184,7 +184,7 @@ local function loadFile(f)
     if not fn then error(err) end
     fn()
 end
-local FILES_LIST = { 'config.lua', 'locales/fr.lua', 'shared/rules.lua', 'server/core.lua', 'server/lobby.lua', 'server/match.lua', 'server/admin.lua' }
+local FILES_LIST = { 'config.lua', 'locales/fr.lua', 'shared/rules.lua', 'server/core.lua', 'server/settings.lua', 'server/lobby.lua', 'server/match.lua', 'server/admin.lua', 'server/adminui.lua' }
 local function boot()
     handlers, CB, COMMANDS, threads = {}, {}, {}, {}
     for _, f in ipairs(FILES_LIST) do loadFile(f) end
@@ -437,6 +437,40 @@ run(500)
 check(bal(5) - d5 == 300 and bal(6) - d6 == 300, 'au redémarrage : mises encore en jeu remboursées')
 check(DB.matches[uc].status == 'aborted', 'partie marquée comme interrompue')
 check(not P[5].state.pvpArena, 'marque « arène » retirée au redémarrage')
+
+section('Menu admin (onglet Arène PvP)')
+local AD, AA = exported.AdminData, exported.AdminAction
+check(AD(5).denied == true and not select(1, AA(5, 'settings_save', {})), 'sans permission « pvp_manage » : données et actions refusées')
+local data = AD(99)
+check(data.available and #data.arenas >= 1 and data.settings.stake.max == Config.Stake.max, 'données du menu : arènes et réglages')
+local cur = data.settings
+cur.stake.min, cur.stake.max = 500, 100
+ok, msg = AA(99, 'settings_save', { settings = cur })
+check(not ok, 'réglage incohérent refusé : ' .. tostring(msg))
+cur = AD(99).settings
+cur.bet.max, cur.timers.weaponSelect = 9999, 9
+cur.disabledWeapons = { 'WEAPON_SMG' }
+ok = AA(99, 'settings_save', { settings = cur })
+check(ok and Config.Bet.max == 9999 and Config.Timers.weaponSelect == 9 and not Arena.weapons.WEAPON_SMG, 'réglages appliqués tout de suite (pari max, délai, arme désactivée)')
+check(FILES['data/settings.json'] and FILES['data/settings.json']:find('9999'), 'réglages gardés dans data/settings.json')
+local all = {} for _, w in ipairs(data.weapons) do all[#all + 1] = w.name end
+cur = AD(99).settings cur.disabledWeapons = all
+ok, msg = AA(99, 'settings_save', { settings = cur })
+check(not ok, 'toutes les armes désactivées : refusé (' .. tostring(msg) .. ')')
+addPlayer(20, 'CID20', 0) P[20].pos = vector3(300, 300, 40)
+ADMINS[20] = true
+ok = AA(20, 'arena_new', { id = 'Port 2', label = 'Port' })
+check(ok and Arena.arenas.port2, 'arène créée à la position de l\'admin')
+AA(20, 'arena_add', { id = 'port2', what = 'A' }) AA(20, 'arena_add', { id = 'port2', what = 'B' })
+for _, c in ipairs({ { 280, 280 }, { 320, 280 }, { 320, 320 } }) do P[20].pos = vector3(c[1], c[2], 40) AA(20, 'arena_add', { id = 'port2', what = 'corner' }) end
+check(Arena.ArenaValid(Arena.arenas.port2) and #Arena.arenas.port2.zone.points == 3, 'apparitions et coins ajoutés : arène prête')
+ok = AA(20, 'arena_point_delete', { id = 'port2', what = 'corner', index = 2 })
+check(ok and #Arena.arenas.port2.zone.points == 2 and not Arena.ArenaValid(Arena.arenas.port2), 'suppression d\'un coin : arène de nouveau incomplète')
+local _, u9 = call('create', 1, { mode = '1v1' })
+ok = AA(99, 'match_cancel', { uid = u9 })
+check(ok and not Arena.lobbies[u9], 'partie annulée depuis le menu')
+ok = AA(99, 'settings_reset', {})
+check(ok and Config.Bet.max == 500000 and Arena.weapons.WEAPON_SMG, 'retour aux réglages de config.lua')
 
 section('Règles de répartition')
 local out = Rules.SplitStakes({ { id = 1, team = 'A', amount = 100 }, { id = 2, team = 'A', amount = 100 }, { id = 3, team = 'B', amount = 100 } }, 'A', 0, true)

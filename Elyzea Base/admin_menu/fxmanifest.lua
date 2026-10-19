@@ -85,6 +85,7 @@ server_scripts {
     'server/famille.lua',
     'server/casino.lua',
     'server/animaux.lua',
+    'server/pvp.lua',
     'server/guards.lua',
 }
 
@@ -129,5 +130,6 @@ files {
     'html/famille.js',
     'html/casino.js',
     'html/animaux.js',
+    'html/pvp.js',
     'html/logo.png',
 }

@@ -406,7 +406,7 @@ cb('open', function(src)
     return true, {
         list = list, mine = uid and Lobbies[uid] and Arena.LobbyView(Lobbies[uid], src) or nil,
         config = { modes = Config.Modes, wins = Config.WinsOptions, roundTimes = Config.RoundTimes, stake = Config.Stake, bet = Config.Bet,
-            teams = Config.Teams, arenas = Arena.PublicArenas(), weapons = Config.WeaponCategories, ff = Config.AllowFriendlyFireOption,
+            teams = Config.Teams, arenas = Arena.PublicArenas(), weapons = Arena.PublicWeapons(), ff = Config.AllowFriendlyFireOption,
             participantBets = Config.ParticipantBets, account = Config.Account, fee = Config.HouseFeePct, leaverForfeits = Config.LeaverForfeitsShare,
             abandon = Config.AbandonPolicy, ui = Config.UI },
     }

@@ -51,7 +51,7 @@
         "enabled": true,
         "marginY": 0.03,
         "size": 0.185,
-        "position": "bottom-right",
+        "position": "bottom-left",
         "widthAdjust": 160,
         "hideHealthBars": true,
         "marginX": 0.014,

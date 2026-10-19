@@ -58,7 +58,7 @@ const CATS = [
     { id: 'mod',     ico: '🛡️', label: 'Modération',         tabs: ['players', 'reports', 'bans', 'debts'] },
     { id: 'tools',   ico: '🧰', label: 'Mes outils',         tabs: ['self', 'items', 'vehicles', 'staffjob'] },
     { id: 'server',  ico: '🌍', label: 'Serveur et monde',   tabs: ['announce', 'world', 'events', 'map', 'respawn', 'welcome'] },
-    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis', 'animaux'] },
+    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis', 'animaux', 'casino', 'pvp'] },
     { id: 'illegal', ico: '🩸', label: 'Illégal',            tabs: ['illegal', 'drugsale', 'tags', 'jewelry', 'bankheist', 'noirx'] },
     { id: 'build',   ico: '🏗️', label: 'Construction',       tabs: ['editor'] },
     { id: 'admin',   ico: '⚙️', label: 'Administration',     tabs: ['staff', 'ranks', 'logs', 'wipe', 'keys'] },

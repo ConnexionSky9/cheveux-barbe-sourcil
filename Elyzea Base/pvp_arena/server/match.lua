@@ -123,7 +123,7 @@ function Arena.WeaponSelection(L)
     M.roundEnds = nil
     for s in pairs(L.members) do M.alive[s] = true end
     local allowed = {}
-    for name in pairs(L.settings.weapons) do allowed[#allowed + 1] = name end
+    for name in pairs(L.settings.weapons) do if Arena.weapons[name] then allowed[#allowed + 1] = name end end
     table.sort(allowed)
     sendAll(L, 'pvp_arena:weaponSelect', { round = M.round, seconds = TM.weaponSelect, allowed = allowed })
     pushHud(L)
@@ -152,9 +152,10 @@ end)
 
 local function defaultWeapon(L)
     local d = Config.DefaultWeapon:upper()
-    if L.settings.weapons[d] then return d end
+    if L.settings.weapons[d] and Arena.weapons[d] then return d end
     local list = {}
-    for name in pairs(L.settings.weapons) do list[#list + 1] = name end
+    for name in pairs(L.settings.weapons) do if Arena.weapons[name] then list[#list + 1] = name end end
+    if #list == 0 then return d end
     table.sort(list)
     return list[1]
 end
