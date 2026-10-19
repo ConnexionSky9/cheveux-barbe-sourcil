@@ -2,7 +2,8 @@
 --  Tests des règles (Lua 5.4 standard, hors du jeu)
 --  Lancement depuis le dossier de la ressource :  lua5.4 tests/test_regles.lua
 -- =====================================================================
-dofile('config.lua')
+dofile('config/config.lua')
+dofile('locales/fr.lua')
 dofile('shared/regles.lua')
 local R = Regles
 local H = 3600

@@ -46,7 +46,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:simuler', function(pid, net, nets
     end
     local e = net and B.entite(net)
     if not e or not B.controle(e) then return fin(false) end
-    SetEntityCollision(e, false, false)
+    SetEntityCollision(e, true, true)      -- V7 : la poussette qui roule reste solide (collision du modèle), objet figé déplacé par le script
     FreezeEntityPosition(e, true)
     if type(nets) == 'table' then B.attacherPieces(nets, PO.nacelle.pos, PO.nacelle.rot, e) end
     local P = {}

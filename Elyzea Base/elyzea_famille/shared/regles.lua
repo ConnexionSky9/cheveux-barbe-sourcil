@@ -242,28 +242,25 @@ end
 -- Texte RP d'un événement de l'historique (titre, description). data = table décodée (ou nil)
 function R.texteEvenement(kind, data)
     data = type(data) == 'table' and data or {}
+    local L = (FamLocale and FamLocale.evenements) or {}
+    local function t(cle) local x = L[cle] or { cle, '' } return x[1], x[2] end
     if kind == 'decouverte' then
-        return 'Grossesse découverte', data.par == 'examen' and 'Découverte lors d\'un examen médical.' or 'Découverte grâce à un test de grossesse.'
+        return t(data.par == 'examen' and 'decouverte_examen' or 'decouverte_test')
     elseif kind == 'test' then
-        return 'Test de grossesse', data.resultat == 'positif' and 'Résultat : positif.' or 'Résultat : négatif.'
+        return t(data.resultat == 'positif' and 'test_positif' or 'test_negatif')
     elseif kind == 'examen' then
-        return 'Examen médical', ('Grossesse confirmée par un EMS%s.'):format(data.jour and (', jour ' .. data.jour) or '')
-    elseif kind == 't2' then
-        return 'Deuxième trimestre', 'Entrée dans le deuxième trimestre.'
-    elseif kind == 't3' then
-        return 'Troisième trimestre', 'Entrée dans le troisième trimestre.'
-    elseif kind == 'terme' then
-        return 'Terme atteint', 'Le terme est atteint : le travail peut commencer.'
-    elseif kind == 'travail' then
-        return 'Début du travail', 'Le travail a commencé, accompagné par un EMS.'
+        local titre, desc = t('examen')
+        return titre, desc:format(data.jour and (L.examen_jour or ', jour %s'):format(data.jour) or '')
+    elseif kind == 't2' or kind == 't3' or kind == 'terme' or kind == 'travail' then
+        return t(kind)
     elseif kind == 'naissance' then
-        local n = tonumber(data.bebes) or 1
-        return 'Naissance', n == 1 and 'Naissance d\'un bébé.' or (n == 2 and 'Naissance de jumeaux.' or 'Naissance de triplés.')
+        local n = math.max(1, math.min(3, math.floor(tonumber(data.bebes) or 1)))
+        local x = L.naissance or { 'naissance', '', '', '' }
+        return x[1], x[1 + n]
     elseif kind == 'fin' then
-        if data.raison == 'reinitialisation_test' then return 'Fin (test)', 'Grossesse de test terminée par l\'administration.' end
-        return 'Fin de grossesse', 'La grossesse a pris fin.'
+        return t(data.raison == 'reinitialisation_test' and 'fin_test' or 'fin')
     elseif kind == 'evenement' then
-        return data.titre or 'Événement médical', data.description or ''
+        return data.titre or L.evenement or 'evenement', data.description or ''
     end
     return nil
 end

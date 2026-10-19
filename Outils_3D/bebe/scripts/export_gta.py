@@ -104,6 +104,11 @@ def main():
     from sollumz.ydr.shader_materials import create_shader
     from sollumz.tools.drawablehelper import convert_obj_to_drawable
     from sollumz.sollumz_preferences import get_addon_preferences
+    from sollumz.sollumz_properties import SollumType
+    from sollumz.tools.blenderhelper import create_blender_object, create_empty_object
+    from sollumz.tools.meshhelper import create_box
+    from sollumz.tools.boundhelper import apply_flag_preset
+    from sollumz.ybn.collision_materials import create_collision_material_from_index, collisionmats
 
     prefs = get_addon_preferences(bpy.context).export_settings
     prefs.target_formats = {'CWXML'}
@@ -197,6 +202,42 @@ def main():
                 uc.objects.unlink(d)
         return d
 
+    # ── collision intégrée (V7) : la poussette était traversable (aucune collision dans le modèle).
+    # Boîtes dans le repère de la poussette (origine au sol entre les roues, +Y vers l'avant), sans transformation :
+    # Sollumz calcule chaque boîte directement depuis son maillage. Les roues séparées n'ont pas de collision propre :
+    # la boîte basse les englobe.
+    POUSSETTE_BOITES = [
+        ((-0.31, -0.42, 0.02), (0.31, 0.42, 0.55)),     # roues, châssis, panier
+        ((-0.22, -0.38, 0.53), (0.22, 0.44, 0.72)),     # nacelle
+        ((-0.22, -0.36, 0.72), (0.22, -0.02, 0.98)),    # capote
+        ((-0.25, -0.56, 0.95), (0.25, -0.44, 1.04)),    # poignée
+    ]
+    IDX_PLASTIQUE = next(i for i, m in enumerate(collisionmats) if m[0] == 'PLASTIC')
+
+    def collision(drawable, boites):
+        comp = create_empty_object(SollumType.BOUND_COMPOSITE, f'{drawable.name}_col')
+        comp.parent = drawable
+        for i, (mn, mx) in enumerate(boites):
+            b = create_blender_object(SollumType.BOUND_BOX, f'{drawable.name}_col{i}')
+            create_box(b.data, 1)
+            for v in b.data.vertices:
+                v.co = (mx[0] if v.co.x > 0 else mn[0], mx[1] if v.co.y > 0 else mn[1], mx[2] if v.co.z > 0 else mn[2])
+            b.data.update()
+            b.data.materials.append(create_collision_material_from_index(IDX_PLASTIQUE))
+            b.parent = comp
+            if not apply_flag_preset(b, 'General (Default)'):
+                for f in ('map_weapon', 'map_dynamic', 'map_animal', 'map_cover', 'map_vehicle'):
+                    setattr(b.composite_flags1, f, True)
+                for f in ('vehicle_not_bvh', 'vehicle_bvh', 'ped', 'ragdoll', 'animal', 'animal_ragdoll', 'object',
+                          'plant', 'projectile', 'explosion', 'forklift_forks', 'test_weapon', 'test_camera', 'test_ai',
+                          'test_script', 'test_vehicle_wheel'):
+                    setattr(b.composite_flags2, f, True)
+        for o in [comp] + list(comp.children):
+            for uc in list(o.users_collection):
+                uc.objects.unlink(o)
+            coll_out.objects.link(o)
+        return comp
+
     drawables = []
     models = {'poses': {}, 'teintes': list(report['teintes']), 'tenues': list(report['tenues']), 'yeux': list(report['yeux']),
               'cheveux': list(report['textures']['cheveux'])}
@@ -244,7 +285,10 @@ def main():
                 mat = material('normal.sps', {'DiffuseSampler': os.path.splitext(f)[0],
                                               'BumpSampler': os.path.splitext(equip['textures'][key]['n'])[0]}, f'{key}_{col}', TISSU)
                 n = f'{PREFIX}_{key}_{col}'
-                drawables.append(variant([ob], n, mat))
+                d_ = variant([ob], n, mat)
+                if key == 'poussette':
+                    collision(d_, POUSSETTE_BOITES)
+                drawables.append(d_)
                 models['equipements'][key][col] = n
             bpy.data.objects.remove(ob, do_unlink=True)
         models['equipements']['geo'] = {

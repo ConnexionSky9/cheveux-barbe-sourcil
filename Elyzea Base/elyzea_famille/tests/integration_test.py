@@ -11,6 +11,7 @@ Lancement depuis le dossier de la ressource :  python3 tests/integration_test.py
 import heapq
 import json
 import os
+import re
 import sys
 import time
 
@@ -289,8 +290,10 @@ EXPORTS_LUA = {}
 setmetatable(exports, { __call = function(_, name, fn) EXPORTS_LUA[name] = fn end })
 ''')
 
-SERVER_FILES = ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua', 'server/consentement.lua',
-                'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/suivi.lua', 'server/staff.lua')
+# même ordre que fxmanifest.lua (shared_scripts puis server_scripts) ; vérifié par le test 0
+SERVER_FILES = ('config/config.lua', 'locales/fr.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua',
+                'moment_intime/server/consentement.lua', 'contraception/server/contraception.lua', 'grossesse/server/conception.lua',
+                'moment_intime/server/intimite.lua', 'grossesse/server/grossesse.lua', 'grossesse/server/suivi.lua', 'server/staff.lua')
 
 
 SUIVI = [60]
@@ -381,6 +384,21 @@ W.add_player(4, 'MIN04', 0, '2010-06-06', (100.5, 100.5, 30.0))     # mineur
 W.add_player(5, 'LOIN5', 0, '1990-01-01', (150.0, 100.0, 30.0))    # trop loin
 
 tables = {r['TABLE_NAME'] for r in q('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s', (DB,))}
+# 0. V7 : réorganisation en sous-dossiers — le manifeste ne cite que des fichiers existants, et les fichiers serveur
+#    chargés ici le sont dans l'ordre du manifeste
+_man = open(os.path.join(RES_DIR, 'fxmanifest.lua'), encoding='utf-8').read()
+_listes = {k: re.findall(r"^\s*'([^'@][^']*)',?\s*$", re.search(k + r'\s*\{(.*?)\}', _man, re.S).group(1), re.M)
+           for k in ('shared_scripts', 'server_scripts', 'client_scripts', 'files')}
+_manquants = [f for l in _listes.values() for f in l if not os.path.isfile(os.path.join(RES_DIR, f))]
+check('0. fxmanifest : tous les fichiers cités existent', not _manquants, _manquants)
+_ordre = _listes['shared_scripts'] + _listes['server_scripts']
+_pos = [(_ordre.index(f) if f in _ordre else -1) for f in SERVER_FILES]
+check('0. fichiers serveur chargés dans l\'ordre du manifeste', -1 not in _pos and _pos == sorted(_pos), _pos)
+_lua = [os.path.relpath(os.path.join(d, f), RES_DIR) for d, _, fs in os.walk(RES_DIR) for f in fs
+        if f.endswith('.lua') and f != 'fxmanifest.lua' and not os.path.relpath(d, RES_DIR).startswith('tests')]
+_oublies = [f for f in _lua if f not in _listes['shared_scripts'] + _listes['server_scripts'] + _listes['client_scripts']]
+check('0. aucun fichier Lua oublié par le manifeste', not _oublies, _oublies)
+
 check('1. tables créées au démarrage', {'rp_contraception', 'rp_contraception_log', 'rp_intimacy_sessions', 'rp_conception_attempts',
                                         'rp_pregnancies', 'rp_pregnancy_events', 'rp_famille_logs'} <= tables, tables)
 check('1. message « Prêt »', any('Prêt' in p for p in W.prints))

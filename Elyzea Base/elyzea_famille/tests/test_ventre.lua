@@ -51,9 +51,9 @@ function Wait() coroutine.yield() end
 function GetCurrentResourceName() return 'elyzea_famille' end
 
 dofile('../elyzea_core/lib/clothing.lua')
-dofile('config.lua')
-dofile('shared/ventre.lua')
-dofile('client/ventre.lua')
+dofile('config/config.lua')
+dofile('grossesse/shared/ventre.lua')
+dofile('grossesse/client/ventre.lua')
 local function tick() for _, co in ipairs(THREADS) do assert(coroutine.resume(co)) end end
 local function enregistree(c) local p = ElyCloth.readReal(PED, 'component', c) return p.drawable, p.col, p.li end
 local function etape(n) TriggerEvent('elyzea_famille:client:etapeGrossesse', n) tick() end

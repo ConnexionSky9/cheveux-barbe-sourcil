@@ -103,7 +103,11 @@ static class Program
             var tex = string.Join(",", y.Drawable.ShaderGroup.Shaders.data_items
                 .SelectMany(s => s.ParametersList.Parameters).Where(p => p.Data is TextureBase)
                 .Select(p => ((TextureBase)p.Data).Name));
-            return $"version {Ver(y)}, {verts} sommets, {tris} triangles, textures [{tex}]";
+            // collision intégrée au modèle (V7 : poussette)
+            var b = y.Drawable.Bound;
+            string col = b == null ? "aucune collision"
+                : (b is BoundComposite bc ? $"collision composite ({bc.Children?.data_items?.Length ?? 0} formes)" : $"collision {b.Type}");
+            return $"version {Ver(y)}, {verts} sommets, {tris} triangles, textures [{tex}], {col}";
         }
         if (ext == ".ytd")
         {
