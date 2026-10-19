@@ -37,13 +37,19 @@
         <div class="bj-me">
             <div class="bet-ctl" id="bj-betctl">
                 <div class="chips" id="bj-chiprow"></div>
-                <div class="betline">Mise : <b id="bj-bet">0</b> <button class="btn ghost small" id="bj-clear">Effacer</button>
-                    <button class="btn gold" id="bj-place">Miser</button><button class="btn" id="bj-ready">Prêt</button></div>
+                <div class="betline">Mise : <input id="bj-amount" class="betinput" type="number" min="1" step="1" value="0">
+                    <button class="btn ghost small" id="bj-clear">Effacer</button>
+                    <button class="btn gold" id="bj-place">Miser</button><button class="btn" id="bj-ready">Prêt</button><span class="hint" id="bj-placed"></span></div>
                 <div class="hint" id="bj-rules"></div>
             </div>
+            <div class="acts" id="bj-ins">
+                <span class="insq" id="bj-insq">Le croupier montre un As : assurance ?</span>
+                <button class="btn gold act" data-bji="1">Assurer</button><button class="btn act" data-bji="0">Non merci</button>
+            </div>
             <div class="acts" id="bj-acts">
-                <button class="btn act" data-bja="hit">Tirer</button><button class="btn act" data-bja="stand">Rester</button>
-                <button class="btn act" data-bja="double">Doubler</button><button class="btn act" data-bja="split">Séparer</button>
+                <button class="btn act" data-bja="hit">Tirer <kbd>T</kbd></button><button class="btn act" data-bja="stand">Rester <kbd>R</kbd></button>
+                <button class="btn act" data-bja="double">Doubler <kbd>D</kbd></button><button class="btn act" data-bja="split">Séparer <kbd>S</kbd></button>
+                <button class="btn act" data-bja="surrender">Abandonner <kbd>A</kbd></button>
             </div>
         </div>
         <div class="banner hidden" id="bj-banner"></div>

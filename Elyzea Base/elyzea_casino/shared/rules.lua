@@ -69,6 +69,7 @@ end
 function Rules.Settle(hand, dealerCards, bjPays)
     local p = Rules.HandTotal(hand.cards)
     local d = Rules.HandTotal(dealerCards)
+    if hand.surrendered then return 'surrender', math.floor(hand.bet / 2) end
     local pBJ = Rules.IsBlackjack(hand.cards) and not hand.split
     local dBJ = Rules.IsBlackjack(dealerCards)
     if p > 21 then return 'lose', 0 end

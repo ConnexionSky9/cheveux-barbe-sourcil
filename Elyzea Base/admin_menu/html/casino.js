@@ -76,6 +76,8 @@
                 ${isR ? '' : tile('t:allowDouble', 'Doubler permis', 'Sur les 2 premières cartes.', t.allowDouble)}
                 ${isR ? '' : tile('t:allowSplit', 'Séparer permis', 'Une paire devient deux mains.', t.allowSplit)}
                 ${isR ? '' : tile('t:doubleAfterSplit', 'Doubler après séparation', '', t.doubleAfterSplit)}
+                ${isR ? '' : tile('t:allowInsurance', 'Assurance', 'Proposée quand le croupier montre un As : moitié de la mise, payée 2:1 s\'il a blackjack.', t.allowInsurance !== false)}
+                ${isR ? '' : tile('t:allowSurrender', 'Abandon', 'Sur les 2 premières cartes, le joueur rend sa main et récupère la moitié de sa mise.', t.allowSurrender !== false)}
             </div>
             <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr));max-width:1150px">
                 ${numF('t', 'minBet', 'Mise minimale (jetons)', t.minBet, 1, 10000000)}
@@ -250,7 +252,7 @@
         if (t.dataset.ck) {
             const [scope, key] = t.dataset.ck.split(':');
             if (scope === 'g') C.gdraft[key] = !C.gdraft[key];
-            if (scope === 't') C.tdraft[key] = !C.tdraft[key];
+            if (scope === 't') C.tdraft[key] = (key === 'allowInsurance' || key === 'allowSurrender') ? C.tdraft[key] === false : !C.tdraft[key];
             if (scope === 'w') C.wdraft[key] = !C.wdraft[key];
             if (scope === 'c') { if (key === 'cash' || key === 'bank') C.cdraft.accounts[key] = !C.cdraft.accounts[key]; else C.cdraft[key] = !C.cdraft[key]; }
             return reRender();

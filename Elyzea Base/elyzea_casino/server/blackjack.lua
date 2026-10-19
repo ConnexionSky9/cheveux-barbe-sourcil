@@ -30,6 +30,7 @@ local function stakeOf(s)
     if s.hands then
         local t = 0
         for _, h in ipairs(s.hands) do if not h.paid then t = t + h.bet end end
+        if s.insurance and not s.insPaid then t = t + s.insurance end
         return t
     end
     return s.bet or 0
@@ -39,6 +40,7 @@ end
 local function refundSeat(T, s, why)
     local n = stakeOf(s)
     if s.hands then for _, h in ipairs(s.hands) do h.paid = true end end
+    s.insPaid = true
     s.bet = 0
     if n > 0 then
         Casino.GiveChips(GetPlayerName(s.src or -1) and s.src or nil, n, 'blackjack : ' .. why, s.cid)
@@ -53,9 +55,10 @@ function BJ.public(T)
         for hi, h in ipairs(s.hands or {}) do
             local tot, soft = Rules.HandTotal(h.cards)
             hands[hi] = { cards = h.cards, total = tot, soft = soft, bet = h.bet, doubled = h.doubled, done = h.done, result = h.result, payout = h.payout,
-                bj = Rules.IsBlackjack(h.cards) and not h.split }
+                bj = Rules.IsBlackjack(h.cards) and not h.split, split = h.split, acted = h.acted, surrendered = h.surrendered }
         end
-        seats[tostring(i)] = { name = s.name, src = s.src, bet = s.bet or 0, ready = s.ready, left = s.left, hands = hands }
+        seats[tostring(i)] = { name = s.name, src = s.src, bet = s.bet or 0, ready = s.ready, left = s.left, hands = hands,
+            insurance = s.insurance, insDecided = s.insDecided, insWon = s.insWon }
     end
     local dc = {}
     for i, c in ipairs(T.dealer.cards) do dc[i] = (i == 2 and T.dealer.hidden) and { hidden = true } or c end
@@ -68,7 +71,8 @@ function BJ.public(T)
         dealer = { cards = dc, total = #visible > 0 and Rules.HandTotal(visible) or 0 },
         cfg = { minBet = cfg.minBet, maxBet = cfg.maxBet, autoStart = cfg.autoStart, blackjackPays = cfg.blackjackPays,
             allowDouble = cfg.allowDouble, allowSplit = cfg.allowSplit, doubleOn = cfg.doubleOn, maxPlayers = cfg.maxPlayers,
-            dealerHitsSoft17 = cfg.dealerHitsSoft17, decks = cfg.decks, enabled = cfg.enabled },
+            dealerHitsSoft17 = cfg.dealerHitsSoft17, decks = cfg.decks, enabled = cfg.enabled, maxHands = cfg.maxHands,
+            doubleAfterSplit = cfg.doubleAfterSplit, allowSurrender = cfg.allowSurrender, allowInsurance = cfg.allowInsurance },
         closing = T.closing,
     }
 end
@@ -122,6 +126,25 @@ local function playRound(T, gen)
 
     local up = Rules.CardValue(T.dealer.cards[1])
     local dealerBJ = Rules.IsBlackjack(T.dealer.cards)
+    -- Assurance : le croupier montre un As, chaque joueur peut s'assurer (moitié de sa mise, payée 2:1 si blackjack)
+    if up == 11 and cfg.allowInsurance ~= false then
+        T.phase = 'insurance'
+        T.deadline = now() + 12000
+        push(T)
+        while now() < T.deadline do
+            Wait(100)
+            if T.gen ~= gen or Tables[T.id] ~= T then return end
+            local waiting = false
+            for _, i in ipairs(order) do
+                local s = T.seats[i]
+                if s and s.hands and not s.left and not s.insDecided then waiting = true end
+            end
+            if not waiting then break end
+        end
+        for _, i in ipairs(order) do local s = T.seats[i] if s then s.insDecided = true end end
+        T.deadline = 0
+        push(T)
+    end
     if dealerBJ and (up == 10 or up == 11) then
         -- Le croupier regarde sa carte cachée : blackjack, la manche s'arrête
         T.dealer.hidden = false
@@ -192,6 +215,18 @@ local function playRound(T, gen)
                     parts[#parts + 1] = ('%s %d→%d'):format(result, Rules.HandTotal(h.cards), amount)
                 end
             end
+            if s.insurance and not s.insPaid then
+                s.insPaid = true
+                betTotal = betTotal + s.insurance
+                if Rules.IsBlackjack(T.dealer.cards) then
+                    s.insWon = s.insurance * 3                      -- mise d'assurance + 2:1
+                    wonTotal = wonTotal + s.insWon
+                    parts[#parts + 1] = ('assurance %d→%d'):format(s.insurance, s.insWon)
+                else
+                    s.insWon = 0
+                    parts[#parts + 1] = ('assurance %d perdue'):format(s.insurance)
+                end
+            end
             if wonTotal > 0 then Casino.GiveChips(s.left and nil or s.src, wonTotal, 'gain blackjack', s.cid) end
             Casino.Log('blackjack', T.id, nil, betTotal, wonTotal, ('Manche %d · croupier %d · %s'):format(T.round, Rules.HandTotal(T.dealer.cards), table.concat(parts, ', ')), false, { cid = s.cid, name = s.name })
             if not s.left and GetPlayerName(s.src) then
@@ -205,7 +240,10 @@ local function playRound(T, gen)
     if not sleep(T, PAYOUT_PAUSE, gen) then return end
     -- Fin de manche : places libérées pour ceux qui sont partis, préparation de la suivante
     for i, s in pairs(T.seats) do
-        if s.left then T.seats[i] = nil else s.hands, s.ready, s.bet = nil, false, 0 end
+        if s.left then T.seats[i] = nil else
+            s.hands, s.ready, s.bet = nil, false, 0
+            s.insurance, s.insDecided, s.insPaid, s.insWon = nil, nil, nil, nil
+        end
     end
     T.dealer = { cards = {}, hidden = true }
 end
@@ -338,20 +376,39 @@ local function act(src, d)
         return true
     end
 
+    if a == 'insurance' then
+        if T.phase ~= 'insurance' or not s.hands or s.insDecided then return false, 'L\'assurance n\'est pas proposée maintenant.' end
+        if d.take then
+            local cost = math.floor(s.hands[1].bet / 2)
+            if cost < 1 then return false, 'Mise trop petite pour s\'assurer.' end
+            if not Casino.TakeChips(src, cost) then return false, 'Pas assez de jetons pour l\'assurance.' end
+            s.insurance = cost
+        end
+        s.insDecided = true
+        push(T)
+        return true
+    end
+
     -- Actions de jeu : seulement pendant son tour, sur la main en cours
     if T.phase ~= 'players' or not T.turn or T.turn.seat ~= idx then return false, 'Ce n\'est pas ton tour.' end
     local h = s.hands and s.hands[T.turn.hand]
     if not h or h.done then return false, 'Main terminée.' end
     if a == 'stand' then
         h.done = true
+    elseif a == 'surrender' then
+        -- Abandon : sur les 2 premières cartes, avant toute action ; la moitié de la mise est rendue au paiement
+        if cfg.allowSurrender == false then return false, 'L\'abandon n\'est pas permis à cette table.' end
+        if #h.cards ~= 2 or h.acted or h.split or #s.hands > 1 then return false, 'Abandon possible seulement sur tes 2 premières cartes.' end
+        h.surrendered, h.done = true, true
     elseif a == 'hit' then
+        h.acted = true
         h.cards[#h.cards + 1] = draw(T)
         if Rules.HandTotal(h.cards) >= 21 then h.done = true end
         T.deadline = GetGameTimer() + (cfg.actionTime or 25) * 1000
     elseif a == 'double' then
         if not Rules.CanDouble(h, cfg) then return false, 'Doubler n\'est pas permis ici.' end
         if not Casino.TakeChips(src, h.bet) then return false, 'Pas assez de jetons pour doubler.' end
-        h.bet, h.doubled = h.bet * 2, true
+        h.bet, h.doubled, h.acted = h.bet * 2, true, true
         h.cards[#h.cards + 1] = draw(T)
         h.done = true
     elseif a == 'split' then
@@ -359,8 +416,8 @@ local function act(src, d)
         if not Casino.TakeChips(src, h.bet) then return false, 'Pas assez de jetons pour séparer.' end
         local second = table.remove(h.cards, 2)
         local aces = second.r == 'A'
-        local nh = { cards = { second }, bet = h.bet, split = true, splitAces = aces }
-        h.split, h.splitAces = true, aces
+        local nh = { cards = { second }, bet = h.bet, split = true, splitAces = aces, acted = true }
+        h.split, h.splitAces, h.acted = true, aces, true
         table.insert(s.hands, T.turn.hand + 1, nh)
         h.cards[#h.cards + 1] = draw(T)
         nh.cards[#nh.cards + 1] = draw(T)

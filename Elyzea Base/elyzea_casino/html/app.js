@@ -92,7 +92,7 @@ $('ca-ok').addEventListener('click', async () => {
 const T = { game: null, id: null, idx: null, me: null, state: null, deadline: 0 };
 function phaseLabel(p, game) {
     return ({ idle: 'En attente de joueurs', betting: 'Faites vos jeux', dealing: 'Distribution', players: 'Au tour des joueurs', dealer: 'Le croupier joue',
-        payout: 'Résultats', spinning: 'Rien ne va plus', result: 'Résultat' })[p] || p;
+        payout: 'Résultats', spinning: 'Rien ne va plus', result: 'Résultat', insurance: 'Assurance ?' })[p] || p;
 }
 setInterval(() => {
     const left = Math.max(0, Math.ceil((T.deadline - Date.now()) / 1000));
@@ -130,33 +130,48 @@ function bjRender() {
         const turn = st.turn && st.turn.seat === i;
         const hands = (s.hands || []).map((h, hi) => `<div class="hand"><div class="cards">${h.cards.map(cardHtml).join('')}</div>
             <span class="ht">${h.bj ? 'Blackjack !' : h.total}${h.soft && h.total < 21 ? ' (souple)' : ''} · ${fmt(h.bet)}${h.doubled ? ' ×2' : ''}</span>
-            ${h.result ? `<span class="res ${h.result}">${({ blackjack: 'BLACKJACK', win: 'GAGNÉ', push: 'ÉGALITÉ', lose: 'PERDU' })[h.result]}${h.payout ? ` +${fmt(h.payout)}` : ''}</span>` : ''}
+            ${h.result ? `<span class="res ${h.result}">${({ blackjack: 'BLACKJACK', win: 'GAGNÉ', push: 'ÉGALITÉ', lose: 'PERDU', surrender: 'ABANDON' })[h.result]}${h.payout ? ` +${fmt(h.payout)}` : ''}</span>` : ''}
             ${turn && st.turn.hand === hi + 1 ? ' ◀' : ''}</div>`).join('');
         html += `<div class="seat ${i === T.idx ? 'me' : ''} ${turn ? 'turn' : ''}"><div class="nm"><span>${esc(s.name)}${s.left ? ' (parti)' : ''}</span>
-            <span>${st.phase === 'betting' ? (s.bet ? `${fmt(s.bet)} ${s.ready ? '✔' : ''}` : '—') : ''}</span></div>${hands}</div>`;
+            <span>${st.phase === 'betting' ? (s.bet ? `${fmt(s.bet)} ${s.ready ? '✔' : ''}` : '—') : s.insurance ? `🛡 ${fmt(s.insurance)}` : ''}</span></div>${hands}</div>`;
     }
     $('bj-seats').innerHTML = html;
     const me = bjMySeat(st);
     const betting = st.phase === 'betting';
     $('bj-betctl').classList.toggle('hidden', !betting);
     if (betting) {
-        if (BJ.lastRound !== st.round) { BJ.lastRound = st.round; BJ.pending = me && me.bet ? me.bet : 0; }
-        $('bj-bet').textContent = fmt(BJ.pending) + (me && me.bet && me.bet !== BJ.pending ? ` (misé : ${fmt(me.bet)})` : '');
+        if (BJ.lastRound !== st.round) { BJ.lastRound = st.round; BJ.pending = me && me.bet ? me.bet : (BJ.last || cfg.minBet || 0); }
+        const inp = $('bj-amount');
+        if (document.activeElement !== inp) inp.value = BJ.pending;
+        inp.min = cfg.minBet || 1; inp.max = cfg.maxBet || '';
+        $('bj-placed').textContent = me && me.bet ? `Misé : ${fmt(me.bet)} jetons` : `Mise libre de ${fmt(cfg.minBet)} à ${fmt(cfg.maxBet)}`;
         $('bj-ready').textContent = me && me.ready ? 'Prêt ✔' : 'Prêt';
         $('bj-ready').classList.toggle('on', !!(me && me.ready));
         $('bj-ready').disabled = !(me && me.bet);
-        $('bj-rules').textContent = `Mise ${fmt(cfg.minBet)} – ${fmt(cfg.maxBet)} · Blackjack payé ${cfg.blackjackPays === 1.5 ? '3:2' : cfg.blackjackPays === 1.2 ? '6:5' : `${cfg.blackjackPays}×`} · `
-            + `croupier ${cfg.dealerHitsSoft17 ? 'tire sur 17 souple' : 'reste sur 17'} · ${cfg.decks} jeu(x)${cfg.autoStart ? ' · départ à la fin du compte à rebours' : ' · départ quand tout le monde est prêt'}`;
-        chipRow($('bj-chiprow'), cfg.maxBet, (v) => { BJ.chip = v; BJ.pending = Math.min(cfg.maxBet, BJ.pending + v); bjRender(); }, null);
+        $('bj-rules').textContent = `Blackjack payé ${cfg.blackjackPays === 1.5 ? '3:2' : cfg.blackjackPays === 1.2 ? '6:5' : `${cfg.blackjackPays}×`} · `
+            + `croupier ${cfg.dealerHitsSoft17 ? 'tire sur 17 souple' : 'reste sur 17'} · ${cfg.decks} jeu(x)${cfg.allowInsurance !== false ? ' · assurance 2:1' : ''}${cfg.allowSurrender !== false ? ' · abandon (moitié rendue)' : ''}`
+            + `${cfg.autoStart ? ' · départ à la fin du compte à rebours (ou quand tous sont prêts)' : ' · départ quand tout le monde est prêt'}`;
+        chipRow($('bj-chiprow'), cfg.maxBet, (v) => { BJ.chip = v; BJ.pending = Math.min(cfg.maxBet, BJ.pending + v); $('bj-amount').value = BJ.pending; }, null);
+    }
+    // Assurance (le croupier montre un As)
+    const insOpen = st.phase === 'insurance' && me && me.hands && !me.insDecided;
+    $('bj-ins').classList.toggle('hidden', !insOpen);
+    if (insOpen) {
+        const cost = Math.floor((me.hands[0] || {}).bet / 2);
+        $('bj-insq').textContent = `Le croupier montre un As : t'assurer pour ${fmt(cost)} jetons ? (payé 2:1 s'il a blackjack)`;
     }
     // Actions : seulement à son tour
     const myTurn = st.phase === 'players' && st.turn && st.turn.seat === T.idx && me && me.hands;
     const h = myTurn ? me.hands[st.turn.hand - 1] : null;
+    BJ.turn = !!h;
     $('bj-acts').classList.toggle('hidden', !myTurn);
     if (h) {
         const vals = h.cards.map((c) => (c.r === 'A' ? 11 : ['J', 'Q', 'K'].includes(c.r) ? 10 : Number(c.r)));
-        document.querySelector('[data-bja="double"]').disabled = !(cfg.allowDouble && h.cards.length === 2 && !h.doubled && (cfg.doubleOn !== '9-11' || (h.total >= 9 && h.total <= 11)));
-        document.querySelector('[data-bja="split"]').disabled = !(cfg.allowSplit && h.cards.length === 2 && vals[0] === vals[1] && me.hands.length < 4);
+        const enable = (a, on) => { document.querySelector(`[data-bja="${a}"]`).disabled = !on; };
+        enable('hit', true); enable('stand', true);
+        enable('double', cfg.allowDouble && h.cards.length === 2 && !h.doubled && (!h.split || cfg.doubleAfterSplit) && (cfg.doubleOn !== '9-11' || (h.total >= 9 && h.total <= 11)));
+        enable('split', cfg.allowSplit && h.cards.length === 2 && vals[0] === vals[1] && me.hands.length < (cfg.maxHands || 2));
+        enable('surrender', cfg.allowSurrender !== false && h.cards.length === 2 && !h.acted && !h.split && me.hands.length === 1);
     }
     // Résultat de la manche
     if (st.phase === 'payout' && me && me.hands && BJ.resultShown !== st.round) {
@@ -168,11 +183,19 @@ function bjRender() {
         refreshChips();
     }
 }
-$('bj-clear').addEventListener('click', () => { BJ.pending = 0; bjRender(); });
+$('bj-clear').addEventListener('click', () => { BJ.pending = 0; $('bj-amount').value = 0; });
+$('bj-amount').addEventListener('input', (e) => { BJ.pending = Math.max(0, Math.floor(Number(e.target.value) || 0)); });
+$('bj-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('bj-place').click(); e.stopPropagation(); });
 $('bj-place').addEventListener('click', async () => {
+    BJ.pending = Math.max(0, Math.floor(Number($('bj-amount').value) || 0));
     const r = await post('bjAction', { action: 'bet', amount: BJ.pending });
-    if (!r.ok) toast(r.msg, 'error'); refreshChips();
+    if (!r.ok) toast(r.msg, 'error'); else { BJ.last = BJ.pending; toast(BJ.pending ? `Mise de ${fmt(BJ.pending)} jetons posée.` : 'Mise retirée.', 'success'); }
+    refreshChips();
 });
+document.querySelectorAll('[data-bji]').forEach((b) => b.addEventListener('click', async () => {
+    const r = await post('bjAction', { action: 'insurance', take: b.dataset.bji === '1' });
+    if (!r.ok) toast(r.msg, 'error'); refreshChips();
+}));
 $('bj-ready').addEventListener('click', async () => { const r = await post('bjAction', { action: 'ready' }); if (!r.ok) toast(r.msg, 'error'); });
 document.querySelectorAll('[data-bja]').forEach((b) => b.addEventListener('click', async () => {
     document.querySelectorAll('[data-bja]').forEach((x) => { x.disabled = true; });
@@ -416,6 +439,11 @@ window.addEventListener('message', (ev) => {
 
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { $('cashier').classList.add('hidden'); post('close'); }));
 document.addEventListener('keydown', (e) => {
+    if (T.game === 'blackjack' && BJ.turn && document.activeElement !== $('bj-amount')) {
+        const a = ({ t: 'hit', r: 'stand', d: 'double', s: 'split', a: 'surrender' })[e.key.toLowerCase()];
+        const btn = a && document.querySelector(`[data-bja="${a}"]`);
+        if (btn && !btn.disabled) { btn.click(); return; }
+    }
     if (e.key !== 'Escape') return;
     if (!$('cashier').classList.contains('hidden')) { $('cashier').classList.add('hidden'); post('close'); return; }
     if (T.game) post('close');

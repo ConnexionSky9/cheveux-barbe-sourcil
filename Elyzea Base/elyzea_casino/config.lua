@@ -33,7 +33,7 @@ Config.DefaultCashier = {
 
 Config.DefaultBlackjack = {
     enabled = true,
-    minBet = 10, maxBet = 5000,
+    minBet = 1, maxBet = 1000000,  -- mise libre entre ces bornes (réglable par table dans l'admin)
     decks = 6,
     maxPlayers = 4,
     dealerHitsSoft17 = false,  -- false : le croupier reste sur tous les 17
@@ -43,6 +43,8 @@ Config.DefaultBlackjack = {
     allowSplit = true,
     maxHands = 2,              -- mains après séparation (2 à 4)
     doubleAfterSplit = true,
+    allowSurrender = true,     -- abandon : rendre la main sur les 2 premières cartes contre la moitié de la mise
+    allowInsurance = true,     -- assurance quand le croupier montre un As (moitié de la mise, payée 2:1)
     autoStart = true,          -- true : distribution à la fin du compte à rebours ; false : quand tous les joueurs sont prêts
     betTime = 20,              -- secondes pour miser
     actionTime = 25,           -- secondes pour jouer une main (sinon : rester)

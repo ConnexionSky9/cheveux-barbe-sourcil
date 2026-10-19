@@ -350,6 +350,36 @@ run(10000)
 check(P[13].items.jetons_casino == before13 + 300 and P[12].items.jetons_casino == before12 + 100, 'remise à zéro : mises (doublée comprise) rendues exactement')
 check(not next(T1.seats) and T1.phase == 'idle', 'joueurs relevés, table libre, aucun paiement en plus')
 
+section('Blackjack : mise libre, abandon, assurance')
+local T1b = Tables[1]
+call('elyzea_casino:sit', 12, 1, 1)
+run(300)
+local b12 = P[12].items.jetons_casino
+ok = call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'bet', amount = 137 })
+check(ok and P[12].items.jetons_casino == b12 - 137, 'mise libre de 137 jetons acceptée')
+-- B : 10, 6 (16) · croupier : 9 + 7 → abandon
+impose(T1b, { C('10'), C('9'), C('6'), C('7'), C('3') })
+call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'ready' })
+for _ = 1, 400 do if T1b.turn then break end run(50) end
+ok, msg = call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'surrender' })
+check(ok, 'abandon sur les 2 premières cartes (' .. tostring(msg) .. ')')
+run(4000)
+check(P[12].items.jetons_casino == b12 - 137 + 68, 'abandon : moitié de la mise rendue (68 sur 137)')
+run(5000)
+-- Assurance : croupier As + Roi (blackjack) ; B mise 100, s'assure pour 50 → assurance payée 150, main perdue
+b12 = P[12].items.jetons_casino
+call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'bet', amount = 100 })
+impose(T1b, { C('10'), C('A'), C('8'), C('K'), C('5') })
+call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'ready' })
+for _ = 1, 400 do if T1b.phase == 'insurance' then break end run(50) end
+check(T1b.phase == 'insurance', 'croupier montre un As : assurance proposée')
+ok, msg = call('elyzea_casino:bj:action', 12, { pedId = 1, action = 'insurance', take = true })
+check(ok and P[12].items.jetons_casino == b12 - 150, 'assurance prise : 50 jetons de plus bloqués')
+run(4000)
+check(P[12].items.jetons_casino == b12 - 150 + 150, 'croupier blackjack : main perdue, assurance payée 2:1 (150) → on ne perd rien')
+run(8000)
+call('elyzea_casino:leave', 12)
+
 -- ================================================================== roulette
 section('Roulette')
 addPlayer(21, 'CID21', 0) P[21].items.jetons_casino = 1000 P[21].pos = vector3(10.5, -1.0, 0)

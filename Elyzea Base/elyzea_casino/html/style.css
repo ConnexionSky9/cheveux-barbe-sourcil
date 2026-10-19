@@ -106,3 +106,8 @@ select { font-size: 14px; width: 100%; text-align: left; }
 #toast div { background: var(--panel); border: 1px solid var(--line); padding: 9px 16px; border-radius: 10px; font-size: 14px; animation: pop .2s; }
 #toast div.error { border-color: var(--red); } #toast div.success { border-color: #0a7d3b; }
 @media (max-height: 760px) { .panel.bottom { transform: translateX(-50%) scale(.86); transform-origin: bottom center; } }
+.betinput { width: 130px; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(0,0,0,.4); color: var(--gold2); font-size: 18px; font-weight: 700; text-align: center; }
+kbd { font-size: 10px; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,.35); margin-left: 4px; opacity: .8; }
+.insq { align-self: center; font-weight: 700; color: var(--gold2); margin-right: 8px; }
+.res.surrender { background: #6d5a1a; }
+.acts { flex-wrap: wrap; }

@@ -102,6 +102,7 @@ local function cleanBlackjack(d)
         dealerHitsSoft17 = bool(d.dealerHitsSoft17), blackjackPays = num(d.blackjackPays, 1.0, 2.0, 1.5),
         allowDouble = bool(d.allowDouble), doubleOn = d.doubleOn == '9-11' and '9-11' or 'any',
         allowSplit = bool(d.allowSplit), maxHands = int(d.maxHands, 2, 4, 2), doubleAfterSplit = bool(d.doubleAfterSplit),
+        allowSurrender = d.allowSurrender == nil and true or bool(d.allowSurrender), allowInsurance = d.allowInsurance == nil and true or bool(d.allowInsurance),
         autoStart = bool(d.autoStart), betTime = int(d.betTime, 5, 120, D.betTime), actionTime = int(d.actionTime, 5, 120, D.actionTime),
     }
     if c.maxBet < c.minBet then return nil, 'La mise maximale doit être ≥ à la mise minimale.' end
