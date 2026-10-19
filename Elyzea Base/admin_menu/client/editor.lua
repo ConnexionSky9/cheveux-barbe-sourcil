@@ -1247,7 +1247,7 @@ CreateThread(function()
         local sleep = 500
         local near = NearInteract
         if #near > 0 and not busy and not stationOpen and not NpcOpen and not Placing and not IsNoclipActive() and not clothingOpen() and not BarberOpen and not TattooOpen and not MarketOpen and not GunTrialActive then
-            sleep = 0
+            sleep = 100   -- dans les 25 m mais hors de portée : contrôle 10 fois/s suffit (touche mémorisée par la commande)
             local ped = PlayerPedId()
             local pos = GetEntityCoords(ped)
             local px, py, pz = pos.x, pos.y, pos.z
@@ -1272,6 +1272,7 @@ CreateThread(function()
             end
 
             if best and not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
+                sleep = 0   -- invite affichée : chaque image
                 local pressed = interactPressed and GetGameTimer() - editorKeyTime > 500
                 if best.interact == 'npc' and best.ref.npc and best.ref.npc.dmv then
                     ShowPrompt('Appuyer pour entrer', best.ref.npc.dmv.name or 'à l\'auto-école')

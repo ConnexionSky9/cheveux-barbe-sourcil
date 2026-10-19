@@ -154,13 +154,14 @@ end)
 -- Effets de la safe zone (à chaque image seulement quand on y est)
 CreateThread(function()
     local UNARMED = GetHashKey('WEAPON_UNARMED')
+    local BLOCKED = { 24, 25, 37, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }   -- créée une seule fois
     while true do
         local s = safeActive
         if s then
             local ped, pid = PlayerPedId(), PlayerId()
             if s.noWeapons then
                 DisablePlayerFiring(pid, true)
-                for _, c in ipairs({ 24, 25, 37, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }) do DisableControlAction(0, c, true) end
+                for i = 1, #BLOCKED do DisableControlAction(0, BLOCKED[i], true) end
                 if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
                 SetPlayerCanDoDriveBy(pid, false)
                 noDriveBy = true

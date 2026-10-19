@@ -247,10 +247,12 @@ CreateThread(function()
         if next(LiveDrops) then
             local ped = PlayerPedId()
             local me = GetEntityCoords(ped)
+            -- Chaque image seulement à portée de tir / d'approche (+ marge), sinon 10 fois/s
+            local reach = math.max(Cfg.shot or 0, Cfg.approach or 0) + 30.0
             for id, d in pairs(LiveDrops) do
                 if not Alerted[id] and d.phase == 'landed' then
                     local dist = #(me - vector3(d.x, d.y, d.z))
-                    if dist < 200.0 then sleep = 0 end
+                    if dist < reach then sleep = 0 elseif dist < 200.0 and sleep > 100 then sleep = 100 end
                     if (Cfg.shot or 0) > 0 and dist < Cfg.shot and IsPedShooting(ped) then sendAlert(id) end
                     if (Cfg.approach or 0) > 0 and dist < Cfg.approach then sendAlert(id) end
                 end
@@ -341,6 +343,7 @@ end)
 CreateThread(function()
     local useTarget = false
     local shown = false
+    local body, bodyScan = nil, 0   -- corps le plus proche, recherché 5 fois/s (GetGamePool coûteux)
     while true do
         local sleep = 700
         local want
@@ -362,7 +365,9 @@ CreateThread(function()
                 end
             end
             if not want and not useTarget and sleep == 0 then
-                local body = nearestBody(2.2)
+                local now = GetGameTimer()
+                if now >= bodyScan then bodyScan = now + 200 body = nearestBody(2.2)
+                elseif body and (not isSearchableGuard(body) or #(me - GetEntityCoords(body)) > 2.2) then body = nil end
                 if body then
                     if IsControlPressed(0, 19) then want = { 'Alt + E', 'Inspecter le corps', false, nil, body }
                     else want = { 'Maintiens Alt', 'pour inspecter le corps', true } end

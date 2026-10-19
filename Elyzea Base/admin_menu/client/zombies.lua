@@ -1071,11 +1071,12 @@ CreateThread(function()
         end
         Bosses = list
         for ped in pairs(BossConfigured) do if not DoesEntityExist(ped) then BossConfigured[ped], BossCd[ped], BossOrders[ped] = nil, nil, nil end end
-        Wait(300)
+        Wait(Z.active and 300 or 1000)   -- mode zombie coupé : rien à suivre
     end
 end)
 
 -- Le boss est ÉNORME : agrandi à chaque image (visuel), pieds posés au sol
+local function norm(v) local l = #v if l < 0.0001 then return v end return v / l end
 CreateThread(function()
     while true do
         if #Bosses > 0 then
@@ -1084,7 +1085,6 @@ CreateThread(function()
                 local ped, sc = b.ped, b.st.scale or 1.0
                 if sc > 1.01 and DoesEntityExist(ped) and not IsPedDeadOrDying(ped, true) then
                     local r, f, u, pos = GetEntityMatrix(ped)
-                    local function norm(v) local l = #v if l < 0.0001 then return v end return v / l end
                     r, f, u = norm(r) * sc, norm(f) * sc, norm(u) * sc
                     local ok, gz = GetGroundZFor_3dCoord(pos.x, pos.y, pos.z + 1.0, false)
                     local z = ok and (gz + 0.98 * sc) or pos.z

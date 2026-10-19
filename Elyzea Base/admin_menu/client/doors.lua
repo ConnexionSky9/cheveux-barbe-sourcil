@@ -56,6 +56,7 @@ end)
 -- ---------------------------------------------------------
 local nearDoor = nil
 CreateThread(function()
+    local KEY = ('~INPUT_%X~'):format((GetHashKey('+harvest_plant') | 0x80000000) & 0xFFFFFFFF)   -- calculé une seule fois
     while true do
         -- Chaque porte a sa propre distance d'ouverture (sinon celle de la config)
         local found, bestRatio = nil, 1.0
@@ -76,7 +77,7 @@ CreateThread(function()
         if found then
             BeginTextCommandDisplayHelp('STRING')
             AddTextComponentSubstringPlayerName(('%s %s : %s'):format(
-                ('~INPUT_%X~'):format((GetHashKey('+harvest_plant') | 0x80000000) & 0xFFFFFFFF),
+                KEY,
                 found.name, found.locked and '~r~verrouillée' or '~g~ouverte'))
             EndTextCommandDisplayHelp(0, false, false, -1)
         end
