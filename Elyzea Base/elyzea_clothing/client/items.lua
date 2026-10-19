@@ -15,7 +15,7 @@ function ClothingItemsMode() return Config.Items.enabled and GetResourceState(IN
 -- Ce que le personnage porte dans un rayon (avec son pack s'il en vient un)
 local function worn(cat)
     local c = Cat[cat]
-    return ElyCloth.read(PlayerPedId(), c.type, c.index)
+    return (ElyCloth.readReal or ElyCloth.read)(PlayerPedId(), c.type, c.index)   -- jamais le ventre de grossesse
 end
 
 local function slotItem(n)
@@ -74,7 +74,7 @@ local function wardrobeData()
     local names = LocalPlayer.state.elyzeaWornNames or {}
     local list = {}
     for _, c in ipairs(Config.Categories) do
-        local p = ElyCloth.read(ped, c.type, c.index)
+        local p = (ElyCloth.readReal or ElyCloth.read)(ped, c.type, c.index)
         local n = sex and Config.Naked[sex] and Config.Naked[sex][c.id]
         local naked = p.drawable < 0 or (n ~= nil and p.drawable == n[1])
         local pack = p.col and Catalog.packOf(p.col)

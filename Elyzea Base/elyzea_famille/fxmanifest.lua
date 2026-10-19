@@ -11,6 +11,7 @@ shared_scripts {
     '@elyzea_core/lib/ely.lua',
     'config.lua',
     'shared/regles.lua',
+    'shared/ventre.lua',
 }
 
 server_scripts {
@@ -27,9 +28,11 @@ server_scripts {
 }
 
 client_scripts {
+    '@elyzea_core/lib/clothing.lua',
     'client/intimite.lua',
     'client/main.lua',
     'client/grossesse.lua',
+    'client/ventre.lua',
 }
 
 ui_page 'html/index.html'

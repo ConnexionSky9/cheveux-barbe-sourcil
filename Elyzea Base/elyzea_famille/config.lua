@@ -124,6 +124,31 @@ Config.Grossesse = {
     },
 }
 
+-- ─────────────────────────── Ventre de grossesse (vêtement d'un pack, ex. VeloxFv1) ───────────────────────────
+-- Le ventre est un VÊTEMENT du pack posé par-dessus la tenue, à partir d'une étape. La pièce d'origine est
+-- gardée et remise à la fin (et n'est jamais remplacée dans la tenue enregistrée, ni dans les objets vêtements).
+-- Les numéros du pack ne sont PAS dans ce dépôt (pack chargé par « ensure [vetements] ») : à relever en jeu.
+--   1. Porter le ventre (boutique ou /ventre_essai), puis /ventre_info : composant, collection et n° local s'affichent.
+--   2. Recopier ces valeurs ici ou dans le menu admin (Famille › Ventre de grossesse), puis activer.
+-- collection = nom de la collection du pack (fiable même si l'ordre des packs change) ; vide = n° « global » GTA.
+-- li = n° du ventre dans la collection (-1 = rien à cette étape), texture = n° de texture.
+Config.Ventre = {
+    actif = false,               -- à activer une fois les numéros relevés
+    composant = 3,               -- composant GTA qui porte le ventre (3 = torse / bras ; à confirmer avec /ventre_info)
+    collection = '',
+    etapes = {
+        e2 = { li = -1, texture = 0 },   -- Léger arrondi
+        e3 = { li = -1, texture = 0 },   -- Ventre visible
+        e4 = { li = -1, texture = 0 },   -- Ventre très arrondi
+        e5 = { li = -1, texture = 0 },   -- Terme atteint
+    },
+    -- Compatibilité : 'toujours' = ventre quel que soit le haut ; 'sansHaut' = seulement sans haut (composant 11 nu) ;
+    -- 'liste' = seulement avec un haut de la liste hautsCompatibles ({ col = '…', li = n } ou { drawable = n })
+    compatibilite = 'toujours',
+    hautsCompatibles = {},
+    hautNu = { [0] = 15, [1] = 15 },     -- n° « haut nu » (homme, femme), comme elyzea_clothing
+}
+
 -- Commandes staff (permission ACE : command.<nom>, déjà incluse dans group.admin)
 Config.Staff = {
     etat = 'famille_etat',       -- /famille_etat [id] : contraception, grossesse, dernier moment intime

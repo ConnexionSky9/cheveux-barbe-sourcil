@@ -243,6 +243,7 @@ function GetPlayerPed(s) if py.player_name(s) then return s * 100 end return 0 e
 function GetEntityCoords(ped) local p = py.pos(ped // 100) if not p then return vector3(0, 0, 0) end return vector3(p[1], p[2], p[3]) end
 function GetEntityHealth() return 200 end
 function GetEntityHeading() return 0.0 end
+GlobalState = {}
 function GetPlayers() local t = {} for _, v in ipairs(py.players()) do t[#t + 1] = v end return t end
 function Player(s) return { state = { elyNeedsFrozen = py.frozen(s) } } end
 function GetGameTimer() return py.ms() end
@@ -881,6 +882,24 @@ check('43. après un redémarrage : effets renvoyés depuis la base (étape 4)',
 errs = [p_ for p_ in W.prints if 'suivi des grossesses' in p_ or 'accouchement :' in p_ or 'naissance :' in p_]
 check('43. aucune erreur du suivi dans la console', not errs, errs[:3])
 ok, msg = admin(3, 'reset')
+
+
+# ═══════════ V5 étape 4 : réglages du ventre (publiés aux clients) ═══════════
+fv = G.GlobalState.famVentre
+check('44. ventre : réglages publiés aux clients au démarrage, désactivé par défaut (numéros à relever)', fv is not None and fv.actif is False and fv.composant == 3)
+v = admin_data(3)['values']
+v.update({'ventre.actif': True, 'ventre.collection': 'veloxfv1', 'ventre.e2.li': 2, 'ventre.e2.texture': 1, 'ventre.e3.li': 5, 'ventre.composant': 3})
+ok, msg = admin(3, 'save', {'values': v})
+fv = G.GlobalState.famVentre
+check('44. menu admin : collection et n° enregistrés, publiés tout de suite', ok is True and fv.actif is True and fv.collection == 'veloxfv1'
+      and fv.etapes.e2.li == 2 and fv.etapes.e3.li == 5 and q("SELECT 1 FROM rp_famille_reglages WHERE cle='ventre.collection' AND valeur='\"veloxfv1\"'"), msg)
+v.update({'ventre.collection': 'a b;DROP'})
+ok, msg = admin(3, 'save', {'values': v})
+check('44. collection invalide refusée (lettres, chiffres, _ - .)', ok is False and 'Collection' in msg and G.GlobalState.famVentre.collection == 'veloxfv1', msg)
+start_resource()
+check('44. après un redémarrage : réglages du ventre rechargés depuis la base', G.GlobalState.famVentre.collection == 'veloxfv1' and G.GlobalState.famVentre.actif is True)
+ok, msg = admin(3, 'reset')
+check('44. valeurs par défaut : ventre désactivé', G.GlobalState.famVentre.actif is False)
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

@@ -10,7 +10,7 @@
 local RES = GetCurrentResourceName()
 local PERM = 'famille_manage'
 
--- section, clé, chemin dans Config, type (int | num | pct | bool), bornes, libellé, aide
+-- section, clé, chemin dans Config, type (int | num | pct | bool | str), bornes, libellé, aide
 local SCHEMA = {
     -- Moment intime : durée
     { s = 'duree', k = 'intimite.duree', p = { 'Intimite', 'duree' }, t = 'int', min = 5, max = 600, u = 's',
@@ -111,6 +111,29 @@ local SCHEMA = {
       l = 'Naissance automatique après le terme', a = 'Sans EMS, la naissance a lieu ce nombre d\'heures après le terme (personnage connecté). 0 = jamais.' },
     { s = 'fin', k = 'fin.bebesEnJeu', p = { 'Grossesse', 'fin', 'bebesEnJeu' }, t = 'bool',
       l = 'Bébé placé dans le jeu à la naissance', a = 'Le ou les bébés (elyzea_bebe_modele) apparaissent à côté de la patiente.' },
+    -- Ventre (vêtement d'un pack ; numéros à relever en jeu avec /ventre_info)
+    { s = 'ventre', k = 'ventre.actif', p = { 'Ventre', 'actif' }, t = 'bool',
+      l = 'Ventre de grossesse', a = 'Pose le ventre du pack par-dessus la tenue selon l\'étape. N\'activer qu\'après avoir relevé les numéros (/ventre_info).' },
+    { s = 'ventre', k = 'ventre.composant', p = { 'Ventre', 'composant' }, t = 'int', min = 0, max = 11,
+      l = 'Composant GTA du ventre', a = 'Affiché par /ventre_info en portant le ventre (3 = torse / bras, 8 = sous-haut, 11 = haut…).' },
+    { s = 'ventre', k = 'ventre.collection', p = { 'Ventre', 'collection' }, t = 'str', max = 64,
+      l = 'Collection du pack', a = 'Nom affiché par /ventre_info (« col »). Vide = numéros globaux (déconseillé : changent si l\'ordre des packs change).' },
+    { s = 'ventre', k = 'ventre.e2.li', p = { 'Ventre', 'etapes', 'e2', 'li' }, t = 'int', min = -1, max = 4000,
+      l = 'Étape 2 (léger arrondi) : n°', a = 'N° local dans la collection (« li »). -1 = pas de ventre.' },
+    { s = 'ventre', k = 'ventre.e2.texture', p = { 'Ventre', 'etapes', 'e2', 'texture' }, t = 'int', min = 0, max = 63,
+      l = 'Étape 2 : texture', a = '' },
+    { s = 'ventre', k = 'ventre.e3.li', p = { 'Ventre', 'etapes', 'e3', 'li' }, t = 'int', min = -1, max = 4000,
+      l = 'Étape 3 (ventre visible) : n°', a = '-1 = pas de ventre.' },
+    { s = 'ventre', k = 'ventre.e3.texture', p = { 'Ventre', 'etapes', 'e3', 'texture' }, t = 'int', min = 0, max = 63,
+      l = 'Étape 3 : texture', a = '' },
+    { s = 'ventre', k = 'ventre.e4.li', p = { 'Ventre', 'etapes', 'e4', 'li' }, t = 'int', min = -1, max = 4000,
+      l = 'Étape 4 (très arrondi) : n°', a = '-1 = pas de ventre.' },
+    { s = 'ventre', k = 'ventre.e4.texture', p = { 'Ventre', 'etapes', 'e4', 'texture' }, t = 'int', min = 0, max = 63,
+      l = 'Étape 4 : texture', a = '' },
+    { s = 'ventre', k = 'ventre.e5.li', p = { 'Ventre', 'etapes', 'e5', 'li' }, t = 'int', min = -1, max = 4000,
+      l = 'Étape 5 (terme) : n°', a = '-1 = pas de ventre.' },
+    { s = 'ventre', k = 'ventre.e5.texture', p = { 'Ventre', 'etapes', 'e5', 'texture' }, t = 'int', min = 0, max = 63,
+      l = 'Étape 5 : texture', a = '' },
     -- Contraception
     { s = 'contraception', k = 'contraception.preservatif.fiabilite', p = { 'Contraception', 'preservatif', 'fiabilite' }, t = 'pct', min = 0, max = 1,
       l = 'Fiabilité du préservatif', a = '98 % = le risque est multiplié par 0,02.' },
@@ -148,6 +171,7 @@ local SECTIONS = {
     { id = 'etapes', label = 'Étapes de la grossesse' },
     { id = 'symptomes', label = 'Symptômes de grossesse' },
     { id = 'fin', label = 'Fin de grossesse' },
+    { id = 'ventre', label = 'Ventre de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
 }
@@ -175,6 +199,12 @@ for _, d in ipairs(SCHEMA) do DEFAUTS[d.k] = lire(d.p) end
 local function valider(d, v)
     if d.t == 'bool' then
         if type(v) ~= 'boolean' then return nil, 'oui / non attendu' end
+        return v
+    end
+    if d.t == 'str' then
+        if type(v) ~= 'string' then return nil, 'texte attendu' end
+        v = v:gsub('^%s+', ''):gsub('%s+$', '')
+        if #v > (d.max or 64) or not v:match('^[%w_%-%.]*$') then return nil, 'lettres, chiffres, _ - . seulement' end
         return v
     end
     v = tonumber(v)
@@ -236,10 +266,19 @@ local function transmettreBebe()
     pcall(function() exports.elyzea_bebe_modele:AppliquerReglages(reglagesBebe()) end)
 end
 
+-- Réglages du ventre : publiés à tous les clients (chacun pose le ventre sur son propre personnage)
+local function publierVentre()
+    local V = Config.Ventre
+    GlobalState.famVentre = { actif = V.actif, composant = V.composant, collection = V.collection, etapes = V.etapes,
+        compatibilite = V.compatibilite, hautsCompatibles = V.hautsCompatibles, hautNu = { h = V.hautNu[0], f = V.hautNu[1] } }
+end
+
 local function appliquer(valeurs)
     appliquerLocal(valeurs)
     transmettreBebe()
+    publierVentre()
 end
+publierVentre()
 
 exports('ReglagesBebe', reglagesBebe)
 

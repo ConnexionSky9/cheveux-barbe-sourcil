@@ -11,6 +11,7 @@
       ElyCloth.resolve(ped, kind, slot, p)    -> n° global à utiliser (nil = pack absent)
       ElyCloth.apply(ped, kind, slot, p)      -> true si appliqué
       ElyCloth.ranges(ped, kind, slot)        -> { { col, first, count }, ... } (blocs de n° globaux)
+      ElyCloth.readReal(ped, kind, slot)      -> comme read, mais ignore une pièce « masquée » (ventre de grossesse)
     kind = 'component' (vêtement) ou 'prop' (accessoire), slot = n° GTA du composant / accessoire.
     Sans les natives de collection (très vieux serveur), tout marche avec les n° globaux.
 ]]
@@ -51,6 +52,23 @@ function ElyCloth.read(ped, kind, slot)
     local p = { drawable = d, texture = t }
     local col, li = ElyCloth.info(ped, kind, slot, d)
     if col and col ~= '' and li and li >= 0 then p.col, p.li = col, li end
+    return p
+end
+
+-- Ce que le personnage porte VRAIMENT : une ressource peut poser temporairement une pièce par-dessus
+-- (ex. elyzea_famille : ventre de grossesse). Elle le déclare dans LocalPlayer.state.elyTenueMasquee :
+--   { ['3'] = { ventre = { drawable, texture }, origine = { drawable, texture, col, li } } }
+-- Tant que l'emplacement montre cette pièce, on renvoie la pièce d'origine : la tenue enregistrée,
+-- les objets « vêtement » et « Ma tenue » ne contiennent jamais la pièce temporaire.
+function ElyCloth.readReal(ped, kind, slot)
+    local p = ElyCloth.read(ped, kind, slot)
+    if kind == 'prop' or ped ~= PlayerPedId() then return p end
+    local m = LocalPlayer.state.elyTenueMasquee
+    m = type(m) == 'table' and m[tostring(slot)]
+    if type(m) == 'table' and type(m.ventre) == 'table' and type(m.origine) == 'table'
+        and p.drawable == m.ventre.drawable and p.texture == m.ventre.texture then
+        return { drawable = m.origine.drawable, texture = m.origine.texture, col = m.origine.col, li = m.origine.li }
+    end
     return p
 end
 

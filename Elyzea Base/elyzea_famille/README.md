@@ -1,11 +1,12 @@
-# elyzea_famille — moment intime, contraception, conception, grossesse (version 0.3)
+# elyzea_famille — moment intime, contraception, conception, grossesse, symptômes, accouchement, ventre (version 0.5)
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
-> - règles de calcul : **51/51 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques sur 200 000 essais ;
-> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **79/79 contrôles** (`python3 tests/integration_test.py`), dont les réglages du menu admin et la section bébés ;
-> - syntaxe Lua et JavaScript ; interfaces affichées dans Chromium (dont l'onglet admin « Famille » : `docs/famille/captures/menu_admin_famille.png`).
+> - règles de calcul : **68/68 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques ;
+> - code serveur réel exécuté contre une **vraie base MariaDB** (FiveM simulé) : **113/113 contrôles** (`python3 tests/integration_test.py`) ;
+> - ventre (logique client, fonctions du jeu simulées) : **17/17** (`lua5.4 tests/test_ventre.lua`) ;
+> - syntaxe Lua et JavaScript ; onglet admin affiché dans Chromium (`docs/famille/captures/`).
 >
-> À tester en jeu : placement face à face, animation, fondu au noir, touche X, menu ALT.
+> À tester en jeu : voir `docs/famille/LIVRAISON_V5.md` › « Tests à faire en jeu ».
 
 Première brique de l'écosystème famille (architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
 Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, crèche…) s'ajouteront dans cette même ressource.
@@ -30,10 +31,15 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
 | Pilule | utiliser l'objet : 48 h de protection, renouvelable dans les 12 dernières heures |
 | Implant | posé par un EMS en service : **ALT** sur le patient › *Poser un implant contraceptif* (le patient accepte) |
 | Mon état (privé) | `/contraception` |
-| Test de grossesse | utiliser l'objet : résultat privé (positif à partir de 24 h après la conception, 1 faux négatif sur 100) |
+| Test de grossesse | utiliser l'objet : résultat privé ; négatif avant le délai de détection (60 min par défaut, menu admin), positif après (fiabilité 100 % par défaut) |
 | Suivi de grossesse (privé) | `/grossesse` : jour, étape du ventre, terme ; nombre de bébés après un examen EMS |
 | Examen de grossesse (EMS en service) | **ALT** sur la patiente › *Examen de grossesse* (elle accepte) : résultat sûr pour les deux |
-| Staff | `/famille_etat [id]` (contraception, grossesse, dernières tentatives) — ACE `command.famille_etat` |
+| Accouchement (EMS en service) | **ALT** sur la patiente › *Accouchement* (elle accepte), à partir de 90 % de la grossesse : le ou les bébés apparaissent à côté d'elle |
+| Naissance sans EMS | automatique 24 h après le terme, personnage connecté (réglable, 0 = jamais) |
+| Symptômes | faim plus rapide, nausées, vomissements, démarche lourde : selon l'étape, chacun réglable dans le menu admin |
+| Ventre | vêtement du pack posé par-dessus la tenue selon l'étape (à configurer : `/ventre_info`, voir LIVRAISON_V5) |
+| Staff | `/famille_etat [id]` (contraception, grossesse, 5 derniers moments avec la tentative, la raison et le risque appliqué) — ACE `command.famille_etat` ; `/famille_fin [id] [naissance]` (met fin à la grossesse, sans ou avec bébé) — ACE `command.famille_fin` |
+| Identification du ventre | `/ventre_info` (composants portés : n° global, collection, n° local), `/ventre_scan [composant]`, `/ventre_essai composant n° [texture] [collection]` (20 s) |
 
 ## Déroulé d'un moment intime
 1. Demande → le serveur vérifie : deux personnages chargés, **majeurs** (date de naissance de la fiche), proches (2,5 m),
@@ -100,6 +106,8 @@ Pas encore fait : symptômes, tenues de grossesse, accouchement (module suivant)
 - Réponses de consentement vérifiées (identifiant de demande) ; toute réponse sans demande est journalisée (`rp_famille_logs`, action `suspect`).
 - Déconnexion pendant un moment : interrompu, aucune conception. Redémarrage : moments en cours marqués interrompus.
 - Dates en secondes Unix : la protection et le terme continuent hors ligne et après redémarrage.
+- Fin de grossesse écrite une seule fois (mise à jour conditionnelle `active_key IS NOT NULL`) : deux accouchements simultanés ne créent pas deux fois les bébés.
+- Ventre : la pièce d'origine est gardée ; la tenue enregistrée (ely_creator), les objets vêtements et « Ma tenue » (elyzea_clothing) lisent toujours la pièce d'origine (`ElyCloth.readReal`).
 
 ## Fichiers modifiés ailleurs
 - `elyzea_inventory/shared/items.lua` : 4 objets ; `elyzea_inventory/html/img/` : 4 images (rendues dans Blender, `Outils_3D/icones`).
@@ -108,6 +116,8 @@ Pas encore fait : symptômes, tenues de grossesse, accouchement (module suivant)
   (chargement de l'onglet), `admin_menu/server/main.lua` (migration : `famille_manage` donnée au rang superadmin).
 - `elyzea_police/client/alt.lua` : fournisseurs `elyzea_famille` et `elyzea_bebe_modele` ; `elyzea_police/html/app.js` : 3 icônes.
 - `Serveur cfg/server.cfg` : `ensure elyzea_famille`.
+- V5 : `elyzea_core/lib/clothing.lua` (`ElyCloth.readReal`), `ely_creator/client/main.lua` (SaveOutfit), `elyzea_clothing/client/items.lua`
+  (objet vêtement, « Ma tenue »), `admin_menu/html/famille.js` (champ texte).
 
 ## Limites connues
 - **Animation** : animation native réutilisée (étreinte), pas une animation créée pour l'occasion ; le reste est un écran noir.
