@@ -26,6 +26,7 @@ server_scripts {
     '@elyzea_core/lib/MySQL.lua',   -- tenues enregistrées (tables elyzea_outfits / elyzea_outfit_categories)
     'server/packs.lua',
     'server/items.lua',
+    'server/hidden.lua',   -- vêtements cachés par le staff (table elyzea_clothing_hidden)
     'server/shop.lua',
     'server/outfits.lua',
 }

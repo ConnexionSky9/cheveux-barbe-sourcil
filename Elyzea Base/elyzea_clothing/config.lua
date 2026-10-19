@@ -74,6 +74,8 @@ Config.Outfits = {
     },
 }
 
+-- Plus simple : en jeu, le staff (permission admin_menu « clothing_manage ») cache un vêtement depuis la boutique
+-- avec « 🙈 Cacher pour tout le monde » (voir README). La liste ci-dessous reste possible pour les vêtements de GTA.
 -- Vêtements de GTA cachés dans la boutique (n° du modèle), par sexe et par rayon
 -- Exemple : male = { tops = { 55, 56 } }
 Config.Blacklist = {

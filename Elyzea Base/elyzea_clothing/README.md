@@ -90,6 +90,20 @@ Les PNJ vendeurs (admin_menu) appellent `exports.elyzea_clothing:OpenFor(src, sh
 
 Test staff : `/boutique_vetements` (permission `elyzea.clothing.test`).
 
+## Cacher des vêtements (staff)
+
+Permission admin_menu **`clothing_manage`** (ou la permission ACE `elyzea.clothing.test`).
+1. Ouvre n'importe quelle boutique de vêtements et choisis le modèle.
+2. **🙈 Cacher pour tout le monde** : plus aucun joueur ne le voit ni ne peut l'acheter, dans toutes les boutiques, tous coloris confondus.
+   Ceux qui l'avaient dans leur panier le perdent, et le serveur refuse l'achat (même en trichant).
+3. Toi, tu le vois encore, grisé avec l'étiquette « Caché ». Le filtre **🙈 Cachés** les liste tous ; **👁 Remettre en vente** l'annule.
+
+- Gardé en base (table `elyzea_clothing_hidden`, créée toute seule) : ça reste après un redémarrage ou une mise à jour.
+- Un vêtement de pack est retenu par son pack et son n° dans le pack : ajouter ou retirer d'autres packs ne le décale pas.
+- Les modèles homme et femme sont différents : un vêtement caché en personnage homme ne l'est que pour les hommes.
+- Les vêtements déjà achetés (inventaire, tenues enregistrées) restent à leurs propriétaires.
+- `Config.Blacklist` (config.lua) marche toujours, et l'achat y est maintenant refusé aussi côté serveur.
+
 ## Images des vêtements (facultatif)
 
 `html/images/`
@@ -107,6 +121,7 @@ Sans image, la boutique affiche l'icône du rayon.
 | `shared/data.lua` | Rayons (noms, prix, caméra) |
 | `server/packs.lua` | Détection automatique des packs |
 | `server/shop.lua` | Ouverture, contrôle du panier, paiement |
+| `server/hidden.lua` | Vêtements cachés par le staff (base, permission, envoi aux joueurs) |
 | `server/items.lua` | Vêtements en objets, noms personnalisés |
 | `server/outfits.lua` | Tenues enregistrées (base de données, porter via l'inventaire) |
 | `client/catalog.lua` | Rayons et packs vus par le joueur |

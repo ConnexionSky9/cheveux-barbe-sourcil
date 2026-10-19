@@ -145,7 +145,70 @@ local function sold(shop, pack)
     return shop.packs == 'all' or listed(pack.id) or (pack.auto and shop.packs == 'all')
 end
 
-RegisterNetEvent('elyzea_clothing:open', function(shop, money)
+-- ---------------------------------------------------------------------
+-- Vêtements cachés par le staff (liste du serveur, par sexe / rayon / clé)
+-- ---------------------------------------------------------------------
+local hiddenList, canManage = { male = {}, female = {} }, false
+local function cleanCol(col) return (tostring(col or ''):lower():gsub('[^%w_%-]', '')) end
+-- Clé d'un vêtement porté par le personnage (même calcul que le serveur)
+local function pieceKey(ped, c, d)
+    if d < 0 then return nil end
+    local col, li = ElyCloth.info(ped, c.type, c.index, d)
+    if col and col ~= '' and li and li >= 0 then return ('c:%s:%d'):format(cleanCol(col), li), col, li end
+    return ('g:%d'):format(d)
+end
+-- N° des modèles cachés d'un rayon pour ce personnage
+local function hiddenDrawables(ped, sex, c)
+    local keys = (hiddenList[sex] or {})[c.id]
+    if type(keys) ~= 'table' or #keys == 0 then return {} end
+    local first = nil
+    local out = {}
+    for _, k in ipairs(keys) do
+        local g = k:match('^g:(%d+)$')
+        if g then
+            out[#out + 1] = tonumber(g)
+        else
+            local col, li = k:match('^c:(.+):(%d+)$')
+            if col then
+                if not first then
+                    first = {}
+                    for _, r in ipairs(ElyCloth.ranges(ped, c.type, c.index)) do first[cleanCol(r.col)] = { r.first, r.count } end
+                end
+                local r = first[col]
+                li = tonumber(li)
+                if r and li < r[2] then out[#out + 1] = r[1] + li end
+            end
+        end
+    end
+    return out
+end
+local function sendHidden()
+    if not isOpen or not shopData then return end
+    local ped = PlayerPedId()
+    local sex = sexOf(ped)
+    if not sex then return end
+    local cats = {}
+    for _, id in ipairs(shopData.categories) do if Cat[id] then cats[id] = hiddenDrawables(ped, sex, Cat[id]) end end
+    SendNUIMessage({ action = 'hidden', cats = cats })
+end
+RegisterNetEvent('elyzea_clothing:hidden', function(list)
+    hiddenList = type(list) == 'table' and list or { male = {}, female = {} }
+    sendHidden()
+end)
+CreateThread(function() Wait(2500) TriggerServerEvent('elyzea_clothing:requestHidden') end)
+
+-- Staff : cacher / ré-afficher le modèle choisi (le serveur revérifie la permission)
+RegisterNUICallback('setHidden', function(d, cb)
+    cb({})
+    local c = Cat[d.cat]
+    if not isOpen or not canManage or not c then return end
+    local dr = math.floor(tonumber(d.drawable) or -1)
+    if dr < 0 then return end
+    local _, col, li = pieceKey(PlayerPedId(), c, dr)
+    TriggerServerEvent('elyzea_clothing:setHidden', { cat = c.id, drawable = dr, col = col, li = li }, d.hide == true)
+end)
+
+RegisterNetEvent('elyzea_clothing:open', function(shop, money, opts)
     if isOpen then return end
     local ped = PlayerPedId()
     local sex = sexOf(ped)
@@ -155,6 +218,7 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money)
     end
     if IsPedInAnyVehicle(ped, false) then return TriggerServerEvent('elyzea_clothing:closed') end
     isOpen, shopData = true, shop
+    canManage = type(opts) == 'table' and opts.manage == true
     snapshot = takeSnapshot(ped)
     originalHeading = GetEntityHeading(ped)
     baseHeading = originalHeading
@@ -185,7 +249,8 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money)
                 end
                 cats[#cats + 1] = { id = c.id, label = c.label, single = c.single, icon = c.icon, type = c.type, cam = c.cam,
                     base = c.price, count = data.count, ranges = ranges,
-                    current = { drawable = cur.drawable, texture = cur.texture }, blacklist = black[c.id] or {} }
+                    current = { drawable = cur.drawable, texture = cur.texture }, blacklist = black[c.id] or {},
+                    hidden = hiddenDrawables(ped, sex, c) }
             end
         end
         local packs = {}
@@ -195,7 +260,7 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money)
         end
         return { action = 'open', shop = { name = shop.name, multiplier = shop.multiplier }, sex = sex, categories = cats, packs = packs,
             gta = sold(shop, nil), money = money, payments = Config.Payments, currency = Config.Currency,
-            images = imagesConfig(), itemsMode = ClothingItemsMode() }
+            images = imagesConfig(), itemsMode = ClothingItemsMode(), manage = canManage }
     end)
     if not ok then
         print('^1[elyzea_clothing] ouverture impossible : ' .. tostring(msg) .. '^0')

@@ -47,13 +47,16 @@ const ico = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>
 let S = null;               // boutique ouverte
 let cat = null;             // rayon affiché
 let sel = null;             // { d, t, n } modèle choisi
-let filter = 'all';         // 'all' | 'gta' | id de pack
+let filter = 'all';         // 'all' | 'gta' | id de pack | 'hidden' (staff)
 const cart = new Map();     // rayon -> { cat, drawable, texture, price }
 let wearNow = false, method = 'cash', shown = 60, query = '', camView = 'full', hands = false, busy = false;
 const PAY = { cash: 'Liquide', bank: 'Banque' };
 const money = (n) => `${Math.round(n || 0).toLocaleString('fr-FR')} ${S ? S.currency : '$'}`;
 const catById = (id) => S.categories.find((c) => c.id === id);
 const packById = (id) => S.packs.find((p) => p.id === id);
+// Vêtements cachés par le staff : invisibles et invendables pour tout le monde (le staff les voit, marqués « Caché »)
+const hidSet = (c) => c._hid || (c._hid = new Set(c.hidden || []));
+const isHidden = (c, d) => d >= 0 && hidSet(c).has(d);
 
 /* ---------- Packs : à quel pack appartient un modèle ? ---------- */
 // Les modèles d'un pack se suivent : le rayon donne des blocs { from, to, pack, sold }
@@ -175,7 +178,13 @@ function list(c) {
   const black = new Set(c.blacklist || []);
   const out = [];
   if (c.type === 'prop' && (filter === 'all' || filter === 'gta')) out.push(-1);
+  const hid = hidSet(c);
+  if (filter === 'hidden') {
+    if (!S.manage) return out;
+    return [...hid].filter((d) => d < c.count && (!query || String(d).includes(query))).sort((a, b) => a - b);
+  }
   for (let d = 0; d < c.count; d++) {
+    if (!S.manage && hid.has(d)) continue;
     const r = rangeOf(c, d);
     if (r) {
       if (!r.sold || (filter !== 'all' && filter !== r.pack)) continue;
@@ -206,6 +215,12 @@ function counts(c) {
     out.gta = Math.max(0, g);
     out.all += out.gta;
   }
+  const hid = [...hidSet(c)].filter((d) => d < c.count);
+  if (S.manage) out.hidden = hid.length;
+  else hid.forEach((d) => {
+    const r = rangeOf(c, d);
+    if (r) { if (r.sold) { out[r.pack] -= 1; out.all -= 1; } } else if (S.gta && !black.has(d)) { out.gta -= 1; out.all -= 1; }
+  });
   return out;
 }
 
@@ -233,12 +248,13 @@ function renderRail() {
 function renderFilters() {
   const n = allCounts().sum;
   const packs = S.packs.filter((p) => n[p.id]);
-  if (!packs.length) { $('#filters').innerHTML = ''; $('#filters').style.display = 'none'; filter = 'all'; return; }
+  const staff = S.manage && n.hidden ? `<button class="${filter === 'hidden' ? 'on' : ''} hidchip" data-filter="hidden" title="Staff : vêtements cachés (personne d'autre ne les voit)">🙈 Cachés<i>${n.hidden}</i></button>` : '';
+  if (!packs.length && !staff) { $('#filters').innerHTML = ''; $('#filters').style.display = 'none'; filter = 'all'; return; }
   $('#filters').style.display = '';
   if (filter !== 'all' && !n[filter]) filter = 'all';
   const chip = (id, txt, k) => `<button class="${filter === id ? 'on' : ''}" data-filter="${esc(id)}">${esc(txt)}<i>${k}</i></button>`;
   $('#filters').innerHTML = '<span class="flabel">Collection</span>' + chip('all', 'Tout', n.all) + (S.gta && n.gta ? chip('gta', 'GTA', n.gta) : '')
-    + packs.map((p) => chip(p.id, p.label, n[p.id])).join('');
+    + packs.map((p) => chip(p.id, p.label, n[p.id])).join('') + staff;
 }
 // Choisir une collection : le menu de gauche ne garde que les rayons où elle a des modèles
 function setFilter(f) {
@@ -265,11 +281,11 @@ function renderGrid(keepScroll) {
     const i = info(cat, d);
     const worn = d === cat.current.drawable, isSel = sel && sel.d === d, isCart = inCart && inCart.drawable === d;
     const t = isSel ? sel.t : isCart ? inCart.texture : worn ? cat.current.texture : 0;
-    return `<button class="card ${isSel ? 'sel' : ''} ${d < 0 ? 'none' : ''}" data-d="${d}" aria-label="${esc(label(cat, d))}">
+    return `<button class="card ${isSel ? 'sel' : ''} ${d < 0 ? 'none' : ''} ${isHidden(cat, d) ? 'hidden-item' : ''}" data-d="${d}" aria-label="${esc(label(cat, d))}">
       ${photo(cat, d, t)}${svg(d < 0 ? 'none' : cat.icon, 'ico')}
       <span class="num">${d < 0 ? 'AUCUN' : '#' + i.num}</span>
       ${i.pack ? `<span class="pack">${esc(i.pack.label)}</span>` : ''}
-      ${isCart ? '<span class="tag incart">Panier</span>' : worn ? '<span class="tag worn">Porté</span>' : ''}
+      ${isHidden(cat, d) ? '<span class="tag hid">Caché</span>' : isCart ? '<span class="tag incart">Panier</span>' : worn ? '<span class="tag worn">Porté</span>' : ''}
       <span class="foot"><b>${d < 0 ? 'Gratuit' : money(priceOf(cat, d))}</b><span class="live">Sur toi</span></span></button>`;
   }).join('') + (all.length > shown ? `<div class="more">Défile pour voir plus (${all.length - shown} restants)</div>` : '')
     + (all.length ? '' : '<div class="empty">Aucun modèle ne correspond.</div>');
@@ -283,13 +299,15 @@ function renderDetail() {
   const inCart = cart.get(cat.id);
   const same = inCart && inCart.drawable === sel.d && inCart.texture === sel.t;
   const worn = sel.d === cat.current.drawable && sel.t === cat.current.texture;
-  const forSale = sel.d < 0 || i.sold;
+  const hidden = isHidden(cat, sel.d);
+  const forSale = sel.d < 0 || (i.sold && !hidden);
   const sws = Array.from({ length: sel.n }, (_, k) => `<button class="${k === sel.t ? 'on' : ''}" data-t="${k}" aria-label="Coloris ${k + 1}">${photo(cat, sel.d, k, 'thumb', true)}<span class="n">${k + 1}</span></button>`).join('');
   el.innerHTML = `<div class="drow"><div class="dname"><b>${esc(label(cat, sel.d))}${i.pack ? `<span class="dpack">${esc(i.pack.label)}</span>` : ''}<span class="badge-live">Sur toi</span></b>
       <span>${sel.d < 0 ? 'Retire l\'accessoire porté' : `${sel.n} coloris disponible${sel.n > 1 ? 's' : ''}`}</span></div>
       <div class="price ${p ? '' : 'free'}">${p ? money(p) : 'Gratuit'}</div></div>
     ${sel.d >= 0 && sel.n > 1 ? `<div class="tex"><label>Coloris</label><button class="arrow" data-tstep="-1" aria-label="Coloris précédent">‹</button><div class="sw">${sws}</div><button class="arrow" data-tstep="1" aria-label="Coloris suivant">›</button></div>` : '<div style="height:12px"></div>'}
-    <button class="btn primary wide" id="add" ${same || (worn && !inCart) || !forSale ? 'disabled' : ''}>${!forSale ? 'Pas vendu ici' : same ? '✓ Dans le panier' : worn && !inCart ? 'Tu le portes déjà' : inCart ? 'Remplacer dans le panier' : 'Ajouter au panier'}</button>`;
+    <button class="btn primary wide" id="add" ${same || (worn && !inCart) || !forSale ? 'disabled' : ''}>${hidden ? 'Caché : pas en vente' : !forSale ? 'Pas vendu ici' : same ? '✓ Dans le panier' : worn && !inCart ? 'Tu le portes déjà' : inCart ? 'Remplacer dans le panier' : 'Ajouter au panier'}</button>
+    ${S.manage && sel.d >= 0 ? `<button class="btn ghost wide staffhide" id="hideBtn" title="Staff · toutes les boutiques, tous les coloris de ce modèle">${hidden ? '👁 Remettre en vente pour tout le monde' : '🙈 Cacher pour tout le monde'}</button>` : ''}`;
   hydrate(el);
   const on = el.querySelector('.sw .on');
   if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -351,7 +369,7 @@ async function tryOn(d, t = 0) {
 }
 function addToCart() {
   if (!sel) return;
-  if (sel.d >= 0 && !info(cat, sel.d).sold) return;
+  if (sel.d >= 0 && (!info(cat, sel.d).sold || isHidden(cat, sel.d))) return;
   cart.set(cat.id, { cat: cat.id, drawable: sel.d, texture: sel.t, price: priceOf(cat, sel.d) });
   toast(`${label(cat, sel.d)} ajouté au panier.`, 'ok');
   renderRail(); renderGrid(true); renderDetail(); renderCart();
@@ -434,6 +452,8 @@ $('#detail').addEventListener('click', (e) => {
   const t = e.target.closest('[data-t]'); if (t) return tryOn(sel.d, Number(t.dataset.t));
   const st = e.target.closest('[data-tstep]'); if (st) return tryOn(sel.d, (sel.t + Number(st.dataset.tstep) + sel.n) % sel.n);
   if (e.target.closest('#add')) addToCart();
+  const hb = e.target.closest('#hideBtn');
+  if (hb && S.manage && sel && sel.d >= 0) { hb.disabled = true; post('setHidden', { cat: cat.id, drawable: sel.d, hide: !isHidden(cat, sel.d) }); }
 });
 $('#cartItems').addEventListener('click', (e) => {
   const r = e.target.closest('[data-rm]'); if (r) return removeFromCart(r.dataset.rm);
@@ -637,7 +657,7 @@ window.addEventListener('message', (e) => {
   switch (m.action) {
     case 'open':
       S = { shop: m.shop, sex: m.sex, categories: m.categories, packs: m.packs || [], gta: m.gta !== false, money: m.money || {},
-        payments: m.payments || ['cash', 'bank'], currency: m.currency || '$', itemsMode: !!m.itemsMode };
+        payments: m.payments || ['cash', 'bank'], currency: m.currency || '$', itemsMode: !!m.itemsMode, manage: !!m.manage };
       IMG.setup(m.images);
       cart.clear(); wearNow = false; busy = false; hands = false; camView = 'full'; filter = 'all'; totals = null; method = S.payments[0];
       $('#shopName').textContent = S.shop.name;
@@ -646,6 +666,21 @@ window.addEventListener('message', (e) => {
       cat = S.categories[0];
       renderRail(); renderCart(); renderTools(); sendLayout(); chooseCat(cat.id);
       break;
+    case 'hidden': {
+      if (!S) break;
+      for (const c of S.categories) { if (m.cats && m.cats[c.id]) { c.hidden = m.cats[c.id]; c._hid = null; } }
+      totals = null;
+      // un article caché ne reste pas dans le panier d'un joueur
+      let removed = 0;
+      for (const [id, it] of [...cart.entries()]) {
+        const c = catById(id);
+        if (c && !S.manage && isHidden(c, it.drawable)) { cart.delete(id); removed += 1; post('try', { cat: id, drawable: c.current.drawable, texture: c.current.texture }); }
+      }
+      if (removed) toast('Un article de ton panier n\'est plus en vente.', 'err');
+      if (filter === 'hidden' && !allCounts().sum.hidden) filter = 'all';
+      renderFilters(); renderRail(); renderGrid(true); renderDetail(); renderCart();
+      break;
+    }
     case 'close': $('#app').classList.add('closing'); setTimeout(() => $('#app').classList.add('hidden'), 250); break;
     case 'error': busy = false; if (m.money) S.money = m.money; renderCart(); toast(m.text, 'err'); break;
     case 'paid':
@@ -673,6 +708,11 @@ function mock(ev, d) {
     const n = d.drawable < 0 ? 1 : 1 + ((d.drawable * 7 + 3) % 9);
     return { textures: n, texture: Math.min(d.texture || 0, n - 1) };
   }
+  if (ev === 'setHidden') {
+    const c = catById(d.cat), h = new Set(c.hidden || []);
+    if (d.hide) h.add(d.drawable); else h.delete(d.drawable);
+    setTimeout(() => window.postMessage({ action: 'hidden', cats: { [d.cat]: [...h] } }, '*'), 150);
+  }
   if (ev === 'pay') setTimeout(() => window.postMessage({ action: 'paid', text: 'Achat réglé.' }, '*'), 600);
   if (ev.startsWith('outfit')) mockOutfits(ev, d);
   return {};
@@ -687,7 +727,7 @@ if (!IN_GAME) {
     current: { drawable: cur, texture: 0 }, blacklist: [], ranges: ranges.map(([from, to, pack]) => ({ from, to, pack, sold: true })) }));
   window.postMessage({ action: 'open', shop: { name: 'Ponsonbys', multiplier: 100 }, sex: 'male', categories: cats, gta: true,
     packs: [{ id: 'maison_elyzea', label: 'Maison Elyzea', price: 250, folder: 'maison_elyzea' }, { id: 'streetwear_la', label: 'Streetwear LA', price: 100, folder: 'streetwear_la' }],
-    money: { cash: 1840, bank: 26350 }, payments: ['cash', 'bank'], currency: '$', images: { enabled: false }, itemsMode: true }, '*');
+    money: { cash: 1840, bank: 26350 }, payments: ['cash', 'bank'], currency: '$', images: { enabled: false }, itemsMode: true, manage: /staff/.test(location.search) }, '*');
 }
 
 /* Aperçu hors jeu des tenues enregistrées : données fictives, gardées en mémoire */

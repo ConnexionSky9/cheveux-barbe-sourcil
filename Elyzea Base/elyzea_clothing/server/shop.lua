@@ -58,6 +58,12 @@ function Shop.sells(shop, pack)
     return shop.packs == 'all' or listed(pack.id)
 end
 
+-- Vêtement de GTA retiré dans config.lua (Config.Blacklist)
+local function blacklisted(sex, catId, d)
+    for _, n in ipairs(((Config.Blacklist or {})[sex] or {})[catId] or {}) do if n == d then return true end end
+    return false
+end
+
 function Shop.price(shop, catId, pack)
     local c = Cat[catId]
     local p = c.price * shop.multiplier / 100
@@ -73,7 +79,7 @@ local function openFor(src, shop)
     local pos = c and vector3(c.x + 0.0, c.y + 0.0, c.z + 0.0) or GetEntityCoords(GetPlayerPed(src))
     Shop.sessions[src] = { shop = s, coords = pos }
     s.vendor = c and { x = pos.x, y = pos.y, z = pos.z } or nil
-    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src))
+    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src), { manage = Hidden.canManage(src) })
     return true
 end
 exports('OpenFor', openFor)
@@ -107,6 +113,9 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
         seen[catId] = true
         local pack = Packs.ofCollection(p.col)
         if p.drawable >= 0 and not Shop.sells(s.shop, pack) then return result(src, false, 'Un article du panier n\'est pas vendu ici.') end
+        if p.drawable >= 0 and (Hidden.is(sex, catId, p) or (not p.col and blacklisted(sex, catId, p.drawable))) then
+            return result(src, false, 'Un article du panier n\'est plus en vente.')
+        end
         local price = p.drawable < 0 and 0 or Shop.price(s.shop, catId, pack)
         total = total + price
         list[#list + 1] = { cat = catId, piece = p, pack = pack, price = price }
