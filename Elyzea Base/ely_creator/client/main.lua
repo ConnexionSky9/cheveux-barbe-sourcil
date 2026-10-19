@@ -711,7 +711,7 @@ exports('SaveOutfit', function()
     local ped = PlayerPedId()
     local comps, props = {}, {}
     for _, id in ipairs(Config.ComponentIds) do
-        comps[tostring(id)] = ElyCloth and ElyCloth.read(ped, 'component', id)
+        comps[tostring(id)] = ElyCloth and (ElyCloth.readReal or ElyCloth.read)(ped, 'component', id)   -- jamais le ventre de grossesse
             or { drawable = GetPedDrawableVariation(ped, id), texture = GetPedTextureVariation(ped, id) }
     end
     for _, id in ipairs(Config.PropIds) do

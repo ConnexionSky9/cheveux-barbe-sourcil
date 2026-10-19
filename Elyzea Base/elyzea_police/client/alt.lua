@@ -45,6 +45,7 @@ end
 local ALT_PROVIDERS = {
     { res = 'elyzea_ems', prefix = 'ems:' },
     { res = 'elyzea_meca', prefix = 'meca:' },
+    { res = 'elyzea_famille', prefix = 'fam:' },
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },
 }

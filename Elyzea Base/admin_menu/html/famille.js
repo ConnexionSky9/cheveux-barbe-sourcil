@@ -6,7 +6,7 @@
 (() => {
     TABS.push({
         id: 'famille', group: 5, label: 'Famille', ico: '👪',
-        sub: 'Moment intime (durée, conditions), risque de grossesse, contraception, bébés et équipements.',
+        sub: 'Moment intime, risque de grossesse, test, étapes, symptômes, fin de grossesse, ventre, contraception, bébés et équipements.',
         show: () => has('famille_manage') && !!(D && D.famille),
     });
 
@@ -27,6 +27,11 @@
         const tag = changed ? `<span class="muted" style="font-size:12px">défaut : ${esc(shown(d, def))}</span>` : '';
         if (d.type === 'bool') {
             return `<div class="tile toggle-tile ${v ? 'on' : ''}" data-ft="${esc(d.key)}"><div><strong>${esc(d.label)}</strong><span>${esc(d.help)}</span>${tag}</div><div class="switch"></div></div>`;
+        }
+        if (d.type === 'str') {
+            return `<div class="field"><label>${esc(d.label)}</label>
+            <input class="input" type="text" data-fs="${esc(d.key)}" maxlength="${d.max || 64}" value="${esc(v ?? '')}">
+            <p class="hint" style="margin:4px 0 0">${esc(d.help)}</p>${tag}</div>`;
         }
         const isPct = d.type === 'pct';
         const val = isPct ? Math.round(Number(v) * 10000) / 100 : v;
@@ -70,6 +75,7 @@
     document.addEventListener('input', (ev) => {
         if (!on()) return;
         const t = ev.target;
+        if (t.dataset.fs) { F.draft[t.dataset.fs] = t.value; return; }
         if (!t.dataset.ff) return;
         if (t.value === '') { F.draft[t.dataset.ff] = null; return; }
         const n = Number(t.value);
