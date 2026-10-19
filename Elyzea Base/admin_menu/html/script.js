@@ -1192,6 +1192,7 @@ function npcSummary(n) {
         const wl = n.casino.role === 'wheel' ? ` · roue « ${esc(((D.casinoWheels || []).find((w) => w.id === n.casino.wheel) || {}).name || n.casino.wheel)} »` : '';
         parts.push(`${CR[n.casino.role] || '🎰 Casino'} <b>${esc(n.casino.name || '')}</b>${wl}${n.casino.role !== 'cashier' ? (n.casino.table ? ' · posée' : ' · <b style="color:var(--danger)">table / roue à poser</b>') : ''}`);
     }
+    if (n.pvp) parts.push(`⚔️ Arène PvP <b>${esc(n.pvp.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
@@ -1306,6 +1307,7 @@ function toPedEdit(r) {
         ...marketEdit(n.market),
         ...gunshopEdit(n.gunshop),
         ...casinoEdit(n.casino),
+        pvpOn: !!n.pvp, pvpName: n.pvp ? (n.pvp.name || '') : 'Arène PvP',
         areaMode: n.area ? n.area.shape : 'default',
         areaRadius: n.area && n.area.shape === 'circle' ? n.area.radius : 4,
         areaPoly: n.area && n.area.shape === 'poly' ? clone(n.area) : null,
@@ -1652,7 +1654,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
@@ -1703,6 +1705,7 @@ function pedEditPayload(p) {
             payChoice: !!p.mkPayChoice, blip: !!p.mkBlip, blipSprite: num(p.mkBlipSprite, 52), blipColor: num(p.mkBlipColor, 2),
         } : null,
         casino: p.casinoOn ? { role: p.csRole, name: String(p.csName || '').trim(), model: String(p.csModel || '').trim(), wheel: p.csWheel } : null,
+        pvp: p.pvpOn ? { name: String(p.pvpName || '').trim() } : null,
         area: p.areaMode === 'circle' ? { shape: 'circle', radius: Math.max(1, Math.min(40, num(p.areaRadius, 4))) }
             : p.areaMode === 'poly' ? livePoly(p) : null,
         jobs: p.gJobsOn ? p.gJobs.filter((j) => String(j.job).trim()).map((j) => ({ job: String(j.job).trim().toLowerCase(), grade: num(j.grade, 0) })) : [],
@@ -1957,7 +1960,13 @@ function pedEditor() {
                 ${tog('marketOn', '🏪 Supérette', 'Magasin avec rayons, panier et paiement')}
                 ${tog('gunshopOn', '🔫 Armurerie', 'Armes, munitions, accessoires, essai au stand de tir')}
                 ${tog('casinoOn', '🎰 Casino', 'Croupier (blackjack, roulette), roue de la fortune ou guichet des jetons')}
+                ${tog('pvpOn', '⚔️ Arène PvP', 'Parties en équipes avec mises et paris (ressource pvp_arena)')}
             </div>
+            ${p.pvpOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">⚔️ Arène PvP</h3>
+                <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le menu des parties : créer, rejoindre, miser, parier.
+                    Les arènes se règlent en jeu avec les commandes <b>/pvp_arena_*</b> (voir le README de pvp_arena). Nécessite la ressource <b>pvp_arena</b>.</p>
+                <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="pvpName" value="${esc(p.pvpName)}" placeholder="Arène PvP"></div>
+            </div>` : ''}
             ${p.barberOn ? barberCard(p, tog) : ''}
             ${p.tattooOn ? tattooCard(p, tog) : ''}
             ${p.marketOn ? marketCard(p, tog) : ''}

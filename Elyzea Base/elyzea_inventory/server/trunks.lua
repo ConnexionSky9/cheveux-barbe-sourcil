@@ -40,7 +40,7 @@ local function Notify(src, text) Sync(src, { type = 'error', text = text }) end
 -- Ouvre le coffre du véhicule (netId) ; class = GetVehicleClass côté client
 RegisterNetEvent('elyzea_inv:openTrunk', function(netId, class)
     local src = source
-    if not Inv[src] then return end
+    if not Inv[src] or (InArena and InArena(src)) then return end
     local veh = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
     if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
     local ped = GetPlayerPed(src)

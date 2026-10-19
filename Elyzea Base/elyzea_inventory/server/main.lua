@@ -38,6 +38,12 @@ local function playerCoords(src)
     return GetEntityCoords(ped)
 end
 
+-- Arène PvP (pvp_arena) : l'inventaire RP est inaccessible pendant une partie
+function InArena(src)
+    local st = Player(src).state
+    return st and st.pvpArena and st.pvpArena ~= false or false
+end
+
 local function limited(src)
     local now = GetGameTimer()
     local r = Rate[src]
@@ -542,7 +548,7 @@ end
 -- Ouverture demandée par le client (vérifie l'accès)
 RegisterNetEvent('elyzea_inv:openContainer', function(kind, id)
     local src = source
-    if not Inv[src] or limited(src) then return end
+    if not Inv[src] or limited(src) or InArena(src) then return end
     if kind == 'stash' then
         local c = getStash(id, src)
         if not c then return end
@@ -888,7 +894,7 @@ RegisterNetEvent('elyzea_inv:action', function(action, data)
     local inv = Inv[src]
     if not inv or type(action) ~= 'string' or type(data) ~= 'table' then return end
     local handler = Actions[action]
-    if not handler then return end
+    if not handler or InArena(src) then return end
     if limited(src) then return sync(src, { type = 'error', text = Msg.rate_limited }) end
     local ok, err, touchesGround = handler(src, inv, data)
     if ok then inv.dirty = true end
@@ -998,7 +1004,7 @@ end)
 
 RegisterNetEvent('elyzea_inv:open', function()
     local src = source
-    if not Inv[src] then return end
+    if not Inv[src] or InArena(src) then return end
     Open[src] = true
     TriggerClientEvent('elyzea_inv:open', src, buildPayload(src))
 end)

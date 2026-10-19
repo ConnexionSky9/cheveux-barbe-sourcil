@@ -247,6 +247,12 @@ do
         meta.casino1 = true
         Storage.save('meta', meta)
     end
+    if not meta.pvp1 then
+        -- Arène PvP (pvp_arena) : commandes d'administration pour le SuperAdmin
+        if Ranks.superadmin then Ranks.superadmin.perms.pvp_manage = true end
+        meta.pvp1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.famille1 then
         -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end

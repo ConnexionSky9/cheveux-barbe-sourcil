@@ -66,6 +66,7 @@ exports('closeInventory', function() closeInventory() end)
 local function canOpen()
     local ped = PlayerPedId()
     return state ~= nil
+        and not LocalPlayer.state.pvpArena          -- arène PvP : inventaire RP fermé pendant la partie
         and not IsPauseMenuActive()
         and not IsEntityDead(ped)
         and not IsPedInAnyVehicle(ped, false)

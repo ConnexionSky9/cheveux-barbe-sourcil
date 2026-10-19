@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Arena PvP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Menu (accueil + lobby) -->
+    <main id="menu" class="hidden">
+        <div class="frame">
+            <header class="top">
+                <div class="brand"><span class="logo">◆</span><div><small data-t="brand_sub"></small><h1 data-t="brand"></h1></div></div>
+                <nav class="crumbs"><span id="crumb-home" data-t="nav_matches"></span><span id="crumb-lobby" class="hidden"></span></nav>
+                <button class="icon-btn" data-act="close" aria-label="Fermer">✕</button>
+            </header>
+            <section id="home" class="view"></section>
+            <section id="lobby" class="view hidden"></section>
+        </div>
+    </main>
+
+    <!-- Choix de l'arme -->
+    <section id="weapons" class="hidden">
+        <div class="wp-head">
+            <div><small id="wp-round"></small><h2 data-t="wp_title"></h2></div>
+            <div class="ring big"><svg viewBox="0 0 44 44"><circle class="ring-bg" cx="22" cy="22" r="19"/><circle class="ring-fg" id="wp-ring" cx="22" cy="22" r="19"/></svg><span id="wp-timer"></span></div>
+        </div>
+        <div class="wp-tabs" id="wp-tabs"></div>
+        <div class="wp-grid" id="wp-grid"></div>
+        <div class="wp-foot"><span class="hint" id="wp-hint"></span><button class="btn primary" id="wp-confirm" data-t="wp_confirm"></button></div>
+    </section>
+
+    <!-- HUD de partie -->
+    <section id="hud" class="hidden">
+        <div class="score">
+            <div class="team a"><span class="tname" id="hud-na"></span><div class="pips" id="hud-pa"></div></div>
+            <div class="sc"><b id="hud-sa">0</b><div class="mid"><small id="hud-round"></small><span id="hud-time">--</span></div><b id="hud-sb">0</b></div>
+            <div class="team b"><div class="pips" id="hud-pb"></div><span class="tname" id="hud-nb"></span></div>
+        </div>
+        <div class="wins" id="hud-wins"></div>
+        <div class="feed" id="feed"></div>
+        <div class="center" id="center"></div>
+        <div class="banner hidden" id="banner"></div>
+        <div class="spec hidden" id="spec"></div>
+        <div class="myteam" id="myteam"></div>
+    </section>
+
+    <!-- Fin de partie -->
+    <section id="end" class="hidden"></section>
+
+    <!-- Résultat de pari (spectateur) -->
+    <div id="betres" class="hidden"></div>
+    <div id="modal" class="hidden"></div>
+    <div id="toasts"></div>
+
+    <script src="lang.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

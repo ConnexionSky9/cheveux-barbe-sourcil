@@ -132,7 +132,8 @@ CreateThread(function()
     if not D.enabled then return end
     while true do
         local ped = PlayerPedId()
-        if not downed and (IsEntityDead(ped) or IsPedFatallyInjured(ped)) and LocalPlayer.state.isLoggedIn ~= false then
+        -- arène PvP (pvp_arena) : une élimination n'est pas une mort RP (pas de coma, pas d'hôpital)
+        if not downed and (IsEntityDead(ped) or IsPedFatallyInjured(ped)) and LocalPlayer.state.isLoggedIn ~= false and not LocalPlayer.state.pvpArena then
             EnterComa(true)
         end
         Wait(250)

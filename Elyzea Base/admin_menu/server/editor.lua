@@ -420,8 +420,13 @@ local function cleanNpc(n)
     if type(n.gunshop) == 'table' and GunshopCleanRole then out.gunshop = GunshopCleanRole(n.gunshop) end
     -- Casino (ressource elyzea_casino) : croupier blackjack / roulette, roue de la fortune, guichetier
     if type(n.casino) == 'table' and CasinoCleanRole then out.casino = CasinoCleanRole(n.casino) end
+    -- Arène PvP (ressource pvp_arena) : ouvre le menu des parties
+    if type(n.pvp) == 'table' then
+        local name = cleanName(n.pvp.name, 40)
+        out.pvp = { name = name ~= '' and name or 'Arène PvP' }
+    end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino then return nil end
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out

@@ -1313,6 +1313,9 @@ CreateThread(function()
                     local verb = ({ blackjack = 'Appuyer pour jouer au', roulette = 'Appuyer pour jouer à la', wheel = 'Appuyer pour parler à', cashier = 'Appuyer pour aller à' })[cr.role] or 'Appuyer pour parler à'
                     ShowPrompt(verb, (cr.name ~= '' and cr.name) or best.ref.name or 'Casino')
                     if pressed then TriggerEvent('elyzea_casino:client:npc', best.ref.id, cr.role) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.pvp then
+                    ShowPrompt('Appuyer pour entrer dans', best.ref.npc.pvp.name or 'l\'arène')
+                    if pressed then TriggerEvent('pvp_arena:client:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.gunshop then
                     ShowPrompt('Appuyer pour parler à', best.ref.npc.gunshop.name or 'l\'armurier')
                     if pressed then TriggerServerEvent('adminmenu:gunshop:request', best.ref.id) end
