@@ -101,14 +101,15 @@ Config.Defaults = {
 }
 
 -- ---------------------------------------------------------
---  Harnais : styles dessinés sur le chien (aucun fichier 3D requis)
+--  Harnais : styles dessinés sur le chien, mesurés sur son squelette (aucun fichier 3D requis)
 --  bands : sangles autour du corps (at = 'chest' poitrail, 'neck' encolure, 'belly' ventre)
---  width : largeur de la sangle (m) · back : sangle dorsale entre les bandes
+--  width : largeur de la sangle (m) · back : sangle dorsale · plate : plastron devant le poitrail
+--  Chaque sangle a ses coutures, une boucle à clip sur le flanc ; un anneau en D sur le dos reçoit la laisse.
 -- ---------------------------------------------------------
 Config.HarnessStyles = {
     { id = 'simple',   label = 'Sangle simple',      bands = { { at = 'chest', width = 0.045 } } },
     { id = 'h',        label = 'Harnais en H',       bands = { { at = 'neck', width = 0.035 }, { at = 'chest', width = 0.045 } }, back = true },
-    { id = 'plastron', label = 'Harnais à plastron', bands = { { at = 'neck', width = 0.04 }, { at = 'chest', width = 0.09 }, { at = 'belly', width = 0.04 } }, back = true },
+    { id = 'plastron', label = 'Harnais à plastron', bands = { { at = 'neck', width = 0.04 }, { at = 'chest', width = 0.07 }, { at = 'belly', width = 0.04 } }, back = true, plate = true },
 }
 Config.HarnessColors = {
     { id = 'noir',   label = 'Noir',   rgb = { 22, 22, 24 } },
@@ -120,6 +121,12 @@ Config.HarnessColors = {
     { id = 'camel',  label = 'Cuir camel', rgb = { 150, 96, 48 } },
 }
 Config.LeashColor = { 30, 28, 26, 255 }   -- couleur de la laisse dessinée
+
+-- Ajustement du harnais par modèle (multiplicateurs, voir shared/harness_geom.lua › DefaultFit).
+-- Le harnais est mesuré sur le squelette de chaque chien ; ces valeurs ne servent qu'à affiner une race.
+-- Le plus simple : en jeu, /harnais_reglage (staff, enregistré en base, prioritaire sur ce tableau).
+-- Exemple : Config.HarnessFit.a_c_husky = { width = 1.6, pad = 0.03 }   -- poil épais
+Config.HarnessFit = {}
 
 -- ---------------------------------------------------------
 --  Profils de comportement (commandes par type d'animal)

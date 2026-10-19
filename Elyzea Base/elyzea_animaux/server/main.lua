@@ -142,14 +142,14 @@ function A.PushWorld()
     pushPending = true
     SetTimeout(250, function()
         pushPending = false
-        TriggerClientEvent('elyzea_animaux:client:world', -1, { vendors = A.PublicVendors(), settings = A.ClientSettings(), farm = A.PublicFarm and A.PublicFarm() or {} })
+        TriggerClientEvent('elyzea_animaux:client:world', -1, { vendors = A.PublicVendors(), settings = A.ClientSettings(), farm = A.PublicFarm and A.PublicFarm() or {}, fit = A.Fit })
     end)
 end
 
 RegisterNetEvent('elyzea_animaux:server:hello', function()
     local src = source
     if not A.Ready or not A.Rate(src, 'hello', 4, 10000) then return end
-    TriggerClientEvent('elyzea_animaux:client:world', src, { vendors = A.PublicVendors(), settings = A.ClientSettings(), farm = A.PublicFarm and A.PublicFarm() or {} })
+    TriggerClientEvent('elyzea_animaux:client:world', src, { vendors = A.PublicVendors(), settings = A.ClientSettings(), farm = A.PublicFarm and A.PublicFarm() or {}, fit = A.Fit })
     if A.SendActive then A.SendActive(src) end
 end)
 
@@ -249,6 +249,23 @@ RegisterNetEvent('elyzea_animaux:server:scanResult', function(results)
     A.SaveSection('scan', A.Scan)
     A.Notify(src, ('Scan terminé : %d modèle(s), %d introuvable(s). Résultat dans le menu › Diagnostic.'):format(n, missing), missing > 0 and 'warning' or 'success')
     A.Log(src, 'Scan des modèles', ('%d modèle(s), %d introuvable(s)'):format(n, missing))
+end)
+
+-- Ajustement du harnais d'un modèle (/harnais_reglage, staff « animaux_manage »)
+RegisterNetEvent('elyzea_animaux:server:saveFit', function(model, fit)
+    local src = source
+    if not A.Ready or not A.Rate(src, 'fit', 5, 10000) then return end
+    if not A.IsStaff(src, Config.AdminPerms.manage) then return A.Notify(src, 'Permission « animaux_manage » requise.', 'error') end
+    if type(model) ~= 'string' or not A.FitModels()[model] then return A.Notify(src, 'Modèle inconnu (seuls les chiens portent un harnais).', 'error') end
+    if fit == nil then A.Fit[model] = nil else
+        local clean = A.SanitizeFitOne(fit)
+        if not clean then return A.Notify(src, 'Réglage invalide.', 'error') end
+        A.Fit[model] = clean
+    end
+    A.SaveSection('fit', A.Fit)
+    A.PushWorld()
+    A.Notify(src, fit == nil and ('Harnais de %s remis par défaut.'):format(model) or ('Harnais de %s enregistré pour tous les joueurs.'):format(model), 'success')
+    A.Log(src, 'Ajustement du harnais', ('%s : %s'):format(model, fit == nil and 'défaut' or json.encode(A.Fit[model])))
 end)
 
 -- Problèmes constatés en jeu (modèle introuvable, commande sans animation…) : diagnostic

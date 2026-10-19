@@ -12,6 +12,7 @@ A = {
     Vendors = {},      -- liste des vendeurs
     Farm = {},         -- ferme (réglages + enclos)
     Scan = {},         -- [modèle] = résultat du dernier scan staff
+    Fit = {},          -- [modèle] = ajustement du harnais (/harnais_reglage)
     Diag = { saveErrors = {}, loadErrors = {}, clientIssues = {} },
 }
 
@@ -299,6 +300,40 @@ function A.SanitizeScan(d)
 end
 
 -- ---------------------------------------------------------
+--  Ajustement du harnais par modèle (bornes de chaque valeur)
+-- ---------------------------------------------------------
+A.FitBounds = {
+    width = { 0.8, 2.6 }, height = { 0.7, 2.0 }, pad = { 0.0, 0.08 }, girth = { -0.5, 1.5 }, neckAt = { 0.0, 1.2 },
+    neck = { 0.6, 1.8 }, neckTilt = { 0.0, 1.0 }, belly = { 0.1, 0.8 }, lift = { -0.1, 0.1 },
+}
+function A.FitModels()
+    local set = {}
+    for _, sp in pairs(Config.Species) do
+        if (Config.Profiles[sp.profile] or {}).harness then
+            set[sp.model] = true
+            for _, v in ipairs(sp.variants or {}) do if v.model then set[v.model] = true end end
+        end
+    end
+    return set
+end
+function A.SanitizeFitOne(f)
+    if type(f) ~= 'table' then return nil end
+    local out, n = {}, 0
+    for k, b in pairs(A.FitBounds) do
+        local v = Ani.Num(f[k])
+        if v then out[k] = math.floor(math.max(b[1], math.min(b[2], v)) * 1000 + 0.5) / 1000 n = n + 1 end
+    end
+    return n > 0 and out or nil
+end
+function A.SanitizeFit(d)
+    local out, models = {}, A.FitModels()
+    for model, f in pairs(type(d) == 'table' and d or {}) do
+        if models[model] then out[model] = A.SanitizeFitOne(f) end
+    end
+    return out
+end
+
+-- ---------------------------------------------------------
 --  Base de données
 -- ---------------------------------------------------------
 function A.SaveSection(name, value)
@@ -369,4 +404,5 @@ function A.Load()
     A.Vendors = saved.vendors and A.SanitizeVendors(saved.vendors) or A.SanitizeVendors(Config.Vendors)
     A.Farm = A.SanitizeFarm(saved.farm or {}, Config.Farm)
     A.Scan = A.SanitizeScan(saved.scan or {})
+    A.Fit = A.SanitizeFit(saved.fit or {})
 end

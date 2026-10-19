@@ -74,7 +74,9 @@ Chaque section a son bouton « par défaut » : **réinitialiser les vendeurs (o
 Demande un **redémarrage de la ressource** (fichier `config.lua`) : noms des objets, touche F7, styles / couleurs de harnais,
 profils d'animations par espèce, liste des modèles de PNJ autorisés, nouvelles espèces.
 
-Commandes : `/animaux_diag` (console ou staff), `/animaux_scan` (staff, en jeu), `/animaux` (joueurs).
+Commandes : `/animaux_diag` (console ou staff), `/animaux_scan` (staff, en jeu), `/animaux` (joueurs),
+`/harnais_reglage` (staff : ajuster le harnais d'une race en direct, ← → réglage, ↑ ↓ valeur, E posture, Entrée enregistrer pour tous ;
+`/harnais_reglage defaut` pour revenir aux mesures), `/harnais_os` (affiche les os trouvés sur son chien).
 
 ---
 
@@ -92,10 +94,18 @@ Commandes : `/animaux_diag` (console ou staff), `/animaux_scan` (staff, en jeu),
 - **Pelages réels** : chaque pelage est une vraie texture du modèle (`SetPedComponentVariation`) ou un autre modèle de la même race
   (ex. `a_c_chop`, `a_c_pug_02`). Avant d'afficher le catalogue, le client du joueur crée l'animal en invisible et vérifie que
   la texture existe (`GetNumberOfPedTextureVariations`) : un pelage absent n'est jamais proposé, et l'aperçu est l'animal réel.
-- **Harnais et laisse** : GTA V n'a **aucun modèle 3D de harnais** pour chien. Plutôt que d'inventer un fichier, les sangles sont
-  **dessinées** chaque image autour du corps à partir des os de l'animal (encolure, poitrail, ventre) : elles suivent la posture.
-  La laisse est dessinée entre la main gauche du maître et le collier / l'anneau du harnais, avec un mou qui dépend de la distance :
-  elle reste toujours accrochée aux deux bouts, il n'y a ni corde physique qui saute, ni objet à nettoyer à la déconnexion.
+- **Harnais et laisse (version 2)** : GTA V n'a **aucun modèle 3D de harnais** pour chien. Le harnais est dessiné chaque image
+  (`client/gear.lua`), mais il est désormais **mesuré sur le squelette réel** de l'animal (`shared/harness_geom.lua`) :
+  repère du torse (hanches → épaules, épaule gauche → droite), largeur du poitrail (écart des épaules), hauteur (dos → coudes),
+  axe du cou. Il bascule donc avec le chien assis, couché, en marche ou en course. Chaque point est ensuite **repoussé hors du
+  volume du corps mesuré** (tronc en carène + cou) avec une marge au-dessus du pelage. Sangles en ellipse (plus étroites en bas),
+  coutures, boucle à clip sur le flanc, sangle dorsale, plastron, anneau en D sur le dos qui reçoit la laisse ; tailles proportionnelles
+  à la carrure (carlin → berger). Sans harnais, la laisse s'accroche à un collier dessiné.
+  La version 1 (sangles circulaires posées « au jugé » sur des os de la colonne) traversait le corps : remplacée.
+- **Pourquoi pas un objet 3D attaché ?** Un objet rigide (`.ydr`) est fixé à **un seul os** : quand le chien s'assoit, son torse
+  se plie et l'objet le traverse forcément. Un vrai harnais 3D sans clipping devrait être un **vêtement skinné** du modèle de chaque
+  race (fichiers `.ydd` + `.ymt` du chien, faits dans Blender / Sollumz ou CodeWalker par un graphiste) : impossible à produire et à
+  vérifier ici. La géométrie mesurée suit, elle, le squelette déformé.
 - **Comportement** : suivi avec décalage (pas dans les jambes), allure calée sur le maître avec un temps de latence (pas d'à-coups),
   nouveau chemin si l'animal est bloqué ; replacé près du maître **seulement** s'il est bloqué loin **et hors de l'écran**.
   Un animal qui a faim / soif (sous le seuil) ne court plus et refuse les tours. À 0 de faim ou de soif, il perd de la santé ;
@@ -115,7 +125,7 @@ comme le reste du serveur). Aucune ressource tierce.
 | Chiens (rottweiler, berger, husky, retriever, caniche, carlin, westie) | Modèles du jeu, plusieurs robes réelles par race selon le modèle. |
 | Chats unicolores / bicolores / tricolores / tigrés / tachetés | Le modèle `a_c_cat_01` n'a que **3 robes** dans le jeu. 7 robes supplémentaires sont **déjà prévues** dans `config.lua` (marquées `addon`) et restent cachées. Pour les débloquer : un pack de textures pour `a_c_cat_01` (fichiers `a_c_cat_01.ytd` avec les textures `head_diff_003_a_uni` à `head_diff_009_a_uni` et le `a_c_cat_01.ymt` qui déclare 10 textures), à faire dans OpenIV / CodeWalker et à streamer dans une ressource. Ensuite : **Lancer le scan** ; les robes trouvées apparaissent seules. |
 | Moutons, chèvres | **Aucun modèle dans GTA V** : il faut des modèles addon (signalé au Diagnostic). |
-| Harnais visible | Dessiné (voir section 4) : 3 styles × 7 couleurs. Un vrai modèle 3D demanderait un `.ydr` attaché à l'os de l'animal. |
+| Harnais visible | Dessiné et mesuré sur le squelette (voir section 4) : 3 styles × 7 couleurs. Un modèle 3D sans clipping demanderait un vêtement skinné par race (graphiste). |
 | Libellés des robes | Estimés : à vérifier avec **Aperçu** (Prix et pelages) et à renommer dans le menu si besoin. |
 | Images d'inventaire | Pas d'image fournie : l'emoji de l'objet s'affiche. Pour une image : `elyzea_inventory/html/img/<nom>.png` (256 × 256). |
 
@@ -135,6 +145,12 @@ admin, bornes des réglages, persistance après rechargement, vendeurs (placer i
 toucher aux animaux), registre (recherche, incohérence, ranger, retirer avec puce), copies orphelines, ferme (apparition, nourrir,
 récolte, délai, disparition, aucun animal attribué à un joueur).
 
+Harnais (hors jeu) — `python3 tests/harness_preview.py` : le vrai code `shared/harness_geom.lua` est appliqué à un **chien simulé**
+(squelette et volume de rottweiler approximatifs) dans 4 postures (debout, assis, marche, course) et 4 tailles (×0,5 à ×1,15).
+Mesure la marge de chaque point au corps simulé et dessine `tests/rendus/harnais_*.png`. **Résultat : aucun point ne traverse
+(marge mini 0,3 cm).** Ce n'est pas le modèle 3D du jeu : ça prouve que la méthode suit la posture, pas que les proportions
+d'un chien du jeu sont identiques (d'où `/harnais_reglage`).
+
 Aussi vérifiés : syntaxe Lua de tous les fichiers ajoutés / modifiés, syntaxe JavaScript (`node --check`) de l'interface et de l'onglet admin.
 
 ### À faire en jeu (à deux)
@@ -151,6 +167,9 @@ Aussi vérifiés : syntaxe Lua de tous les fichiers ajoutés / modifiés, syntax
 11. B (sans permission) : pas d'onglet Gestion des animaux.
 12. `/animaux_scan` puis Diagnostic : aucun modèle « introuvable ».
 13. Couper Cayo Perico du server.cfg : rien ne change (aucun point n'y est).
+14. Harnais (version 2) : chaque style sur rottweiler, berger, husky, retriever, carlin, westie, caniche ; debout, assis (ordre Assis),
+    couché, en marche et en course ; de profil et de face. S'il frôle ou flotte : `/harnais_reglage` sur ce chien, puis Entrée.
+    Si un chien n'a pas de harnais du tout : `/harnais_os` (os manquants) et Diagnostic.
 Non fait : test de charge à plusieurs dizaines de joueurs (la ressource ne fait que des boucles légères : 400 ms par animal pour son
 maître, 1 à 3 s pour la ferme et les vendeurs, rendu des sangles seulement à moins de 35 m).
 
@@ -159,6 +178,11 @@ maître, 1 à 3 s pour la ferme et les vendeurs, rendu des sangles seulement à 
 ## 7. Fichiers
 
 **Nouveaux** : `elyzea_animaux/` (tout), `admin_menu/server/animaux.lua`, `admin_menu/html/animaux.js`.
+
+**Harnais version 2** (copies d'avant dans `Sauvegardes/avant_harnais_v2/`) : `client/gear.lua` (rendu réécrit),
+`shared/harness_geom.lua` et `client/fit.lua` (nouveaux), `config.lua` (styles, `Config.HarnessFit`), `fxmanifest.lua`,
+`server/settings.lua` + `server/main.lua` (réglages par race enregistrés en base, section `fit`), `tests/harness_preview.py`.
+Achat, inventaire, équipement et retrait du harnais : **inchangés** (`server/shop.lua`, `server/pets.lua`, `client/pets.lua`, `client/alt.lua`).
 
 **Modifiés** (copies d'origine dans `Sauvegardes/avant_elyzea_animaux/`) :
 | Fichier | Changement |
@@ -176,7 +200,10 @@ maître, 1 à 3 s pour la ferme et les vendeurs, rendu des sangles seulement à 
 
 - Non testé en jeu (voir la liste ci-dessus) ; certaines animations d'ordres peuvent ne pas exister pour un modèle : elles sont alors
   refusées proprement (« ne sait pas faire ») et listées au Diagnostic.
-- Sangles et laisse dessinées : pas de collision (la laisse peut traverser un poteau), éclairage plat.
+- Harnais : mesuré sur le squelette et vérifié sur un chien simulé, **pas encore vu en jeu**. Les proportions réelles des chiens du jeu
+  peuvent demander un ajustement par race (`/harnais_reglage`). Éclairage plat (pas d'ombres sur les sangles). Si un modèle n'a pas
+  les os attendus, le harnais n'est pas dessiné (plutôt que de traverser) et c'est signalé au Diagnostic.
+- Laisse : pas de collision avec le décor (elle peut traverser un poteau).
 - Animal attaché dans un véhicule : position assise approximative (`vehicleOffset` du profil dans `config.lua`).
 - Chats, chèvres, moutons : voir section 5 (textures / modèles addon nécessaires).
 - Les animaux de compagnie ne nagent pas après leur maître en mer profonde (comportement du jeu) ; ils attendent puis rentrent

@@ -11,6 +11,7 @@ shared_scripts {
     '@elyzea_core/lib/ely.lua',
     'config.lua',
     'shared/utils.lua',
+    'shared/harness_geom.lua',
 }
 
 client_scripts {
@@ -19,6 +20,7 @@ client_scripts {
     'client/vendors.lua',
     'client/pets.lua',
     'client/gear.lua',
+    'client/fit.lua',
     'client/farm.lua',
     'client/alt.lua',
 }
