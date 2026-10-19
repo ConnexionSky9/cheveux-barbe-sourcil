@@ -179,6 +179,7 @@ Config.Permissions = {
     { key = 'heist_manage',    label = 'Braquage bijouterie : bijouteries, butin, bijoux, sac, police, racheteurs (jewelry_heist)', cat = 'Illégal' },
     { key = 'bankheist_manage', label = 'Braquage de banque : banques, marchands, prix, piratage, coffre, dépôts, sessions (bank_heist)', cat = 'Illégal' },
     { key = 'famille_manage', label = 'Famille : durée du moment intime, risque de grossesse, contraception (elyzea_famille)', cat = 'Joueurs' },
+    { key = 'casino_manage', label = 'Casino : tables, roues de la fortune (gains et chances), guichet des jetons, statistiques (elyzea_casino)', cat = 'Joueurs' },
     { key = 'noirx_staff', label = 'NOIR X (téléphone clandestin) : informateurs, informations, blanchiments, réglages, paiements (noirx)', cat = 'Illégal' },
     { key = 'illegal_staff',   label = 'ILLEGAL : gérer les groupes illégaux (gangs, organisations, cartels, grades, membres, finances, PED, commandes)', cat = 'Illégal' },
     { key = 'wipe_character',  label = 'Wipe : supprimer définitivement un personnage d\'un joueur', cat = 'Gestion' },
@@ -543,7 +544,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },
@@ -796,6 +797,15 @@ Config.Editor = {
                       { item = 'test_grossesse',       price = 20,  cat = 'Grossesse',     max = 5 },
                       { item = 'bandage',              price = 45,  cat = 'Soins',         max = 20 },
                   } } } },
+        -- Casino (elyzea_casino) : après l'enregistrement, « Poser la table / la roue » dans la fiche du PNJ
+        { id = 'casino_bj', icon = '🃏', label = 'Croupier de blackjack', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Croupier',
+          npc = { payment = 'cash', casino = { role = 'blackjack', name = 'Blackjack' } } },
+        { id = 'casino_rl', icon = '🎡', label = 'Croupier de roulette', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Croupière',
+          npc = { payment = 'cash', casino = { role = 'roulette', name = 'Roulette' } } },
+        { id = 'casino_wheel', icon = '🎰', label = 'Animateur roue de la fortune', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Animatrice',
+          npc = { payment = 'cash', casino = { role = 'wheel', name = 'Roue de la fortune', wheel = 'lucky' } } },
+        { id = 'casino_cashier', icon = '💰', label = 'Guichetier du casino', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Caissier',
+          npc = { payment = 'cash', casino = { role = 'cashier', name = 'Caisse du casino' } } },
         -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette, objets non consommés
         { id = 'puericulture', icon = '🍼', label = 'Puériculture', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse puériculture',
           npc = { payment = 'cash', market = { name = 'Puériculture', payChoice = true, blip = true, blipSprite = 52, blipColor = 8,

@@ -1187,6 +1187,11 @@ function npcSummary(n) {
     }
     if (n.tattoo) parts.push(`🖋️ Tatoueur <b>${esc(n.tattoo.name)}</b> · torse ${(n.tattoo.prices || {}).torso ?? 0} $ · bras ${(n.tattoo.prices || {}).left_arm ?? 0} $${n.tattoo.removal ? ' · retrait au laser' : ''}${n.tattoo.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.gunshop) parts.push(`🔫 Armurerie <b>${esc(n.gunshop.name)}</b> · ${(n.gunshop.items || []).length} article(s)${n.gunshop.licence ? ' · permis exigé' : ''}${n.gunshop.trial ? ` · essai ${n.gunshop.trialDuration} s${n.gunshop.spot ? '' : ' (stand de tir à placer)'}` : ''}`);
+    if (n.casino) {
+        const CR = { blackjack: '🃏 Croupier de blackjack', roulette: '🎡 Croupier de roulette', wheel: '🎰 Roue de la fortune', cashier: '💰 Guichet des jetons' };
+        const wl = n.casino.role === 'wheel' ? ` · roue « ${esc(((D.casinoWheels || []).find((w) => w.id === n.casino.wheel) || {}).name || n.casino.wheel)} »` : '';
+        parts.push(`${CR[n.casino.role] || '🎰 Casino'} <b>${esc(n.casino.name || '')}</b>${wl}${n.casino.role !== 'cashier' ? (n.casino.table ? ' · posée' : ' · <b style="color:var(--danger)">table / roue à poser</b>') : ''}`);
+    }
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
@@ -1299,11 +1304,45 @@ function toPedEdit(r) {
         ...tattooEdit(n.tattoo),
         ...marketEdit(n.market),
         ...gunshopEdit(n.gunshop),
+        ...casinoEdit(n.casino),
         areaMode: n.area ? n.area.shape : 'default',
         areaRadius: n.area && n.area.shape === 'circle' ? n.area.radius : 4,
         areaPoly: n.area && n.area.shape === 'poly' ? clone(n.area) : null,
     };
 }
+// Casino (elyzea_casino) : croupier blackjack / roulette, roue de la fortune, guichetier
+const CASINO_ROLES = [
+    { id: 'blackjack', label: '🃏 Croupier de blackjack', model: 'vw_prop_casino_blckjack_01' },
+    { id: 'roulette', label: '🎡 Croupier de roulette', model: 'vw_prop_casino_roulette_01' },
+    { id: 'wheel', label: '🎰 Animateur roue de la fortune', model: 'vw_prop_vw_luckywheel_02a' },
+    { id: 'cashier', label: '💰 Guichetier (jetons)', model: '' },
+];
+function casinoEdit(c) {
+    return { casinoOn: !!c, csRole: c ? c.role : 'blackjack', csName: c ? (c.name || '') : '', csModel: c ? (c.model || '') : '', csWheel: c ? (c.wheel || 'lucky') : 'lucky' };
+}
+function casinoCard(p) {
+    const live = ((D.editor && D.editor.peds || []).find((x) => x.id === p.id) || {}).npc;
+    const saved = !!(live && live.casino && live.casino.role === p.csRole);
+    const placed = saved && live.casino.table;
+    const role = CASINO_ROLES.find((r) => r.id === p.csRole) || CASINO_ROLES[0];
+    const wheels = D.casinoWheels || [];
+    return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🎰 Casino</h3>
+        <p class="hint">Le PNJ prend le rôle choisi. <b>Croupier</b> : pose la <b>table</b> juste devant lui (les chaises de l'autre côté) ; les joueurs s'assoient en appuyant sur E près d'une chaise (4 places).
+            <b>Roue</b> : pose la roue ; elle utilise le modèle de roue choisi (réglages et lots : <b>Casino › Roues</b>). <b>Guichetier</b> : achat et revente des jetons.
+            Règles, mises et statistiques : onglet <b>Casino</b>. Nécessite la ressource <b>elyzea_casino</b>.</p>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+            <div><label>Rôle</label><select class="input" data-pe="csRole">${CASINO_ROLES.map((r) => `<option value="${r.id}" ${r.id === p.csRole ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
+            <div><label>Nom affiché</label><input class="input" data-pe="csName" value="${esc(p.csName)}" placeholder="ex : Table VIP"></div>
+            ${p.csRole === 'wheel' ? `<div><label>Roue utilisée</label><select class="input" data-pe="csWheel">${wheels.map((w) => `<option value="${esc(w.id)}" ${w.id === p.csWheel ? 'selected' : ''}>${esc(w.name)} (${esc(w.id)})</option>`).join('') || `<option value="${esc(p.csWheel)}">${esc(p.csWheel)}</option>`}</select></div>` : ''}
+            ${p.csRole === 'blackjack' || p.csRole === 'roulette' ? `<div><label>Modèle de table (vide = celui du jeu)</label><input class="input" data-pe="csModel" value="${esc(p.csModel)}" placeholder="${esc(role.model)}"></div>` : ''}
+        </div>
+        ${p.csRole !== 'cashier' ? `<div class="btn-row">
+            ${saved ? `<button class="btn primary" data-ed="cs_table">📍 ${placed ? 'Déplacer' : 'Poser'} ${p.csRole === 'wheel' ? 'la roue' : 'la table'}</button>
+                ${placed ? '<button class="btn" data-ed="cs_table_tp">🚀 Y aller</button>' : ''}`
+                : '<span class="hint">Enregistre d\'abord le PNJ avec ce rôle, puis pose la table / la roue.</span>'}
+        </div>` : ''}</div>`;
+}
+
 // Armurerie : armes, munitions, accessoires + essai au stand de tir
 const GS_TYPES = [{ id: 'weapon', label: '🔫 Arme' }, { id: 'ammo', label: '🧨 Munitions' }, { id: 'item', label: '🔦 Accessoire' }];
 function gsGuess(item) {
@@ -1612,7 +1651,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
@@ -1662,6 +1701,7 @@ function pedEditPayload(p) {
             })),
             payChoice: !!p.mkPayChoice, blip: !!p.mkBlip, blipSprite: num(p.mkBlipSprite, 52), blipColor: num(p.mkBlipColor, 2),
         } : null,
+        casino: p.casinoOn ? { role: p.csRole, name: String(p.csName || '').trim(), model: String(p.csModel || '').trim(), wheel: p.csWheel } : null,
         area: p.areaMode === 'circle' ? { shape: 'circle', radius: Math.max(1, Math.min(40, num(p.areaRadius, 4))) }
             : p.areaMode === 'poly' ? livePoly(p) : null,
         jobs: p.gJobsOn ? p.gJobs.filter((j) => String(j.job).trim()).map((j) => ({ job: String(j.job).trim().toLowerCase(), grade: num(j.grade, 0) })) : [],
@@ -1915,11 +1955,13 @@ function pedEditor() {
                 ${tog('tattooOn', '🖋️ Tatoueur', 'Tatouages par zone du corps, retrait au laser')}
                 ${tog('marketOn', '🏪 Supérette', 'Magasin avec rayons, panier et paiement')}
                 ${tog('gunshopOn', '🔫 Armurerie', 'Armes, munitions, accessoires, essai au stand de tir')}
+                ${tog('casinoOn', '🎰 Casino', 'Croupier (blackjack, roulette), roue de la fortune ou guichet des jetons')}
             </div>
             ${p.barberOn ? barberCard(p, tog) : ''}
             ${p.tattooOn ? tattooCard(p, tog) : ''}
             ${p.marketOn ? marketCard(p, tog) : ''}
             ${p.gunshopOn ? gunshopCard(p, tog) : ''}
+            ${p.casinoOn ? casinoCard(p) : ''}
             ${p.dmvOn ? dmvCard(p, tog) : ''}
             ${p.farmOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🪓 Métier de farm</h3>
                 <p class="hint">En parlant à ce PNJ (E), les joueurs peuvent <b>commencer ou arrêter</b> le travail (la tenue change toute seule)
@@ -2709,6 +2751,13 @@ async function handleEditor(n) {
         }
         case 'gs_clear': pedEdit.gsItems = []; return render();
         case 'gs_spot': return editorPost('gunshop_spot', { id: pedEdit.id });
+        case 'cs_table': {
+            const role = CASINO_ROLES.find((r) => r.id === pedEdit.csRole) || CASINO_ROLES[0];
+            const live = ((D.editor && D.editor.peds || []).find((x) => x.id === pedEdit.id) || {}).npc;
+            const t = live && live.casino && live.casino.table;
+            return editorPost('casino_table', { id: pedEdit.id, model: (pedEdit.csRole !== 'wheel' && String(pedEdit.csModel || '').trim()) || role.model, h: t ? t.h : undefined });
+        }
+        case 'cs_table_tp': return editorPost('casino_table_tp', { id: pedEdit.id });
         case 'gs_spot_tp': return editorPost('gunshop_spot_tp', { id: pedEdit.id });
         case 'area_draw': return editorPost('npc_area_draw', { id: pedEdit.id, name: pedEdit.name });
         case 'cl_all': pedEdit.clCats = CLOTHING_CATS.map((c) => c.id); return render();
@@ -3013,7 +3062,7 @@ content.addEventListener('input', (e) => {
     if (pedEdit && t.dataset.pe) {
         const v = t.dataset.pe === 'hoursOn' ? t.value === 'true' : t.value;
         pedEdit[t.dataset.pe] = v;
-        if (['payment', 'hoursOn'].includes(t.dataset.pe)) render();
+        if (['payment', 'hoursOn', 'csRole'].includes(t.dataset.pe)) render();
         if (t.dataset.pe === 'gsTrialDuration') { const l = document.getElementById('gs-dur'); if (l) l.textContent = `${t.value} s`; }
         if (t.dataset.pe === 'gsTrialRadius') { const l = document.getElementById('gs-rad'); if (l) l.textContent = `${t.value} m`; }
         if (t.dataset.pe === 'gsFilter') {

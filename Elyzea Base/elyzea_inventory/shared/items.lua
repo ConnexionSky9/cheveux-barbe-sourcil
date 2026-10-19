@@ -228,6 +228,9 @@ Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack =
     description = 'Billets d\'origine douteuse. 1 000 $ = 1 g.' }
 Items.markedbills = { label = 'Billets marqués', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'markedbills.png', icon = '💵',
     description = 'Liasses marquées par la banque. 1 000 $ = 1 g.' }
+-- Casino (elyzea_casino) : jetons achetés / revendus au guichet, misés aux tables et à la roue. 1 000 jetons = 1 g
+Items.jetons_casino = { label = 'Jetons de casino', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'jetons_casino.png', icon = '🎰',
+    description = 'Jetons du casino. S\'achètent et se revendent au guichet, se misent au blackjack, à la roulette et à la roue de la fortune.' }
 
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',

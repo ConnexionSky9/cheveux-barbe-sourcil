@@ -78,6 +78,7 @@ local STORAGE_NAME = { propFolders = 'prop_folders' }
 local function save(kind)
     Storage.saveLater(STORAGE_NAME[kind] or kind, Data[kind])
     if kind == 'props' then TriggerEvent('adminmenu:propsChanged') end
+    if kind == 'peds' then TriggerEvent('adminmenu:pedsChanged') end
 end
 
 -- Envoi groupé : plusieurs modifications en 150 ms = un seul envoi à tous.
@@ -417,8 +418,10 @@ local function cleanNpc(n)
     if type(n.tattoo) == 'table' and TattooCleanRole then out.tattoo = TattooCleanRole(n.tattoo) end
     if type(n.market) == 'table' and MarketCleanRole then out.market = MarketCleanRole(n.market) end
     if type(n.gunshop) == 'table' and GunshopCleanRole then out.gunshop = GunshopCleanRole(n.gunshop) end
+    -- Casino (ressource elyzea_casino) : croupier blackjack / roulette, roue de la fortune, guichetier
+    if type(n.casino) == 'table' and CasinoCleanRole then out.casino = CasinoCleanRole(n.casino) end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop then return nil end
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -438,8 +441,10 @@ def('editor_save_ped', 'editor_peds', function(src, d)
             local oldStores = r.npc and r.npc.pubgarage and r.npc.pubgarage.stores
             local oldDmv = r.npc and r.npc.dmv
             local oldRange = r.npc and r.npc.gunshop and r.npc.gunshop.spot
+            local oldCasino = r.npc and r.npc.casino and r.npc.casino.table
             r.npc = cleanNpc(d.npc)
             if r.npc and r.npc.gunshop then r.npc.gunshop.spot = oldRange end   -- le stand de tir est gardé
+            if r.npc and r.npc.casino then r.npc.casino.table = oldCasino end   -- la table / roue posée est gardée
             if r.npc and r.npc.garage then r.npc.garage.spots = oldSpots or {} end   -- les points de sortie sont gardés
             if r.npc and r.npc.catalog then r.npc.catalog.testSpot = oldTest end     -- le point d'essai aussi
             if r.npc and r.npc.pubgarage then r.npc.pubgarage.spots = oldPub or {} r.npc.pubgarage.stores = oldStores or {} end
@@ -1603,6 +1608,19 @@ def('editor_gunshop_spot', 'editor_peds', function(src, d)
     AM.notify(src, 'Point d\'essai enregistré à ta position (et dans ta direction).', 'success')
 end)
 
+-- Casino : table de jeu / roue posée avec l'outil de placement (modèle, position, orientation)
+def('editor_casino_table', 'editor_peds', function(src, d)
+    local r = pedOf(tonumber(d.pedId))
+    if not r or not r.npc or not r.npc.casino then return AM.notify(src, 'Active d\'abord le rôle « Casino » sur ce PNJ et enregistre.', 'error') end
+    local x, y, z, h = coords(d)
+    if not x then return AM.notify(src, 'Position invalide.', 'error') end
+    if #(GetEntityCoords(GetPlayerPed(src)) - vector3(x, y, z)) > 250.0 then return AM.notify(src, 'Position trop loin de toi.', 'error') end
+    r.npc.casino.table = { x = x, y = y, z = z, h = h }
+    save('peds') broadcast('peds')
+    AM.addLog(src, 'Casino : table / roue posée', ('PNJ #%d (%s)'):format(r.id, r.npc.casino.role))
+    AM.notify(src, r.npc.casino.role == 'wheel' and 'Roue posée.' or 'Table posée. Les joueurs s\'assoient en approchant d\'une chaise (E).', 'success')
+end)
+
 def('editor_catalog_spot', 'editor_peds', function(src, d)
     local r = pedOf(tonumber(d.pedId))
     if not r or not r.npc or not r.npc.catalog then return AM.notify(src, 'Active d\'abord le rôle « Catalogue concession » sur ce PNJ et enregistre.', 'error') end
@@ -2220,6 +2238,17 @@ exports('GetPropsByRole', function(role)
     local out = {}
     for _, r in ipairs(Data.props) do
         if r.role == role then out[#out + 1] = { id = r.id, model = r.model, x = r.x, y = r.y, z = r.z, h = r.h } end
+    end
+    return out
+end)
+
+-- Points du casino (elyzea_casino) : PNJ ayant le rôle « Casino »
+exports('GetCasinoPoints', function()
+    local out = {}
+    for _, r in ipairs(Data.peds) do
+        if r.npc and r.npc.casino then
+            out[#out + 1] = { id = r.id, name = r.name, x = r.x, y = r.y, z = r.z, h = r.h, casino = r.npc.casino }
+        end
     end
     return out
 end)

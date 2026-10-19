@@ -241,6 +241,12 @@ do
         meta.v31 = true
         Storage.save('meta', meta)
     end
+    if not meta.casino1 then
+        -- Onglet Casino (elyzea_casino) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.casino_manage = true end
+        meta.casino1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.famille1 then
         -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end

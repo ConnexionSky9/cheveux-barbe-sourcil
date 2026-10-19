@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Elyzea Casino</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Guichet -->
+    <section id="cashier" class="panel center hidden">
+        <header><div class="logo">♠ ♥ ♣ ♦</div><h1 id="ca-title">Caisse du casino</h1><button class="x" data-close>✕</button></header>
+        <div class="balances">
+            <div><span>Jetons</span><b id="ca-chips">0</b></div>
+            <div><span>Liquide</span><b id="ca-cash">0 $</b></div>
+            <div><span>Banque</span><b id="ca-bank">0 $</b></div>
+        </div>
+        <div class="tabs"><button class="tab on" data-catab="buy">Acheter des jetons</button><button class="tab" data-catab="sell">Revendre des jetons</button></div>
+        <div id="ca-closed" class="warn hidden"></div>
+        <div id="ca-body">
+            <label>Nombre de jetons</label>
+            <div class="qty"><button data-caq="-100">−100</button><input id="ca-qty" type="number" min="1" value="100"><button data-caq="100">+100</button></div>
+            <div class="quick"><button data-caset="100">100</button><button data-caset="500">500</button><button data-caset="1000">1 000</button><button data-caset="5000">5 000</button><button data-caset="max">Max</button></div>
+            <div class="rate" id="ca-rate"></div>
+            <div class="acct"><label>Payer / recevoir sur</label><select id="ca-acct"><option value="cash">Liquide</option><option value="bank">Banque</option></select></div>
+            <div class="total"><span id="ca-total-l">Total à payer</span><b id="ca-total">0 $</b></div>
+            <div class="hint" id="ca-limits"></div>
+            <div class="row"><button class="btn ghost" data-close>Annuler</button><button class="btn gold" id="ca-ok">Confirmer</button></div>
+        </div>
+    </section>
+
+    <!-- Blackjack -->
+    <section id="bj" class="panel bottom hidden">
+        <div class="topbar"><b id="bj-title">Blackjack</b><span id="bj-phase" class="phase"></span><span id="bj-timer" class="timer"></span>
+            <span class="spacer"></span><span class="mychips">Jetons : <b id="bj-chips">—</b></span><button class="btn ghost small" data-leave>Quitter la table</button></div>
+        <div class="bj-dealer"><span class="lbl">Croupier</span><div class="cards" id="bj-dealer"></div><span class="tot" id="bj-dtot"></span></div>
+        <div class="bj-seats" id="bj-seats"></div>
+        <div class="bj-me">
+            <div class="bet-ctl" id="bj-betctl">
+                <div class="chips" id="bj-chiprow"></div>
+                <div class="betline">Mise : <b id="bj-bet">0</b> <button class="btn ghost small" id="bj-clear">Effacer</button>
+                    <button class="btn gold" id="bj-place">Miser</button><button class="btn" id="bj-ready">Prêt</button></div>
+                <div class="hint" id="bj-rules"></div>
+            </div>
+            <div class="acts" id="bj-acts">
+                <button class="btn act" data-bja="hit">Tirer</button><button class="btn act" data-bja="stand">Rester</button>
+                <button class="btn act" data-bja="double">Doubler</button><button class="btn act" data-bja="split">Séparer</button>
+            </div>
+        </div>
+        <div class="banner hidden" id="bj-banner"></div>
+    </section>
+
+    <!-- Roulette -->
+    <section id="rl" class="panel bottom wide hidden">
+        <div class="topbar"><b id="rl-title">Roulette</b><span id="rl-phase" class="phase"></span><span id="rl-timer" class="timer"></span>
+            <span class="spacer"></span><span class="mychips">Jetons : <b id="rl-chips">—</b></span><button class="btn ghost small" data-leave>Quitter la table</button></div>
+        <div class="rl-main">
+            <div class="rl-left">
+                <canvas id="rl-wheel" width="260" height="260"></canvas>
+                <div class="hist" id="rl-hist"></div>
+                <div class="players" id="rl-players"></div>
+            </div>
+            <div class="rl-right">
+                <div class="modes" id="rl-modes"></div>
+                <div class="mat" id="rl-mat"></div>
+                <div class="chips" id="rl-chiprow"></div>
+                <div class="mybets"><div class="mb-head">Mes mises : <b id="rl-total">0</b> jetons · gain possible max <b id="rl-pot">0</b>
+                    <button class="btn ghost small" id="rl-clear">Tout retirer</button></div><div id="rl-list"></div></div>
+            </div>
+        </div>
+        <div class="banner hidden" id="rl-banner"></div>
+    </section>
+
+    <!-- Roue de la fortune -->
+    <section id="wheel" class="hidden">
+        <div class="wheel-wrap"><div class="pointer">▼</div><canvas id="wh-canvas" width="460" height="460"></canvas>
+            <div class="wh-name" id="wh-name"></div><div class="wh-result hidden" id="wh-result"></div></div>
+    </section>
+
+    <div id="toast"></div>
+    <script src="app.js"></script>
+</body>
+</html>

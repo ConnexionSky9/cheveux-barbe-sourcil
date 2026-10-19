@@ -24,8 +24,8 @@ function P.InstallDB()
         if not ok then print(('^1[JEWELRY] Table %s : %s^0'):format(name, tostring(err))) end
     end
     -- Sacs de billets (bank_heist) : type et capacité. Erreur « colonne déjà présente » ignorée.
-    pcall(MySQL.query.await, "ALTER TABLE `jh_bags` ADD COLUMN `kind` VARCHAR(12) NOT NULL DEFAULT 'jewel'")
-    pcall(MySQL.query.await, 'ALTER TABLE `jh_bags` ADD COLUMN `capacity` INT NULL')
+    pcall(MySQL.query.await, "ALTER TABLE `jh_bags` ADD COLUMN IF NOT EXISTS `kind` VARCHAR(12) NOT NULL DEFAULT 'jewel'")
+    pcall(MySQL.query.await, 'ALTER TABLE `jh_bags` ADD COLUMN IF NOT EXISTS `capacity` INT NULL')
 end
 
 -- ---------------------------------------------------------------------

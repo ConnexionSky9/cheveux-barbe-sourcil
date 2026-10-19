@@ -412,6 +412,9 @@ local function confirmPlacement()
         d.searchId, d.idx = P.searchId, P.idx
         TriggerServerEvent('adminmenu:action', 'editor_save_searchpoint', d)
         if not P.idx then return end -- ajout de points à la chaîne
+    elseif P.kind == 'casinotable' then
+        d.pedId = P.pedId
+        TriggerServerEvent('adminmenu:action', 'editor_casino_table', d)
     elseif P.kind == 'garagespot' and P.target == 'dmv' then
         d.pedId = P.pedId
         TriggerServerEvent('adminmenu:action', 'editor_dmv_spot', d)
@@ -1059,6 +1062,15 @@ RegisterNUICallback('editor', function(body, cb)
             local sp = r.id == tonumber(d.id) and r.npc and r.npc.pubgarage and (r.npc.pubgarage.spots or {})[tonumber(d.idx) or 0]
             if sp then CloseMenu() CreateThread(function() TeleportTo(vector3(sp.x + 2.5, sp.y, sp.z + 0.5), true) end) end
         end
+    elseif n == 'casino_table' and canEdit('editor_peds') then
+        CloseMenu()
+        Notify('Place la table / la roue (molette pour l\'orienter, le croupier de l\'autre côté des chaises), E pour valider.', 'info')
+        StartPlacement({ kind = 'casinotable', model = tostring(d.model or 'vw_prop_casino_blckjack_01'), pedId = tonumber(d.id), heading = tonumber(d.h) })
+    elseif n == 'casino_table_tp' and canEdit('editor_peds') then
+        for _, r in ipairs(Editor.peds) do
+            local sp = r.id == tonumber(d.id) and r.npc and r.npc.casino and r.npc.casino.table
+            if sp then CloseMenu() CreateThread(function() TeleportTo(vector3(sp.x + 2.0, sp.y, sp.z + 0.5), true) end) end
+        end
     elseif n == 'catalog_spot' and canEdit('editor_peds') then
         CloseMenu()
         Notify('Place la voiture là où les essais commenceront (molette pour l\'orienter), E pour valider.', 'info')
@@ -1279,6 +1291,11 @@ CreateThread(function()
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.tattoo then
                     ShowPrompt('Appuyer pour entrer chez', best.ref.npc.tattoo.name or 'le tatoueur')
                     if pressed then TriggerServerEvent('adminmenu:tattoo:request', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.casino then
+                    local cr = best.ref.npc.casino
+                    local verb = ({ blackjack = 'Appuyer pour jouer au', roulette = 'Appuyer pour jouer à la', wheel = 'Appuyer pour parler à', cashier = 'Appuyer pour aller à' })[cr.role] or 'Appuyer pour parler à'
+                    ShowPrompt(verb, (cr.name ~= '' and cr.name) or best.ref.name or 'Casino')
+                    if pressed then TriggerEvent('elyzea_casino:client:npc', best.ref.id, cr.role) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.gunshop then
                     ShowPrompt('Appuyer pour parler à', best.ref.npc.gunshop.name or 'l\'armurier')
                     if pressed then TriggerServerEvent('adminmenu:gunshop:request', best.ref.id) end
@@ -1468,6 +1485,8 @@ end)
 
 -- Exports client pour les autres ressources
 exports('GetSpawnPoints', function() return Editor.spawns end)
+-- Entité locale d'un élément de l'éditeur (ex. 'ped:12') : utilisée par elyzea_casino pour animer le croupier
+exports('GetSpawnedEntity', function(key) local s = spawned[key] return s and s.ent or nil end)
 
 
 -- ---------------------------------------------------------
