@@ -77,8 +77,14 @@ Config.BucketBase = 61000                  -- buckets 61001…61000+MaxLobbies (
 
 -- ---------------------------------------------------------------- zone
 Config.Zone = {
-    checkInterval = 500,                   -- ms entre deux contrôles serveur
-    maxExitsPerRound = 3,                  -- sorties tolérées par manche ; au-delà le joueur est éliminé de la manche
+    checkInterval = 500,                   -- ms entre deux contrôles serveur (filet de sécurité derrière le mur)
+    wall = true,                           -- mur infranchissable côté joueur : impossible de sortir de la zone (bord + sol + plafond)
+    wallShowDistance = 6.0,                -- le mur devient visible à moins de X m du bord
+    wallColor = { 34, 211, 238 },          -- couleur du mur (R, V, B)
+    -- Sorties constatées par le serveur malgré le mur (triche, téléportation…) : le joueur est toujours renvoyé
+    -- dans la zone ; 0 = jamais éliminé, sinon élimination de la manche au-delà de X sorties.
+    maxExitsPerRound = 0,
+    maxSize = 1500,                        -- taille maximale d'une zone dessinée (m)
 }
 
 -- ---------------------------------------------------------------- armes (aucune ne vient de l'inventaire RP)

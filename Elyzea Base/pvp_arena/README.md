@@ -26,7 +26,21 @@ Les joueurs s'approchent et appuient sur **E**. On peut aussi dupliquer le PNJ a
 2. Renseigne `Config.Npc.coords` (x, y, z, cap), `model` et `scenario`.
 
 ## 3. Les arènes
-Les coordonnées présentes dans `config.lua` sont des **exemples à remplacer**. Le plus simple est de configurer en jeu, avec la permission `pvp_manage` :
+Les coordonnées présentes dans `config.lua` sont des **exemples à remplacer**. Le plus simple est de configurer en jeu, avec la permission `pvp_manage`.
+
+### Depuis l'admin_menu (onglet ⚔️ Arène PvP › Arènes), en service staff
+1. **Crée l'arène** à l'endroit voulu (identifiant + nom, « Créer ici »).
+2. **✏️ Dessiner la zone en jeu** : vise le sol et pose les coins un par un, dans l'ordre du tour (3 à 60 coins, le noclip marche).
+   ↑ ↓ règle le plafond, ← → la profondeur sous le coin le plus bas (Maj = pas de 5 m), puis « Terminer ». La zone est refusée si son contour se croise.
+3. **🎯 Apparitions A** puis **🎯 Apparitions B** : vise le sol, chaque appui pose un point tourné dans la direction de ta caméra.
+   Le curseur devient rouge hors de la zone (point refusé). « Terminer » remplace toutes les apparitions de l'équipe (1 à 20).
+4. « 👁️ Voir la zone » pour vérifier. L'arène passe en 🟢 quand elle a sa zone et au moins une apparition par équipe, toutes dans la zone.
+
+Les joueurs **ne peuvent pas sortir de la zone** : un mur les retient (bord, sol et plafond) et devient visible à moins de
+`Config.Zone.wallShowDistance` m du bord. Si quelqu'un passe quand même (triche, téléportation), le serveur le renvoie dans la zone.
+`Config.Zone.maxExitsPerRound` (réglable dans le menu) : 0 = jamais éliminé, sinon élimination de la manche au-delà de X sorties.
+
+### Par commandes
 
 | Commande | Effet |
 |---|---|
@@ -103,7 +117,7 @@ Un gagnant déconnecté au moment du paiement est crédité à sa prochaine conn
   - Le serveur bloque les dégâts hors manche, entre coéquipiers (sauf si l'hôte active les dégâts alliés), par un joueur éliminé, et avec une arme différente de celle qu'il a attribuée (journalisé).
   - Les dégâts valides désignent le tueur.
 - **Morts :** la victime signale sa mort. Le serveur constate aussi lui-même une vie à 0. Une mort n'est comptée qu'une fois.
-- **Zone :** le serveur contrôle les positions toutes les 0,5 s, avec un vrai polygone et la hauteur. Un joueur sorti de la zone est replacé sur un point sûr ou d'apparition. Au-delà de `Config.Zone.maxExitsPerRound` sorties, il est éliminé de la manche.
+- **Zone :** le serveur contrôle les positions toutes les 0,5 s, avec un vrai polygone et la hauteur. Côté joueur, un mur empêche de sortir (position remise à la dernière position valide, chaque image). Si le serveur voit quand même un joueur dehors, il le replace sur un point sûr ou d'apparition ; avec `Config.Zone.maxExitsPerRound` > 0, il est éliminé de la manche au-delà de X sorties (0 par défaut = jamais).
 - **Requêtes :** une action à la fois par joueur, au plus 8 par seconde (doubles clics, requêtes simultanées). Les identifiants de partie et de transaction sont uniques.
 
 ## 8. Retour au RP

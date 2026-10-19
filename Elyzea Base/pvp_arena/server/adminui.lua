@@ -217,6 +217,77 @@ A.arena_tp = function(src, d)
     return true, 'Téléporté.'
 end
 
+local function num(v)
+    v = tonumber(v)
+    if not v or v ~= v or v == math.huge or v == -math.huge then return nil end
+    return v
+end
+local function outsideCount(a, list)
+    local n = 0
+    for _, s in ipairs(list) do if not Rules.InZone(a.zone, s.x, s.y, s.z) then n = n + 1 end end
+    return n
+end
+
+-- Zone dessinée en jeu (admin_menu › Arène PvP › « Dessiner la zone ») : coins dans l'ordre + plancher / plafond
+A.arena_zone = function(src, d)
+    local a = arenaOf(d.id)
+    if not a then return false, 'Arène introuvable.' end
+    if busyArena(a.id) then return false, 'Une partie se joue dans cette arène : attends la fin pour changer sa zone.' end
+    local pts = {}
+    for _, p in ipairs(type(d.points) == 'table' and d.points or {}) do
+        local x, y = num(type(p) == 'table' and p.x), num(type(p) == 'table' and p.y)
+        if not x or not y then return false, 'Coin invalide.' end
+        pts[#pts + 1] = { x = math.floor(x * 100) / 100, y = math.floor(y * 100) / 100 }
+    end
+    local ok, why = Rules.CheckPolygon(pts, Config.Zone.maxSize)
+    if not ok then return false, 'Zone refusée : ' .. why .. '.' end
+    local mn, mx = num(d.minZ), num(d.maxZ)
+    if not mn or not mx or mx - mn < 2.0 then return false, 'Hauteur de zone invalide (2 m minimum entre le sol et le plafond).' end
+    if mx - mn > 600 or math.abs(mn) > 3000 then return false, 'Hauteur de zone invalide.' end
+    a.zone = { points = pts, minZ = math.floor(mn * 10) / 10, maxZ = math.floor(mx * 10) / 10 }
+    -- le centre (téléportation staff, « Aller au centre ») suit la zone s'il n'est pas dedans
+    if not a.center or not Rules.InZone(a.zone, a.center.x, a.center.y, a.center.z) then
+        local cx, cy = 0, 0
+        for _, p in ipairs(pts) do cx, cy = cx + p.x, cy + p.y end
+        cx, cy = cx / #pts, cy / #pts
+        if Rules.InPoly(pts, cx, cy) then
+            local lo = a.zone.minZ
+            for _, p in ipairs(type(d.points) == 'table' and d.points or {}) do if num(p.z) then lo = math.max(lo, num(p.z)) break end end
+            a.center = { x = cx, y = cy, z = math.min(lo + 1.0, a.zone.maxZ - 0.5) }
+        end
+    end
+    Arena.SaveArenas()
+    local out = outsideCount(a, a.spawns.A) + outsideCount(a, a.spawns.B) + outsideCount(a, a.safe)
+    return true, ('Zone de « %s » enregistrée : %d coins, hauteur %.1f → %.1f.%s'):format(a.label, #pts, a.zone.minZ, a.zone.maxZ,
+        out > 0 and (' ⚠ %d point(s) d\'apparition / sûrs sont hors de la nouvelle zone : replace-les.'):format(out) or '')
+end
+
+-- Apparitions d'une équipe posées en jeu (admin_menu › « Placer les apparitions ») : remplace la liste
+A.arena_spawns = function(src, d)
+    local a = arenaOf(d.id)
+    if not a then return false, 'Arène introuvable.' end
+    local team = d.team == 'A' and 'A' or d.team == 'B' and 'B' or nil
+    if not team then return false, 'Équipe inconnue.' end
+    if busyArena(a.id) then return false, 'Une partie se joue dans cette arène : attends la fin.' end
+    local list = {}
+    for _, p in ipairs(type(d.points) == 'table' and d.points or {}) do
+        local x, y, z = num(type(p) == 'table' and p.x), num(type(p) == 'table' and p.y), num(type(p) == 'table' and p.z)
+        if not x or not y or not z or math.abs(x) > 12000 or math.abs(y) > 12000 then return false, 'Point d\'apparition invalide.' end
+        local h = (num(p.h) or 0.0) % 360
+        list[#list + 1] = { x = math.floor(x * 100) / 100, y = math.floor(y * 100) / 100, z = math.floor(z * 100) / 100, h = math.floor(h) + 0.0 }
+    end
+    if #list == 0 then return false, 'Pose au moins un point d\'apparition.' end
+    if #list > 20 then return false, '20 points maximum par équipe.' end
+    if #a.zone.points >= 3 then
+        for i, s in ipairs(list) do
+            if not Rules.InZone(a.zone, s.x, s.y, s.z) then return false, ('Le point n°%d est hors de la zone de combat : place-le à l\'intérieur.'):format(i) end
+        end
+    end
+    a.spawns[team] = list
+    Arena.SaveArenas()
+    return true, ('%d apparition(s) de l\'équipe %s enregistrée(s) pour « %s ».'):format(#list, Config.Teams[team].name, a.label)
+end
+
 A.stats_refresh = function() refresh() return true, 'Historique actualisé (quelques secondes).' end
 
 function AdminAction(src, name, data)

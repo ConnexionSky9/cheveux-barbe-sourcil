@@ -64,6 +64,8 @@
     /* -------------------------------------------------- arènes */
     function pointRows(a, what, list, label) {
         return `<tr><td colspan="4" class="muted" style="padding-top:10px"><b>${label}</b> (${list.length})
+                ${what === 'A' || what === 'B' ? `<button class="btn primary" data-pspawn="${what}" style="margin-left:8px" title="Vise le sol en jeu : un point par appui, la caméra donne la direction">🎯 Placer en jeu (remplace)</button>` : ''}
+                ${what === 'corner' ? `<button class="btn primary" data-pdraw style="margin-left:8px" title="Pose les coins en visant le sol, règle le plafond et le sol aux flèches">✏️ Dessiner la zone en jeu</button>` : ''}
                 <button class="btn" data-padd="${what}" style="margin-left:8px">📍 Ajouter à ma position</button>
                 ${list.length ? `<button class="btn danger" data-preset="${what}">Tout effacer</button>` : ''}</td></tr>
             ${list.map((p, i) => `<tr><td>n°${i + 1}</td><td>${p.x.toFixed(1)}, ${p.y.toFixed(1)}${p.z !== undefined ? `, ${p.z.toFixed(1)}` : ''}</td><td>${p.h !== undefined ? `cap ${Math.round(p.h)}°` : ''}</td>
@@ -96,6 +98,10 @@
                     .map((w) => `<option value="${w}" ${w === d.weather ? 'selected' : ''}>${w || '—'}</option>`).join('')}</select></div>
             </div>
             <div class="btn-row" style="margin-top:10px">
+                <button class="btn primary" data-pdraw>✏️ Dessiner la zone en jeu</button>
+                <button class="btn" data-pspawn="A">🎯 Apparitions ${esc((D.pvp.settings.teams.A || {}).name || 'A')}</button>
+                <button class="btn" data-pspawn="B">🎯 Apparitions ${esc((D.pvp.settings.teams.B || {}).name || 'B')}</button></div>
+            <div class="btn-row" style="margin-top:10px">
                 <button class="btn primary" data-pact="arena_edit">💾 Enregistrer</button>
                 <button class="btn" data-padd="floor">⬇️ Sol = ma position − 2 m</button><button class="btn" data-padd="ceiling">⬆️ Plafond = ma position + 2 m</button>
                 <button class="btn" data-padd="center">🎯 Centre = ma position</button>
@@ -107,8 +113,10 @@
                 ${pointRows(a, 'corner', a.zone.points || [], 'Coins de la zone de combat')}
                 ${pointRows(a, 'safe', a.safe || [], 'Points sûrs (retour en cas de sortie de zone, facultatif)')}
             </table>
-            <p class="hint">Un joueur qui sort de la zone (polygone + hauteur) est replacé sur un point sûr, sinon sur une apparition de son équipe. Les points d'apparition
-                se posent à <b>ta</b> position et dans <b>ta</b> direction. Mets au moins autant d'apparitions que de joueurs par équipe.</p></div>`}`;
+            <p class="hint"><b>✏️ Dessiner la zone en jeu</b> : vise le sol et pose les coins dans l'ordre du tour (3 minimum), ↑ ↓ règle le plafond, ← → le sol, puis Terminer.
+                <b>Les joueurs ne peuvent pas sortir de la zone</b> : un mur (visible près du bord) les retient, et le serveur renvoie dans la zone quiconque passerait quand même.
+                <b>🎯 Apparitions</b> : vise le sol, chaque appui pose un point tourné comme ta caméra ; Terminer remplace les apparitions de l'équipe (points hors zone refusés).
+                Mets au moins autant d'apparitions que de joueurs par équipe.</p></div>`}`;
     }
 
     /* -------------------------------------------------- réglages */
@@ -142,7 +150,7 @@
                 ${sel('defaultRoundTime', 'Durée d\'une manche (par défaut)', s.defaultRoundTime, p.roundTimes.map((r) => [r, `${r} s`]))}
                 ${sel('timeoutRule', 'Fin du temps de manche', s.timeoutRule, [['most_alive', 'Plus de joueurs vivants, puis plus de vie'], ['draw', 'Manche nulle']])}
                 ${numF('idle', 'Lobby fermé après (s sans lancement)', s.idle, 60, 86400)}
-                ${numF('maxExits', 'Sorties de zone tolérées par manche', s.maxExits, 0, 20)}
+                ${numF('maxExits', 'Sorties de zone avant élimination', s.maxExits, 0, 20, 1, '0 = jamais éliminé : le mur empêche de sortir et le serveur renvoie dans la zone')}
                 ${numF('timers.weaponSelect', 'Choix de l\'arme (s)', s.timers.weaponSelect, 5, 60)}
                 ${numF('timers.countdown', 'Décompte avant la manche (s)', s.timers.countdown, 1, 10)}
                 ${numF('timers.roundEnd', 'Affichage fin de manche (s)', s.timers.roundEnd, 2, 20)}
@@ -209,7 +217,7 @@
     const later = () => setTimeout(() => post('refresh'), 400);
     document.addEventListener('click', async (ev) => {
         if (!on()) return;
-        const t = ev.target.closest('[data-psub],[data-parena],[data-pnew],[data-padd],[data-preset],[data-pdel],[data-ptp],[data-pact],[data-pk],[data-pw],[data-pkick],[data-pkickid],[data-pcancel]');
+        const t = ev.target.closest('[data-psub],[data-parena],[data-pnew],[data-pdraw],[data-pspawn],[data-padd],[data-preset],[data-pdel],[data-ptp],[data-pact],[data-pk],[data-pw],[data-pkick],[data-pkickid],[data-pcancel]');
         if (!t) return;
         if (t.dataset.psub) { P.sub = t.dataset.psub; if (P.sub !== 'settings') P.sdraft = null; return render(); }
         if (t.dataset.parena) { P.arena = t.dataset.parena; P.adraft = null; return render(); }
@@ -218,6 +226,16 @@
             const label = (document.getElementById('pvp-new-label') || {}).value || '';
             P.arena = id.toLowerCase().replace(/[^a-z0-9_]/g, ''); P.adraft = null;
             send('arena_new', { id, label }); return later();
+        }
+        if (t.dataset.pdraw !== undefined || t.dataset.pspawn) {
+            const ar = (D.pvp.arenas || []).find((x) => x.id === P.arena);
+            if (!ar) return;
+            if (t.dataset.pspawn) {
+                const team = t.dataset.pspawn;
+                return editorPost('pvp_spawns_draw', { id: ar.id, name: ar.label, team, teamName: (D.pvp.settings.teams[team] || {}).name || team, zone: ar.zone, spawns: ar.spawns });
+            }
+            const h = ar.zone && ar.zone.points && ar.zone.points.length >= 3 && ar.zone.maxZ !== undefined && ar.zone.minZ !== undefined ? Math.max(5, Math.min(100, ar.zone.maxZ - ar.zone.minZ - 3)) : 30;
+            return editorPost('pvp_zone_draw', { id: ar.id, name: ar.label, height: h, depth: 3, spawns: ar.spawns });
         }
         if (t.dataset.padd) { send('arena_add', { id: P.arena, what: t.dataset.padd }); return later(); }
         if (t.dataset.preset) { if (await confirmBox('Effacer ces points ?', 'Ils seront supprimés de l\'arène.')) { send('arena_reset', { id: P.arena, what: t.dataset.preset }); later(); } return; }

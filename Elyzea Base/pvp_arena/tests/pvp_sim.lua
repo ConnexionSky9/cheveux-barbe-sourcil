@@ -317,12 +317,19 @@ run(T.teleportGrace * 1000 + 600)
 P[2].pos = vector3(200, 200, 50)
 run(700)
 check(P[2].pos.x ~= 200 and L.match.exits[2] == 1, 'sortie de zone détectée par le serveur : joueur replacé dans l\'arène')
-for _ = 1, Config.Zone.maxExitsPerRound do
+check(Config.Zone.maxExitsPerRound == 0 and Config.Zone.wall == true, 'par défaut : mur actif, jamais éliminé pour une sortie')
+for _ = 1, 2 do
     run(T.teleportGrace * 1000 + 100)
     P[2].pos = vector3(200, 200, 50)
     run(700)
 end
-check(L.match.alive[2] == nil, 'sorties de zone répétées : éliminé pour la manche')
+check(L.match.alive[2] and L.match.exits[2] == 3 and Rules.InZone(L.arena.zone, P[2].pos.x, P[2].pos.y, P[2].pos.z), 'sorties répétées (réglage 0) : toujours renvoyé dans la zone, jamais éliminé')
+Config.Zone.maxExitsPerRound = 2
+run(T.teleportGrace * 1000 + 100)
+P[2].pos = vector3(200, 200, 50)
+run(700)
+check(L.match.alive[2] == nil, 'réglage « 2 sorties » : au-delà, éliminé pour la manche')
+Config.Zone.maxExitsPerRound = 0
 -- 1 (A) contre 3 et 4 (B) : 1 tue 3, puis 1 et 4 meurent presque en même temps
 kill(1, 3)
 damage(4, 1, 'WEAPON_PISTOL') damage(1, 4, 'WEAPON_PISTOL')
@@ -466,6 +473,36 @@ for _, c in ipairs({ { 280, 280 }, { 320, 280 }, { 320, 320 } }) do P[20].pos = 
 check(Arena.ArenaValid(Arena.arenas.port2) and #Arena.arenas.port2.zone.points == 3, 'apparitions et coins ajoutés : arène prête')
 ok = AA(20, 'arena_point_delete', { id = 'port2', what = 'corner', index = 2 })
 check(ok and #Arena.arenas.port2.zone.points == 2 and not Arena.ArenaValid(Arena.arenas.port2), 'suppression d\'un coin : arène de nouveau incomplète')
+-- zone dessinée en jeu (admin_menu › « Dessiner la zone ») et apparitions posées en visant
+local sq = { { x = 250, y = 250, z = 39 }, { x = 350, y = 250, z = 40 }, { x = 350, y = 350, z = 41 }, { x = 250, y = 350, z = 40 } }
+ok, msg = AA(20, 'arena_zone', { id = 'port2', points = { sq[1], sq[3], sq[2], sq[4] }, minZ = 36, maxZ = 71 })
+check(not ok and tostring(msg):find('croise'), 'zone dessinée dont le contour se croise : refusée')
+ok = AA(20, 'arena_zone', { id = 'port2', points = { sq[1], sq[2] }, minZ = 36, maxZ = 71 })
+check(not ok, 'zone dessinée avec 2 coins : refusée')
+ok = AA(20, 'arena_zone', { id = 'port2', points = { sq[1], { x = 5000, y = 250 }, sq[3] }, minZ = 36, maxZ = 71 })
+check(not ok, 'zone dessinée trop grande : refusée')
+ok = AA(20, 'arena_zone', { id = 'port2', points = sq, minZ = 50, maxZ = 49 })
+check(not ok, 'plafond sous le sol : refusé')
+ok, msg = AA(20, 'arena_zone', { id = 'port2', points = sq, minZ = 36, maxZ = 71 })
+local z2 = Arena.arenas.port2.zone
+check(ok and #z2.points == 4 and z2.minZ == 36 and z2.maxZ == 71 and FILES['data/arenas.json']:find('350'), 'zone dessinée enregistrée (4 coins, sol 36, plafond 71) : ' .. tostring(msg))
+check(Arena.ArenaValid(Arena.arenas.port2), 'arène prête avec la zone dessinée')
+ok, msg = AA(20, 'arena_spawns', { id = 'port2', team = 'B', points = { { x = 260, y = 260, z = 41, h = 45 }, { x = 400, y = 300, z = 41, h = 0 } } })
+check(not ok and tostring(msg):find('n°2'), 'apparition hors de la zone : refusée (' .. tostring(msg) .. ')')
+ok = AA(20, 'arena_spawns', { id = 'port2', team = 'B', points = { { x = 260, y = 260, z = 30, h = 0 } } })
+check(not ok, 'apparition sous le sol de la zone : refusée')
+ok = AA(20, 'arena_spawns', { id = 'port2', team = 'C', points = { { x = 260, y = 260, z = 41 } } })
+check(not ok, 'équipe inconnue : refusée')
+local many = {} for i = 1, 21 do many[i] = { x = 260 + i, y = 260, z = 41, h = 0 } end
+check(not AA(20, 'arena_spawns', { id = 'port2', team = 'A', points = many }), 'plus de 20 apparitions : refusé')
+ok = AA(20, 'arena_spawns', { id = 'port2', team = 'B', points = { { x = 340, y = 340, z = 41, h = -90 }, { x = 335, y = 340, z = 41, h = 400 } } })
+local sb = Arena.arenas.port2.spawns.B
+check(ok and #sb == 2 and sb[1].h == 270 and sb[2].h == 40 and #Arena.arenas.port2.spawns.A == 1, 'apparitions B remplacées (2 points, cap normalisé), A inchangées')
+check(not AA(5, 'arena_spawns', { id = 'port2', team = 'B', points = { { x = 340, y = 340, z = 41 } } }), 'apparitions sans permission : refusé')
+ok, msg = AA(20, 'arena_zone', { id = 'port2', points = { { x = 250, y = 250 }, { x = 300, y = 250 }, { x = 300, y = 300 }, { x = 250, y = 300 } }, minZ = 36, maxZ = 71 })
+check(ok and tostring(msg):find('hors de la nouvelle zone') and not Arena.ArenaValid(Arena.arenas.port2), 'zone réduite : avertit que des apparitions sont dehors, arène incomplète')
+AA(20, 'arena_zone', { id = 'port2', points = sq, minZ = 36, maxZ = 71 })
+check(math.abs(Rules.EdgeDistance(sq, 300, 300) - 50) < 0.01 and math.abs(Rules.EdgeDistance(sq, 255, 300) - 5) < 0.01, 'distance au bord (mur visible près du bord)')
 local _, u9 = call('create', 1, { mode = '1v1' })
 ok = AA(99, 'match_cancel', { uid = u9 })
 check(ok and not Arena.lobbies[u9], 'partie annulée depuis le menu')

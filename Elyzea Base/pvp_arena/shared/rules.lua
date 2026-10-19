@@ -23,6 +23,53 @@ function Rules.InZone(zone, x, y, z)
     return Rules.InPoly(zone.points, x, y)
 end
 
+-- Distance (2D) entre un point et le bord le plus proche du polygone
+function Rules.EdgeDistance(pts, x, y)
+    local best = math.huge
+    for i = 1, #pts do
+        local a, b = pts[i], pts[i % #pts + 1]
+        local dx, dy = b.x - a.x, b.y - a.y
+        local l2 = dx * dx + dy * dy
+        local t = l2 > 0 and math.max(0, math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2)) or 0
+        local px, py = a.x + dx * t - x, a.y + dy * t - y
+        best = math.min(best, math.sqrt(px * px + py * py))
+    end
+    return best
+end
+
+-- Deux segments [p1 p2] et [p3 p4] se croisent-ils (hors extrémités communes) ?
+local function cross(p1, p2, p3, p4)
+    local function o(a, b, c) return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) end
+    local d1, d2, d3, d4 = o(p3, p4, p1), o(p3, p4, p2), o(p1, p2, p3), o(p1, p2, p4)
+    return ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0))
+end
+
+-- Contrôle d'une zone dessinée : 3 à 60 coins, coordonnées réalistes, taille raisonnable,
+-- surface non nulle et contour qui ne se croise pas lui-même. Renvoie true ou false + raison.
+function Rules.CheckPolygon(pts, maxSize)
+    if type(pts) ~= 'table' or #pts < 3 then return false, '3 coins minimum' end
+    if #pts > 60 then return false, '60 coins maximum' end
+    local x0, x1, y0, y1 = math.huge, -math.huge, math.huge, -math.huge
+    for _, p in ipairs(pts) do
+        local x, y = tonumber(p.x), tonumber(p.y)
+        if not x or not y or x ~= x or y ~= y or math.abs(x) > 12000 or math.abs(y) > 12000 then return false, 'coordonnées invalides' end
+        x0, x1, y0, y1 = math.min(x0, x), math.max(x1, x), math.min(y0, y), math.max(y1, y)
+    end
+    if x1 - x0 > (maxSize or 1500) or y1 - y0 > (maxSize or 1500) then return false, ('zone trop grande (%d m maximum)'):format(maxSize or 1500) end
+    local n = #pts
+    for i = 1, n do
+        for j = i + 2, n do
+            if not (i == 1 and j == n) and cross(pts[i], pts[i % n + 1], pts[j], pts[j % n + 1]) then
+                return false, ('le contour se croise (coins %d-%d et %d-%d) : pose les coins dans l\'ordre du tour'):format(i, i % n + 1, j, j % n + 1)
+            end
+        end
+    end
+    local area = 0
+    for i = 1, #pts do local a, b = pts[i], pts[i % #pts + 1] area = area + (a.x * b.y - b.x * a.y) end
+    if math.abs(area) / 2 < 4 then return false, 'zone trop petite' end
+    return true
+end
+
 -- Hash d'arme normalisé (non signé 32 bits) pour comparer client / serveur
 function Rules.Hash(v)
     if type(v) == 'string' then v = GetHashKey(v) end

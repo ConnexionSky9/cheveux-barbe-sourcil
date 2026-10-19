@@ -245,6 +245,11 @@ function Arena.ArenaValid(a)
     if not a then return false, 'introuvable' end
     if #a.spawns.A == 0 or #a.spawns.B == 0 then return false, 'points d\'apparition manquants' end
     if #a.zone.points < 3 then return false, 'zone (3 coins minimum)' end
+    for _, t in ipairs({ 'A', 'B' }) do
+        for i, s in ipairs(a.spawns[t]) do
+            if not Rules.InZone(a.zone, s.x, s.y, s.z) then return false, ('apparition %s n°%d hors de la zone'):format(t, i) end
+        end
+    end
     return true
 end
 

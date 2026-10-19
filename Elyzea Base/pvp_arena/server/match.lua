@@ -342,7 +342,7 @@ CreateThread(function()
                             if not Rules.InZone(L.arena.zone, c.x, c.y, c.z) then
                                 M.exits[s] = (M.exits[s] or 0) + 1
                                 M.grace[s] = now + Config.Timers.teleportGrace
-                                if L.state == 'IN_ROUND' and M.exits[s] > Config.Zone.maxExitsPerRound then
+                                if L.state == 'IN_ROUND' and (Config.Zone.maxExitsPerRound or 0) > 0 and M.exits[s] > Config.Zone.maxExitsPerRound then
                                     Arena.Notify(s, T('zone_eliminated'), 'error')
                                     Arena.Eliminate(L, s, nil, 'zone')
                                 else

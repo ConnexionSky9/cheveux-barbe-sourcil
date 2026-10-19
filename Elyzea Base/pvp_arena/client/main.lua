@@ -94,6 +94,7 @@ end
 
 local function placeAt(p, h)
     local ped = PlayerPedId()
+    if A.WallReset then A.WallReset(nil) end   -- le mur repart de la nouvelle position
     RequestCollisionAtCoord(p.x, p.y, p.z)
     SetEntityCoords(ped, p.x, p.y, p.z, false, false, false, false)
     if h then SetEntityHeading(ped, h + 0.0) end
@@ -260,6 +261,7 @@ end)
 
 -- ---------------------------------------------------------------- retour au RP
 local function cleanState()
+    if A.WallReset then A.WallReset(nil) end
     stopSpectate()
     stripArenaWeapons()
     setGhost(false)
@@ -295,6 +297,48 @@ RegisterNetEvent('pvp_arena:forceClean', function()
     ui({ action = 'exit' })
 end)
 
+-- ---------------------------------------------------------------- mur de la zone
+-- Chaque image : si le joueur est dans la zone, sa position est retenue ; s'il en sort (course, saut,
+-- roulade, explosion, chute sous le sol), il est remis à la dernière position valide, sans élan.
+-- Le serveur garde son propre contrôle derrière (triche).
+local lastIn, lastWarn = nil, 0
+function A.Wall(ped)
+    local z = A.arena.zone
+    local c = GetEntityCoords(ped)
+    if Rules.InZone(z, c.x, c.y, c.z) then
+        lastIn = c
+    elseif lastIn and not A.frozen then
+        SetEntityVelocity(ped, 0.0, 0.0, 0.0)
+        SetEntityCoordsNoOffset(ped, lastIn.x, lastIn.y, lastIn.z, false, false, false)
+        if GetGameTimer() - lastWarn > 2500 then
+            lastWarn = GetGameTimer()
+            ui({ action = 'zoneWarn' })
+            PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+        end
+    end
+    -- mur visible seulement à proximité (quelques murs, pas tout le contour)
+    local pts = z.points
+    local show = Config.Zone.wallShowDistance or 6.0
+    if Rules.EdgeDistance(pts, c.x, c.y) > show then return end
+    local col = Config.Zone.wallColor or { 34, 211, 238 }
+    local z0 = z.minZ or (c.z - 3.0)
+    local z1 = z.maxZ and math.min(z.maxZ, c.z + 6.0) or (c.z + 6.0)
+    z0 = math.max(z0, c.z - 4.0)
+    for i = 1, #pts do
+        local p, q = pts[i], pts[i % #pts + 1]
+        -- seulement les murs proches
+        if Rules.EdgeDistance({ p, q }, c.x, c.y) <= show then
+            DrawPoly(p.x, p.y, z0, q.x, q.y, z0, q.x, q.y, z1, col[1], col[2], col[3], 45)
+            DrawPoly(p.x, p.y, z0, q.x, q.y, z1, p.x, p.y, z1, col[1], col[2], col[3], 45)
+            DrawPoly(q.x, q.y, z0, p.x, p.y, z0, q.x, q.y, z1, col[1], col[2], col[3], 45)
+            DrawPoly(q.x, q.y, z1, p.x, p.y, z0, p.x, p.y, z1, col[1], col[2], col[3], 45)
+            DrawLine(p.x, p.y, z0, q.x, q.y, z0, col[1], col[2], col[3], 220)
+            DrawLine(p.x, p.y, z1, q.x, q.y, z1, col[1], col[2], col[3], 220)
+        end
+    end
+end
+function A.WallReset(p) lastIn = p and vector3(p.x, p.y, p.z) or nil end
+
 -- ---------------------------------------------------------------- boucle de l'arène (seulement en partie)
 CreateThread(function()
     local lastClock = 0
@@ -327,6 +371,10 @@ CreateThread(function()
                 TriggerServerEvent('pvp_arena:died', killer)
             elseif A.phase ~= 'IN_ROUND' and IsEntityDead(ped) and not A.eliminated then
                 resurrect()   -- chute ou accident hors manche : pas de mort RP
+            end
+            -- mur de la zone : impossible d'en sortir (bord, sol et plafond) ; visible près du bord
+            if Config.Zone.wall and not A.eliminated and A.arena and A.arena.zone and #(A.arena.zone.points or {}) >= 3 then
+                A.Wall(ped)
             end
             -- spectateur : flèches gauche / droite pour changer de coéquipier
             if A.eliminated and A.cam then
