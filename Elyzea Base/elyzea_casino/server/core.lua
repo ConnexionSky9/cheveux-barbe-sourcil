@@ -94,6 +94,12 @@ CreateThread(function()
         if not hasWheels then Casino.SaveKey('wheels') end
     else
         S.wheels = wheels
+        -- Roues enregistrées avant la correction : la roue était posée au pied du socle (sortie de l'anneau)
+        local fixed = false
+        for _, w in ipairs(S.wheels) do
+            if w.baseModel == 'vw_prop_vw_luckywheel_01a' and (tonumber(w.wheelZ) or 0) == 0 then w.wheelZ = 1.25 fixed = true end
+        end
+        if fixed then Casino.SaveKey('wheels') print('[elyzea_casino] Roue(s) remontée(s) au centre de leur socle (hauteur 1,25 m).') end
     end
     -- Nettoyage du journal
     local days = math.floor(tonumber(S.global.logRetentionDays) or 90)

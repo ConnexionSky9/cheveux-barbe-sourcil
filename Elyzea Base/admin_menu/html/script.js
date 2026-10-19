@@ -1314,7 +1314,7 @@ function toPedEdit(r) {
 const CASINO_ROLES = [
     { id: 'blackjack', label: '🃏 Croupier de blackjack', model: 'vw_prop_casino_blckjack_01' },
     { id: 'roulette', label: '🎡 Croupier de roulette', model: 'vw_prop_casino_roulette_01' },
-    { id: 'wheel', label: '🎰 Animateur roue de la fortune', model: 'vw_prop_vw_luckywheel_02a' },
+    { id: 'wheel', label: '🎰 Animateur roue de la fortune', model: 'vw_prop_vw_luckywheel_01a' },
     { id: 'cashier', label: '💰 Guichetier (jetons)', model: '' },
 ];
 function casinoEdit(c) {

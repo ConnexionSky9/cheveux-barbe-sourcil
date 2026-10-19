@@ -3,74 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <title>Elyzea Casino</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Guichet -->
-    <section id="cashier" class="panel center hidden">
-        <header><div class="logo">♠ ♥ ♣ ♦</div><h1 id="ca-title">Caisse du casino</h1><button class="x" data-close>✕</button></header>
+    <section id="cashier" class="glass center hidden">
+        <div class="glow-edge"></div>
+        <header class="head">
+            <div class="brand"><span class="brand-ico">◆</span><div><small>ELYZEA CASINO</small><h1 id="ca-title">Caisse du casino</h1></div></div>
+            <button class="x" data-close aria-label="Fermer">✕</button>
+        </header>
         <div class="balances">
-            <div><span>Jetons</span><b id="ca-chips">0</b></div>
-            <div><span>Liquide</span><b id="ca-cash">0 $</b></div>
-            <div><span>Banque</span><b id="ca-bank">0 $</b></div>
+            <div class="bal gold"><span>Jetons</span><b id="ca-chips">0</b></div>
+            <div class="bal"><span>Liquide</span><b id="ca-cash">0 $</b></div>
+            <div class="bal"><span>Banque</span><b id="ca-bank">0 $</b></div>
         </div>
-        <div class="tabs"><button class="tab on" data-catab="buy">Acheter des jetons</button><button class="tab" data-catab="sell">Revendre des jetons</button></div>
+        <div class="seg"><button class="seg-btn on" data-catab="buy">Acheter</button><button class="seg-btn" data-catab="sell">Revendre</button><i class="seg-ind"></i></div>
         <div id="ca-closed" class="warn hidden"></div>
-        <div id="ca-body">
+        <div id="ca-body" class="pad">
             <label>Nombre de jetons</label>
-            <div class="qty"><button data-caq="-100">−100</button><input id="ca-qty" type="number" min="1" value="100"><button data-caq="100">+100</button></div>
-            <div class="quick"><button data-caset="100">100</button><button data-caset="500">500</button><button data-caset="1000">1 000</button><button data-caset="5000">5 000</button><button data-caset="max">Max</button></div>
+            <div class="qty"><button class="ghost-btn" data-caq="-100">−100</button><input id="ca-qty" type="number" min="1" value="100"><button class="ghost-btn" data-caq="100">+100</button></div>
+            <div class="quick"><button data-caset="100">100</button><button data-caset="500">500</button><button data-caset="1000">1K</button><button data-caset="5000">5K</button><button data-caset="max">MAX</button></div>
             <div class="rate" id="ca-rate"></div>
             <div class="acct"><label>Payer / recevoir sur</label><select id="ca-acct"><option value="cash">Liquide</option><option value="bank">Banque</option></select></div>
             <div class="total"><span id="ca-total-l">Total à payer</span><b id="ca-total">0 $</b></div>
             <div class="hint" id="ca-limits"></div>
-            <div class="row"><button class="btn ghost" data-close>Annuler</button><button class="btn gold" id="ca-ok">Confirmer</button></div>
+            <div class="row"><button class="neo ghost" data-close>Annuler</button><button class="neo primary" id="ca-ok">Confirmer</button></div>
         </div>
     </section>
 
     <!-- Blackjack -->
-    <section id="bj" class="panel bottom hidden">
-        <div class="topbar"><b id="bj-title">Blackjack</b><span id="bj-phase" class="phase"></span><span id="bj-timer" class="timer"></span>
-            <span class="spacer"></span><span class="mychips">Jetons : <b id="bj-chips">—</b></span><button class="btn ghost small" data-leave>Quitter la table</button></div>
-        <div class="bj-dealer"><span class="lbl">Croupier</span><div class="cards" id="bj-dealer"></div><span class="tot" id="bj-dtot"></span></div>
-        <div class="bj-seats" id="bj-seats"></div>
-        <div class="bj-me">
+    <section id="bj" class="game hidden">
+        <div class="hud-top glass">
+            <div class="brand"><span class="brand-ico">♠</span><div><small>BLACKJACK</small><h2 id="bj-title">Blackjack</h2></div></div>
+            <span id="bj-phase" class="phase"></span>
+            <div class="ring"><svg viewBox="0 0 44 44"><circle class="ring-bg" cx="22" cy="22" r="19"/><circle class="ring-fg" id="bj-ring" cx="22" cy="22" r="19"/></svg><span id="bj-timer"></span></div>
+            <span class="spacer"></span>
+            <div class="wallet"><span>JETONS</span><b id="bj-chips">—</b></div>
+            <button class="neo ghost small" data-leave>Quitter la table</button>
+        </div>
+        <div class="table-zone glass">
+            <div class="dealer-zone"><span class="zone-l">CROUPIER</span><div class="cards big" id="bj-dealer"></div><span class="total-pill" id="bj-dtot"></span></div>
+            <div class="seats" id="bj-seats"></div>
+        </div>
+        <div class="dock glass">
             <div class="bet-ctl" id="bj-betctl">
                 <div class="chips" id="bj-chiprow"></div>
-                <div class="betline">Mise : <input id="bj-amount" class="betinput" type="number" min="1" step="1" value="0">
-                    <button class="btn ghost small" id="bj-clear">Effacer</button>
-                    <button class="btn gold" id="bj-place">Miser</button><button class="btn" id="bj-ready">Prêt</button><span class="hint" id="bj-placed"></span></div>
-                <div class="hint" id="bj-rules"></div>
+                <div class="betline">
+                    <div class="bet-input"><span>MISE</span><input id="bj-amount" type="number" min="1" step="1" value="0"></div>
+                    <button class="neo ghost small" id="bj-clear">Effacer</button>
+                    <button class="neo primary" id="bj-place">Miser</button><button class="neo" id="bj-ready">Prêt</button>
+                    <span class="hint" id="bj-placed"></span>
+                </div>
+                <div class="hint rules" id="bj-rules"></div>
             </div>
             <div class="acts" id="bj-ins">
                 <span class="insq" id="bj-insq">Le croupier montre un As : assurance ?</span>
-                <button class="btn gold act" data-bji="1">Assurer</button><button class="btn act" data-bji="0">Non merci</button>
+                <button class="neo primary act" data-bji="1">🛡 Assurer</button><button class="neo act" data-bji="0">Non merci</button>
             </div>
             <div class="acts" id="bj-acts">
-                <button class="btn act" data-bja="hit">Tirer <kbd>T</kbd></button><button class="btn act" data-bja="stand">Rester <kbd>R</kbd></button>
-                <button class="btn act" data-bja="double">Doubler <kbd>D</kbd></button><button class="btn act" data-bja="split">Séparer <kbd>S</kbd></button>
-                <button class="btn act" data-bja="surrender">Abandonner <kbd>A</kbd></button>
+                <button class="neo act a-hit" data-bja="hit"><i>＋</i>Tirer <kbd>T</kbd></button>
+                <button class="neo act a-stand" data-bja="stand"><i>✋</i>Rester <kbd>R</kbd></button>
+                <button class="neo act a-double" data-bja="double"><i>×2</i>Doubler <kbd>D</kbd></button>
+                <button class="neo act a-split" data-bja="split"><i>⇄</i>Séparer <kbd>S</kbd></button>
+                <button class="neo act a-surr" data-bja="surrender"><i>⚑</i>Abandonner <kbd>A</kbd></button>
             </div>
         </div>
         <div class="banner hidden" id="bj-banner"></div>
     </section>
 
     <!-- Roulette -->
-    <section id="rl" class="panel bottom wide hidden">
-        <div class="topbar"><b id="rl-title">Roulette</b><span id="rl-phase" class="phase"></span><span id="rl-timer" class="timer"></span>
-            <span class="spacer"></span><span class="mychips">Jetons : <b id="rl-chips">—</b></span><button class="btn ghost small" data-leave>Quitter la table</button></div>
+    <section id="rl" class="game wide hidden">
+        <div class="hud-top glass">
+            <div class="brand"><span class="brand-ico">◎</span><div><small>ROULETTE</small><h2 id="rl-title">Roulette</h2></div></div>
+            <span id="rl-phase" class="phase"></span>
+            <div class="ring"><svg viewBox="0 0 44 44"><circle class="ring-bg" cx="22" cy="22" r="19"/><circle class="ring-fg" id="rl-ring" cx="22" cy="22" r="19"/></svg><span id="rl-timer"></span></div>
+            <span class="spacer"></span>
+            <div class="wallet"><span>JETONS</span><b id="rl-chips">—</b></div>
+            <button class="neo ghost small" data-leave>Quitter la table</button>
+        </div>
         <div class="rl-main">
-            <div class="rl-left">
-                <canvas id="rl-wheel" width="260" height="260"></canvas>
+            <div class="rl-left glass">
+                <div class="wheel-holder"><canvas id="rl-wheel" width="520" height="520"></canvas></div>
+                <div class="sub-l">DERNIERS NUMÉROS</div>
                 <div class="hist" id="rl-hist"></div>
+                <div class="sub-l">JOUEURS</div>
                 <div class="players" id="rl-players"></div>
             </div>
-            <div class="rl-right">
+            <div class="rl-right glass">
                 <div class="modes" id="rl-modes"></div>
                 <div class="mat" id="rl-mat"></div>
-                <div class="chips" id="rl-chiprow"></div>
-                <div class="mybets"><div class="mb-head">Mes mises : <b id="rl-total">0</b> jetons · gain possible max <b id="rl-pot">0</b>
-                    <button class="btn ghost small" id="rl-clear">Tout retirer</button></div><div id="rl-list"></div></div>
+                <div class="rl-bottom">
+                    <div class="chips" id="rl-chiprow"></div>
+                    <div class="mybets"><div class="mb-head"><span>MES MISES <b id="rl-total">0</b></span><span>GAIN MAX <b id="rl-pot">0</b></span>
+                        <button class="neo ghost small" id="rl-clear">Tout retirer</button></div><div id="rl-list"></div></div>
+                </div>
             </div>
         </div>
         <div class="banner hidden" id="rl-banner"></div>
@@ -78,8 +107,13 @@
 
     <!-- Roue de la fortune -->
     <section id="wheel" class="hidden">
-        <div class="wheel-wrap"><div class="pointer">▼</div><canvas id="wh-canvas" width="460" height="460"></canvas>
-            <div class="wh-name" id="wh-name"></div><div class="wh-result hidden" id="wh-result"></div></div>
+        <div class="wheel-wrap">
+            <div class="wh-halo"></div>
+            <div class="pointer"></div>
+            <canvas id="wh-canvas" width="900" height="900"></canvas>
+            <div class="wh-name" id="wh-name"></div>
+            <div class="wh-result hidden" id="wh-result"></div>
+        </div>
     </section>
 
     <div id="toast"></div>

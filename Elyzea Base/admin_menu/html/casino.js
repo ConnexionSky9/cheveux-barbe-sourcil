@@ -165,7 +165,7 @@
                     <div><label>Attente entre deux tours (s)</label><input class="input" type="number" min="0" data-cw="cooldown" value="${esc(w.cooldown)}"></div>
                     <div><label>Modèle de la roue</label><input class="input" data-cw="model" value="${esc(w.model)}"></div>
                     <div><label>Modèle du socle (vide = aucun)</label><input class="input" data-cw="baseModel" value="${esc(w.baseModel || '')}"></div>
-                    <div><label>Hauteur de la roue sur le socle (m)</label><input class="input" type="number" step="0.01" data-cw="wheelZ" value="${esc(w.wheelZ || 0)}"></div>
+                    <div><label>Hauteur de la roue sur le socle (m, 1,25 = centre de l'anneau)</label><input class="input" type="number" step="0.01" data-cw="wheelZ" value="${esc(w.wheelZ || 0)}"></div>
                 </div>
                 <h3 class="sub-h" style="margin-top:14px">Segments (${w.segments.length}) · total des chances <b style="color:${ok ? 'var(--success, #4caf50)' : 'var(--danger)'}">${t} %</b>${ok ? '' : ' — doit faire 100 %'}</h3>
                 <table class="loot wide"><tr><th>Texte</th><th>Couleurs</th><th>Icône</th><th>Récompense</th><th>Valeur</th><th>Chance</th><th>${sim ? 'Simulé' : ''}</th><th></th></tr>${rows}</table>
@@ -274,7 +274,7 @@
             if (x === 'wnew') {
                 let n = 1; while ((c.wheels || []).some((w) => w.id === `roue_${n}`)) n++;
                 C.wheel = null;
-                C.wdraft = { id: `roue_${n}`, name: `Roue ${n}`, enabled: false, costType: 'chips', cost: 100, maxPerDay: 0, cooldown: 10, model: 'vw_prop_vw_luckywheel_02a', baseModel: 'vw_prop_vw_luckywheel_01a', wheelZ: 0,
+                C.wdraft = { id: `roue_${n}`, name: `Roue ${n}`, enabled: false, costType: 'chips', cost: 100, maxPerDay: 0, cooldown: 10, model: 'vw_prop_vw_luckywheel_02a', baseModel: 'vw_prop_vw_luckywheel_01a', wheelZ: 1.25,
                     segments: [{ label: 'Perdu', color: '#1b1b1b', text: '#ffffff', reward: 'none', value: 0, weight: 50 }, { label: '200 jetons', color: '#0a7d3b', text: '#ffffff', reward: 'chips', value: 200, weight: 50 }] };
                 C.wdraft._new = true;
             }

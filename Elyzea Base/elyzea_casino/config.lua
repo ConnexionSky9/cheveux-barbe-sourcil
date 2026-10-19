@@ -64,7 +64,7 @@ Config.DefaultRoulette = {
 Config.DefaultWheel = {
     id = 'lucky', name = 'Roue de la fortune', enabled = true,
     costType = 'chips', cost = 100, maxPerDay = 0, cooldown = 10,
-    model = 'vw_prop_vw_luckywheel_02a', baseModel = 'vw_prop_vw_luckywheel_01a', wheelZ = 0.0,
+    model = 'vw_prop_vw_luckywheel_02a', baseModel = 'vw_prop_vw_luckywheel_01a', wheelZ = 1.25,   -- roue posée au centre de l'anneau du socle
     segments = {
         { label = '500 jetons', color = '#c8102e', text = '#ffffff', reward = 'chips', value = 500, weight = 10 },
         { label = 'Perdu', color = '#1b1b1b', text = '#ffffff', reward = 'none', value = 0, weight = 30 },
