@@ -4,8 +4,8 @@
   "etapes": [
     {
       "surface_hd": {
-        "sommets": 392424,
-        "triangles": 784856
+        "sommets": 384149,
+        "triangles": 768306
       }
     },
     {
@@ -20,29 +20,34 @@
       }
     },
     {
+      "uv": {
+        "couverture": 0.368
+      }
+    },
+    {
       "squelette": {
         "os": 20,
         "sommets_par_os": {
-          "main.R": 414,
-          "avantbras.R": 252,
-          "bras.R": 291,
-          "clavicule.R": 218,
-          "cuisse.R": 514,
-          "bassin": 415,
-          "colonne": 338,
-          "tete": 2098,
-          "tibia.R": 255,
-          "pied.R": 490,
-          "cou": 134,
-          "poitrine": 85,
-          "racine": 123,
-          "cuisse.L": 492,
-          "clavicule.L": 206,
-          "tibia.L": 237,
-          "pied.L": 462,
-          "bras.L": 295,
-          "avantbras.L": 259,
-          "main.L": 418
+          "main.R": 419,
+          "avantbras.R": 260,
+          "bras.R": 296,
+          "clavicule.R": 223,
+          "cuisse.R": 507,
+          "bassin": 426,
+          "colonne": 328,
+          "tibia.R": 272,
+          "tete": 2017,
+          "pied.R": 483,
+          "cou": 144,
+          "poitrine": 83,
+          "racine": 138,
+          "cuisse.L": 480,
+          "clavicule.L": 218,
+          "tibia.L": 254,
+          "pied.L": 461,
+          "bras.L": 298,
+          "avantbras.L": 264,
+          "main.L": 425
         }
       }
     }
@@ -58,8 +63,8 @@
       ],
       "max": [
         0.1547,
-        0.3059,
-        0.1698
+        0.3024,
+        0.1691
       ],
       "objets": [
         "ely_bebe_allonge_corps",
@@ -74,14 +79,14 @@
       "label": "Porté dans les bras (berceau des bras)",
       "origine": "pelvis",
       "min": [
-        -0.1115,
-        -0.1398,
-        -0.0523
+        -0.088,
+        -0.134,
+        -0.0516
       ],
       "max": [
-        0.1115,
-        0.303,
-        0.1136
+        0.0881,
+        0.3007,
+        0.113
       ],
       "objets": [
         "ely_bebe_porte_corps",
@@ -97,13 +102,13 @@
       "origine": "seat",
       "min": [
         -0.1377,
-        -0.1681,
+        -0.1684,
         0.0
       ],
       "max": [
         0.1377,
-        0.1766,
-        0.3341
+        0.176,
+        0.33
       ],
       "objets": [
         "ely_bebe_assis_corps",
@@ -120,12 +125,12 @@
       "min": [
         -0.1317,
         -0.1487,
-        -0.0919
+        -0.0921
       ],
       "max": [
         0.1318,
-        0.0487,
-        0.3025
+        0.0485,
+        0.3005
       ],
       "objets": [
         "ely_bebe_ventral_corps",
@@ -298,5 +303,5 @@
     "tibia.R",
     "pied.R"
   ],
-  "duree_s": 508.4
+  "duree_s": 604.4
 }

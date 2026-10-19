@@ -6,15 +6,15 @@
       "pos": [
         0.0,
         0.24,
-        0.2625
+        0.2645
       ],
       "rot": [
         0.0,
         0.0,
         0.0
       ],
-      "ecart_tronc_tete_cm": 1.39,
-      "ecart_bras_jambes_cm": -0.76,
+      "ecart_tronc_tete_cm": 1.38,
+      "ecart_bras_jambes_cm": -0.82,
       "decalage_femme": [
         0.0,
         0.016,
@@ -25,15 +25,15 @@
       "pos": [
         0.0,
         -0.224,
-        0.2975
+        0.2995
       ],
       "rot": [
         0.0,
         0.0,
         180.0
       ],
-      "ecart_tronc_tete_cm": 1.31,
-      "ecart_bras_jambes_cm": -0.93,
+      "ecart_tronc_tete_cm": 1.35,
+      "ecart_bras_jambes_cm": -0.87,
       "decalage_femme": [
         0.0,
         0.004,
@@ -45,7 +45,7 @@
     "triangles": 7904,
     "dans_le_corps_cm": 0.0,
     "part_sommets_dans_le_corps": 0.0,
-    "ecart_min_bebe_cm": 0.22,
+    "ecart_min_bebe_cm": 0.17,
     "boite": [
       [
         -0.174,
@@ -54,7 +54,7 @@
       ],
       [
         0.174,
-        0.31,
+        0.309,
         0.651
       ]
     ],
@@ -64,11 +64,11 @@
     "triangles": 8248,
     "dans_le_corps_cm": 0.0,
     "part_sommets_dans_le_corps": 0.0,
-    "ecart_min_bebe_cm": 0.23,
+    "ecart_min_bebe_cm": 0.17,
     "boite": [
       [
         -0.174,
-        -0.294,
+        -0.293,
         0.112
       ],
       [
@@ -79,12 +79,22 @@
     ],
     "uv_superposees": 0
   },
+  "roue_ar": {
+    "triangles": 876,
+    "rayon_m": 0.14,
+    "uv_superposees": 0
+  },
+  "roue_av": {
+    "triangles": 876,
+    "rayon_m": 0.1,
+    "uv_superposees": 0
+  },
   "poussette": {
-    "triangles": 12040,
+    "triangles": 8536,
     "bebe_nacelle": {
       "pos": [
         0.0,
-        0.0923,
+        0.0906,
         0.585
       ],
       "rot": [
@@ -114,7 +124,7 @@
       15.5
     ],
     "bebe_au_dessus_matelas_cm": 0.0,
-    "ecart_min_bebe_poussette_cm": 1.94,
+    "ecart_min_bebe_poussette_cm": 1.95,
     "boite": [
       [
         -0.312,
@@ -128,6 +138,20 @@
       ]
     ],
     "roues_au_sol_cm": 0.0,
+    "roues": {
+      "ar": [
+        0.29,
+        -0.27,
+        0.14,
+        0.14
+      ],
+      "av": [
+        0.255,
+        0.31,
+        0.1,
+        0.1
+      ]
+    },
     "uv_superposees": 0
   },
   "textures": {
@@ -147,6 +171,16 @@
       "n": "ely_bebe_poussette_n.png",
       "graphite": "ely_bebe_poussette_graphite.png",
       "sable": "ely_bebe_poussette_sable.png"
+    },
+    "roue_ar": {
+      "n": "ely_bebe_roue_ar_n.png",
+      "graphite": "ely_bebe_roue_ar_graphite.png",
+      "sable": "ely_bebe_roue_ar_sable.png"
+    },
+    "roue_av": {
+      "n": "ely_bebe_roue_av_n.png",
+      "graphite": "ely_bebe_roue_av_graphite.png",
+      "sable": "ely_bebe_roue_av_sable.png"
     }
   },
   "coloris": {
@@ -163,7 +197,9 @@
   "objets": {
     "pb_ventral": "ely_bebe_pb_ventral",
     "pb_dorsal": "ely_bebe_pb_dorsal",
-    "poussette": "ely_bebe_poussette"
+    "poussette": "ely_bebe_poussette",
+    "roue_ar": "ely_bebe_roue_ar",
+    "roue_av": "ely_bebe_roue_av"
   },
-  "duree_s": 122.6
+  "duree_s": 195.4
 }

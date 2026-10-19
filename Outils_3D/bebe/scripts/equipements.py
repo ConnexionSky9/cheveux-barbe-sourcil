@@ -818,10 +818,13 @@ def main():
     pous, roue_ar, roue_av = poussette()
     objets['poussette'] = pous
     objets['roue_ar'], objets['roue_av'] = roue_ar, roue_av
-    copies_roues = roues_placees(roue_ar, roue_av)
-    Vp = verts_of([pous] + copies_roues)
-    for c in copies_roues:
-        bpy.data.objects.remove(c, do_unlink=True)
+    # contrôles : châssis + les 4 roues à leur emplacement (verts_of lit les coordonnées locales)
+    Vr = []
+    for k, ob_ in (('ar', roue_ar), ('av', roue_av)):
+        x, y, z, _ = ROUES[k]
+        for sx in (1, -1):
+            Vr.append(verts_of([ob_]) + np.array((sx * x, y, z), np.float32))
+    Vp = np.concatenate([verts_of([pous])] + Vr)
     for k, ob_ in (('roue_ar', roue_ar), ('roue_av', roue_av)):
         rapport[k] = {'triangles': len(ob_.data.polygons), 'rayon_m': ROUES[k[-2:]][3]}
     # bébé allongé dans la nacelle, tête côté poignée (rotation de 180°), centré dans la nacelle

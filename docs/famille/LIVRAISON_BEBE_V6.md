@@ -43,10 +43,27 @@ V5 = commit `0278dfb` (étiquette `sauvegarde-v5`) et paquet `elyzea_famille_v5.
 | `Outils_3D/bebe/scripts/` | `sdf_baby.py` (visage), `generate_baby.py` (pose, duvet, UV), `equipements.py` (roues séparées), `export_gta.py`, `make_resource.py`, `rendu_jeu.py` |
 
 ## 5. Modèle 3D : résultat
-(complété après la génération)
+Chaîne complète relancée (`Outils_3D/bebe/construire.sh`) : **148 fichiers du jeu** produits (bébé : 6 teintes × 2 tenues, 5 yeux,
+10 coiffures, paupières fermées, 4 poses ; porte-bébés ventral / dorsal × 3 coloris ; poussette **sans roues** × 2 coloris ;
+**roue arrière et roue avant** × 2 coloris), **0 échec de conversion**, relus par CodeWalker, **37/37 contrôles**.
+Rendu fait à partir des fichiers du jeu relus : `docs/famille/captures/fichiers_du_jeu_v6.png` (poussette avec ses 4 roues placées
+comme dans le jeu). Visage avant / après : joues ramenées sous les yeux, visage plus étroit, bouche plus large, yeux plus ouverts.
+Reste visible : quelques petites marques sombres sur le pyjama (genoux, entrejambe), nettement moins qu'en V4 ; aspect encore
+« modèle de jeu » de près.
 
 ## 6. Tests réellement exécutés (hors du jeu)
-(complété après la génération)
+| Test | Résultat |
+|---|---|
+| Contrôles du modèle et des équipements (`validate.py` : maillage fermé, UV sans superposition, porte-bébés hors du corps du mannequin, bébé dans la nacelle, **roues au sol**, fichiers présents) | **37/37** |
+| Conversion en fichiers du jeu + relecture CodeWalker | **148/148** |
+| Persistance, vraie base MariaDB, redémarrages simulés (`tests/test_persistance.py`) | **19/19** |
+| États de la poussette : frein, lâcher, simulateur, arrêt, renversement, relever, rattraper, simulateur déconnecté, position invraisemblable, réglages admin (`tests/test_poussette.py`) | **23/23** |
+| Physique sur terrains simulés : plat, élan, pentes 2 / 8 / 55 %, frein, dévers, mur, trottoir, travers, bosses (`tests/test_physique.lua`) | **15/15** |
+| Portage V3-V5 (régression) avec bébé attaché à la poussette (`tests/test_portage.py`) | **83/83** |
+| Logique client : options ALT (frein, relever…) (`tests/test_client.lua`) | **11/11** |
+| `elyzea_famille` complet + réglages V6 transmis (`tests/integration_test.py`) | **117/117** |
+| Onglet admin affiché dans Chromium (13 sections, 94 réglages, aucune erreur JavaScript) | fait (`captures/menu_admin_*`) |
+| Syntaxe Lua / JavaScript de tous les fichiers modifiés | OK |
 
 ## 7. Tests à faire en jeu (deux joueurs A et B)
 1. **Naissance** (accouchement EMS) : le bébé apparaît, A et B le voient ; redémarrer le serveur : il est toujours là.
