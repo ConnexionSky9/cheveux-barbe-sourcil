@@ -8,9 +8,12 @@ Menu d'animations pour le serveur Elyzea RP. Il s'ouvre avec **K**, l'animation 
 elyzea_animations/
 ├── fxmanifest.lua      Déclaration de la ressource
 ├── client.lua          Touches, raccourcis, animations partagées, lien avec ton script d'emotes
-├── server.lua          Envoi des demandes d'animations partagées entre joueurs
+├── client_interactions.lua  Menu ALT : copier une animation, proposer une animation, arrêt des animations à deux
+├── server.lua          Demandes d'animations partagées, animations à deux en cours, copie (tout est vérifié ici)
+├── interactions.lua    Réglages et catégories de « Proposer une animation » (client + serveur)
 ├── shared_emotes.lua   Liste des animations partagées de rpemotes et de leur partenaire
-├── anim_data.lua       Données des animations (aperçu 3D et vérification)
+├── anim_data.lua       Données des animations (aperçu 3D, vérification, reconnaissance pour la copie)
+├── tests/              Simulations hors jeu (serveur et client) : python3 tests/run_interactions_sim.py, run_client_sim.py
 ├── README.md           Ce fichier
 └── html/
     └── index.html      L'interface (menu, logo, liste des animations)
@@ -198,6 +201,37 @@ Le contrôle de distance côté serveur nécessite **OneSync** (activé par déf
 
 La distance maximale est de 3 mètres, comme dans rpemotes.
 
+## Menu ALT : copier une animation, proposer une animation
+
+Maintenir **ALT** et cliquer sur une personne (menu ALT d'`elyzea_police`, le même que pour porter ou le coffre) ajoute deux actions :
+
+**Copier l'animation**
+- Le jeu de la personne visée regarde ce que son personnage joue **vraiment** (dictionnaire + clip, ou scénario) et le compare
+  au catalogue de rpemotes (`anim_data.lua`). Si plusieurs animations ont le même clip, celle dont l'objet en main correspond est choisie.
+  Rien n'est modifié chez la personne copiée.
+- Ton personnage lance la même animation (`/e …` de rpemotes), au même moment de l'animation, **sans être déplacé**. **X** l'arrête.
+- Refus expliqué, sans rien lancer : aucune animation reconnue, animation hors catalogue (« non reconnue »), **animation à deux**
+  (porté, câlin avec un partenaire, animation lancée par le menu…) → utilise « Proposer une animation », fichier absent chez toi
+  (« fichier manquant »), animation de véhicule à pied (ou l'inverse), menotté / à terre.
+- Distance max 6 m (`ElyzeaInteractions.Copy` dans `interactions.lua`).
+
+**Proposer une animation**
+- Le menu **K** s'ouvre en mode « Proposer une animation à … », avec seulement les animations à deux, classées :
+  Salutations, Poignées de main, Accolades et câlins, Interactions amicales, En couple, **Danser ensemble**, **Slow**, Porter, Autres interactions.
+  Ce sont les 92 animations à deux réellement présentes dans rpemotes (`shared_emotes.lua`) ; celles dont le fichier manque sont masquées.
+- La personne reçoit l'invitation : **Y** accepter, **L** refuser. Tu vois un bandeau « Invitation envoyée » : **L** (ou `/annuleranim`,
+  ou ALT › « Annuler l'invitation ») pour l'annuler. Sans réponse en 15 s : expirée, les deux sont prévenus.
+- Une seule invitation à la fois : on ne peut pas inviter quelqu'un qui a déjà une invitation, ni en envoyer deux.
+- À l'acceptation, le serveur revérifie : connectés, à moins de 4 m, ni menotté, ni porté, ni à terre, ni en véhicule, ni déjà en animation à deux.
+- Les animations à deux sont lancées par **rpemotes** avec le clip de **chaque rôle** (ex. `hug` / `hug2`) : il place les deux personnages.
+- **Danser ensemble / Slow** : rpemotes n'a **aucune danse de couple** ni slow à deux. Ces catégories proposent donc une danse **solo** que
+  vous faites tous les deux, tournés l'un vers l'autre, lancée au même moment (c'est écrit dans le menu et dans l'invitation).
+  Les danses « Hip Hop » de rpemotes sont le rôle A d'une danse GTA à deux : elles ne sont pas proposées (jouer deux fois le même rôle ne donne pas une danse de couple).
+- **Arrêt** : **X** chez l'un arrête les deux ; ALT › « Arrêter l'animation à deux » aussi. Arrêt automatique des deux si l'un meurt,
+  est menotté, s'éloigne de plus de 8 m, se déconnecte, ou si la ressource redémarre.
+
+Réglages : `interactions.lua` (catégories, distances, durées) et `Config` en haut de `server.lua` (délai de réponse, distance, anti-spam).
+
 ## Personnaliser
 
 **Ajouter ou modifier des animations.** Ajoute d'abord l'animation dans rpemotes (fichier `client/AnimationListCustom.lua`) et vérifie qu'elle marche avec `/e`. Ensuite, dans `html/index.html`, cherche `const EMOTES`. Chaque catégorie est une liste au format :
@@ -217,7 +251,10 @@ Préfixes à utiliser selon le type :
 | Démarche | `walk_` | `["Gangster","walk_Gangster"]` |
 | Humeur | `mood_` | `["Heureux","mood_Happy"]` |
 
-Pour une nouvelle animation partagée, ajoute aussi une ligne dans `shared_emotes.lua` : `["moncalin"] = "moncalin2",` (l'animation de l'autre joueur, ou la même).
+Pour une nouvelle animation partagée, ajoute aussi une ligne dans `shared_emotes.lua` : `["moncalin"] = "moncalin2",` (l'animation de l'autre joueur, ou la même),
+une ligne `["nearby_moncalin"] = {d="dictionnaire",a="clip",k="e"},` dans `anim_data.lua` (reconnaissance et fichier manquant),
+puis range-la dans une catégorie de `interactions.lua` pour qu'elle apparaisse dans « Proposer une animation » (menu ALT).
+Une vraie danse de couple ajoutée à rpemotes de cette façon apparaît dans « Proposer une animation » comme les autres animations à deux.
 
 Les catégories (nom, icône, description) se règlent juste en dessous, dans `const META`. Les icônes viennent de lucide.dev.
 

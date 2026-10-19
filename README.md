@@ -142,10 +142,10 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **TAB** · **1 à 5** · **R** | Inventaire · raccourcis rapides · recharger l'arme | Tous |
 | **U** | Verrouiller / déverrouiller le véhicule | Tous |
 | **F1** | Téléphone | Tous |
-| **F3** | Ma tenue (vêtements) | Tous |
+| **F3** | Ma tenue (vêtements) ; onglet **Mes tenues** : tenues enregistrées par personnage | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
-| **ALT** (maintenu) | Interactions : porter une personne, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière | Tous |
+| **ALT** (maintenu) | Interactions : porter une personne, **copier son animation**, **lui proposer une animation**, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière | Tous |
 | **F6** | Police : menu rapide | Policiers |
 | **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |

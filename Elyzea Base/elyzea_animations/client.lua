@@ -54,6 +54,13 @@ end
 -- Animation en cours (lancée par le menu, un raccourci ou /placer)
 local currentEmote, currentLabel = nil, nil
 
+-- Lien avec client_interactions.lua (copier / proposer une animation depuis le menu ALT).
+-- Les fonctions par défaut ne font rien : elles sont remplacées par ce fichier.
+ElyAnim = {
+    onPlay = function() end, onStop = function() end, cancelOutgoing = function() end,
+    unavailable = function() return nil end,
+}
+
 -- Personnage figé après un placement en hauteur (assis sur un muret, une chaise...)
 local placed = nil
 local function releasePlaced()
@@ -252,16 +259,19 @@ end
 -- ---------------------------------------------------------
 --  Animations partagées
 -- ---------------------------------------------------------
-local function requestShared(emote, label, target)
+local function requestShared(emote, label, target, mode)
     target = target or nearestPlayer()
     if not target then return notify('Personne à côté de toi', 'err') end
-    TriggerServerEvent('elyzea_anim:request', target, emote, label or emote)
+    local why = ElyAnim.unavailable()
+    if why then return notify(why, 'err') end
+    TriggerServerEvent('elyzea_anim:request', target, emote, label or emote, mode)
 end
 
 RegisterNetEvent('elyzea_anim:incoming', function(data)
     pendingRequest = data
     PlaySoundFrontend(-1, 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
-    SendNUIMessage({ action = 'request', name = data.name, label = data.label, emote = data.emote, timeout = data.timeout })
+    local label = data.mode == 'together' and (data.label .. ' (chacun sa danse, face à face)') or data.label
+    SendNUIMessage({ action = 'request', name = data.name, label = label, emote = data.emote, timeout = data.timeout })
 end)
 
 RegisterNetEvent('elyzea_anim:requestEnd', function()
@@ -275,11 +285,21 @@ local function respond(accept)
     if not pendingRequest then return end
     pendingRequest = nil
     SendNUIMessage({ action = 'requestEnd' })
+    -- Accepter seulement si on peut vraiment faire l'animation maintenant (sinon : refus avec la raison)
+    local why = accept and ElyAnim.unavailable()
+    if why then
+        notify(why, 'err')
+        return TriggerServerEvent('elyzea_anim:respond', false, why)
+    end
     TriggerServerEvent('elyzea_anim:respond', accept)
 end
 
 RegisterCommand('elyzea_anim_accept', function() respond(true) end, false)
-RegisterCommand('elyzea_anim_refuser', function() respond(false) end, false)
+-- Même touche : refuser une invitation reçue, sinon annuler celle qu'on a envoyée
+RegisterCommand('elyzea_anim_refuser', function()
+    if pendingRequest then return respond(false) end
+    ElyAnim.cancelOutgoing()
+end, false)
 RegisterKeyMapping('elyzea_anim_accept', 'Elyzea animations : accepter une demande', 'keyboard', Config.AcceptKey)
 RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une demande', 'keyboard', Config.RefuseKey)
 
@@ -294,10 +314,11 @@ local function playEmote(emote, etype, label, target)
     elseif etype == 'mood' then
         local mood = emote:gsub('^mood_', '')
         ExecuteCommand(Config.MoodCommand .. ' ' .. mood)
-    elseif etype == 'shared' then
+    elseif etype == 'shared' or etype == 'together' then
         local name = emote:gsub('^nearby_', '')
-        requestShared(name, label, target)
+        requestShared(name, label, target, etype == 'together' and 'together' or nil)
     else
+        ElyAnim.onPlay(emote)
         currentEmote, currentLabel = emote, label
         -- Déjà figé à un endroit placé : on garde la place pour la nouvelle animation
         if placed then placed.cmd, placed.since = emote, GetGameTimer() end
@@ -306,6 +327,7 @@ local function playEmote(emote, etype, label, target)
 end
 
 local function stopEmote()
+    ElyAnim.onStop()
     ExecuteCommand(Config.CancelCommand)
     currentEmote, currentLabel = nil, nil
     releasePlaced()
@@ -321,11 +343,12 @@ AddEventHandler('SyncPlayEmoteSource', function() releasePlaced() end)
 -- ---------------------------------------------------------
 --  Menu et touches
 -- ---------------------------------------------------------
-local function openMenu()
+-- propose = { id, name, cats } : menu ouvert pour proposer une animation à ce joueur (menu ALT)
+local function openMenu(propose)
     if menuOpen or IsPauseMenuActive() then return end
     menuOpen = true
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', env = getEnv() })
+    SendNUIMessage({ action = 'open', env = getEnv(), propose = propose })
     if settings.preview ~= false then
         CreateThread(function() previewEmote('__idle') end)
     end
@@ -720,6 +743,18 @@ RegisterNUICallback('getNearbyPlayers', function(_, cb)
 end)
 
 -- ---------------------------------------------------------
+ElyAnim.Config = Config
+ElyAnim.notify = notify
+ElyAnim.playEmote = playEmote
+ElyAnim.stopEmote = stopEmote
+ElyAnim.openMenu = openMenu
+ElyAnim.isMenuOpen = function() return menuOpen end
+ElyAnim.isPlacing = function() return placing ~= nil end
+ElyAnim.isPlayingEmote = isPlayingEmote
+ElyAnim.current = function() return currentEmote end
+ElyAnim.hiddenList = function() return hiddenList, availabilityChecked end
+ElyAnim.loadDict = loadDict
+
 CreateThread(function()
     ensureKey(settings.openKey)
     ensureKey(settings.stopKey)

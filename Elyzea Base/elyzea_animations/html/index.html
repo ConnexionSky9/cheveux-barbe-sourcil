@@ -55,7 +55,7 @@ body.fivem .hint{display:none}
   position:fixed;top:50%;right:28px;
   width:min(520px,calc(100vw - 24px));height:min(720px,calc(100% - 40px));
   transform:translateY(-50%) scale(var(--scale));transform-origin:right center;
-  display:grid;grid-template-rows:auto auto 1fr auto;
+  display:grid;grid-template-rows:auto auto auto 1fr auto;
   background:
     radial-gradient(120% 60% at 0% 0%, rgba(61,134,255,.14), transparent 55%),
     radial-gradient(120% 60% at 100% 100%, rgba(255,62,77,.12), transparent 55%),
@@ -262,6 +262,24 @@ body.amb-illegal{--blue:#ff3e4d}
 .req-acts .yes{border:1px solid rgba(63,191,127,.6);background:rgba(63,191,127,.14);color:#c9f2dc}
 .req-acts .no{border:1px solid rgba(255,62,77,.55);background:rgba(255,62,77,.12);color:#ffd0d4}
 .req-acts kbd{min-width:22px;height:22px;font-size:12px}
+.proposebar{display:flex;align-items:center;gap:10px;margin:0 4px 12px;padding:9px 12px;border-radius:12px;
+  border:1px solid rgba(233,212,164,.45);background:rgba(61,134,255,.12);color:var(--ivory);font-size:14px}
+.proposebar[hidden]{display:none}
+body.proposing .emote .fav,body.proposing .emote .keytag,body.proposing #kPlaceWrap{display:none!important}
+.proposebar svg{width:18px;height:18px;color:var(--gold);flex:none}
+.proposebar span{flex:1;min-width:0}
+.proposebar b{color:var(--gold)}
+.proposebar button{height:30px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,62,77,.55);background:rgba(255,62,77,.12);color:#ffd0d4;font-weight:700;cursor:pointer}
+.out{position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top,0px));z-index:19;width:min(460px,calc(100vw - 24px));
+  transform:translate(-50%,-12px);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s;border-radius:14px;overflow:hidden;
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px 0;color:var(--ivory);font-size:14px;
+  background:linear-gradient(160deg,var(--marble-2),var(--marble));box-shadow:0 0 0 1px rgba(233,212,164,.45),0 14px 40px rgba(0,0,0,.55)}
+.out.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.out span{flex:1;min-width:0}
+.out b{color:var(--gold)}
+.out button{height:30px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,62,77,.55);background:rgba(255,62,77,.12);color:#ffd0d4;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px}
+.out kbd{min-width:20px;height:20px;font-size:11px}
+.out .req-bar{flex-basis:100%;margin:10px -12px 0;width:calc(100% + 24px)}
 .req-bar{height:3px;background:linear-gradient(90deg,var(--blue),var(--gold),var(--red));transform-origin:left;transform:scaleX(1)}
 
 .pv{position:fixed;top:50%;right:28px;width:230px;transform:translateY(-50%) translateX(20px);opacity:0;pointer-events:none;
@@ -327,6 +345,10 @@ body.fivem .pv,body.nopv .pv{display:none}
   <div class="body">
     <nav class="rail" id="rail" role="tablist" aria-orientation="vertical"></nav>
     <div class="listwrap" id="listwrap">
+      <div class="proposebar" id="proposeBar" hidden>
+        <i data-lucide="users"></i><span>Proposer une animation à <b id="proposeName"></b></span>
+        <button id="proposeQuit" type="button">Annuler</button>
+      </div>
       <div class="listhead"><h2 id="catTitle"></h2><span id="catCount"></span></div>
       <p class="desc" id="catDesc"></p>
       <div id="shortlist"></div>
@@ -394,6 +416,12 @@ body.fivem .pv,body.nopv .pv{display:none}
 
 <div class="toast" id="toast" role="status"></div>
 
+<div class="out" id="out" role="status" aria-live="polite">
+  <span>Invitation envoyée à <b id="outName"></b> : <b id="outLabel"></b></span>
+  <button id="outCancel" type="button"><kbd id="outKey">L</kbd>Annuler</button>
+  <div class="req-bar" id="outBar"></div>
+</div>
+
 <div class="req" id="req" role="alertdialog" aria-live="assertive" aria-label="Demande d'animation">
   <div class="req-in">
     <img id="reqImg" alt="">
@@ -438,6 +466,21 @@ const CATS = [
   ...META.map(c=>({...c,items:(EMOTES[c.id]||[]).map(([n,cmd,f])=>({n,cmd,f:f||"",t:c.type||"",cat:c.id}))}))
 ];
 const ALL = CATS.flatMap(c=>c.items||[]);
+// Mode « proposer à un joueur » (menu ALT) : seulement les animations à deux, classées par catégorie
+let PROPOSE=null; // { id, name, cats, all, byCmd }
+const curCats=()=>PROPOSE?PROPOSE.cats:CATS;
+const curAll=()=>PROPOSE?PROPOSE.all:ALL;
+function setPropose(p){
+  if(!p){PROPOSE=null;document.body.classList.remove("proposing");$("proposeBar").hidden=true;if(cat.startsWith("px_"))cat="gestes";return}
+  const cats=(p.cats||[]).map(c=>({id:c.id,name:c.name,icon:c.icon||"users",desc:c.desc||"",mode:c.mode,
+    items:(c.items||[]).map(([n,cmd,f])=>({n,cmd,f:f||"",t:"duo",cat:c.id,mode:c.mode}))}));
+  const all=cats.flatMap(c=>c.items);
+  PROPOSE={id:p.id,name:p.name,cats,all,byCmd:Object.fromEntries(all.map(i=>[i.cmd,i]))};
+  cat=cats.length?cats[0].id:"gestes";
+  $("proposeName").textContent=p.name||("ID "+p.id);
+  $("proposeBar").hidden=false;
+  document.body.classList.add("proposing");
+}
 const byCmd = Object.fromEntries(ALL.map(i=>[i.cmd,i]));
 const typeOf = i=>i.cmd.startsWith("walk_")?"walk":i.cmd.startsWith("mood_")?"mood":i.cmd.startsWith("nearby_")?"shared":"emote";
 const cmdLabel = i=>{const t=typeOf(i);return t==="walk"?"/walk "+i.cmd.slice(5):t==="mood"?"/mood "+i.cmd.slice(5):t==="shared"?"/nearby "+i.cmd.slice(7):"/e "+i.cmd};
@@ -465,7 +508,7 @@ let REQ_KEYS={accept:"Y",refuse:"L",place:"J"};
 const BASE_RESERVED=["W","A","S","D","Z","Q","E","F","G","R","T","C","V","H","P","N","U","I","L","M","ESPACE","TAB","ESCAPE",
   "1","2","3","4","5","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"];
 const isReserved=k=>BASE_RESERVED.includes(k)||k===REQ_KEYS.accept||k===REQ_KEYS.refuse||(REQ_KEYS.place&&k===REQ_KEYS.place);
-const canPlace=i=>REQ_KEYS.place!==null&&typeOf(i)==="emote"&&!ENV.inVehicle&&!i.f.includes("v");
+const canPlace=i=>!PROPOSE&&REQ_KEYS.place!==null&&typeOf(i)==="emote"&&!ENV.inVehicle&&!i.f.includes("v");
 let req=null;
 
 const IS_FIVEM=typeof GetParentResourceName==="function";
@@ -497,7 +540,7 @@ function toast(t,kind){const e=$("toast");e.textContent=t;e.classList.remove("ok
 
 /* ===================== RENDU ===================== */
 function renderRail(){
-  $("rail").innerHTML=CATS.map(c=>{
+  $("rail").innerHTML=curCats().map(c=>{
     const n=c.id==="fav"?favs.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.id==="recent"?recent.filter(k=>byCmd[k]&&canDo(byCmd[k])).length:c.items.filter(canDo).length;
     return `<button class="cat" role="tab" data-id="${c.id}" ${c.side?`data-side="${c.side}"`:""} aria-selected="${c.id===cat&&!$("q").value}" type="button">
       <i data-lucide="${c.icon}"></i>${c.name}<span class="n">${n}</span></button>`;
@@ -523,12 +566,12 @@ function renderList(){
   const q=$("q").value.trim().toLowerCase();
   let items,title,desc,favView=false;
   if(q){
-    items=ALL.filter(i=>i.n.toLowerCase().includes(q)||cmdLabel(i).toLowerCase().includes(q));
+    items=curAll().filter(i=>i.n.toLowerCase().includes(q)||cmdLabel(i).toLowerCase().includes(q));
     title="Recherche";desc="";
   }else{
-    const c=CATS.find(c=>c.id===cat); title=c.name; desc=c.desc;
+    const c=curCats().find(c=>c.id===cat)||curCats()[0]; title=c?c.name:""; desc=c?c.desc:"";
     favView=cat==="fav";
-    items=cat==="fav"?favs.map(k=>byCmd[k]).filter(Boolean):cat==="recent"?recent.map(k=>byCmd[k]).filter(Boolean):c.items;
+    items=cat==="fav"?favs.map(k=>byCmd[k]).filter(Boolean):cat==="recent"?recent.map(k=>byCmd[k]).filter(Boolean):(c?c.items:[]);
   }
   items=items.filter(canDo);
   $("catTitle").textContent=title;
@@ -537,6 +580,7 @@ function renderList(){
   renderShortlist(favView);
   if(!items.length){
     const m=q?["Aucun résultat",`Rien ne correspond à « ${esc($("q").value)} ». Essaie un autre mot ou une commande.`]
+      :PROPOSE?["Aucune animation à deux","Aucune animation à deux n'est disponible ici (fichiers absents de rpemotes)."]
       :cat==="fav"?["Pas encore de favoris","Touche l'étoile d'une animation, puis reviens ici pour lui donner une touche."]
       :["Rien de lancé","Les animations que tu lances apparaîtront ici."];
     $("grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><b>${m[0]}</b>${m[1]}</div>`;
@@ -547,6 +591,12 @@ function renderAll(){renderRail();renderList()}
 
 /* ===================== ACTIONS ===================== */
 function play(cmd,target){
+  if(PROPOSE){
+    const p=PROPOSE.byCmd[cmd]; if(!p) return;
+    nui("propose",{emote:cmd,target:PROPOSE.id});
+    if(!IS_FIVEM){showOutgoing({name:PROPOSE.name,label:p.n,timeout:15,key:REQ_KEYS.refuse});setTimeout(()=>showRequest({name:"Toi (aperçu)",label:p.n,timeout:15,preview:true}),700)}
+    close();return;
+  }
   const i=byCmd[cmd]; if(!i) return;
   const type=typeOf(i);
   if(type==="shared"&&target===undefined&&panel.classList.contains("open")) return openPicker(i);
@@ -641,6 +691,22 @@ function respond(accept){
 $("reqYes").onclick=()=>respond(true);
 $("reqNo").onclick=()=>respond(false);
 
+/* Invitation envoyée (menu ALT ou onglet Partagées) : bandeau, annulable */
+function showOutgoing(o){
+  $("outName").textContent=o.name||"un joueur";
+  $("outLabel").textContent=o.label||"une animation";
+  $("outKey").textContent=pretty(o.key||REQ_KEYS.refuse);
+  const bar=$("outBar"),t=(o.timeout||15);
+  bar.style.transition="none";bar.style.transform="scaleX(1)";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{bar.style.transition=`transform ${t}s linear`;bar.style.transform="scaleX(0)"}));
+  $("out").classList.add("show");
+  clearTimeout(showOutgoing._t);
+  showOutgoing._t=setTimeout(hideOutgoing,(t+1)*1000);
+}
+function hideOutgoing(){clearTimeout(showOutgoing._t);$("out").classList.remove("show")}
+$("outCancel").onclick=()=>{nui("cancelOutgoing");if(!IS_FIVEM){hideOutgoing();toast("Invitation annulée")}};
+$("proposeQuit").onclick=()=>close();
+
 /* ===================== APERÇU 3D ===================== */
 function setEnv(e){
   if(Array.isArray(e.hidden)) ENV.hidden=new Set(e.hidden);
@@ -673,9 +739,10 @@ $("listwrap").addEventListener("mouseleave",endPreview);
 
 /* ===================== OUVERTURE ===================== */
 const panel=$("panel");
-function open(){panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
+function open(propose){setPropose(propose||null);$("q").value="";renderAll();panel.classList.add("open");$("pv").classList.add("show");$("hint").style.opacity=0;setTimeout(()=>$("q").focus(),50)}
 function close(){
   panel.classList.remove("open");
+  if(PROPOSE){setPropose(null);renderAll()}
   ["settings","picker","bindSheet"].forEach(id=>$(id).classList.remove("open"));
   bindingEmote=null;endPreview();$("pv").classList.remove("show");$("hint").style.opacity=1;document.activeElement?.blur();nui("close");
 }
@@ -683,7 +750,9 @@ window.addEventListener("message",e=>{
   const d=e.data||{};
   if(d.env) setEnv(d.env);
   if(d.action==="env") return;
-  if(d.action==="open") open();
+  if(d.action==="open") open(d.propose);
+  if(d.action==="outgoing") showOutgoing(d);
+  if(d.action==="outgoingEnd") hideOutgoing();
   if(d.action==="close") close();
   if(d.action==="stopped"){playing=null;$("now").textContent="";renderList()}
   if(d.action==="placed") placed(d.emote);
@@ -744,7 +813,7 @@ $("pickList").addEventListener("click",e=>{
 $("q").addEventListener("input",renderAll);
 $("stopBtn").onclick=stop;
 $("closeBtn").onclick=close;
-$("openBtn").onclick=open;
+$("openBtn").onclick=()=>open();
 $("settingsBtn").onclick=()=>$("settings").classList.add("open");
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{b.dataset.close==="bindSheet"?closeBind():$(b.dataset.close).classList.remove("open")});
 $("bindCancel").onclick=closeBind;
@@ -791,6 +860,7 @@ document.addEventListener("keydown",e=>{
   if(!k) return;
   if(req&&k===REQ_KEYS.accept){e.preventDefault();return respond(true)}
   if(req&&k===REQ_KEYS.refuse){e.preventDefault();return respond(false)}
+  if(!req&&k===REQ_KEYS.refuse&&$("out").classList.contains("show")){e.preventDefault();return $("outCancel").click()}
   if(k===S.openKey){e.preventDefault();return panel.classList.contains("open")?close():open()}
   if(k===S.stopKey) return stop();
   // Raccourcis (dans le navigateur ; en jeu c'est client.lua qui les gère menu fermé)
