@@ -24,6 +24,7 @@ const APPS = {
   helpmecano:{ label: 'HelpMécano', store: true },
   garage:    { label: 'Garage', store: true },
   carplay:   { label: 'CarPlay', store: true },
+  grossesse: { label: 'Grossesse', store: true },
 };
 const DOCK = ['phone', 'messages', 'store', 'camera'];
 const GRID = ['contacts', 'bank', 'gallery', 'notes', 'ads', 'maps', 'alert', 'calc', 'settings'];

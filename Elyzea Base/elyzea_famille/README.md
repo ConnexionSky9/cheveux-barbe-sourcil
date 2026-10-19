@@ -24,6 +24,7 @@ Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, 
 | `contraception/` | préservatif, pilule, implant |
 | `grossesse/` | conception, test, examen, suivi et trimestres, historique, accouchement, symptômes, ventre |
 | `bebe/`, `equipement_bebe/` | renvoi vers la ressource séparée `elyzea_bebe_modele` (voir leur `README.md`) |
+| (téléphone) | application **Grossesse** du téléphone légal Elyzea Aura (magasin « Appli ») : export serveur `SuiviGrossesse(source)`, mêmes données que `/grossesse` |
 | `sql/install.sql` | tables (créées aussi automatiquement au démarrage) |
 | `html/` | interface du panneau de grossesse et du moment intime |
 | `tests/` | tests hors du jeu |

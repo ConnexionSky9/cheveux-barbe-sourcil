@@ -315,6 +315,11 @@ const Mock = {
       this.order = { id: 1, items, total: 99, shop: 'Pizza This, Little Seoul', status: 'preparing', readyIn: 3 };
       return { ok: true, order: this.order };
     }
+    if (d.name === 'grossesseSuivi') return { ok: true, statut: 'en_cours', grossesse: { trimestre: 2, terme: false, etape: 'Léger arrondi', pct: 0.42,
+      ecouleTexte: '5 j 21 h', joursEcoules: 5, joursTotal: 14, totalTexte: '14 j', avantTrimestreTexte: '3 j 11 h', avantTermeTexte: '8 j 3 h', joursAvantTerme: 9,
+      debutTexte: '12/10/2026 18:40', bebes: 0 }, historique: [
+      { kind: 'decouverte', titre: 'Grossesse découverte', description: 'Découverte grâce à un test de grossesse.', date: '13/10/2026 09:12' },
+      { kind: 't2', titre: 'Deuxième trimestre', description: 'Entrée dans le deuxième trimestre.', date: '17/10/2026 10:40' }] };
     if (d.name === 'deliveryCancel') { this.order = null; return { ok: true, refund: 99 }; }
     if (d.name === 'datingSaveProfile') { this.dating = Object.assign({ id: 1, active: true }, a); return { ok: true }; }
     if (d.name === 'datingSwipe') return a.id === 12 && a.like ? { ok: true, match: { id: 5, profile: this.deck[1] } } : { ok: true };

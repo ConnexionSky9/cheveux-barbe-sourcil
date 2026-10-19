@@ -2242,6 +2242,19 @@ Register('sendAlert', function(src, me, args)
     return { ok = true, count = count }
 end)
 
+-- ---------------------------------------------------------
+--  Grossesse : suivi fourni par elyzea_famille (données du personnage du joueur seulement)
+-- ---------------------------------------------------------
+Register('grossesseSuivi', function(src, me)
+    if not HasApp(me, 'grossesse') then return { ok = false, error = 'Application non installée' } end
+    if GetResourceState('elyzea_famille') ~= 'started' then return { ok = false, indisponible = true } end
+    local ok, r = pcall(function() return exports.elyzea_famille:SuiviGrossesse(src) end)
+    if not ok or type(r) ~= 'table' then return { ok = false, indisponible = true } end
+    if r.erreur then return { ok = false, error = r.erreur } end
+    r.ok = true
+    return r
+end)
+
 -- Export pratique pour d'autres ressources
 exports('GetPhoneNumber', function(src)
     local p = EnsurePlayer(src)

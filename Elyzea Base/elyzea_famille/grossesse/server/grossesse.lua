@@ -135,9 +135,13 @@ function Fam.DonneesSuivi(cid, now)
     return { statut = 'aucune', now = now, aucune = true }
 end
 
-Ely.callback.register('famille:grossesse', function(src)
+-- Suivi de grossesse du personnage du joueur src (jamais celui d'un autre) : panneau /grossesse et
+-- application « Grossesse » du téléphone Elyzea Aura (export SuiviGrossesse, appelé par le serveur de l'Aura)
+local function suiviJoueur(src)
     local j = Fam.Joueur(src)
     if not j then return { erreur = 'Personnage non chargé.' } end
     if not Fam.Limite(src, 'grossesse', 20, 60) then return { erreur = 'Patientez un peu.' } end
     return Fam.DonneesSuivi(j.cid)
-end)
+end
+Ely.callback.register('famille:grossesse', suiviJoueur)
+exports('SuiviGrossesse', suiviJoueur)

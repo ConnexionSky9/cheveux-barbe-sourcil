@@ -1089,6 +1089,20 @@ ok, msg = regler(0, 0, 0)
 check('57. 0 accepté pour les trois trimestres', ok is True and G.Config.Grossesse.trimestres[1] == 0 and G.Config.Grossesse.trimestres[3] == 0, msg)
 r = appli(3)
 check('58. application d\'un personnage sans grossesse : état vide compréhensible', r['statut'] == 'aucune')
+
+# 59. export SuiviGrossesse (application « Grossesse » du téléphone Elyzea Aura) : mêmes données que /grossesse,
+#     toujours celles du personnage du joueur qui demande
+ok, msg = regler(1000, 1000, 1000)
+ok, msg, gid = test_debut(1)
+sg = G.EXPORTS_LUA['SuiviGrossesse']
+G.source = 1
+r1 = from_lua(sg(1))
+r3 = from_lua(sg(3))
+rx = from_lua(sg(999))
+check('59. export pour l\'Aura : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
+      and r1['grossesse']['id'] == gid and r1['historique'][0]['titre'] == 'Grossesse de test', r1)
+check('59. un autre joueur ne voit que ses propres données ; joueur inconnu refusé', r3.get('statut') == 'aucune' and 'erreur' in rx, (r3, rx))
+admin(3, 'test_fin', {'sid': 1})
 ok, msg = admin(3, 'reset')
 SUIVI[0] = 60
 G.Config.Grossesse.suivi = 60
