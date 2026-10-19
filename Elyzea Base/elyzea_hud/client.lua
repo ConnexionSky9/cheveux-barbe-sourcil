@@ -35,30 +35,30 @@ local function sendRect()
     SendNUIMessage({ action = 'rect', rect = rect })
 end
 
--- Placement autonome (sans admin_menu) : même calcul que admin_menu
+-- Placement autonome (sans admin_menu, ou pendant son redémarrage) : même calcul et même coin que admin_menu
 local function setupMinimap()
     local m = Config.Minimap
     local h = m.size
     local w = h * (9 / 16) * (m.widthAdjust / 100)
     local rx, ry = GetActiveScreenResolution()
     local aspect = rx / math.max(ry, 1)
-    local extra = aspect > 16 / 9 + 0.01 and ((16 / 9) - aspect) / 3.6 or 0.0
-    local x, y = m.marginX + extra, -m.marginY
+    local k = aspect > 16 / 9 + 0.01 and (16 / 9) / aspect or 1.0
+    local off = (1.0 - GetSafeZoneSize()) * 0.5
+    local right = (m.position or 'bottom-right'):find('right') ~= nil
+    local realW = w * k
+    local left = right and (1.0 - off - m.marginX - realW) or (off + m.marginX)
+    local top = 1.0 - off - m.marginY - h
+    local gx = (0.5 + (left - 0.5) / k) - off
+    local gy = (top + h) - (1.0 - off)
     SetMinimapClipType(0)
-    SharpMask(true)
-    SetMinimapComponentPosition('minimap', 'L', 'B', x, y, w, h)
-    SetMinimapComponentPosition('minimap_mask', 'L', 'B', x, y, w, h)
-    SetMinimapComponentPosition('minimap_blur', 'L', 'B', x, y, w, h)
+    SharpMask(false)   -- masque de GTA : découpe toujours la carte (le masque remplacé échoue sur certains PC)
+    SetMinimapComponentPosition('minimap', 'L', 'B', gx, gy, w, h)
+    SetMinimapComponentPosition('minimap_mask', 'L', 'B', gx, gy, w, h)
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', gx, gy, w, h)
     SetBigmapActive(true, false)
     Wait(0)
     SetBigmapActive(false, false)
-    local off = (1.0 - GetSafeZoneSize()) * 0.5
-    local left, top = off + x, 1.0 - off + y - h
-    if aspect > 16 / 9 + 0.01 then
-        local k = (16 / 9) / aspect
-        left, w = 0.5 + (left - 0.5) * k, w * k
-    end
-    rect = { x = left, y = top, w = w, h = h }
+    rect = { x = left, y = top, w = realW, h = h, align = right and 'RB' or 'LB' }
     sendRect()
 end
 

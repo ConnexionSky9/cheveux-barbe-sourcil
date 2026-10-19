@@ -49,6 +49,9 @@
     border:calc(var(--u)*1) solid var(--line);border-radius:calc(var(--u)*4);padding:0 calc(var(--u)*5);background:var(--glass)}
   .rule{height:calc(var(--u)*1);background:linear-gradient(90deg,var(--gold),transparent);opacity:.45;margin:calc(var(--u)*-3) 0 calc(var(--u)*2)}
 
+  /* Carte à droite de l'écran : statuts à GAUCHE de la carte, compteur en bas à gauche (rien ne se chevauche) */
+  #hud.map-right .player{left:auto;right:calc(100vw - var(--mx) + var(--u)*16)}
+  #hud.map-right .veh{right:auto;left:calc(var(--u)*34)}
   .bar{display:flex;align-items:center;gap:calc(var(--u)*7);height:calc(var(--u)*16);transition:opacity .3s}
   .bar.off{opacity:.3}
   .ico{flex:none;width:calc(var(--u)*16);height:calc(var(--u)*16);display:grid;place-items:center}
@@ -239,6 +242,7 @@
     root.setProperty('--mw', (r.w * 100) + 'vw');
     root.setProperty('--mh', (r.h * 100) + 'vh');
     frame.classList.toggle('round', !!r.round);
+    hud.classList.toggle('map-right', String(r.align || '').charAt(0) === 'R');
   }
 
   /* ---------- Véhicule ---------- */

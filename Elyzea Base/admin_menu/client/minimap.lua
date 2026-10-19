@@ -13,7 +13,20 @@ local ALIGN = {
     ['bottom-left'] = { 'L', 'B' }, ['bottom-right'] = { 'R', 'B' },
 }
 
-local function current() return preview or saved end
+-- Verrou (Config.Minimap.locked) : position, taille, forme et marges viennent TOUJOURS de config.lua ;
+-- ni le réglage enregistré, ni un aperçu, ni un autre script ne peuvent déplacer la carte.
+local LOCK_KEYS = { 'position', 'size', 'widthAdjust', 'marginX', 'marginY', 'shape' }
+local function current()
+    local s = preview or saved or Config.Minimap
+    if Config.Minimap and Config.Minimap.locked then
+        local out = {}
+        for k, v in pairs(s or {}) do out[k] = v end
+        for _, k in ipairs(LOCK_KEYS) do out[k] = Config.Minimap[k] end
+        out.enabled = true
+        return out
+    end
+    return s
+end
 
 -- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
@@ -39,55 +52,58 @@ end
 
 -- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le HUD
 MinimapRect = nil
-function RectOf(a, x, y, w, h, aspect, round)
-    local off = (1.0 - GetSafeZoneSize()) * 0.5
-    local left = (a[1] == 'R') and (1.0 - off + x) or (off + x)
-    local top = (a[2] == 'T') and (off + y) or (1.0 - off + y - h)
-    -- Écrans plus larges que 16:9 : GTA place la carte dans une zone 16:9 centrée
-    if aspect > 16 / 9 + 0.01 then
-        local k = (16 / 9) / aspect
-        left, w = 0.5 + (left - 0.5) * k, w * k
-    end
-    return { x = left, y = top, w = w, h = h, align = a[1] .. a[2], round = round == true }
-end
 exports('GetMinimapRect', function() return MinimapRect end)
 
--- Pose les trois éléments de la mini-carte
-local function apply()
-    local s = current()
-    if not s or s.enabled == false then return end
-
-    -- Hauteur en part de l'écran ; largeur calculée pour un carré à l'écran (base 16:9)
+-- Un seul calcul pour la carte ET le cadre du HUD : on choisit d'abord le rectangle voulu à l'écran,
+-- puis on le convertit dans le repère de GTA (ancrage gauche / bas, le seul dont le sens est sûr).
+-- Écrans plus larges que 16:9 : GTA place la carte dans une zone 16:9 centrée (repère « virtuel »).
+local function layout(s)
     local h = tonumber(s.size) or 0.20
-    local w = h * (9 / 16) * ((tonumber(s.widthAdjust) or 100) / 100)
+    local w = h * (9 / 16) * ((tonumber(s.widthAdjust) or 100) / 100)   -- largeur dans le repère 16:9
     if s.shape == 'default' then w = h * 0.80 end
-
-    -- Écrans plus larges que 16:9 : on rapproche du bord (même correction que les HUD courants)
     local rx, ry = GetActiveScreenResolution()
     local aspect = rx / math.max(ry, 1)
-    local extra = 0.0
-    if aspect > 16 / 9 + 0.01 then extra = ((16 / 9) - aspect) / 3.6 end
-
-    local a = ALIGN[s.position] or ALIGN['top-right']
+    local k = aspect > 16 / 9 + 0.01 and (16 / 9) / aspect or 1.0           -- virtuel → écran
+    local off = (1.0 - GetSafeZoneSize()) * 0.5
     local mx, my = tonumber(s.marginX) or 0.012, tonumber(s.marginY) or 0.018
-    -- Chaque élément est collé au bord choisi ; le décalage l'en éloigne
-    local x = (a[1] == 'R') and -(mx + extra) or (mx + extra)
-    local y = (a[2] == 'T') and my or -my
+    local a = ALIGN[s.position] or ALIGN['bottom-right']
+    local realW = w * k
+    -- rectangle voulu à l'écran (coin haut gauche)
+    local left = (a[1] == 'R') and (1.0 - off - mx - realW) or (off + mx)
+    local top = (a[2] == 'T') and (off + my) or (1.0 - off - my - h)
+    -- conversion dans le repère de GTA (ancrage L / B)
+    local virtLeft = 0.5 + (left - 0.5) / k
+    local gx = virtLeft - off
+    local gy = (top + h) - (1.0 - off)
+    return gx, gy, w, h, { x = left, y = top, w = realW, h = h, align = a[1] .. a[2], round = s.shape == 'round' }
+end
+function RectOf() return MinimapRect end
 
+local last = nil   -- dernière position posée (gx, gy, w, h)
+local function place(relayout)
+    local s = current()
+    if not s or s.enabled == false then return end
+    local gx, gy, w, h, rect = layout(s)
     SetMinimapClipType(s.shape == 'round' and 1 or 0)
     SharpMask(s.shape ~= 'round')
-    MinimapRect = RectOf(a, x, y, w, h, aspect, s.shape == 'round')
-    TriggerEvent('elyzea:minimapRect', MinimapRect)
-    SetMinimapComponentPosition('minimap', a[1], a[2], x, y, w, h)
-    SetMinimapComponentPosition('minimap_mask', a[1], a[2], x, y, w, h)
+    SetMinimapComponentPosition('minimap', 'L', 'B', gx, gy, w, h)
+    SetMinimapComponentPosition('minimap_mask', 'L', 'B', gx, gy, w, h)
     -- Flou de fond : même rectangle (sinon un halo sombre déborde autour de la carte)
-    SetMinimapComponentPosition('minimap_blur', a[1], a[2], x, y, w, h)
-
-    -- La position ne se met à jour qu'après un passage en grande carte
-    SetBigmapActive(true, false)
-    Wait(0)
-    SetBigmapActive(false, false)
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', gx, gy, w, h)
+    local changed = not MinimapRect or MinimapRect.x ~= rect.x or MinimapRect.y ~= rect.y or MinimapRect.w ~= rect.w or MinimapRect.h ~= rect.h
+    MinimapRect = rect
+    last = { gx, gy, w, h }
+    if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
+    if relayout then
+        -- GTA ne recalcule la mini-carte qu'après un passage en grande carte
+        SetBigmapActive(true, false)
+        Wait(0)
+        SetBigmapActive(false, false)
+    end
 end
+
+-- Pose complète (avec recalcul de GTA)
+local function apply() place(true) end
 
 local function hideHealthBars()
     if not scaleform or not HasScaleformMovieLoaded(scaleform) then
@@ -197,6 +213,30 @@ CreateThread(function()
         Wait(visible and 1000 or 200)
     end
 end)
+
+-- Gardien : chaque seconde, la position est reposée (sans clignotement). Si un autre script ou GTA
+-- la change, c'est la nôtre qui est prise au prochain recalcul. Après le menu pause / la grande carte,
+-- la carte est recalculée tout de suite.
+CreateThread(function()
+    local wasPaused, wasBig = false, false
+    while true do
+        Wait(1000)
+        if not preview then
+            local paused, big = IsPauseMenuActive(), IsBigmapActive()
+            if not paused and not big then
+                if wasPaused or wasBig then apply() else place(false) end
+            end
+            wasPaused, wasBig = paused, big
+        end
+    end
+end)
+
+-- Pose immédiate au démarrage (sans attendre le serveur) : jamais la position par défaut de GTA
+CreateThread(function()
+    Wait(500)
+    apply()
+end)
+AddEventHandler('playerSpawned', function() SetTimeout(1000, apply) end)
 
 -- Le changement de résolution déplace la mini-carte : on la repose de temps en temps
 CreateThread(function()
