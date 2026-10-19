@@ -99,11 +99,35 @@ Config.Grossesse = {
         { jusqua = 0.95, label = 'Ventre très arrondi' },
         { jusqua = 1.00, label = 'Terme atteint' },
     },
+    suivi = 60,                  -- secondes entre deux calculs des effets (symptômes, démarche, ventre)
+    -- Symptômes (personne enceinte seulement, découverte ou non). Étapes : 1 presque plat … 4 très arrondi, 5 terme.
+    -- Tous réglables un par un dans le menu admin (F10 › Autres › Famille › Symptômes).
+    symptomes = {
+        -- faim plus rapide : elyzea_core retire tauxBase points toutes les intervalle minutes ; on retire en plus
+        -- (multiplicateur - 1) × tauxBase au même rythme. tauxBase / intervalle = Config.Needs de elyzea_core.
+        faim = { actif = true, desEtape = 1, jusquaEtape = 5, multiplicateur = 2.0, tauxBase = 4.2, intervalle = 5 },
+        -- nausées : vision troublée et caméra qui tangue (aucune animation), parHeure = fréquence moyenne
+        nausees = { actif = true, desEtape = 1, jusquaEtape = 3, parHeure = 2.0, duree = 20, intensite = 0.5 },
+        -- vomissements : animation native vérifiée (anim@scripted@nightclub@vomit@ / vomit) ; jamais en véhicule,
+        -- dans l'eau, à terre ou en portant un bébé (le message seul est affiché)
+        vomissements = { actif = true, desEtape = 1, jusquaEtape = 2, parHeure = 0.5 },
+        -- ralentissement : démarche lourde native (move_f@fat@a), course interdite en option
+        ralentissement = { actif = true, desEtape = 3, jusquaEtape = 5, courseInterdite = false, demarche = 'move_f@fat@a' },
+    },
+    -- Fin de grossesse
+    fin = {
+        accouchementDes = 0.90,  -- part de la grossesse à partir de laquelle un EMS peut faire accoucher (1 = au terme seulement)
+        dureeAccouchement = 20,  -- secondes (écran noir pour la patiente, l'EMS reste à genoux)
+        naissanceAuto = 24,      -- heures après le terme : accouchement automatique (personnage connecté) ; 0 = jamais
+        bebesEnJeu = true,       -- crée le ou les bébés (ressource elyzea_bebe_modele) à côté de la patiente
+        apparenceBebe = { teinte = 'peau3', tenue = 'pyjama', yeux = 'ardoise', coiffure = 'duvet_brun' },
+    },
 }
 
 -- Commandes staff (permission ACE : command.<nom>, déjà incluse dans group.admin)
 Config.Staff = {
     etat = 'famille_etat',       -- /famille_etat [id] : contraception, grossesse, dernier moment intime
+    fin = 'famille_fin',         -- /famille_fin [id] [naissance] : met fin à la grossesse (sans bébé, ou avec « naissance »)
 }
 
 -- ─────────── Bébés et équipements (valeurs par défaut ; modifiables dans le menu admin › Famille) ───────────

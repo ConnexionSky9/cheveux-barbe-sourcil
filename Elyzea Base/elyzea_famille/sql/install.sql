@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `rp_pregnancies` (
     `active_key`    VARCHAR(64) NULL,
     `discovered_at` BIGINT      NULL,
     `ended_at`      BIGINT      NULL,
+    `end_reason`    VARCHAR(32) NULL,                           -- accouchement | naissance_auto | naissance_staff | fin_staff
     `created_at`    BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uniq_active` (`active_key`),

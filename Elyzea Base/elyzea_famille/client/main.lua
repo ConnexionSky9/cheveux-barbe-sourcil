@@ -161,6 +161,7 @@ exports('AltOptions', function(ctx)
     end
     if Config.Modules.conception and Config.Grossesse.examenEms and emsEnService() then
         out[#out + 1] = { id = 'examen', label = 'Examen de grossesse', icon = 'examine' }
+        out[#out + 1] = { id = 'accouchement', label = 'Accouchement', icon = 'examine' }
     end
     return out
 end)
@@ -170,7 +171,8 @@ exports('AltSelect', function(id, ctx)
     CreateThread(function()
         if id == 'intime' then proposer(ctx.sid)
         elseif id == 'implant' or id == 'retrait' or id == 'ordonnance' then TriggerServerEvent('elyzea_famille:ems', id, ctx.sid)
-        elseif id == 'examen' then TriggerServerEvent('elyzea_famille:examen', ctx.sid) end
+        elseif id == 'examen' then TriggerServerEvent('elyzea_famille:examen', ctx.sid)
+        elseif id == 'accouchement' then TriggerServerEvent('elyzea_famille:accouchement', ctx.sid) end
     end)
     return true
 end)

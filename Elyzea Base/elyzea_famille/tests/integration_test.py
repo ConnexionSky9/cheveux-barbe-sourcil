@@ -58,6 +58,10 @@ class World:
         self.bebes = {}
         self.bebe_reglages = []
         self.admins = set()
+        self.needs = []            # (src, faim, soif, stress) envoyés à elyzea_core:AddNeeds
+        self.nes = []              # bébés créés (apparence, position, responsables)
+        self.frozen = set()
+        self.gen = 0               # « génération » de la ressource (incrémentée à chaque redémarrage)        # joueurs dont les besoins sont gelés (state elyNeedsFrozen)
 
     def add_player(self, src, cid, gender, birthdate, pos=(0.0, 0.0, 30.0)):
         self.players[src] = {'cid': cid, 'gender': gender, 'birthdate': birthdate, 'pos': pos}
@@ -149,7 +153,9 @@ def sql_tx(queries):
 
 def schedule(ms, fn):
     W.seq += 1
-    heapq.heappush(W.timers, (W.ms + int(ms), W.seq, fn))
+    gen = W.gen
+    # comme FiveM : l'arrêt de la ressource (redémarrage) annule ses minuteurs en attente
+    heapq.heappush(W.timers, (W.ms + int(ms), W.seq, lambda: fn() if gen == W.gen else None))
 
 
 def advance(seconds):
@@ -210,6 +216,10 @@ api = {
     'porte_bebe': lambda s: W.bebes.get(int(s)),
     'bebe_reglages': lambda v: W.bebe_reglages.append(dict(v.items())),
     'admin': lambda s, perm: int(s) in W.admins and perm == 'famille_manage',
+    'players': lambda: to_lua([str(k) for k in sorted(W.players)]),
+    'add_needs': lambda s, h, t, st: W.needs.append((int(s), float(h or 0), float(t or 0), float(st or 0))) or True,
+    'naissance': lambda app, pos, resp: (W.nes.append((dict(app.items()), (pos.x, pos.y, pos.z), list(resp.values()) if resp else [])) or 'BB-N%d' % len(W.nes)),
+    'frozen': lambda s: int(s) in W.frozen,
 }
 G.py = to_lua({})
 for k, f in api.items():
@@ -232,6 +242,9 @@ function GetPlayerName(s) return py.player_name(s) end
 function GetPlayerPed(s) if py.player_name(s) then return s * 100 end return 0 end
 function GetEntityCoords(ped) local p = py.pos(ped // 100) if not p then return vector3(0, 0, 0) end return vector3(p[1], p[2], p[3]) end
 function GetEntityHealth() return 200 end
+function GetEntityHeading() return 0.0 end
+function GetPlayers() local t = {} for _, v in ipairs(py.players()) do t[#t + 1] = v end return t end
+function Player(s) return { state = { elyNeedsFrozen = py.frozen(s) } } end
 function GetGameTimer() return py.ms() end
 function Wait() end
 function CreateThread(fn) py.schedule(0, fn) end   -- comme FiveM : exécuté au tick suivant
@@ -254,6 +267,7 @@ exports = {
     elyzea_core = {
         GetPlayerData = function(_, s) return py.player_data(s) end,
         Notify = function(_, s, msg, kind) py.notify(s, msg, kind) end,
+        AddNeeds = function(_, s, h, t, st) return py.add_needs(s, h, t, st) end,
     },
     elyzea_inventory = {
         GetItemCount = function(_, s, item) return py.inv_count(s, item) end,
@@ -264,7 +278,8 @@ exports = {
     elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end },
     elyzea_police = { IsCuffed = function() return false end },
     elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end,
-                           AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end },
+                           AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end,
+                           CreerBebe = function(_, app, pos, cap, opts) return py.naissance(app, pos, opts and opts.responsables) end },
     admin_menu = { HasPermission = function(_, s, perm) return py.admin(s, perm) end },
 }
 EXPORTS_LUA = {}
@@ -272,11 +287,12 @@ setmetatable(exports, { __call = function(_, name, fn) EXPORTS_LUA[name] = fn en
 ''')
 
 SERVER_FILES = ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua', 'server/consentement.lua',
-                'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/staff.lua')
+                'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/suivi.lua', 'server/staff.lua')
 
 
 def start_resource():
     """Démarrage (ou redémarrage) de la ressource : tous les fichiers sont rechargés, comme dans FiveM."""
+    W.gen += 1
     W.net.clear(); W.events.clear(); W.callbacks.clear(); W.usables.clear(); W.commands.clear()
     for f in SERVER_FILES:
         lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
@@ -750,6 +766,121 @@ ok, msg = admin(3, 'save', {'values': v})
 check('34. module conception désactivable depuis le menu', ok is True and G.Config.Modules.conception is False)
 ok, msg = admin(3, 'reset')
 check('34. valeurs par défaut rétablies (conception, délai 60 min)', G.Config.Modules.conception is True and G.Config.Grossesse.test.delaiMinutes == 60)
+
+
+# ═══════════ V5 étape 3 : effets de la grossesse et fin de grossesse ═══════════
+def etat_client(src):
+    a = last_client('elyzea_famille:client:grossesseEtat', src)
+    return a[0] if a else None
+
+
+def nouvelle_grossesse():
+    fin_grossesses()
+    advance(49 * H)
+    sid_ = moment_complet()
+    return q("SELECT * FROM rp_pregnancies WHERE active_key='F001'")[0] if q("SELECT 1 FROM rp_pregnancies WHERE active_key='F001'") else None, sid_
+
+
+def placer(g, pct):
+    total = int(g['due_at']) - int(g['conceived_at'])
+    c = W.now - int(total * pct)
+    q("UPDATE rp_pregnancies SET conceived_at=%s, due_at=%s WHERE id=%s", (c, c + total, g['id']))
+
+
+v = admin_data(3)['values']
+v.update({'conception.probaAccidentelle': 1.0})
+ok, msg = admin(3, 'save', {'values': v})
+g, _ = nouvelle_grossesse()
+advance(65)
+e = etat_client(1)
+check('35. grossesse : état envoyé à la seule joueuse (étape 1, pas de démarche lourde)', g and isinstance(e, dict) and e.get('etape') == 1
+      and e.get('ralenti') is False and etat_client(2) in (None, False), e)
+W.needs.clear()
+advance(5 * 60 + 60)
+check('36. faim ×2 : 4,2 points de plus retirés par intervalle de 5 min (via elyzea_core:AddNeeds)',
+      any(s_ == 1 and abs(h + 4.2) < 1e-6 for s_, h, _, _ in W.needs) and not any(s_ == 2 for s_, *_ in W.needs), W.needs)
+W.frozen.add(1)
+W.needs.clear()
+advance(11 * 60)
+check('36. besoins gelés (elyNeedsFrozen) : pas de faim supplémentaire', not W.needs, W.needs)
+W.frozen.discard(1)
+v = admin_data(3)['values']
+v.update({'symptomes.faim.multiplicateur': 3.0, 'symptomes.nausees.parHeure': 30.0})
+ok, msg = admin(3, 'save', {'values': v})
+W.needs.clear()
+avant = len(W.client_events)
+advance(60 * 60)
+sym = [(t, a) for n, t, a in W.client_events[avant:] if n == 'elyzea_famille:client:symptome']
+check('37. menu admin : faim ×3 appliquée (8,4 points de plus)', ok is True and any(abs(h + 8.4) < 1e-6 for _, h, _, _ in W.needs), W.needs[:2])
+check('37. nausées à 30 / h : épisodes envoyés à la joueuse seulement, avec durée et intensité', len([1 for t, a in sym if a[0] == 'nausees']) >= 5
+      and all(t == 1 for t, _ in sym) and sym[0][1][1].get('duree') == 20, len(sym))
+v.update({'symptomes.nausees.actif': False, 'symptomes.vomissements.actif': False})
+ok, msg = admin(3, 'save', {'values': v})
+avant = len(W.client_events)
+advance(2 * H)
+check('37. nausées et vomissements désactivés : plus aucun épisode', not any(n == 'elyzea_famille:client:symptome' for n, *_ in W.client_events[avant:]))
+v.update({'symptomes.vomissements.actif': True, 'symptomes.vomissements.desEtape': 3, 'symptomes.vomissements.jusquaEtape': 2})
+ok, msg = admin(3, 'save', {'values': v})
+check('37. étapes de début après la fin : refusé', ok is False and 'Vomissements' in msg, msg)
+placer(g, 0.6)
+advance(61)
+e = etat_client(1)
+check('38. étape 3 (60 %) : démarche lourde move_f@fat@a envoyée', e.get('etape') == 3 and e['ralenti']['demarche'] == 'move_f@fat@a', e)
+
+W.ems.add(3)
+W.notifs.clear()
+nes0 = len(W.nes)
+net('elyzea_famille:accouchement', 3, 1)
+check('39. accouchement à 60 % : refusé (« trop tôt »)', notif(3, 'trop tôt'))
+placer(g, 0.95)
+net('elyzea_famille:accouchement', 3, 1)
+answer(1, True)
+check('39. accouchement accepté : écran noir patiente, animation EMS', last_client('elyzea_famille:client:accouchement', 1)[0] == 'patiente'
+      and last_client('elyzea_famille:client:accouchement', 3)[0] == 'ems')
+net('elyzea_famille:accouchement', 3, 1)
+advance(G.Config.Grossesse.fin.dureeAccouchement + 1)
+r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
+check('40. accouchement terminé : grossesse close (accouchee / accouchement), plus active', r['status'] == 'accouchee' and r['end_reason'] == 'accouchement'
+      and r['active_key'] is None and r['ended_at'])
+check('40. bébé(s) créé(s) à côté de la patiente, responsables = les deux parents', len(W.nes) - nes0 == int(g['bebes'])
+      and W.nes[-1][2] == ['F001', 'M002'] and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
+check('40. effets arrêtés (état « aucune grossesse » envoyé), félicitations', etat_client(1) is False and notif(1, 'Félicitations'))
+check('40. naissance journalisée', q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='naissance'", (g['id'],)))
+W.notifs.clear()
+net('elyzea_famille:accouchement', 3, 1)
+check('40. second accouchement : « pas de grossesse », aucun bébé en plus', notif(3, 'Pas de grossesse') and len(W.nes) - nes0 == int(g['bebes']))
+
+# fin par le staff (sans bébé)
+advance(49 * H)
+g, _ = nouvelle_grossesse()
+n_avant = len(W.nes)
+W.commands['famille_fin'](0, to_lua(['1']), '')
+advance(1)
+r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
+check('41. /famille_fin : grossesse terminée par le staff, aucun bébé', r['status'] == 'terminee' and r['end_reason'] == 'fin_staff' and len(W.nes) == n_avant
+      and etat_client(1) is False)
+
+# naissance automatique après le terme (réglage 24 h)
+advance(49 * H)
+g, _ = nouvelle_grossesse()
+total = int(g['due_at']) - int(g['conceived_at'])
+q("UPDATE rp_pregnancies SET conceived_at=%s, due_at=%s WHERE id=%s", (W.now - total - 25 * H, W.now - 25 * H, g['id']))
+advance(61)
+r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
+check('42. naissance automatique 24 h après le terme (connectée)', r['status'] == 'accouchee' and r['end_reason'] == 'naissance_auto' and len(W.nes) > n_avant)
+
+# persistance : redémarrage de la ressource, la grossesse et ses effets reprennent
+advance(49 * H)
+g, _ = nouvelle_grossesse()
+placer(g, 0.85)
+start_resource()
+W.client_events.clear()
+advance(70)
+e = etat_client(1)
+check('43. après un redémarrage : effets renvoyés depuis la base (étape 4)', isinstance(e, dict) and e.get('etape') == 4, e)
+errs = [p_ for p_ in W.prints if 'suivi des grossesses' in p_ or 'accouchement :' in p_ or 'naissance :' in p_]
+check('43. aucune erreur du suivi dans la console', not errs, errs[:3])
+ok, msg = admin(3, 'reset')
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

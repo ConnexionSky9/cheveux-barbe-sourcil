@@ -179,6 +179,36 @@ function R.avancement(g, now, G)
         etape = etape, numeroEtape = n, terme = terme }
 end
 
+-- Symptômes actifs à une étape donnée (numéro 1..n). S = Config.Grossesse.symptomes. Renvoie { faim = S.faim, … }
+-- pour chaque symptôme activé dont l'étape est dans [desEtape, jusquaEtape].
+function R.symptomesActifs(numeroEtape, S)
+    local out = {}
+    for nom, c in pairs(S or {}) do
+        if type(c) == 'table' and c.actif and numeroEtape >= (c.desEtape or 1) and numeroEtape <= (c.jusquaEtape or 99) then out[nom] = c end
+    end
+    return out
+end
+
+-- Délai (secondes) avant le prochain épisode d'un symptôme qui survient en moyenne « parHeure » fois par heure
+-- (tirage exponentiel, borné entre 2 min et 6 h). nil si la fréquence est nulle.
+function R.delaiSymptome(parHeure, rng)
+    parHeure = tonumber(parHeure) or 0
+    if parHeure <= 0 then return nil end
+    local u = math.min(0.999999, math.max(0, rng()))
+    local d = -math.log(1 - u) / parHeure * HEURE
+    return math.floor(math.max(120, math.min(6 * HEURE, d)))
+end
+
+-- Faim supplémentaire par intervalle du core : (multiplicateur - 1) × taux de base. 0 si multiplicateur <= 1.
+function R.faimSupplementaire(F)
+    return math.max(0, ((tonumber(F.multiplicateur) or 1) - 1) * (tonumber(F.tauxBase) or 0))
+end
+
+-- Accouchement possible ? (part écoulée >= seuil, ou terme atteint)
+function R.accouchementPossible(av, F)
+    return av.terme or av.pct >= (F.accouchementDes or 1)
+end
+
 -- Date prévue d'accouchement
 function R.terme(conception, G)
     return conception + math.floor(G.duree * HEURE)

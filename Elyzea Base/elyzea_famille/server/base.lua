@@ -174,6 +174,7 @@ MySQL.ready(function()
         end
     end
     colonne('rp_pregnancies', 'bebes_connus', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER `bebes`')
+    colonne('rp_pregnancies', 'end_reason', 'VARCHAR(32) NULL AFTER `ended_at`')   -- V5 : accouchement, naissance_auto, fin_staff…
     -- Un redémarrage interrompt les moments intimes en cours : aucune conception pour eux
     MySQL.update.await("UPDATE `rp_intimacy_sessions` SET `status` = 'interrompue', `ended_at` = ?, `end_reason` = 'redemarrage' WHERE `status` = 'active'", { os.time() })
     Fam.TablesPretes = true

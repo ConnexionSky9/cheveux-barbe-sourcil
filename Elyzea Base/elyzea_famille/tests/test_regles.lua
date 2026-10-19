@@ -141,6 +141,29 @@ test('B6 : grossesse de 48 h, à 47 h (98 %) : pas encore « terme »', R.avance
     and not R.avancement(g2, NOW + 47 * H, GG).terme)
 test('B6 : grossesse de 48 h, à 48 h : terme', R.avancement(g2, NOW + 48 * H, GG).terme and R.avancement(g2, NOW + 48 * H, GG).numeroEtape == 5)
 
+-- Symptômes (étape 3)
+do
+    local S = Config.Grossesse.symptomes
+    local a1, a3 = R.symptomesActifs(1, S), R.symptomesActifs(3, S)
+    test('étape 1 : faim, nausées, vomissements ; pas de démarche lourde', a1.faim and a1.nausees and a1.vomissements and not a1.ralentissement)
+    test('étape 3 : nausées, démarche lourde ; plus de vomissements', a3.nausees and a3.ralentissement and not a3.vomissements)
+    local S2 = copie(S) S2.nausees.actif = false
+    test('symptôme désactivé : absent', not R.symptomesActifs(1, S2).nausees)
+    test('faim ×2 : 4,2 points de plus par intervalle', math.abs(R.faimSupplementaire(S.faim) - 4.2) < 1e-9)
+    test('faim ×1 : rien de plus', R.faimSupplementaire({ multiplicateur = 1, tauxBase = 4.2 }) == 0)
+    local somme, n = 0, 20000
+    local seed = 12345
+    local function lcg() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+    for _ = 1, n do somme = somme + R.delaiSymptome(2, lcg) end
+    local moy = somme / n / 60
+    test(('nausées 2 / h : délai moyen ≈ 30 min (observé %.1f min)'):format(moy), moy > 27 and moy < 33)
+    test('fréquence 0 : aucun épisode', R.delaiSymptome(0, lcg) == nil)
+    test('délai borné (2 min à 6 h)', R.delaiSymptome(100, fixe(0)) == 120 and R.delaiSymptome(0.01, fixe(0.999999)) == 6 * H)
+    local av = R.avancement({ conceived_at = NOW, due_at = NOW + 100 * H }, NOW + 89 * H, Config.Grossesse)
+    test('accouchement : refusé à 89 %, possible à 90 %', not R.accouchementPossible(av, Config.Grossesse.fin)
+        and R.accouchementPossible(R.avancement({ conceived_at = NOW, due_at = NOW + 100 * H }, NOW + 90 * H, Config.Grossesse), Config.Grossesse.fin))
+end
+
 -- Terme
 test('terme à 336 h', R.terme(NOW, Config.Grossesse) == NOW + 336 * H)
 

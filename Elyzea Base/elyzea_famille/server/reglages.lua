@@ -69,6 +69,48 @@ local SCHEMA = {
       l = 'Fin de l\'étape « Ventre visible »', a = 'Doit être plus grand que l\'étape précédente.' },
     { s = 'etapes', k = 'grossesse.etape4', p = { 'Grossesse', 'etapes', 4, 'jusqua' }, t = 'pct', min = 0.01, max = 0.99,
       l = 'Fin de l\'étape « Ventre très arrondi »', a = 'Ensuite : « Terme atteint » (au terme réel seulement).' },
+    -- Symptômes (chacun réglable séparément ; étapes 1 = presque plat … 4 = très arrondi, 5 = terme)
+    { s = 'symptomes', k = 'symptomes.faim.actif', p = { 'Grossesse', 'symptomes', 'faim', 'actif' }, t = 'bool',
+      l = 'Faim plus rapide', a = 'La faim baisse plus vite (en plus de la baisse normale de elyzea_core).' },
+    { s = 'symptomes', k = 'symptomes.faim.multiplicateur', p = { 'Grossesse', 'symptomes', 'faim', 'multiplicateur' }, t = 'num', min = 1, max = 5, step = 0.1, u = '×',
+      l = 'Vitesse de la faim', a = '2 = la faim baisse deux fois plus vite.' },
+    { s = 'symptomes', k = 'symptomes.faim.desEtape', p = { 'Grossesse', 'symptomes', 'faim', 'desEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Faim : à partir de l\'étape', a = '1 = dès la conception.' },
+    { s = 'symptomes', k = 'symptomes.nausees.actif', p = { 'Grossesse', 'symptomes', 'nausees', 'actif' }, t = 'bool',
+      l = 'Nausées', a = 'Vision troublée et caméra qui tangue quelques secondes.' },
+    { s = 'symptomes', k = 'symptomes.nausees.desEtape', p = { 'Grossesse', 'symptomes', 'nausees', 'desEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Nausées : à partir de l\'étape', a = '' },
+    { s = 'symptomes', k = 'symptomes.nausees.jusquaEtape', p = { 'Grossesse', 'symptomes', 'nausees', 'jusquaEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Nausées : jusqu\'à l\'étape', a = '' },
+    { s = 'symptomes', k = 'symptomes.nausees.parHeure', p = { 'Grossesse', 'symptomes', 'nausees', 'parHeure' }, t = 'num', min = 0, max = 30, step = 0.5, u = '/h',
+      l = 'Nausées : fréquence', a = 'Nombre moyen d\'épisodes par heure de jeu (moments tirés au hasard).' },
+    { s = 'symptomes', k = 'symptomes.nausees.duree', p = { 'Grossesse', 'symptomes', 'nausees', 'duree' }, t = 'int', min = 3, max = 120, u = 's',
+      l = 'Nausées : durée', a = 'Durée d\'un épisode.' },
+    { s = 'symptomes', k = 'symptomes.nausees.intensite', p = { 'Grossesse', 'symptomes', 'nausees', 'intensite' }, t = 'pct', min = 0.1, max = 1,
+      l = 'Nausées : intensité', a = 'Force du flou et du tangage.' },
+    { s = 'symptomes', k = 'symptomes.vomissements.actif', p = { 'Grossesse', 'symptomes', 'vomissements', 'actif' }, t = 'bool',
+      l = 'Vomissements', a = 'Animation native de GTA. Jamais en véhicule, dans l\'eau, à terre ou en portant un bébé (message seul).' },
+    { s = 'symptomes', k = 'symptomes.vomissements.desEtape', p = { 'Grossesse', 'symptomes', 'vomissements', 'desEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Vomissements : à partir de l\'étape', a = '' },
+    { s = 'symptomes', k = 'symptomes.vomissements.jusquaEtape', p = { 'Grossesse', 'symptomes', 'vomissements', 'jusquaEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Vomissements : jusqu\'à l\'étape', a = '' },
+    { s = 'symptomes', k = 'symptomes.vomissements.parHeure', p = { 'Grossesse', 'symptomes', 'vomissements', 'parHeure' }, t = 'num', min = 0, max = 10, step = 0.1, u = '/h',
+      l = 'Vomissements : fréquence', a = 'Nombre moyen d\'épisodes par heure de jeu.' },
+    { s = 'symptomes', k = 'symptomes.ralentissement.actif', p = { 'Grossesse', 'symptomes', 'ralentissement', 'actif' }, t = 'bool',
+      l = 'Démarche lourde', a = 'Démarche native « lourde » (move_f@fat@a).' },
+    { s = 'symptomes', k = 'symptomes.ralentissement.desEtape', p = { 'Grossesse', 'symptomes', 'ralentissement', 'desEtape' }, t = 'int', min = 1, max = 5,
+      l = 'Démarche lourde : à partir de l\'étape', a = '' },
+    { s = 'symptomes', k = 'symptomes.ralentissement.courseInterdite', p = { 'Grossesse', 'symptomes', 'ralentissement', 'courseInterdite' }, t = 'bool',
+      l = 'Course interdite (démarche lourde)', a = 'Activé : la touche de course est bloquée pendant la démarche lourde.' },
+    -- Fin de grossesse
+    { s = 'fin', k = 'fin.accouchementDes', p = { 'Grossesse', 'fin', 'accouchementDes' }, t = 'pct', min = 0.5, max = 1,
+      l = 'Accouchement possible à partir de', a = 'Part de la grossesse écoulée à partir de laquelle un EMS peut faire accoucher (100 % = au terme).' },
+    { s = 'fin', k = 'fin.dureeAccouchement', p = { 'Grossesse', 'fin', 'dureeAccouchement' }, t = 'int', min = 5, max = 120, u = 's',
+      l = 'Durée de l\'accouchement', a = 'Écran noir pour la patiente ; l\'EMS doit rester à côté.' },
+    { s = 'fin', k = 'fin.naissanceAuto', p = { 'Grossesse', 'fin', 'naissanceAuto' }, t = 'int', min = 0, max = 720, u = 'h',
+      l = 'Naissance automatique après le terme', a = 'Sans EMS, la naissance a lieu ce nombre d\'heures après le terme (personnage connecté). 0 = jamais.' },
+    { s = 'fin', k = 'fin.bebesEnJeu', p = { 'Grossesse', 'fin', 'bebesEnJeu' }, t = 'bool',
+      l = 'Bébé placé dans le jeu à la naissance', a = 'Le ou les bébés (elyzea_bebe_modele) apparaissent à côté de la patiente.' },
     -- Contraception
     { s = 'contraception', k = 'contraception.preservatif.fiabilite', p = { 'Contraception', 'preservatif', 'fiabilite' }, t = 'pct', min = 0, max = 1,
       l = 'Fiabilité du préservatif', a = '98 % = le risque est multiplié par 0,02.' },
@@ -104,6 +146,8 @@ local SECTIONS = {
     { id = 'conditions', label = 'Conditions de déclenchement' },
     { id = 'grossesse', label = 'Risque de grossesse' },
     { id = 'etapes', label = 'Étapes de la grossesse' },
+    { id = 'symptomes', label = 'Symptômes de grossesse' },
+    { id = 'fin', label = 'Fin de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
 }
@@ -159,6 +203,11 @@ local function validerTout(valeurs)
         for i = 2, 4 do
             if out['grossesse.etape' .. i] <= out['grossesse.etape' .. (i - 1)] then
                 err[#err + 1] = ('L\'étape %d doit finir après l\'étape %d.'):format(i, i - 1)
+            end
+        end
+        for _, n in ipairs({ 'nausees', 'vomissements' }) do
+            if out['symptomes.' .. n .. '.desEtape'] > out['symptomes.' .. n .. '.jusquaEtape'] then
+                err[#err + 1] = ('%s : l\'étape de début dépasse l\'étape de fin.'):format(n == 'nausees' and 'Nausées' or 'Vomissements')
             end
         end
         if out['contraception.pilule.renouvellement'] > out['contraception.pilule.duree'] then
