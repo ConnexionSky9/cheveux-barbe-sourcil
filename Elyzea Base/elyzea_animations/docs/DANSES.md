@@ -6,7 +6,7 @@ Tout est dans le menu habituel (**K**), quatre catégories en tête :
 
 | Catégorie | Contenu | Comment ça se lance |
 |---|---|---|
-| **Danses lentes** | 8 danses à deux | Choisir la personne (et son rôle) → invitation → acceptation |
+| **Danses lentes** | 5 danses à deux (voir `docs/SLOWS.md`) | Choisir la personne (et son rôle) → invitation → acceptation |
 | **Danses en duo** | 4 danses à deux | Idem |
 | **Danses en groupe** | 6 danses collectives | Cocher les participants, choisir ligne ou cercle → invitations → départ commun |
 | **Danses solo** | 111 danses (rpemotes, doublons retirés) | Clic, comme les autres animations (aperçu 3D, placement, favoris, raccourcis) |
@@ -14,6 +14,10 @@ Tout est dans le menu habituel (**K**), quatre catégories en tête :
 Aucun autre menu n'existe : l'ancienne ressource `rp_animations` (menu F7) est supprimée.
 
 ## Danses lentes et en duo : positions
+
+> Mise à jour du 19 octobre : les fichiers d'animation ont été décodés et mesurés (`docs/SLOWS.md`). « Enlacés par
+> derrière » (même direction) et les deux poses des mariés (poses de biais ou éloignées) ont été retirées des danses
+> lentes et remises dans « Partagées ». Toutes les animations de couple de rpemotes sont des poses tenues, sans mouvement.
 
 Les danses à deux utilisent des animations qui existent réellement : celles du jeu de base et celles que **rpemotes**
 diffuse déjà sur ton serveur. Le moteur reprend **exactement** la position et la rotation que rpemotes utilise pour chacune
@@ -26,12 +30,9 @@ Ce que ces positions révèlent :
 
 | Danse | Catégorie | Animations (meneur / partenaire) | Position du partenaire | Source |
 |---|---|---|---|---|
-| Slow face à face | Lentes | `mx_couple5_2_a` / `mx_couple5_2_b` | x −0,12 · y 0,36 · z −0,01 · rot −180 | rpemotes (holdmec/holdmed) |
+| Slow enlacé face à face | Lentes | `mx_couple5_2_a` / `mx_couple5_2_b` | x −0,12 · y 0,36 · z −0,01 · rot −180 | rpemotes (holdmec/holdmed) |
 | Slow tournant | Lentes | idem + rotation lente du couple (7°/s) | idem | rpemotes + script |
 | Étreinte romantique | Lentes | `misscarsteal2chad_goodbye` girl / chad | côté −0,05 · devant 0,52 · face à face | GTA V (hugr) |
-| Danse des mariés | Lentes | `EnchantedBrwny@wedding2b` / `wedding2a` | x 0,01 · y 0,25 · rot −88,9 | rpemotes (couplewed2) |
-| Pose des mariés | Lentes | `EnchantedBrwny@wedding1a` / `wedding1b` | x 0,03 · y 1,0 · z 0,02 · rot 130 | rpemotes (couplewed1) |
-| Enlacés par derrière | Lentes | `mx_couple5_1_a` / `mx_couple5_1_b` | x −0,02 · y 0,24 · z −0,01 · rot 0 | rpemotes (holdme) |
 | Baiser | Lentes | `chocoholic@couple14` / `couple13` | x 0,16 · y 0,27 · rot 130 | rpemotes (kisslips) |
 | Slow puis baiser | Lentes | slow face à face 20 s, puis baiser | les deux ci-dessus | rpemotes |
 | Danse de club face à face | Duo | clubs `male@var_a` / `female@var_a` `high_center` | 1 m devant, face à face | GTA V |

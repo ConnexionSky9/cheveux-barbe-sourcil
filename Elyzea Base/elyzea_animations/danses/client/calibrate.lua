@@ -58,3 +58,28 @@ RegisterCommand('danse_calib', function()
         Danse.Calibrating = false
     end)
 end, false)
+
+-- /danse_mesure : pendant une danse à deux, mesure EN JEU l'orientation réelle des deux corps (os des épaules),
+-- la distance entre les poitrines et les têtes, et l'attache. À copier pour le support.
+local function torso(ped)
+    local l = GetPedBoneCoords(ped, 45509, 0.0, 0.0, 0.0)   -- épaule gauche
+    local r = GetPedBoneCoords(ped, 40269, 0.0, 0.0, 0.0)   -- épaule droite
+    local fx, fy = -(r.y - l.y), r.x - l.x                  -- avant du torse
+    return math.deg(math.atan(-fx, fy))
+end
+
+RegisterCommand('danse_mesure', function()
+    local c = Danse.Current()
+    local say = Danse.UI.Notify or print
+    if not c or c.kind ~= 'duo' or c.state ~= 'playing' or not c.other then return say('Lance d\'abord une danse à deux', 'err') end
+    local me, other = PlayerPedId(), c.other
+    local angle = ((torso(other) - torso(me) + 540.0) % 360.0) - 180.0
+    local chest = #(GetPedBoneCoords(me, 24818, 0.0, 0.0, 0.0) - GetPedBoneCoords(other, 24818, 0.0, 0.0, 0.0))
+    local head = #(GetPedBoneCoords(me, 31086, 0.0, 0.0, 0.0) - GetPedBoneCoords(other, 31086, 0.0, 0.0, 0.0))
+    local attached = IsEntityAttached(c.slot == 1 and me or other)
+    local verdict = (math.abs(math.abs(angle) - 180.0) <= 35.0) and 'FACE À FACE' or ((math.abs(angle) <= 35.0) and 'MÊME DIRECTION' or 'DE BIAIS')
+    local line = ('%s : angle entre les torses %.0f° (%s) ; poitrines %.2f m ; têtes %.2f m ; partenaire attaché : %s ; mon rôle : %s')
+        :format(c.e.id, angle, verdict, chest, head, attached and 'oui' or 'NON', c.slot == 0 and 'meneur' or 'partenaire')
+    print('[Elyzea danses] ' .. line)
+    say(line, verdict == 'FACE À FACE' and 'ok' or 'err')
+end, false)

@@ -126,7 +126,7 @@ T('Slow face à face, partenaire : marche, attache identique à rpemotes (holdme
     CM.anims[102] = { d = 'mx_couple5_2_a', c = 'mx_couple5_2_a_clip' }
     Mock.Advance(700)
     check(CM.phaseSet == 0.42, 'phase alignée sur le meneur')
-    check(lastNui('playing').label == 'Slow face à face', 'menu : danse en cours')
+    check(lastNui('playing').label == 'Slow enlacé face à face', 'menu : danse en cours')
     CM.executed = {}
     Mock.commands['animations_arreter']()
     check(not Danse.Current() and not CM.attached[ME] and CM.anims[ME] == nil, 'arrêtée, détaché, sans clip')
@@ -286,7 +286,7 @@ T('Danse masquée si un fichier manque (meneur ou partenaire)', function()
     local hidden = {}
     for _, h in ipairs(env.hidden) do hidden[h] = true end
     check(hidden['danse:slow_face'] and hidden['danse:slow_tournant'], 'slows face à face masqués')
-    check(not hidden['danse:enlaces_dos'], 'les autres restent')
+    check(not hidden['danse:baiser_slow'], 'les autres restent')
 end)
 
 T('Arrêt de la ressource pendant une danse : personnage libéré', function()
@@ -365,4 +365,18 @@ T('X par défaut : arrête l\'animation via le raccourci fixe', function()
     CM.Nui('playEmote', { emote = 'dance', type = 'emote', label = 'Dance' })
     Mock.commands['animations_arreter']()
     check(CM.Ran('emotecancel'), 'arrêtée')
+end)
+
+T('/danse_mesure : face à face détecté en jeu à partir des os des épaules', function()
+    boot()
+    prepare('duo', 'slow_face', 1)
+    CM.FromServer('elyzea_danse:cl:go', 7, 1)
+    CM.peds[ME].pos, CM.peds[ME].heading = vector3(0, 1.14, 0), 0.0      -- je regarde vers le meneur (au nord)…
+    CM.peds[102].pos, CM.peds[102].heading = vector3(0, 1.5, 0), 180.0   -- …qui me regarde
+    Mock.commands['danse_mesure']()
+    local n = lastNui('notify').text
+    check(n:find('FACE À FACE') and n:find('attaché : oui'), n)
+    CM.peds[102].heading = 0.0
+    Mock.commands['danse_mesure']()
+    check(lastNui('notify').text:find('MÊME DIRECTION'), 'même direction détectée')
 end)

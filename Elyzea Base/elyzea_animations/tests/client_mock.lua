@@ -69,6 +69,11 @@ function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz, p9, soft, col, is
 end
 function DetachEntity(a) CM.attached[a] = nil end
 function IsEntityAttached(a) return CM.attached[a] ~= nil end
+local BONE_OFF = { [45509] = { -0.2, 0.0, 0.5 }, [40269] = { 0.2, 0.0, 0.5 }, [24818] = { 0.0, 0.0, 0.3 }, [31086] = { 0.0, 0.05, 0.65 } }
+function GetPedBoneCoords(ped, bone)
+    local o = BONE_OFF[bone] or { 0, 0, 0 }
+    return GetOffsetFromEntityInWorldCoords(ped, o[1], o[2], o[3])
+end
 function GetPedBoneIndex(ped, bone) return bone == 0 and 11 or -1 end
 function DisableControlAction(_, c) CM.keys[c] = true end
 function IsControlJustPressed(_, c) return CM.pressed[c] == true end

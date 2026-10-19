@@ -39,7 +39,7 @@ vérifiées qu'en simulation : elles restent à valider avec plus de joueurs.
 Notez pour chaque ligne : OK / problème (et ce que voit chacun des deux écrans).
 
 **Avant**
-1. `ensure elyzea_animations` : la console serveur affiche `[Elyzea danses] 18 danses à plusieurs au catalogue, 0 problème(s)`.
+1. `ensure elyzea_animations` : la console serveur affiche `[Elyzea danses] 15 danses à plusieurs au catalogue, 0 problème(s)`.
 2. En jeu, F8 : `animdiag` (version de rpemotes, touches, animations masquées) puis `elyzea_anim_check`.
 
 **Réparation (chacun)**
@@ -48,10 +48,16 @@ Notez pour chaque ligne : OK / problème (et ce que voit chacun des deux écrans
 5. Une animation partagée (Partagées › Hug) : l'autre reçoit la demande, Y accepte, l'animation se joue chez les deux.
 6. Placement (clic droit sur une animation) puis X : le personnage n'est plus figé.
 
+**Slow de référence : « Slow enlacé face à face » (à faire en premier)**
+- A invite B, B accepte. Chacun tape `/danse_mesure` : le résultat attendu est « FACE À FACE », angle proche de
+  180° (±35°), poitrines vers 0,35 m, partenaire attaché : oui. Envoyez-moi les deux lignes, et une capture d'écran
+  de chaque écran.
+- Inverser les rôles et recommencer. Puis : X par chacun, refus, annulation, déconnexion d'un des deux, `restart elyzea_animations`.
+
 **Danses lentes (joueur A invite, joueur B accepte, puis inverser les rôles)**
 7. Slow face à face : B marche jusqu'à A, ils sont **face à face**, à distance naturelle, sans se traverser.
 8. Slow tournant : le couple tourne lentement ; les deux écrans voient la même chose.
-9. Étreinte romantique, Danse des mariés, Pose des mariés, Enlacés par derrière, Baiser, Slow puis baiser.
+9. Étreinte romantique, Baiser, Slow puis baiser (`/danse_mesure` sur chacun).
 10. Pour chaque danse : arrêt par A (X), puis par B (avancer) → l'autre est libéré et prévenu, contrôles normaux.
 11. Si un partenaire est mal placé : dans son rôle, `/danse_calib`, ajuster, Entrée (staff). Si c'est bon : `/danse_valider <id>`.
 
