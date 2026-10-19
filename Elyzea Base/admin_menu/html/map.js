@@ -8,12 +8,13 @@
     const at = TABS.findIndex((t) => t.id === 'world');
     TABS.splice(at < 0 ? TABS.length : at + 1, 0, {
         id: 'map', group: 2, label: 'Carte', ico: '🗺️',
-        sub: 'Mini-carte et icônes de la carte : cacher, déplacer, renommer, ajouter.',
+        sub: 'Icônes de la carte : cacher, déplacer, renommer, ajouter.',
         show: () => has('manage_map') && !!(D && D.map),
     });
 
-    const SUBS = [{ id: 'minimap', label: 'Mini-carte' }, { id: 'scripts', label: 'Icônes des scripts' }, { id: 'mine', label: 'Icônes ajoutées' }];
-    const MP = { sub: 'minimap', draft: null, previewing: false, scan: null, scanning: false, q: '', filter: 'all' };
+    // La mini-carte n'est plus réglable ici : elle est fixée par le code (admin_menu/config.lua, Config.Minimap)
+    const SUBS = [{ id: 'scripts', label: 'Icônes des scripts' }, { id: 'mine', label: 'Icônes ajoutées' }];
+    const MP = { sub: 'scripts', draft: null, previewing: false, scan: null, scanning: false, q: '', filter: 'all' };
     const DISPLAY = [{ value: 'all', label: 'Carte et mini-carte' }, { value: 'map', label: 'Carte seulement' }, { value: 'minimap', label: 'Mini-carte seulement' }, { value: 'hidden', label: 'Cachée' }];
     const displayLabel = (v) => (DISPLAY.find((d) => d.value === v) || DISPLAY[0]).label;
     const iconName = (s) => (D.map.icons || {})[String(s)] || `Icône n°${s}`;
@@ -23,7 +24,7 @@
 
     VIEWS.map = () => {
         const nav = `<div class="segmented">${SUBS.map((s) => `<button class="seg ${s.id === MP.sub ? 'active' : ''}" data-mps="${s.id}">${s.label}</button>`).join('')}</div>`;
-        return nav + ({ minimap: viewMinimap, scripts: viewScripts, mine: viewMine }[MP.sub])();
+        return nav + ({ scripts: viewScripts, mine: viewMine }[MP.sub] || viewScripts)();
     };
 
     /* ---------- Mini-carte ---------- */

@@ -15,18 +15,9 @@ local ALIGN = {
 
 -- Verrou (Config.Minimap.locked) : position, taille, forme et marges viennent TOUJOURS de config.lua ;
 -- ni le réglage enregistré, ni un aperçu, ni un autre script ne peuvent déplacer la carte.
-local LOCK_KEYS = { 'position', 'size', 'widthAdjust', 'marginX', 'marginY', 'shape' }
-local function current()
-    local s = preview or saved or Config.Minimap
-    if Config.Minimap and Config.Minimap.locked then
-        local out = {}
-        for k, v in pairs(s or {}) do out[k] = v end
-        for _, k in ipairs(LOCK_KEYS) do out[k] = Config.Minimap[k] end
-        out.enabled = true
-        return out
-    end
-    return s
-end
+-- La mini-carte est fixée par le code (Config.Minimap) : aucun réglage du menu, aucun aperçu,
+-- aucun autre script ne peut la déplacer.
+local function current() return Config.Minimap end
 
 -- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
@@ -164,10 +155,8 @@ local function enforce()
 end
 
 RegisterNetEvent('adminmenu:map', function(data)
-    local hadOnly = saved and saved.onlyInVehicle
-    saved = data and data.minimap or saved
-    if hadOnly and not (saved and saved.onlyInVehicle) then DisplayRadar(true) end
-    if not preview then enforce() end
+    saved = data and data.minimap or saved   -- gardé pour info : la carte suit Config.Minimap
+    enforce()
 end)
 
 -- ---------------------------------------------------------
@@ -176,7 +165,7 @@ end)
 local Blocked = {}   -- { command, resource }
 
 local function blockCommands()
-    if not saved or saved.enabled == false then return end
+    if Config.Minimap.enabled == false then return end
     local owners = {}
     for _, c in ipairs(GetRegisteredCommands() or {}) do owners[c.name] = c.resource end
     Blocked = {}
@@ -198,7 +187,7 @@ CreateThread(function()
     -- Une autre ressource gère aussi la mini-carte : on vérifie la position chaque minute
     while true do
         Wait(60000)
-        if #Blocked > 0 and not preview and not IsBigmapActive() and saved and saved.enabled ~= false then apply() end
+        if #Blocked > 0 and not preview and not IsBigmapActive() and Config.Minimap.enabled ~= false then apply() end
     end
 end)
 AddEventHandler('onClientResourceStart', function(res)
@@ -273,18 +262,9 @@ end)
 -- ---------------------------------------------------------
 --  Aperçu en direct pour le staff (onglet Carte)
 -- ---------------------------------------------------------
-RegisterNUICallback('minimap_preview', function(body, cb)
-    cb('ok')
-    if type(body) ~= 'table' then return end
-    preview = body
-    CreateThread(apply)
-end)
+RegisterNUICallback('minimap_preview', function(_, cb) cb('ok') end)   -- plus d'aperçu : carte fixée par le code
 
-RegisterNUICallback('minimap_preview_end', function(_, cb)
-    cb('ok')
-    preview = nil
-    CreateThread(apply)
-end)
+RegisterNUICallback('minimap_preview_end', function(_, cb) cb('ok') end)
 
 -- Ressource arrêtée : on rend à GTA son masque d'origine
 AddEventHandler('onResourceStop', function(res)
