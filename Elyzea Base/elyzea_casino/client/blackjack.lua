@@ -19,17 +19,7 @@ function CS.ClearCards(id)
 end
 
 -- Geste d'un joueur assis (bras seulement) ; s'il s'est relevé à cause du geste, il se rassoit
-function CS.Gesture(spec)
-    local ped = PlayerPedId()
-    if not CS.seated then return end
-    CS.PlayAnim(ped, spec, 48, 1600)
-    local s = CS.seated
-    SetTimeout(1800, function()
-        if CS.seated == s and s.sit and not IsPedUsingScenario(ped, A.sitScenario) then
-            TaskStartScenarioAtPosition(ped, A.sitScenario, s.sit.x, s.sit.y, s.sit.z, s.sit.h, 0, true, true)
-        end
-    end)
-end
+function CS.Gesture(spec) CS.SeatGesture(spec) end
 
 -- Repères de la table : centre du tapis, côté croupier, places
 local function frame(id)
