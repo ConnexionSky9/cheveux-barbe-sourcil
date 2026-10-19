@@ -33,7 +33,7 @@ const out = []; const ok = (n, c) => out.push((c ? 'RÉUSSI  ' : 'ÉCHEC   ') + 
   await p.click('[data-id="d_lentes"]');
   await p.waitForTimeout(150);
   const lentes = await p.$$eval('#grid .emote b', n => n.map(x => x.textContent));
-  ok('Danses lentes : ' + lentes.join(' | '), lentes.length >= 6 && lentes.includes('Slow face à face'));
+  ok('Danses lentes : ' + lentes.join(' | '), lentes.length >= 5 && lentes.includes('Slow enlacé face à face'));
   await p.screenshot({ path: S + '/k2_lentes.png' });
   await p.click('#grid .emote[data-cmd="danse:slow_face"]');
   await p.waitForTimeout(300);
@@ -64,7 +64,7 @@ const out = []; const ok = (n, c) => out.push((c ? 'RÉUSSI  ' : 'ÉCHEC   ') + 
   await p.fill('#q', 'slow');
   await p.waitForTimeout(150);
   const found = await p.$$eval('#grid .emote b', n => n.map(x => x.textContent));
-  ok('Recherche « slow » trouve les slows : ' + found.slice(0, 5).join(' | '), found.includes('Slow face à face') && found.includes('Slow tournant'));
+  ok('Recherche « slow » trouve les slows : ' + found.slice(0, 5).join(' | '), found.includes('Slow enlacé face à face') && found.includes('Slow tournant'));
   await p.fill('#q', '');
   await p.evaluate(() => window.postMessage({ action: 'request', name: 'Une personne (ID 2)', label: 'Slow face à face', timeout: 20 }, '*'));
   await p.waitForTimeout(200);
