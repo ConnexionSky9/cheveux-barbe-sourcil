@@ -47,6 +47,36 @@ Ajouter, retirer ou réordonner des packs ne change donc plus les vêtements ach
 de l'apparence (`ely_creator`). Si un pack est retiré, ses vêtements ne peuvent simplement plus être portés
 (message « pack absent »), sans rien casser d'autre.
 
+## Tenues enregistrées (F3 › « Mes tenues »)
+
+Dans le panneau **Ma tenue** (F3 ou `/tenue`), onglet **Mes tenues** :
+
+| Action | Comment |
+|---|---|
+| Enregistrer la tenue portée | **＋ Enregistrer ma tenue actuelle**, un nom, une catégorie |
+| Porter une tenue en une fois | **Porter** |
+| Renommer / changer de catégorie | **Modifier** |
+| Remplacer par ce que je porte | **Remplacer** (confirmation) |
+| Supprimer | **Supprimer** (confirmation) ; les vêtements restent dans l'inventaire |
+| Catégories | Filtres en haut de la liste ; **＋ Catégorie** pour en créer ; une catégorie personnelle sélectionnée se renomme ou se supprime (ses tenues sont gardées, sans catégorie) |
+
+- **Ce qui est enregistré** : les 15 rayons de la boutique, c'est-à-dire haut, t-shirt, pantalon, chaussures, sac, gilet, gants et bras,
+  collier ou cravate, masque, logo, chapeau ou casque, lunettes, boucles d'oreilles, montre et bracelet.
+  Chaque pièce est gardée avec son coloris et, pour un pack, sa collection et son n° dans le pack (même système que les objets vêtements).
+  Le ventre de grossesse (`elyzea_famille`) n'est jamais enregistré.
+- **Porter passe par l'inventaire**, comme « utiliser » un vêtement : chaque pièce de la tenue doit être un objet de ton inventaire,
+  et ce que tu portais à sa place y retourne. Une pièce que tu n'as pas est laissée de côté, avec un message
+  (« Non mis : Chapeau (pas dans ton inventaire) »). La liste prévient d'avance des pièces manquantes.
+  Rien n'est créé, rien n'est perdu : enregistrer ou supprimer une tenue ne touche jamais aux vêtements possédés.
+- **Pack retiré du serveur** : la pièce est laissée de côté (« pack absent »), le reste de la tenue est mis et l'objet reste dans l'inventaire.
+- **Par personnage** : les tenues sont rattachées au `citizenid`. Un autre personnage du même joueur ne les voit pas.
+  Une tenue homme ne se met pas sur un personnage femme.
+- Impossible pendant la boutique, menotté, porté, à terre ou en **tenue de service** (admin_menu), pour ne pas transformer l'uniforme en objets.
+- Réglages : `Config.Outfits` dans `config.lua` (activation, `max` tenues, `maxCategories`, longueur des noms, catégories par défaut).
+- Base de données : tables `elyzea_outfits` et `elyzea_outfit_categories`, créées au démarrage (ou à la main : `sql/outfits.sql`).
+  Le wipe d'un personnage (admin_menu) les vide aussi.
+- Tests hors jeu de la partie serveur : `python3 tests/run_outfits_sim.py` (paquet Python `lupa`).
+
 ## Boutiques
 
 Les PNJ vendeurs (admin_menu) appellent `exports.elyzea_clothing:OpenFor(src, shop)` :
@@ -78,9 +108,13 @@ Sans image, la boutique affiche l'icône du rayon.
 | `server/packs.lua` | Détection automatique des packs |
 | `server/shop.lua` | Ouverture, contrôle du panier, paiement |
 | `server/items.lua` | Vêtements en objets, noms personnalisés |
+| `server/outfits.lua` | Tenues enregistrées (base de données, porter via l'inventaire) |
 | `client/catalog.lua` | Rayons et packs vus par le joueur |
 | `client/shop.lua` | Boutique (caméra, essayage) |
 | `client/items.lua` | Porter/ranger depuis l'inventaire, « Ma tenue » |
+| `client/outfits.lua` | Onglet « Mes tenues » |
+| `sql/outfits.sql` | Tables des tenues (création manuelle facultative) |
+| `tests/` | Simulation serveur des tenues |
 | `html/` | Interface |
 
 Utilise `@elyzea_core/lib/clothing.lua` (lecture/pose des vêtements par collection), aussi utilisé par `ely_creator`.

@@ -50,10 +50,31 @@
 <section id="wardrobe" class="hidden" aria-label="Ma tenue">
   <div class="screen">
     <div class="ctop"><svg viewBox="0 0 24 24"><path d="M8 3l4 2 4-2 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/></svg><h2>Ma tenue</h2><button class="mini" id="wClose" aria-label="Fermer">✕</button></div>
-    <div class="wlist" id="wList"></div>
-    <div class="wfoot" id="wFoot"></div>
+    <div class="wtabs" role="tablist">
+      <button role="tab" data-wtab="worn" aria-selected="true">Portée</button>
+      <button role="tab" data-wtab="outfits" aria-selected="false">Mes tenues <i id="oCount"></i></button>
+    </div>
+    <div class="wpane" id="paneWorn">
+      <div class="wlist" id="wList"></div>
+      <div class="wfoot" id="wFoot"></div>
+    </div>
+    <div class="wpane hidden" id="paneOutfits">
+      <div class="obar">
+        <button class="btn primary" id="oSaveBtn">＋ Enregistrer ma tenue actuelle</button>
+      </div>
+      <div class="ocats" id="oCats" aria-label="Catégories"></div>
+      <div class="olist" id="oList"></div>
+      <div class="wfoot" id="oFoot"></div>
+    </div>
   </div>
 </section>
+
+<!-- Tenues : fenêtre (enregistrer, modifier, catégorie, confirmation) -->
+<div id="oDlg" class="hidden"><div class="mbox" role="dialog" aria-labelledby="oDlgT">
+  <h3 id="oDlgT"></h3><p id="oDlgP"></p>
+  <div id="oDlgBody"></div>
+  <div class="row"><button class="btn ghost" id="oDlgCancel">Annuler</button><button class="btn primary" id="oDlgOk">Valider</button></div>
+</div></div>
 
 <!-- Renommer -->
 <div id="rename" class="hidden"><div class="mbox" role="dialog" aria-labelledby="rnT">

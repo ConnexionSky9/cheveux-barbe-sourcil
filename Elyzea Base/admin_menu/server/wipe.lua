@@ -21,6 +21,7 @@ end
 local EXTRA = {
     'player_vehicles', 'playerskins', 'player_outfits', 'ely_characters', 'ely_licenses', 'elyzea_permis',
     'police_records', 'police_fines', 'police_warrants', 'police_jail', 'lscustom_invoices',
+    'elyzea_outfits', 'elyzea_outfit_categories',   -- tenues enregistrées (elyzea_clothing)
 }
 
 local function deleteCharacter(cid)

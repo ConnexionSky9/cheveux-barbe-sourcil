@@ -489,12 +489,129 @@ function renderWardrobe() {
     ? '« Ranger » met la pièce dans ton inventaire. Pour remettre un vêtement, utilise-le depuis ton inventaire : ce que tu portais à sa place y retourne.'
     : 'Les vêtements en objets demandent elyzea_inventory.';
 }
-function closeWardrobe() { $('#wardrobe').classList.add('hidden'); W = null; post('wardrobeClose'); }
+function closeWardrobe() { $('#wardrobe').classList.add('hidden'); W = null; if (oDlg) closeODlg(false); post('wardrobeClose'); }
 $('#wList').addEventListener('click', (e) => {
   const off = e.target.closest('[data-woff]'); if (off) { off.disabled = true; return post('unequip', { cat: off.dataset.woff }); }
   const rn = e.target.closest('[data-wren]'); if (rn) post('renameWorn', { cat: rn.dataset.wren, name: rn.dataset.name });
 });
 $('#wClose').addEventListener('click', closeWardrobe);
+
+/* ---------- Mes tenues (tenues enregistrées) ---------- */
+let O = null;               // { outfits, categories, max, maxCategories, nameMax, itemsMode }
+let wTab = 'worn', oCat = 'all', oDlg = null;
+const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+const oCatLabel = (id) => (O && O.categories.find((c) => c.id === id) || {}).label || 'Sans catégorie';
+const pieceName = (cat) => ((W && W.list.find((c) => c.id === cat)) || {}).single || cat;
+function setWTab(t) {
+  wTab = t;
+  document.querySelectorAll('[data-wtab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.wtab === t)));
+  $('#paneWorn').classList.toggle('hidden', t !== 'worn');
+  $('#paneOutfits').classList.toggle('hidden', t !== 'outfits');
+  if (t === 'outfits') { if (!O) $('#oList').innerHTML = '<div class="oempty">Chargement…</div>'; post('outfitsList'); }
+}
+document.querySelector('.wtabs').addEventListener('click', (e) => { const b = e.target.closest('[data-wtab]'); if (b) setWTab(b.dataset.wtab); });
+function renderOutfits() {
+  if (!O) return;
+  const list = O.outfits, customs = O.categories.filter((c) => !c.default);
+  $('#oCount').textContent = list.length || '';
+  if (oCat !== 'all' && oCat !== '' && !O.categories.some((c) => c.id === oCat)) oCat = 'all';
+  const n = (id) => list.filter((o) => o.category === id).length;
+  const chips = [`<button data-ocat="all" class="${oCat === 'all' ? 'on' : ''}">Toutes <i>${list.length}</i></button>`]
+    .concat(O.categories.map((c) => `<button data-ocat="${esc(c.id)}" class="${oCat === c.id ? 'on' : ''}">${esc(c.label)} <i>${n(c.id)}</i></button>`));
+  if (n('')) chips.push(`<button data-ocat="" class="${oCat === '' ? 'on' : ''}">Sans catégorie <i>${n('')}</i></button>`);
+  if (customs.length < O.maxCategories) chips.push('<button class="add" data-ocatnew title="Créer une catégorie">＋ Catégorie</button>');
+  $('#oCats').innerHTML = chips.join('');
+  const cur = O.categories.find((c) => c.id === oCat);
+  const bar = cur && !cur.default
+    ? `<div class="ocatbar"><span>Catégorie personnelle</span><button class="mini" data-ocatren>Renommer</button><button class="mini" data-ocatdel>Supprimer</button></div>` : '';
+  const shown = list.filter((o) => oCat === 'all' || o.category === oCat);
+  $('#oList').innerHTML = bar + (shown.length ? shown.map((o) => {
+    const warn = [];
+    if (o.wrongSex) warn.push(`Tenue de personnage ${o.sex === 'male' ? 'homme' : 'femme'} : impossible à porter`);
+    if (!o.wrongSex && o.unavailable && o.unavailable.length) warn.push(`Pack absent : ${o.unavailable.map(pieceName).join(', ')}`);
+    if (!o.wrongSex && O.itemsMode && o.missing && o.missing.length) warn.push(`Pas dans ton inventaire : ${o.missing.map(pieceName).join(', ')}`);
+    return `<div class="oi" data-oid="${o.id}"><div class="h"><b>${esc(o.name)}</b></div>
+      <div class="meta">${esc(oCatLabel(o.category))} · ${plural(o.count, 'pièce', 'pièces')}</div>
+      ${warn.map((w) => `<div class="warnline">${esc(w)}</div>`).join('')}
+      <div class="acts"><button class="mini wear" data-oact="wear" ${o.wrongSex ? 'disabled' : ''}>Porter</button>
+        <button class="mini" data-oact="edit">Modifier</button>
+        <button class="mini" data-oact="replace" title="Remplacer par ce que je porte maintenant">Remplacer</button>
+        <button class="mini danger" data-oact="delete">Supprimer</button></div></div>`;
+  }).join('') : `<div class="oempty"><b>${list.length ? 'Aucune tenue ici' : 'Pas encore de tenue'}</b>${list.length ? 'Choisis une autre catégorie.' : 'Habille-toi, puis « Enregistrer ma tenue actuelle ».'}</div>`);
+  $('#oFoot').innerHTML = `${list.length} / ${O.max} tenues. ` + (O.itemsMode
+    ? '« Porter » met en une fois les vêtements de la tenue qui sont dans ton inventaire ; ce que tu portais y retourne.'
+    : '« Porter » remet toute la tenue en une fois.');
+  $('#oSaveBtn').disabled = list.length >= O.max;
+}
+// Fenêtre : champs (texte / liste), confirmation
+function catOptions(sel) {
+  return [`<option value="">Sans catégorie</option>`].concat(O.categories.map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.label)}</option>`)).join('');
+}
+function openODlg(d) {
+  oDlg = d;
+  $('#oDlgT').textContent = d.title; $('#oDlgP').textContent = d.text || ''; $('#oDlgP').hidden = !d.text;
+  $('#oDlgBody').innerHTML = (d.fields || []).map((f) => f.type === 'select'
+    ? `<label for="oF_${f.id}">${esc(f.label)}</label><select id="oF_${f.id}">${f.options}</select>`
+    : `<label for="oF_${f.id}">${esc(f.label)}</label><input id="oF_${f.id}" maxlength="${O ? O.nameMax : 32}" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" autocomplete="off">`).join('');
+  $('#oDlgOk').textContent = d.ok || 'Valider';
+  $('#oDlgOk').classList.toggle('danger', !!d.danger);
+  $('#oDlg').classList.remove('hidden');
+  const first = $('#oDlgBody input'); setTimeout(() => (first || $('#oDlgOk')).focus(), 30);
+}
+function closeODlg(ok) {
+  const d = oDlg; oDlg = null;
+  $('#oDlg').classList.add('hidden');
+  if (!ok || !d) return;
+  const v = {}; (d.fields || []).forEach((f) => { v[f.id] = $(`#oF_${f.id}`).value.trim(); });
+  d.onOk(v);
+}
+$('#oDlgOk').addEventListener('click', () => closeODlg(true));
+$('#oDlgCancel').addEventListener('click', () => closeODlg(false));
+// Fenêtre ouverte : Échap l'annule, Entrée la valide (avant tous les autres raccourcis)
+window.addEventListener('keydown', (e) => {
+  if (!oDlg) return;
+  if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); closeODlg(false); }
+  else if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.stopImmediatePropagation(); e.preventDefault(); closeODlg(true); }
+}, true);
+$('#oSaveBtn').addEventListener('click', () => openODlg({
+  title: 'Enregistrer ma tenue', text: 'Tous les vêtements et accessoires portés maintenant, avec leurs coloris.',
+  fields: [{ id: 'name', label: 'Nom', placeholder: 'ex : Tenue de soirée' }, { id: 'cat', label: 'Catégorie', type: 'select', options: catOptions(oCat === 'all' ? '' : oCat) }],
+  ok: 'Enregistrer', onOk: (v) => { if (!v.name) return toast('Donne un nom à ta tenue.', 'err'); post('outfitSave', { name: v.name, category: v.cat }); },
+}));
+$('#oCats').addEventListener('click', (e) => {
+  if (e.target.closest('[data-ocatnew]')) {
+    return openODlg({ title: 'Nouvelle catégorie', fields: [{ id: 'name', label: 'Nom', placeholder: 'ex : Mariage' }], ok: 'Créer',
+      onOk: (v) => { if (v.name) post('outfitCategory', { action: 'create', name: v.name }); } });
+  }
+  const b = e.target.closest('[data-ocat]'); if (b) { oCat = b.dataset.ocat; renderOutfits(); }
+});
+$('#oList').addEventListener('click', (e) => {
+  const cur = O && O.categories.find((c) => c.id === oCat);
+  if (e.target.closest('[data-ocatren]') && cur) {
+    return openODlg({ title: 'Renommer la catégorie', fields: [{ id: 'name', label: 'Nom', value: cur.label }],
+      onOk: (v) => { if (v.name) post('outfitCategory', { action: 'rename', id: cur.id, name: v.name }); } });
+  }
+  if (e.target.closest('[data-ocatdel]') && cur) {
+    return openODlg({ title: 'Supprimer la catégorie ?', text: `« ${cur.label} » sera supprimée. Ses tenues sont gardées, sans catégorie.`, ok: 'Supprimer', danger: true,
+      onOk: () => post('outfitCategory', { action: 'delete', id: cur.id }) });
+  }
+  const a = e.target.closest('[data-oact]'); if (!a) return;
+  const o = O.outfits.find((x) => String(x.id) === a.closest('[data-oid]').dataset.oid); if (!o) return;
+  const act = a.dataset.oact;
+  if (act === 'wear') { a.disabled = true; post('outfitWear', { id: o.id }); }
+  if (act === 'edit') {
+    openODlg({ title: 'Modifier la tenue', fields: [{ id: 'name', label: 'Nom', value: o.name }, { id: 'cat', label: 'Catégorie', type: 'select', options: catOptions(o.category) }],
+      onOk: (v) => { if (!v.name) return toast('Le nom ne peut pas être vide.', 'err'); post('outfitEdit', { id: o.id, name: v.name, category: v.cat }); } });
+  }
+  if (act === 'replace') {
+    openODlg({ title: 'Remplacer la tenue ?', text: `« ${o.name} » prendra tous les vêtements et accessoires que tu portes maintenant.`, ok: 'Remplacer',
+      onOk: () => post('outfitReplace', { id: o.id }) });
+  }
+  if (act === 'delete') {
+    openODlg({ title: 'Supprimer la tenue ?', text: `« ${o.name} » sera supprimée. Les vêtements restent dans ton inventaire.`, ok: 'Supprimer', danger: true,
+      onOk: () => post('outfitDelete', { id: o.id }) });
+  }
+});
 
 /* ---------- Renommer ---------- */
 function openRename(name) {
@@ -511,7 +628,7 @@ $('#rnInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') closeR
 $('#rnOk').addEventListener('click', () => closeRename(true));
 $('#rnCancel').addEventListener('click', () => closeRename(false));
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !$('#wardrobe').classList.contains('hidden') && $('#rename').classList.contains('hidden')) closeWardrobe();
+  if (e.key === 'Escape' && !$('#wardrobe').classList.contains('hidden') && $('#rename').classList.contains('hidden') && !oDlg) closeWardrobe();
 });
 
 /* ---------- Messages du jeu ---------- */
@@ -534,8 +651,17 @@ window.addEventListener('message', (e) => {
     case 'paid':
       $('#modal').innerHTML = `<div class="done"><div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M7 12.5l3 3 7-7"/></svg><b>Merci pour ton achat !</b><span>${esc(m.text)}</span></div></div>`;
       break;
-    case 'wardrobe': W = m.data; $('#wardrobe').classList.remove('hidden'); renderWardrobe(); break;
-    case 'wardrobeClose': $('#wardrobe').classList.add('hidden'); W = null; break;
+    case 'wardrobe': {
+      const opening = $('#wardrobe').classList.contains('hidden');
+      W = m.data; $('#wardrobe').classList.remove('hidden'); renderWardrobe();
+      if (opening && wTab === 'outfits') post('outfitsList');
+      break;
+    }
+    case 'wardrobeClose': $('#wardrobe').classList.add('hidden'); W = null; if (oDlg) closeODlg(false); break;
+    case 'outfits':
+      if (m.data) { O = m.data; renderOutfits(); } else if (O) renderOutfits();   // réactive les boutons
+      if (m.msg) toast(m.msg, m.kind === 'error' ? 'err' : 'ok');
+      break;
     case 'rename': openRename(m.name); break;
     default: break;
   }
@@ -548,6 +674,7 @@ function mock(ev, d) {
     return { textures: n, texture: Math.min(d.texture || 0, n - 1) };
   }
   if (ev === 'pay') setTimeout(() => window.postMessage({ action: 'paid', text: 'Achat réglé.' }, '*'), 600);
+  if (ev.startsWith('outfit')) mockOutfits(ev, d);
   return {};
 }
 if (!IN_GAME) {
@@ -561,4 +688,26 @@ if (!IN_GAME) {
   window.postMessage({ action: 'open', shop: { name: 'Ponsonbys', multiplier: 100 }, sex: 'male', categories: cats, gta: true,
     packs: [{ id: 'maison_elyzea', label: 'Maison Elyzea', price: 250, folder: 'maison_elyzea' }, { id: 'streetwear_la', label: 'Streetwear LA', price: 100, folder: 'streetwear_la' }],
     money: { cash: 1840, bank: 26350 }, payments: ['cash', 'bank'], currency: '$', images: { enabled: false }, itemsMode: true }, '*');
+}
+
+/* Aperçu hors jeu des tenues enregistrées : données fictives, gardées en mémoire */
+function mockOutfits(ev, d) {
+  const M = mockOutfits.db || (mockOutfits.db = { n: 3, cats: [{ id: 'quotidien', label: 'Quotidien', default: true }, { id: 'travail', label: 'Travail', default: true },
+    { id: 'soiree', label: 'Soirée', default: true }, { id: 'sport', label: 'Sport', default: true }, { id: 'ceremonie', label: 'Cérémonie', default: true }],
+    outfits: [{ id: 1, name: 'Tenue quotidienne', category: 'quotidien', sex: 'male', count: 7, missing: [], unavailable: [] },
+      { id: 2, name: 'Costume du mariage', category: 'ceremonie', sex: 'male', count: 9, missing: ['hats'], unavailable: ['tops'] }] });
+  let msg = null;
+  if (ev === 'outfitSave') { M.outfits.push({ id: ++M.n, name: d.name, category: d.category, sex: 'male', count: 6, missing: [], unavailable: [] }); msg = `Tenue « ${d.name} » enregistrée.`; }
+  if (ev === 'outfitEdit') { const o = M.outfits.find((x) => x.id === d.id); Object.assign(o, { name: d.name, category: d.category }); msg = 'Tenue modifiée.'; }
+  if (ev === 'outfitDelete') { M.outfits = M.outfits.filter((x) => x.id !== d.id); msg = 'Tenue supprimée.'; }
+  if (ev === 'outfitReplace') msg = 'Tenue remplacée par ta tenue actuelle.';
+  if (ev === 'outfitWear') msg = 'Tenue portée.';
+  if (ev === 'outfitCategory') {
+    if (d.action === 'create') { M.cats.push({ id: `c${++M.n}`, label: d.name }); msg = `Catégorie « ${d.name} » créée.`; }
+    if (d.action === 'rename') { M.cats.find((c) => c.id === d.id).label = d.name; msg = 'Catégorie renommée.'; }
+    if (d.action === 'delete') { M.cats = M.cats.filter((c) => c.id !== d.id); M.outfits.forEach((o) => { if (o.category === d.id) o.category = ''; }); msg = 'Catégorie supprimée.'; }
+  }
+  M.outfits.sort((a, b) => a.name.localeCompare(b.name));
+  const data = JSON.parse(JSON.stringify({ outfits: M.outfits, categories: M.cats, max: 40, maxCategories: 12, nameMax: 32, itemsMode: true }));
+  setTimeout(() => window.postMessage({ action: 'outfits', data, msg, kind: 'success' }, '*'), 150);
 }

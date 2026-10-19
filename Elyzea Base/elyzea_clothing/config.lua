@@ -52,6 +52,28 @@ Config.Items = {
 -- Panneau « Ma tenue » : voir ce qu'on porte, ranger une pièce, la renommer
 Config.Wardrobe = { command = 'tenue', key = 'F3' }
 
+-- =====================================================================
+--  TENUES ENREGISTRÉES (onglet « Mes tenues » du panneau F3)
+--  Une tenue = toutes les pièces des rayons (vêtements + accessoires, coloris, packs).
+--  Gardées en base par personnage (citizenid) : tables elyzea_outfits / elyzea_outfit_categories.
+--  Porter une tenue passe par l'inventaire : seules les pièces possédées sont mises,
+--  ce qu'on portait à leur place revient en objet (rien n'est créé ni perdu).
+-- =====================================================================
+Config.Outfits = {
+    enabled = true,
+    max = 40,               -- tenues par personnage
+    maxCategories = 12,     -- catégories personnelles par personnage (en plus de celles par défaut)
+    nameMax = 32,           -- longueur max d'un nom
+    -- Catégories par défaut (tous les personnages, non supprimables). La clé est enregistrée avec la tenue.
+    categories = {
+        { id = 'quotidien', label = 'Quotidien' },
+        { id = 'travail',   label = 'Travail' },
+        { id = 'soiree',    label = 'Soirée' },
+        { id = 'sport',     label = 'Sport' },
+        { id = 'ceremonie', label = 'Cérémonie' },
+    },
+}
+
 -- Vêtements de GTA cachés dans la boutique (n° du modèle), par sexe et par rayon
 -- Exemple : male = { tops = { 55, 56 } }
 Config.Blacklist = {
