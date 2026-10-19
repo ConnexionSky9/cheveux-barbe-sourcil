@@ -122,6 +122,8 @@ local function lock(src)
     SetTimeout(600, function() busy[src] = nil end)
     return true
 end
+Items.lock = lock   -- aussi utilisé par les tenues enregistrées (server/outfits.lua)
+Items.wornNames, Items.saveWornNames = wornNames, saveWornNames
 
 RegisterNetEvent('elyzea_clothing:equip', function(slot, current)
     local src = source

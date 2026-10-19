@@ -194,6 +194,43 @@ html.preview #silhouette{display:block;position:fixed;left:50%;top:50%;transform
 .mini:disabled{opacity:.35;cursor:not-allowed}
 .wfoot{padding:10px 14px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.45;background:linear-gradient(180deg,#0f1626,#0b101c)}
 
+/* ---------- Mes tenues ---------- */
+.wtabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line)}
+.wtabs button{flex:1;height:34px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font:600 13px var(--display);letter-spacing:.06em;text-transform:uppercase}
+.wtabs button:hover{color:var(--text)}
+.wtabs button[aria-selected="true"]{color:var(--gold-hi);border-bottom-color:var(--signal)}
+.wtabs button i{font-style:normal;font-size:11px;padding:0 6px;border-radius:7px;background:rgba(217,181,106,.18);color:var(--gold-hi);margin-left:4px}
+.wtabs button i:empty{display:none}
+.wpane{display:flex;flex-direction:column;min-height:0;flex:1}
+.wpane .wlist{flex:1;min-height:0}
+.obar{padding:10px 10px 4px}
+.obar .btn{width:100%}
+.ocats{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px 8px;border-bottom:1px solid var(--line-soft)}
+.ocats button{height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:600 12px var(--display);letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;gap:5px}
+.ocats button:hover{color:var(--text);border-color:rgba(217,181,106,.5)}
+.ocats button.on{color:#1a1406;background:linear-gradient(180deg,var(--gold-hi),var(--signal));border-color:var(--signal)}
+.ocats button i{font-style:normal;font-size:11px;opacity:.75}
+.ocats .add{border-style:dashed}
+.ocatbar{display:flex;gap:6px;align-items:center;padding:6px 10px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line-soft)}
+.ocatbar span{flex:1}
+.olist{overflow-y:auto;padding:8px;flex:1;min-height:80px}
+.oi{padding:9px 10px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#111829);margin-bottom:7px}
+.oi .h{display:flex;align-items:center;gap:8px}
+.oi .h b{flex:1;min-width:0;font:600 15px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oi .meta{color:var(--muted);font-size:12px;margin:2px 0 7px}
+.oi .warnline{color:#ffcf8a;font-size:12px;margin:-3px 0 7px}
+.oi .acts{display:flex;gap:5px;flex-wrap:wrap}
+.oi .acts .mini.wear{background:linear-gradient(180deg,var(--gold-hi),var(--signal));color:#1a1406;border-color:var(--signal)}
+.oi .acts .mini.danger{color:#ffb0aa}
+.oi .acts .mini.danger:hover{border-color:var(--danger)}
+.oempty{color:var(--muted);text-align:center;padding:24px 12px;font-size:13px}
+.oempty b{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+#oDlg{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,8,14,.55);z-index:31}
+#oDlg label{display:block;font:600 12px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 4px}
+#oDlg input,#oDlg select{width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:#0a0f1b;outline:none;font:600 15px var(--body);color:var(--text);user-select:text;margin-bottom:8px}
+#oDlg input:focus,#oDlg select:focus{border-color:var(--signal)}
+#oDlg .btn.danger{background:linear-gradient(180deg,#f0655d,var(--danger));color:#fff;border-color:var(--danger)}
+
 /* ---------- Renommer ---------- */
 #rename{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,8,14,.55);z-index:30}
 #rename .mbox input{width:100%;height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#0a0f1b;outline:none;font:600 16px var(--body);user-select:text;margin-bottom:6px}

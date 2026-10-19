@@ -5,7 +5,7 @@ lua54 'yes'
 name 'elyzea_clothing'
 author 'Elyzea FA'
 description 'Boutique de vêtements Elyzea : essayage en direct, panier, vêtements en objets, packs de vêtements détectés automatiquement'
-version '3.0.0'
+version '3.1.0'
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }
 
@@ -19,12 +19,15 @@ client_scripts {
     'client/catalog.lua',
     'client/items.lua',
     'client/shop.lua',
+    'client/outfits.lua',
 }
 
 server_scripts {
+    '@elyzea_core/lib/MySQL.lua',   -- tenues enregistrées (tables elyzea_outfits / elyzea_outfit_categories)
     'server/packs.lua',
     'server/items.lua',
     'server/shop.lua',
+    'server/outfits.lua',
 }
 
 ui_page 'html/index.html'
