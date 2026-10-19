@@ -60,6 +60,15 @@ end)
 
 RegisterNUICallback('close', function(_, cb) cb({}) close() end)
 
+-- Application « Grossesse » : données de elyzea_famille (le serveur ne renvoie que la grossesse de ce personnage)
+RegisterNUICallback('famille_grossesse', function(_, cb)
+    if GetResourceState('elyzea_famille') ~= 'started' then return cb({ indisponible = true }) end
+    CreateThread(function()
+        local ok, r = pcall(function() return Ely.callback.await('famille:grossesse', false) end)
+        cb(ok and type(r) == 'table' and r or { erreur = 'Service indisponible.' })
+    end)
+end)
+
 -- Heure du jeu, vérification de l'objet, fermeture si mort
 CreateThread(function()
     local lastCheck = 0

@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'blackphone'
 author 'Elyzea FA'
-description 'BLACKPHONE : téléphone noir utilisable depuis l\'inventaire (version 1 : interface, sans applications)'
+description 'BLACKPHONE : téléphone noir utilisable depuis l\'inventaire (applications : Réglages, À propos, Grossesse)'
 version '1.0.0'
 
 shared_scripts {

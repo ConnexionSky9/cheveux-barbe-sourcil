@@ -293,12 +293,18 @@ SERVER_FILES = ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/re
                 'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/suivi.lua', 'server/staff.lua')
 
 
+SUIVI = [60]
+
+
 def start_resource():
     """Démarrage (ou redémarrage) de la ressource : tous les fichiers sont rechargés, comme dans FiveM."""
     W.gen += 1
     W.net.clear(); W.events.clear(); W.callbacks.clear(); W.usables.clear(); W.commands.clear()
     for f in SERVER_FILES:
         lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
+    # suivi des grossesses : 5 s en production ; 60 s ici pour les scénarios qui avancent le temps de plusieurs jours
+    # (même calcul, moins de passages). Les tests V7 « grossesse de 60 s » repassent à 5 s.
+    G.Config.Grossesse.suivi = SUIVI[0]
     advance(1)   # tables, réglages, objets utilisables (Wait 500)
 
 
@@ -672,7 +678,7 @@ v = d['values']; v['bebe.dorsal'] = False; v['bebe.abandon'] = 45
 ok, msg = admin(3, 'save', {'values': v})
 check('27. enregistré et transmis à elyzea_bebe_modele', ok is True and W.bebe_reglages and W.bebe_reglages[-1]['bebe.dorsal'] is False
       and W.bebe_reglages[-1]['bebe.abandon'] == 45, (msg, W.bebe_reglages[-1:]))
-for bad, why in (({'bebe.abandon': 2}, 'délai trop court'), ({'bebe.ventral': 'non'}, 'booléen invalide')):
+for bad, why in (({'bebe.abandon': -1}, 'délai négatif'), ({'bebe.ventral': 'non'}, 'booléen invalide')):
     v = admin_data(3)['values']; v.update(bad)
     ok, msg = admin(3, 'save', {'values': v})
     check(f'27. valeur invalide refusée ({why})', ok is False and G.Config.Bebe.abandon == 45, msg)
@@ -920,6 +926,154 @@ check('45. décalage hors bornes (50 cm) refusé', ok is False, msg)
 sch = {d['key']: d for d in admin_data(3)['schema']}
 check('45. liste de choix fournie au menu (coloris)', sch['bebe.colorisPb']['choices'] == ['gris', 'marine', 'sauge'])
 ok, msg = admin(3, 'reset')
+
+
+# ═══════════ V7 : durées par trimestre, tests rapides, historique, application ═══════════
+import re as _re
+SUIVI[0] = 5
+G.Config.Grossesse.suivi = 5
+fin_grossesses()
+advance(10)
+
+
+def regler(t1, t2, t3, unite='secondes', auto=True, delai=0.0):
+    v = admin_data(3)['values']
+    v.update({'grossesse.unite': unite, 'grossesse.t1': t1, 'grossesse.t2': t2, 'grossesse.t3': t3,
+              'fin.naissanceAutoActive': auto, 'fin.naissanceAuto': delai, 'fin.bebesEnJeu': True})
+    return admin(3, 'save', {'values': v})
+
+
+def test_debut(sid=1):
+    ok_, msg_ = admin(3, 'test_debut', {'sid': sid})
+    m_ = _re.search(r'GRS-\w+', msg_ or '')
+    return ok_, msg_, m_.group(0) if m_ else None
+
+
+def nb(gid, kind):
+    return len(q('SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind=%s', (gid, kind)))
+
+
+def ligne(gid):
+    return q('SELECT * FROM rp_pregnancies WHERE id=%s', (gid,))[0]
+
+
+def appli(src=1):
+    G.source = src
+    return from_lua(W.callbacks['famille:grossesse'](src))
+
+
+# 50. grossesse de 60 s (3 × 20 s)
+ok, msg = regler(20, 20, 20)
+d = admin_data(3)
+check('50. menu : 3 × 20 s enregistrés, durée totale calculée 1 min', ok is True and d['dureeTotale']['secondes'] == 60
+      and d['dureeTotale']['texte'] == '1 min' and G.Config.Grossesse.unite == 'secondes', (msg, d.get('dureeTotale')))
+ok, msg, gid = test_debut()
+nes0 = len(W.nes)
+r = appli()
+check('51. grossesse de test : application = en cours, 1er trimestre, 20 s avant le suivant, 1 min avant le terme',
+      ok and gid and r['statut'] == 'en_cours' and r['grossesse']['trimestre'] == 1 and r['grossesse']['totalTexte'] == '1 min'
+      and r['grossesse']['avantTrimestreTexte'] in ('20 s', '19 s') and r['historique'][0]['titre'] == 'Grossesse de test', (msg, r))
+advance(25)
+check('51. à 25 s : 2e trimestre enregistré en base, une seule entrée d\'historique', ligne(gid)['trimestre'] == 2 and nb(gid, 't2') == 1
+      and appli()['grossesse']['trimestre'] == 2)
+advance(20)
+check('51. à 45 s : 3e trimestre', ligne(gid)['trimestre'] == 3 and nb(gid, 't3') == 1)
+advance(20)
+L_ = ligne(gid)
+check('51. à 65 s : terme atteint puis naissance automatique (délai 0), un seul bébé', L_['terme_at'] and L_['status'] == 'accouchee'
+      and nb(gid, 'terme') == 1 and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1, (L_['status'], len(W.nes) - nes0))
+advance(60)
+check('51. une minute plus tard : aucune étape ni naissance en double', nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and nb(gid, 'terme') == 1
+      and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1)
+r = appli()
+check('51. application : « accouchement terminé » + historique chronologique complet',
+      r['statut'] == 'terminee' and r['fin']['status'] == 'accouchee'
+      and [e['titre'] for e in r['historique']] == ['Grossesse de test', 'Deuxième trimestre', 'Troisième trimestre', 'Terme atteint', 'Naissance'],
+      [e['titre'] for e in r.get('historique', [])])
+
+# 52. un trimestre à 0
+ok, msg = regler(20, 0, 20)
+ok2, msg2, gid = test_debut()
+advance(26)     # suivi toutes les 5 s : l'étape est enregistrée au plus 5 s après la limite (20 s)
+check('52. 2e trimestre à 0 : à 26 s, 3e trimestre ; t2 et t3 enregistrés une fois chacun', ok and ok2 and ligne(gid)['trimestre'] == 3
+      and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and appli()['grossesse']['trimestre'] == 3, (msg, msg2))
+advance(25)
+check('52. puis terme et naissance (une fois)', ligne(gid)['status'] == 'accouchee' and nb(gid, 'naissance') == 1)
+
+# 53. tous les trimestres à 0
+ok, msg = regler(0, 0, 0)
+nes0 = len(W.nes)
+ok2, msg2, gid = test_debut()
+advance(6)
+check('53. trimestres à 0 : transitions instantanées (t2, t3, terme) et naissance, chacune une seule fois',
+      ok and ok2 and ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1]
+      and len(W.nes) - nes0 == 1, (msg2, [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')]))
+advance(30)
+check('53. aucune boucle : rien de plus après 30 s', [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1] and len(W.nes) - nes0 == 1)
+
+# 54. durées modifiées pendant une grossesse
+regler(1000, 1000, 1000)
+ok, msg, gid = test_debut()
+advance(30)
+check('54. durées longues : toujours au 1er trimestre à 30 s', ligne(gid)['trimestre'] == 1 and ligne(gid)['status'] == 'en_cours')
+regler(10, 10, 10)
+advance(6)
+check('54. durées réduites sous le temps écoulé : avance jusqu\'au terme puis naissance, étapes une seule fois',
+      ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
+regler(10, 1000, 1000)
+ok, msg, gid = test_debut()
+advance(15)
+regler(1000, 1000, 1000)
+advance(10)
+check('54. durées allongées au 2e trimestre : reste au 2e (progression acquise conservée)', ligne(gid)['trimestre'] == 2
+      and appli()['grossesse']['trimestre'] == 2 and nb(gid, 't2') == 1)
+admin(3, 'test_fin', {'sid': 1})
+check('54. fin de test : grossesse close sans naissance, historique gardé', ligne(gid)['end_reason'] == 'reinitialisation_test'
+      and nb(gid, 'naissance') == 0 and nb(gid, 'fin') == 1)
+
+# 55. déconnexion / reconnexion pendant la grossesse
+regler(20, 20, 20)
+ok, msg, gid = test_debut()
+nes0 = len(W.nes)
+drop(1)
+advance(50)
+check('55. joueuse déconnectée : les trimestres avancent quand même (enregistrés une fois)', ligne(gid)['trimestre'] == 3
+      and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and ligne(gid)['status'] == 'en_cours')
+W.add_player(1, 'F001', 1, '1996-04-02', (100.0, 100.0, 30.0))
+for fn in W.events.get('elyzea:server:playerLogin', []):
+    fn(1, False)
+advance(25)
+check('55. reconnexion : terme, naissance une seule fois, aucune étape en double', ligne(gid)['status'] == 'accouchee'
+      and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1] and len(W.nes) - nes0 == 1)
+
+# 56. redémarrage de la ressource pendant la grossesse
+ok, msg, gid = test_debut()
+advance(25)
+start_resource()
+G.Config.Grossesse.suivi = 5
+check('56. redémarrage : durées réglées rechargées depuis la base', G.Config.Grossesse.unite == 'secondes' and G.Config.Grossesse.trimestres[1] == 20)
+advance(45)
+check('56. après redémarrage : progression reprise, étapes et naissance une seule fois', ligne(gid)['status'] == 'accouchee'
+      and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
+
+# 57. permissions et validations
+ok, msg = admin(2, 'save', {'values': {'grossesse.t1': 0}})
+ok2, msg2 = admin(2, 'test_debut', {'sid': 1})
+check('57. joueur non autorisé : ni réglage ni grossesse de test', ok is False and ok2 is False and G.Config.Grossesse.trimestres[1] == 20)
+for bad, why in (({'grossesse.t1': -1}, 'durée négative'), ({'grossesse.unite': 'siecles'}, 'unité inconnue')):
+    v = admin_data(3)['values']; v.update(bad)
+    ok, msg = admin(3, 'save', {'values': v})
+    check(f'57. {why} refusée', ok is False and G.Config.Grossesse.trimestres[1] == 20 and G.Config.Grossesse.unite == 'secondes', msg)
+v = admin_data(3)['values']; v['grossesse.t1'] = None
+ok, msg = admin(3, 'save', {'values': v})
+check('57. champ vidé : valeur actuelle conservée (jamais remplacée en silence par une valeur par défaut)', ok is True and G.Config.Grossesse.trimestres[1] == 20, msg)
+ok, msg = regler(0, 0, 0)
+check('57. 0 accepté pour les trois trimestres', ok is True and G.Config.Grossesse.trimestres[1] == 0 and G.Config.Grossesse.trimestres[3] == 0, msg)
+r = appli(3)
+check('58. application d\'un personnage sans grossesse : état vide compréhensible', r['statut'] == 'aucune')
+ok, msg = admin(3, 'reset')
+SUIVI[0] = 60
+G.Config.Grossesse.suivi = 60
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

@@ -108,7 +108,8 @@ RegisterNetEvent('elyzea_famille:client:symptome', function(nom, p)
     occupe = true
     p = type(p) == 'table' and p or {}
     if nom == 'nausees' then
-        nausee(math.max(3, math.min(120, tonumber(p.duree) or 20)), math.max(0.1, math.min(1.0, tonumber(p.intensite) or 0.5)))
+        local d = math.max(0, math.min(120, tonumber(p.duree) or 20))
+        if d > 0 then nausee(d, math.max(0.1, math.min(1.0, tonumber(p.intensite) or 0.5))) end
     elseif nom == 'vomissements' then
         vomir()
     end
@@ -118,15 +119,17 @@ end)
 -- ─────────── Accouchement ───────────
 
 RegisterNetEvent('elyzea_famille:client:accouchement', function(role, duree)
-    duree = math.max(5, math.min(120, tonumber(duree) or 20))
+    duree = math.max(0, math.min(120, tonumber(duree) or 20))
     local ped = PlayerPedId()
+    if duree == 0 then return end          -- accouchement immédiat (réglage 0) : pas d'écran noir
     occupe = true
     if role == 'patiente' then
-        DoScreenFadeOut(1500)
-        Wait(1500)
-        local fin = GetGameTimer() + duree * 1000 - 3000
+        local f = math.min(1500, math.floor(duree * 1000 / 3))   -- fondus raccourcis pour une durée courte
+        DoScreenFadeOut(f)
+        Wait(f)
+        local fin = GetGameTimer() + duree * 1000 - 2 * f
         while GetGameTimer() < fin do DisableAllControlActions(0) Wait(0) end
-        DoScreenFadeIn(1500)
+        DoScreenFadeIn(f)
     elseif role == 'ems' then
         local dict = 'amb@medic@standing@kneel@base'
         if charger(dict) then TaskPlayAnim(ped, dict, 'base', 4.0, 4.0, duree * 1000, 1, 0.0, false, false, false) end

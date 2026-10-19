@@ -437,7 +437,7 @@ local function appliquerReglages(v)
     PO.actif = bool(v['bebe.poussette'], PO.actif)
     PO.courseInterdite = bool(v['bebe.courseInterdite'], PO.courseInterdite)
     local ab = tonumber(v['bebe.abandon'])
-    if ab and ab >= 5 and ab <= 240 then PO.abandon = math.floor(ab) end
+    if ab and ab >= 0 and ab <= 240 then PO.abandon = math.floor(ab) end    -- 0 accepté : rangée dès qu'elle est abandonnée
     Config.Debug = bool(v['bebe.diagnostic'], Config.Debug)
     -- V6
     local function num(k, min, max, cur)

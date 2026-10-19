@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS `rp_pregnancies` (
     `bebes_connus`  TINYINT(1)  NOT NULL DEFAULT 0,             -- 1 après un examen EMS
     `conceived_at`  BIGINT      NOT NULL,
     `due_at`        BIGINT      NOT NULL,
+    `trimestre`     TINYINT     NOT NULL DEFAULT 1,              -- trimestre déjà atteint (ne recule jamais)
+    `terme_at`      BIGINT      NULL,                           -- heure où le terme a été atteint
     `status`        VARCHAR(16) NOT NULL DEFAULT 'en_cours',  -- en_cours | accouchee | terminee
     `active_key`    VARCHAR(64) NULL,
     `discovered_at` BIGINT      NULL,

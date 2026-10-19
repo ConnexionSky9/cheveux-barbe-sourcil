@@ -135,11 +135,50 @@ test('jour 9 : ventre visible', R.avancement(g0, NOW + 8 * 24 * H + H, GG).etape
 test('jour 13 : très arrondi', R.avancement(g0, NOW + 12 * 24 * H + H, GG).etape == 'Ventre très arrondi')
 test('jour 14 révolu : terme atteint', R.avancement(g0, NOW + 336 * H, GG).terme and R.avancement(g0, NOW + 336 * H, GG).etape == 'Terme atteint')
 -- B6 : étapes en pourcentage, justes pour une grossesse courte (48 h)
-local g2 = { conceived_at = NOW, due_at = NOW + 48 * H }
-test('B6 : grossesse de 48 h, à 30 h (62 %) : ventre visible', R.avancement(g2, NOW + 30 * H, GG).etape == 'Ventre visible')
-test('B6 : grossesse de 48 h, à 47 h (98 %) : pas encore « terme »', R.avancement(g2, NOW + 47 * H, GG).etape == 'Ventre très arrondi'
-    and not R.avancement(g2, NOW + 47 * H, GG).terme)
-test('B6 : grossesse de 48 h, à 48 h : terme', R.avancement(g2, NOW + 48 * H, GG).terme and R.avancement(g2, NOW + 48 * H, GG).numeroEtape == 5)
+local G48 = copie(GG) G48.unite = 'heures' G48.trimestres = { 16, 16, 16 }
+local g2 = { conceived_at = NOW }
+test('B6 : grossesse de 48 h, à 30 h (62 %) : ventre visible', R.avancement(g2, NOW + 30 * H, G48).etape == 'Ventre visible')
+test('B6 : grossesse de 48 h, à 47 h (98 %) : pas encore « terme »', R.avancement(g2, NOW + 47 * H, G48).etape == 'Ventre très arrondi'
+    and not R.avancement(g2, NOW + 47 * H, G48).terme)
+test('B6 : grossesse de 48 h, à 48 h : terme', R.avancement(g2, NOW + 48 * H, G48).terme and R.avancement(g2, NOW + 48 * H, G48).numeroEtape == 5)
+
+-- V7 : durées par trimestre, unité, 0 accepté, progression qui ne recule pas
+do
+    local T = copie(GG) T.unite = 'secondes' T.trimestres = { 20, 20, 20 }
+    local d1, d2, d3, tot = R.durees(T)
+    test('V7 : 3 × 20 s = 60 s (unité secondes)', d1 == 20 and d2 == 20 and d3 == 20 and tot == 60)
+    local g = { conceived_at = NOW }
+    local a = R.avancement(g, NOW + 5, T)
+    test('V7 : à 5 s : 1er trimestre, 15 s avant le suivant, 55 s avant le terme', a.trimestre == 1 and a.avantTrimestre == 15 and a.avantTerme == 55 and not a.terme)
+    test('V7 : à 25 s : 2e trimestre', R.avancement(g, NOW + 25, T).trimestre == 2)
+    test('V7 : à 45 s : 3e trimestre, prochaine limite = le terme', R.avancement(g, NOW + 45, T).trimestre == 3 and R.avancement(g, NOW + 45, T).avantTrimestre == nil)
+    test('V7 : à 60 s : terme', R.avancement(g, NOW + 60, T).terme and R.avancement(g, NOW + 60, T).avantTerme == 0)
+    test('V7 : unités converties (minutes, heures, jours)', select(4, R.durees({ unite = 'minutes', trimestres = { 1, 1, 1 } })) == 180
+        and select(4, R.durees({ unite = 'heures', trimestres = { 1, 0, 0 } })) == 3600 and select(4, R.durees({ unite = 'jours', trimestres = { 0, 0, 2 } })) == 172800)
+    local Z = copie(T) Z.trimestres = { 20, 0, 20 }
+    test('V7 : 2e trimestre à 0 : à 20 s on passe directement au 3e', R.avancement(g, NOW + 20, Z).trimestre == 3 and R.avancement(g, NOW + 19, Z).trimestre == 1)
+    local Z0 = copie(T) Z0.trimestres = { 0, 0, 0 }
+    local a0 = R.avancement(g, NOW, Z0)
+    test('V7 : tous les trimestres à 0 : terme immédiat, 3e trimestre, aucune division par zéro', a0.terme and a0.trimestre == 3 and a0.pct == 1 and a0.avantTerme == 0)
+    local e = R.etapesFranchies(a0, 1, false)
+    test('V7 : étapes à enregistrer (une fois) : t2, t3, terme', table.concat(e, ',') == 't2,t3,terme')
+    test('V7 : déjà enregistrées : plus rien', #R.etapesFranchies(a0, 3, true) == 0)
+    test('V7 : valeurs invalides ou négatives -> 0 (pas de valeur par défaut cachée)', select(4, R.durees({ unite = 'secondes', trimestres = { -5, 'x', nil } })) == 0)
+    test('V7 : unité inconnue -> heures', select(4, R.durees({ unite = 'siecles', trimestres = { 1, 0, 0 } })) == 3600)
+    -- durées allongées en cours de grossesse : le trimestre déjà atteint et le terme ne reculent pas
+    local L = copie(T) L.trimestres = { 1000, 1000, 1000 }
+    local gAcquis = { conceived_at = NOW, trimestre = 3, terme_at = NOW + 60 }
+    local aL = R.avancement(gAcquis, NOW + 70, L)
+    test('V7 : durées allongées après le terme : terme et 3e trimestre conservés', aL.terme and aL.trimestre == 3)
+    local aL2 = R.avancement({ conceived_at = NOW, trimestre = 2 }, NOW + 30, L)
+    test('V7 : durées allongées au 2e trimestre : reste au 2e (pas de retour au 1er)', aL2.trimestre == 2 and not aL2.terme)
+    -- durées raccourcies sous le temps écoulé : avance jusqu'à l'étape correspondante
+    local C = copie(T) C.trimestres = { 1, 1, 1 }
+    test('V7 : durées raccourcies (3 s) à 30 s : terme', R.avancement({ conceived_at = NOW }, NOW + 30, C).terme)
+    test('V7 : textes de durée', R.texteDuree(0) == '0 s' and R.texteDuree(80) == '1 min 20 s' and R.texteDuree(3600 * 26) == '1 j 2 h')
+    test('V7 : texte d\'historique pour chaque étape', R.texteEvenement('t2') == 'Deuxième trimestre' and R.texteEvenement('terme') == 'Terme atteint'
+        and R.texteEvenement('naissance', { bebes = 2 }) == 'Naissance')
+end
 
 -- Symptômes (étape 3)
 do
@@ -159,9 +198,10 @@ do
     test(('nausées 2 / h : délai moyen ≈ 30 min (observé %.1f min)'):format(moy), moy > 27 and moy < 33)
     test('fréquence 0 : aucun épisode', R.delaiSymptome(0, lcg) == nil)
     test('délai borné (2 min à 6 h)', R.delaiSymptome(100, fixe(0)) == 120 and R.delaiSymptome(0.01, fixe(0.999999)) == 6 * H)
-    local av = R.avancement({ conceived_at = NOW, due_at = NOW + 100 * H }, NOW + 89 * H, Config.Grossesse)
+    local G100 = copie(Config.Grossesse) G100.unite = 'heures' G100.trimestres = { 40, 30, 30 }
+    local av = R.avancement({ conceived_at = NOW }, NOW + 89 * H, G100)
     test('accouchement : refusé à 89 %, possible à 90 %', not R.accouchementPossible(av, Config.Grossesse.fin)
-        and R.accouchementPossible(R.avancement({ conceived_at = NOW, due_at = NOW + 100 * H }, NOW + 90 * H, Config.Grossesse), Config.Grossesse.fin))
+        and R.accouchementPossible(R.avancement({ conceived_at = NOW }, NOW + 90 * H, G100), Config.Grossesse.fin))
 end
 
 -- Terme

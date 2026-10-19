@@ -9,7 +9,8 @@ local function grossesseEnCours(cid)
 end
 
 local function derniereFin(cid)
-    return tonumber(MySQL.scalar.await("SELECT MAX(`ended_at`) FROM `rp_pregnancies` WHERE `porteur_cid` = ? AND `ended_at` IS NOT NULL", { cid }))
+    -- une grossesse de test terminée par l'administration ne bloque pas une nouvelle conception
+    return tonumber(MySQL.scalar.await("SELECT MAX(`ended_at`) FROM `rp_pregnancies` WHERE `porteur_cid` = ? AND `ended_at` IS NOT NULL AND (`end_reason` IS NULL OR `end_reason` <> 'reinitialisation_test')", { cid }))
 end
 
 local function rng() return math.random() end

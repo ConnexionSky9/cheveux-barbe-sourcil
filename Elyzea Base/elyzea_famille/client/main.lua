@@ -99,8 +99,7 @@ local function grossesse()
     local res = Ely.callback.await('famille:grossesse', false)
     if type(res) ~= 'table' then return Notify('Le serveur ne répond pas.', 'error') end
     if res.erreur then return Notify(res.erreur, 'error') end
-    if res.aucune then return Notify('Aucune grossesse connue. Un test de grossesse ou un examen EMS permet de le savoir.', 'inform') end
-    ouvrir('grossesse', { donnees = res })
+    ouvrir('grossesse', { donnees = res })        -- aussi sans grossesse : état vide expliqué dans la fenêtre
 end
 RegisterCommand(Config.Grossesse.commande, grossesse, false)
 

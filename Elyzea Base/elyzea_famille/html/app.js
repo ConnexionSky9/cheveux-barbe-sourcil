@@ -95,20 +95,38 @@ function openPanel(d) {
 }
 $('#k-fermer').addEventListener('click', () => { post('fermer'); hideAll(); });
 
-/* ---------- Ma grossesse ---------- */
-const EVENEMENTS = { test: 'Test de grossesse', decouverte: 'Grossesse découverte', examen: 'Examen EMS' };
+/* ---------- Ma grossesse (mêmes données que l'application du téléphone) ---------- */
 function openGrossesse(d) {
   hideAll();
-  const g = d.donnees || {};
-  $('#g-jour').textContent = g.terme ? 'Terme atteint' : `Jour ${g.jour} sur ${g.jours}`;
-  $('#g-etape').textContent = g.etape || '';
-  $('#g-barre').style.width = `${Math.round((g.pct || 0) * 100)}%`;
-  const infos = [`Terme prévu : ${fmtDate(g.due_at)}`];
-  if (g.bebes) infos.push(g.bebes === 1 ? 'Un bébé (examen EMS)' : (g.bebes === 2 ? 'Jumeaux (examen EMS)' : 'Triplés (examen EMS)'));
-  else infos.push('Nombre de bébés : examen EMS nécessaire');
-  $('#g-infos').textContent = infos.join(' · ');
-  const h = g.evenements || [];
-  $('#g-historique').innerHTML = h.length ? h.map((r) => `<div class="row"><span>${esc(EVENEMENTS[r.kind] || r.kind)}</span><span>${esc(fmtDate(r.at))}</span></div>`).join('')
+  const r = d.donnees || {};
+  const g = r.grossesse || {};
+  const ligne = (k, v) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
+  if (r.statut === 'en_cours') {
+    $('#g-jour').textContent = g.terme ? 'Terme atteint' : `${g.trimestre}${g.trimestre === 1 ? 'er' : 'e'} trimestre`;
+    $('#g-etape').textContent = g.etape || '';
+    $('#g-barre').style.width = `${Math.round((g.pct || 0) * 100)}%`;
+    $('#g-infos').innerHTML = [
+      ligne('Temps écoulé', `${g.ecouleTexte} (${g.joursEcoules} jour${g.joursEcoules > 1 ? 's' : ''})`),
+      ligne('Durée totale', g.totalTexte),
+      g.avantTrimestreTexte ? ligne('Avant le trimestre suivant', g.avantTrimestreTexte) : '',
+      ligne('Avant l\'accouchement', g.terme ? 'terme atteint' : g.avantTermeTexte),
+      ligne('Début (calendrier du serveur)', g.debutTexte),
+      ligne('Bébés', g.bebes ? (g.bebes === 1 ? 'un bébé' : (g.bebes === 2 ? 'jumeaux' : 'triplés')) : 'examen EMS nécessaire'),
+    ].join('');
+  } else if (r.statut === 'terminee') {
+    const f = r.fin || {};
+    $('#g-jour').textContent = f.status === 'accouchee' ? 'Accouchement terminé' : 'Grossesse terminée';
+    $('#g-etape').textContent = f.date || '';
+    $('#g-barre').style.width = '100%';
+    $('#g-infos').innerHTML = ligne('Début (calendrier du serveur)', f.debutTexte || '—');
+  } else {
+    $('#g-jour').textContent = 'Aucune grossesse connue';
+    $('#g-etape').textContent = '';
+    $('#g-barre').style.width = '0%';
+    $('#g-infos').textContent = 'Un test de grossesse ou un examen EMS permet de le savoir.';
+  }
+  const h = r.historique || [];
+  $('#g-historique').innerHTML = h.length ? h.map((e) => `<div class="row"><span><b>${esc(e.titre)}</b><br><small>${esc(e.description || '')}</small></span><span>${esc(e.date || fmtDate(e.at))}</span></div>`).join('')
     : '<div class="vide">Aucun événement.</div>';
   $('#grossesse').classList.remove('hidden');
 }

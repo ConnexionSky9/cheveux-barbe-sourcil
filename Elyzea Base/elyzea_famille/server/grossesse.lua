@@ -87,19 +87,57 @@ end)
 
 -- ─────────── Suivi privé ───────────
 
+-- Données de suivi (application du téléphone, panneau /grossesse) : UNIQUEMENT pour la personne elle-même.
+-- statut : 'aucune' (aucune grossesse connue), 'en_cours' (découverte), 'terminee' (accouchement / fin récents).
+-- Une grossesse non découverte reste « aucune » : la joueuse l'apprend par un test ou un examen.
+local function lignesHistorique(gid)
+    local out = {}
+    for _, r in ipairs(MySQL.query.await("SELECT `kind`, `at`, `data` FROM `rp_pregnancy_events` WHERE `pregnancy_id` = ? AND `kind` <> 'conception' ORDER BY `at` ASC, `id` ASC", { gid }) or {}) do
+        local ok, d = pcall(json.decode, r.data or 'null')
+        local titre, desc = Regles.texteEvenement(r.kind, ok and d or nil)
+        if titre then out[#out + 1] = { kind = r.kind, at = tonumber(r.at), titre = titre, description = desc, date = os.date('%d/%m/%Y %H:%M', tonumber(r.at)) } end
+    end
+    return out
+end
+
+function Fam.DonneesSuivi(cid, now)
+    now = now or os.time()
+    local g = enCours(cid)
+    if g and g.discovered_at then
+        local av = Fam.ProgresserGrossesse and Fam.ProgresserGrossesse(g, now) or Regles.avancement(g, now, G)
+        local J = 24 * HEURE
+        return {
+            statut = 'en_cours', now = now,
+            grossesse = {
+                id = g.id, debut = tonumber(g.conceived_at), debutTexte = os.date('%d/%m/%Y %H:%M', tonumber(g.conceived_at)),
+                trimestre = av.trimestre, terme = av.terme, pct = av.pct, etape = av.etape,
+                joursEcoules = av.joursEcoules, ecouleTexte = Regles.texteDuree(av.ecoule),
+                totalTexte = Regles.texteDuree(av.total), joursTotal = math.floor(av.total / J),
+                avantTrimestreTexte = av.avantTrimestre and Regles.texteDuree(av.avantTrimestre) or nil,
+                joursAvantTrimestre = av.avantTrimestre and math.ceil(av.avantTrimestre / J) or nil,
+                avantTermeTexte = Regles.texteDuree(av.avantTerme), joursAvantTerme = math.ceil(av.avantTerme / J),
+                bebes = (tonumber(g.bebes_connus) == 1) and g.bebes or nil,
+            },
+            historique = lignesHistorique(g.id),
+            -- anciens champs (panneau V5)
+            bebes = (tonumber(g.bebes_connus) == 1) and g.bebes or nil,
+            jour = math.min(av.jour, math.max(1, av.jours)), jours = av.jours, pct = av.pct, etape = av.etape, terme = av.terme, due_at = g.due_at,
+        }
+    end
+    -- grossesse terminée récemment (accouchement, fin) : visible pendant Config.Grossesse.suiviApresFin heures
+    local fin = MySQL.single.await("SELECT * FROM `rp_pregnancies` WHERE `porteur_cid` = ? AND `active_key` IS NULL AND `discovered_at` IS NOT NULL AND `ended_at` >= ? ORDER BY `ended_at` DESC LIMIT 1",
+        { cid, now - math.floor((G.suiviApresFin or 168) * HEURE) })
+    if fin then
+        return { statut = 'terminee', now = now, fin = { id = fin.id, raison = fin.end_reason, status = fin.status,
+            date = os.date('%d/%m/%Y %H:%M', tonumber(fin.ended_at)), debutTexte = os.date('%d/%m/%Y %H:%M', tonumber(fin.conceived_at)) },
+            historique = lignesHistorique(fin.id) }
+    end
+    return { statut = 'aucune', now = now, aucune = true }
+end
+
 Ely.callback.register('famille:grossesse', function(src)
     local j = Fam.Joueur(src)
     if not j then return { erreur = 'Personnage non chargé.' } end
-    if not Fam.Limite(src, 'grossesse', 10, 60) then return { erreur = 'Patientez un peu.' } end
-    local g = enCours(j.cid)
-    if not g or not g.discovered_at then return { aucune = true } end
-    local now = os.time()
-    local av = Regles.avancement(g, now, G)
-    local ev = MySQL.query.await('SELECT `kind`, `at` FROM `rp_pregnancy_events` WHERE `pregnancy_id` = ? AND `kind` <> \'conception\' ORDER BY `at` DESC LIMIT 10', { g.id }) or {}
-    return {
-        jour = math.min(av.jour, av.jours), jours = av.jours, pct = av.pct, etape = av.etape, terme = av.terme,
-        due_at = g.due_at, now = now,
-        bebes = (tonumber(g.bebes_connus) == 1) and g.bebes or nil,
-        evenements = ev,
-    }
+    if not Fam.Limite(src, 'grossesse', 20, 60) then return { erreur = 'Patientez un peu.' } end
+    return Fam.DonneesSuivi(j.cid)
 end)
