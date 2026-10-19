@@ -55,8 +55,9 @@ Config.Portage = {
     bloquerMelee = true,         -- le porteur ne peut pas frapper (il reste vulnérable : aucune protection)
     rangerArme = true,           -- modes « mains occupées » : l'arme en main est rangée tant que l'on porte le bébé
     verification = 2000,         -- ms entre deux vérifications serveur (attaches, mort, déconnexion, abandon)
-    -- true : seuls les responsables du bébé peuvent le prendre (liste fournie à la création) ; false : tout le monde
-    reserveAuxResponsables = false,
+    -- true : seuls les responsables du bébé (parents, liste fournie à la naissance) et les personnes à qui un parent
+    -- l'a confié (/bebe_confier) peuvent le prendre ; un bébé sans responsables (bébé de test) reste libre. false : tout le monde
+    reserveAuxResponsables = true,
     -- Personnages féminins : bébé et porte-bébé décalés (personnage plus petit), par prise. Calculé sur le mannequin.
     morphologies = {
         [GetHashKey('mp_f_freemode_01')] = {
@@ -107,6 +108,18 @@ Config.Commandes = {
     prendre = 'bebe_prendre',    -- /bebe_prendre [bras|face|ventral|dorsal] : le bébé posé le plus proche
     poser = 'bebe_poser',        -- /bebe_poser [allonge|assis]
     mode = 'bebe_mode',          -- /bebe_mode [bras|face|ventral|dorsal]
+    confier = 'bebe_confier',    -- /bebe_confier [id joueur] : un parent autorise une autre personne à s'occuper du bébé
+}
+
+-- ─────────────────────────── Persistance (base de données, tables créées automatiquement) ───────────────────────────
+-- Les bébés « enregistrés » (nés d'une grossesse, elyzea_famille) et les poussettes sortie sont gardés en base :
+-- état (posé, dans la poussette, avec un parent), position, sommeil. Ils reviennent après un redémarrage.
+-- Les bébés de test (/bebe_creer) ne sont pas enregistrés.
+Config.Persistance = {
+    actif = true,
+    -- Porteur d'un bébé enregistré qui se déconnecte / change de personnage : le bébé reste avec lui (aucune entité
+    -- dans le monde) et revient à ses pieds à sa prochaine connexion. false : le bébé est reposé là où il était.
+    garderALaDeconnexion = true,
 }
 
 -- Commandes staff (permission ACE command.<nom> ; le groupe admin a déjà « command allow »)

@@ -218,7 +218,8 @@ api = {
     'admin': lambda s, perm: int(s) in W.admins and perm == 'famille_manage',
     'players': lambda: to_lua([str(k) for k in sorted(W.players)]),
     'add_needs': lambda s, h, t, st: W.needs.append((int(s), float(h or 0), float(t or 0), float(st or 0))) or True,
-    'naissance': lambda app, pos, resp: (W.nes.append((dict(app.items()), (pos.x, pos.y, pos.z), list(resp.values()) if resp else [])) or 'BB-N%d' % len(W.nes)),
+    'naissance': lambda app, pos, resp, pers=None, gid=None, rang=None: (W.nes.append((dict(app.items()), (pos.x, pos.y, pos.z), list(resp.values()) if resp else [],
+                                                                       {'persistant': pers, 'grossesse': gid, 'rang': rang})) or 'BB-N%d' % len(W.nes)),
     'frozen': lambda s: int(s) in W.frozen,
 }
 G.py = to_lua({})
@@ -243,6 +244,7 @@ function GetPlayerPed(s) if py.player_name(s) then return s * 100 end return 0 e
 function GetEntityCoords(ped) local p = py.pos(ped // 100) if not p then return vector3(0, 0, 0) end return vector3(p[1], p[2], p[3]) end
 function GetEntityHealth() return 200 end
 function GetEntityHeading() return 0.0 end
+function GetPlayerRoutingBucket() return 0 end
 GlobalState = {}
 function GetPlayers() local t = {} for _, v in ipairs(py.players()) do t[#t + 1] = v end return t end
 function Player(s) return { state = { elyNeedsFrozen = py.frozen(s) } } end
@@ -280,7 +282,7 @@ exports = {
     elyzea_police = { IsCuffed = function() return false end },
     elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end,
                            AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end,
-                           CreerBebe = function(_, app, pos, cap, opts) return py.naissance(app, pos, opts and opts.responsables) end },
+                           CreerBebe = function(_, app, pos, cap, opts) return py.naissance(app, pos, opts and opts.responsables, opts and opts.persistant, opts and opts.grossesse, opts and opts.rang) end },
     admin_menu = { HasPermission = function(_, s, perm) return py.admin(s, perm) end },
 }
 EXPORTS_LUA = {}
@@ -814,7 +816,7 @@ advance(60 * 60)
 sym = [(t, a) for n, t, a in W.client_events[avant:] if n == 'elyzea_famille:client:symptome']
 check('37. menu admin : faim ×3 appliquée (8,4 points de plus)', ok is True and any(abs(h + 8.4) < 1e-6 for _, h, _, _ in W.needs), W.needs[:2])
 check('37. nausées à 30 / h : épisodes envoyés à la joueuse seulement, avec durée et intensité', len([1 for t, a in sym if a[0] == 'nausees']) >= 5
-      and all(t == 1 for t, _ in sym) and sym[0][1][1].get('duree') == 20, len(sym))
+      and all(t == 1 for t, _ in sym) and [a for _, a in sym if a[0] == 'nausees'][0][1].get('duree') == 20, len(sym))
 v.update({'symptomes.nausees.actif': False, 'symptomes.vomissements.actif': False})
 ok, msg = admin(3, 'save', {'values': v})
 avant = len(W.client_events)
@@ -844,7 +846,8 @@ r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
 check('40. accouchement terminé : grossesse close (accouchee / accouchement), plus active', r['status'] == 'accouchee' and r['end_reason'] == 'accouchement'
       and r['active_key'] is None and r['ended_at'])
 check('40. bébé(s) créé(s) à côté de la patiente, responsables = les deux parents', len(W.nes) - nes0 == int(g['bebes'])
-      and W.nes[-1][2] == ['F001', 'M002'] and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
+      and W.nes[-1][2] == ['F001', 'M002'] and W.nes[-1][3] == {'persistant': True, 'grossesse': g['id'], 'rang': int(g['bebes'])}
+      and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
 check('40. effets arrêtés (état « aucune grossesse » envoyé), félicitations', etat_client(1) is False and notif(1, 'Félicitations'))
 check('40. naissance journalisée', q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='naissance'", (g['id'],)))
 W.notifs.clear()

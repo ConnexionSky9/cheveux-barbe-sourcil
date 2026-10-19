@@ -33,7 +33,16 @@ local Equip = {}          -- [src] = porte-bébé équipé { type, coloris, ent,
 local Poussettes = {}     -- [pid] = poussette
 local parPousseur = {}    -- [src] = pid
 local occupe = {}         -- [src] = true pendant un changement (anti double clic)
-local seq, seqP = 0, 0
+-- Identifiants durables (enregistrés en base) : préfixe + 8 caractères au hasard
+local ALPHA = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+local function nouvelId(prefixe, table_)
+    for _ = 1, 20 do
+        local t = {}
+        for i = 1, 8 do local n = math.random(1, #ALPHA) t[i] = ALPHA:sub(n, n) end
+        local id = prefixe .. '-' .. table.concat(t)
+        if not table_[id] then return id end
+    end
+end
 
 local function log(...) if Config.Debug then print('[elyzea_bebe_modele]', ...) end end
 local function notify(src, msg, kind) pcall(function() exports.elyzea_core:Notify(src, msg, kind or 'inform') end) end
@@ -309,6 +318,7 @@ local function supprimerPoussette(po)
     end
     supprimer(po.ent)
     Poussettes[po.id] = nil
+    if Persist then Persist.oublierPoussette(po.id) end
 end
 
 -- ─────────── Porte-bébés ───────────
@@ -378,17 +388,34 @@ local function apparencePropre(a)
              yeux = un(BebeModeles.yeux, a.yeux, Config.Defaut.yeux), coiffure = coiffure }
 end
 
+-- opts : responsables = { citizenid… }, bucket, pose = 'allonge'|'assis', persistant (enregistré en base, ex. naissance),
+--        grossesse + rang (naissance : jamais deux fois le même bébé), nom, endormi, id (restauration depuis la base)
 function CreerBebe(apparence, coords, cap, opts)
     opts = type(opts) == 'table' and opts or {}
-    seq = seq + 1
-    local id = ('BB-%d-%d'):format(os.time() % 100000, seq)
-    local b = { id = id, apparence = apparencePropre(apparence), responsables = opts.responsables, bucket = tonumber(opts.bucket) or 0 }
+    if opts.grossesse and Persist and Persist.idNaissance then
+        local deja = Persist.idNaissance(opts.grossesse, tonumber(opts.rang) or 1)
+        if deja then return deja end      -- naissance déjà enregistrée : pas de second bébé
+    end
+    local id = type(opts.id) == 'string' and opts.id or nouvelId('BB', Bebes)
+    if Bebes[id] then return nil end
+    local b = { id = id, apparence = apparencePropre(apparence), responsables = opts.responsables, bucket = tonumber(opts.bucket) or 0,
+                persistant = opts.persistant == true, grossesse = opts.grossesse, rang = tonumber(opts.rang), nom = opts.nom,
+                endormi = opts.endormi == true }
     Bebes[id] = b
     if not poserA(b, opts.pose == 'assis' and 'assis' or 'allonge', vec(coords), tonumber(cap) or 0.0) then
         Bebes[id] = nil
         return nil
     end
     return id
+end
+
+-- Bébé « avec » un personnage (déconnecté) : aucune entité, revient à ses pieds à sa connexion (server/persistance.lua)
+local function nouveauGarde(apparence, opts, gardien)
+    local b = { id = opts.id, apparence = apparencePropre(apparence), responsables = opts.responsables, bucket = tonumber(opts.bucket) or 0,
+                persistant = true, grossesse = opts.grossesse, rang = tonumber(opts.rang), nom = opts.nom, endormi = opts.endormi == true,
+                etat = 'garde', gardien = gardien }
+    Bebes[b.id] = b
+    return b
 end
 
 function SupprimerBebe(id)
@@ -401,6 +428,7 @@ function SupprimerBebe(id)
     end
     supprimerEntites(b)
     Bebes[id] = nil
+    if Persist then Persist.oublierBebe(id) end
     return true
 end
 
@@ -441,12 +469,47 @@ local function modeRefuse(src, mode)
     return nil
 end
 
+-- Peut s'occuper du bébé : responsables (parents), personnes à qui un responsable l'a confié, ou tout le monde
+-- si le bébé n'a pas de responsables (bébé de test) ou si la réservation est désactivée.
 local function responsable(src, b)
     if not P.reserveAuxResponsables or type(b.responsables) ~= 'table' or #b.responsables == 0 then return true end
     local cid = citizenid(src)
     for _, r in ipairs(b.responsables) do if r == cid then return true end end
+    return cid ~= nil and b.confies ~= nil and b.confies[cid] == true
+end
+
+local function estParent(src, b)
+    if type(b.responsables) ~= 'table' or #b.responsables == 0 then return true end
+    local cid = citizenid(src)
+    for _, r in ipairs(b.responsables) do if r == cid then return true end end
     return false
 end
+
+-- /bebe_confier [id joueur] : un parent confie le bébé qu'il porte (ou le plus proche) à une autre personne (jusqu'au redémarrage)
+RegisterCommand(Config.Commandes.confier, function(src, args)
+    if src == 0 then return end
+    local cible = tonumber(args[1])
+    if not cible or not present(cible) or cible == src then return notify(src, 'Usage : /' .. Config.Commandes.confier .. ' [id du joueur]', 'error') end
+    local b = Bebes[parPorteur[src] or '']
+    if not b then
+        local pc, bestD = GetEntityCoords(GetPlayerPed(src)), nil
+        for _, x in pairs(Bebes) do
+            local e = x.ents and x.ents.corps
+            if e and DoesEntityExist(e) then
+                local d = #(pc - GetEntityCoords(e))
+                if d < 3.0 and (not bestD or d < bestD) then b, bestD = x, d end
+            end
+        end
+    end
+    if not b then return notify(src, 'Portez le bébé ou placez-vous à côté.', 'error') end
+    if not estParent(src, b) then return notify(src, 'Seul un parent peut confier ce bébé.', 'error') end
+    local cid = citizenid(cible)
+    if not cid then return notify(src, 'Joueur introuvable.', 'error') end
+    b.confies = b.confies or {}
+    b.confies[cid] = true
+    notify(src, 'Bébé confié : cette personne peut s\'en occuper.', 'success')
+    notify(cible, 'On vous a confié un bébé : vous pouvez le prendre (ALT).', 'inform')
+end, false)
 
 -- Exécute un changement sous verrou (bébé + joueur) : aucune autre demande n'est traitée pendant ce temps
 local function sousVerrou(src, objets, fn)
@@ -628,8 +691,7 @@ local function sortirPoussette(src, coords, cap)
     if not x or not y or not z then return end
     local pc = GetEntityCoords(GetPlayerPed(src))
     if #(vector3(pc.x, pc.y, 0.0) - vector3(x, y, 0.0)) > 3.0 or math.abs(pc.z - z) > 2.5 then return notify(src, 'Endroit trop loin.', 'error') end
-    seqP = seqP + 1
-    local po = { id = ('PO-%d-%d'):format(os.time() % 100000, seqP), cid = citizenid(src) or ('src:' .. src), proprio = src,
+    local po = { id = nouvelId('PO', Poussettes), cid = citizenid(src) or ('src:' .. src), proprio = src,
                  coloris = GetResourceKvpString('coloris_po:' .. (citizenid(src) or src)) or PO.coloris,
                  bucket = GetPlayerRoutingBucket(src), etat = 'garee' }
     Poussettes[po.id] = po
@@ -793,9 +855,22 @@ AddEventHandler('elyzea_inventory:ready', enregistrerObjets)
 
 -- ─────────── Départ du joueur (déconnexion, changement de personnage) ───────────
 
-local function liberer(src, raison)
+-- Bébé enregistré (naissance) porté au moment du départ : il reste « avec » ce personnage (état « garde », aucune
+-- entité dans le monde) et revient à ses pieds à sa prochaine connexion. Bébé de test : reposé au sol.
+local function mettreEnGarde(b, cid)
+    lacher(b)
+    supprimerEntites(b)
+    b.etat, b.gardien, b.poussette, b.pousseur = 'garde', cid, nil, nil
+    log('bébé gardé par', cid, b.id)
+end
+
+local function liberer(src, raison, cidDepart)
     local b = Bebes[parPorteur[src] or '']
-    if b then poserDeSecours(b, raison) end
+    if b then
+        local cid = cidDepart or citizenid(src)
+        if b.persistant and cid and Config.Persistance.garderALaDeconnexion then mettreEnGarde(b, cid)
+        else poserDeSecours(b, raison) end
+    end
     parPorteur[src] = nil
     local po = Poussettes[parPousseur[src] or '']
     if po then garerDeSecours(po, raison) end
@@ -806,7 +881,7 @@ local function liberer(src, raison)
 end
 
 AddEventHandler('playerDropped', function() liberer(source, 'deconnexion') end)
-AddEventHandler('elyzea:server:playerUnloaded', function(src) liberer(tonumber(src) or src, 'changement_personnage') end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src, cid) liberer(tonumber(src) or src, 'changement_personnage', cid) end)
 
 -- ─────────── Vérifications périodiques ───────────
 
@@ -942,6 +1017,7 @@ CreateThread(function()
     while true do
         Wait(P.verification)
         verifier()
+        if Persist then Persist.enregistrer() end
     end
 end)
 
@@ -1004,11 +1080,17 @@ RegisterCommand(Config.Staff.creer, function(src, args)
 end, true)
 
 RegisterCommand(Config.Staff.supprimer, function(src, args)
+    -- les bébés enregistrés (nés en jeu) ne sont supprimés qu'avec « definitif » (suppression en base)
+    local definitif = args[1] == 'definitif' or args[2] == 'definitif'
     if args[1] == 'tous' then
-        local n = 0
-        for id in pairs(Bebes) do SupprimerBebe(id) n = n + 1 end
-        for _, po in pairs(Poussettes) do supprimerPoussette(po) end
-        return src ~= 0 and notify(src, ('%d bébé(s) supprimé(s), poussettes rangées.'):format(n), 'success') or print(n .. ' bébé(s) supprimé(s)')
+        local n, gardes = 0, 0
+        for id, b in pairs(Bebes) do
+            if not b.persistant or definitif then SupprimerBebe(id) n = n + 1 else gardes = gardes + 1 end
+        end
+        for _, po in pairs(Poussettes) do if not po.bebe then supprimerPoussette(po) end end
+        local txt = ('%d bébé(s) supprimé(s), poussettes vides rangées.%s'):format(n,
+            gardes > 0 and (' %d bébé(s) enregistré(s) conservé(s) (ajoutez « definitif » pour les supprimer).'):format(gardes) or '')
+        return src ~= 0 and notify(src, txt, 'success') or print(txt)
     end
     if src == 0 then return print('Usage en jeu : /' .. Config.Staff.supprimer .. ' (bébé ou poussette vide le plus proche) ou « tous »') end
     local pc = GetEntityCoords(GetPlayerPed(src))
@@ -1025,6 +1107,9 @@ RegisterCommand(Config.Staff.supprimer, function(src, args)
             local d = #(pc - GetEntityCoords(po.ent))
             if d < 5.0 and (not bestD or d < bestD) then best, bestD, kind = id, d, 'poussette' end
         end
+    end
+    if kind == 'bebe' and Bebes[best].persistant and not definitif then
+        return notify(src, 'Bébé enregistré (né en jeu) : « /' .. Config.Staff.supprimer .. ' definitif » pour le supprimer pour de bon.', 'error')
     end
     if kind == 'bebe' and SupprimerBebe(best) then return notify(src, 'Bébé supprimé.', 'success') end
     if kind == 'poussette' then supprimerPoussette(Poussettes[best]) return notify(src, 'Poussette supprimée.', 'success') end
@@ -1043,8 +1128,9 @@ end, true)
 RegisterCommand(Config.Staff.diagnostic, function(src)
     local lignes = {}
     for id, b in pairs(Bebes) do
-        lignes[#lignes + 1] = ('bébé %s : %s%s%s%s'):format(id, b.etat, b.mode and (' · ' .. b.mode) or '', b.porteur and (' · porteur ' .. b.porteur) or '',
-            b.poussette and (' · poussette ' .. b.poussette) or '')
+        lignes[#lignes + 1] = ('bébé %s : %s%s%s%s%s%s'):format(id, b.etat, b.mode and (' · ' .. b.mode) or '', b.porteur and (' · porteur ' .. b.porteur) or '',
+            b.poussette and (' · poussette ' .. b.poussette) or '', b.gardien and (' · avec ' .. b.gardien) or '',
+            b.persistant and ' · enregistré' or ' · test (non enregistré)')
     end
     for id, po in pairs(Poussettes) do
         lignes[#lignes + 1] = ('poussette %s : %s · %s%s%s'):format(id, po.etat, po.cid or '?', po.pousseur and (' · pousseur ' .. po.pousseur) or '',
@@ -1058,3 +1144,10 @@ end, true)
 
 -- Pour les tests et le diagnostic
 function BebesDebug() return Bebes, parPorteur, Poussettes, parPousseur, Equip end
+
+-- Accès interne pour server/persistance.lua (chargé après ce fichier)
+BB = {
+    Bebes = Bebes, Poussettes = Poussettes, parPorteur = parPorteur, parPousseur = parPousseur,
+    citizenid = citizenid, notify = notify, present = present, log = log,
+    poserA = poserA, garerA = garerA, nouveauGarde = nouveauGarde, placer = placer, majDedans = majDedans, devant = devant, nouvelId = nouvelId,
+}

@@ -21,6 +21,10 @@ client_scripts {
 }
 
 server_scripts {
+    '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/bebes.lua',
+    'server/persistance.lua',
 }
+
+dependencies { 'elyzea_core' }

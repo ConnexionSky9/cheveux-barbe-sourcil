@@ -54,7 +54,9 @@ local function creerBebes(g, src)
         local dx = 0.45 * (i - ((tonumber(g.bebes) or 1) + 1) / 2)
         local pos = vector3(c.x - math.sin(r) * 0.7 + math.cos(r) * dx, c.y + math.cos(r) * 0.7 + math.sin(r) * dx, c.z - 0.98)
         local ok, id = pcall(function()
-            return exports.elyzea_bebe_modele:CreerBebe(F.apparenceBebe, pos, cap, { responsables = { g.porteur_cid, g.partenaire_cid } })
+            -- enregistré en base par elyzea_bebe_modele (grossesse + rang : jamais deux fois le même bébé)
+            return exports.elyzea_bebe_modele:CreerBebe(F.apparenceBebe, pos, cap, { responsables = { g.porteur_cid, g.partenaire_cid },
+                persistant = true, grossesse = g.id, rang = i, bucket = GetPlayerRoutingBucket and GetPlayerRoutingBucket(src) or 0 })
         end)
         if ok and id then ids[#ids + 1] = id else Fam.err('naissance : bébé non créé (' .. tostring(id) .. ')') end
     end
