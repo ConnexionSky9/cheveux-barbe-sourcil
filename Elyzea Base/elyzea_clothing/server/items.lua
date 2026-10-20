@@ -51,6 +51,12 @@ local function charKey(src)
     return tostring(src)
 end
 
+-- Tenue de service en cours (state bag posé par le serveur d'un métier, ex. elyzea_presse) :
+-- elle n'est pas faite d'objets, on n'échange donc aucun vêtement-objet pendant ce temps
+function Items.inUniform(src) return Player(src).state.elyUniform ~= nil end
+local UNIFORM_MSG = 'Retire d\'abord ta tenue de service (vestiaire).'
+Items.UNIFORM_MSG = UNIFORM_MSG
+
 -- Noms donnés aux pièces portées : [rayon] = { piece, label }
 local function wornNames(src)
     local raw = GetResourceKvpString('worn:' .. charKey(src))
@@ -128,6 +134,7 @@ Items.wornNames, Items.saveWornNames = wornNames, saveWornNames
 RegisterNetEvent('elyzea_clothing:equip', function(slot, current)
     local src = source
     if not Items.enabled() or not lock(src) then return end
+    if Items.inUniform(src) then return notify(src, UNIFORM_MSG) end
     local item = inv():GetSlot(src, tonumber(slot) or -1)
     local cat = item and CAT_OF_ITEM[item.name]
     local md = item and item.metadata or {}
@@ -154,6 +161,7 @@ end)
 RegisterNetEvent('elyzea_clothing:unequip', function(cat, current)
     local src = source
     if not Items.enabled() or not Cat[cat] or not lock(src) then return end
+    if Items.inUniform(src) then return notify(src, UNIFORM_MSG) end
     local sex = Items.sexOf(src)
     if not sex then return end
     local old = Items.cleanPiece(current)

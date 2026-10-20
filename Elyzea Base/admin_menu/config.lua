@@ -170,6 +170,7 @@ Config.Permissions = {
     { key = 'dealer_manage',   label = 'Administration automobile : catalogue global, catégories, concessions, prix, points (elyzea_concess)', cat = 'Métiers' },
     { key = 'agencies_manage', label = 'Agences des métiers : plusieurs polices / EMS / mécanos / Dynasty 8, téléphone de service, zones d\'alerte (elyzea_agences)', cat = 'Métiers' },
     { key = 'property_manage', label = 'Gestion immobilière Dynasty 8 : biens, intérieurs, points, garages, contrats (elyzea_dynasty)', cat = 'Métiers' },
+    { key = 'presse_manage',   label = 'Presse : retirer un article ou une annonce de n\'importe quelle rédaction, depuis le journal (/journal) (elyzea_presse)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
     { key = 'trunk_manage',    label = 'Coffres véhicules : emplacements et poids du coffre par catégorie de véhicule', cat = 'Gestion' },
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },
@@ -549,7 +550,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage', 'presse_manage' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },

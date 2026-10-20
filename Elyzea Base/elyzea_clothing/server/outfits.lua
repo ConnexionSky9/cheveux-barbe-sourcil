@@ -337,6 +337,7 @@ local REASON = {
 handle('elyzea_clothing:outfitWear', function(src, id, worn, unavailable)
     if not throttle(src) then return end
     if not Items.lock(src) then return refuse(src) end
+    if Items.inUniform(src) then return notify(src, Items.UNIFORM_MSG) end
     local cid, sex = citizenOf(src), Items.sexOf(src)
     if not cid or not sex then return notify(src, 'Personnage non compatible.') end
     local row = ownOutfit(cid, id)

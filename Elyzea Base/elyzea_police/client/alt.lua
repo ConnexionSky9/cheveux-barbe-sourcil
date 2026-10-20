@@ -6,6 +6,7 @@
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
 --  Mécano en service (elyzea_meca) : réparer, nettoyer, retourner, historique, devis (exports AltOptions / AltSelect).
 --  Animations (elyzea_animations) : copier l'animation d'une personne, lui proposer une animation à deux.
+--  Journaliste en service (elyzea_presse) : proposer une interview ou une annonce payante.
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -48,6 +49,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_meca', prefix = 'meca:' },
     { res = 'elyzea_famille', prefix = 'fam:' },
     { res = 'elyzea_animations', prefix = 'anim:' },  -- copier l'animation, proposer une animation (tout le monde)
+    { res = 'elyzea_presse', prefix = 'presse:' },      -- journaliste en service : interview, annonce payante
     { res = 'elyzea_animaux', prefix = 'ani:', target = true },   -- animaux (les siens, ceux des autres, la ferme)
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },

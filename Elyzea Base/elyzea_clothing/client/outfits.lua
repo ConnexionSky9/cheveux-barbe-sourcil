@@ -32,6 +32,7 @@ local function blocked()
     if ClothingShopOpen() then return 'Termine d\'abord tes achats.' end
     if IsEntityDead(ped) or LocalPlayer.state.emsDown then return 'Impossible pour le moment.' end
     if LocalPlayer.state.cuffed or LocalPlayer.state.carriedBy then return 'Impossible pour le moment.' end
+    if LocalPlayer.state.elyUniform then return 'Retire d\'abord ta tenue de service.' end   -- vestiaire d'un métier (ex. elyzea_presse)
     if GetResourceState('admin_menu') == 'started' then
         local ok, wearing = pcall(function() return exports.admin_menu:IsWearingUniform() end)
         if ok and wearing then return 'Retire d\'abord ta tenue de service.' end

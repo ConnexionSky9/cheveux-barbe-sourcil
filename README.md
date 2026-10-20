@@ -129,8 +129,8 @@ Remplace `mm_radio`, sans ox_lib.
 - Sans l'objet `radio` dans l'inventaire, la radio s'éteint toute seule.
 
 ### 3.8 Métiers
-Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`), **EMS / SAMS** (`elyzea_ems`, voir `Elyzea Base/elyzea_ems/README.md` — non testé en jeu), **Mécano** (`elyzea_meca`, nouveau : atelier, devis, CarPlay payant, dépannage, points d'atelier posés en jeu, voir `Elyzea Base/elyzea_meca/README.md` — non testé en jeu) et **illégal** (`elyzea_illegal`). Les autres (entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
-**Plusieurs agences par métier** (`elyzea_agences`, voir `Elyzea Base/elyzea_agences/README.md`) : plusieurs polices (LSPD, BCSO…), plusieurs EMS, plusieurs garages mécano et agences Dynasty 8, créées en jeu (`/agences` ou admin_menu › **Agences des métiers**, permission `agencies_manage`), chacune avec son métier, ses grades, son compte, son téléphone de service et sa **zone d'alerte dessinée sur la carte ou en jeu**.
+Métiers présents : **police** (`elyzea_police`, voir `Elyzea Base/elyzea_police/README.md`), **EMS / SAMS** (`elyzea_ems`, voir `Elyzea Base/elyzea_ems/README.md` — non testé en jeu), **Mécano** (`elyzea_meca`, nouveau : atelier, devis, CarPlay payant, dépannage, points d'atelier posés en jeu, voir `Elyzea Base/elyzea_meca/README.md` — non testé en jeu) **journaliste / presse** (`elyzea_presse`, nouveau : articles avec validation, journal `/journal` pour tous, interviews avec accord, photos et séquences, flash info, annonces payantes, carte de presse, vestiaire, garage, voir `Elyzea Base/elyzea_presse/README.md` et `docs/presse/LIVRAISON.md` — non testé en jeu) et **illégal** (`elyzea_illegal`). Les autres (entreprises, concessions, bûcheron, LsCustom, socle `elyzea_jobs`) ont été retirés.
+**Plusieurs agences par métier** (`elyzea_agences`, voir `Elyzea Base/elyzea_agences/README.md`) : plusieurs polices (LSPD, BCSO…), plusieurs EMS, plusieurs garages mécano, agences Dynasty 8 et rédactions de presse, créées en jeu (`/agences` ou admin_menu › **Agences des métiers**, permission `agencies_manage`), chacune avec son métier, ses grades, son compte, son téléphone de service et sa **zone d'alerte dessinée sur la carte ou en jeu**.
 Menu admin › **Métier staff** (permission `staff_job`) : entrer soi-même dans la police au grade voulu, recruter un joueur connecté, lui donner n'importe quel grade (direction comprise), le retirer, revenir à son métier d'origine.
 
 ### 3.7 Touches du serveur (aucune ne se chevauche)
@@ -145,8 +145,10 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **F3** | Ma tenue (vêtements) ; onglet **Mes tenues** : tenues enregistrées par personnage | Tous |
 | **F4** | Tablette CarPlay | Tous, en véhicule |
 | **F5** | Menu du groupe illégal | Membres d'un groupe |
-| **ALT** (maintenu) | Interactions : porter une personne, **copier son animation**, **lui proposer une animation**, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière | Tous |
+| **ALT** (maintenu) | Interactions : porter une personne, **copier son animation**, **lui proposer une animation**, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière ; + journaliste en service : interview, annonce payante | Tous |
 | **F6** | Police : menu rapide | Policiers |
+| **G** · **X** (seulement caméra / appareil photo / micro en main) | Presse : viseur (clic : photo / filmer, molette : zoom) · ranger le matériel | Journalistes en service |
+| `/journal` | Lire le journal (articles publiés, petites annonces) | Tous |
 | **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |

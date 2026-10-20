@@ -15,8 +15,9 @@ local JOBS = {
     ems    = { res = 'elyzea_ems', job = 'ambulance', label = 'EMS' },
     meca   = { res = 'elyzea_meca', job = 'mechanic', label = 'Mécano' },
     d8     = { res = 'elyzea_dynasty', job = 'realestate', label = 'Dynasty 8' },
+    presse = { res = 'elyzea_presse', job = 'journaliste', label = 'Presse' },
 }
-local ORDER = { 'police', 'ems', 'meca', 'd8' }
+local ORDER = { 'police', 'ems', 'meca', 'd8', 'presse' }
 
 local function available(J) return J ~= nil and GetResourceState(J.res) == 'started' end
 local function call(J, fn, ...)

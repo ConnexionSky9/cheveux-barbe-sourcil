@@ -55,7 +55,7 @@ $('#confirm').addEventListener('click', (e) => {
 const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '🧾', carry: '🧍', trunk: '🧳', hide: '🫣', impound: '🚛', search: '🔍',
   examine: '🩺', heal: '💊', stabilize: '🩹', revive: '❤️', record: '📋', ppa: '📜', repair: '🔧', clean: '🧽', flip: '🔄', engine: '⚙️', body: '🚗', tyres: '🛞',
   bag: '🎒', open: '👜', buy: '🛒', sell: '💰', rob: '🔫', hack: '💻', c4: '🧨', cash: '💵',
-  anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️' };
+  anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️', mic: '🎤', press: '📰' };
 let altOpenedAt = 0;
 function showAlt(m) {
   const alt = $('#alt');

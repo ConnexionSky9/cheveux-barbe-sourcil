@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Flash info (tout le monde) -->
+  <div id="flashes" aria-live="polite"></div>
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- Menu rapide F6 -->
+  <aside id="f6" class="hidden" aria-label="Menu presse"></aside>
+
+  <!-- Viseur, flash de l'appareil, matériel en main -->
+  <div id="viewfinder" class="hidden"></div>
+  <div id="shot"></div>
+  <div id="holdHint" class="hidden"></div>
+
+  <!-- Interview en cours -->
+  <div id="ivBanner" class="hidden" aria-live="polite"></div>
+
+  <!-- Carte de presse montrée -->
+  <div id="card" class="hidden"></div>
+
+  <!-- Le journal (tout le monde) -->
+  <div id="reader" class="hidden" role="dialog" aria-label="Journal"></div>
+
+  <!-- Fenêtres -->
+  <div id="ivOffer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+  <div id="ivAsk" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="adForm" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="adOffer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+  <div id="notes" class="modal-wrap hidden"><div class="modal wide" role="dialog" aria-modal="true"></div></div>
+  <div id="caption" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="garage" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="gear" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="wardrobe" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true"></div></div>
+  <div id="offer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <!-- Tablette -->
+  <div id="tablet" class="hidden">
+    <div class="tab-frame">
+      <nav class="tab-nav" id="tabNav" aria-label="Sections de la tablette"></nav>
+      <main class="tab-main">
+        <header class="tab-head">
+          <div><div class="eyebrow" id="tabEyebrow">Rédaction</div><h1 id="tabTitle">Tableau de bord</h1></div>
+          <div class="tab-head-right"><span class="pill" id="tabDuty">Hors service</span><span class="clock" id="tabClock">--:--</span>
+            <button class="icon-btn" id="tabClose" aria-label="Fermer la tablette" title="Fermer (Échap)">✕</button></div>
+        </header>
+        <section class="tab-body" id="tabBody" tabindex="-1"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Confirmation -->
+  <div id="confirm" class="modal-wrap hidden top"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <script src="app.js"></script>
+  <script src="tablet.js"></script>
+</body>
+</html>
