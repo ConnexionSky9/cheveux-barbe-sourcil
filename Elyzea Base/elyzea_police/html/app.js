@@ -57,20 +57,35 @@ const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '
   bag: '🎒', open: '👜', buy: '🛒', sell: '💰', rob: '🔫', hack: '💻', c4: '🧨', cash: '💵',
   anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️' };
 let altOpenedAt = 0;
+const KIND_ICON = { player: '🧍', carry: '🧍', vehicle: '🚗', trunk: '🧳', npc: '⚠️', ext: '✦' };
+const KIND_LABEL = { player: 'Personne', carry: 'Personne portée', vehicle: 'Véhicule', trunk: 'Coffre', npc: 'PNJ', ext: 'Élément' };
 function showAlt(m) {
   const alt = $('#alt');
-  alt.innerHTML = `<div class="head"><span class="badge">◎</span><b>${esc(m.title)}</b></div>` +
-    (m.options.length ? m.options.map((o) => `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''}><span class="ico">${ICONS[o.icon] || '•'}</span>
-      <span>${esc(o.label)}${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span></button>`).join('') : '<div class="empty">Aucune action</div>') +
-    '<div class="foot">Échap ou clic à côté pour fermer</div>';
+  alt.dataset.kind = m.kind || 'player';
+  const n = m.options.filter((o) => !o.disabled).length;
+  alt.innerHTML = `<div class="head"><span class="badge">${KIND_ICON[m.kind] || '◎'}</span><div class="tt"><b>${esc(m.title)}</b>
+      <small>${esc(KIND_LABEL[m.kind] || 'Actions')} · ${n} action${n > 1 ? 's' : ''}</small></div></div>` +
+    '<div class="list">' + (m.options.length ? m.options.map((o, i) => `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''} style="animation-delay:${Math.min(i, 10) * 22}ms">
+      <span class="ico">${ICONS[o.icon] || '•'}</span><span class="lbl">${esc(o.label)}${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span>${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('') : '<div class="empty">Aucune action</div>') + '</div>' +
+    '<div class="foot"><span><kbd>1-9</kbd>choisir</span><span><kbd>Échap</kbd>fermer</span></div>';
   alt.classList.remove('hidden');
   altOpenedAt = Date.now();
   const w = innerWidth, h = innerHeight, r = alt.getBoundingClientRect();
-  alt.style.left = `${Math.min(Math.max(8, m.x * w + 14), w - r.width - 8)}px`;
-  alt.style.top = `${Math.min(Math.max(8, m.y * h - 10), h - r.height - 8)}px`;
+  alt.style.left = `${Math.min(Math.max(8, m.x * w + 16), w - r.width - 8)}px`;
+  alt.style.top = `${Math.min(Math.max(8, m.y * h - 12), h - r.height - 8)}px`;
   const first = alt.querySelector('button:not(:disabled)');
   if (first) first.focus();
 }
+// Raccourcis 1-9 quand le menu est ouvert
+document.addEventListener('keydown', (e) => {
+  const alt = $('#alt');
+  if (alt.classList.contains('hidden') || !/^[1-9]$/.test(e.key)) return;
+  const b = alt.querySelectorAll('button[data-key]')[Number(e.key) - 1];
+  if (!b || b.disabled) return;
+  e.preventDefault();
+  alt.classList.add('hidden');
+  post('altSelect', { key: Number(b.dataset.key) });
+});
 $('#alt').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-key]');
   if (!b || b.disabled) return;

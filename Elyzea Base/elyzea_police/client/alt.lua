@@ -1,6 +1,7 @@
 -- =====================================================================
 --  ELYZEA POLICE - client : menu ALT (pour tout le monde)
---  ALT maintenu : curseur ; clic sur la cible : actions possibles (pas de surbrillance : elle faisait planter le jeu).
+--  ALT maintenu : curseur ; la cible survolée qui a des actions est en surbrillance (boîte lumineuse dessinée,
+--  pas le contour natif SetEntityDrawOutline qui faisait planter le jeu) ; ALT + clic gauche : actions possibles.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
@@ -191,10 +192,80 @@ local function Title(ctx)
     return 'Actions'
 end
 
-local function Help(text)
-    BeginTextCommandDisplayHelp('STRING')
-    AddTextComponentSubstringPlayerName(text)
-    EndTextCommandDisplayHelp(0, false, false, -1)
+-- ---------------------------------------------------------------------
+-- Surbrillance de la cible survolée : boîte aux contours lumineux, faces légèrement teintées,
+-- cercle au sol et étiquette. Uniquement du dessin (DrawLine / DrawPoly / DrawMarker / texte) :
+-- rien n'est modifié sur l'entité, aucun risque de plantage.
+-- ---------------------------------------------------------------------
+local KIND_COLOR = {
+    player = { 96, 165, 250 }, carry = { 96, 165, 250 }, npc = { 239, 68, 68 },
+    vehicle = { 245, 158, 11 }, ext = { 167, 139, 250 }, trunk = { 245, 158, 11 },
+}
+local boxCache = {}   -- [modèle] = { min, max } (GetModelDimensions n'est appelé qu'une fois par modèle)
+local function dims(ent)
+    local m = GetEntityModel(ent)
+    local b = boxCache[m]
+    if not b then
+        local mn, mx = GetModelDimensions(m)
+        b = { mn, mx }
+        boxCache[m] = b
+    end
+    return b[1], b[2]
+end
+
+local function label3D(x, y, z, text, r, g, b)
+    local onScreen, sx, sy = GetScreenCoordFromWorldCoord(x, y, z)
+    if not onScreen then return end
+    SetTextFont(4) SetTextScale(0.0, 0.36) SetTextCentre(true) SetTextOutline()
+    SetTextColour(255, 255, 255, 235)
+    BeginTextCommandDisplayText('STRING') AddTextComponentSubstringPlayerName(text) EndTextCommandDisplayText(sx, sy)
+    local w = math.min(0.3, 0.0055 * #text + 0.012)
+    DrawRect(sx, sy + 0.0135, w, 0.03, 8, 14, 26, 190)
+    DrawRect(sx, sy + 0.0295, w, 0.0022, r, g, b, 230)
+end
+
+local function Highlight(ent, kind, text)
+    if not ent or ent == 0 or not DoesEntityExist(ent) then return end
+    local c = KIND_COLOR[kind] or KIND_COLOR.player
+    local r, g, b = c[1], c[2], c[3]
+    local pulse = 0.65 + 0.35 * math.abs(math.sin(GetGameTimer() / 260))
+    local mn, mx = dims(ent)
+    local pad = IsEntityAPed(ent) and 0.06 or 0.04
+    local x0, y0, z0, x1, y1, z1 = mn.x - pad, mn.y - pad, mn.z - pad, mx.x + pad, mx.y + pad, mx.z + pad
+    if IsEntityAPed(ent) then x0, x1, y0, y1 = math.max(x0, -0.45), math.min(x1, 0.45), math.max(y0, -0.35), math.min(y1, 0.35) end
+    local P = {}
+    local k = 0
+    for _, z in ipairs({ z0, z1 }) do
+        for _, xy in ipairs({ { x0, y0 }, { x1, y0 }, { x1, y1 }, { x0, y1 } }) do
+            k = k + 1
+            P[k] = GetOffsetFromEntityInWorldCoords(ent, xy[1], xy[2], z)
+        end
+    end
+    local a = math.floor(255 * pulse)
+    local E = { { 1, 2 }, { 2, 3 }, { 3, 4 }, { 4, 1 }, { 5, 6 }, { 6, 7 }, { 7, 8 }, { 8, 5 }, { 1, 5 }, { 2, 6 }, { 3, 7 }, { 4, 8 } }
+    for _, e in ipairs(E) do
+        local p, q = P[e[1]], P[e[2]]
+        DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, a)
+    end
+    -- faces teintées (des deux côtés pour être visibles sous tous les angles)
+    local F = { { 1, 2, 6, 5 }, { 2, 3, 7, 6 }, { 3, 4, 8, 7 }, { 4, 1, 5, 8 }, { 5, 6, 7, 8 } }
+    local fa = math.floor(34 * pulse)
+    for _, f in ipairs(F) do
+        local A, B, C, D = P[f[1]], P[f[2]], P[f[3]], P[f[4]]
+        DrawPoly(A.x, A.y, A.z, B.x, B.y, B.z, C.x, C.y, C.z, r, g, b, fa)
+        DrawPoly(A.x, A.y, A.z, C.x, C.y, C.z, D.x, D.y, D.z, r, g, b, fa)
+        DrawPoly(C.x, C.y, C.z, B.x, B.y, B.z, A.x, A.y, A.z, r, g, b, fa)
+        DrawPoly(D.x, D.y, D.z, C.x, C.y, C.z, A.x, A.y, A.z, r, g, b, fa)
+    end
+    -- cercle au sol
+    local base = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, z0)
+    local rad = math.max(x1 - x0, y1 - y0) * 0.75
+    DrawMarker(25, base.x, base.y, base.z + 0.03, 0, 0, 0, 0, 0, 0, rad * 2, rad * 2, 1.0, r, g, b, math.floor(150 * pulse), false, false, 2, false, nil, nil, false)
+    -- étiquette au-dessus
+    if text then
+        local top = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, z1 + 0.25)
+        label3D(top.x, top.y, top.z, text, r, g, b)
+    end
 end
 
 local function CloseMenu()
@@ -222,8 +293,10 @@ local function Start()
             ctx = Context()
             local key = ctx.kind .. ':' .. tostring(ctx.entity or '')
             if key ~= lastKey then opts, lastKey = Options(ctx), key end
-            if #opts > 0 then Help(('~INPUT_ATTACK~ %d action(s) : %s'):format(#opts, Title(ctx)))
-            else Help('Visez une personne ou un véhicule') end
+            -- plus de message en haut à gauche : la cible qui a des actions s'allume, ALT + clic gauche ouvre le menu
+            if #opts > 0 and ctx.entity then
+                Highlight(ctx.entity, ctx.kind, ('%s  ·  %d action%s'):format(Title(ctx), #opts, #opts > 1 and 's' or ''))
+            end
             if IsDisabledControlJustPressed(0, 24) and #opts > 0 then
                 menuCtx, menuOpts = ctx, Options(ctx)
                 Stop()
@@ -231,7 +304,7 @@ local function Start()
                 C.Focus('alt', true)
                 local ui = {}
                 for i, o in ipairs(menuOpts) do ui[i] = { key = i, label = o.label, desc = o.desc, disabled = o.disabled, icon = o.icon } end
-                SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), options = ui, x = GetControlNormal(0, 239), y = GetControlNormal(0, 240) })
+                SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), kind = ctx.kind, options = ui, x = GetControlNormal(0, 239), y = GetControlNormal(0, 240) })
                 return
             end
             Wait(0)

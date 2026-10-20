@@ -59,18 +59,43 @@ select.input { cursor: pointer; }
 .kbd { display: inline-grid; place-items: center; min-width: 1.4rem; height: 1.4rem; padding: 0 .3rem; border-radius: .3rem; border: 1px solid var(--line-2);
   background: rgba(255, 255, 255, .06); font-size: .72rem; font-weight: 700; color: var(--text); }
 
-/* ---------- Menu ALT ---------- */
-#alt { position: fixed; min-width: 15rem; max-width: 20rem; background: rgba(11, 18, 32, .97); border: 1px solid var(--line-2); border-radius: .8rem;
-  box-shadow: var(--shadow); padding: .35rem; animation: pop .12s ease-out; z-index: 40; }
-#alt .head { display: flex; align-items: center; gap: .5rem; padding: .45rem .6rem .5rem; border-bottom: 1px solid var(--line); margin-bottom: .25rem; }
-#alt .head .badge { width: 1.6rem; height: 1.6rem; border-radius: .45rem; background: var(--accent-soft); color: var(--accent-2); display: grid; place-items: center; font-size: .85rem; }
-#alt .head b { font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#alt button { display: flex; align-items: center; gap: .6rem; width: 100%; text-align: left; border: 0; background: none; padding: .55rem .6rem; border-radius: .5rem; cursor: pointer; font-size: .88rem; }
-#alt button:hover:not(:disabled), #alt button:focus-visible { background: var(--accent-soft); outline: none; }
-#alt button:disabled { opacity: .45; cursor: not-allowed; }
-#alt button .ico { width: 1.5rem; text-align: center; }
-#alt button small { display: block; color: var(--faint); font-size: .74rem; margin-top: .1rem; }
-#alt .foot { font-size: .7rem; color: var(--faint); padding: .35rem .6rem .2rem; }
+/* ---------- Menu ALT (ALT + clic gauche sur la cible) ---------- */
+#alt { --k: 96, 165, 250; position: fixed; width: 18.5rem; z-index: 40; padding: 0; overflow: hidden;
+  background: linear-gradient(180deg, rgba(14, 22, 40, .98), rgba(9, 14, 26, .98));
+  border: 1px solid rgba(var(--k), .38); border-radius: .95rem;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 1.2rem 3rem rgba(0, 0, 0, .6), 0 0 2.2rem rgba(var(--k), .16);
+  animation: altIn .16s cubic-bezier(.2, .9, .3, 1.2); transform-origin: top left; }
+#alt[data-kind="vehicle"], #alt[data-kind="trunk"] { --k: 245, 158, 11; }
+#alt[data-kind="ext"] { --k: 167, 139, 250; }
+#alt[data-kind="npc"] { --k: 239, 68, 68; }
+#alt::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, rgba(var(--k), 1), rgba(var(--k), .15)); }
+#alt .head { display: flex; align-items: center; gap: .65rem; padding: .8rem .85rem .7rem; border-bottom: 1px solid rgba(255, 255, 255, .06);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(var(--k), .18), transparent 60%); }
+#alt .head .badge { flex: none; width: 2.1rem; height: 2.1rem; border-radius: .6rem; display: grid; place-items: center; font-size: 1.05rem;
+  background: rgba(var(--k), .16); border: 1px solid rgba(var(--k), .45); box-shadow: inset 0 0 .8rem rgba(var(--k), .25); }
+#alt .head .tt { min-width: 0; }
+#alt .head b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#alt .head small { display: block; font-size: .7rem; color: rgba(var(--k), .95); letter-spacing: .06em; text-transform: uppercase; margin-top: .1rem; }
+#alt .list { padding: .35rem; max-height: 60vh; overflow-y: auto; }
+#alt button { position: relative; display: flex; align-items: center; gap: .65rem; width: 100%; text-align: left; border: 1px solid transparent; background: none;
+  padding: .5rem .55rem; border-radius: .6rem; cursor: pointer; font-size: .88rem; color: var(--text);
+  opacity: 0; animation: altItem .22s ease-out forwards; transition: background .12s, border-color .12s, transform .12s; }
+#alt button:hover:not(:disabled), #alt button:focus-visible { background: rgba(var(--k), .13); border-color: rgba(var(--k), .35); outline: none; transform: translateX(2px); }
+#alt button:hover:not(:disabled) .ico, #alt button:focus-visible .ico { background: rgba(var(--k), .28); border-color: rgba(var(--k), .6); }
+#alt button:disabled { cursor: not-allowed; }
+#alt button:disabled .lbl, #alt button:disabled .ico { opacity: .4; }
+#alt button .ico { flex: none; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: .55rem; font-size: .95rem;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08); transition: background .12s, border-color .12s; }
+#alt button .lbl { flex: 1; min-width: 0; line-height: 1.2; }
+#alt button small { display: block; color: var(--faint); font-size: .72rem; margin-top: .12rem; }
+#alt button:disabled small { opacity: 1; color: #f59e0b; }
+#alt button kbd { flex: none; font: 600 .66rem 'JetBrains Mono', ui-monospace, monospace; color: var(--muted); padding: .1rem .35rem; border-radius: .3rem;
+  border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .04); }
+#alt .empty { padding: .9rem; color: var(--faint); font-size: .85rem; text-align: center; }
+#alt .foot { display: flex; gap: .8rem; justify-content: center; font-size: .66rem; color: var(--faint); padding: .45rem .6rem .55rem; border-top: 1px solid rgba(255, 255, 255, .05); }
+#alt .foot kbd { font: 600 .62rem 'JetBrains Mono', ui-monospace, monospace; padding: .05rem .3rem; border-radius: .25rem; border: 1px solid rgba(255, 255, 255, .14); margin-right: .2rem; }
+@keyframes altIn { from { opacity: 0; transform: scale(.92) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes altItem { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 
 /* ---------- Menu F6 ---------- */
