@@ -73,6 +73,7 @@ Items = {
     weed_pouch       = { label = 'Pochon de weed', weight = 50, stack = true, max = 200 },
     cocaine          = { label = 'Cocaïne', weight = 50, stack = true, max = 200 },
     dried_mushroom   = { label = 'Champignons séchés', weight = 30, stack = true, max = 200 },
+    ketamine         = { label = 'Kétamine', weight = 20, stack = true, max = 100, icon = '🐴', description = 'Drogue (elyzea_drogues). Clic droit › Utiliser.' },
     metal_scrap      = { label = 'Ferraille', weight = 200, stack = true, max = 500 },
     gun_parts_light  = { label = 'Pièces d\'armes légères', weight = 300, stack = true, max = 100 },
     gun_parts_medium = { label = 'Pièces d\'armes moyennes', weight = 500, stack = true, max = 100 },

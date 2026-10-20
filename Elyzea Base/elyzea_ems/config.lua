@@ -184,6 +184,7 @@ Config.DefaultGrades = {
 -- Ils viennent uniquement des consommations enregistrées par le serveur :
 --   · objets consommés dans l'inventaire (événement elyzea_inventory:usedItem), liste « items » ci-dessous ;
 --   · autres scripts (serveur) : exports.elyzea_ems:RecordConsumption(source, 'cocaine' [, quantité])
+--     (elyzea_drogues enregistre ainsi chaque prise de drogue)
 -- Rien n'est tiré au hasard. Sans données suffisantes, le résultat est « indéterminé ».
 -- ---------------------------------------------------------------------
 Config.Lab = {
@@ -212,12 +213,13 @@ Config.Lab = {
     -- items : objets d'inventaire qui comptent comme une prise (vide = seulement RecordConsumption).
     -- Ajouter une substance : copier une ligne avec un nouvel id (lettres, chiffres, _).
     substances = {
-        { id = 'thc',          label = 'Cannabis (THC)',          detectionHours = 72, recentHours = 6,  items = { 'joint' } },
-        { id = 'cocaine',      label = 'Cocaïne',                 detectionHours = 48, recentHours = 4,  items = { 'cokebaggy', 'crack_baggy' } },
+        { id = 'thc',          label = 'Cannabis (THC)',          detectionHours = 72, recentHours = 6,  items = { 'joint', 'weed_pouch' } },
+        { id = 'cocaine',      label = 'Cocaïne',                 detectionHours = 48, recentHours = 4,  items = { 'cocaine', 'cokebaggy', 'crack_baggy' } },
         { id = 'mdma',         label = 'MDMA / ecstasy',          detectionHours = 48, recentHours = 4,  items = { 'xtcbaggy' } },
         { id = 'amphetamines', label = 'Amphétamines',            detectionHours = 48, recentHours = 4,  items = { 'meth' } },
         { id = 'opiates',      label = 'Opiacés',                 detectionHours = 48, recentHours = 4,  items = { 'oxy' } },
-        { id = 'ketamine',     label = 'Kétamine',                detectionHours = 24, recentHours = 3,  items = {} },
+        { id = 'ketamine',     label = 'Kétamine',                detectionHours = 24, recentHours = 3,  items = { 'ketamine' } },
+        { id = 'psilocybin',   label = 'Psilocybine (champignons)', detectionHours = 24, recentHours = 4, items = { 'magic_mushroom', 'dried_mushroom' } },
         -- Exemple de substance personnalisée :
         -- { id = 'lsd', label = 'LSD', detectionHours = 24, recentHours = 4, items = { 'lsd_tab' } },
     },
