@@ -104,3 +104,28 @@ Client : `AltOptions(ctx)`, `AltSelect(id, ctx)` (menu ALT), `IsDown()`.
 - Le compte société et le journal `elyzea_society_logs` sont ceux d'elyzea_core ; les transactions EMS détaillées sont dans `ems_transactions`.
 - Une session de service compte au plus une minute de moins en cas de crash du serveur.
 - `Config.Equipment` (matériel requis) est désactivé par défaut.
+
+## Laboratoire : analyse sanguine « Alcool et substances »
+
+Résultats **simulés pour le jeu de rôle** (pas des mesures médicales réelles), calculés uniquement à partir des
+consommations enregistrées par le serveur. Aucun hasard, aucun positif sans consommation enregistrée.
+
+1. **Prélèvement** : ALT sur le patient › « Prélèvement sanguin » (permission `lab_sample`, en service, 3 m max).
+2. **Analyse** : tablette › 🧪 Laboratoire › le prélèvement › « Lancer l'analyse » (permission `lab_analyze`, en service).
+   Le serveur calcule le résultat avec les consommations faites **avant** le prélèvement, puis le fige dans le rapport.
+3. **Rapport** (permission `lab_view`) : patient, préleveur, médecin responsable, dates, alcoolémie (présence, taux g/L,
+   niveau nul / faible / modéré / élevé, consommation récente), dépistage par substance (vert négatif, rouge positif,
+   gris indéterminé), historique de l'analyse et analyses précédentes du patient.
+
+**D'où viennent les données** (`Config.Lab` dans config.lua) :
+- objets consommés dans l'inventaire (`elyzea_inventory:usedItem`) : grammes d'alcool par boisson (`alcohol.items`),
+  objets par substance (`substances[].items`) ;
+- autres scripts serveur : `exports.elyzea_ems:RecordConsumption(source, 'cocaine' [, quantité])`
+  (alcool : `'alcohol'` et la quantité en grammes, 10 g ≈ un verre).
+
+**Indéterminé** quand on ne peut pas savoir : suivi démarré trop récemment pour couvrir la durée de détection,
+ou substance reliée à aucune source de données. Durées de détection et seuils réglables par substance.
+
+Permissions données une fois aux grades existants : Directeur / direction / `reports_manage` → les trois,
+`records_write` → prélèvement et consultation. Tables : `ems_lab_consumptions`, `ems_lab_samples`, `ems_lab_meta` (créées toutes seules).
+Tests hors jeu : `python3 tests/run_lab_sim.py`.

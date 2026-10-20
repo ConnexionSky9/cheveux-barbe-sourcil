@@ -25,6 +25,10 @@ EmsPerms = {
     { key = 'reports_write', group = 'Tablette',    label = 'Rédiger des comptes rendus' },
     { key = 'reports_manage', group = 'Tablette',   label = 'Modifier et archiver tous les comptes rendus' },
     { key = 'stats_view',    group = 'Tablette',    label = 'Consulter les statistiques et historiques' },
+    -- Laboratoire (analyse sanguine : alcool et substances)
+    { key = 'lab_sample',    group = 'Laboratoire', label = 'Faire un prélèvement sanguin (ALT sur le patient)' },
+    { key = 'lab_analyze',   group = 'Laboratoire', label = 'Lancer l\'analyse d\'un prélèvement (médecin responsable)' },
+    { key = 'lab_view',      group = 'Laboratoire', label = 'Consulter les résultats et l\'historique des analyses' },
     -- Facturation et PPA
     { key = 'billing',       group = 'Facturation', label = 'Facturer un patient' },
     { key = 'ppa_civil',     group = 'Facturation', label = 'Délivrer un PPA civil' },

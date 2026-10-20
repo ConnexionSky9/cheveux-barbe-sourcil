@@ -166,13 +166,59 @@ Config.DefaultGrades = {
                 'records_view', 'records_write', 'reports_write', 'map', 'billing' } },
     { name = 'Infirmier',     level = 3, salary = 700,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
-                'records_view', 'records_write', 'reports_write', 'map', 'billing', 'ppa_civil' } },
+                'records_view', 'records_write', 'reports_write', 'map', 'billing', 'ppa_civil', 'lab_sample', 'lab_view' } },
     { name = 'Médecin',       level = 4, salary = 900,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
-                'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view' } },
+                'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view',
+                'lab_sample', 'lab_analyze', 'lab_view' } },
     { name = 'Chef de service', level = 5, salary = 1100,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
                 'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view',
-                'direction', 'recruit', 'employees_view', 'promote', 'demote', 'history_view' } },
+                'lab_sample', 'lab_analyze', 'lab_view', 'direction', 'recruit', 'employees_view', 'promote', 'demote', 'history_view' } },
     { name = 'Directeur',     level = 6, salary = 1400, perms = 'all' },
+}
+
+-- ---------------------------------------------------------------------
+-- LABORATOIRE : analyse sanguine « Alcool et substances »
+-- Résultats SIMULÉS pour le jeu de rôle (pas des mesures médicales réelles).
+-- Ils viennent uniquement des consommations enregistrées par le serveur :
+--   · objets consommés dans l'inventaire (événement elyzea_inventory:usedItem), liste « items » ci-dessous ;
+--   · autres scripts (serveur) : exports.elyzea_ems:RecordConsumption(source, 'cocaine' [, quantité])
+-- Rien n'est tiré au hasard. Sans données suffisantes, le résultat est « indéterminé ».
+-- ---------------------------------------------------------------------
+Config.Lab = {
+    sampleDistance = 3.0,           -- distance max patient / EMS pour le prélèvement
+    sampleTime = 6000,              -- durée du prélèvement (ms)
+    sampleCooldown = 60,            -- secondes entre deux prélèvements du même patient
+    keepConsumptionsDays = 14,      -- consommations gardées en base (au-delà : effacées)
+    keepSamplesDays = 180,          -- prélèvements et rapports gardés
+
+    alcohol = {
+        -- grammes d'alcool pur par objet consommé (1 verre standard ≈ 10 g)
+        items = {
+            nc_shot = 10, nc_coupe = 12, nc_whiskycoca = 14, nc_vodkaenergy = 14,
+            beer = 13, wine = 16, vodka = 30, whiskey = 30,
+        },
+        bodyWeight = 70,            -- poids simulé (kg) et coefficient de diffusion (formule de Widmark)
+        diffusion = 0.65,
+        eliminationPerHour = 0.15,  -- g/L éliminés par heure
+        detectionHours = 12,        -- au-delà, un verre ne compte plus du tout
+        recentHours = 2,            -- dernier verre il y a moins de X h : « consommation récente »
+        -- niveaux (g/L) : 0 = nul, sous « moderate » = faible, sous « high » = modéré, au-dessus = élevé
+        thresholds = { moderate = 0.5, high = 1.0 },
+    },
+
+    -- Dépistage des substances. detectionHours : durée pendant laquelle une prise reste détectable.
+    -- items : objets d'inventaire qui comptent comme une prise (vide = seulement RecordConsumption).
+    -- Ajouter une substance : copier une ligne avec un nouvel id (lettres, chiffres, _).
+    substances = {
+        { id = 'thc',          label = 'Cannabis (THC)',          detectionHours = 72, recentHours = 6,  items = { 'joint' } },
+        { id = 'cocaine',      label = 'Cocaïne',                 detectionHours = 48, recentHours = 4,  items = { 'cokebaggy', 'crack_baggy' } },
+        { id = 'mdma',         label = 'MDMA / ecstasy',          detectionHours = 48, recentHours = 4,  items = { 'xtcbaggy' } },
+        { id = 'amphetamines', label = 'Amphétamines',            detectionHours = 48, recentHours = 4,  items = { 'meth' } },
+        { id = 'opiates',      label = 'Opiacés',                 detectionHours = 48, recentHours = 4,  items = { 'oxy' } },
+        { id = 'ketamine',     label = 'Kétamine',                detectionHours = 24, recentHours = 3,  items = {} },
+        -- Exemple de substance personnalisée :
+        -- { id = 'lsd', label = 'LSD', detectionHours = 24, recentHours = 4, items = { 'lsd_tab' } },
+    },
 }

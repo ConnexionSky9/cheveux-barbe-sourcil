@@ -11,6 +11,7 @@ shared_scripts {
     '@elyzea_core/lib/ely.lua',
     'config.lua',
     'shared/perms.lua',
+    'shared/lab_rules.lua',
 }
 
 server_scripts {
@@ -26,6 +27,7 @@ server_scripts {
     'server/billing.lua',
     'server/ppa.lua',
     'server/records.lua',
+    'server/lab.lua',
     'server/direction.lua',
     'server/garage.lua',
     'server/phone.lua',

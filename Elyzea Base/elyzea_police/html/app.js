@@ -53,7 +53,7 @@ $('#confirm').addEventListener('click', (e) => {
    Menu ALT
    ===================================================================== */
 const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '🧾', carry: '🧍', trunk: '🧳', hide: '🫣', impound: '🚛', search: '🔍',
-  examine: '🩺', heal: '💊', stabilize: '🩹', revive: '❤️', record: '📋', ppa: '📜', repair: '🔧', clean: '🧽', flip: '🔄', engine: '⚙️', body: '🚗', tyres: '🛞',
+  examine: '🩺', blood: '🩸', heal: '💊', stabilize: '🩹', revive: '❤️', record: '📋', ppa: '📜', repair: '🔧', clean: '🧽', flip: '🔄', engine: '⚙️', body: '🚗', tyres: '🛞',
   bag: '🎒', open: '👜', buy: '🛒', sell: '💰', rob: '🔫', hack: '💻', c4: '🧨', cash: '💵',
   anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️' };
 let altOpenedAt = 0;

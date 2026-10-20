@@ -29,6 +29,7 @@
     { id: 'dispatch', label: 'Dispatch', ico: '📟', perm: ['calls'] },
     { id: 'patients', label: 'Patients', ico: '🩺', perm: ['records_view'] },
     { id: 'reports', label: 'Comptes rendus', ico: '📝', perm: ['records_view'] },
+    { id: 'lab', label: 'Laboratoire', ico: '🧪', perm: ['lab_view'] },
     { id: 'map', label: 'Carte', ico: '🗺️', perm: ['map'] },
     { id: 'stats', label: 'Statistiques', ico: '📊', perm: ['stats_view'] },
     { id: 'recruit', label: 'Recrutement', ico: '➕', perm: ['recruit'], group: 'Direction' },
@@ -78,7 +79,7 @@
     if (!nav || !allowed(nav)) page = 'dashboard';
     T.page = page;
     T.gen++;
-    if (!keepSub) { RS.mode = 'list'; ES.cid = null; PT.cid = null; PT.src = null; DS.sel = null; }
+    if (!keepSub) { RS.mode = 'list'; ES.cid = null; PT.cid = null; PT.src = null; DS.sel = null; LS.id = null; LS.cid = null; }
     renderNav();
     const n = NAV.find((x) => x.id === page);
     setTitle(n.label, n.group);
@@ -228,6 +229,103 @@
         <div class="card"><h2>Appels</h2>${p.calls.map((x) => `<div class="list-row"><div class="main"><b>#${x.id} · ${esc(x.reason)}</b><small>${esc(x.assigned_name || '—')} · ${fmtTime(x.t)}</small></div>${stPill(x.status)}</div>`).join('') || empty('Aucun appel.')}</div>
       </div></div>`;
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Laboratoire : analyse sanguine « Alcool et substances »             */
+  /* Résultats calculés et figés par le serveur (simulés pour le RP).    */
+  /* ------------------------------------------------------------------ */
+  const LS = { q: '', id: null, cid: null };
+  const LSTAT = { positive: ['bad', 'Positif'], negative: ['on', 'Négatif'], indeterminate: ['off', 'Indéterminé'] };
+  const LLEVEL = { nul: 'Nul', faible: 'Faible', modere: 'Modéré', eleve: 'Élevé' };
+  const SST = { pending: ['warn', 'En attente d\'analyse'], done: ['on', 'Analysé'], cancelled: ['off', 'Annulé'] };
+  const labPill = (st) => { const x = LSTAT[st] || LSTAT.indeterminate; return `<span class="pill lab-${esc(st || 'indeterminate')}">${x[1]}</span>`; };
+  const fullTime = (t) => (t ? new Date(t * 1000).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+  PAGES.lab = async (g) => {
+    if (LS.id) return labReport(g);
+    const d = await req('labList', LS.cid ? { cid: LS.cid } : { q: LS.q });
+    if (stale(g)) return;
+    if (d.error) { body().innerHTML = empty(d.error); return; }
+    const pend = d.list.filter((x) => x.status === 'pending').length;
+    body().innerHTML = `<div class="toolbar"><input class="input grow" id="labq" placeholder="Rechercher un patient par nom" value="${esc(LS.q)}"><button class="btn" data-lab="search">Rechercher</button>
+        ${LS.cid ? '<button class="btn" data-lab="all">Tous les patients</button>' : ''}</div>
+      <div class="lab-note">🧪 Prélèvement : <b>ALT</b> sur le patient › « Prélèvement sanguin ». Résultats <b>simulés pour le jeu de rôle</b>, calculés uniquement à partir des consommations enregistrées par le serveur.</div>
+      <div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .2rem 0">Prélèvements ${pend ? `<span class="pill warn">${pend} en attente</span>` : ''}</h2>
+      ${d.list.length ? `<table class="tbl"><tr><th>Réf.</th><th>Patient</th><th>Prélevé par</th><th>Prélèvement</th><th>État</th><th>Résultat</th></tr>${d.list.map((x) => `<tr class="click" data-labid="${x.id}">
+        <td class="mono">${esc(x.ref)}</td><td><b>${esc(x.patient)}</b></td><td>${esc(x.sampledBy)}</td><td class="muted">${fmtTime(x.sampledAt)}</td>
+        <td><span class="pill ${(SST[x.status] || SST.pending)[0]}">${(SST[x.status] || SST.pending)[1]}</span></td>
+        <td>${x.status !== 'done' ? '<span class="faint">—</span>' : (x.positives && x.positives.length ? `<span class="pill lab-positive">Positif : ${esc(x.positives.join(', '))}</span>` : '<span class="pill lab-negative">Aucun positif</span>')}</td></tr>`).join('')}</table>`
+        : empty('Aucun prélèvement.')}</div>`;
+  };
+  async function labReport(g) {
+    const r = await req('labReport', { id: LS.id });
+    if (stale(g)) return;
+    if (r.error) { toast(r.error, false); LS.id = null; return PAGES.lab(g); }
+    const x = r.report;
+    setTitle(`${x.ref} · ${x.patient}`, 'Laboratoire');
+    const res = x.results;
+    const st = SST[x.status] || SST.pending;
+    let section;
+    if (x.status === 'pending') {
+      section = `<div class="card"><h2>Alcool et substances</h2>${empty('Prélèvement en attente d\'analyse.')}
+        ${x.canAnalyze ? '<div class="actions-row"><button class="btn primary" data-lab="analyze">🧪 Lancer l\'analyse</button><button class="btn danger" data-lab="cancel">Annuler le prélèvement</button></div>' : '<p class="faint" style="font-size:.8rem;margin-top:.5rem">L\'analyse demande la permission « Lancer l\'analyse » et d\'être en service.</p>'}</div>`;
+    } else if (!res) {
+      section = `<div class="card"><h2>Alcool et substances</h2>${empty('Aucun résultat (prélèvement annulé).')}</div>`;
+    } else {
+      const a = res.alcohol || {};
+      const th = (x.config && x.config.thresholds) || {};
+      const gauge = a.bac !== undefined && a.bac !== null ? Math.min(100, (a.bac / Math.max(1.5, (th.high || 1) * 1.5)) * 100) : 0;
+      section = `<div class="card lab-section"><h2>Alcool et substances <span class="faint" style="font-size:.74rem;font-weight:500">Résultats simulés pour le jeu de rôle — pas une mesure médicale réelle</span></h2>
+        <div class="lab-alc lab-b-${esc(a.status || 'indeterminate')}">
+          <div class="lab-alc-head"><b>🍷 Alcoolémie</b>${labPill(a.status)}</div>
+          <div class="kv"><span>Présence d'alcool</span><b>${a.present === true ? 'Oui' : a.present === false ? 'Non' : 'Indéterminée'}</b>
+            <span>Taux simulé</span><b class="mono">${a.bac !== undefined && a.bac !== null ? `${Number(a.bac).toFixed(2).replace('.', ',')} g/L` : '—'}</b>
+            <span>Niveau</span><b>${a.level ? LLEVEL[a.level] || a.level : '—'}</b>
+            <span>Consommation</span><b>${esc((a.recency && a.recency.text) || (a.status === 'negative' ? 'Aucune consommation détectable' : '—'))}</b></div>
+          ${a.bac !== undefined && a.bac !== null ? `<div class="lab-gauge"><i style="width:${gauge}%"></i><em style="left:${Math.min(100, ((th.moderate || 0.5) / Math.max(1.5, (th.high || 1) * 1.5)) * 100)}%"></em><em style="left:${Math.min(100, ((th.high || 1) / Math.max(1.5, (th.high || 1) * 1.5)) * 100)}%"></em></div>` : ''}
+          ${a.note ? `<p class="faint lab-small">${esc(a.note)}</p>` : ''}</div>
+        <h3 class="lab-h3">Dépistage des substances</h3>
+        <table class="tbl"><tr><th>Substance</th><th>Résultat</th><th>Consommation</th><th>Prélèvement</th><th>Analyse</th></tr>
+          ${(res.substances || []).map((sb) => `<tr class="lab-row-${esc(sb.status)}"><td><b>${esc(sb.label)}</b>${sb.note ? `<small class="lab-small faint" style="display:block">${esc(sb.note)}</small>` : ''}</td>
+            <td>${labPill(sb.status)}</td><td class="muted">${esc((sb.recency && sb.recency.text) || (sb.status === 'negative' ? 'Non détectée' : '—'))}</td>
+            <td class="muted">${fullTime(x.sampledAt)}</td><td class="muted">${fullTime(x.analyzedAt)}</td></tr>`).join('')}</table>
+        <div class="lab-legend"><span class="pill lab-negative">Négatif</span><span class="pill lab-positive">Positif</span><span class="pill lab-indeterminate">Indéterminé</span></div></div>`;
+    }
+    body().innerHTML = `<div class="toolbar"><button class="btn" data-lab="back">‹ Laboratoire</button><span style="flex:1"></span>
+        ${can('records_view') ? `<button class="btn" data-lab="patient" data-cid="${esc(x.cid)}">🩺 Dossier médical</button>` : ''}
+        <button class="btn" data-lab="patientlabs" data-cid="${esc(x.cid)}">🧪 Analyses du patient</button></div>
+      <div class="split"><div>
+        <div class="card"><h2>Compte rendu d'analyse sanguine <span class="pill ${st[0]}">${st[1]}</span></h2>
+          <div class="kv"><span>Référence</span><b class="mono">${esc(x.ref)}</b><span>Patient</span><b>${esc(x.patient)}</b><span>Identifiant</span><b class="mono">${esc(x.cid)}</b>
+            <span>Prélevé par</span><b>${esc(x.sampledBy)}</b><span>Date du prélèvement</span><b>${fullTime(x.sampledAt)}</b>
+            <span>Médecin responsable</span><b>${esc(x.analyzedBy || '—')}</b><span>Date de l'analyse</span><b>${fullTime(x.analyzedAt)}</b></div></div>
+        ${section}
+      </div><div class="detail">
+        <div class="card"><h2>Historique de l'analyse</h2>${(x.history || []).map((h) => `<div class="list-row"><div class="main"><b>${esc(h.action)}</b><small>${esc(h.by || '')} · ${fullTime(h.at)}</small></div></div>`).join('') || empty('—')}</div>
+        <div class="card"><h2>Analyses précédentes du patient</h2>${(x.previous || []).map((o) => `<div class="list-row click" data-labid="${o.id}"><div class="main"><b class="mono">${esc(o.ref)}</b>
+          <small>${fmtTime(o.sampledAt)} · ${(SST[o.status] || SST.pending)[1]}${o.positives && o.positives.length ? ` · positif : ${esc(o.positives.join(', '))}` : ''}</small></div></div>`).join('') || empty('Aucune autre analyse.')}</div>
+      </div></div>`;
+  }
+  body().addEventListener('click', async (e) => {
+    if (T.page !== 'lab') return;
+    const row = e.target.closest('[data-labid]');
+    if (row) { LS.id = Number(row.dataset.labid); return go('lab', true); }
+    const b = e.target.closest('[data-lab]');
+    if (!b) return;
+    const a = b.dataset.lab;
+    if (a === 'search') { LS.q = ($('#labq') || {}).value || ''; LS.cid = null; return go('lab', true); }
+    if (a === 'all') { LS.cid = null; LS.q = ''; return go('lab', true); }
+    if (a === 'back') { LS.id = null; return go('lab', true); }
+    if (a === 'patientlabs') { LS.id = null; LS.cid = b.dataset.cid; return go('lab', true); }
+    if (a === 'patient') { PT.cid = b.dataset.cid; PT.src = null; return go('patients', true); }
+    if (a === 'analyze') { const r = await call('labAnalyze', { id: LS.id }, b); if (!r.error) go('lab', true); return; }
+    if (a === 'cancel') {
+      const v = await confirmBox('Annuler ce prélèvement ?', 'Il ne pourra plus être analysé. Le motif est gardé dans l\'historique.', 'Annuler le prélèvement', true,
+        '<label class="field"><span>Motif</span><input class="input" data-cfv="reason" maxlength="120" placeholder="ex : erreur de patient"></label>');
+      if (!v) return;
+      const r = await call('labCancel', { id: LS.id, reason: v.reason }, b); if (!r.error) go('lab', true);
+    }
+  });
+  $('#tabBody').addEventListener('keydown', (e) => { if (T.page === 'lab' && e.key === 'Enter' && e.target.id === 'labq') { LS.q = e.target.value; LS.cid = null; go('lab', true); } });
 
   /* ------------------------------------------------------------------ */
   /* Comptes rendus                                                      */
@@ -1000,6 +1098,7 @@
     back() {
       if (T.page === 'reports' && RS.mode !== 'list') { RS.mode = 'list'; go('reports'); return true; }
       if (T.page === 'patients' && PT.cid) { PT.cid = null; go('patients'); return true; }
+      if (T.page === 'lab' && (LS.id || LS.cid)) { if (LS.id) LS.id = null; else LS.cid = null; go('lab', true); return true; }
       if (T.page === 'employees' && ES.cid) { ES.cid = null; ES.emp = null; drawEmployees(); return true; }
       if (T.page === 'grades' && GS.edit) { GS.edit = null; drawGrades(); return true; }
       if (T.page === 'dispatch' && DS.sel) { DS.sel = null; DS.info = null; drawDispatch(); return true; }

@@ -209,6 +209,7 @@ function C.AltOptions(ctx)
             end
         end
         if C.Can('records_view') then out[#out + 1] = { id = 'record', label = 'Dossier médical', icon = 'record' } end
+        if C.Can('lab_sample') and not ctx.inVehicle then out[#out + 1] = { id = 'lab_sample', label = 'Prélèvement sanguin (laboratoire)', icon = 'blood' } end
         if C.Can('reports_write') then out[#out + 1] = { id = 'report', label = 'Compte rendu d\'intervention', icon = 'record' } end
         if C.Can('billing') then out[#out + 1] = { id = 'bill', label = 'Facturer les soins', icon = 'fine' } end
         if C.Can('ppa_civil') and not down then out[#out + 1] = { id = 'ppa_civil', label = 'Délivrer un PPA civil', icon = 'ppa' } end
@@ -244,10 +245,32 @@ function C.AltSelect(id, ctx)
     elseif id == 'putIn' then PutIn(t)
     elseif id == 'takeOut' then C.Do('takeOut', { target = t })
     elseif id == 'record' then C.OpenTablet({ page = 'patient', src = t })
+    elseif id == 'lab_sample' then C.LabSample(t)
     elseif id == 'report' then C.OpenTablet({ page = 'reportNew', src = t })
     elseif id == 'bill' then C.OpenBill(t)
     elseif id == 'ppa_civil' then C.OpenPpa(t, 'civil')
     elseif id == 'ppa_fdo' then C.OpenPpa(t, 'fdo') end
+end
+
+-- Prélèvement sanguin : courte animation puis enregistrement par le serveur (qui revérifie tout)
+local sampling = false
+function C.LabSample(t)
+    if sampling then return end
+    sampling = true
+    local ped = PlayerPedId()
+    local dict = 'mini@repair'
+    if C.LoadDict(dict) then TaskPlayAnim(ped, dict, 'fixing_a_ped', 3.0, -3.0, -1, 49, 0, false, false, false) end
+    C.Notify('Prélèvement sanguin en cours…', 'inform')
+    local endT = GetGameTimer() + ((Config.Lab and Config.Lab.sampleTime) or 6000)
+    local cancelled = false
+    while GetGameTimer() < endT do
+        Wait(100)
+        if IsPedRagdoll(ped) or IsEntityDead(ped) or C.IsDown() then cancelled = true break end
+    end
+    StopAnimTask(ped, dict, 'fixing_a_ped', 1.0)
+    sampling = false
+    if cancelled then return C.Notify('Prélèvement interrompu.', 'error') end
+    C.Do('labSample', { target = t })
 end
 
 exports('AltOptions', function(ctx)
