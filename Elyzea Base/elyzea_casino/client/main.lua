@@ -93,6 +93,18 @@ local function newObj(model, x, y, z, h)
     return o
 end
 
+-- Rotation d'un os dans le monde : selon la version du jeu, la native n'a pas le même nom (ou n'existe pas).
+-- Jamais d'erreur ici : une erreur arrêtait la boucle d'apparition et plus aucune table ne s'affichait.
+local function boneRot(ent, b)
+    for _, fn in ipairs({ GetEntityBoneRotation, GetWorldRotationOfEntityBone }) do
+        if type(fn) == 'function' then
+            local ok, r = pcall(fn, ent, b)
+            if ok and r and (r.x ~= 0.0 or r.y ~= 0.0 or r.z ~= 0.0) then return r end
+        end
+    end
+    return nil
+end
+
 -- Places : os « Chair_Base_0X » du modèle de table, sinon arc face au croupier (avec chaises posées)
 function CS.Seats(id)
     local p, e = CS.points[id], CS.ents[id]
@@ -104,7 +116,7 @@ function CS.Seats(id)
         local b = GetEntityBoneIndexByName(e.table, ('Chair_Base_0%d'):format(i))
         if b ~= -1 then
             local pos = GetWorldPositionOfEntityBone(e.table, b)
-            seats[i] = { pos = pos, rot = GetWorldRotationOfEntityBone(e.table, b) }
+            seats[i] = { pos = pos, rot = boneRot(e.table, b) }
         end
     end
     if #seats < Config.MaxPlayers then
@@ -164,19 +176,41 @@ function CS.Despawn(id)
     CS.ents[id] = nil
 end
 
--- Apparition / disparition selon la distance
+-- Apparition / disparition selon la distance.
+-- Chaque table est protégée : une erreur sur l'une (modèle absent, native manquante) est affichée
+-- en F8 et réessayée plus tard, sans jamais arrêter la boucle (sinon plus aucune table n'apparaît).
+local failedAt = {}
 CreateThread(function()
     while true do
         local pos = GetEntityCoords(PlayerPedId())
         for id, p in pairs(CS.points) do
             if p.table then
                 local d = #(pos - vec(p.table))
-                if d < 90.0 and not CS.ents[id] then CS.Spawn(id)
-                    if p.role ~= 'wheel' then TriggerServerEvent('elyzea_casino:requestTable', id) end
-                elseif d > 110.0 and CS.ents[id] then CS.Despawn(id) end
+                if d < 90.0 and not CS.ents[id] and GetGameTimer() > (failedAt[id] or 0) then
+                    local ok, err = pcall(CS.Spawn, id)
+                    if not ok then
+                        print(('^1[elyzea_casino] Table #%s non affichée : %s^0'):format(tostring(id), tostring(err)))
+                        pcall(CS.Despawn, id)
+                        failedAt[id] = GetGameTimer() + 10000
+                    elseif CS.ents[id] then
+                        failedAt[id] = nil
+                        if p.role ~= 'wheel' then TriggerServerEvent('elyzea_casino:requestTable', id) end
+                    else
+                        failedAt[id] = GetGameTimer() + 10000   -- modèle introuvable : on réessaie dans 10 s
+                    end
+                elseif d > 110.0 and CS.ents[id] then pcall(CS.Despawn, id) end
             end
         end
         Wait(1500)
+    end
+end)
+
+-- Liste des tables pas encore reçue (serveur ou admin_menu encore en démarrage) : on la redemande
+CreateThread(function()
+    for _ = 1, 6 do
+        Wait(10000)
+        if next(CS.points) then break end
+        TriggerServerEvent('elyzea_casino:requestPoints')
     end
 end)
 

@@ -243,8 +243,21 @@ local function sanitizePoint(p)
     return pt
 end
 
+local retry = 0
 function Casino.ReloadPoints()
     local ok, list = pcall(function() return exports.admin_menu:GetCasinoPoints() end)
+    if not ok or type(list) ~= 'table' then
+        -- admin_menu pas encore prêt : on garde les tables connues et on réessaie (au lieu de tout effacer)
+        retry = retry + 1
+        if retry <= 12 then
+            print(('^3[elyzea_casino] Points de l\'éditeur indisponibles (admin_menu démarré ?), nouvel essai dans 5 s (%d/12).^0'):format(retry))
+            SetTimeout(5000, Casino.ReloadPoints)
+        else
+            print('^1[elyzea_casino] Impossible de lire les tables du casino : vérifie que admin_menu est démarré avant elyzea_casino.^0')
+        end
+        return
+    end
+    retry = 0
     local pts = {}
     if ok and type(list) == 'table' then
         for _, p in ipairs(list) do
