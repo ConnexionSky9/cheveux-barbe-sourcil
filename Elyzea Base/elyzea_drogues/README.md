@@ -1,36 +1,66 @@
-# elyzea_drogues
+# elyzea_drogues — système de drogues (v2)
 
-Toutes les drogues du serveur deviennent consommables (inventaire › clic droit › **Utiliser**), chacune avec ses propres effets.
-`server.cfg` : `ensure elyzea_drogues` **après** `elyzea_inventory` et `elyzea_ems`.
+Filières de fabrication en plusieurs étapes, culture du cannabis par les joueurs, vente, consommation avec
+animations et fumée colorée, effets propres à chaque drogue (dont les hallucinations des champignons).
+Tout passe par le **ALT existant** (Alt + clic sur un objet ou un PNJ) et par **admin_menu › Illégal › 💊 Gestion des drogues**.
 
-| Drogue | Objets | Effets |
+> État : **rien n'a été testé en jeu.** Le code serveur est vérifié par des simulations hors jeu
+> (`tests/run_server_sim.py`, 73/73) et des contrôles statiques (`tests/static_check.py`, 41/41) ;
+> l'onglet admin a été affiché dans un navigateur de test. Voir `docs/TESTS.md` pour la procédure en jeu.
+
+## Installation
+1. Copier `elyzea_drogues` dans le dossier des ressources (à côté des autres ressources Elyzea).
+2. Remplacer aussi les fichiers modifiés de `admin_menu`, `elyzea_police` et `elyzea_inventory/shared/items.lua`
+   (liste dans `docs/FICHIERS.md`).
+3. `server.cfg` : `ensure elyzea_drogues` **après** `elyzea_inventory`, `elyzea_ems`, `admin_menu` et `elyzea_police`
+   (déjà fait dans `Serveur cfg/server.cfg`, section « Illégal »).
+4. Base de données : rien à faire, les tables sont créées au démarrage. Le fichier `sql/drogues.sql` permet de les créer à la main.
+5. Redémarrer le serveur (ou `refresh` puis `ensure elyzea_drogues`, `ensure admin_menu`, `ensure elyzea_police`, `ensure elyzea_inventory`).
+6. Donner la permission `drugs_manage` (gestion complète) ou `drugs_effects` (effets seulement) aux grades voulus
+   dans admin_menu (le SuperAdmin les a déjà).
+7. Placer les installations en jeu (`docs/ADMINISTRATION.md`).
+
+## Contenu
+| Filière | Étapes | Produits finis |
 |---|---|---|
-| 🌿 Cannabis | `weed_pouch`, `joint`, variétés `weed_*` | marche lente, vision douce, regagne un peu de vie, faim, moins de stress |
-| ❄️ Cocaïne | `cocaine`, `cokebaggy` | court plus vite, endurance illimitée, mains qui tremblent |
-| 💎 Crack | `crack_baggy` | cocaïne en plus fort et plus court, puis 30 s de descente (lent, tremblant) |
-| ⚗️ Méth | `meth` | coups de poing plus forts, +25 de gilet, endurance, vision agressive, soif |
-| 💊 Ecstasy | `xtcbaggy` | couleurs saturées, endurance, un peu plus rapide |
-| 💉 Opiacés | `oxy` | regagne de la vie, marche lente, vision floue et somnolente |
-| 🐴 Kétamine | `ketamine` (nouvel objet) | très lent, vision très floue, trébuche de temps en temps (sans se blesser) |
-| 🍄 Champignons | `magic_mushroom`, `dried_mushroom` | **hallucinations** : singes, clowns, extraterrestres, Bigfoot… viennent le frapper |
+| 🌿 Cannabis (4 variétés : Weed verte, White Widow violette, Purple Haze violet foncé, Variété maison orange) | culture en pot ou plant sauvage → têtes → préparer (désactivable) → rouler / ensacher | joints et pochons par variété |
+| ❄️ Cocaïne | récolte coca → broyage → pâte → ensachage (basique) → raffinage → finition | `cokebaggy`, `coke_premium` (pure) |
+| 💎 Crack | mélange → cuisson → séchage → découpe → ensachage | `crack_baggy` |
+| ⚗️ Méth | produits chimiques → mélange → cuisson → cristallisation → ensachage | `meth` |
+| 💊 Ecstasy | base → synthèse → presse (rose / bleu / jaune) → conditionnement | `xtc_pink`, `xtc_blue`, `xtc_yellow` |
+| 💉 Opiacés | macération → filtration → finition → conditionnement | `oxy`, `opi_syringe` |
+| 🐴 Kétamine | évaporation → séchage → broyage → ensachage | `ketamine` |
+| 🍄 Champignons | ramassage → tri → séchage → ensachage | `dried_mushroom`, `shroom_bag` |
 
-## Champignons hallucinogènes
-- Les créatures sont des PNJ **locaux** : seul le joueur défoncé les voit, les autres joueurs ne voient rien.
-- Elles apparaissent autour de lui, courent vers lui et le frappent : il **tombe**, sans perdre de vie
-  (elles n'ont aucune arme et ne combattent pas vraiment ; la vie perdue en tombant est rendue).
-- Elles disparaissent dans un nuage à la fin de leur durée de vie et à la fin de l'effet.
+Les ingrédients achetés (graines, pots, lampe, solvant, réactifs, colorants…) se trouvent chez les **PNJ fournisseurs** ;
+les produits se vendent aux **PNJ acheteurs** contre de l'argent sale (`black_money`, modifiable).
 
-## Réglages (admin_menu › Illégal › 💊 Drogues (effets), permission `drugs_effects`)
-- par drogue : activée ou non, **durée de défonce**, délai avant d'en reprendre ;
-- hallucinations : créatures en même temps, fréquence, délai entre deux coups, temps au sol, durée de vie, créatures possibles ;
-- joueurs sous effet (temps restant) et bouton **Arrêter les effets** ; **Tester sur moi** (sans objet).
-Les réglages sont gardés en base (`elyzea_drogues_settings`) ; `config.lua` donne les valeurs par défaut.
+## Consommation
+Inventaire › Utiliser. Animation et prop selon le produit (joint, pipe, sniff, comprimé, nourriture, seringue),
+fumée de la couleur de la variété visible des joueurs proches, effets différents par drogue (voir `config.lua`).
+Chaque prise est envoyée au **laboratoire EMS** (`exports.elyzea_ems:RecordConsumption`).
 
-## Règles
-- Tout est décidé par le serveur : drogue activée, délai, joueur à terre, menotté ou en arène PvP (refusé).
-- Reprendre la même drogue prolonge l'effet, jusqu'à 2 fois sa durée (`Config.MaxStack`).
-- Effets arrêtés à la mort ou à terre.
-- Chaque prise est enregistrée pour le **laboratoire EMS** (`exports.elyzea_ems:RecordConsumption`) : l'analyse sanguine la détecte.
-- Exports : `exports.elyzea_drogues:IsHigh(source)`, `exports.elyzea_drogues:ClearEffects(source)` (serveur), `IsHigh()` (client).
+## Sécurité (tout est décidé par le serveur)
+- Distance au poste, recette active, ingrédients réellement présents, place dans l'inventaire, durée minimale de fabrication
+  (un client trop rapide est refusé et journalisé), un seul poste utilisé à la fois par joueur et par poste.
+- Ingrédients retirés seulement à la fin ; pertes tirées au sort côté serveur.
+- Vente : prix des réglages serveur (jamais celui du client), quantité réelle, délai, limite horaire, place pour le paiement vérifiée **avant** de retirer les produits.
+- Culture : propriétaire, distance, nombre de pots, zones interdites, croissance calculée par le serveur.
+- Toutes les actions du menu admin revérifient la permission côté serveur.
 
-Tests hors jeu : `python3 tests/run_drogues_sim.py` (23/23).
+## Documentation
+- `docs/ADMINISTRATION.md` — placer les installations, régler recettes, prix, culture, effets.
+- `docs/AJOUTER_UNE_DROGUE.md` — ajouter une drogue, une étape ou une variété.
+- `docs/TESTS.md` — procédure de test en jeu et tests hors jeu.
+- `docs/FICHIERS.md` — fichiers créés et modifiés.
+- `docs/ANALYSE.md` — analyse de l'existant faite avant d'écrire le code, et limites.
+
+## Exports
+- Serveur : `IsHigh(src)`, `ClearEffects(src)`, `GetPrice(item)`.
+- Client : `IsHigh()`, plus les exports ALT (`AltTarget`, `AltNearby`, `AltOptions`, `AltSelect`) utilisés par `elyzea_police`.
+
+## Limites connues
+- Pas de modèles 3D personnalisés : les variétés utilisent les plantes de GTA, différenciées par une lueur et une fumée colorées.
+- Les animations « pipe », « sniff » et « seringue » et la particule de fumée colorée n'ont pas pu être vérifiées en jeu ;
+  si une animation manque, une animation de repli est jouée (rien ne bloque).
+- La hauteur de la plante dans le pot est calculée à partir de la taille du pot : à vérifier visuellement.

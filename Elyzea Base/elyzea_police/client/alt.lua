@@ -52,6 +52,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_animaux', prefix = 'ani:', target = true },   -- animaux (les siens, ceux des autres, la ferme)
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },
+    { res = 'elyzea_drogues', prefix = 'drg:', target = true },   -- postes, récolte, pots et plantes, acheteurs (objets et PNJ)
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre
@@ -95,6 +96,17 @@ local function Context()
             ctx.kind, ctx.entity = 'vehicle', GetVehiclePedIsIn(ent, false)
         elseif IsEntityAVehicle(ent) and d <= D.vehicle then
             ctx.kind, ctx.entity = 'vehicle', ent
+        end
+    end
+    if ctx.kind == 'none' then
+        -- Objets des ressources (postes, pots…) : second rayon qui touche aussi les objets,
+        -- utilisé seulement si le premier n'a rien trouvé (comportement d'avant inchangé)
+        local ray2 = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 16, me, 7)
+        local _, hit2, _, _, ent2 = GetShapeTestResult(ray2)
+        if (hit2 == 1 or hit2 == true) and ent2 and ent2 ~= 0 and DoesEntityExist(ent2) and not IsEntityAPed(ent2) and not IsEntityAVehicle(ent2)
+            and #(GetEntityCoords(ent2) - myPos) <= D.alt + 1.5 then
+            local res, title = ExtTarget(ent2)
+            if res then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent2, res, title end
         end
     end
     if ctx.kind == 'none' then

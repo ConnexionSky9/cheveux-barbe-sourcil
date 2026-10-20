@@ -257,6 +257,99 @@ Items.farm_feed = { label = 'Aliment pour bétail', weight = 1000, stack = true,
     description = 'Pour les animaux de la ferme : ALT sur un animal d\'enclos › Nourrir.' }
 Items.farm_egg = { label = 'Œuf frais', weight = 60, stack = true, max = 30, icon = '🥚', description = 'Ramassé à la basse-cour de la ferme.' }
 
+-- ───────── Drogues (elyzea_drogues) : graines, culture, ingrédients, intermédiaires, produits finis ─────────
+-- Les drogues finies sont « utilisables » (consommation gérée par elyzea_drogues). Recettes : elyzea_drogues/config/recipes.lua
+do
+    local function D(label, weight, icon, desc, usable) return { label = label, weight = weight, stack = true, max = 200, icon = icon, close = usable == true, description = desc } end
+    local V = { { '', 'Weed', '' }, { '_ww', 'White Widow', '' }, { '_ph', 'Purple Haze', '' }, { '_custom', 'Variété maison', '' } }
+    -- Cannabis : graines (les variétés White Widow et Purple Haze reprennent les objets existants du serveur)
+    Items.weed_seed                = D('Graine de weed', 5, '🌱', 'Variété : Weed (fumée verte). À planter dans un pot (ALT sur le pot).')
+    Items['weed_white-widow_seed'] = D('Graine de White Widow', 5, '🌱', 'Variété : White Widow (fumée violette). À planter dans un pot (ALT sur le pot).')
+    Items['weed_purple-haze_seed'] = D('Graine de Purple Haze', 5, '🌱', 'Variété : Purple Haze (fumée violet foncé). À planter dans un pot (ALT sur le pot).')
+    Items.weed_seed_custom         = D('Graine de variété maison', 5, '🌱', 'Variété maison (fumée orange par défaut). À planter dans un pot (ALT sur le pot).')
+    -- feuilles, têtes, préparé, joints, pochons
+    Items.weed_leaf_ww      = D('Feuilles de White Widow', 20, '🍃', 'À manucurer sur une table de manucure.')
+    Items.weed_leaf_ph      = D('Feuilles de Purple Haze', 20, '🍃', 'À manucurer sur une table de manucure.')
+    Items.weed_leaf_custom  = D('Feuilles de variété maison', 20, '🍃', 'À manucurer sur une table de manucure.')
+    Items.weed_bud          = D('Têtes de weed', 15, '🥦', 'Têtes de Weed : à préparer, rouler ou ensacher.')
+    Items['weed_white-widow'] = D('Têtes de White Widow', 15, '🥦', 'Têtes de White Widow : à préparer, rouler ou ensacher.')
+    Items['weed_purple-haze'] = D('Têtes de Purple Haze', 15, '🥦', 'Têtes de Purple Haze : à préparer, rouler ou ensacher.')
+    Items.weed_bud_custom   = D('Têtes de variété maison', 15, '🥦', 'Têtes de variété maison : à préparer, rouler ou ensacher.')
+    Items.weed_ground       = D('Weed effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
+    Items.weed_ground_ww    = D('White Widow effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
+    Items.weed_ground_ph    = D('Purple Haze effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
+    Items.weed_ground_custom= D('Variété maison effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
+    Items.joint             = D('Joint de weed', 10, '🚬', 'Fumée verte. Utiliser pour fumer.', true)
+    Items.joint_ww          = D('Joint de White Widow', 10, '🚬', 'Fumée violette. Utiliser pour fumer.', true)
+    Items.joint_ph          = D('Joint de Purple Haze', 10, '🚬', 'Fumée violet foncé. Utiliser pour fumer.', true)
+    Items.joint_custom      = D('Joint de variété maison', 10, '🚬', 'Fumée colorée. Utiliser pour fumer.', true)
+    Items.weed_pouch_ww     = D('Pochon de White Widow', 50, '🛍️', 'Se vend plus cher que la weed classique.', true)
+    Items.weed_pouch_ph     = D('Pochon de Purple Haze', 50, '🛍️', 'Se vend plus cher que la weed classique.', true)
+    Items.weed_pouch_custom = D('Pochon de variété maison', 50, '🛍️', 'Pochon de la variété maison.', true)
+    Items.rolling_paper     = D('Feuilles à rouler', 1, '📄', 'Pour rouler un joint.')
+    -- Culture
+    Items.plant_pot     = { label = 'Pot de fleurs', weight = 1500, stack = true, max = 10, icon = '🪴', close = true, description = 'Utiliser pour le poser au sol, puis ALT sur le pot pour planter une graine.' }
+    Items.grow_lamp     = { label = 'Lampe de culture', weight = 2500, stack = true, max = 5, icon = '💡', description = 'ALT sur un pot planté › Installer la lampe : la plante pousse beaucoup plus vite.' }
+    Items.watering_can  = { label = 'Arrosoir', weight = 800, stack = false, icon = '🚿', description = 'Avec une bouteille d\'eau : ALT sur une plante › Arroser.' }
+    Items.fertilizer    = D('Engrais', 500, '🧴', 'ALT sur une plante › Ajouter de l\'engrais : pousse plus vite jusqu\'à la récolte.')
+    Items.drug_bag      = D('Sachets vides', 1, '🧷', 'Pour conditionner la drogue.')
+    -- Cocaïne
+    Items.coca_ground   = D('Feuilles de coca broyées', 30, '🍂', 'À transformer en pâte (table de transformation).')
+    Items.coca_paste    = D('Pâte de coca', 40, '🟫', 'À ensacher (cocaïne) ou à raffiner (cocaïne pure). Base du crack.')
+    Items.coca_refined  = D('Base raffinée', 40, '⬜', 'À finir au poste de finition : cocaïne pure.')
+    Items.cokebaggy     = D('Pochon de cocaïne', 10, '❄️', 'Cocaïne basique.', true)
+    Items.coke_premium  = D('Pochon de cocaïne pure', 10, '💠', 'Cocaïne améliorée : plus forte, plus chère.', true)
+    Items.drg_solvent   = D('Solvant (fictif)', 300, '🧴', 'Ingrédient de jeu pour plusieurs recettes.')
+    Items.drg_reagent   = D('Réactif (fictif)', 200, '⚗️', 'Ingrédient de jeu : cocaïne pure.')
+    -- Crack
+    Items.baking_soda   = D('Bicarbonate', 200, '🧂', 'Ingrédient de jeu : crack.')
+    Items.crack_mix     = D('Mélange de base (crack)', 50, '🥣', 'À chauffer sur un réchaud.')
+    Items.crack_paste   = D('Pâte de crack', 50, '🟤', 'À faire sécher.')
+    Items.crack_block   = D('Bloc de crack', 50, '🧱', 'À découper en cailloux.')
+    Items.crack_rocks   = D('Cailloux de crack', 5, '🪨', 'À ensacher.')
+    Items.crack_baggy   = D('Pochon de crack', 10, '💎', 'Utiliser pour fumer.', true)
+    -- Méthamphétamine
+    Items.drg_acid      = D('Acide (fictif)', 400, '🧪', 'Ingrédient de jeu : méthamphétamine.')
+    Items.meth_mix      = D('Mélange chimique', 300, '🛢️', 'À cuire au laboratoire.')
+    Items.meth_liquid   = D('Méth liquide', 300, '💧', 'À cristalliser.')
+    Items.meth_crystal  = D('Cristaux de méth', 20, '🔷', 'À ensacher.')
+    Items.meth          = D('Pochon de méthamphétamine', 10, '⚗️', 'Utiliser pour fumer.', true)
+    -- Ecstasy
+    Items.drg_safrole   = D('Huile de base (fictive)', 300, '🫙', 'Ingrédient de jeu : ecstasy.')
+    Items.xtc_base      = D('Base d\'ecstasy', 100, '🧫', 'À synthétiser en poudre.')
+    Items.xtc_powder    = D('Poudre d\'ecstasy', 30, '⚪', 'À presser avec un colorant.')
+    Items.drg_dye_pink  = D('Colorant rose', 50, '🩷', 'Pour presser des comprimés roses.')
+    Items.drg_dye_blue  = D('Colorant bleu', 50, '💙', 'Pour presser des comprimés bleus.')
+    Items.drg_dye_yellow= D('Colorant jaune', 50, '💛', 'Pour presser des comprimés jaunes.')
+    Items.xtc_tabs_pink = D('Comprimés roses à conditionner', 20, '🩷', 'À conditionner.')
+    Items.xtc_tabs_blue = D('Comprimés bleus à conditionner', 20, '💙', 'À conditionner.')
+    Items.xtc_tabs_yellow = D('Comprimés jaunes à conditionner', 20, '💛', 'À conditionner.')
+    Items.xtc_pink      = D('Ecstasy rose', 2, '💊', 'Comprimé rose.', true)
+    Items.xtc_blue      = D('Ecstasy bleue', 2, '💊', 'Comprimé bleu, plus fort.', true)
+    Items.xtc_yellow    = D('Ecstasy jaune', 2, '💊', 'Comprimé jaune, plus léger.', true)
+    Items.xtcbaggy      = D('Sachet d\'ecstasy', 10, '💊', 'Utiliser pour prendre un comprimé.', true)
+    -- Opiacés (préparations fictives de jeu)
+    Items.drg_opium_raw = D('Résine brute (fictive)', 200, '🟤', 'Matière première de jeu : opiacés.')
+    Items.opi_solution  = D('Solution macérée', 300, '🥣', 'À filtrer.')
+    Items.opi_base      = D('Base filtrée', 50, '🧪', 'À finir : comprimés ou préparation injectable.')
+    Items.opi_powder    = D('Poudre pour comprimés', 20, '⚪', 'À conditionner en comprimés.')
+    Items.drg_syringe_empty = D('Seringue vide', 20, '💉', 'Matériel de jeu.')
+    Items.opi_syringe_raw = D('Préparation injectable', 30, '💉', 'À conditionner.')
+    Items.opi_syringe   = D('Seringue d\'opiacé (fictive)', 30, '💉', 'Utiliser (effet de jeu).', true)
+    Items.oxy           = D('Comprimés d\'opiacé', 5, '💊', 'Médicament de jeu : utiliser pour en prendre un.', true)
+    -- Kétamine
+    Items.drg_keta_liquid = D('Flacon de liquide (fictif)', 300, '🧴', 'Ingrédient de jeu : kétamine.')
+    Items.keta_wet      = D('Cristaux humides', 100, '💧', 'À sécher.')
+    Items.keta_crystal  = D('Cristaux de kétamine', 50, '🔹', 'À broyer.')
+    Items.keta_powder   = D('Poudre de kétamine', 20, '⚪', 'À ensacher.')
+    -- Champignons
+    Items.shroom_sorted = D('Champignons triés', 25, '🍄', 'À faire sécher.')
+    Items.shroom_bag    = D('Sachet de champignons', 30, '🍄', 'Champignons séchés, plus forts. Utiliser pour en manger.', true)
+    Items.magic_mushroom.close, Items.magic_mushroom.description = true, 'Champignon hallucinogène frais : à trier, ou à manger.'
+    Items.dried_mushroom.close, Items.dried_mushroom.description = true, 'Champignons séchés : à ensacher, ou à manger.'
+    Items.weed_pouch.close, Items.cocaine.close, Items.ketamine.close = true, true, true
+end
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 
@@ -276,6 +369,13 @@ ImageAlias = {
     blood_bag = 'blood_bag_500.png', defibrillator = 'defibrilator.png', painkiller = 'painkillers.png',
     pizza = 'pizza_ham_slice.png', bread = 'WEAPON_BREAD.png', kurkakola = 'cola.png',
     weaponlicense = 'WEAPON_LICENSE.png',
+    -- drogues (elyzea_drogues)
+    weed_seed = 'weed_seed.png', weed_seed_custom = 'weed_seed.png', weed_leaf_ww = 'weed.png', weed_leaf_ph = 'weed.png', weed_leaf_custom = 'weed.png',
+    weed_bud = 'weed_baggy.png', weed_bud_custom = 'weed_baggy.png', joint_ww = 'joint.png', joint_ph = 'joint.png', joint_custom = 'joint.png',
+    weed_pouch_ww = 'weed_baggy.png', weed_pouch_ph = 'weed_baggy.png', weed_pouch_custom = 'weed_baggy.png',
+    fertilizer = 'weed_nutrition.png', watering_can = 'WEAPON_FERTILIZERCAN.png', drug_bag = 'weed_baggy_empty.png',
+    coca_paste = 'coke_small_brick.png', coca_refined = 'coke_brick.png', coke_premium = 'cocaine_baggy.png',
+    drg_acid = 'hydrochloricacid.png', meth_crystal = 'meth_tray.png', meth_liquid = 'meth_tray.png',
     crowbar = 'WEAPON_CROWBAR.png', walking_stick = 'walkstick.png',
     advancedrepairkit = 'repairkit.png', trojan_usb = 'usb_device.png',
     at_scope_macro = 'at_scope_small.png', at_compensator = 'at_muzzle_tactical.png',

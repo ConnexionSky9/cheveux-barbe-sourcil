@@ -1,57 +1,24 @@
 -- =====================================================================
---  ELYZEA DROGUES · serveur
---  · Rend chaque objet drogue utilisable (elyzea_inventory) ; 1 unité consommée par prise.
---  · Le serveur décide : drogue activée, délai entre deux prises, durée, joueur à terre ou en arène.
---  · Chaque prise est enregistrée pour le laboratoire EMS (exports.elyzea_ems:RecordConsumption).
---  · Réglages modifiables dans l'admin_menu (exports AdminData / AdminAction), gardés en base.
+--  ELYZEA DROGUES · consommation (serveur)
+--  · Chaque produit de config/products.lua devient « utilisable » (elyzea_inventory) : 1 unité retirée
+--    par l'inventaire seulement si le serveur accepte la prise (drogue activée, délai, état du joueur).
+--  · Durée = réglage de la drogue × force du produit ; reprendre prolonge (plafonné).
+--  · Prise enregistrée pour le laboratoire EMS (exports.elyzea_ems:RecordConsumption).
+--  · Fumée colorée : le client qui fume demande au serveur de prévenir les joueurs proches (limité).
 -- =====================================================================
-local S = DrugRules.Defaults()
-local active = {}     -- [src] = { [drugId] = fin (os.time) }
-local lastUse = {}    -- [src] = { [drugId] = os.time de la dernière prise }
-local ready = false
+local active = {}       -- [src] = { [drugId] = fin (os.time) }
+local lastUse = {}      -- [src] = { [drugId] = os.time }
+local lastSmoke = {}    -- [src] = { untilT, color, lastPuff }
 
-local function notify(src, msg, kind)
-    pcall(function() exports.elyzea_core:Notify(src, msg, kind or 'inform') end)
-end
+local function S() return DS.S end
 
--- ---------------------------------------------------------------- réglages (base de données)
-local function save()
-    MySQL.query('INSERT INTO `elyzea_drogues_settings` (`k`, `v`) VALUES (\'settings\', ?) ON DUPLICATE KEY UPDATE `v` = VALUES(`v`)', { json.encode(S) })
-end
-
-local function publicSettings()
-    return { drugs = S.drugs, trip = S.trip, creatures = S.creatures }
-end
-
-local function pushSettings(target)
-    TriggerClientEvent('elyzea_drogues:settings', target or -1, publicSettings())
-end
-
-CreateThread(function()
-    MySQL.ready.await()
-    MySQL.query.await([[CREATE TABLE IF NOT EXISTS `elyzea_drogues_settings` (`k` VARCHAR(32) NOT NULL PRIMARY KEY, `v` LONGTEXT NOT NULL,
-        `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) DEFAULT CHARSET=utf8mb4]])
-    local raw = MySQL.scalar.await('SELECT `v` FROM `elyzea_drogues_settings` WHERE `k` = \'settings\'')
-    if raw then
-        local ok, v = pcall(json.decode, raw)
-        local clean = ok and DrugRules.Clean(v) or nil
-        if clean then S = clean end
-    end
-    ready = true
-    pushSettings(-1)
-end)
-RegisterNetEvent('elyzea_drogues:requestSettings', function() if ready then pushSettings(source) end end)
-
--- ---------------------------------------------------------------- prise d'une drogue
 local function canTake(src, id)
-    local d, set = Config.Drugs[id], S.drugs[id]
+    local d, set = Config.Drugs[id], S().drugs[id]
     if not d or not set then return false, 'Drogue inconnue.' end
     if not set.enabled then return false, ('%s : désactivé sur le serveur.'):format(d.label) end
-    local ped = GetPlayerPed(src)
-    if ped == 0 or GetEntityHealth(ped) <= 0 then return false, 'Impossible pour le moment.' end
-    local st = Player(src).state
-    if st.emsDown or st.cuffed then return false, 'Impossible pour le moment.' end
-    if Config.BlockInArena and st.pvpArena then return false, 'Pas pendant une partie d\'arène.' end
+    local ok, why = DS.CanAct(src)
+    if not ok then return false, why end
+    if Config.BlockInArena and Player(src).state.pvpArena then return false, 'Pas pendant une partie d\'arène.' end
     local last = (lastUse[src] or {})[id]
     if last and os.time() - last < set.cooldown then
         return false, ('Attends encore %d s avant d\'en reprendre.'):format(set.cooldown - (os.time() - last))
@@ -72,38 +39,44 @@ local function needs(src, id)
     end)
 end
 
--- Démarre (ou prolonge) l'effet d'une drogue pour un joueur. test = staff (aucun objet, pas de délai ni d'enregistrement)
-local function apply(src, id, test)
-    local set = S.drugs[id]
+-- Démarre (ou prolonge) l'effet. item = produit consommé (nil pour un test du staff)
+local function apply(src, id, item, test)
+    local set = S().drugs[id]
+    local prod = item and Config.Products[item] or nil
+    local duration = math.floor(set.duration * (prod and prod.mult or 1.0) + 0.5)
     local now = os.time()
     active[src] = active[src] or {}
-    local untilT = DrugRules.Extend(active[src][id], now, set.duration, Config.MaxStack)
+    local untilT = DrugRules.Extend(active[src][id], now, duration, Config.MaxStack)
     active[src][id] = untilT
     if not test then
         lastUse[src] = lastUse[src] or {}
         lastUse[src][id] = now
         needs(src, id)
-        -- laboratoire EMS : la prise est enregistrée côté serveur (jamais par le client)
         if GetResourceState('elyzea_ems') == 'started' then
             pcall(function() exports.elyzea_ems:RecordConsumption(src, Config.Drugs[id].substance, 1) end)
         end
+        DS.Log('conso', src, ('%s (%s)'):format(item or '?', id))
     end
-    TriggerClientEvent('elyzea_drogues:take', src, id, untilT - now, test == true)
+    local color = DrugRules.SmokeColor(S(), prod)
+    if color then lastSmoke[src] = { untilT = now + 15, color = color, lastPuff = 0 } end
+    TriggerClientEvent('elyzea_drogues:take', src, id, untilT - now, test == true, item, color, set.intensity)
 end
+DS.ApplyDrug = apply
 
 local function registerItems()
     local inv = exports.elyzea_inventory
-    for id, d in pairs(Config.Drugs) do
-        for _, item in ipairs(d.items) do
-            pcall(function()
-                inv:RegisterUsableItem(item, function(src)
-                    local ok, why = canTake(src, id)
-                    if not ok then notify(src, why, 'error') return false end
-                    apply(src, id, false)
-                    return true   -- une unité consommée
-                end)
+    for item, prod in pairs(Config.Products) do
+        pcall(function()
+            inv:RegisterUsableItem(item, function(src)
+                local ok, why = canTake(src, prod.drug)
+                if not ok then DS.Notify(src, why, 'error') return false end
+                apply(src, prod.drug, item, false)
+                return true   -- une unité consommée
             end)
-        end
+        end)
+    end
+    for item, fn in pairs(DS.RegisterUsable or {}) do
+        pcall(function() inv:RegisterUsableItem(item, function(src) return fn(src) end) end)
     end
 end
 CreateThread(function()
@@ -114,7 +87,31 @@ end)
 AddEventHandler('elyzea_inventory:ready', registerItems)
 AddEventHandler('onResourceStart', function(res) if res == 'elyzea_inventory' then SetTimeout(2000, registerItems) end end)
 
--- Fin naturelle / joueur parti
+-- ---------------------------------------------------------------- fumée colorée (synchronisée)
+-- Le client envoie une bouffée seulement pendant les 15 s qui suivent une prise qui fume ; la couleur
+-- vient du serveur (jamais du client) ; envoyée aux seuls joueurs proches, 1 bouffée / seconde max.
+RegisterNetEvent('elyzea_drogues:puff', function()
+    local src = source
+    local s = lastSmoke[src]
+    local now = os.time()
+    if not s or now > s.untilT or now - s.lastPuff < 1 then return end
+    s.lastPuff = now
+    local pos = DS.Pos(src)
+    if not pos then return end
+    local r2 = (Config.Smoke.syncRadius or 35.0) ^ 2
+    for _, id in ipairs(GetPlayers()) do
+        local t = tonumber(id)
+        if t ~= src then
+            local p = DS.Pos(t)
+            if p then
+                local dx, dy, dz = p.x - pos.x, p.y - pos.y, p.z - pos.z
+                if dx * dx + dy * dy + dz * dz <= r2 then TriggerClientEvent('elyzea_drogues:puff', t, src, s.color) end
+            end
+        end
+    end
+end)
+
+-- ---------------------------------------------------------------- suivi des effets
 CreateThread(function()
     while true do
         Wait(5000)
@@ -125,88 +122,25 @@ CreateThread(function()
         end
     end
 end)
-AddEventHandler('playerDropped', function() active[source] = nil lastUse[source] = nil end)
-
--- Le client signale qu'il a arrêté ses effets (mort, à terre, réanimation)
+AddEventHandler('playerDropped', function() active[source] = nil lastUse[source] = nil lastSmoke[source] = nil end)
 RegisterNetEvent('elyzea_drogues:cleared', function() active[source] = nil end)
 
--- Pour d'autres ressources : exports.elyzea_drogues:IsHigh(source) / ClearEffects(source)
-exports('IsHigh', function(src) src = tonumber(src) return active[src] ~= nil and next(active[src]) ~= nil end)
-exports('ClearEffects', function(src)
-    src = tonumber(src)
-    active[src] = nil
-    TriggerClientEvent('elyzea_drogues:stop', src)
-end)
-
--- ---------------------------------------------------------------- admin_menu (onglet Drogues)
-local function isAdmin(src)
-    if src == 0 then return true end
-    local ok, r = pcall(function() return exports.admin_menu:HasPermission(src, Config.Permission) end)
-    return ok and r == true
-end
-
-function AdminData(src)
-    if not isAdmin(src) then return { available = true, denied = true } end
-    local drugs = {}
-    for id, d in pairs(Config.Drugs) do
-        drugs[#drugs + 1] = { id = id, label = d.label, icon = d.icon, desc = d.desc, items = d.items, substance = d.substance,
-            enabled = S.drugs[id].enabled, duration = S.drugs[id].duration, cooldown = S.drugs[id].cooldown }
-    end
-    table.sort(drugs, function(a, b) return a.label < b.label end)
-    local creatures = {}
-    for _, c in ipairs(Config.Trip.creatures) do creatures[#creatures + 1] = { model = c.model, label = c.label, kind = c.kind, on = S.creatures[c.model] ~= false } end
-    local now, users = os.time(), {}
+function DS.HighUsers()
+    local now, out = os.time(), {}
     for s, list in pairs(active) do
         local l = {}
         for id, t in pairs(list) do if t > now then l[#l + 1] = { id = id, label = Config.Drugs[id].label, left = t - now } end end
-        if #l > 0 and GetPlayerName(s) then users[#users + 1] = { id = s, name = GetPlayerName(s), drugs = l } end
+        if #l > 0 and GetPlayerName(s) then out[#out + 1] = { id = s, name = GetPlayerName(s), drugs = l } end
     end
-    table.sort(users, function(a, b) return a.id < b.id end)
-    return { available = true, ready = ready, drugs = drugs, trip = S.trip, creatures = creatures, users = users,
-        emsLinked = GetResourceState('elyzea_ems') == 'started' }
+    table.sort(out, function(a, b) return a.id < b.id end)
+    return out
 end
-exports('AdminData', AdminData)
-
-local A = {}
-A.settings_save = function(_, d)
-    local clean, err = DrugRules.Clean(d.settings)
-    if not clean then return false, err end
-    S = clean
-    save()
-    pushSettings(-1)
-    return true, 'Réglages des drogues enregistrés (appliqués aux prochaines prises).'
-end
-A.settings_reset = function()
-    S = DrugRules.Defaults()
-    save()
-    pushSettings(-1)
-    return true, 'Réglages remis à ceux de config.lua.'
-end
-A.stop_player = function(_, d)
-    local t = tonumber(d.id)
-    if not t or not GetPlayerName(t) then return false, 'Joueur introuvable.' end
-    active[t] = nil
-    TriggerClientEvent('elyzea_drogues:stop', t)
-    return true, ('Effets arrêtés pour %s.'):format(GetPlayerName(t))
-end
-A.test_self = function(src, d)
-    local id = tostring(d.id or '')
-    if not Config.Drugs[id] then return false, 'Drogue inconnue.' end
-    if src == 0 then return false, 'En jeu seulement.' end
-    apply(src, id, true)
-    return true, ('Test : effet « %s » appliqué sur toi (aucun objet consommé, rien d\'enregistré pour le labo).'):format(Config.Drugs[id].label)
+function DS.StopEffects(src)
+    active[src] = nil
+    TriggerClientEvent('elyzea_drogues:stop', src)
 end
 
-function AdminAction(src, name, data)
-    if not isAdmin(src) then return false, 'Permission « ' .. Config.Permission .. ' » refusée.' end
-    if not ready then return false, 'La ressource démarre, réessaie dans un instant.' end
-    local fn = A[tostring(name)]
-    if not fn then return false, 'Action inconnue.' end
-    local ok, success, msg = pcall(fn, src, type(data) == 'table' and data or {})
-    if not ok then
-        print(('^1[elyzea_drogues] admin %s : %s^0'):format(tostring(name), tostring(success)))
-        return false, 'Erreur interne (voir la console du serveur).'
-    end
-    return success, msg
-end
-exports('AdminAction', AdminAction)
+-- Pour d'autres ressources
+exports('IsHigh', function(src) src = tonumber(src) return active[src] ~= nil and next(active[src]) ~= nil end)
+exports('ClearEffects', function(src) DS.StopEffects(tonumber(src)) end)
+exports('GetPrice', function(item) local p = DS.S.prices[tostring(item or '')] return p and p.price or 0 end)

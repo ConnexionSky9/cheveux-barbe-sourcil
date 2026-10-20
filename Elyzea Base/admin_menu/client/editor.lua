@@ -415,6 +415,10 @@ local function confirmPlacement()
     elseif P.kind == 'casinotable' then
         d.pedId = P.pedId
         TriggerServerEvent('adminmenu:action', 'editor_casino_table', d)
+    elseif P.kind == 'drugsite' then
+        -- Gestion des drogues : poste, point de récolte ou PNJ (elyzea_drogues revérifie tout)
+        d.type, d.id = P.drugType, P.drugId
+        TriggerServerEvent('adminmenu:action', 'drogues', { name = 'site_save', data = d })
     elseif P.kind == 'garagespot' and P.target == 'dmv' then
         d.pedId = P.pedId
         TriggerServerEvent('adminmenu:action', 'editor_dmv_spot', d)
@@ -1119,6 +1123,14 @@ RegisterNUICallback('editor', function(body, cb)
     elseif n == 'npc_area_draw' and canEdit('editor_peds') then
         CloseMenu()
         StartZoneDraw(nil, { color = 'gold', name = d.name }, { ped = tonumber(d.id) })
+    elseif n == 'drug_place' and HasPerm('drugs_manage') then
+        -- Gestion des drogues › Installations : placer (ou déplacer, avec id) un poste / point de récolte / PNJ
+        CloseMenu()
+        StartPlacement({ kind = d.npc and 'ped' or 'drugsite', model = tostring(d.model or ''), drugType = tostring(d.type or ''),
+            drugId = tonumber(d.id), heading = tonumber(d.h) })
+        if d.npc and Placing then Placing.kind = 'drugsite' end
+    elseif n == 'drug_tp' and HasPerm('drugs_manage') then
+        TriggerServerEvent('adminmenu:action', 'drogues', { name = 'site_tp', data = { id = tonumber(d.id), plant = tonumber(d.plant) } })
     elseif n == 'pvp_zone_draw' and HasPerm('pvp_manage') then
         -- Arène PvP : dessiner la zone de combat en jeu (pvp_arena revérifie la permission et la forme)
         CloseMenu()

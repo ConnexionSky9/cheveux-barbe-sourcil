@@ -24,42 +24,7 @@ local PROFILES = {
     mushrooms = { prio = 7, tc = 'DrugsTrevorClownsFight', tcMax = 0.8, shake = { 'DRUNK_SHAKE', 0.5 }, blur = true, trip = true },
 }
 
--- Animation de prise selon la drogue
-local USE = {
-    smoke = { scenario = 'WORLD_HUMAN_SMOKING_POT', time = 6000 },
-    snort = { dict = 'missfbi3_party', clip = 'snort_coke_b_male3', time = 3500 },
-    pill  = { dict = 'mp_suicide', clip = 'pill', time = 2500 },
-    eat   = { dict = 'mp_player_inteat@burger', clip = 'mp_player_int_eat_burger_fp', time = 3000 },
-}
-
-local function loadDict(d)
-    if not DoesAnimDictExist(d) then return false end
-    RequestAnimDict(d)
-    local t = GetGameTimer() + 2000
-    while not HasAnimDictLoaded(d) and GetGameTimer() < t do Wait(10) end
-    return HasAnimDictLoaded(d)
-end
-local function loadClip(c)
-    RequestClipSet(c)
-    local t = GetGameTimer() + 2000
-    while not HasClipSetLoaded(c) and GetGameTimer() < t do Wait(10) end
-    return HasClipSetLoaded(c)
-end
-
-local function playUse(kind)
-    local u = USE[kind]
-    local ped = PlayerPedId()
-    if not u or IsPedInAnyVehicle(ped, false) then Wait(1200) return end
-    if u.scenario then
-        TaskStartScenarioInPlace(ped, u.scenario, 0, true)
-        Wait(u.time)
-        ClearPedTasks(ped)
-    elseif loadDict(u.dict) then
-        TaskPlayAnim(ped, u.dict, u.clip, 3.0, -3.0, u.time, 49, 0, false, false, false)
-        Wait(u.time)
-        StopAnimTask(ped, u.dict, u.clip, 1.0)
-    end
-end
+-- Animations de prise : client/consume.lua (FX.PlayUse), selon config/products.lua
 
 -- Chute sans perte de vie : la vie perdue pendant la chute est rendue (sauf vrai coup d'un joueur / véhicule)
 function FX.Fall(ms)
@@ -177,7 +142,7 @@ local function loop()
                 -- filtre de vision (fondu)
                 if best and best.tc then
                     if cur.tc ~= best.tc then SetTimecycleModifier(best.tc) cur.tc = best.tc end
-                    SetTimecycleModifierStrength((best.tcMax or 0.6) * strength(be, now))
+                    SetTimecycleModifierStrength(math.min(1.0, (best.tcMax or 0.6) * (be.int or 1.0)) * strength(be, now))
                 elseif cur.tc then ClearTimecycleModifier() cur.tc = nil end
                 -- démarche
                 local clip = pick(now, 'clip')
@@ -187,10 +152,11 @@ local function loop()
                 end
                 -- tremblement de caméra
                 local shake = pick(now, 'shake')
-                local key = shake and (shake[1] .. shake[2]) or nil
+                local amp = shake and (shake[2] * (be and be.int or 1.0)) or 0
+                local key = shake and (shake[1] .. amp) or nil
                 if key ~= cur.shake then
                     if cur.shake then StopGameplayCamShaking(true) end
-                    if shake then ShakeGameplayCam(shake[1], shake[2]) end
+                    if shake then ShakeGameplayCam(shake[1], amp) end
                     cur.shake = key
                 end
                 -- flou de mouvement
@@ -230,16 +196,18 @@ end
 
 -- ---------------------------------------------------------------- prise (décidée par le serveur)
 local busy = false
-RegisterNetEvent('elyzea_drogues:take', function(id, seconds, test)
+RegisterNetEvent('elyzea_drogues:take', function(id, seconds, test, item, color, intensity)
     local d = Config.Drugs[id]
     if not d or busy then return end
     busy = true
-    playUse(d.use)
+    local ok, err = pcall(function() FX.PlayUse(item, color) end)
+    if not ok then print(('^1[elyzea_drogues] animation de prise : %s^0'):format(tostring(err))) end
     busy = false
     local now = GetGameTimer()
     local e = FX.active[id]
     local fresh = e == nil
-    FX.active[id] = { profile = id, start = e and e.start or now, endT = now + (tonumber(seconds) or d.duration) * 1000, test = test }
+    FX.active[id] = { profile = id, start = e and e.start or now, endT = now + (tonumber(seconds) or d.duration) * 1000, test = test,
+        int = math.max(0.25, math.min(2.0, (tonumber(intensity) or 100) / 100)) }
     if id == 'crack' then FX.active.crash = nil end
     local p = PROFILES[id]
     if fresh and p and p.armour then
