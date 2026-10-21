@@ -23,6 +23,11 @@ end
 -- Panneau « Menu » : groupe (si membre) + vente de drogue (si de la drogue sur soi ou mode vente actif)
 local function openF5()
     if IsTabletOpen() or IsNuiFocused() or IsPauseMenuActive() then return end
+    -- Dans un laboratoire (elyzea_labs) : F5 ouvre la tablette « Laboratoire »
+    if GetResourceState('elyzea_labs') == 'started' then
+        local ok, opened = pcall(function() return exports.elyzea_labs:OpenLabTablet() end)
+        if ok and opened then return end
+    end
     local ok, drug = pcall(function() return Ely.callback.await('illegal:drug:status', false) end)
     drug = ok and type(drug) == 'table' and drug or nil
     local showDrug = drug and drug.enabled and (drug.on or #(drug.items or {}) > 0)

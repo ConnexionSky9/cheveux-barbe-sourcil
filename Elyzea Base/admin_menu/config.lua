@@ -184,6 +184,7 @@ Config.Permissions = {
     { key = 'animaux_owned',   label = 'Animaux possédés : consulter, rechercher, ranger, corriger l\'état, retirer à un joueur (elyzea_animaux)', cat = 'Gestion' },
     { key = 'casino_manage', label = 'Casino : tables, roues de la fortune (gains et chances), guichet des jetons, statistiques (elyzea_casino)', cat = 'Joueurs' },
     { key = 'drugs_manage', label = 'Gestion des drogues : installations (placer, déplacer, supprimer), recettes, prix, culture, récolte, effets, pots des joueurs (elyzea_drogues)', cat = 'Illégal' },
+    { key = 'labs_manage', label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
     { key = 'drugs_effects', label = 'Drogues : effets seulement (durée de défonce, hallucinations, arrêter les effets d\'un joueur) (elyzea_drogues)', cat = 'Illégal' },
     { key = 'clothing_manage', label = 'Boutique de vêtements : cacher / remettre en vente des vêtements, pour tout le monde (elyzea_clothing)', cat = 'Gestion' },
     { key = 'pvp_manage', label = 'Arène PvP : commandes /pvp_* (parties, annulation, sortie forcée, arènes, statistiques) (pvp_arena)', cat = 'Joueurs' },
@@ -551,7 +552,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage', 'drugs_effects', 'drugs_manage' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage', 'drugs_effects', 'drugs_manage', 'labs_manage' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },

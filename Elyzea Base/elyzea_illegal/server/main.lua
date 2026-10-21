@@ -119,3 +119,78 @@ exports('GetGroupList', function()
     table.sort(list, function(a, b) return a.label:lower() < b.label:lower() end)
     return list
 end)
+
+-- ---------------------------------------------------------
+--  Exports pour elyzea_labs (laboratoires des groupes)
+-- ---------------------------------------------------------
+-- Groupe d'un joueur avec l'identifiant du grade (droits par grade dans les laboratoires)
+exports('GetPlayerGroupFull', function(src)
+    local cid = Players.cid(src)
+    local g, _, grade = Cache.membership(cid)
+    if not g then return nil end
+    return { id = g.id, name = g.name, label = g.label, color = g.color, cid = cid, gradeId = grade.id, gradeLabel = grade.label,
+        gradeLevel = grade.level, boss = grade.boss == true }
+end)
+
+-- Groupe et ses grades (du plus bas au plus haut)
+exports('GetGroupInfo', function(groupId)
+    local g = Cache.group(groupId)
+    if not g then return nil end
+    local grades = {}
+    for _, gr in ipairs(Cache.sortedGrades(g)) do grades[#grades + 1] = { id = gr.id, label = gr.label, level = gr.level, boss = gr.boss == true } end
+    return { id = g.id, name = g.name, label = g.label, color = g.color, grades = grades, finance = { clean = g.finance.clean, dirty = g.finance.dirty } }
+end)
+
+-- Membres connectés d'un groupe : { { src, cid, gradeId, boss } }
+exports('GetGroupOnline', function(groupId)
+    local g = Cache.group(groupId)
+    local out = {}
+    if not g then return out end
+    for _, src in ipairs(GetPlayers()) do
+        src = tonumber(src)
+        local cid = Players.cid(src)
+        local m = cid and g.members[cid]
+        if m then out[#out + 1] = { src = src, cid = cid, gradeId = m.gradeId, boss = g.grades[m.gradeId] and g.grades[m.gradeId].boss == true } end
+    end
+    return out
+end)
+
+-- Débit du compte du groupe (sous verrou, avec historique). account : 'clean' | 'dirty'
+exports('GroupPay', function(groupId, account, amount, reason, src)
+    local g = Cache.group(groupId)
+    amount = math.floor(tonumber(amount) or 0)
+    if not g then return false, 'Groupe introuvable.' end
+    if amount <= 0 then return true end
+    local actor = src and Players.actor(src) or { name = 'Laboratoire', cid = nil }
+    local ok, err = Finances.payOrder(actor, g, account, amount, tostring(reason or 'Laboratoire'))
+    if ok then Sync.group(g.id) end
+    return ok, err
+end)
+
+-- Crédit du compte du groupe (remboursement, revente d'équipement)
+exports('GroupCredit', function(groupId, account, amount, reason, src)
+    local g = Cache.group(groupId)
+    amount = math.floor(tonumber(amount) or 0)
+    if not g or amount <= 0 or (account ~= 'clean' and account ~= 'dirty') then return false end
+    if not Finances.lock(g.id) then return false end
+    local before = g.finance[account]
+    local ok = Finances.credit(g, account, amount)
+    Finances.unlock(g.id)
+    if ok then
+        local actor = src and Players.actor(src) or { name = 'Laboratoire', cid = nil }
+        local tx = { account = account, type = 'order', amount = amount, before = before, after = g.finance[account], actor = actor.name, actorCid = actor.cid, reason = tostring(reason or 'Laboratoire') }
+        tx.id = DB.insertTransaction(g.id, tx)
+        tx.created = os.time()
+        Cache.pushTransaction(g, tx)
+        Sync.group(g.id)
+    end
+    return ok
+end)
+
+-- Liste des groupes avec leur identifiant (menu admin des laboratoires)
+exports('GetGroupIds', function()
+    local list = {}
+    for _, g in pairs(Cache.groups) do list[#list + 1] = { id = g.id, label = g.label, color = g.color } end
+    table.sort(list, function(a, b) return a.label:lower() < b.label:lower() end)
+    return list
+end)
