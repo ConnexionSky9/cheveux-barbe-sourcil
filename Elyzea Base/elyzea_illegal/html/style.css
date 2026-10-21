@@ -481,9 +481,6 @@ input[type=color].input { padding: 3px; height: 38px; }
 #dsell.hidden { display: none; }
 .ds-card { width: 380px; background: rgba(10, 15, 27, .97); border: 1px solid var(--line); border-top: 3px solid #4fb3a9; border-radius: 14px;
     padding: 16px 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); animation: qIn .18s ease-out; color: var(--text); }
-#dsell[data-profile="addict"] .ds-card { border-top-color: #e0a84f; }
-#dsell[data-profile="rich"] .ds-card { border-top-color: #b98cff; }
-#dsell[data-profile="party"] .ds-card { border-top-color: #ff5fa2; }
 .ds-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .ds-ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; background: var(--panel); border: 1px solid var(--line); }
 .ds-head strong { display: block; font-family: var(--display); font-size: 19px; }

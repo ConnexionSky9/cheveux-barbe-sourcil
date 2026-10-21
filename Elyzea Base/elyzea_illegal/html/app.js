@@ -215,9 +215,7 @@ function drugSection(g) {
         <button class="q-group q-drug" style="margin-top:10px" data-f5="drug" data-on="1" ${!g.can ? 'disabled' : ''}>
             <span class="q-crest">🌿</span>
             <span><strong>Activer le mode vente</strong>
-            <span>${g.can ? (all ? 'Tout ce que tu as' : `${F5SEL.size} drogue${F5SEL.size > 1 ? 's' : ''} choisie${F5SEL.size > 1 ? 's' : ''}`) : esc(g.reason || '')}</span></span></button>
-        <p class="muted" style="font-size:11.5px;margin:6px 2px 0">Clients : 🥴 l'accro (peu d'argent, paie bien, vole souvent), 💎 le riche (paie même cher), 🎉 le fêtard (achète en gros).
-            [E] fixer ton prix à l'unité · [G] refuser. Certains volent, sortent un couteau ou appellent la police.</p></div>`;
+            <span>${g.can ? (all ? 'Tout ce que tu as' : `${F5SEL.size} drogue${F5SEL.size > 1 ? 's' : ''} choisie${F5SEL.size > 1 ? 's' : ''}`) : esc(g.reason || '')}</span></span></button></div>`;
 }
 let F5DATA = null;
 /* ---------- Vente de drogue : prix proposé au client (au dollar près) ---------- */
@@ -226,9 +224,8 @@ function dsell(m) {
     if (!m.show) { el.classList.add('hidden'); el.innerHTML = ''; return; }
     const d = m.data;
     const clamp = (v) => Math.max(d.min, Math.min(d.max, Math.round(Number(v) || d.min)));
-    el.dataset.profile = d.profile || '';
     el.innerHTML = `<div class="ds-card">
-        <div class="ds-head"><span class="ds-ico">${esc(d.picon || '👤')}</span><div><strong>${esc(d.plabel || 'Client')}</strong><span>veut <b>${d.qty} × ${esc(d.label)}</b></span></div></div>
+        <div class="ds-head"><span class="ds-ico">👤</span><div><strong>Client</strong><span>veut <b>${d.qty} × ${esc(d.label)}</b></span></div></div>
         ${d.msg ? `<div class="ds-msg">${esc(d.msg)}</div>` : ''}
         <label class="ds-lbl">Ton prix à l'unité</label>
         <div class="ds-price"><button data-ds="-10">−10</button><button data-ds="-1">−1</button>
@@ -237,8 +234,7 @@ function dsell(m) {
         <input id="ds-range" type="range" min="${d.min}" max="${d.max}" step="1" value="${clamp(d.price)}">
         <div class="ds-scale"><span>${d.min} $</span><span>${d.max} $</span></div>
         <div class="ds-total">Total demandé : <b id="ds-total"></b></div>
-        <div class="ds-btns"><button class="ds-no" data-ds="refuse">Refuser <kbd>Échap</kbd></button><button class="ds-ok" data-ds="offer">Proposer <kbd>Entrée</kbd></button></div>
-        <p class="ds-hint">Plus c'est cher, plus il risque de refuser. Le riche paie même cher, l'accro n'a pas beaucoup d'argent, le fêtard achète en gros.</p></div>`;
+        <div class="ds-btns"><button class="ds-no" data-ds="refuse">Refuser <kbd>Échap</kbd></button><button class="ds-ok" data-ds="offer">Proposer <kbd>Entrée</kbd></button></div></div>`;
     const val = $('#ds-val'), rng = $('#ds-range');
     const sync = (v, from) => { v = clamp(v); if (from !== val) val.value = v; rng.value = v; $('#ds-total').textContent = `${(v * d.qty).toLocaleString('fr-FR')} $ (${d.qty} × ${v} $)`; };
     sync(val.value);

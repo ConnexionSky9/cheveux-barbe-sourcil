@@ -189,7 +189,7 @@ Depuis la racine du dépôt : `lua5.4 tests/run.lua` (serveur : permissions, hi�
 ## Vente de drogue (F5 › Vente de drogue)
 
 - **Choisir ce qu'on vend** : F5 liste seulement les drogues que le joueur a sur lui (avec la fourchette de prix). Il coche une drogue (les clients ne demandent qu'elle), plusieurs, ou **Tout** (les clients demandent au hasard). Le serveur refuse une drogue qu'il n'a pas.
-- **Trois profils de clients** (fréquence réglable) :
+- **Trois profils de clients** (fréquence réglable). Le joueur ne voit jamais le profil d'un client (seulement « Client » et le PNJ) :
   - 🥴 **L'accro** : peu d'argent (budget faible), accepte un prix élevé, demande 1 à 2 unités, vole plus souvent et sort parfois un couteau ;
   - 💎 **Le riche** : gros budget, paie même au prix maximum, n'achète pas le crack ni les seringues (réglable) ;
   - 🎉 **Le fêtard** : achète en gros (3 à 8), mais à prix plus bas.

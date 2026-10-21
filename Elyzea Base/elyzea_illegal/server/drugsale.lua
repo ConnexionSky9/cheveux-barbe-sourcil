@@ -323,7 +323,7 @@ local function newBuyer(src, s)
     s.buyer = { id = Seq, profile = c.id, item = d.item, label = d.label, qty = qty, min = d.min, max = d.max, maxPrice = maxPrice,
         budget = budget, outcome = outcome, left = p.retries, t = os.time() }
     local models = #p.models > 0 and p.models or { 'a_m_y_hipster_01' }
-    TriggerClientEvent('illegal:drug:buyer', src, { id = Seq, model = models[math.random(#models)], profile = c.id, plabel = p.label, picon = p.icon,
+    TriggerClientEvent('illegal:drug:buyer', src, { id = Seq, model = models[math.random(#models)],
         item = d.item, label = d.label, qty = qty, min = d.min, max = d.max, wait = S.waitTime, retries = p.retries })
 end
 

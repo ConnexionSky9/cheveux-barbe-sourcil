@@ -1,6 +1,6 @@
 -- =========================================================
 --  ELYZEA ILLÉGAL - CLIENT : VENTE DE DROGUE
---  Mode vente (F5) : des PNJ (accro, riche, fêtard) marchent jusqu'au joueur.
+--  Mode vente (F5) : des clients PNJ marchent jusqu'au joueur (leur profil reste secret).
 --  [E] proposer un prix (fenêtre : prix à l'unité au dollar près) · [G] refuser.
 --  Le serveur décide de l'issue : achat, « trop cher » (nouveau prix possible),
 --  vol (le PNJ s'enfuit : le frapper, il se rend, puis ALT › Fouiller),
@@ -84,7 +84,7 @@ local function OpenPanel(msg)
     buyer.mode = 'panel'
     Prompt.hide('drug')
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'dsell', show = true, data = { id = d.id, profile = d.profile, plabel = d.plabel, picon = d.picon, label = d.label,
+    SendNUIMessage({ action = 'dsell', show = true, data = { id = d.id, label = d.label,
         qty = d.qty, min = d.min, max = d.max, price = buyer.lastPrice or math.floor((d.min + d.max) / 2 + 0.5), msg = msg, left = buyer.left } })
 end
 
@@ -125,7 +125,7 @@ RegisterNetEvent('illegal:drug:buyer', function(d)
     CreateThread(function()
         local untilT = GetGameTimer() + (d.wait or 45) * 1000
         local walking, near = false, false
-        local ask = ('%s %s · %d × %s'):format(d.picon or '', d.plabel or 'Client', d.qty, d.label)
+        local ask = ('Client · %d × %s'):format(d.qty, d.label)
         while buyer == me do
             local player = PlayerPedId()
             if not DoesEntityExist(ped) or IsPedDeadOrDying(ped, true) then
