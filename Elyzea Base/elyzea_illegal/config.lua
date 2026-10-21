@@ -48,18 +48,59 @@ Config.DrugSale = {
     noSaleInVehicle = true,      -- pas de client tant que le vendeur est dans un véhicule
     interval = { min = 25, max = 60 },   -- secondes entre deux clients
     waitTime = 45,               -- secondes avant qu'un client lassé reparte
-    maxPerBuyer = 3,             -- un client demande de 1 à N pochons
-    stealChance = 10,            -- % de clients qui volent (1 à stealMax pochons) puis s'enfuient
-    stealMax = 3,
-    policeChance = 10,           -- % de clients qui appellent la police
-    policeRadius = 150,          -- précision de l'alerte police (mètres autour du vendeur)
+    maxPerBuyer = 10,            -- plafond : un client ne demande jamais plus de N unités
+    stealMax = 3,                -- unités volées au maximum (vol à l'arrachée ou au couteau)
+    policeRadius = 0,            -- précision de l'alerte quand un client appelle la police (0 = position exacte)
+    knifeWindow = 15,            -- secondes pour se défendre face à un client au couteau (le frapper ou s'enfuir)
+    knifeEscape = 12,            -- mètres : au-delà, le vendeur a réussi à s'enfuir (rien n'est volé)
     territoryOnly = true,        -- vente seulement dans les territoires (éditeur de map › zone « Territoire de vente »)
-    territoryGain = 2,           -- % de contrôle du territoire gagné par pochon vendu (pris aux autres groupes)
+    territoryGain = 2,           -- % de contrôle du territoire gagné par unité vendue (pris aux autres groupes)
+
+    -- Drogues vendables. min / max : fourchette dans laquelle LE VENDEUR choisit son prix à l'unité (au dollar près).
+    -- skip : profils qui n'achètent pas cette drogue. over : prix max accepté fixé à la main pour un profil { lo, hi } ($).
     drugs = {
-        { item = 'weed_pouch', label = 'Pochon de weed', min = 80, max = 120 },   -- prix par pochon
+        { item = 'weed_pouch',        label = 'Pochon de weed',            min = 60,  max = 140 },
+        { item = 'joint',             label = 'Joint de weed',             min = 20,  max = 60 },
+        { item = 'joint_ww',          label = 'Joint de White Widow',      min = 25,  max = 75 },
+        { item = 'joint_ph',          label = 'Joint de Purple Haze',      min = 30,  max = 80 },
+        { item = 'joint_custom',      label = 'Joint de variété maison',   min = 28,  max = 78 },
+        { item = 'weed_pouch_ww',     label = 'Pochon de White Widow',     min = 80,  max = 170 },
+        { item = 'weed_pouch_ph',     label = 'Pochon de Purple Haze',     min = 90,  max = 180 },
+        { item = 'weed_pouch_custom', label = 'Pochon de variété maison',  min = 85,  max = 175 },
+        { item = 'cokebaggy',         label = 'Pochon de cocaïne',         min = 120, max = 260 },
+        { item = 'coke_premium',      label = 'Pochon de cocaïne pure',    min = 200, max = 420 },
+        { item = 'cocaine',           label = 'Cocaïne',                   min = 110, max = 240 },
+        { item = 'crack_baggy',       label = 'Pochon de crack',           min = 90,  max = 220, skip = { rich = true } },
+        { item = 'meth',              label = 'Pochon de méthamphétamine', min = 150, max = 320 },
+        { item = 'xtc_pink',          label = 'Ecstasy rose',              min = 45,  max = 110 },
+        { item = 'xtc_blue',          label = 'Ecstasy bleue',             min = 55,  max = 130 },
+        { item = 'xtc_yellow',        label = 'Ecstasy jaune',             min = 40,  max = 95 },
+        { item = 'xtcbaggy',          label = 'Ecstasy',                   min = 45,  max = 110 },
+        { item = 'oxy',               label = 'Comprimés d\'opiacé',        min = 60,  max = 140 },
+        { item = 'opi_syringe',       label = 'Seringue d\'opiacé',         min = 100, max = 230, skip = { rich = true, party = true } },
+        { item = 'ketamine',          label = 'Kétamine',                  min = 90,  max = 210 },
+        { item = 'shroom_bag',        label = 'Sachet de champignons',     min = 70,  max = 160 },
+        { item = 'dried_mushroom',    label = 'Champignons séchés',        min = 30,  max = 70 },
     },
-    models = { 'a_m_y_hipster_01', 'a_m_y_skater_01', 'a_f_y_hipster_02', 'a_m_m_tramp_01', 'a_m_y_stwhi_01', 'a_f_y_tourist_01',
-               'a_m_y_beachvesp_01', 'a_m_o_genstreet_01', 'a_f_y_scdressy_01', 'g_m_y_famca_01' },
+
+    -- Profils de clients. weight : fréquence d'apparition (relative). qty : unités demandées.
+    -- budget : argent sur lui ($) ; il n'achète jamais plus que ce qu'il peut payer.
+    -- accept : prix maximum qu'il accepte, en % du prix MAX de la drogue (tiré au hasard entre from et to).
+    -- retries : nombre de nouveaux prix que le vendeur peut proposer après un « trop cher ».
+    -- steal : % vol à l'arrachée puis fuite · knife : % sort un couteau et attaque pour voler
+    -- police : % appelle la police, part en courant et envoie la position aux policiers en service.
+    profiles = {
+        addict = { label = 'L\'accro', icon = '🥴', enabled = true, weight = 40, qty = { min = 1, max = 2 }, budget = { min = 60, max = 260 },
+            accept = { from = 75, to = 100 }, retries = 1, steal = 18, knife = 8, police = 2,
+            models = { 'a_m_m_tramp_01', 'a_m_o_tramp_01', 'a_f_m_tramp_01', 'a_m_m_trampbeac_01', 'a_f_m_trampbeac_01', 'a_m_y_methhead_01' } },
+        rich = { label = 'Le riche', icon = '💎', enabled = true, weight = 25, qty = { min = 1, max = 3 }, budget = { min = 1500, max = 6000 },
+            accept = { from = 95, to = 100 }, retries = 2, steal = 1, knife = 0, police = 8,
+            models = { 'a_m_y_business_01', 'a_m_y_business_02', 'a_f_y_business_01', 'a_m_m_bevhills_01', 'a_f_y_bevhills_01', 'a_m_y_bevhills_01' } },
+        party = { label = 'Le fêtard', icon = '🎉', enabled = true, weight = 35, qty = { min = 3, max = 8 }, budget = { min = 300, max = 1600 },
+            accept = { from = 50, to = 85 }, retries = 1, steal = 6, knife = 3, police = 5,
+            models = { 'a_m_y_clubcust_01', 'a_f_y_clubcust_01', 'a_m_y_clubcust_02', 'a_f_y_clubcust_02', 'a_m_y_hipster_01', 'a_f_y_hipster_02' } },
+    },
+    profileOrder = { 'addict', 'rich', 'party' },
 }
 
 -- ---------------------------------------------------------

@@ -74,6 +74,8 @@ window.addEventListener('message', (e) => {
         toast(m.message, m.type);
     } else if (m.action === 'prompt') {
         showPrompt(m);
+    } else if (m.action === 'dsell') {
+        dsell(m);
     } else if (m.action === 'f5') {
         openF5(m.data);
     } else if (m.action === 'f5close') {
@@ -180,6 +182,7 @@ function showPrompt(m) {
 
 /* ---------- Menu F5 (même panneau que le menu rapide du staff) ---------- */
 function openF5(d) {
+    F5DATA = d;
     const box = $('#quick');
     document.documentElement.style.setProperty('--rank', d.color || '#d9b56a');
     box.innerHTML = `<div class="q-panel">
@@ -191,22 +194,96 @@ function openF5(d) {
         </div>` : ''}${d.drug ? drugSection(d.drug) : ''}</div></div>`;
     box.classList.remove('hidden');
 }
+const F5SEL = new Set();
 function drugSection(g) {
-    const items = (g.items || []).map((i) => `<span class="q-chip">${esc(i.label)} <b>× ${i.count}</b></span>`).join('') || '<span class="muted">Plus rien sur toi.</span>';
+    const items = g.items || [];
+    if (g.on) {
+        const sel = g.selected && g.selected.length ? items.filter((i) => g.selected.includes(i.item)) : items;
+        return `<div class="q-sec"><h3>Vente de drogue</h3>
+            <button class="q-group q-drug on" data-f5="drug" data-on="0"><span class="q-crest">🌿</span>
+                <span><strong>Mode vente activé</strong><span>${g.sales} vendu(s) · ${g.earned} $ · cliquer pour arrêter</span></span></button>
+            <p class="muted" style="font-size:11.5px;margin:8px 2px 4px">Tu vends : ${g.selected && g.selected.length ? '' : '<b>tout</b> (les clients demandent au hasard)'}</p>
+            <div class="q-chips">${sel.map((i) => `<span class="q-chip on">${esc(i.label)} <b>× ${i.count}</b></span>`).join('') || '<span class="muted">Plus rien sur toi.</span>'}</div></div>`;
+    }
+    for (const it of [...F5SEL]) if (!items.some((i) => i.item === it)) F5SEL.delete(it);
+    const all = items.length > 0 && (F5SEL.size === 0 || F5SEL.size === items.length);
+    const chips = items.map((i) => `<button class="q-chip q-pick ${all || F5SEL.has(i.item) ? 'on' : ''}" data-dpick="${esc(i.item)}" title="${i.min} à ${i.max} $ l'unité">
+        <span class="q-box"></span>${esc(i.label)} <b>× ${i.count}</b><small>${i.min}–${i.max} $</small></button>`).join('');
     return `<div class="q-sec"><h3>Vente de drogue</h3>
-        <button class="q-group q-drug ${g.on ? 'on' : ''}" data-f5="drug" data-on="${g.on ? '0' : '1'}" ${!g.on && !g.can ? 'disabled' : ''}>
+        <p class="muted" style="font-size:11.5px;margin:0 2px 6px">Choisis ce que tu vends (seulement ce que tu as sur toi). Une seule drogue : les clients ne demandent qu'elle. Tout : ils demandent au hasard.</p>
+        <div class="q-chips">${items.length ? `<button class="q-chip q-pick ${all ? 'on' : ''}" data-dpick="*"><span class="q-box"></span><b>Tout</b></button>${chips}` : '<span class="muted">Plus rien sur toi.</span>'}</div>
+        <button class="q-group q-drug" style="margin-top:10px" data-f5="drug" data-on="1" ${!g.can ? 'disabled' : ''}>
             <span class="q-crest">🌿</span>
-            <span><strong>${g.on ? 'Mode vente activé' : 'Activer le mode vente'}</strong>
-            <span>${g.on ? `${g.sales} vendu(s) · ${g.earned} $ · cliquer pour arrêter` : (g.can ? 'Des clients viendront t\'acheter' : esc(g.reason || ''))}</span></span></button>
-        <div class="q-chips">${items}</div>
-        <p class="muted" style="font-size:11.5px;margin:6px 2px 0">[E] vendre · [G] refuser. Attention : certains volent (frappe-les puis fouille-les avec ALT), d'autres appellent la police.</p></div>`;
+            <span><strong>Activer le mode vente</strong>
+            <span>${g.can ? (all ? 'Tout ce que tu as' : `${F5SEL.size} drogue${F5SEL.size > 1 ? 's' : ''} choisie${F5SEL.size > 1 ? 's' : ''}`) : esc(g.reason || '')}</span></span></button>
+        <p class="muted" style="font-size:11.5px;margin:6px 2px 0">Clients : 🥴 l'accro (peu d'argent, paie bien, vole souvent), 💎 le riche (paie même cher), 🎉 le fêtard (achète en gros).
+            [E] fixer ton prix à l'unité · [G] refuser. Certains volent, sortent un couteau ou appellent la police.</p></div>`;
 }
+let F5DATA = null;
+/* ---------- Vente de drogue : prix proposé au client (au dollar près) ---------- */
+function dsell(m) {
+    const el = $('#dsell');
+    if (!m.show) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    const d = m.data;
+    const clamp = (v) => Math.max(d.min, Math.min(d.max, Math.round(Number(v) || d.min)));
+    el.dataset.profile = d.profile || '';
+    el.innerHTML = `<div class="ds-card">
+        <div class="ds-head"><span class="ds-ico">${esc(d.picon || '👤')}</span><div><strong>${esc(d.plabel || 'Client')}</strong><span>veut <b>${d.qty} × ${esc(d.label)}</b></span></div></div>
+        ${d.msg ? `<div class="ds-msg">${esc(d.msg)}</div>` : ''}
+        <label class="ds-lbl">Ton prix à l'unité</label>
+        <div class="ds-price"><button data-ds="-10">−10</button><button data-ds="-1">−1</button>
+            <input id="ds-val" type="number" min="${d.min}" max="${d.max}" step="1" value="${clamp(d.price)}"><span>$</span>
+            <button data-ds="1">+1</button><button data-ds="10">+10</button></div>
+        <input id="ds-range" type="range" min="${d.min}" max="${d.max}" step="1" value="${clamp(d.price)}">
+        <div class="ds-scale"><span>${d.min} $</span><span>${d.max} $</span></div>
+        <div class="ds-total">Total demandé : <b id="ds-total"></b></div>
+        <div class="ds-btns"><button class="ds-no" data-ds="refuse">Refuser <kbd>Échap</kbd></button><button class="ds-ok" data-ds="offer">Proposer <kbd>Entrée</kbd></button></div>
+        <p class="ds-hint">Plus c'est cher, plus il risque de refuser. Le riche paie même cher, l'accro n'a pas beaucoup d'argent, le fêtard achète en gros.</p></div>`;
+    const val = $('#ds-val'), rng = $('#ds-range');
+    const sync = (v, from) => { v = clamp(v); if (from !== val) val.value = v; rng.value = v; $('#ds-total').textContent = `${(v * d.qty).toLocaleString('fr-FR')} $ (${d.qty} × ${v} $)`; };
+    sync(val.value);
+    val.addEventListener('input', () => { if (val.value !== '') sync(val.value, val); });
+    val.addEventListener('change', () => sync(val.value));
+    rng.addEventListener('input', () => sync(rng.value));
+    el.onclick = (e) => {
+        const b = e.target.closest('[data-ds]');
+        if (!b) return;
+        const k = b.dataset.ds;
+        if (k === 'offer') return dsellSend(clamp(val.value));
+        if (k === 'refuse') return dsellRefuse();
+        sync(clamp(val.value) + Number(k));
+    };
+    el.classList.remove('hidden');
+    setTimeout(() => { val.focus(); val.select(); }, 30);
+}
+function dsellSend(price) { $('#dsell').classList.add('hidden'); post('dsellOffer', { price }); }
+function dsellRefuse() { $('#dsell').classList.add('hidden'); post('dsellRefuse'); }
+document.addEventListener('keydown', (e) => {
+    if ($('#dsell').classList.contains('hidden')) return;
+    if (e.key === 'Enter') { e.preventDefault(); const v = $('#ds-val'); dsellSend(Math.round(Number(v.value) || Number(v.min))); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); dsellRefuse(); }
+}, true);
+
 function closeF5() { $('#quick').classList.add('hidden'); post('f5close'); }
 $('#quick').addEventListener('click', (e) => {
     const b = e.target.closest('[data-f5]');
     if (e.target.id === 'quick' || (b && b.dataset.f5 === 'close')) return closeF5();
     if (b && b.dataset.f5 === 'open') { $('#quick').classList.add('hidden'); post('f5open'); }
-    if (b && b.dataset.f5 === 'drug' && !b.disabled) { $('#quick').classList.add('hidden'); post('f5drug', { on: b.dataset.on === '1' }); }
+    const pick = e.target.closest('[data-dpick]');
+    if (pick && F5DATA && F5DATA.drug) {
+        const items = (F5DATA.drug.items || []).map((i) => i.item);
+        const it = pick.dataset.dpick;
+        const allOn = F5SEL.size === 0 || F5SEL.size === items.length;
+        if (it === '*') F5SEL.clear();
+        else if (allOn) { F5SEL.clear(); F5SEL.add(it); }
+        else if (F5SEL.has(it)) { F5SEL.delete(it); }
+        else { F5SEL.add(it); if (F5SEL.size === items.length) F5SEL.clear(); }
+        return openF5(F5DATA);
+    }
+    if (b && b.dataset.f5 === 'drug' && !b.disabled) {
+        $('#quick').classList.add('hidden');
+        post('f5drug', { on: b.dataset.on === '1', items: b.dataset.on === '1' && F5SEL.size ? [...F5SEL] : [] });
+    }
 });
 
 function close() { $('#app').classList.add('hidden'); closeModal(); post('close'); }

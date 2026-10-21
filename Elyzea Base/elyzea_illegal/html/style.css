@@ -468,3 +468,40 @@ input[type=color].input { padding: 3px; height: 38px; }
 .t-shares { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
 .t-go { margin: 8px 0 4px; }
 .t-go .btn { width: 100%; justify-content: center; }
+
+/* =========================================================
+   VENTE DE DROGUE : choix des drogues (F5) et prix proposé
+   ========================================================= */
+.q-pick { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit; color: var(--text); }
+.q-pick small { color: var(--muted); font-size: 10.5px; margin-left: 2px; }
+.q-pick .q-box { width: 13px; height: 13px; border-radius: 4px; border: 1.5px solid var(--muted); display: inline-block; flex: none; }
+.q-pick.on, .q-chip.on { border-color: rgba(79, 179, 169, .75); background: rgba(79, 179, 169, .14); }
+.q-pick.on .q-box { background: #4fb3a9; border-color: #4fb3a9; box-shadow: inset 0 0 0 2px rgba(10, 15, 27, .9); }
+#dsell { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .25); }
+#dsell.hidden { display: none; }
+.ds-card { width: 380px; background: rgba(10, 15, 27, .97); border: 1px solid var(--line); border-top: 3px solid #4fb3a9; border-radius: 14px;
+    padding: 16px 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); animation: qIn .18s ease-out; color: var(--text); }
+#dsell[data-profile="addict"] .ds-card { border-top-color: #e0a84f; }
+#dsell[data-profile="rich"] .ds-card { border-top-color: #b98cff; }
+#dsell[data-profile="party"] .ds-card { border-top-color: #ff5fa2; }
+.ds-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.ds-ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; background: var(--panel); border: 1px solid var(--line); }
+.ds-head strong { display: block; font-family: var(--display); font-size: 19px; }
+.ds-head span { color: var(--muted); font-size: 13px; } .ds-head b { color: var(--text); }
+.ds-msg { background: rgba(224, 82, 82, .12); border: 1px solid rgba(224, 82, 82, .45); color: #ffb4b4; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; margin-bottom: 10px; }
+.ds-lbl { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.ds-price { display: flex; align-items: center; gap: 6px; }
+.ds-price button { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 8px 9px; cursor: pointer; font: inherit; font-size: 12px; }
+.ds-price button:hover { border-color: #4fb3a9; }
+.ds-price input { flex: 1; min-width: 0; text-align: center; font-size: 26px; font-weight: 700; color: var(--text); background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px; font-family: var(--display); }
+.ds-price span { font-size: 20px; color: var(--muted); }
+#ds-range { width: 100%; margin: 12px 0 2px; accent-color: #4fb3a9; }
+.ds-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.ds-total { margin: 10px 0 12px; font-size: 13px; color: var(--muted); } .ds-total b { color: var(--text); }
+.ds-btns { display: flex; gap: 8px; }
+.ds-btns button { flex: 1; border-radius: 10px; padding: 10px; cursor: pointer; font: inherit; font-weight: 600; border: 1px solid var(--line); }
+.ds-btns kbd { font-size: 10px; opacity: .65; margin-left: 4px; }
+.ds-no { background: var(--panel); color: var(--text); }
+.ds-ok { background: #4fb3a9; color: #06201d; border-color: #4fb3a9; }
+.ds-hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; }

@@ -37,7 +37,7 @@ end
 RegisterNUICallback('f5drug', function(body, cb)
     cb('ok')
     closeF5()
-    TriggerServerEvent('illegal:drug:toggle', body and body.on == true)
+    TriggerServerEvent('illegal:drug:toggle', body and body.on == true, body and type(body.items) == 'table' and body.items or nil)
 end)
 
 RegisterNUICallback('f5open', function(_, cb)

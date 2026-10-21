@@ -188,14 +188,19 @@ Depuis la racine du dépôt : `lua5.4 tests/run.lua` (serveur : permissions, hi�
 
 ## Vente de drogue (F5 › Vente de drogue)
 
-- Un joueur qui a de la drogue sur lui (par défaut : `weed_pouch`) ouvre **F5** › « Activer le mode vente ». Le F5 s'affiche aussi pour un joueur sans groupe s'il a de la drogue sur lui (sauf si « Réservée aux groupes illégaux » est activé).
-- Des **clients PNJ** arrivent à pied toutes les 25 à 60 s et demandent 1 à 3 pochons (prix par pochon tiré entre un minimum et un maximum). **E** vendre, **G** refuser. Pas de client tant que le vendeur est en véhicule.
-- Issue décidée par le serveur :
-  - **achat** : pochons retirés, paiement en argent sale (ou liquide selon le réglage) ;
-  - **vol** : le client prend 1 à 3 pochons et s'enfuit (point rouge sur la carte). Il faut le **frapper** : il se rend à genoux, puis **ALT › Fouiller** pour récupérer les pochons (celui qui fouille les récupère) ;
-  - **appel à la police** : le client sort son téléphone ; les policiers en service reçoivent une alerte **« Activité suspecte »** avec une **position approximative** (décalée au hasard) et une zone de recherche sur la carte.
-- Le mode vente s'arrête tout seul quand il n'y a plus rien à vendre, à la mort ou à la déconnexion.
-- Tout se règle en jeu : **admin_menu › Vente de drogue** (permission `drugsale_manage`) — activation, réservé aux groupes, policiers minimum, paiement, délais, quantité par client, chances de vol / d'appel, précision de l'alerte, liste des drogues et prix, arrêt de tous les vendeurs. Valeurs par défaut : `Config.DrugSale` (`config.lua`).
+- **Choisir ce qu'on vend** : F5 liste seulement les drogues que le joueur a sur lui (avec la fourchette de prix). Il coche une drogue (les clients ne demandent qu'elle), plusieurs, ou **Tout** (les clients demandent au hasard). Le serveur refuse une drogue qu'il n'a pas.
+- **Trois profils de clients** (fréquence réglable) :
+  - 🥴 **L'accro** : peu d'argent (budget faible), accepte un prix élevé, demande 1 à 2 unités, vole plus souvent et sort parfois un couteau ;
+  - 💎 **Le riche** : gros budget, paie même au prix maximum, n'achète pas le crack ni les seringues (réglable) ;
+  - 🎉 **Le fêtard** : achète en gros (3 à 8), mais à prix plus bas.
+- **Prix au dollar près** : quand un client arrive, `E` ouvre une fenêtre ; le vendeur fixe son prix à l'unité dans la fourchette de la drogue (champ, boutons ±1 / ±10, curseur). Chaque client a un prix maximum caché (selon son profil) et un budget : trop cher → « trop cher » (le vendeur peut baisser son prix 1 ou 2 fois selon le profil) puis il part ; il n'achète jamais plus que ce qu'il peut payer. `G` refuse.
+- **Issues possibles** (chances par profil) :
+  - **vol à l'arrachée** : il prend 1 à N unités et s'enfuit (le frapper : il se rend, puis `ALT` › Fouiller pour récupérer) ;
+  - **couteau** : il sort un couteau et attaque. Le vendeur a `knifeWindow` secondes pour le frapper (rien n'est volé) ou s'enfuir à plus de `knifeEscape` m ; s'il est touché ou ne fait rien, le PNJ vole et s'enfuit (même fouille `ALT`). Le serveur juge lui-même (santé du PNJ, distance) : le client ne peut pas éviter le vol en trichant. Impossible de couper le mode vente pendant l'agression ;
+  - **appel à la police** : il sort son téléphone et part en courant ; l'alerte « Trafic de drogue signalé » part aux policiers en service avec la **position du vendeur** (exacte par défaut, `policeRadius` > 0 pour une zone approximative).
+- **Tout se règle** dans **admin_menu › Vente de drogue** (permission `drugsale_manage`) : activation, groupes, policiers minimum, paiement, délais, plafond par client, couteau, alerte ; **profils** (nom, icône, fréquence, quantité, budget, prix max accepté en % du prix max, nouveaux prix, vol / couteau / police, modèles de PNJ) ; **drogues** (fourchette de prix du vendeur, profils qui achètent ou non, prix max accepté fixé en $ par profil) ; statistiques depuis le démarrage ; vendeurs en cours et ce qu'ils vendent.
+- Les anciens réglages (version 1) sont repris automatiquement : prix gardés, nouvelles drogues et profils ajoutés.
+- Tests hors jeu : `python3 tests/run_drugsale_sim.py` (32/32).
 
 ## Territoires (vente de drogue)
 
@@ -203,5 +208,5 @@ Depuis la racine du dépôt : `lua5.4 tests/run.lua` (serveur : permissions, hi�
 - **Vente** : avec `territoryOnly` (activé par défaut), le mode vente ne s'active et les clients ne viennent **que dans un territoire**. Hors territoire, le vendeur est prévenu et aucun client ne vient.
 - **Contrôle en %** : une zone neutre est **blanche**. Le premier groupe qui y vend prend **100 %**. Ensuite, chaque pochon vendu par un membre d'un groupe lui donne `territoryGain` % (2 % par défaut), pris aux autres groupes au prorata (ex. : les Jamaïcains vendent 10 pochons chez les Mexicains → 80 % / 20 %). Le groupe qui a le plus de % possède la zone et lui donne sa couleur. Un vendeur sans groupe ne change rien.
 - **F5 › tablette › Map** : carte satellite avec tous les territoires colorés, et pour chacun le propriétaire et la part de chaque groupe. Bouton ⟳ pour actualiser. L'onglet se coupe/active comme les autres (admin_menu › ILLEGAL › groupe › onglets).
-- **Staff** : admin_menu › Vente de drogue › Territoires (voir les parts, remettre une zone ou toutes à neutre ; régler le gain par pochon et « Seulement dans les territoires »).
+- **Staff** : admin_menu › Vente de drogue › Territoires (voir les parts, remettre une zone ou toutes à neutre ; régler le gain par unité vendue et « Seulement dans les territoires »).
 - Parts sauvegardées dans la table `illegal_territories` (créée automatiquement).
