@@ -6,7 +6,18 @@
 JHC = { ui = nil }
 local C = JHC
 
-function C.Cfg() return GlobalState.jhCfg end
+-- GlobalState relu sans le désérialiser à chaque appel : valeur gardée et mise à jour à chaque changement
+local gsCache = {}
+local function GS(key)
+    local c = gsCache[key]
+    if c == nil then
+        c = { v = GlobalState[key] }
+        gsCache[key] = c
+        AddStateBagChangeHandler(key, 'global', function(_, _, value) c.v = value end)
+    end
+    return c.v
+end
+function C.Cfg() return GS('jhCfg') end
 
 function C.Req(action, data)
     local ok, res = pcall(function() return Ely.callback.await('jh:req', false, action, data or {}) end)

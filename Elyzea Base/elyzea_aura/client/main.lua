@@ -162,9 +162,11 @@ local function OpenPhone()
     SendNUIMessage({ action = 'open', data = { profile = profile, time = GameTime() } })
     PlayPhoneAnim()
 
+    PhoneSession = (PhoneSession or 0) + 1
+    local session = PhoneSession   -- fermé puis rouvert en moins de 5 s : l'ancienne boucle s'arrête
     CreateThread(function()
         local tick = 0
-        while isOpen do
+        while isOpen and PhoneSession == session do
             if Config.ClockMode == 'game' then SendNUIMessage({ action = 'time', data = GameTime() }) end
             tick = tick + 1
             if tick % 2 == 0 and profile.bank ~= nil then
@@ -773,16 +775,19 @@ local function RunDelivery(data)
     TaskTurnPedToFaceEntity(ped, player, 1000)
     if not IsPedInAnyVehicle(player, false) then TaskTurnPedToFaceEntity(player, ped, 1000) end
     Wait(1000)
+    if not Delivery or Delivery.id ~= id then return end   -- livraison annulée ou remplacée pendant l'attente
     LoadDict('mp_common')
     TaskPlayAnim(ped, 'mp_common', 'givetake1_a', 8.0, -8.0, 2000, 0, 0, false, false, false)
     if not IsPedInAnyVehicle(player, false) then
         TaskPlayAnim(player, 'mp_common', 'givetake1_b', 8.0, -8.0, 2000, 48, 0, false, false, false)
     end
     Wait(1100)
+    if not Delivery or Delivery.id ~= id then return end
     if Delivery.bag and DoesEntityExist(Delivery.bag) then DeleteEntity(Delivery.bag); Delivery.bag = nil end
     TriggerServerEvent('elyzea_aura:server:deliveryComplete', id)
     DeliveryUI({ id = id, stage = 'delivered', shop = data.shop.label })
     Wait(900)
+    if not Delivery or Delivery.id ~= id then return end
     PlayPedAmbientSpeechNative(ped, 'GENERIC_THANKS', 'SPEECH_PARAMS_FORCE')
     if DoesBlipExist(blip) then RemoveBlip(blip) end
     Delivery.blip = nil

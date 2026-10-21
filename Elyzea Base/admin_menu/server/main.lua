@@ -645,6 +645,7 @@ AddEventHandler('playerDropped', function()
     local src = source
     Frozen[src] = nil
     SpecBucket[src] = nil
+    ReportCooldown[src] = nil
     Wallhack[src] = nil
     LicenseCache[src] = nil
     RateBuckets[src] = nil

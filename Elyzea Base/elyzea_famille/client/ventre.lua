@@ -64,6 +64,7 @@ end
 
 local function maj()
     if essai then return end
+    if not etape and not pose then return end   -- pas enceinte et rien de posé : rien à faire (résultat identique)
     local ped = PlayerPedId()
     if not DoesEntityExist(ped) or boutiqueOuverte() then return end   -- boutique : on ne touche à rien
     local femme = GetEntityModel(ped) == GetHashKey('mp_f_freemode_01')

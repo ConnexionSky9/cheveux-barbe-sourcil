@@ -212,12 +212,12 @@ end
 
 local function loginCharacter(src, citizenid)
     if loggingIn[src] or core:GetPlayer(src) then return end
+    loggingIn[src] = true   -- posé avant l'attente de la base : un double clic ne connecte plus deux fois
     local owned = false
     for _, c in ipairs(listCharacters(src)) do
         if c.citizenid == citizenid then owned = true break end
     end
-    if not owned then return end
-    loggingIn[src] = true
+    if not owned then loggingIn[src] = nil return end
     local ok = core:Login(src, citizenid)
     loggingIn[src] = nil
     if ok then spawnCharacter(src, false) end

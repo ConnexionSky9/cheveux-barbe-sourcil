@@ -236,8 +236,9 @@ local function publicLive(run)
 end
 
 -- Envoie la liste des drops à terre à ceux qui doivent les voir
-local function broadcastLive()
-    for _, p in ipairs(GetPlayers()) do
+-- target : un seul joueur (demande à la connexion), sinon tous
+local function broadcastLive(target)
+    for _, p in ipairs(target and { target } or GetPlayers()) do
         local id = tonumber(p)
         local list = {}
         for _, run in pairs(Live) do
@@ -547,7 +548,19 @@ RegisterNetEvent('adminmenu:drops:open', function(runId, phase)
     broadcastLive()
 end)
 
-RegisterNetEvent('adminmenu:drops:request', function() broadcastLive() end)
+-- Demande d'un joueur (connexion) : on ne renvoie la liste qu'à lui, au plus 2 fois par 5 s
+local lastReq = {}
+RegisterNetEvent('adminmenu:drops:request', function()
+    local src = source
+    local now = GetGameTimer()
+    local r = lastReq[src]
+    if r and now - r.t < 5000 then
+        if r.n >= 2 then return end
+        r.n = r.n + 1
+    else lastReq[src] = { t = now, n = 1 } end
+    broadcastLive(src)
+end)
+AddEventHandler('playerDropped', function() lastReq[source] = nil end)
 AddEventHandler('playerDropped', function()
     local src = source
     -- La clé n'est pas perdue : elle retourne sur le corps qui la portait

@@ -40,13 +40,17 @@ local function count(t) local n = 0 for _ in pairs(type(t) == 'table' and t or {
 local function List(src)
     local rows = MySQL.query.await('SELECT plate, vehicle, mods, state, garage FROM player_vehicles WHERE citizenid = ? ORDER BY vehicle', { Cid(src) }) or {}
     local list = {}
+    local out = nil   -- plaques des véhicules en circulation, calculées une seule fois
     for _, r in ipairs(rows) do
         local props = json.decode(r.mods or '{}') or {}
         local status
         if r.state == 1 then status = 'stored'
         elseif r.state == 2 then status = 'impound'
         elseif r.state == 3 then status = 'property'   -- rangé dans le garage d'une propriété (elyzea_dynasty)
-        else status = FindOut(r.plate) and 'out' or 'lost' end   -- sorti mais introuvable : on peut le ressortir
+        else
+            if not out then out = {} for _, v in ipairs(GetAllVehicles()) do if DoesEntityExist(v) then out[PlateOf(v)] = true end end end
+            status = out[r.plate] and 'out' or 'lost'
+        end   -- sorti mais introuvable : on peut le ressortir
         list[#list + 1] = {
             plate = r.plate, model = r.vehicle, status = status, image = Config.ImageUrl:format(r.vehicle),
             garage = props._garageName or (r.garage and r.garage:find('^concess') and 'Concession') or nil,
@@ -86,8 +90,7 @@ exports('StoreAt', function(src, opts)
 end)
 
 -- Récupérer un véhicule à la fourrière (payant) : il passe « rangé » et peut ressortir
-RegisterNetEvent('garage:server:impound', function(plate)
-    local src = source
+local function impound(src, plate)
     if not NearNpc(src) then return Notify(src, 'Rapproche-toi du gardien du garage.', 'error') end
     plate = tostring(plate or '')
     local row = MySQL.single.await('SELECT vehicle, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
@@ -107,7 +110,19 @@ RegisterNetEvent('garage:server:impound', function(plate)
     Notify(src, fee > 0 and ('Véhicule récupéré à la fourrière (%d $). Tu peux le sortir.'):format(fee) or 'Véhicule récupéré à la fourrière.', 'success')
     Log(src, 'Fourrière payée', ('%s (%s) · %d $'):format(row.vehicle, plate, fee))
     Send(src)
-end)
+end
+
+-- Verrou par joueur : deux demandes simultanées (double clic) ne peuvent plus passer les contrôles ensemble
+local Busy = {}
+local function locked(src, fn, ...)
+    if Busy[src] then return end
+    Busy[src] = true
+    local ok, err = pcall(fn, src, ...)
+    Busy[src] = nil
+    if not ok then print(('^1[elyzea_garage] %s^0'):format(tostring(err))) end
+end
+AddEventHandler('playerDropped', function() Busy[source] = nil end)
+RegisterNetEvent('garage:server:impound', function(plate) locked(source, impound, plate) end)
 
 RegisterNetEvent('garage:server:refresh', function() if NearNpc(source) then Send(source) end end)
 RegisterNetEvent('garage:server:close', function() Sessions[source] = nil end)
@@ -128,8 +143,7 @@ local function FreeSpot(spots)
     end
 end
 
-RegisterNetEvent('garage:server:takeOut', function(plate, vtype)
-    local src = source
+local function takeOut(src, plate, vtype)
     local s = NearNpc(src)
     if not s then return Notify(src, 'Rapproche-toi du gardien du garage.', 'error') end
     plate = tostring(plate or '')
@@ -159,7 +173,8 @@ RegisterNetEvent('garage:server:takeOut', function(plate, vtype)
     TriggerClientEvent('garage:client:spawned', src, NetworkGetNetworkIdFromEntity(veh), json.decode(row.mods or '{}') or {})
     Log(src, 'Sortie', ('%s (%s) · %s'):format(row.vehicle, plate, s.name))
     Sessions[src] = nil
-end)
+end
+RegisterNetEvent('garage:server:takeOut', function(plate, vtype) locked(source, takeOut, plate, vtype) end)
 
 -- ---------------------------------------------------------------------
 -- Ranger un véhicule (état complet envoyé par le joueur qui le conduisait)

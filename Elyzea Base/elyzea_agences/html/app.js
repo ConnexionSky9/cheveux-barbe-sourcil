@@ -147,8 +147,11 @@
       ctx.fillStyle = '#fb923c'; ctx.strokeStyle = '#0b1220'; ctx.lineWidth = 2;
       ctx.fillRect(-6, -6, 12, 12); ctx.strokeRect(-6, -6, 12, 12); ctx.restore();
     }
-    requestAnimationFrame(frame);
+    // Panneau fermé : la boucle de dessin s'arrête (relancée à l'ouverture)
+    if ($('#app').classList.contains('hidden')) { M.raf = 0; return; }
+    M.raf = requestAnimationFrame(frame);
   }
+  function startFrame() { if (!M.raf) M.raf = requestAnimationFrame(frame); }
 
   // Déplacement (glisser) / zoom (molette) / clic
   let drag = null;
@@ -400,9 +403,10 @@
       S.me = m.me || null;
       $('#app').classList.remove('hidden');
       requestAnimationFrame(() => { fit(); setData(m.data); });
+      startFrame();
     } else if (m.action === 'data') setData(m.data);
     else if (m.action === 'close') { S.draft = null; S.mode = 'view'; $('#app').classList.add('hidden'); }
   });
 
-  requestAnimationFrame(frame);
+  startFrame();
 })();

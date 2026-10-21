@@ -5,6 +5,16 @@
 --  (la plus forte décide du filtre et de la démarche). Tout s'arrête à la mort, à terre,
 --  ou quand le staff arrête les effets.
 -- =====================================================================
+
+-- Démarche (clipset) : chargée avant SetPedMovementClipset (renvoie false si le jeu ne l'a pas)
+local function loadClip(c)
+    if not c then return false end
+    if HasClipSetLoaded(c) then return true end
+    RequestClipSet(c)
+    local t = GetGameTimer() + 2000
+    while not HasClipSetLoaded(c) and GetGameTimer() < t do Wait(0) end
+    return HasClipSetLoaded(c)
+end
 DrugFx = { active = {}, settings = nil }
 local FX = DrugFx
 

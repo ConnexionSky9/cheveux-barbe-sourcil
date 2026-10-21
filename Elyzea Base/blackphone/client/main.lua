@@ -20,6 +20,7 @@ local function holdPhone()
     local t = GetGameTimer() + 2000
     while not HasModelLoaded(hash) and GetGameTimer() < t do Wait(10) end
     if HasModelLoaded(hash) then
+        if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
         local c = GetEntityCoords(ped)
         prop = CreateObject(hash, c.x, c.y, c.z, true, true, false)
         local p, r = Config.Prop.pos, Config.Prop.rot
@@ -32,9 +33,10 @@ local function dropPhone()
     local ped = PlayerPedId()
     local a = animSet()
     if loadDict(a.dict) then TaskPlayAnim(ped, a.dict, a.exit, 4.0, -1.0, 600, 50, 0.0, false, false, false) end
+    local p = prop
+    prop = nil
     SetTimeout(500, function()
-        if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
-        prop = nil
+        if p and DoesEntityExist(p) then DeleteEntity(p) end
         if not isOpen then StopAnimTask(PlayerPedId(), a.dict, a.idle, 1.0) end
     end)
 end

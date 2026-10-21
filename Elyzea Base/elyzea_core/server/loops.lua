@@ -4,7 +4,16 @@
 CreateThread(function()
     while true do
         Wait(Config.Characters.saveInterval * 60000)
-        for src in pairs(Players) do Save(src) Wait(50) end
+        -- Liste figée : une connexion / déconnexion pendant les attentes ne casse plus la boucle
+        local list = {}
+        for src in pairs(Players) do list[#list + 1] = src end
+        for _, src in ipairs(list) do
+            if Players[src] then
+                local ok, err = pcall(Save, src)
+                if not ok then print(('^1[elyzea_core] Sauvegarde auto %s : %s^0'):format(tostring(src), tostring(err))) end
+            end
+            Wait(50)
+        end
     end
 end)
 
@@ -36,7 +45,11 @@ CreateThread(function()
     if not Config.Paycheck.enabled then return end
     while true do
         Wait(Config.Paycheck.interval * 60000)
-        for src, p in pairs(Players) do
+        local list = {}
+        for src, p in pairs(Players) do list[#list + 1] = { src, p } end
+        for _, e in ipairs(list) do
+            local src, p = e[1], e[2]
+            if Players[src] == p then
             local job = p.PlayerData.job
             local def = GetJob(job.name)
             local pay = tonumber(job.payment) or 0
@@ -53,6 +66,7 @@ CreateThread(function()
                     TriggerClientEvent('elyzea:client:notify', src, ('Salaire reçu : %d $'):format(pay), 'success')
                     TriggerEvent('elyzea:server:onPaycheck', src, pay)
                 end
+            end
             end
         end
     end

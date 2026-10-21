@@ -148,8 +148,11 @@ function C.ShowPreview(spot, v, label)
     end
     if preview.ped and DoesEntityExist(preview.ped) then DeleteEntity(preview.ped) end
     preview.ped = nil
+    preview.token = (preview.token or 0) + 1
+    local mine, tk = preview, preview.token   -- aperçu demandé pendant ce chargement, ou boutique fermée : on abandonne
     local hash = C.LoadModel(v.model)
     if not hash then C.Issue('model', 'Aperçu : modèle ' .. v.model .. ' introuvable') return false end
+    if preview ~= mine or preview.token ~= tk then SetModelAsNoLongerNeeded(hash) return false end
     local ped = CreatePed(28, hash, spot.x, spot.y, spot.z, 0.0, false, false)
     SetModelAsNoLongerNeeded(hash)
     if not ped or ped == 0 then return false end

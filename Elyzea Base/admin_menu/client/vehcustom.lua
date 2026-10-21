@@ -461,8 +461,10 @@ CreateThread(function()
             list = {}
             local me = GetEntityCoords(PlayerPedId())
             for _, veh in ipairs(GetGamePool('CVehicle')) do
-                local fx = Entity(veh).state.elyFx
-                if fx and #(GetEntityCoords(veh) - me) < 200.0 then list[#list + 1] = { veh = veh, fx = fx } end
+                if #(GetEntityCoords(veh) - me) < 200.0 then   -- distance d'abord, état réseau ensuite (même résultat)
+                    local fx = Entity(veh).state.elyFx
+                    if fx then list[#list + 1] = { veh = veh, fx = fx } end
+                end
             end
         end
         if #list == 0 then Wait(500) else

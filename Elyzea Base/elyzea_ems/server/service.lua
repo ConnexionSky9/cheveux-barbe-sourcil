@@ -43,6 +43,10 @@ function P.FlushSrc(src, stopReason)
     if not s then return end
     local now = os.time()
     local secs = now - s.t
+    -- Morceau compté AVANT les attentes de la base : un second appel (déconnexion, fin de service)
+    -- pendant l'écriture ne peut plus recompter les mêmes secondes
+    s.t = now
+    if stopReason then P.seg[src] = nil end
     local e = P.employees[s.cid]
     local g = e and P.grades[e.grade_id]
     local amount = 0
@@ -62,15 +66,17 @@ function P.FlushSrc(src, stopReason)
                 { secs, amount, g and g.name, s.session })
         end
     end
-    s.t = now
-    if stopReason then P.seg[src] = nil end
 end
 
 function P.FlushCid(cid)
-    for src, s in pairs(P.seg) do if s.cid == cid then P.FlushSrc(src) end end
+    local list = {}
+    for src, s in pairs(P.seg) do if s.cid == cid then list[#list + 1] = src end end
+    for _, src in ipairs(list) do P.FlushSrc(src) end
 end
 function P.FlushAll()
-    for src in pairs(P.seg) do P.FlushSrc(src) end
+    local list = {}
+    for src in pairs(P.seg) do list[#list + 1] = src end   -- liste figée (attentes de la base pendant le parcours)
+    for _, src in ipairs(list) do P.FlushSrc(src) end
 end
 P.FlushAllService = P.FlushAll
 

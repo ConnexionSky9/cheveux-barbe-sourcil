@@ -82,6 +82,7 @@ function Arena.Locked(src, name, fn, ...)
     end
     return table.unpack(res, 2, res.n)
 end
+AddEventHandler('playerDropped', function() rate[source] = nil end)   -- pas de fuite mémoire par joueur parti
 
 local seq = 0
 function Arena.NewUid()

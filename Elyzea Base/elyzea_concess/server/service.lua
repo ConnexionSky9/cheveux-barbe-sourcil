@@ -36,6 +36,10 @@ function P.FlushSrc(src, stopReason)
     if not s then return end
     local now = os.time()
     local secs = now - s.t
+    -- Morceau compté AVANT les attentes de la base : un second appel (déconnexion, fin de service)
+    -- pendant l'écriture ne peut plus recompter les mêmes secondes
+    s.t = now
+    if stopReason then P.seg[src] = nil end
     local e = P.employees[s.cid]
     local g = e and P.grades[e.grade_id]
     local amount = 0
@@ -55,12 +59,16 @@ function P.FlushSrc(src, stopReason)
                 { secs, amount, g and g.name, s.session })
         end
     end
-    s.t = now
-    if stopReason then P.seg[src] = nil end
 end
-function P.FlushCid(cid) for src, s in pairs(P.seg) do if s.cid == cid then P.FlushSrc(src) end end end
-function P.FlushShop(shopId) for src, s in pairs(P.seg) do if s.shop == shopId then P.FlushSrc(src) end end end
-function P.FlushAll() for src in pairs(P.seg) do P.FlushSrc(src) end end
+-- Listes figées : FlushSrc attend la base, la table P.seg peut changer pendant le parcours
+local function flushWhere(test)
+    local list = {}
+    for src, s in pairs(P.seg) do if test(s) then list[#list + 1] = src end end
+    for _, src in ipairs(list) do P.FlushSrc(src) end
+end
+function P.FlushCid(cid) flushWhere(function(s) return s.cid == cid end) end
+function P.FlushShop(shopId) flushWhere(function(s) return s.shop == shopId end) end
+function P.FlushAll() flushWhere(function() return true end) end
 
 local function StartSession(src, D)
     local cid = P.Cid(src)

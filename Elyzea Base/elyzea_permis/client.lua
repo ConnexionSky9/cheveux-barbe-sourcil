@@ -173,7 +173,11 @@ local function Headshot(ped)
 end
 
 local function ShowCard(meta, ownerSrc, slot)
-    local ped = ownerSrc and GetPlayerPed(GetPlayerFromServerId(ownerSrc)) or PlayerPedId()
+    local ped = PlayerPedId()
+    if ownerSrc then
+        local pl = GetPlayerFromServerId(ownerSrc)
+        ped = pl ~= -1 and GetPlayerPed(pl) or 0   -- hors de portée : pas de photo plutôt que la sienne
+    end
     Focus(true)
     SendNUIMessage({ action = 'card', meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot })
 end

@@ -13,10 +13,14 @@ RegisterNetEvent('elyzea_labs:labs', function(list)
 end)
 
 -- Intérieur : décor (« entity sets ») de l'intérieur du jeu
+local pinned = nil
+local function unpin() if pinned then UnpinInterior(pinned) pinned = nil end end
 local function applyInterior(it)
     local id = GetInteriorAtCoords(it.check.x + 0.0, it.check.y + 0.0, it.check.z + 0.0)
     if id == 0 then return end
+    if pinned and pinned ~= id then unpin() end
     PinInteriorInMemory(id)
+    pinned = id
     for _, set in ipairs(it.entitySets or {}) do
         if not IsInteriorEntitySetActive(id, set) then ActivateInteriorEntitySet(id, set) end
     end
@@ -72,6 +76,7 @@ RegisterNetEvent('elyzea_labs:exit', function(p, reason)
     C.Fade(true)
     if C.ClearEquipment then C.ClearEquipment() end
     C.inside = nil
+    unpin()
     if p then C.Teleport({ x = p.x, y = p.y, z = p.z, h = p.h }) end
     C.Fade(false)
     if reason then C.Notify(reason, 'inform') end
@@ -87,6 +92,7 @@ RegisterNetEvent('elyzea_labs:testEnd', function()
     if not testing then return end
     local b = testing.back
     testing = nil
+    unpin()
     C.Fade(true) C.Teleport({ x = b.x, y = b.y, z = b.z }) C.Fade(false)
 end)
 

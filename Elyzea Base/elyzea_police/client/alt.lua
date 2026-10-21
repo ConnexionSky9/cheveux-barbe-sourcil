@@ -89,9 +89,9 @@ local function Context()
             ctx.kind, ctx.entity = 'player', ent
         elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt and Entity(ent).state.drugThief then
             ctx.kind, ctx.entity = 'npc', ent      -- voleur de la vente de drogue (elyzea_illegal)
-        elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt + 1.5 and ExtTarget(ent) then
-            ctx.kind, ctx.entity = 'ext', ent
-            ctx.provider, ctx.title = ExtTarget(ent)
+        elseif IsEntityAPed(ent) and not IsPedAPlayer(ent) and not IsPedInAnyVehicle(ent, false) and d <= D.alt + 1.5 then
+            local prov, title = ExtTarget(ent)   -- un seul appel (avant : deux par image)
+            if prov then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, prov, title end
         elseif IsEntityAPed(ent) and IsPedInAnyVehicle(ent, false) and d <= D.vehicle then
             ctx.kind, ctx.entity = 'vehicle', GetVehiclePedIsIn(ent, false)
         elseif IsEntityAVehicle(ent) and d <= D.vehicle then

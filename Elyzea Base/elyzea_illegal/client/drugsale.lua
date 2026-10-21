@@ -130,13 +130,14 @@ RegisterNetEvent('illegal:drug:buyer', function(d)
             local player = PlayerPedId()
             if not DoesEntityExist(ped) or IsPedDeadOrDying(ped, true) then
                 if me.mode ~= 'knife' then DropBuyer(false) TriggerServerEvent('illegal:drug:answer', d.id, false, 0) end
+                if DoesEntityExist(ped) then SetEntityAsNoLongerNeeded(ped) end
                 break
             end
             if me.mode == 'knife' then
                 Wait(250)
             elseif me.mode == 'panel' or me.mode == 'waiting' then
                 -- Le client attend la réponse (fenêtre de prix ouverte ou serveur)
-                if me.mode == 'waiting' and GetGameTimer() - (me.sentAt or 0) > 10000 then DropBuyer() break end
+                if me.mode == 'waiting' and GetGameTimer() - (me.sentAt or 0) > 10000 then DropBuyer() TriggerServerEvent('illegal:drug:answer', d.id, false, 0) break end
                 if GetGameTimer() > untilT + 60000 then DropBuyer() TriggerServerEvent('illegal:drug:answer', d.id, false, 0) break end
                 Wait(100)
             else
@@ -165,7 +166,7 @@ RegisterNetEvent('illegal:drug:buyer', function(d)
                     end
                     if GetGameTimer() > untilT then Notify('Le client est reparti.', 'inform') DropBuyer() TriggerServerEvent('illegal:drug:answer', d.id, false, 0) break end
                 end
-                Wait(0)
+                Wait(near and 0 or 100)   -- touches lues seulement à moins de 2 m : inutile chaque image pendant la marche
             end
         end
     end)

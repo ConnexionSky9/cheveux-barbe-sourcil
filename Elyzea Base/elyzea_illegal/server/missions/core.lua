@@ -528,13 +528,18 @@ local function ensureTicker()
         while next(Missions.runs) do
             Wait(1000)
             local now = os.time()
-            for _, run in pairs(Missions.runs) do
-                if now >= run.deadline then
-                    Missions.finish(run, 'failed', 'Temps écoulé')
-                else
-                    local def = Missions.types[run.type]
-                    if def.tick then def.tick(run) end
-                end
+            local list = {}
+            for _, run in pairs(Missions.runs) do list[#list + 1] = run end
+            for _, run in ipairs(list) do
+                local ok, err = Missions.runs[run.id] ~= run or pcall(function()
+                    if now >= run.deadline then
+                        Missions.finish(run, 'failed', 'Temps écoulé')
+                    else
+                        local def = Missions.types[run.type]
+                        if def and def.tick then def.tick(run) end
+                    end
+                end)
+                if not ok then print(('^1[ILLEGAL] mission %s : %s^7'):format(tostring(run.id), tostring(err))) end
             end
         end
         ticking = false

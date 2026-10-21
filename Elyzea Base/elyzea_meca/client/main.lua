@@ -201,11 +201,16 @@ end
 function C.Plate(veh) return ((GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '')) end
 
 -- Points d'atelier placés en jeu (publiés par le serveur), convertis en vecteurs
-local wsCache, wsSrc = {}, nil
+-- GlobalState renvoie une NOUVELLE table à chaque lecture : on ne relit qu'après un changement publié
+-- (le gestionnaire reçoit la nouvelle valeur avant qu'elle soit écrite : on garde celle-ci)
+local wsCache, wsDirty, wsPub = {}, true, nil
+AddStateBagChangeHandler('mecaWorkshops', 'global', function(_, _, value) wsPub, wsDirty = value, true end)
 function C.Workshops()
-    local pub = GlobalState.mecaWorkshops
-    if pub ~= wsSrc then
-        wsSrc, wsCache = pub, {}
+    if wsDirty then
+        wsDirty = false
+        local pub = wsPub
+        if pub == nil then pub = GlobalState.mecaWorkshops end
+        wsCache = {}
         for _, w in ipairs(type(pub) == 'table' and pub or {}) do
             if w.coords then
                 wsCache[#wsCache + 1] = { id = w.id, label = w.label, radius = tonumber(w.radius) or 3.5, categories = w.categories, minLevel = tonumber(w.minLevel) or 1,

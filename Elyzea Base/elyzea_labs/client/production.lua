@@ -12,11 +12,15 @@ function C.ClearEquipment()
     shown = {}
 end
 
+local gen = 0
 function C.SpawnEquipment(list)
     C.ClearEquipment()
+    gen = gen + 1
+    local mine = gen   -- une nouvelle liste arrivée pendant un chargement remplace celle-ci
     for _, e in ipairs(list or {}) do
         local model = C.EquipModel(e.type)
         local h = model and C.LoadModel(model)
+        if gen ~= mine then return end
         if h then
             local obj = CreateObjectNoOffset(h, e.x + 0.0, e.y + 0.0, e.z + 0.0, false, false, false)
             SetEntityRotation(obj, (e.rx or 0) + 0.0, (e.ry or 0) + 0.0, (e.rz or 0) + 0.0, 2, true)

@@ -6,7 +6,7 @@ local function spawn(id, coords)
     RequestModel(model)
     local t = GetGameTimer() + 3000
     while not HasModelLoaded(model) and GetGameTimer() < t do Wait(0) end
-    if not HasModelLoaded(model) or not drops[id] then return end
+    if not HasModelLoaded(model) or not drops[id] or props[id] then return end
     local obj = CreateObject(model, coords.x, coords.y, coords.z, false, false, false)
     PlaceObjectOnGroundProperly(obj)
     FreezeEntityPosition(obj, true)

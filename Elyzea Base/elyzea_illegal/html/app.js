@@ -68,6 +68,7 @@ window.addEventListener('message', (e) => {
         D = normalize(m.data);
         if ($('#modal-root').innerHTML === '') render();   // ne pas casser une saisie en cours
     } else if (m.action === 'close') {
+        TMap.destroy();   // la carte (60 images/s) ne tourne plus tablette fermée
         $('#app').classList.add('hidden');
         closeModal();
     } else if (m.action === 'notify') {
@@ -282,7 +283,7 @@ $('#quick').addEventListener('click', (e) => {
     }
 });
 
-function close() { $('#app').classList.add('hidden'); closeModal(); post('close'); }
+function close() { TMap.destroy(); $('#app').classList.add('hidden'); closeModal(); post('close'); }
 $('#close-btn').addEventListener('click', close);
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('#quick').classList.contains('hidden')) return closeF5();

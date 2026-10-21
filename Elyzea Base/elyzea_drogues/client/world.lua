@@ -48,6 +48,13 @@ local function npc(model, x, y, z, h, scenario)
     return p
 end
 
+-- Le chargement d'un modèle rend la main : si l'élément a été retiré entre-temps, l'objet créé est supprimé
+local function orphan(key, list, ent)
+    if W.ents[key] == list then return false end
+    if ent and DoesEntityExist(ent) then DeleteEntity(ent) end
+    return true
+end
+
 local function despawn(key)
     local e = W.ents[key]
     if not e then return end
@@ -70,6 +77,7 @@ local function spawnSite(s)
     else
         ent = obj(s.model, s.x, s.y, s.z, s.h, s.rx, s.ry, false)
     end
+    if orphan(key, list, ent) then return end
     if not ent then W.ents[key] = nil return end
     list[1] = ent
     W.byEnt[ent] = { kind = 'site', id = s.id }
@@ -106,6 +114,7 @@ local function spawnPlant(p)
     local list = {}
     W.ents[key] = list
     local pot = obj(Config.Culture.potModel, p.x, p.y, p.z, p.h, 0.0, 0.0, true)
+    if orphan(key, list, pot) then return end
     if not pot then W.ents[key] = nil return end
     list[#list + 1] = pot
     W.byEnt[pot] = { kind = 'plant', id = p.id }
@@ -114,6 +123,7 @@ local function spawnPlant(p)
     local model = plantModel(p)
     if model then
         local pl = obj(model, pc.x, pc.y, pc.z + (mx.z * 0.55), p.h, 0.0, 0.0, false)
+        if orphan(key, list, pl) then return end
         if pl then
             if p.dead then SetEntityAlpha(pl, 140, false) end
             SetEntityCollision(pl, false, false)
@@ -127,6 +137,7 @@ local function spawnPlant(p)
         local lx = pc.x + o.x * math.cos(rad) - o.y * math.sin(rad)
         local ly = pc.y + o.x * math.sin(rad) + o.y * math.cos(rad)
         local lamp = obj(Config.Culture.lampModel, lx, ly, pc.z, (p.h or 0.0) + 180.0, 0.0, 0.0, true)
+        if orphan(key, list, lamp) then return end
         if lamp then list[#list + 1] = lamp W.byEnt[lamp] = { kind = 'plant', id = p.id } end
     end
     W.plantKey = W.plantKey or {}

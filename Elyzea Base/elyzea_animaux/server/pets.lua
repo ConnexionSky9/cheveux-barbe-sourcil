@@ -423,7 +423,12 @@ end)
 CreateThread(function()
     while true do
         Wait(2000)
-        for id, o in pairs(A.Out) do
+        -- Liste figée : StorePet attend la base et A.Out peut changer pendant le parcours
+        local list = {}
+        for id, o in pairs(A.Out) do list[#list + 1] = { id, o } end
+        for _, e in ipairs(list) do
+          local id, o = e[1], e[2]
+          if A.Out[id] == o then
             local ent = entityOf(o.netId)
             local pos, ped = A.PedPos(o.src)
             if ent == 0 or not pos then
@@ -447,9 +452,12 @@ CreateThread(function()
                     o.far = 0
                 end
             end
+          end
         end
         if not A.S.general.enabled then
-            for id in pairs(A.Out) do A.StorePet(id, 'disabled') end
+            local ids = {}
+            for id in pairs(A.Out) do ids[#ids + 1] = id end
+            for _, id in ipairs(ids) do if A.Out[id] then A.StorePet(id, 'disabled') end end
         end
     end
 end)

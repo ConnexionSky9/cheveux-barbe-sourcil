@@ -32,7 +32,7 @@ end)
 -- Marqué « vu » seulement une fois la cinématique allée jusqu'au bout
 RegisterNetEvent('adminmenu:welcome:done', function()
     local cid = Bridge.GetCharId(source)
-    if cid and not W.seen[cid] then W.seen[cid] = os.time() save() end
+    if cid and not W.seen[cid] then W.seen[cid] = os.time() Storage.saveLater('welcome', W) end   -- écriture regroupée
 end)
 
 local A = AM.Actions

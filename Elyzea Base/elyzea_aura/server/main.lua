@@ -1174,10 +1174,12 @@ local B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 local B64L = {}
 for i = 1, 64 do B64L[B64:byte(i)] = i - 1 end
 
-local function Base64Decode(data)
+-- yield : rend la main au serveur régulièrement (gros fichiers vidéo) ; mêmes octets produits
+local function Base64Decode(data, yield)
     data = data:gsub('[^%w%+/=]', '')
     local out, n = {}, 0
     for i = 1, #data, 4 do
+        if yield and n % 20000 == 0 and n > 0 then Wait(0) end
         local a, b, c, d = data:byte(i, i + 3)
         local vc = c and c ~= 61 and B64L[c] or nil
         local vd = d and d ~= 61 and B64L[d] or nil
@@ -1200,6 +1202,7 @@ local function JsonPath(tbl, path)
 end
 
 local Uploading = {}
+AddEventHandler('playerDropped', function() Uploading[source] = nil end)
 
 -- Au démarrage : prévient si la clé de l'hébergeur n'a pas été renseignée
 CreateThread(function()
@@ -1224,7 +1227,8 @@ RegisterNetEvent('elyzea_aura:server:upload', function(reqId, kind, mime, data, 
     mime = video and (tostring(mime):match('^video/webm') and 'video/webm' or 'video/mp4') or 'image/jpeg'
     Uploading[src] = true
     CreateThread(function()
-        local bin = Base64Decode(data)
+        local okDecode, bin = pcall(Base64Decode, data, true)
+        if not okDecode then Uploading[src] = nil return reply({ ok = false }) end
         local boundary = ('----ElyzeaAura%d'):format(math.random(100000, 999999))
         local field = video and Config.Camera.VideoField or Config.Camera.ImageField
         local filename = ('elyzea_%d.%s'):format(os.time(), video and 'webm' or 'jpg')

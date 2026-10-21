@@ -234,9 +234,9 @@ CreateThread(function()
         if Z.active then
             local list = {}
             for _, ped in ipairs(GetGamePool('CPed')) do
-                if not IsPedAPlayer(ped) then
+                if not IsPedAPlayer(ped) and NetworkHasControlOfEntity(ped) then
                     local kind = Entity(ped).state.zombie
-                    if kind and NetworkHasControlOfEntity(ped) and not IsPedDeadOrDying(ped, true) then
+                    if kind and not IsPedDeadOrDying(ped, true) then
                         local runner, spitter = kind == 2, kind == 3
                         if not Configured[ped] then configure(ped, runner) end
                         think(ped, runner, spitter)

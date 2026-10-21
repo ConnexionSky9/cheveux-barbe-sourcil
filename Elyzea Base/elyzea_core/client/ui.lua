@@ -64,6 +64,7 @@ function ProgressBar(d)
         if disable.mouse then DisableControlAction(0, 1, true) DisableControlAction(0, 2, true) end
         if d.canCancel and (IsControlJustPressed(0, 73) or IsControlJustPressed(0, 177)) then cancelled = true break end
         if IsEntityDead(ped) then cancelled = true break end
+        if not progressActive then cancelled = true break end   -- export CancelProgress : la barre s'arrête vraiment
         Wait(0)
     end
 

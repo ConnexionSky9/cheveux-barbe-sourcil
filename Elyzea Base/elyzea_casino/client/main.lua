@@ -149,20 +149,32 @@ function CS.Spawn(id)
     if not p or not p.table or CS.ents[id] then return end
     local e = { chairs = {} }
     CS.ents[id] = e
+    -- Le chargement d'un modèle rend la main : si la table a été retirée entre-temps (mise à jour des points),
+    -- l'objet tout juste créé est supprimé au lieu de rester orphelin
+    local function obj(...)
+        local o = newObj(...)
+        if CS.ents[id] ~= e then if o and DoesEntityExist(o) then DeleteEntity(o) end return nil, true end
+        return o
+    end
     local t = p.table
     if p.role == 'blackjack' or p.role == 'roulette' then
-        e.table = newObj(CS.TableModel(p), t.x, t.y, t.z, t.h)
+        local gone
+        e.table, gone = obj(CS.TableModel(p), t.x, t.y, t.z, t.h)
+        if gone then return 'gone' end
         if not e.table then CS.ents[id] = nil return end
         for i, s in ipairs(CS.Seats(id)) do
             if s.spawnChair then
-                local c = newObj(Config.Models.chairFallback, s.pos.x, s.pos.y, s.pos.z, (s.heading + 180.0) % 360.0)
+                local c, cgone = obj(Config.Models.chairFallback, s.pos.x, s.pos.y, s.pos.z, (s.heading + 180.0) % 360.0)
+                if cgone then return 'gone' end
                 if c then PlaceObjectOnGroundProperly(c) e.chairs[i] = c end
             end
         end
     elseif p.role == 'wheel' and p.wheel then
         local w = p.wheel
-        if w.baseModel and w.baseModel ~= '' then e.base = newObj(w.baseModel, t.x, t.y, t.z, t.h) end
-        e.wheel = newObj(w.model or 'vw_prop_vw_luckywheel_02a', t.x, t.y, t.z + (w.wheelZ or 0.0), t.h)
+        local gone
+        if w.baseModel and w.baseModel ~= '' then e.base, gone = obj(w.baseModel, t.x, t.y, t.z, t.h) if gone then return 'gone' end end
+        e.wheel, gone = obj(w.model or 'vw_prop_vw_luckywheel_02a', t.x, t.y, t.z + (w.wheelZ or 0.0), t.h)
+        if gone then return 'gone' end
         if e.wheel then SetEntityRotation(e.wheel, 0.0, 0.0, t.h, 2, true) end
     end
 end
@@ -192,6 +204,8 @@ CreateThread(function()
                         print(('^1[elyzea_casino] Table #%s non affichée : %s^0'):format(tostring(id), tostring(err)))
                         pcall(CS.Despawn, id)
                         failedAt[id] = GetGameTimer() + 10000
+                    elseif err == 'gone' then
+                        -- table retirée pendant le chargement : rien à faire, elle sera recréée au prochain passage
                     elseif CS.ents[id] then
                         failedAt[id] = nil
                         if p.role ~= 'wheel' then TriggerServerEvent('elyzea_casino:requestTable', id) end

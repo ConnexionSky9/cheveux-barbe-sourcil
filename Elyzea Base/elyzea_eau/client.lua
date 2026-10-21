@@ -129,6 +129,9 @@ local function buryRemoved(old, new)
     end
 end
 
+-- Éditeur en cours (déclaré ici pour que le gestionnaire ci-dessous voie la même variable que l'éditeur)
+local ed = nil
+
 RegisterNetEvent('elyzea_eau:zones', function(zones)
     if not Live.scanned then scanPool() end
     if not ed then Live.preview = nil end   -- zone enregistrée : elle fait maintenant partie des zones
@@ -167,9 +170,8 @@ RegisterCommand('eau_etat', function()
 end, false)
 
 -- =========================================================
---  ÉDITEUR
+--  ÉDITEUR (variable « ed » déclarée plus haut)
 -- =========================================================
-local ed = nil
 
 RegisterCommand('eau_ajouter', function(_, args)
     local c = GetEntityCoords(PlayerPedId())

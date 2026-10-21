@@ -236,8 +236,7 @@ local function GiveLicense(src, cat)
     Log(src, 'Permis obtenu', Config.Categories[cat].label)
 end
 
-RegisterNetEvent('permis:server:startExam', function(cat)
-    local src = source
+local function startExam(src, cat)
     local s = NearNpc(src)
     if not s or s.exam or not s.opts.categories[cat] then return end
     local d = Load(Cid(src))
@@ -262,7 +261,18 @@ RegisterNetEvent('permis:server:startExam', function(cat)
         cat = cat, label = Config.Categories[cat].label, netId = NetworkGetNetworkIdFromEntity(veh),
         points = route.points, duration = route.duration, maxFaults = s.opts.maxFaults, tolerance = s.opts.speedTolerance,
     })
+end
+-- Un seul départ d'examen à la fois par joueur (un double clic ne paie plus deux fois)
+local Starting = {}
+RegisterNetEvent('permis:server:startExam', function(cat)
+    local src = source
+    if Starting[src] then return end
+    Starting[src] = true
+    local ok, err = pcall(startExam, src, cat)
+    Starting[src] = nil
+    if not ok then print(('^1[elyzea_permis] %s^0'):format(tostring(err))) end
 end)
+AddEventHandler('playerDropped', function() Starting[source] = nil end)
 
 RegisterNetEvent('permis:server:finishExam', function(faults, aborted, reason)
     local src = source

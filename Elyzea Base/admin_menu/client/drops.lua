@@ -183,17 +183,20 @@ CreateThread(function()
     while true do
         local any = next(LiveDrops) ~= nil
         if any then
+            -- Tests bon marché d'abord : l'état réseau (désérialisé) n'est lu que pour les entités contrôlées
             for _, ped in ipairs(GetGamePool('CPed')) do
-                local st = Entity(ped).state.dropGuard
-                if st and NetworkHasControlOfEntity(ped) and not IsEntityDead(ped) and Configured[ped] ~= st.run then
-                    Configured[ped] = st.run
-                    configureGuard(ped, st)
+                if NetworkHasControlOfEntity(ped) then
+                    local st = Entity(ped).state.dropGuard
+                    if st and not IsEntityDead(ped) and Configured[ped] ~= st.run then
+                        Configured[ped] = st.run
+                        configureGuard(ped, st)
+                    end
                 end
             end
             -- La caisse et les abris : posés au sol par leur « propriétaire »
             for _, obj in ipairs(GetGamePool('CObject')) do
-                local est = Entity(obj).state
-                if (est.dropCrate or est.dropCover) and NetworkHasControlOfEntity(obj) and not est.dropGrounded then
+                local est = NetworkHasControlOfEntity(obj) and Entity(obj).state
+                if est and (est.dropCrate or est.dropCover) and not est.dropGrounded then
                     PlaceObjectOnGroundProperly(obj)
                     FreezeEntityPosition(obj, true)
                     est:set('dropGrounded', true, true)
@@ -201,8 +204,8 @@ CreateThread(function()
             end
             -- Les véhicules : au sol, moteur coupé, fermés à clé (ils servent d'abri)
             for _, veh in ipairs(GetGamePool('CVehicle')) do
-                local vst = Entity(veh).state
-                if vst.dropVehicle and NetworkHasControlOfEntity(veh) and not vst.dropGrounded then
+                local vst = NetworkHasControlOfEntity(veh) and Entity(veh).state
+                if vst and vst.dropVehicle and not vst.dropGrounded then
                     SetVehicleOnGroundProperly(veh)
                     SetVehicleEngineOn(veh, false, true, true)
                     if vst.dropVehicle.lock then SetVehicleDoorsLocked(veh, 2) SetVehicleDoorsLockedForAllPlayers(veh, true) end

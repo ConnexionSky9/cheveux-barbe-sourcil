@@ -37,7 +37,7 @@
     return true;
   }
 
-  function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; if (S.mapState) { cancelAnimationFrame(S.mapState.raf); S.mapState = null; } }
+  function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; if (S.mapState) { cancelAnimationFrame(S.mapState.raf); if (S.mapState.up) window.removeEventListener('mouseup', S.mapState.up); S.mapState = null; } }
   function go(view, arg, push = true) {
     clearTimers();
     if (push && S.view !== view) S.stack.push([S.view, S.arg]);
@@ -296,7 +296,8 @@
     const sx = (x) => (x - st.cx) * st.scale + W / 2, sy = (y) => -(y - st.cy) * st.scale + H / 2;
     let drag = null;
     cv.onmousedown = (e) => (drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy });
-    window.addEventListener('mouseup', () => (drag = null));
+    st.up = () => (drag = null);
+    window.addEventListener('mouseup', st.up);   // retiré à la fermeture de la carte (clearTimers)
     cv.onmousemove = (e) => { if (!drag) return; st.cx = drag.cx - (e.clientX - drag.x) / st.scale; st.cy = drag.cy + (e.clientY - drag.y) / st.scale; };
     cv.onwheel = (e) => { e.preventDefault(); st.scale = Math.max(0.01, Math.min(0.6, st.scale * (e.deltaY < 0 ? 1.2 : 1 / 1.2))); };
     function draw() {

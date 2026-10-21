@@ -4,8 +4,19 @@
 BHC = { ui = nil }
 local C = BHC
 
-function C.Cfg() return GlobalState.bhCfg end
-function C.Bank(id) return (GlobalState.bhBanks or {})[id] or {} end
+-- GlobalState relu sans le désérialiser à chaque appel : valeur gardée et mise à jour à chaque changement
+local gsCache = {}
+local function GS(key)
+    local c = gsCache[key]
+    if c == nil then
+        c = { v = GlobalState[key] }
+        gsCache[key] = c
+        AddStateBagChangeHandler(key, 'global', function(_, _, value) c.v = value end)
+    end
+    return c.v
+end
+function C.Cfg() return GS('bhCfg') end
+function C.Bank(id) return (GS('bhBanks') or {})[id] or {} end
 function C.BankDef(id) for _, b in ipairs((C.Cfg() or {}).banks or {}) do if b.id == id then return b end end end
 
 function C.Req(action, data)
