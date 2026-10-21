@@ -241,6 +241,15 @@ do
         meta.v31 = true
         Storage.save('meta', meta)
     end
+    if not meta.drogues1 then
+        -- Drogues (elyzea_drogues), vente de drogue, vêtements cachés et laboratoires (elyzea_labs) :
+        -- ajoutés au SuperAdmin déjà sauvegardé (le Fondateur a toujours tout, automatiquement)
+        if Ranks.superadmin then
+            for _, p in ipairs({ 'drugs_effects', 'drugs_manage', 'drugsale_manage', 'clothing_manage', 'labs_manage' }) do Ranks.superadmin.perms[p] = true end
+        end
+        meta.drogues1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.casino1 then
         -- Onglet Casino (elyzea_casino) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.casino_manage = true end
