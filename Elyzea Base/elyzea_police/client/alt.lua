@@ -1,12 +1,13 @@
 -- =====================================================================
 --  ELYZEA POLICE - client : menu ALT (pour tout le monde)
---  ALT maintenu : curseur ; la cible survolée qui a des actions est en surbrillance (boîte lumineuse dessinée,
+--  ALT maintenu : curseur ; le CONTOUR de la cible survolée qui a des actions s'illumine (silhouette dessinée,
 --  pas le contour natif SetEntityDrawOutline qui faisait planter le jeu) ; ALT + clic gauche : actions possibles.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
 --  Mécano en service (elyzea_meca) : réparer, nettoyer, retourner, historique, devis (exports AltOptions / AltSelect).
 --  Animations (elyzea_animations) : copier l'animation d'une personne, lui proposer une animation à deux.
+--  Bébé (elyzea_bebe_modele) : prendre, poser, changer de prise, installer dans la poussette, pousser, garer.
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -14,8 +15,9 @@ local D = Config.Distances
 local active, menuOpen = false, false
 local menuCtx, menuOpts = nil, nil
 
-local function CursorRay()
-    local sx, sy = GetControlNormal(0, 239), GetControlNormal(0, 240)
+-- Rayon de la caméra passant par un point de l'écran (0..1) ; par défaut, le curseur
+local function CursorRay(sx, sy)
+    sx, sy = sx or GetControlNormal(0, 239), sy or GetControlNormal(0, 240)
     local rot = GetGameplayCamRot(2)
     local rx, rz = math.rad(rot.x), math.rad(rot.z)
     local fwd = vector3(-math.sin(rz) * math.cos(rx), math.cos(rz) * math.cos(rx), math.sin(rx))
@@ -53,6 +55,7 @@ local ALT_PROVIDERS = {
     { res = 'jewelry_heist', prefix = 'jewel:', target = true },
     { res = 'bank_heist', prefix = 'bank:', target = true },
     { res = 'elyzea_drogues', prefix = 'drg:', target = true },   -- postes, récolte, pots et plantes, acheteurs (objets et PNJ)
+    { res = 'elyzea_bebe_modele', prefix = 'bebe:', target = true }, -- bébé (porter, poser, prises) et poussette (installer, pousser, garer)
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre
@@ -64,13 +67,20 @@ local function ExtTarget(ent)
         end
     end
 end
+-- Cible proche la plus proche, toutes ressources confondues (le bébé porté ou la poussette poussée gagnent : ils sont collés au joueur)
 local function ExtNearby()
+    local me = GetEntityCoords(PlayerPedId())
+    local bRes, bEnt, bTitle, bD
     for _, prov in ipairs(ALT_PROVIDERS) do
         if prov.target and GetResourceState(prov.res) == 'started' then
             local ok, ent, title = pcall(function() return exports[prov.res]:AltNearby() end)
-            if ok and ent then return prov.res, ent, title end
+            if ok and ent and ent ~= 0 and DoesEntityExist(ent) then
+                local d = #(GetEntityCoords(ent) - me)
+                if not bD or d < bD then bRes, bEnt, bTitle, bD = prov.res, ent, title, d end
+            end
         end
     end
+    return bRes, bEnt, bTitle, bD
 end
 
 local function Context()
@@ -110,13 +120,16 @@ local function Context()
         end
     end
     if ctx.kind == 'none' then
+        -- rien de visé : la plus proche entre la personne en face et une cible de ressource (bébé, poussette, sac…).
+        -- Avant, la personne en face passait toujours en premier : un bébé à côté d'un joueur n'était jamais proposé.
         local f = FacingPlayer()
-        if f then ctx.kind, ctx.entity = 'player', f end
-    end
-    if ctx.kind == 'none' then
-        -- rien de visé : cible proche d'une ressource (sac posé au sol, PNJ)
-        local res, ent, title = ExtNearby()
-        if res then ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title end
+        local res, ent, title, dExt = ExtNearby()
+        local dF = f and #(GetEntityCoords(f) - myPos) or nil
+        if res and (not dF or dExt <= dF) then
+            ctx.kind, ctx.entity, ctx.provider, ctx.title = 'ext', ent, res, title
+        elseif f then
+            ctx.kind, ctx.entity = 'player', f
+        end
     end
     if ctx.kind == 'player' then
         if IsPedInAnyVehicle(ctx.entity, false) then
@@ -205,9 +218,10 @@ local function Title(ctx)
 end
 
 -- ---------------------------------------------------------------------
--- Surbrillance de la cible survolée : boîte aux contours lumineux, faces légèrement teintées,
--- cercle au sol et étiquette. Uniquement du dessin (DrawLine / DrawPoly / DrawMarker / texte) :
--- rien n'est modifié sur l'entité, aucun risque de plantage.
+-- Surbrillance de la cible survolée : seulement son CONTOUR, qui s'illumine (pas de boîte, pas de faces, pas de cercle).
+-- La silhouette est calculée à l'écran : points du corps (os des personnages), profil de la carrosserie (véhicules)
+-- ou volume de l'objet, puis enveloppe extérieure arrondie, dessinée en traits lumineux juste devant la cible.
+-- Uniquement du dessin (DrawLine) : rien n'est modifié sur l'entité, aucun risque de plantage.
 -- ---------------------------------------------------------------------
 local KIND_COLOR = {
     player = { 96, 165, 250 }, carry = { 96, 165, 250 }, npc = { 239, 68, 68 },
@@ -236,47 +250,123 @@ local function label3D(x, y, z, text, r, g, b)
     DrawRect(sx, sy + 0.0295, w, 0.0022, r, g, b, 230)
 end
 
+-- Os d'un personnage qui dessinent sa silhouette (tête, épaules, bras, mains, bassin, jambes, pieds)
+local PED_BONES = { 31086, 39317, 64729, 10706, 45509, 40269, 61163, 28252, 18905, 57005, 24818, 11816, 58271, 51826, 63931, 36864, 14201, 52301, 20781, 2108 }
+
+-- Points 3D (monde) qui forment le volume visible de l'entité, avec un rayon d'épaisseur (mètres) par point
+local function silhouettePoints(ent)
+    local pts = {}
+    if IsEntityAPed(ent) then
+        for _, b in ipairs(PED_BONES) do
+            local c = GetPedBoneCoords(ent, b, 0.0, 0.0, 0.0)
+            pts[#pts + 1] = { c, b == 31086 and 0.13 or 0.09 }
+        end
+        local h = GetPedBoneCoords(ent, 31086, 0.0, 0.0, 0.0)
+        pts[#pts + 1] = { vector3(h.x, h.y, h.z + 0.1), 0.1 }      -- haut du crâne
+        return pts
+    end
+    local mn, mx = dims(ent)
+    local function at(x, y, z, r) pts[#pts + 1] = { GetOffsetFromEntityInWorldCoords(ent, x, y, z), r } end
+    if IsEntityAVehicle(ent) then
+        -- profil de carrosserie : bas de caisse sur toute la longueur, ceinture, toit sur la partie centrale
+        local L, Wd = mx.y - mn.y, mx.x - mn.x
+        local zb, zm, zt = mn.z + 0.12, mn.z + (mx.z - mn.z) * 0.55, mx.z
+        local cy = (mn.y + mx.y) / 2
+        for _, f in ipairs({ 0.0, 0.25, 0.5, 0.75, 1.0 }) do
+            local y = mn.y + L * f
+            for _, x in ipairs({ mn.x + Wd * 0.04, mx.x - Wd * 0.04 }) do
+                at(x, y, zb, 0.06)
+                at(x, y, zm, 0.06)
+            end
+        end
+        for _, f in ipairs({ -0.28, -0.1, 0.1, 0.22 }) do
+            local y = cy + L * f
+            at(mn.x + Wd * 0.14, y, zt, 0.05) at(mx.x - Wd * 0.14, y, zt, 0.05)
+        end
+        return pts
+    end
+    -- objet : les huit coins de son volume (seule l'enveloppe extérieure est tracée)
+    for _, x in ipairs({ mn.x, mx.x }) do for _, y in ipairs({ mn.y, mx.y }) do for _, z in ipairs({ mn.z, mx.z }) do at(x, y, z, 0.03) end end end
+    return pts
+end
+
+-- Enveloppe convexe (chaîne monotone) de points 2D { x, y }
+local function hull(P)
+    table.sort(P, function(a, b) return a.x < b.x or (a.x == b.x and a.y < b.y) end)
+    local function cross(o, a, b) return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x) end
+    local lower, upper = {}, {}
+    for _, p in ipairs(P) do
+        while #lower >= 2 and cross(lower[#lower - 1], lower[#lower], p) <= 0 do lower[#lower] = nil end
+        lower[#lower + 1] = p
+    end
+    for i = #P, 1, -1 do
+        local p = P[i]
+        while #upper >= 2 and cross(upper[#upper - 1], upper[#upper], p) <= 0 do upper[#upper] = nil end
+        upper[#upper + 1] = p
+    end
+    lower[#lower] = nil upper[#upper] = nil
+    for _, p in ipairs(upper) do lower[#lower + 1] = p end
+    return lower
+end
+
+local RING = {}
+for i = 0, 7 do RING[i + 1] = { math.cos(i * math.pi / 4), math.sin(i * math.pi / 4) } end
+
 local function Highlight(ent, kind, text)
     if not ent or ent == 0 or not DoesEntityExist(ent) then return end
     local c = KIND_COLOR[kind] or KIND_COLOR.player
     local r, g, b = c[1], c[2], c[3]
-    local pulse = 0.65 + 0.35 * math.abs(math.sin(GetGameTimer() / 260))
-    local mn, mx = dims(ent)
-    local pad = IsEntityAPed(ent) and 0.06 or 0.04
-    local x0, y0, z0, x1, y1, z1 = mn.x - pad, mn.y - pad, mn.z - pad, mx.x + pad, mx.y + pad, mx.z + pad
-    if IsEntityAPed(ent) then x0, x1, y0, y1 = math.max(x0, -0.45), math.min(x1, 0.45), math.max(y0, -0.35), math.min(y1, 0.35) end
-    local P = {}
-    local k = 0
-    for _, z in ipairs({ z0, z1 }) do
-        for _, xy in ipairs({ { x0, y0 }, { x1, y0 }, { x1, y1 }, { x0, y1 } }) do
-            k = k + 1
-            P[k] = GetOffsetFromEntityInWorldCoords(ent, xy[1], xy[2], z)
+    local pulse = 0.7 + 0.3 * math.abs(math.sin(GetGameTimer() / 280))
+    local cam = GetGameplayCamCoord()
+    local center = GetEntityCoords(ent)
+    local dist = #(center - cam)
+    if dist < 0.3 then return end
+    local aspect = GetAspectRatio(false)
+    local tanH = math.tan(math.rad(GetGameplayCamFov()) / 2)
+    -- 1. silhouette à l'écran : chaque point devient un petit cercle (épaisseur du corps / de la carrosserie)
+    local P2, minD = {}, dist
+    for _, pt in ipairs(silhouettePoints(ent)) do
+        local w = pt[1]
+        local on, sx, sy = GetScreenCoordFromWorldCoord(w.x, w.y, w.z)
+        if on then
+            local d = math.max(0.5, #(w - cam))
+            if d < minD then minD = d end
+            local ry = pt[2] / (2 * d * tanH)          -- rayon en hauteur d'écran
+            local rx = ry / aspect
+            for _, k in ipairs(RING) do P2[#P2 + 1] = { x = sx + k[1] * rx, y = sy + k[2] * ry } end
         end
     end
-    local a = math.floor(255 * pulse)
-    local E = { { 1, 2 }, { 2, 3 }, { 3, 4 }, { 4, 1 }, { 5, 6 }, { 6, 7 }, { 7, 8 }, { 8, 5 }, { 1, 5 }, { 2, 6 }, { 3, 7 }, { 4, 8 } }
-    for _, e in ipairs(E) do
-        local p, q = P[e[1]], P[e[2]]
-        DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, a)
+    if #P2 < 3 then return end
+    local H = hull(P2)
+    if #H < 3 then return end
+    -- 2. contour lumineux : trois traits concentriques (cœur net + halo), tracés juste devant la cible
+    local cx, cy = 0, 0
+    for _, p in ipairs(H) do cx, cy = cx + p.x, cy + p.y end
+    cx, cy = cx / #H, cy / #H
+    local depth = math.max(0.4, minD - 0.15)
+    for layer, glow in ipairs({ { 0.0, 255 }, { 0.0022, 120 }, { 0.0045, 45 } }) do
+        local grow, alpha = glow[1], math.floor(glow[2] * pulse)
+        local W = {}
+        for i, p in ipairs(H) do
+            local dx, dy = (p.x - cx) * aspect, p.y - cy
+            local l = math.sqrt(dx * dx + dy * dy)
+            local ox, oy = 0, 0
+            if l > 0 then ox, oy = (dx / l) * grow / aspect, (dy / l) * grow end
+            local from, dir = CursorRay(p.x + ox, p.y + oy)
+            W[i] = from + dir * depth
+        end
+        for i = 1, #W do
+            local p, q = W[i], W[i % #W + 1]
+            DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, alpha)
+        end
     end
-    -- faces teintées (des deux côtés pour être visibles sous tous les angles)
-    local F = { { 1, 2, 6, 5 }, { 2, 3, 7, 6 }, { 3, 4, 8, 7 }, { 4, 1, 5, 8 }, { 5, 6, 7, 8 } }
-    local fa = math.floor(34 * pulse)
-    for _, f in ipairs(F) do
-        local A, B, C, D = P[f[1]], P[f[2]], P[f[3]], P[f[4]]
-        DrawPoly(A.x, A.y, A.z, B.x, B.y, B.z, C.x, C.y, C.z, r, g, b, fa)
-        DrawPoly(A.x, A.y, A.z, C.x, C.y, C.z, D.x, D.y, D.z, r, g, b, fa)
-        DrawPoly(C.x, C.y, C.z, B.x, B.y, B.z, A.x, A.y, A.z, r, g, b, fa)
-        DrawPoly(D.x, D.y, D.z, C.x, C.y, C.z, A.x, A.y, A.z, r, g, b, fa)
-    end
-    -- cercle au sol
-    local base = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, z0)
-    local rad = math.max(x1 - x0, y1 - y0) * 0.75
-    DrawMarker(25, base.x, base.y, base.z + 0.03, 0, 0, 0, 0, 0, 0, rad * 2, rad * 2, 1.0, r, g, b, math.floor(150 * pulse), false, false, 2, false, nil, nil, false)
-    -- étiquette au-dessus
+    -- 3. petite étiquette au-dessus (nom de la cible et nombre d'actions)
     if text then
-        local top = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, z1 + 0.25)
-        label3D(top.x, top.y, top.z, text, r, g, b)
+        local top = 1.0
+        for _, p in ipairs(H) do if p.y < top then top = p.y end end
+        local from, dir = CursorRay(cx, math.max(0.02, top - 0.035))
+        local w = from + dir * depth
+        label3D(w.x, w.y, w.z, text, r, g, b)
     end
 end
 
@@ -352,3 +442,6 @@ RegisterCommand('+police_alt', Start, false)
 RegisterCommand('-police_alt', Stop, false)
 RegisterKeyMapping('+police_alt', 'Interactions : porter, coffre, police (maintenir ALT, clic sur la cible)', 'keyboard', Config.Keys.alt)
 
+
+-- Pour les tests hors du jeu (tests/alt_sim.lua)
+C.AltContext, C.AltHighlight = Context, Highlight
