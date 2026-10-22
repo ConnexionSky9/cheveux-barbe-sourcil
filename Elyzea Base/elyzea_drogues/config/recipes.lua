@@ -11,16 +11,19 @@ Config.Recipes = {}
 local R = Config.Recipes
 
 -- ------------------------------------------------------------ Cannabis (une chaîne par variété)
--- 1 Récolter les feuilles (plante) · 2 Têtes · 3 Préparer (désactivable par variété) · 4 Rouler · (+ ensacher)
+-- 1 Récolter (plante) · 2 Effeuiller assis (têtes fraîches) · 3 Sécher (désactivable par variété) · 4 Préparer (désactivable) · 5 Rouler · 6 Ensacher
 for id, v in pairs(Config.Varieties) do
     R['weed_trim_' .. id] = { label = ('Têtes de %s'):format(v.label), drug = 'weed', variety = id, step = 2, station = 'weed_trim',
-        inputs = { { v.leaf, 3 } }, outputs = { { v.bud, 2 } }, duration = 8, loss = 0 }
-    R['weed_grind_' .. id] = { label = ('Préparer la %s'):format(v.label), drug = 'weed', variety = id, step = 3, station = 'weed_grind',
+        inputs = { { v.leaf, 3 } }, outputs = { { v.bud, 2 } }, duration = 8, loss = 0, trimStep = true }
+    -- Séchage : têtes fraîches → têtes séchées (1 pour 1). La manucure donne des têtes fraîches quand le séchage est actif.
+    R['weed_dry_' .. id] = { label = ('Sécher les têtes de %s'):format(v.label), drug = 'weed', variety = id, step = 3, station = 'weed_dry',
+        inputs = { { v.wet, 1 } }, outputs = { { v.bud, 1 } }, duration = 6, loss = 0, dryStep = true }
+    R['weed_grind_' .. id] = { label = ('Préparer la %s'):format(v.label), drug = 'weed', variety = id, step = 4, station = 'weed_grind',
         inputs = { { v.bud, 1 } }, outputs = { { v.ground, 2 } }, duration = 6, loss = 0, prepStep = true }
     -- Rouler : avec le cannabis préparé, ou directement avec les têtes si la préparation est désactivée
-    R['weed_roll_' .. id] = { label = ('Rouler un joint de %s'):format(v.label), drug = 'weed', variety = id, step = 4, station = 'weed_roll',
+    R['weed_roll_' .. id] = { label = ('Rouler un joint de %s'):format(v.label), drug = 'weed', variety = id, step = 5, station = 'weed_roll',
         inputs = { { v.ground, 1 }, { 'rolling_paper', 1 } }, outputs = { { v.joint, 1 } }, duration = 5, loss = 0, rollStep = true }
-    R['weed_pack_' .. id] = { label = ('Pochon de %s'):format(v.label), drug = 'weed', variety = id, step = 5, station = 'weed_pack',
+    R['weed_pack_' .. id] = { label = ('Pochon de %s'):format(v.label), drug = 'weed', variety = id, step = 6, station = 'weed_pack',
         inputs = { { v.bud, 2 }, { 'drug_bag', 1 } }, outputs = { { v.pouch, 1 } }, duration = 4, loss = 0 }
 end
 

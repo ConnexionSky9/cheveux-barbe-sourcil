@@ -12,6 +12,9 @@ shared_scripts {
     'config.lua',
     'shared/sha256.lua',
     'shared/rules.lua',
+    -- étapes immersives (mini-jeux et scènes) communes avec elyzea_drogues
+    '@elyzea_drogues/config/minigames.lua',
+    '@elyzea_drogues/shared/steps.lua',
 }
 
 server_scripts {
@@ -41,4 +44,4 @@ client_scripts {
 ui_page 'web/index.html'
 files { 'web/index.html', 'web/style.css', 'web/app.js' }
 
-dependencies { 'elyzea_core', 'elyzea_inventory', 'elyzea_illegal' }
+dependencies { 'elyzea_core', 'elyzea_inventory', 'elyzea_illegal', 'elyzea_drogues' }

@@ -198,13 +198,36 @@ local function progress(seconds, text, anim)
     end)
     return ok and done == true
 end
-local function run(startName, finishName, args, anim, at)
-    if busy then return end
+-- ctx (étape immersive) : { entity = poste ou plante, chair = chaise du décor, siteType }
+local function run(startName, finishName, args, anim, at, ctx)
+    if busy or DrugStep.active then return end
     busy = true
     local r = Ely.callback.await(startName, false, table.unpack(args)) or {}
     if not r.ok then busy = false return DrugFx.notify(r.error or 'Le serveur ne répond pas.', 'error') end
-    if at then face(at.x, at.y, at.z) end
-    if not progress(r.duration, r.label, anim) then
+    if r.game then
+        -- mini-jeu + scène ; le serveur revérifie le résultat, la durée, la distance et les ingrédients
+        ctx = ctx or {}
+        local res = DrugStep.Run({ game = r.game, profile = r.game.profile, entity = ctx.entity, chair = ctx.chair, siteType = ctx.siteType, duration = r.duration })
+        if not res or not res.ok then
+            TriggerServerEvent('elyzea_drogues:cancel', r.token)
+            busy = false
+            if res and (res.reason == 'mistakes' or res.reason == 'time') then return DrugFx.notify('Raté ! Rien n\'est perdu : tes ingrédients sont intacts, recommence.', 'error') end
+            if res and res.reason == 'interrupt' then return DrugFx.notify('Action interrompue.', 'error') end
+            return DrugFx.notify('Action annulée.', 'inform')
+        end
+        local f = Ely.callback.await(finishName, false, r.token, res) or {}
+        busy = false
+        return DrugFx.notify(f.message or f.error or 'Le serveur ne répond pas.', f.ok and 'success' or 'error')
+    end
+    local done
+    if ctx and ctx.harvest then
+        -- récolte : animation adaptée à la plante (avec repli si l'animation n'existe pas) + objet tenu
+        done = DrugStep.Simple({ scene = ctx.harvest, entity = ctx.entity, duration = r.duration, label = r.label })
+    else
+        if at then face(at.x, at.y, at.z) end
+        done = progress(r.duration, r.label, anim)
+    end
+    if not done then
         TriggerServerEvent('elyzea_drogues:cancel', r.token)
         busy = false
         return DrugFx.notify('Action annulée.', 'inform')
@@ -219,8 +242,9 @@ local function select(id, t)
     if t.kind == 'site' then
         local s = t.site
         local rid, n = id:match('^craft:([%w_]+):(%d+)$')
-        if rid then return run('elyzea_drogues:craftStart', 'elyzea_drogues:craftFinish', { s.id, rid, tonumber(n) }, (Config.Stations[s.type] or {}).anim, s) end
-        if id == 'harvest' then return run('elyzea_drogues:harvestStart', 'elyzea_drogues:harvestFinish', { s.id }, (Config.Harvest[s.type] or {}).anim, s) end
+        local ctx = { entity = W.StationEntity(s.id), chair = W.Chair(s.id), siteType = s.type }
+        if rid then return run('elyzea_drogues:craftStart', 'elyzea_drogues:craftFinish', { s.id, rid, tonumber(n) }, (Config.Stations[s.type] or {}).anim, s, ctx) end
+        if id == 'harvest' then ctx.harvest = Config.HarvestSceneOf(s.type) return run('elyzea_drogues:harvestStart', 'elyzea_drogues:harvestFinish', { s.id }, (Config.Harvest[s.type] or {}).anim, s, ctx) end
         local item = id:match('^sell:([%w_%-]+)$')
         if item then
             local r = Ely.callback.await('elyzea_drogues:sell', false, s.id, item) or {}
@@ -239,7 +263,9 @@ local function select(id, t)
     local anims = { harvest = Config.StationAnims.kneel, plant = Config.StationAnims.kneel, pickup = Config.StationAnims.kneel, clear = Config.StationAnims.kneel,
         destroy = Config.StationAnims.kneel, water = { scenario = 'WORLD_HUMAN_GARDENER_PLANT' }, fertilize = Config.StationAnims.kneel,
         lamp_on = Config.StationAnims.bench, lamp_off = Config.StationAnims.bench }
-    run('elyzea_drogues:potStart', 'elyzea_drogues:potFinish', { p.id, act, arg ~= '' and arg or nil }, anims[act], p)
+    local pl = W.ents['plant:' .. p.id]
+    run('elyzea_drogues:potStart', 'elyzea_drogues:potFinish', { p.id, act, arg ~= '' and arg or nil }, anims[act], p,
+        { entity = pl and pl[#pl > 1 and 2 or 1] or nil, harvest = act == 'harvest' and Config.HarvestScenes.pot or nil })
 end
 
 exports('AltSelect', function(id, ctx)

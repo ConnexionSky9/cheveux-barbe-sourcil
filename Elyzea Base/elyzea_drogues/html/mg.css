@@ -1,0 +1,46 @@
+/* =====================================================================
+   ELYZEA DROGUES · mini-jeux de fabrication (interface)
+   ===================================================================== */
+#mg { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; transition: opacity .2s ease; z-index: 50; }
+#mg.on { opacity: 1; pointer-events: auto; }
+#mg .mg-panel { --a: 90, 209, 106; width: min(860px, 94vw); background: linear-gradient(180deg, rgba(13, 20, 36, .97), rgba(8, 12, 22, .97));
+  border: 1px solid rgba(var(--a), .45); border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, .65), 0 0 50px rgba(var(--a), .14);
+  overflow: hidden; transform: translateY(14px) scale(.98); transition: transform .25s ease; font-family: Inter, 'Segoe UI', system-ui, sans-serif; color: #e8eef9; }
+#mg.on .mg-panel { transform: none; }
+#mg .mg-panel::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, rgb(var(--a)), rgba(var(--a), .05)); }
+#mg header { display: flex; align-items: center; gap: 14px; padding: 14px 18px 6px; }
+#mg .mg-ico { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-size: 24px; background: rgba(var(--a), .16); border: 1px solid rgba(var(--a), .5); }
+#mg .mg-head { flex: 1; min-width: 0; }
+#mg .mg-head small { display: block; color: rgb(var(--a)); text-transform: uppercase; letter-spacing: .09em; font-size: 11px; font-weight: 700; }
+#mg .mg-head b { display: block; font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#mg .mg-timer { position: relative; width: 48px; height: 48px; }
+#mg .mg-timer svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+#mg .mg-timer circle { fill: none; stroke-width: 4; }
+#mg .mg-timer .bg { stroke: rgba(148, 178, 230, .15); }
+#mg .mg-timer .fg { stroke: rgb(var(--a)); stroke-linecap: round; transition: stroke .3s; }
+#mg .mg-timer.low .fg { stroke: #f87171; }
+#mg .mg-timer span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#mg .mg-hint { margin: 0 18px 10px; padding: 8px 12px; border-radius: 10px; background: rgba(var(--a), .08); border: 1px solid rgba(var(--a), .2); font-size: 13.5px; color: #cbd5e1; min-height: 20px; }
+#mg .mg-stage { position: relative; margin: 0 18px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(148, 178, 230, .14); background: #060a12; }
+#mg canvas { display: block; width: 100%; height: auto; cursor: none; touch-action: none; }
+#mg canvas.cur { cursor: default; }
+#mg .mg-toast { position: absolute; left: 50%; top: 16px; transform: translate(-50%, -10px); padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  background: rgba(15, 23, 42, .92); border: 1px solid rgba(255, 255, 255, .15); opacity: 0; transition: .2s ease; pointer-events: none; white-space: nowrap; }
+#mg .mg-toast.on { opacity: 1; transform: translate(-50%, 0); }
+#mg .mg-toast.bad { border-color: rgba(248, 113, 113, .7); color: #fca5a5; }
+#mg .mg-toast.good { border-color: rgba(var(--a), .7); color: rgb(var(--a)); }
+#mg .mg-end { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5, 8, 15, .72); opacity: 0; transition: .25s; pointer-events: none; }
+#mg .mg-end.on { opacity: 1; }
+#mg .mg-end div { text-align: center; }
+#mg .mg-end b { display: block; font-size: 30px; letter-spacing: .02em; }
+#mg .mg-end span { color: #94a3b8; font-size: 14px; }
+#mg .mg-end.ok b { color: rgb(var(--a)); } #mg .mg-end.ko b { color: #f87171; }
+#mg footer { display: flex; align-items: center; gap: 14px; padding: 12px 18px 16px; }
+#mg .mg-prog { flex: 1; height: 10px; border-radius: 99px; background: rgba(148, 178, 230, .12); overflow: hidden; }
+#mg .mg-prog i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, rgba(var(--a), .6), rgb(var(--a))); transition: width .25s ease; box-shadow: 0 0 12px rgba(var(--a), .6); }
+#mg .mg-count { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+#mg .mg-lives { display: flex; gap: 5px; }
+#mg .mg-lives i { width: 11px; height: 11px; border-radius: 50%; background: rgb(var(--a)); box-shadow: 0 0 8px rgba(var(--a), .7); transition: .2s; }
+#mg .mg-lives i.lost { background: #475569; box-shadow: none; transform: scale(.8); }
+#mg .mg-esc { font-size: 12px; color: #64748b; }
+#mg .mg-esc kbd { padding: 1px 6px; border-radius: 5px; border: 1px solid #334155; color: #cbd5e1; font-family: inherit; }

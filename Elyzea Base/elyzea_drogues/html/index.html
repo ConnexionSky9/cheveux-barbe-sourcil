@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>elyzea_drogues</title>
+<link rel="stylesheet" href="mg.css">
 <style>
   :root { --c: 60, 200, 80; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,6 +48,9 @@ function show(i) {
   card.classList.add('on');
 }
 window.addEventListener('message', (e) => { if (e.data && e.data.action === 'plant') show(e.data.info); });
-if (typeof GetParentResourceName !== 'function') show({ variety: 'White Widow', color: [170, 90, 230], stage: 'Croissance', pct: 62, timeLeft: 2700, water: 45, health: 92, lamp: true, fert: false, condition: 'a besoin d\'eau', mine: true, rate: 1 });
+if (typeof GetParentResourceName !== 'function' && !location.search.includes('mg')) show({ variety: 'White Widow', color: [170, 90, 230], stage: 'Croissance', pct: 62, timeLeft: 2700, water: 45, health: 92, lamp: true, fert: false, condition: 'a besoin d\'eau', mine: true, rate: 1 });
 </script>
+<script src="mg.js"></script>
+<script src="mg_games1.js"></script>
+<script src="mg_games2.js"></script>
 </body></html>

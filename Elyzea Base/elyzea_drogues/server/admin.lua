@@ -45,7 +45,8 @@ local function recipesMeta()
     local out = {}
     for id, r in pairs(Config.Recipes) do
         out[#out + 1] = { id = id, label = r.label, drug = r.drug, step = r.step, station = r.station,
-            stationLabel = (Config.Stations[r.station] or {}).label or r.station, variety = r.variety, prepStep = r.prepStep, rollStep = r.rollStep }
+            stationLabel = (Config.Stations[r.station] or {}).label or r.station, variety = r.variety, prepStep = r.prepStep, rollStep = r.rollStep, dryStep = r.dryStep, trimStep = r.trimStep,
+            game = (Config.Steps[DrugSteps.Key(id) or ''] or {}).title }
     end
     table.sort(out, function(a, b) if a.drug ~= b.drug then return a.drug < b.drug end if (a.variety or '') ~= (b.variety or '') then return (a.variety or '') < (b.variety or '') end
         if a.step ~= b.step then return a.step < b.step end return a.id < b.id end)
@@ -244,3 +245,19 @@ function AdminAction(src, name, data)
     return success, msg
 end
 exports('AdminAction', AdminAction)
+
+-- ---------------------------------------------------------------- réglage de l'assise (commande /drogues_assise)
+Ely.callback.register('elyzea_drogues:canTune', function(src) return isAdmin(src) end)
+Ely.callback.register('elyzea_drogues:saveSeat', function(src, stationType, off)
+    if not isAdmin(src) then return { error = 'Permission « ' .. Config.Permission .. ' » requise.' } end
+    stationType = tostring(stationType or '')
+    if not Config.Stations[stationType] or type(off) ~= 'table' then return { error = 'Poste inconnu.' } end
+    local merged = DrugRules.copy(DS.S)
+    merged.sceneOffsets = merged.sceneOffsets or {}
+    merged.sceneOffsets[stationType] = { x = off.x, y = off.y, z = off.z, h = off.h }
+    local clean = DrugRules.Clean(merged)
+    if not clean then return { error = 'Réglage refusé.' } end
+    applySettings(clean)
+    DS.Log('admin', src, ('assise réglée (%s) : %s'):format(stationType, json.encode(clean.sceneOffsets[stationType])))
+    return { ok = true }
+end)

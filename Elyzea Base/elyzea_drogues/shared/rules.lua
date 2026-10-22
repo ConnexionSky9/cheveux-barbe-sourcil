@@ -46,7 +46,7 @@ end
 
 -- ---------------------------------------------------------------- valeurs par défaut
 function DrugRules.Defaults()
-    local s = { drugs = {}, trip = {}, creatures = {}, recipes = {}, prices = {}, shop = {}, sale = {}, varieties = {}, culture = {}, harvest = {} }
+    local s = { drugs = {}, trip = {}, creatures = {}, recipes = {}, prices = {}, shop = {}, sale = {}, varieties = {}, culture = {}, harvest = {}, sceneOffsets = {} }
     for id, d in pairs(Config.Drugs) do s.drugs[id] = { enabled = true, duration = d.duration, cooldown = d.cooldown, intensity = d.intensity or 100 } end
     local t = Config.Trip
     s.trip = { maxCreatures = t.maxCreatures, spawnEvery = t.spawnEvery, hitCooldown = t.hitCooldown, fallTime = t.fallTime, lifetime = t.lifetime }
@@ -61,7 +61,7 @@ function DrugRules.Defaults()
         cooldown = sa.cooldown or 4, hourlyLimit = sa.hourlyLimit or 0 }
     for id, v in pairs(Config.Varieties or {}) do
         s.varieties[id] = { label = v.label, color = copy(v.color), growMinutes = v.growMinutes, yieldMin = v.yield.min, yieldMax = v.yield.max,
-            seedChance = v.seedChance, prepStep = v.prepStep ~= false }
+            seedChance = v.seedChance, prepStep = v.prepStep ~= false, dryStep = v.dryStep ~= false }
     end
     local c = Config.Culture or { water = {} }
     s.culture = { maxPotsPerPlayer = c.maxPotsPerPlayer, minDistance = c.minDistance, ownerOnlyHarvest = c.ownerOnlyHarvest == true,
@@ -132,7 +132,8 @@ function DrugRules.Clean(input)
         local ymin = int(x.yieldMin, 1, 50, v.yieldMin)
         out.varieties[id] = { label = label ~= '' and label or v.label, color = color(x.color, v.color),
             growMinutes = int(x.growMinutes, 1, 10080, v.growMinutes), yieldMin = ymin, yieldMax = math.max(ymin, int(x.yieldMax, 1, 50, v.yieldMax)),
-            seedChance = int(x.seedChance, 0, 100, v.seedChance), prepStep = x.prepStep ~= false }
+            seedChance = int(x.seedChance, 0, 100, v.seedChance), prepStep = x.prepStep ~= false,
+            dryStep = (function() if x.dryStep == nil then return v.dryStep end return x.dryStep ~= false end)() }
     end
     local c, dc = sec('culture'), def.culture
     out.culture = { maxPotsPerPlayer = int(c.maxPotsPerPlayer, 0, 50, dc.maxPotsPerPlayer), minDistance = num(c.minDistance, 0.5, 20, dc.minDistance),
@@ -148,6 +149,12 @@ function DrugRules.Clean(input)
         out.harvest[id] = { enabled = x.enabled ~= false, min = mn, max = math.max(mn, int(x.max, 1, 50, h.max)),
             respawn = int(x.respawn, 5, 86400, h.respawn), duration = int(x.duration, 1, 120, h.duration) }
     end
+    -- réglage de l'assise (staff, commande /drogues_assise) : décalage du personnage sur la chaise, par type de poste
+    for t, o in pairs(sec('sceneOffsets')) do
+        if Config.Stations[t] and type(o) == 'table' then
+            out.sceneOffsets[t] = { x = num(o.x, -1.5, 1.5, 0.0), y = num(o.y, -1.5, 1.5, 0.0), z = num(o.z, -1.5, 1.5, 0.0), h = num(o.h, -180, 180, 0.0) }
+        end
+    end
     return out
 end
 
@@ -161,6 +168,12 @@ function DrugRules.Recipe(S, id)
         enabled = set.enabled, duration = set.duration, loss = set.loss, inputs = copy(set.inputs), outputs = copy(set.outputs) }
     local v = base.variety and S.varieties[base.variety]
     if v and base.prepStep and not v.prepStep then r.enabled = false end
+    -- Séchage actif : la manucure donne des têtes fraîches (même quantité), le séchoir les rend séchées
+    if v and base.dryStep and not v.dryStep then r.enabled = false end
+    if v and base.trimStep and v.dryStep then
+        local cv = Config.Varieties[base.variety]
+        for _, e in ipairs(r.outputs) do if e[1] == cv.bud then e[1] = cv.wet end end
+    end
     if v and base.rollStep and not v.prepStep then
         local cv = Config.Varieties[base.variety]
         for _, e in ipairs(r.inputs) do if e[1] == cv.ground then e[1] = cv.bud end end

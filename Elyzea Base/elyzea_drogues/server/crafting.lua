@@ -10,7 +10,7 @@ local busy = DS.playerBusy
 -- Action en cours (une action abandonnée sans réponse du client expire d'elle-même)
 local function isBusy(src)
     local b = busy[src]
-    if b and os.time() > b.startAt + b.duration + 30 then
+    if b and os.time() > b.startAt + b.duration + (b.limit or 0) + 30 then
         busy[src] = nil
         if b.siteId then local sb = DS.stationBusy[b.siteId] if sb and sb.src == src then DS.stationBusy[b.siteId] = nil end end
         return false
@@ -20,6 +20,27 @@ end
 DS.IsBusy = isBusy
 
 local function newToken() return ('%d%06d'):format(os.time(), math.random(0, 999999)) end
+
+-- ---------------------------------------------------------------- étapes immersives (mini-jeux)
+-- Défi de l'étape (nil si les mini-jeux sont désactivés ou si l'étape n'a pas de profil : barre de progression)
+local function challenge(key, times, drug, recipeId)
+    if not key or not DrugSteps.Enabled() then return nil end
+    return DrugSteps.Challenge(key, times, drug, recipeId)
+end
+DS.StepChallenge = challenge
+
+-- Vérifie le résultat du mini-jeu renvoyé par le client. nil = accepté, sinon message d'erreur
+local function stepError(src, b, res, what)
+    if not b.ch then return nil end
+    local ok, why = DrugSteps.Check(b.ch, res, os.time() - b.startAt)
+    if ok then return nil end
+    if why == 'invalid' then
+        DS.Log('alerte', src, ('résultat de mini-jeu refusé (%s)'):format(tostring(what)))
+        return 'Action interrompue.'
+    end
+    return why == 'fail' and 'Raté ! Rien n\'est perdu, recommence.' or 'Action annulée.'
+end
+DS.StepError = stepError
 
 local function lockStation(siteId, src, seconds)
     local b = DS.stationBusy[siteId]
@@ -55,17 +76,20 @@ Ely.callback.register('elyzea_drogues:craftStart', function(src, siteId, recipeI
     local miss = missing(src, r, times)
     if miss then return { error = 'Il te manque : ' .. miss } end
     local duration = r.duration * times
-    if not lockStation(site.id, src, duration) then return { error = 'Quelqu\'un utilise déjà ce poste.' } end
+    local ch = challenge(DrugSteps.Key(r.id), times, r.drug, r.id)
+    if not lockStation(site.id, src, duration + (ch and ch.limit or 0)) then return { error = 'Quelqu\'un utilise déjà ce poste.' } end
     local token = newToken()
-    busy[src] = { token = token, kind = 'craft', siteId = site.id, recipe = r.id, times = times, startAt = os.time(), duration = duration }
-    return { ok = true, token = token, duration = duration, label = ('%s%s'):format(r.label, times > 1 and (' ×' .. times) or '') }
+    busy[src] = { token = token, kind = 'craft', siteId = site.id, recipe = r.id, times = times, startAt = os.time(), duration = duration, ch = ch, limit = ch and ch.limit or 0 }
+    return { ok = true, token = token, duration = duration, label = ('%s%s'):format(r.label, times > 1 and (' ×' .. times) or ''), game = ch }
 end)
 
-Ely.callback.register('elyzea_drogues:craftFinish', function(src, token)
+Ely.callback.register('elyzea_drogues:craftFinish', function(src, token, res)
     local b = busy[src]
     if not b or b.kind ~= 'craft' or b.token ~= token then return { error = 'Action expirée.' } end
     busy[src] = nil
     unlock(b.siteId, src)
+    local serr = stepError(src, b, res, b.recipe)
+    if serr then return { error = serr } end
     if os.time() - b.startAt < b.duration - 1 then
         DS.Log('alerte', src, ('fabrication trop rapide (%s)'):format(b.recipe))
         return { error = 'Action interrompue.' }
@@ -119,17 +143,20 @@ Ely.callback.register('elyzea_drogues:harvestStart', function(src, siteId)
     if not set.enabled or (DS.S.drugs[h.drug] and not DS.S.drugs[h.drug].enabled) then return { error = 'Récolte désactivée sur le serveur.' } end
     if not DS.Near(src, site) then return { error = 'Tu es trop loin.' } end
     if (DS.nodeUntil[site.id] or 0) > os.time() then return { error = 'Déjà récolté, ça repousse.' } end
-    if not lockStation(site.id, src, set.duration) then return { error = 'Quelqu\'un récolte déjà ici.' } end
+    local ch = challenge(DrugSteps.HarvestKey(site.type), 1, h.drug, site.type)
+    if not lockStation(site.id, src, set.duration + (ch and ch.limit or 0)) then return { error = 'Quelqu\'un récolte déjà ici.' } end
     local token = newToken()
-    busy[src] = { token = token, kind = 'harvest', siteId = site.id, startAt = os.time(), duration = set.duration }
-    return { ok = true, token = token, duration = set.duration, label = h.label }
+    busy[src] = { token = token, kind = 'harvest', siteId = site.id, startAt = os.time(), duration = set.duration, ch = ch, limit = ch and ch.limit or 0 }
+    return { ok = true, token = token, duration = set.duration, label = h.label, game = ch }
 end)
 
-Ely.callback.register('elyzea_drogues:harvestFinish', function(src, token)
+Ely.callback.register('elyzea_drogues:harvestFinish', function(src, token, res)
     local b = busy[src]
     if not b or b.kind ~= 'harvest' or b.token ~= token then return { error = 'Action expirée.' } end
     busy[src] = nil
     unlock(b.siteId, src)
+    local serr = stepError(src, b, res, 'récolte')
+    if serr then return { error = serr } end
     if os.time() - b.startAt < b.duration - 1 then return { error = 'Action interrompue.' } end
     local site = DS.sites[b.siteId]
     local h = site and Config.Harvest[site.type]
@@ -154,4 +181,30 @@ RegisterNetEvent('elyzea_drogues:cancel', function(token)
         busy[src] = nil
         if b.siteId then unlock(b.siteId, src) end
     end
+end)
+
+-- ---------------------------------------------------------------- objets temporaires des scènes (visibles de tous)
+-- Le client les supprime lui-même à la fin ; le serveur les supprime si le joueur se déconnecte en pleine étape.
+-- Seuls des objets du joueur, de modèles de scène connus, sont acceptés (jamais l'entité de quelqu'un d'autre).
+local allowedModels = {}
+for _, list in pairs(Config.SceneModels) do for _, m in ipairs(list) do allowedModels[GetHashKey(m)] = true end end
+DS.sceneProps = {}
+local function deleteSceneProps(src)
+    local list = DS.sceneProps[src]
+    DS.sceneProps[src] = nil
+    for _, e in ipairs(list or {}) do if DoesEntityExist(e) then DeleteEntity(e) end end
+end
+DS.DeleteSceneProps = deleteSceneProps
+RegisterNetEvent('elyzea_drogues:sceneProps', function(ids)
+    local src = source
+    deleteSceneProps(src)
+    if type(ids) ~= 'table' then return end
+    local list = {}
+    for i = 1, math.min(#ids, 8) do
+        local e = NetworkGetEntityFromNetworkId(tonumber(ids[i]) or 0)
+        if e and e ~= 0 and DoesEntityExist(e) and GetEntityType(e) == 3 and NetworkGetEntityOwner(e) == src and allowedModels[GetEntityModel(e)] then
+            list[#list + 1] = e
+        end
+    end
+    if #list > 0 then DS.sceneProps[src] = list end
 end)

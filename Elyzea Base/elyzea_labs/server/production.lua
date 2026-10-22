@@ -90,10 +90,15 @@ L.pub.craftStart = function(src, d)
     if miss then return { error = 'Il te manque : ' .. miss } end
     local token = ('%d-%d-%d'):format(src, GetGameTimer(), math.random(100000, 999999))
     local dur = math.floor(r.duration * times * 1000)
-    crafts[src] = { token = token, lab = lab.id, eq = e.id, recipe = rid, times = times, startMs = GetGameTimer(), durMs = dur }
+    -- étape immersive (mini-jeu + scène, elyzea_drogues) ; sinon barre de progression comme avant
+    local ch = nil
+    if DrugSteps and DrugSteps.Enabled() and GetResourceState('elyzea_drogues') == 'started' then
+        ch = DrugSteps.Challenge(DrugSteps.Key(rid), times, Config.Equipment[e.type].category, rid)
+    end
+    crafts[src] = { token = token, lab = lab.id, eq = e.id, recipe = rid, times = times, startMs = GetGameTimer(), durMs = dur, ch = ch }
     L.equipBusy[e.id] = src
     return { ok = true, token = token, duration = dur, label = ('%s%s'):format(r.label, times > 1 and (' ×' .. times) or ''),
-        anim = Config.Equipment[e.type].anim }
+        anim = Config.Equipment[e.type].anim, game = ch }
 end
 
 L.pub.craftCancel = function(src) release(src) return { ok = true } end
@@ -102,6 +107,13 @@ L.pub.craftFinish = function(src, d)
     local c = crafts[src]
     if not c or c.token ~= d.token then return { error = 'Fabrication expirée.' } end
     release(src)
+    if c.ch then
+        local ok, why = DrugSteps.Check(c.ch, d.result, (GetGameTimer() - c.startMs) / 1000)
+        if not ok then
+            if why == 'invalid' then L.Log(c.lab, 'alerte', L.Name(src), ('résultat de mini-jeu refusé (%s)'):format(c.recipe)) return { error = 'Fabrication interrompue.' } end
+            return { error = why == 'fail' and 'Raté ! Rien n\'est perdu, recommence.' or 'Fabrication annulée.' }
+        end
+    end
     if GetGameTimer() - c.startMs < c.durMs - 1500 then
         L.Log(c.lab, 'alerte', L.Name(src), ('fabrication trop rapide (%s)'):format(c.recipe))
         return { error = 'Fabrication interrompue.' }

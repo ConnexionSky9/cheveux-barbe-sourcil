@@ -7,6 +7,20 @@ local function P(src, x, y, z, extra) PLAYERS[src] = { pos = { x, y, z }, cid = 
 local AA = EXPORTED.AdminAction
 local AD = EXPORTED.AdminData
 
+-- Les étapes renvoient un défi (mini-jeu) : un joueur qui « joue » renvoie un résultat réussi à la fin.
+-- Un appel de fin explicite avec un 2e argument garde ce résultat (tests de triche / d'échec plus bas).
+local RAW_CALL, GAMES = CALL, {}
+CALL = function(name, src, ...)
+    local args = table.pack(...)
+    if name:find('Finish$') and args.n < 2 and GAMES[src] then
+        local g = GAMES[src]
+        args[2], args.n = { id = g.id, ok = true, done = g.count, mistakes = 0 }, 2
+    end
+    local r = RAW_CALL(name, src, table.unpack(args, 1, args.n))
+    if name:find('Start$') and type(r) == 'table' then GAMES[src] = r.game end
+    return r
+end
+
 P(1, 0, 0, 0, { admin = true }) P(2, 0, 0, 0) P(3, 500, 0, 0) P(4, 0, 0, 0, { police = true }) P(5, 0, 0, 0, { effects = true })
 
 print('[Démarrage]')
@@ -223,5 +237,100 @@ check(ok and not DS.sites[grind] and not DB.sites[grind], 'installation supprim�
 -- persistance des réglages
 JSON_STORE = { json = JSON_LAST }
 check(DB.kv.settings == 'json' and DrugRules.Clean(JSON_LAST).prices.joint_ww.price == 55, 'réglages gardés en base et relisibles')
+print('[Étapes immersives (mini-jeux)]')
+-- profils : chaque recette et chaque point de récolte a un mini-jeu ; nombre d'objectifs cohérent
+local missingP = {}
+for id in pairs(Config.Recipes) do if not DrugSteps.Key(id) then missingP[#missingP + 1] = id end end
+check(#missingP == 0, 'toutes les recettes ont un mini-jeu' .. (#missingP > 0 and (' (manque : ' .. table.concat(missingP, ', ') .. ')') or ''))
+local noAnim, withGame = {}, {}
+for id in pairs(Config.Harvest) do
+    if not Config.HarvestSceneOf(id) then noAnim[#noAnim + 1] = id end
+    if DrugSteps.Challenge(DrugSteps.HarvestKey(id) or '', 1) then withGame[#withGame + 1] = id end
+end
+check(#noAnim == 0 and #withGame == 0 and not DrugSteps.Challenge('pot:harvest', 1), 'récolte (champs et pots) : pas de mini-jeu, une animation adaptée pour chaque plante')
+local GAMES_OK = { trim = 1, harvest = 1, pick = 1, hang = 1, grind = 1, roll = 1, scale = 1, count = 1, pour = 1, heat = 1, shake = 1, cut = 1, smash = 1, press = 1, sort = 1, syringe = 1 }
+local badG = {}
+for k, p in pairs(Config.Steps) do
+    if not GAMES_OK[p.game] then badG[#badG + 1] = k end
+    if p.game == 'pour' and (p.per % #p.extra.reagents ~= 0 or p.cap % #p.extra.reagents ~= 0 or p.min % #p.extra.reagents ~= 0) then badG[#badG + 1] = k .. ' (réactifs)' end
+    if p.game == 'roll' and (p.per % 3 ~= 0 or p.cap % 3 ~= 0 or p.min % 3 ~= 0) then badG[#badG + 1] = k .. ' (3 objectifs par joint)' end
+end
+check(#badG == 0, 'profils valides (mini-jeu connu, dosage et roulage complets)' .. (#badG > 0 and (' : ' .. table.concat(badG, ', ')) or ''))
+local ch = DrugSteps.Challenge('weed_trim', 2, 'weed', 'weed_trim_classic')
+check(ch.count == 12 and ch.type == 'trim' and ch.limit >= 30 and ch.maxMistakes == 3, 'défi : effeuillage ×2 = 12 feuilles, temps et erreurs bornés')
+check(DrugSteps.Challenge('weed_dry', 1).count == 4 and DrugSteps.Challenge('weed_trim', 99).count == 30, 'séchage : objets + réglage final ; plafond respecté')
+check(DrugSteps.Challenge('xtc_press', 1, 'ecstasy', 'xtc_press_blue').extra.color == 'blue' and DrugSteps.Key('xtc_pack_yellow') == 'xtc_pack', 'couleur des comprimés reprise de la recette')
+check(DrugSteps.Key('weed_trim_whitewidow') == 'weed_trim' and DrugSteps.Key('weed_dry_custom') == 'weed_dry' and DrugSteps.Challenge('weed_trim', 1, 'weed', 'weed_trim_purplehaze').extra.tint == 'purple', 'profil retrouvé depuis la recette ; fleur violacée pour la Purple Haze')
+-- validation serveur
+local okC = DrugSteps.Check(ch, { id = ch.id, ok = true, done = ch.count, mistakes = 1 }, 30)
+local b1, w1 = DrugSteps.Check(ch, { id = ch.id, ok = true, done = ch.count - 1, mistakes = 0 }, 30)
+local b2, w2 = DrugSteps.Check(ch, { id = ch.id + 1, ok = true, done = ch.count, mistakes = 0 }, 30)
+local b3, w3 = DrugSteps.Check(ch, { id = ch.id, ok = true, done = ch.count, mistakes = 9 }, 30)
+local b4, w4 = DrugSteps.Check(ch, { id = ch.id, ok = true, done = ch.count, mistakes = 0 }, 0.2)
+local b5, w5 = DrugSteps.Check(ch, { id = ch.id, ok = false, done = 3, mistakes = 4 }, 30)
+local b6, w6 = DrugSteps.Check(ch, { id = ch.id, cancelled = true }, 30)
+local b7, w7 = DrugSteps.Check(ch, nil, 30)
+check(okC and not b1 and w1 == 'invalid' and not b2 and not b3 and not b4 and w4 == 'invalid', 'résultat accepté seulement s\'il est complet, du bon défi, plausible')
+check(not b5 and w5 == 'fail' and not b6 and w6 == 'cancel' and not b7 and w7 == 'invalid', 'échec, annulation et absence de résultat distingués')
+-- fabrication réelle avec mini-jeu
+local dc = DrugRules.copy(DS.S.drugs) dc.cocaine.enabled = true
+AA(1, 'settings_save', { sections = { drugs = dc } })
+AA(1, 'site_save', { type = 'coca_grind', model = 'prop_tool_box_04', x = 1, y = 0, z = 0 })
+local g2 = 0 for id, st in pairs(DS.sites) do if st.type == 'coca_grind' then g2 = id end end
+PLAYERS[2].inv.coca_leaf = 4 PLAYERS[2].inv.coca_ground = 0 NOW = NOW + 30
+r = CALL('craftStart', 2, g2, 'coca_grind', 1)
+check(r.ok and r.game and r.game.type == 'grind' and r.game.count == 3, 'début de fabrication : le serveur envoie le défi (broyage)')
+NOW = NOW + 10
+f = RAW_CALL('craftFinish', 2, r.token, { id = r.game.id, ok = false, done = 1, mistakes = 4, reason = 'mistakes' })
+check(f.error and f.error:find('Raté') and PLAYERS[2].inv.coca_leaf == 4 and not DS.stationBusy[g2], 'mini-jeu raté : rien n\'est retiré, poste libéré')
+r = CALL('craftStart', 2, g2, 'coca_grind', 1) NOW = NOW + 10
+f = RAW_CALL('craftFinish', 2, r.token, { id = r.game.id, ok = true, done = 999, mistakes = 0 })
+local alert = false for _, l in ipairs(DB.logs or {}) do if tostring(l.detail or l[3] or ''):find('mini%-jeu') then alert = true end end
+check(f.error and PLAYERS[2].inv.coca_leaf == 4, 'résultat falsifié : refusé, ingrédients gardés')
+r = CALL('craftStart', 2, g2, 'coca_grind', 1) NOW = NOW + 10
+f = RAW_CALL('craftFinish', 2, r.token, { id = r.game.id, ok = true, done = r.game.count, mistakes = 0 })
+local rcg = DrugRules.Recipe(DS.S, 'coca_grind')
+check(f.ok and PLAYERS[2].inv.coca_leaf == 4 - rcg.inputs[1][2] and PLAYERS[2].inv.coca_ground == rcg.outputs[1][2], ('mini-jeu réussi : quantités de la recette inchangées (%d feuilles → %d broyées)'):format(rcg.inputs[1][2], rcg.outputs[1][2]))
+PLAYERS[2].inv.coca_leaf = 0
+r = CALL('craftStart', 2, g2, 'coca_grind', 1)
+check(not r.ok, 'plus d\'ingrédients : refusé (rien en double)')
+-- durée minimale de la recette conservée même si le mini-jeu est fini vite
+PLAYERS[2].inv.coca_leaf = 4 NOW = NOW + 5
+r = CALL('craftStart', 2, g2, 'coca_grind', 1) NOW = NOW + 1
+f = RAW_CALL('craftFinish', 2, r.token, { id = r.game.id, ok = true, done = r.game.count, mistakes = 0 })
+check(f.error and PLAYERS[2].inv.coca_leaf == 4, 'mini-jeu fini en 1 s : la durée de la recette reste exigée')
+-- mini-jeux désactivés : retour à la barre de progression
+Config.Minigames.enabled = false
+NOW = NOW + 30
+r = CALL('craftStart', 2, g2, 'coca_grind', 1) NOW = NOW + 10
+check(r.ok and r.game == nil and RAW_CALL('craftFinish', 2, r.token).ok, 'mini-jeux désactivés : ancienne barre de progression, fabrication normale')
+Config.Minigames.enabled = true
+-- séchage du cannabis
+local vv = DrugRules.copy(DS.S.varieties) vv.classic.dryStep = true
+AA(1, 'settings_save', { sections = { varieties = vv } })
+local trim = DrugRules.Recipe(DS.S, 'weed_trim_classic')
+local dry = DrugRules.Recipe(DS.S, 'weed_dry_classic')
+check(trim.outputs[1][1] == 'weed_bud_wet' and trim.outputs[1][2] == 2 and dry.enabled and dry.inputs[1][1] == 'weed_bud_wet' and dry.outputs[1][1] == 'weed_bud' and dry.outputs[1][2] == 1,
+    'séchage actif : manucure → 2 têtes fraîches, séchoir 1 → 1 tête (quantités inchangées)')
+vv.classic.dryStep = false
+AA(1, 'settings_save', { sections = { varieties = vv } })
+check(DrugRules.Recipe(DS.S, 'weed_trim_classic').outputs[1][1] == 'weed_bud' and not DrugRules.Recipe(DS.S, 'weed_dry_classic').enabled, 'séchage désactivé : la manucure donne directement les têtes, séchoir coupé')
+check(DrugRules.Clean({ varieties = { classic = {} } }).varieties.classic.dryStep == true, 'réglage absent : valeur de la config (séchage actif)')
+-- assise réglée par le staff
+local okS = CB['elyzea_drogues:saveSeat'](1, 'weed_trim', { x = 0.1, y = -0.05, z = 9, h = 10 })
+local noS = CB['elyzea_drogues:saveSeat'](2, 'weed_trim', { x = 0.1 })
+check(okS.ok and DS.S.sceneOffsets.weed_trim.z == 1.5 and DS.S.sceneOffsets.weed_trim.x == 0.1 and noS.error, 'réglage de l\'assise : staff seulement, valeurs bornées, enregistré')
+-- objets temporaires : seuls ceux du joueur et de modèles de scène sont suivis
+ENTS = { [11] = { owner = 2, type = 3, model = 'prop_cs_scissors' }, [12] = { owner = 3, type = 3, model = 'prop_cs_scissors' }, [13] = { owner = 2, type = 2, model = 'adder' }, [14] = { owner = 2, type = 3, model = 'prop_bigbomb' } }
+NetworkGetEntityFromNetworkId = function(id) return ENTS[id] and id or 0 end
+DoesEntityExist = function(e) return ENTS[e] ~= nil end
+GetEntityType = function(e) return ENTS[e].type end
+NetworkGetEntityOwner = function(e) return ENTS[e].owner end
+GetEntityModel = function(e) return ENTS[e].model end
+DeleteEntity = function(e) ENTS[e] = nil end
+FIRE('elyzea_drogues:sceneProps', 2, { 11, 12, 13, 14 })
+check(DS.sceneProps[2] and #DS.sceneProps[2] == 1 and DS.sceneProps[2][1] == 11, 'objets de scène : seuls les siens et de modèles connus sont acceptés')
+FIRE('playerDropped', 2)
+check(ENTS[11] == nil and ENTS[12] and ENTS[13] and ENTS[14] and DS.sceneProps[2] == nil, 'déconnexion en pleine étape : ses objets temporaires supprimés, rien d\'autre')
 print(('Résultat : %d/%d réussis'):format(n - fails, n))
 return fails

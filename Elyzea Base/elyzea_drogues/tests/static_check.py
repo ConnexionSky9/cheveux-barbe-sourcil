@@ -59,6 +59,9 @@ for r in C.Recipes.values():
     for e in r.outputs.values(): sources.add(e[1])
 for h in C.Harvest.values(): sources.add(h.item)
 for v in C.Varieties.values(): sources.add(v.leaf); sources.add(v.seed)
+# séchage actif : la manucure (trimStep) donne les têtes fraîches de la variété (shared/rules.lua)
+for r in C.Recipes.values():
+    if r.trimStep and r.variety: sources.add(C.Varieties[r.variety].wet)
 for e in C.Shop.values(): sources.add(e.item)
 orphans = sorted({e[1] for r in C.Recipes.values() for e in r.inputs.values()} - sources)
 check(not orphans, 'chaque ingrédient s\'obtient (recette, récolte, culture ou fournisseur)' + (f' — sans source : {orphans}' if orphans else ''))

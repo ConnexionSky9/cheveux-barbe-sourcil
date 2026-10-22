@@ -5,7 +5,7 @@ lua54 'yes'
 name 'elyzea_drogues'
 author 'Elyzea FA'
 description 'Système de drogues : filières de fabrication (cannabis 4 variétés, cocaïne, crack, méth, ecstasy, opiacés, kétamine, champignons), culture du cannabis, consommation et effets, vente, gestion dans l\'admin_menu, interactions ALT (elyzea_police)'
-version '2.0.0'
+version '2.1.0'
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }
 
@@ -19,7 +19,9 @@ shared_scripts {
     'config/harvest.lua',
     'config/products.lua',
     'config/economy.lua',
+    'config/minigames.lua',
     'shared/rules.lua',
+    'shared/steps.lua',
     'shared/growth.lua',
 }
 
@@ -34,6 +36,8 @@ server_scripts {
 }
 
 client_scripts {
+    'client/scene.lua',
+    'client/steps.lua',
     'client/effects.lua',
     'client/trip.lua',
     'client/consume.lua',
@@ -43,4 +47,4 @@ client_scripts {
 }
 
 ui_page 'html/index.html'
-files { 'html/index.html' }
+files { 'html/index.html', 'html/mg.css', 'html/mg.js', 'html/mg_games1.js', 'html/mg_games2.js' }

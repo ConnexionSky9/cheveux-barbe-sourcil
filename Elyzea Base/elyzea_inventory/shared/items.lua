@@ -275,6 +275,11 @@ do
     Items['weed_white-widow'] = D('Têtes de White Widow', 15, '🥦', 'Têtes de White Widow : à préparer, rouler ou ensacher.')
     Items['weed_purple-haze'] = D('Têtes de Purple Haze', 15, '🥦', 'Têtes de Purple Haze : à préparer, rouler ou ensacher.')
     Items.weed_bud_custom   = D('Têtes de variété maison', 15, '🥦', 'Têtes de variété maison : à préparer, rouler ou ensacher.')
+    -- têtes fraîches (après la manucure, avant le séchoir) : poids identique aux têtes séchées
+    Items.weed_bud_wet        = D('Têtes fraîches de weed', 15, '🥬', 'À faire sécher au séchoir à cannabis.')
+    Items.weed_bud_wet_ww     = D('Têtes fraîches de White Widow', 15, '🥬', 'À faire sécher au séchoir à cannabis.')
+    Items.weed_bud_wet_ph     = D('Têtes fraîches de Purple Haze', 15, '🥬', 'À faire sécher au séchoir à cannabis.')
+    Items.weed_bud_wet_custom = D('Têtes fraîches de variété maison', 15, '🥬', 'À faire sécher au séchoir à cannabis.')
     Items.weed_ground       = D('Weed effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
     Items.weed_ground_ww    = D('White Widow effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
     Items.weed_ground_ph    = D('Purple Haze effritée', 10, '🌿', 'Prête à rouler (table de roulage + feuille à rouler).')
@@ -371,7 +376,7 @@ ImageAlias = {
     weaponlicense = 'WEAPON_LICENSE.png',
     -- drogues (elyzea_drogues)
     weed_seed = 'weed_seed.png', weed_seed_custom = 'weed_seed.png', weed_leaf_ww = 'weed.png', weed_leaf_ph = 'weed.png', weed_leaf_custom = 'weed.png',
-    weed_bud = 'weed_baggy.png', weed_bud_custom = 'weed_baggy.png', joint_ww = 'joint.png', joint_ph = 'joint.png', joint_custom = 'joint.png',
+    weed_bud = 'weed_baggy.png', weed_bud_custom = 'weed_baggy.png', weed_bud_wet = 'weed.png', weed_bud_wet_ww = 'weed.png', weed_bud_wet_ph = 'weed.png', weed_bud_wet_custom = 'weed.png', joint_ww = 'joint.png', joint_ph = 'joint.png', joint_custom = 'joint.png',
     weed_pouch_ww = 'weed_baggy.png', weed_pouch_ph = 'weed_baggy.png', weed_pouch_custom = 'weed_baggy.png',
     fertilizer = 'weed_nutrition.png', watering_can = 'WEAPON_FERTILIZERCAN.png', drug_bag = 'weed_baggy_empty.png',
     coca_paste = 'coke_small_brick.png', coca_refined = 'coke_brick.png', coke_premium = 'cocaine_baggy.png',

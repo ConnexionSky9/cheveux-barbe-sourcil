@@ -1,12 +1,20 @@
-# elyzea_drogues — système de drogues (v2)
+# elyzea_drogues — système de drogues (v2.1)
 
 Filières de fabrication en plusieurs étapes, culture du cannabis par les joueurs, vente, consommation avec
 animations et fumée colorée, effets propres à chaque drogue (dont les hallucinations des champignons).
 Tout passe par le **ALT existant** (Alt + clic sur un objet ou un PNJ) et par **admin_menu › Illégal › 💊 Gestion des drogues**.
 
 > État : **rien n'a été testé en jeu.** Le code serveur est vérifié par des simulations hors jeu
-> (`tests/run_server_sim.py`, 73/73) et des contrôles statiques (`tests/static_check.py`, 41/41) ;
+> (`tests/run_server_sim.py`, 95/95 ; `tests/run_client_sim.py`, 16/16) et des contrôles statiques (`tests/static_check.py`, 41/41) ;
+> les 14 mini-jeux ont été joués de bout en bout dans un navigateur par un script automatique ;
 > l'onglet admin a été affiché dans un navigateur de test. Voir `docs/TESTS.md` pour la procédure en jeu.
+
+## Nouveau en v2.1 : étapes immersives
+Chaque étape de fabrication est un **vrai mini-jeu** avec une scène en jeu (position, animation, objets en main, accessoires sur la table) :
+effeuillage assis d'une vraie fleur de cannabis, séchage, moulin, roulage, pesée, dosage, chauffe, découpe, cristaux, presse, tri…
+Quantités, prix et durées inchangés ; un mini-jeu raté ne fait rien perdre. Nouvelle étape « séchage » du cannabis (désactivable).
+La récolte (champs placés par le staff, pots) garde la barre de progression avec des animations adaptées.
+Tout est détaillé dans **`docs/IMMERSIF.md`** (commandes `/drogues_verif` et `/drogues_assise`).
 
 ## Installation
 1. Copier `elyzea_drogues` dans le dossier des ressources (à côté des autres ressources Elyzea).
@@ -23,7 +31,7 @@ Tout passe par le **ALT existant** (Alt + clic sur un objet ou un PNJ) et par **
 ## Contenu
 | Filière | Étapes | Produits finis |
 |---|---|---|
-| 🌿 Cannabis (4 variétés : Weed verte, White Widow violette, Purple Haze violet foncé, Variété maison orange) | culture en pot ou plant sauvage → têtes → préparer (désactivable) → rouler / ensacher | joints et pochons par variété |
+| 🌿 Cannabis (4 variétés : Weed verte, White Widow violette, Purple Haze violet foncé, Variété maison orange) | culture en pot ou plant sauvage → effeuillage assis (têtes fraîches) → séchage (désactivable) → préparer (désactivable) → rouler / ensacher | joints et pochons par variété |
 | ❄️ Cocaïne | récolte coca → broyage → pâte → ensachage (basique) → raffinage → finition | `cokebaggy`, `coke_premium` (pure) |
 | 💎 Crack | mélange → cuisson → séchage → découpe → ensachage | `crack_baggy` |
 | ⚗️ Méth | produits chimiques → mélange → cuisson → cristallisation → ensachage | `meth` |

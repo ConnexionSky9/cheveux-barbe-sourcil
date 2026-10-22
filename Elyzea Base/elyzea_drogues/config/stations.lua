@@ -19,6 +19,7 @@ Config.StationAnims = A
 Config.Stations = {
     -- Cannabis
     weed_trim   = { label = 'Table de manucure (têtes)',   drug = 'weed',     icon = '✂️', models = { 'bkr_prop_weed_table_01a', 'prop_table_03' }, anim = A.table },
+    weed_dry    = { label = 'Séchoir à cannabis',          drug = 'weed',     icon = '💨', models = { 'bkr_prop_weed_drying_02a', 'bkr_prop_weed_drying_01a', 'prop_worklight_03a' }, anim = A.bulb },
     weed_grind  = { label = 'Poste de préparation',        drug = 'weed',     icon = '🌿', models = { 'prop_table_06', 'prop_table_02' }, anim = A.bench },
     weed_roll   = { label = 'Table de roulage',            drug = 'weed',     icon = '🚬', models = { 'prop_table_01', 'prop_table_04' }, anim = A.table },
     weed_pack   = { label = 'Ensachage (cannabis)',        drug = 'weed',     icon = '🛍️', models = { 'prop_table_05', 'prop_weed_block_01' }, anim = A.write },

@@ -4,11 +4,16 @@
 --  du core (animation) → le serveur revérifie tout et donne le produit.
 -- =====================================================================
 local C = LabC
-local shown = {}   -- { { id, type, ent, x, y, z, label } }
+local shown = {}   -- { { id, type, ent, x, y, z, label, decor } }
 local crafting = nil
 
+local function drogues() return GetResourceState('elyzea_drogues') == 'started' end
+
 function C.ClearEquipment()
-    for _, e in ipairs(shown) do if DoesEntityExist(e.ent) then DeleteEntity(e.ent) end end
+    for _, e in ipairs(shown) do
+        if DoesEntityExist(e.ent) then DeleteEntity(e.ent) end
+        for _, o in ipairs(e.decor or {}) do if DoesEntityExist(o) then DeleteEntity(o) end end
+    end
     shown = {}
 end
 
@@ -27,7 +32,15 @@ function C.SpawnEquipment(list)
             FreezeEntityPosition(obj, true)
             SetEntityInvincible(obj, true)
             SetModelAsNoLongerNeeded(h)
-            shown[#shown + 1] = { id = e.id, type = e.type, ent = obj, x = e.x, y = e.y, z = e.z, label = (Config.Equipment[e.type] or { label = e.type }).label }
+            local entry = { id = e.id, type = e.type, ent = obj, x = e.x, y = e.y, z = e.z, label = (Config.Equipment[e.type] or { label = e.type }).label }
+            shown[#shown + 1] = entry
+            -- décor (accessoires posés sur / à côté de l'équipement), fourni par elyzea_drogues
+            local dk = Config.LabDecor and Config.LabDecor[e.type]
+            if dk and drogues() then
+                local ok, list = pcall(function() return exports.elyzea_drogues:SpawnDecor(obj, dk) end)
+                entry.decor = ok and list or {}
+                if gen ~= mine then for _, o in ipairs(entry.decor) do if DoesEntityExist(o) then DeleteEntity(o) end end return end
+            end
         end
     end
 end
@@ -55,9 +68,27 @@ function C.OpenCraft(e)
 end
 
 function C.CraftAbort()
-    if crafting then crafting = nil C.Pub('craftCancel') end
+    if crafting then
+        crafting = nil
+        C.Pub('craftCancel')
+        if drogues() then pcall(function() exports.elyzea_drogues:StopStep() end) end
+    end
 end
 RegisterNetEvent('elyzea_labs:craftCancel', function() crafting = nil end)
+
+-- Fin d'une étape immersive lancée par ce laboratoire
+local stepWaits = {}
+AddEventHandler('elyzea_drogues:stepDone', function(id, res)
+    local token = stepWaits[id]
+    if not token then return end
+    stepWaits[id] = nil
+    if crafting ~= token then return end
+    crafting = nil
+    if res and res.ok then C.Show(C.Pub('craftFinish', { token = token, result = res })) return end
+    C.Pub('craftCancel')
+    if res and (res.reason == 'mistakes' or res.reason == 'time') then C.Notify('Raté ! Rien n\'est perdu : tes ingrédients sont intacts, recommence.', 'error')
+    else C.Notify('Fabrication annulée.', 'inform') end
+end)
 
 RegisterNUICallback('craft', function(body, cb)
     cb({})
@@ -66,6 +97,15 @@ RegisterNUICallback('craft', function(body, cb)
     if r.error then return C.Notify(r.error, 'error') end
     C.Close()
     crafting = r.token
+    if r.game and drogues() then
+        -- mini-jeu + scène (elyzea_drogues), résultat revérifié par le serveur
+        local ent
+        for _, e in ipairs(shown) do if e.id == tonumber(body.id) then ent = e.ent end end
+        local id = exports.elyzea_drogues:RunStep({ game = r.game, profile = r.game.profile, entity = ent, siteType = nil, duration = r.duration / 1000 })
+        if not id then crafting = nil C.Pub('craftCancel') return C.Notify('Termine d\'abord ce que tu fais.', 'error') end
+        stepWaits[id] = r.token
+        return
+    end
     CreateThread(function()
         local anim = r.anim or {}
         local ok = exports.elyzea_core:ProgressBar({ duration = r.duration, label = r.label, canCancel = true,

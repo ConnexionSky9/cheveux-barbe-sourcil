@@ -4,7 +4,7 @@
 --  Objets et PNJ LOCAUX créés seulement à moins de 80 m, supprimés au-delà de 100 m (pas de réseau).
 --  DrugWorld.byEnt[entité] = { kind = 'site' | 'plant', id } : utilisé par le ALT (client/alt.lua).
 -- =====================================================================
-DrugWorld = { sites = {}, plants = {}, ents = {}, byEnt = {}, nodeHidden = {} }
+DrugWorld = { sites = {}, plants = {}, ents = {}, byEnt = {}, nodeHidden = {}, chairs = {} }
 local W = DrugWorld
 local SPAWN, DESPAWN = 80.0, 100.0
 
@@ -63,6 +63,8 @@ local function despawn(key)
         if DoesEntityExist(ent) then DeleteEntity(ent) end
     end
     W.ents[key] = nil
+    local sid = tonumber(key:match('^site:(%d+)$') or '')
+    if sid then W.chairs[sid] = nil end
 end
 
 -- ---------------------------------------------------------------- installations du staff
@@ -81,7 +83,24 @@ local function spawnSite(s)
     if not ent then W.ents[key] = nil return end
     list[1] = ent
     W.byEnt[ent] = { kind = 'site', id = s.id }
+    -- décor permanent du poste (accessoires, chaise) : objets locaux, l'ALT sur eux vise le poste
+    local decor = Config.Decor and Config.Decor[s.type]
+    if decor then
+        for _, spec in ipairs(decor.props or {}) do
+            local o = DrugScene.Place(ent, spec, false)
+            if orphan(key, list, o) then return end
+            if o then list[#list + 1] = o W.byEnt[o] = { kind = 'site', id = s.id } end
+        end
+        if decor.seat then
+            local c = DrugScene.PlaceChair(ent)
+            if orphan(key, list, c) then return end
+            if c then list[#list + 1] = c W.byEnt[c] = { kind = 'site', id = s.id } W.chairs[s.id] = c end
+        end
+    end
 end
+-- Entité principale d'un poste (la première créée) et sa chaise éventuelle
+function W.StationEntity(id) local l = W.ents['site:' .. id] return l and l[1] or nil end
+function W.Chair(id) local c = W.chairs[id] return c and DoesEntityExist(c) and c or nil end
 
 RegisterNetEvent('elyzea_drogues:sites', function(list, nodes)
     local new = {}

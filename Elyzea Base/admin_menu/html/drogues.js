@@ -84,7 +84,7 @@
             <p class="hint">Objets : identifiants de l'inventaire (le nom affiché est à droite). Perte : % de chance de perdre chaque unité produite. L'étape 1 (récolte / culture / achat) se règle dans Récolte, Culture et Prix.</p>
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px">${metas.map((m) => { const r = G.draft.recipes[m.id]; return `<div class="card recipe">
                 <div class="card-head"><strong>Étape ${m.step} · ${esc(m.label)}</strong>${tog(`recipes.${m.id}.enabled`, 'Active', 'Désactivée')}</div>
-                <p class="hint" style="margin:2px 0 8px">Poste : ${esc(m.stationLabel)}${m.variety ? ` · variété ${esc(m.variety)}` : ''}${m.prepStep ? ' · étape « préparer » (désactivable par variété dans Culture)' : ''}${m.rollStep ? ' · sans préparation : roule les têtes' : ''}</p>
+                <p class="hint" style="margin:2px 0 8px">Poste : ${esc(m.stationLabel)}${m.variety ? ` · variété ${esc(m.variety)}` : ''}${m.prepStep ? ' · étape « préparer » (désactivable par variété dans Culture)' : ''}${m.rollStep ? ' · sans préparation : roule les têtes' : ''}${m.dryStep ? ' · étape « séchage » (désactivable par variété dans Culture)' : ''}${m.trimStep ? ' · donne des têtes fraîches si le séchage est actif' : ''}${m.game ? ` · mini-jeu : ${esc(m.game)}` : ''}</p>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr">${num('Durée (s)', `recipes.${m.id}.duration`, 1, 600)}${num('Perte (%)', `recipes.${m.id}.loss`, 0, 90)}</div>
                 <label style="margin-top:8px;display:block">Ingrédients</label>${ioRows(m.id, 'inputs')}
                 <label style="margin-top:8px;display:block">Produits obtenus</label>${ioRows(m.id, 'outputs')}
@@ -125,6 +125,7 @@
                 <div class="form-grid" style="grid-template-columns:1fr 1fr">${txt('Nom affiché', `${p}.label`)}${num('Croissance totale (min)', `${p}.growMinutes`, 1, 10080, fmtS(cur.growMinutes * 60))}
                 ${num('Feuilles min', `${p}.yieldMin`, 1, 50)}${num('Feuilles max', `${p}.yieldMax`, 1, 50)}${num('Graine récupérée (%)', `${p}.seedChance`, 0, 100)}</div>
                 <div style="margin-top:6px">${tog(`${p}.prepStep`, 'Étape « préparer » active', 'Sans préparation (roule les têtes)')}</div>
+                <div style="margin-top:6px">${tog(`${p}.dryStep`, 'Étape « séchage » active', 'Sans séchage (la manucure donne les têtes)')}</div>
                 <p class="hint" style="margin-top:4px">Graine <code>${esc(v.seed)}</code> · joint <code>${esc(v.joint)}</code> · pochon <code>${esc(v.pouch)}</code></p></div>`; }).join('')}</div></div>
         <div class="section"><h2>Règles de culture</h2><div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">
             ${num('Pots max par joueur', `${c}.maxPotsPerPlayer`, 0, 50)}${num('Distance min entre pots (m)', `${c}.minDistance`, 0.5, 20, '', 0.1)}

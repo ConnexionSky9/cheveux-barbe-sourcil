@@ -5,9 +5,21 @@ local pass, fail, out = 0, 0, {}
 local function ok(c, name) if c then pass = pass + 1 out[#out + 1] = '  ok   ' .. name else fail = fail + 1 out[#out + 1] = '  FAIL ' .. name end end
 local FILES = { 'config.lua', 'shared/sha256.lua', 'shared/rules.lua', 'server/main.lua', 'server/permissions.lua', 'server/ownership.lua', 'server/access.lua',
     'server/equipment.lua', 'server/production.lua', 'server/storage.lua', 'server/upgrades.lua', 'server/raids.lua', 'server/tablet.lua', 'server/admin.lua' }
+-- étapes immersives communes (comme dans fxmanifest : '@elyzea_drogues/...')
+table.insert(FILES, 4, '../elyzea_drogues/config/minigames.lua')
+table.insert(FILES, 5, '../elyzea_drogues/shared/steps.lua')
 local function boot() for _, f in ipairs(FILES) do dofile(ROOT .. '/' .. f) end M.Pump(4) end
 boot()
 local L = Labs
+-- Un joueur qui joue le mini-jeu renvoie un résultat réussi à la fin (sauf résultat explicite dans le test)
+local GAMES = {}
+local rawStart, rawFinish = L.pub.craftStart, L.pub.craftFinish
+L.pub.craftStart = function(src, d) local r = rawStart(src, d) if r and r.game then GAMES[src] = r.game end return r end
+L.pub.craftFinish = function(src, d)
+    local g = GAMES[src]
+    if g and d and d.result == nil then d.result = { id = g.id, ok = true, done = g.count, mistakes = 0 } end
+    return rawFinish(src, d)
+end
 ok(L.ready, 'démarrage : tables créées, laboratoires chargés')
 
 local ENT = vector3(100.0, 100.0, 30.0)
@@ -131,6 +143,27 @@ M.inv[1].weed_leaf = 3
 local t1 = L.pub.craftStart(1, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
 local t2 = L.pub.craftStart(2, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
 ok(t1.ok and t2.error and t2.error:find('utilise'), '22a. même équipement : le deuxième joueur attend son tour')
+-- 23. Étapes immersives (mini-jeux) dans les laboratoires
+L.pub.craftCancel(1) L.pub.craftCancel(2)
+M.inv[1] = { weed_leaf = 3 }
+M.ms = M.ms + 60000
+r = L.pub.craftStart(1, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
+ok(r.ok and r.game and r.game.type == 'hang' and r.game.drug == 'weed', '23a. fabrication au labo : défi de séchage envoyé (thème cannabis)')
+M.ms = M.ms + 20000
+local fr = rawFinish(1, { token = r.token, result = { id = r.game.id, ok = false, done = 1, mistakes = 4 } })
+ok(fr.error and fr.error:find('Raté') and M.inv[1].weed_leaf == 3, '23b. mini-jeu raté : rien n\'est retiré')
+r = L.pub.craftStart(1, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
+M.ms = M.ms + 20000
+fr = rawFinish(1, { token = r.token, result = { id = r.game.id, ok = true, done = r.game.count + 3, mistakes = 0 } })
+ok(fr.error and M.inv[1].weed_leaf == 3, '23c. résultat falsifié : refusé, ingrédients gardés')
+M.stopped = { elyzea_drogues = true }
+r = L.pub.craftStart(1, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
+ok(r.ok and r.game == nil, '23d. elyzea_drogues arrêtée : barre de progression comme avant')
+L.pub.craftCancel(1)
+M.stopped = nil
+
+M.inv[1].weed_leaf = 3 M.inv[2] = { weed_leaf = 3 }
+t1 = L.pub.craftStart(1, { lab = 1, id = eqId, recipe = 'weed_dry_classic', times = 1 })
 local P2 = { x = P1.x - 4, y = P1.y, z = P1.z }
 boss.pos = vector3(P2.x + 1, P2.y, P2.z)
 r = L.pub.equipPlace(1, { lab = 1, type = 'weed_dryer', x = P2.x, y = P2.y, z = P2.z })

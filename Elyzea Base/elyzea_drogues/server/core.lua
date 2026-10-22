@@ -133,7 +133,8 @@ function DS.PublicSettings()
     for _, h in pairs(Config.Harvest) do add(h.item) end
     for _, i in ipairs({ 'watering_can', 'water', 'grow_lamp', 'fertilizer', 'plant_pot' }) do add(i) end
     return { drugs = S.drugs, trip = S.trip, creatures = S.creatures, recipes = recipes, varieties = varieties, prices = prices, labels = labels,
-        harvest = S.harvest, culture = { waterNeedBelow = S.culture.waterNeedBelow, policeCanDestroy = S.culture.policeCanDestroy } }
+        harvest = S.harvest, culture = { waterNeedBelow = S.culture.waterNeedBelow, policeCanDestroy = S.culture.policeCanDestroy },
+        sceneOffsets = S.sceneOffsets }
 end
 function DS.PushSettings(target) TriggerClientEvent('elyzea_drogues:settings', target or -1, DS.PublicSettings()) end
 
@@ -188,4 +189,5 @@ AddEventHandler('playerDropped', function()
     local src = source
     DS.playerBusy[src] = nil
     for id, b in pairs(DS.stationBusy) do if b.src == src then DS.stationBusy[id] = nil end end
+    if DS.DeleteSceneProps then DS.DeleteSceneProps(src) end
 end)

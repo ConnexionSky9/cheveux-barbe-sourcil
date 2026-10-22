@@ -231,14 +231,18 @@ Ely.callback.register('elyzea_drogues:potStart', function(src, id, act, arg)
     local err = check(src, p, act, arg)
     if err then return { error = err } end
     local token = ('%d%06d'):format(os.time(), math.random(0, 999999))
-    busy[src] = { token = token, kind = 'pot', plant = p.id, act = act, arg = arg, startAt = os.time(), duration = a.time }
-    return { ok = true, token = token, duration = a.time, label = a.label }
+    -- récolte d'une plante mature : mini-jeu (les autres actions gardent la barre de progression)
+    local ch = act == 'harvest' and DS.StepChallenge and DS.StepChallenge('pot:harvest', 1, 'weed', 'pot') or nil
+    busy[src] = { token = token, kind = 'pot', plant = p.id, act = act, arg = arg, startAt = os.time(), duration = a.time, ch = ch, limit = ch and ch.limit or 0 }
+    return { ok = true, token = token, duration = a.time, label = a.label, game = ch }
 end)
 
-Ely.callback.register('elyzea_drogues:potFinish', function(src, token)
+Ely.callback.register('elyzea_drogues:potFinish', function(src, token, res)
     local b = busy[src]
     if not b or b.kind ~= 'pot' or b.token ~= token then return { error = 'Action expirée.' } end
     busy[src] = nil
+    local serr = DS.StepError and DS.StepError(src, b, res, 'pot') or nil
+    if serr then return { error = serr } end
     if os.time() - b.startAt < b.duration - 1 then return { error = 'Action interrompue.' } end
     local p = P[b.plant]
     if not p then return { error = 'Pot introuvable.' } end
