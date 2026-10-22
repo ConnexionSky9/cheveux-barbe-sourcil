@@ -40,7 +40,7 @@ function GetOffsetFromEntityInWorldCoords(e, x, y, z) local p = ENTS[e].pos retu
 local BONES = { [31086] = { 0, 0, 0.62 }, [39317] = { 0, 0, 0.5 }, [64729] = { -0.12, 0, 0.42 }, [10706] = { 0.12, 0, 0.42 }, [45509] = { -0.2, 0, 0.38 }, [40269] = { 0.2, 0, 0.38 },
     [61163] = { -0.24, 0, 0.12 }, [28252] = { 0.24, 0, 0.12 }, [18905] = { -0.26, 0, -0.1 }, [57005] = { 0.26, 0, -0.1 }, [24818] = { 0, 0, 0.3 }, [11816] = { 0, 0, 0 },
     [58271] = { -0.1, 0, -0.05 }, [51826] = { 0.1, 0, -0.05 }, [63931] = { -0.11, 0, -0.5 }, [36864] = { 0.11, 0, -0.5 }, [14201] = { -0.12, 0, -0.92 }, [52301] = { 0.12, 0, -0.92 },
-    [20781] = { 0.12, -0.1, -0.97 }, [2108] = { -0.12, -0.1, -0.97 } }
+    [20781] = { -0.12, -0.12, -0.97 }, [35502] = { 0.12, -0.12, -0.97 } }
 function GetPedBoneCoords(e, b) local p, o = ENTS[e].pos, BONES[b] return vector3(p.x + o[1], p.y + o[2], p.z + o[3]) end
 function GetGameTimer() return 0 end
 LINES = {}
@@ -49,7 +49,13 @@ function DrawRect() end function SetTextFont() end function SetTextScale() end f
 function BeginTextCommandDisplayText() end function AddTextComponentSubstringPlayerName() end function EndTextCommandDisplayText() end
 function DrawPoly() error('DrawPoly ne doit plus être utilisé (faces)') end
 function DrawMarker() error('DrawMarker ne doit plus être utilisé (cercle au sol)') end
-function SetEntityDrawOutline() error('contour natif interdit (plantage)') end
+OUTLINED = {}
+function SetEntityDrawOutline(e, on)
+    if ENTS[e] and ENTS[e].kind == 'ped' then error('contour natif sur un personnage : plantage') end
+    OUTLINED[e] = on or nil
+end
+function SetEntityDrawOutlineColor() end
+function IsPedHuman(e) return ENTS[e].human ~= false end
 -- ---------------- chargement d'alt.lua
 PoliceC = { ui = {} }
 Config = { Distances = { alt = 3.0, vehicle = 5.0 }, Keys = { alt = 'LMENU' } }
@@ -66,34 +72,36 @@ local function inside(poly, x, y) -- point dans le polygone (rayons)
     return c
 end
 OUT = {}
-local function run(name, ent, wantNotBox)
-    LINES = {}
-    C.AltHighlight(ent, 'player', name)
-    local core = {}
-    for _, l in ipairs(LINES) do if l[7] >= 150 then local ax, ay = project(l) core[#core + 1] = { ax, ay } end end
-    OUT[name] = LINES
-    -- toutes les parties de l'entité sont à l'intérieur du contour
-    local allIn = true
-    local pts = {}
-    if IsEntityAPed(ent) then for b in pairs(BONES) do pts[#pts + 1] = GetPedBoneCoords(ent, b) end
-    elseif IsEntityAVehicle(ent) then
-        local mn, mx = GetModelDimensions(GetEntityModel(ent))
-        local zm = mn.z + (mx.z - mn.z) * 0.5
-        for _, q in ipairs({ { mn.x * 0.9, mn.z + 0.2 }, { mx.x * 0.9, mn.z + 0.2 }, { mn.x * 0.85, zm }, { mx.x * 0.85, zm }, { 0, mx.z * 0.9 } }) do pts[#pts + 1] = GetOffsetFromEntityInWorldCoords(ent, q[1], 0, q[2]) end
-    else local mn, mx = GetModelDimensions(GetEntityModel(ent)) for _, x in ipairs({ mn.x * 0.9, mx.x * 0.9 }) do for _, z in ipairs({ mn.z + 0.2, mx.z * 0.9 }) do pts[#pts + 1] = GetOffsetFromEntityInWorldCoords(ent, x, 0, z) end end end
-    for _, p in ipairs(pts) do local _, sx, sy = GetScreenCoordFromWorldCoord(p.x, p.y, p.z) if not inside(core, sx, sy) then allIn = false end end
-    return #core, allIn
-end
-ENTS[10] = { kind = 'ped', pos = vector3(0.4, 5, 1.0), model = 'ped' } DIMS.ped = { vector3(-0.3, -0.2, -1), vector3(0.3, 0.2, 0.8) }
+local function count(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
+ENTS[10] = { kind = 'ped', pos = vector3(0.4, 4, 1.0), model = 'ped' } DIMS.ped = { vector3(-0.3, -0.2, -1), vector3(0.3, 0.2, 0.8) }
 ENTS[11] = { kind = 'veh', pos = vector3(-1.0, 9, 0.6), model = 'car' } DIMS.car = { vector3(-0.95, -2.3, -0.55), vector3(0.95, 2.3, 0.85) }
 ENTS[12] = { kind = 'obj', pos = vector3(1.2, 4, 0.4), model = 'box' } DIMS.box = { vector3(-0.3, -0.3, -0.4), vector3(0.3, 0.3, 0.4) }
-local nP, inP = run('personnage', 10)
-check(nP >= 8 and inP, ('personnage : contour fermé de %d segments qui entoure tout le corps'):format(nP))
-local nV, inV = run('voiture', 11)
-check(nV >= 6 and inV, ('véhicule : contour fermé de %d segments qui entoure la carrosserie'):format(nV))
-local nO, inO = run('objet', 12)
-check(nO >= 4 and inO, ('objet : contour extérieur seul (%d segments, pas d\'arêtes intérieures)'):format(nO))
-check(#OUT.personnage == nP * 3, 'trois traits concentriques (cœur lumineux + halo), aucune boîte, aucune face, aucun cercle au sol')
+ENTS[14] = { kind = 'ped', human = false, pos = vector3(-0.8, 4, 0.4), model = 'dog' } DIMS.dog = { vector3(-0.2, -0.5, -0.4), vector3(0.2, 0.5, 0.3) }
+-- personne : contour calculé (lignes), jamais le contour natif
+LINES = {}
+C.AltHighlight(10, 'player', 'Personne')
+OUT.personnage = LINES
+check(#LINES > 60 and count(OUTLINED) == 0, ('personne : contour calculé membre par membre (%d traits), pas de contour natif'):format(#LINES))
+-- les os (centre des membres) sont bien à l'intérieur du contour et le contour colle au corps
+local function proj(x, y, z) local _, sx, sy = GetScreenCoordFromWorldCoord(x, y, z) return sx, sy end
+local minX, maxX, minY, maxY = 1, 0, 1, 0
+for _, l in ipairs(LINES) do if l[7] >= 150 then for _, k in ipairs({ 0, 3 }) do local sx, sy = proj(l[1 + k], l[2 + k], l[3 + k]) minX, maxX, minY, maxY = math.min(minX, sx), math.max(maxX, sx), math.min(minY, sy), math.max(maxY, sy) end end end
+local hx, hy = proj(0.4, 4, 1.62 + 0.07)
+local lf = { proj(0.4 - 0.12, 4 - 0.12, 0.03) }
+check(minY < hy and maxY > lf[2] and maxY - lf[2] < 0.03, 'le contour passe au-dessus de la tête et juste sous les pieds (colle au corps)')
+-- véhicule et objet : contour natif exact
+LINES = {}
+C.AltHighlight(11, 'vehicle', 'Véhicule')
+check(OUTLINED[11] and #LINES == 0, 'véhicule : contour natif du jeu, pile sur la carrosserie')
+C.AltHighlight(12, 'ext', 'Objet')
+check(OUTLINED[12] and not OUTLINED[11], 'objet : contour natif ; l\'ancienne cible est éteinte (une seule à la fois)')
+C.AltHighlight(10, 'player', 'Personne')
+check(count(OUTLINED) == 0, 'passage sur une personne : le contour natif est retiré')
+LINES = {} C.AltHighlight(14, 'ext', 'Chien')
+OUT.animal = LINES
+check(#LINES > 10 and count(OUTLINED) == 0, 'animal : contour calculé, jamais le contour natif')
+C.AltHighlight(12, 'ext', 'Objet') C.ClearOutline()
+check(count(OUTLINED) == 0, 'ALT relâché / menu fermé : plus rien d\'allumé')
 LINES = {} C.AltHighlight(99, 'player', 'x') check(#LINES == 0, 'cible disparue : rien n\'est dessiné, pas d\'erreur')
 ENTS[13] = { kind = 'ped', pos = vector3(0, -3, 1.0), model = 'ped' }
 LINES = {} C.AltHighlight(13, 'player', 'x') check(#LINES == 0, 'cible derrière la caméra : rien n\'est dessiné')

@@ -78,7 +78,11 @@ P.Actions.trunkEnter = { perm = false, fn = function(src, d)
     local veh = Vehicle(d.netId)
     if not veh then return { error = 'Véhicule introuvable.' } end
     if not NearVehicle(src, veh, 5.0) then return { error = 'Rapprochez-vous du coffre.' } end
-    if Locked(veh) then return { error = 'Le véhicule est verrouillé.' } end
+    -- verrouillé : seulement avec les clés du véhicule (son propre véhicule)
+    if Locked(veh) then
+        local ok, keys = pcall(function() return exports.elyzea_core:HasKeys(src, veh) end)
+        if not (ok and keys == true) then return { error = 'Le véhicule est verrouillé.' } end
+    end
     if InTrunk[src] or CarrierOf(src) or IsCarrying(src) or (P.Cuffed and P.Cuffed[src]) or InVehicle(src) or not Alive(src) then return { error = 'Impossible pour le moment.' } end
     local by = Entity(veh).state.trunkBy
     if by and GetPlayerName(by) and InTrunk[by] then return { error = 'Il y a déjà quelqu\'un dans le coffre.' } end

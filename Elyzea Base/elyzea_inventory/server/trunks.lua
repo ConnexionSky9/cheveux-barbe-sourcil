@@ -45,7 +45,13 @@ RegisterNetEvent('elyzea_inv:openTrunk', function(netId, class)
     if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
     local ped = GetPlayerPed(src)
     if #(GetEntityCoords(ped) - GetEntityCoords(veh)) > Config.Trunks.distance then return Notify(src, Config.Messages.too_far) end
-    if (GetVehicleDoorLockStatus(veh) or 0) >= 2 then return Notify(src, 'Le véhicule est verrouillé.') end
+    -- verrouillé : seulement avec les clés du véhicule (son propre véhicule)
+    local keys = false
+    if (GetVehicleDoorLockStatus(veh) or 0) >= 2 then
+        local ok, k = pcall(function() return exports.elyzea_core:HasKeys(src, veh) end)
+        keys = ok and k == true
+        if not keys then return Notify(src, 'Le véhicule est verrouillé.') end
+    end
     local cap = Trunk[tonumber(class) or -1]
     if not cap or cap.slots <= 0 or cap.kg <= 0 then return Notify(src, 'Ce véhicule n\'a pas de coffre.') end
     local plate = Plate(veh)
@@ -54,7 +60,7 @@ RegisterNetEvent('elyzea_inv:openTrunk', function(netId, class)
     local owned = (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `player_vehicles` WHERE `plate` = ?', { plate })) or 0) > 0
     RegisterStash(id, ('Coffre · %s'):format(plate), cap.slots, math.floor(cap.kg * 1000), nil, nil, nil, { temporary = not owned })
     if ForceOpen(src, 'stash', id) then
-        OpenTrunk[src] = { netId = tonumber(netId), id = id }
+        OpenTrunk[src] = { netId = tonumber(netId), id = id, keys = keys }
         TriggerClientEvent('elyzea_inv:trunkOpened', src, tonumber(netId))
     end
 end)
@@ -71,7 +77,7 @@ CreateThread(function()
                 local veh = NetworkGetEntityFromNetworkId(t.netId)
                 local far = not veh or veh == 0 or not DoesEntityExist(veh)
                     or #(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(veh)) > Config.Trunks.distance + 2.0
-                    or (GetVehicleDoorLockStatus(veh) or 0) >= 2
+                    or ((GetVehicleDoorLockStatus(veh) or 0) >= 2 and not t.keys)
                 if far then
                     OpenTrunk[src] = nil
                     TriggerClientEvent('elyzea_inv:forceClose', src)

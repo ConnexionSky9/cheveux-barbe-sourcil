@@ -9,9 +9,11 @@ fails = f(root)
 if len(sys.argv) > 1:
     from PIL import Image, ImageDraw
     W, H = 1280, 720
+    # zoom sur la personne
+
     img = Image.new('RGB', (W, H), (40, 46, 56)); d = ImageDraw.Draw(img)
     proj = L.eval('GetScreenCoordFromWorldCoord'); out = L.eval('OUT')
-    for name in ('personnage', 'voiture', 'objet'):
+    for name in ('personnage', 'animal'):
         for l in out[name].values():
             _, ax, ay = proj(l[1], l[2], l[3]); _, bx, by = proj(l[4], l[5], l[6])
             a = l[7] / 255

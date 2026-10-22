@@ -153,24 +153,53 @@ function SC.WalkTo(ped, x, y, heading)
     return true
 end
 
--- Assise sur la chaise du décor. off = réglage du staff { x, y, z, h } (mètres / degrés, repère de la chaise)
-function SC.Sit(ped, chair, off)
+-- Assise sur la chaise du décor : scénario « assis sur une chaise » de GTA placé sur l'assise.
+-- Le jeu gère la posture complète : fessier sur la chaise, pieds au sol, buste vers la table.
+-- (Avant : animation assise jouée debout, le personnage flottait.)  off = réglage du staff { x, y, z, h }.
+SC.SEAT_SCENARIOS = { 'PROP_HUMAN_SEAT_COMPUTER', 'PROP_HUMAN_SEAT_CHAIR_MP_PLAYER' }   -- mains sur la table, sinon assis simple
+SC.SEAT_HEIGHT = 0.5      -- hauteur de l'assise au-dessus du sol (m), réglable par /drogues_assise (Z)
+
+function SC.SeatPose(chair, off)
     off = off or {}
-    local front = GetOffsetFromEntityInWorldCoords(chair, 0.0, -0.55, 0.0)    -- l'assise regarde vers -Y
+    local cmn = GetModelDimensions(GetEntityModel(chair))
+    local floorZ = GetEntityCoords(chair).z + cmn.z
+    local p = GetOffsetFromEntityInWorldCoords(chair, off.x or 0.0, off.y or 0.0, 0.0)
+    return vector3(p.x, p.y, floorZ + SC.SEAT_HEIGHT + (off.z or 0.0)), GetEntityHeading(chair) + 180.0 + (off.h or 0.0), floorZ
+end
+
+function SC.SitAt(ped, chair, off)
+    local pos, heading = SC.SeatPose(chair, off)
+    ClearPedTasksImmediately(ped)
+    TaskStartScenarioAtPosition(ped, SC.SEAT_SCENARIOS[1], pos.x, pos.y, pos.z, heading, 0, true, true)
+    Wait(150)
+    if not IsPedUsingScenario(ped, SC.SEAT_SCENARIOS[1]) then
+        TaskStartScenarioAtPosition(ped, SC.SEAT_SCENARIOS[2], pos.x, pos.y, pos.z, heading, 0, true, true)
+    end
+end
+
+function SC.Sit(ped, chair, off)
+    local front = GetOffsetFromEntityInWorldCoords(chair, 0.0, -0.6, 0.0)    -- l'assise regarde vers -Y
     local heading = GetEntityHeading(chair) + 180.0
     if not SC.WalkTo(ped, front.x, front.y, heading) then return nil end
     local standZ = GetEntityCoords(ped).z
-    local seat = GetOffsetFromEntityInWorldCoords(chair, off.x or 0.0, (off.y or 0.0) + 0.05, 0.0)
-    FreezeEntityPosition(ped, true)
-    SetEntityCoordsNoOffset(ped, seat.x, seat.y, standZ + (off.z or 0.0), false, false, false)
-    SetEntityHeading(ped, heading + (off.h or 0.0))
-    return { front = front, z = standZ, heading = heading }
+    SC.SitAt(ped, chair, off)
+    -- attente que le personnage soit installé (2,5 s max)
+    local t = GetGameTimer() + 2500
+    while GetGameTimer() < t and not IsPedUsingAnyScenario(ped) do Wait(50) end
+    Wait(600)
+    return { front = front, z = standZ, heading = heading, chair = chair, seated = true }
 end
 
--- Se relever : devant la chaise, au niveau du sol de départ (jamais coincé dans la chaise)
-function SC.StandUp(ped, sat)
-    ClearPedTasks(ped)
+-- Se relever : le personnage se lève avec l'animation du jeu, puis il est replacé devant la chaise
+-- (jamais coincé dans la chaise ni dans la table). quick = sans attendre (arrêt de la ressource).
+function SC.StandUp(ped, sat, quick)
     FreezeEntityPosition(ped, false)
+    if sat and sat.seated and not quick then
+        ClearPedTasks(ped)
+        local t = GetGameTimer() + 1800
+        while GetGameTimer() < t and IsPedUsingAnyScenario(ped) do Wait(50) end
+    end
+    ClearPedTasksImmediately(ped)
     if sat then
         SetEntityCoordsNoOffset(ped, sat.front.x, sat.front.y, sat.z, false, false, false)
         SetEntityHeading(ped, sat.heading)

@@ -40,6 +40,10 @@ function ObjToNet(e) return e end
 function TaskGoStraightToCoord(p, x, y) st.pos = { x, y, 0 } end
 function TaskTurnPedToFaceCoord() end
 function ClearPedTasks() st.anim, st.scenario = nil, nil end
+function ClearPedTasksImmediately() st.anim, st.scenario = nil, nil end
+function TaskStartScenarioAtPosition(p, sc, x, y, z, h) st.scenario, st.seatAt, st.seatUsed, st.seatZ = sc, { x, y, z, h }, sc, z end
+function IsPedUsingScenario(p, sc) return st.scenario == sc end
+function IsPedUsingAnyScenario() return st.scenario ~= nil end
 function SetEntityHeading(e, h) st.heading = h end
 function SetEntityCoordsNoOffset(e, x, y, z) st.pos = { x, y, z } end
 function IsPedRagdoll() return st.ragdoll end function IsEntityDead() return st.dead end function IsPedInAnyVehicle() return false end
@@ -90,7 +94,8 @@ reset() answer(function(g) return { id = g.id, ok = true, done = g.count, mistak
 local r = run(function() return DrugStep.Run({ game = game(11), profile = 'weed_trim', entity = station, chair = chair, siteType = 'weed_trim', duration = 8 }) end)
 check(r and r.ok and r.done == 6, 'mini-jeu réussi : résultat transmis')
 check(st.bar and st.bar.label == 'Finition…', 'mini-jeu fini avant la durée de la recette : courte finition sans couper la scène')
-check(not st.focus and not st.frozen and st.anim == nil and props() == 0 and DrugStep.active == nil, 'fin : curseur rendu, personnage relevé et libre, objets supprimés')
+check(st.seatUsed == 'PROP_HUMAN_SEAT_COMPUTER' and math.abs(st.seatZ - 0.5) < 0.01, 'assise : scénario « assis à une table » de GTA sur la chaise (hauteur d\'assise 0,5 m : pieds au sol)')
+check(not st.focus and not st.frozen and st.anim == nil and st.scenario == nil and props() == 0 and DrugStep.active == nil, 'fin : curseur rendu, personnage relevé et libre, objets supprimés')
 local sentNet = false for _, e in ipairs(st.server) do if e.ev == 'elyzea_drogues:sceneProps' and e.a == nil then sentNet = true end end
 check(sentNet, 'serveur prévenu que les objets temporaires sont supprimés')
 print('[Échec, annulation, interruptions]')

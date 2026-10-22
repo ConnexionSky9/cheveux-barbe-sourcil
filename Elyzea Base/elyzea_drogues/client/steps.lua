@@ -22,7 +22,7 @@ local function cleanup(A)
     for _, o in ipairs(A.props) do if DoesEntityExist(o) then DetachEntity(o, true, false) DeleteEntity(o) end end
     if A.netReported then TriggerServerEvent('elyzea_drogues:sceneProps', nil) end
     DrugScene.StopAnim(ped, A.played)
-    if A.sat then DrugScene.StandUp(ped, A.sat)
+    if A.sat then DrugScene.StandUp(ped, A.sat, A.quick)
     elseif A.frozen then FreezeEntityPosition(ped, false) end
 end
 
@@ -39,7 +39,7 @@ function ST.Run(opts)
         local ped = PlayerPedId()
         local ent = opts.entity
         -- 1. placement
-        if p.pose == 'seat' and opts.chair and DoesEntityExist(opts.chair) then
+        if (p.pose == 'seat' or p.pose == 'seatIfChair') and opts.chair and DoesEntityExist(opts.chair) then
             A.sat = DrugScene.Sit(ped, opts.chair, offsets(opts.siteType))
             if not A.sat then return { id = game.id, cancelled = true, reason = 'move' } end
         elseif p.pose ~= 'here' and Config.Minigames.walkToStation ~= false and ent and DoesEntityExist(ent) then
@@ -52,7 +52,7 @@ function ST.Run(opts)
         end
         if not A.sat then FreezeEntityPosition(ped, true) A.frozen = true end
         -- 2. animation et objets
-        A.played = DrugScene.PlayAnim(ped, p.anim)
+        if not A.sat then A.played = DrugScene.PlayAnim(ped, p.anim) end   -- assis : la posture vient du scénario d'assise
         local net = Config.Minigames.networkProps ~= false
         if p.hand then local o = DrugScene.Hand(ped, p.hand, net) if o then A.props[#A.props + 1] = o end end
         for _, spec in ipairs(p.temp or {}) do local o = DrugScene.Place(ent, spec, net) if o then A.props[#A.props + 1] = o end end
@@ -72,6 +72,8 @@ function ST.Run(opts)
                 A.result = { id = game.id, cancelled = true, reason = 'interrupt' }
             elseif GetGameTimer() - start > limitMs then
                 A.result = { id = game.id, cancelled = true, reason = 'timeout' }
+            elseif A.sat and not IsPedUsingAnyScenario(ped) and opts.chair and DoesEntityExist(opts.chair) then
+                DrugScene.SitAt(ped, opts.chair, offsets(opts.siteType))
             elseif A.played and A.played.dict and not IsEntityPlayingAnim(ped, A.played.dict, A.played.clip, 3) then
                 TaskPlayAnim(ped, A.played.dict, A.played.clip, 3.0, 3.0, -1, A.played.flag or 1, 0, false, false, false)
             end
@@ -127,6 +129,7 @@ end
 -- Arrêt de la ressource en plein mini-jeu : on rend la main proprement
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() or not ST.active then return end
+    ST.active.quick = true
     cleanup(ST.active)
     ST.active = nil
 end)
@@ -149,13 +152,13 @@ exports('StopStep', function()
     if A and not A.tuning and not A.result then A.result = { id = A.gameId, cancelled = true, reason = 'interrupt' } end
 end)
 
--- Décor d'un équipement de laboratoire : renvoie la liste des objets créés (à supprimer par l'appelant)
+-- Décor d'un équipement de laboratoire : { props = { objets… }, chair = chaise ou nil } (à supprimer par l'appelant)
 exports('SpawnDecor', function(entity, decorKey)
     local d = Config.Decor[decorKey or '']
-    local out = {}
+    local out = { props = {} }
     if not d or not entity or not DoesEntityExist(entity) then return out end
-    for _, spec in ipairs(d.props or {}) do local o = DrugScene.Place(entity, spec, false) if o then out[#out + 1] = o end end
-    if d.seat then local c = DrugScene.PlaceChair(entity) if c then out[#out + 1] = c end end
+    for _, spec in ipairs(d.props or {}) do local o = DrugScene.Place(entity, spec, false) if o then out.props[#out.props + 1] = o end end
+    if d.seat then local c = DrugScene.PlaceChair(entity) if c then out.props[#out.props + 1] = c out.chair = c end end
     return out
 end)
 
@@ -200,16 +203,10 @@ RegisterCommand('drogues_assise', function()
     local chair = DrugWorld.Chair(best.id)
     local cur = offsets(best.type) or {}
     local off = { x = cur.x or 0.0, y = cur.y or 0.0, z = cur.z or 0.0, h = cur.h or 0.0 }
-    local p = Config.Steps.weed_trim or {}
     ST.active = { props = {}, tuning = true }
     local sat = DrugScene.Sit(ped, chair, off)
     if not sat then ST.active = nil return end
-    local played = DrugScene.PlayAnim(ped, p.anim)
-    local function apply()
-        local seat = GetOffsetFromEntityInWorldCoords(chair, off.x, off.y + 0.05, 0.0)
-        SetEntityCoordsNoOffset(ped, seat.x, seat.y, sat.z + off.z, false, false, false)
-        SetEntityHeading(ped, sat.heading + off.h)
-    end
+    local function apply() DrugScene.SitAt(ped, chair, off) end
     local save = false
     while true do
         Wait(0)
@@ -229,7 +226,6 @@ RegisterCommand('drogues_assise', function()
         if IsControlJustPressed(0, 194) or IsEntityDead(ped) then break end
     end
     exports.elyzea_core:HideTextUI()
-    DrugScene.StopAnim(ped, played)
     DrugScene.StandUp(ped, sat)
     ST.active = nil
     if save then

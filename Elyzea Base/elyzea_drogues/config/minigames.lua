@@ -107,7 +107,8 @@ Config.Decor = {
     weed_trim   = { seat = true, props = { P(M.budpile, 'top', -0.55, 0.25, 20), P(M.leaves, 'top', 0.15, 0.35, 0), P(M.scissors, 'top', 0.45, -0.25, 70), P(M.weedbucket, 'ground', 1.0, 0.0, 0, 0.35) } },
     weed_dry    = { props = { P(M.fan, 'ground', -1.0, 0.0, 90, 0.6), P(M.weedbucket, 'ground', 1.0, -0.4, 0, 0.35) } },
     weed_grind  = { props = { P(M.budpile, 'top', -0.5, 0.2, 0), P(M.weedbag, 'top', 0.5, 0.3, 30) } },
-    weed_roll   = { props = { P(M.weedbottle, 'top', -0.5, 0.3, 0), P(M.joint, 'top', 0.3, -0.2, 40), P(M.joint, 'top', 0.4, -0.1, 70) } },
+    weed_grind_seat = { seat = true, props = { P(M.budpile, 'top', -0.5, 0.2, 0), P(M.weedbag, 'top', 0.5, 0.3, 30), P(M.weedbucket, 'ground', 1.0, 0.0, 0, 0.35) } },
+    weed_roll   = { seat = true, props = { P(M.weedbottle, 'top', -0.5, 0.3, 0), P(M.joint, 'top', 0.3, -0.2, 40), P(M.joint, 'top', 0.4, -0.1, 70) } },
     weed_pack   = { props = { P(M.scales, 'top', 0.0, 0.1, 0), P(M.smallbag, 'top', 0.55, 0.2, 20), P(M.weedblock, 'top', -0.55, 0.25, 10) } },
     coca_grind  = { props = { P(M.cokeblock, 'ground', 1.0, 0.0, 0, 0.3) } },
     coca_process= { props = { P(M.powder, 'top', -0.3, 0.2, 0), P(M.cokescale, 'top', 0.45, 0.25, 0), P(M.bottle, 'top', 0.6, -0.3, 0) } },
@@ -141,7 +142,7 @@ Config.Decor = {
 }
 -- Équipements des laboratoires (elyzea_labs) → décor équivalent
 Config.LabDecor = {
-    weed_dryer = 'weed_dry', weed_trim = 'weed_grind', weed_roll = 'weed_roll', weed_pack = 'weed_pack',
+    weed_dryer = 'weed_dry', weed_trim = 'weed_grind_seat', weed_roll = 'weed_roll', weed_pack = 'weed_pack',
     coca_grinder = 'coca_grind', coca_extract = 'coca_refine', coca_table = 'coca_finish', coca_refinery = 'coca_refine',
     crack_stove = 'crack_cook', crack_bench = 'crack_cut', meth_mixer = 'meth_prep', meth_reactor = 'meth_cook', meth_tray = 'meth_cool',
     xtc_reactor = 'xtc_synth', xtc_press = 'xtc_press', keta_evaporator = 'keta_prep', keta_grinder = 'keta_grind', opi_tank = 'opi_prep', opi_bench = 'opi_finish',
@@ -150,7 +151,8 @@ Config.LabDecor = {
 -- ---------------------------------------------------------------- profils d'étape (clé = recette sans suffixe de variété / couleur)
 --  game  : mini-jeu (html/mg_games*.js) · skin : variante visuelle · per : objectifs par unité fabriquée
 --  min / cap : bornes du nombre d'objectifs · maxMistakes : erreurs tolérées · secPer : secondes max par objectif
---  pose  : 'stand' (debout face au poste), 'seat' (chaise du décor), 'here' (sur place : plantes, sol)
+--  pose  : 'stand' (debout face au poste), 'seat' (chaise du décor), 'seatIfChair' (assis si le poste a une chaise,
+--          sinon debout), 'here' (sur place : plantes, sol)
 --  anim  : animation pendant le mini-jeu · hand : objet tenu · temp : objets posés le temps de l'étape
 local S = {}
 Config.Steps = S
@@ -160,9 +162,9 @@ S.weed_trim  = { game = 'trim', per = 6, min = 6, cap = 30, maxMistakes = 3, sec
     title = 'Effeuiller les têtes', hint = 'Attrape chaque petite feuille et tire-la vers l\'extérieur pour la décrocher de la fleur. Ne pince pas la fleur.' }
 S.weed_dry   = { game = 'hang', skin = 'weed', per = 3, min = 3, cap = 9, plusOne = true, maxMistakes = 3, secPer = 5, pose = 'stand', anim = AN.dry_check, hand = HAND.bud,
     title = 'Suspendre les têtes au séchoir', hint = 'Glisse chaque tête sur un crochet libre, puis règle la ventilation.' }
-S.weed_grind = { game = 'grind', skin = 'grinder', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 4, pose = 'stand', anim = AN.table_cut,
+S.weed_grind = { game = 'grind', skin = 'grinder', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 4, pose = 'seatIfChair', anim = AN.table_cut,
     title = 'Effriter au moulin', hint = 'Maintiens le clic et tourne autour du moulin, sans aller trop vite.' }
-S.weed_roll  = { game = 'roll', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 7, pose = 'stand', anim = AN.table_cut, hand = HAND.joint,
+S.weed_roll  = { game = 'roll', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 7, pose = 'seatIfChair', anim = AN.table_cut, hand = HAND.joint,
     title = 'Rouler un joint', hint = 'Répartis le cannabis : clique les 3 repères sur la feuille.' }
 S.weed_pack  = { game = 'scale', skin = 'bud', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = 10, pose = 'stand', anim = AN.dry_check, extra = { grams = 3.5 },
     title = 'Peser et ensacher', hint = 'Maintiens le clic sur le bocal pour remplir le sachet. Relâche au bon poids : il continue de couler un peu.' }

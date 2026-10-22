@@ -13,7 +13,7 @@ prendre lors d'une attaque.
 | Framework | `elyzea_core` (maison) : joueurs, notifications, barre de progression, `Ely.callback`, SQL (`@elyzea_core/lib/MySQL.lua`, transactions) |
 | Groupes / grades / argent des groupes | `elyzea_illegal` : groupes, grades (chef = `boss`), comptes propre / sale du groupe (avec historique) |
 | Appartements / instances | même principe que `elyzea_dynasty` : un *routing bucket* par bien (Dynasty 40000+, PvP 61000+, **labos 52000+id**) |
-| Rond bleu | même principe que le **cercle bleu de Dynasty 8** (gestion + éditeur : flèches, Pg.Préc/Suiv, Q/E, G, Entrée, Retour) |
+| Rond bleu | gestion des équipements + **placement libre** : on marche dans le laboratoire, l'équipement fantôme (contour vert / rouge) suit l'endroit regardé et se pose sur le sol ou la surface visée ; molette ou Q/E = tourner, flèches = ajuster, Pg.Préc/Suiv = hauteur, G = remettre à zéro, clic gauche / Entrée = poser, clic droit / Retour = annuler |
 | Coffre | `elyzea_inventory` : `RegisterStash` (500 emplacements maximum gérés, poids en grammes) + `RegisterStashAccess` |
 | Objets des drogues | ceux d'`elyzea_drogues` (feuilles, têtes, pâte de coca, produits chimiques…) : vérifiés au démarrage |
 | Mort / à terre | `elyzea_ems:IsDown` |

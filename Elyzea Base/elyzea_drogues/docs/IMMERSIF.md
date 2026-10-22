@@ -89,6 +89,17 @@ Les **laboratoires** (`elyzea_labs`) utilisent exactement les mêmes mini-jeux, 
 - **Nouveau poste** à placer : « Séchoir à cannabis » (`weed_dry`).
 - **4 nouveaux objets** : `weed_bud_wet`, `weed_bud_wet_ww`, `weed_bud_wet_ph`, `weed_bud_wet_custom`. Ils sont déjà ajoutés dans `elyzea_inventory/shared/items.lua`.
 
+## Assise (v2.1.1)
+
+- Le personnage s'assoit avec le **scénario d'assise de GTA** (« assis à une table », mains sur le plateau), placé sur l'assise de la chaise. Il a les **pieds au sol**, le fessier sur la chaise et fait face à la table.
+- L'ancienne méthode jouait une animation assise sans chaise sous le personnage, et le corps flottait.
+- **Se relever** : le jeu joue le geste de lever, puis le personnage est replacé devant la chaise. Il n'est jamais coincé.
+- **Postes avec chaise** :
+  - postes de drogue : table de manucure et table de roulage ;
+  - laboratoires : table de manucure.
+  On y travaille assis (effeuiller, rouler, préparer).
+- **Réglage** : si la hauteur ou la position n'est pas parfaite avec tes modèles de chaise, utilise `/drogues_assise`. Le réglage est enregistré pour toutes les tables de ce type.
+
 ## Décor permanent et chaise
 
 Chaque poste reçoit ses accessoires, visibles de tous :
@@ -100,7 +111,7 @@ Chaque poste reçoit ses accessoires, visibles de tous :
 | Commande | Pour qui | Effet |
 |---|---|---|
 | `/drogues_verif` | Tout le monde | Liste en F8 les modèles et animations absents chez toi. Un modèle absent est remplacé par le suivant de la liste ; une animation absente est remplacée par son repli. |
-| `/drogues_assise` | Staff `drugs_manage` | Près d'une table de manucure : le personnage s'assoit. Les flèches le déplacent, Page ↑/↓ règle la hauteur, Q/E la rotation, **Entrée enregistre** pour toutes les tables de ce type, Retour annule. À faire une fois si le personnage n'est pas parfaitement assis. |
+| `/drogues_assise` | Staff `drugs_manage` | Près d'une table avec chaise : le personnage s'assoit (scénario d'assise du jeu). Les flèches le déplacent, Page ↑/↓ règle la hauteur, Q/E la rotation, **Entrée enregistre** pour toutes les tables de ce type, Retour annule. À faire une fois si le personnage n'est pas parfaitement assis. |
 
 ## Réglages (`config/minigames.lua`)
 

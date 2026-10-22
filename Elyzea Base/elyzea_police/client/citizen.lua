@@ -181,13 +181,18 @@ function C.CitizenOptions(ctx, out)
             desc = ctx.inVehicle and 'La personne est dans un véhicule' or (busy and 'Déjà portée ou escortée') or nil }
     elseif ctx.kind == 'vehicle' then
         local veh = ctx.entity
-        local locked = GetVehicleDoorLockStatus(veh) >= 2
+        -- son propre véhicule (clés) : le coffre reste accessible même verrouillé
+        local okK, mine = pcall(function() return exports.elyzea_core:HasKeys(veh) end)
+        mine = okK and mine == true
+        local locked = GetVehicleDoorLockStatus(veh) >= 2 and not mine
         out[#out + 1] = { id = 'trunkOpen', label = 'Ouvrir le coffre', icon = 'trunk', disabled = locked, desc = locked and 'Véhicule verrouillé' or nil }
+        -- quelqu'un dedans ? (un marqueur resté après un départ ou un redémarrage ne bloque plus le coffre)
         local by = Entity(veh).state.trunkBy
+        if by and GetPlayerFromServerId(by) == -1 then by = nil end
         if by then
             out[#out + 1] = { id = 'trunkPull', label = 'Sortir la personne du coffre', icon = 'out' }
-        elseif GetEntityBoneIndexByName(veh, 'boot') ~= -1 then
-            out[#out + 1] = { id = 'trunkEnter', label = 'Se cacher dans le coffre', icon = 'hide', disabled = locked, desc = locked and 'Véhicule verrouillé' or nil }
+        elseif GetEntityBoneIndexByName(veh, 'boot') ~= -1 or GetIsDoorValid(veh, 5) then
+            out[#out + 1] = { id = 'trunkEnter', label = 'Entrer dans le coffre', icon = 'hide', disabled = locked, desc = locked and 'Véhicule verrouillé' or nil }
         end
         if C.OnDuty() and C.Can('impound') then
             local occupied = false

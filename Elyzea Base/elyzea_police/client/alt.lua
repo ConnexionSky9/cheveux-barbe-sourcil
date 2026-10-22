@@ -1,7 +1,8 @@
 -- =====================================================================
 --  ELYZEA POLICE - client : menu ALT (pour tout le monde)
---  ALT maintenu : curseur ; le CONTOUR de la cible survolée qui a des actions s'illumine (silhouette dessinée,
---  pas le contour natif SetEntityDrawOutline qui faisait planter le jeu) ; ALT + clic gauche : actions possibles.
+--  ALT maintenu : curseur ; le CONTOUR exact de la cible survolée qui a des actions s'illumine (contour natif
+--  pour véhicules et objets ; contour calculé membre par membre pour les personnes, car le contour natif fait
+--  planter le jeu sur les personnages) ; ALT + clic gauche : actions possibles.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
@@ -218,10 +219,11 @@ local function Title(ctx)
 end
 
 -- ---------------------------------------------------------------------
--- Surbrillance de la cible survolée : seulement son CONTOUR, qui s'illumine (pas de boîte, pas de faces, pas de cercle).
--- La silhouette est calculée à l'écran : points du corps (os des personnages), profil de la carrosserie (véhicules)
--- ou volume de l'objet, puis enveloppe extérieure arrondie, dessinée en traits lumineux juste devant la cible.
--- Uniquement du dessin (DrawLine) : rien n'est modifié sur l'entité, aucun risque de plantage.
+-- Surbrillance de la cible survolée : son CONTOUR exact s'illumine (pas de boîte, pas de faces, pas de cercle).
+--   · véhicules et objets : contour natif du jeu (SetEntityDrawOutline), pile sur la forme réelle ;
+--   · personnes et animaux : JAMAIS le contour natif (il fait planter le jeu sur les personnages :
+--     https://github.com/citizenfx/fivem/issues/1425) ; leur contour est calculé membre par membre
+--     (tête, buste, bras, mains, jambes, pieds) et tracé en traits lumineux autour du corps.
 -- ---------------------------------------------------------------------
 local KIND_COLOR = {
     player = { 96, 165, 250 }, carry = { 96, 165, 250 }, npc = { 239, 68, 68 },
@@ -250,129 +252,177 @@ local function label3D(x, y, z, text, r, g, b)
     DrawRect(sx, sy + 0.0295, w, 0.0022, r, g, b, 230)
 end
 
--- Os d'un personnage qui dessinent sa silhouette (tête, épaules, bras, mains, bassin, jambes, pieds)
-local PED_BONES = { 31086, 39317, 64729, 10706, 45509, 40269, 61163, 28252, 18905, 57005, 24818, 11816, 58271, 51826, 63931, 36864, 14201, 52301, 20781, 2108 }
+-- Contour natif : une seule entité à la fois, jamais un personnage, toujours retiré proprement
+local outlined = nil
+local function Outline(ent, c)
+    if ent and (ent == 0 or not DoesEntityExist(ent) or IsEntityAPed(ent)) then ent = nil end
+    if outlined ~= ent then
+        if outlined and DoesEntityExist(outlined) then SetEntityDrawOutline(outlined, false) end
+        outlined = ent
+    end
+    if ent then
+        SetEntityDrawOutlineColor(c[1], c[2], c[3], 255)
+        SetEntityDrawOutline(ent, true)
+    end
+end
+C.ClearOutline = function() Outline(nil) end
 
--- Points 3D (monde) qui forment le volume visible de l'entité, avec un rayon d'épaisseur (mètres) par point
-local function silhouettePoints(ent)
-    local pts = {}
-    if IsEntityAPed(ent) then
-        for _, b in ipairs(PED_BONES) do
-            local c = GetPedBoneCoords(ent, b, 0.0, 0.0, 0.0)
-            pts[#pts + 1] = { c, b == 31086 and 0.13 or 0.09 }
-        end
-        local h = GetPedBoneCoords(ent, 31086, 0.0, 0.0, 0.0)
-        pts[#pts + 1] = { vector3(h.x, h.y, h.z + 0.1), 0.1 }      -- haut du crâne
-        return pts
-    end
-    local mn, mx = dims(ent)
-    local function at(x, y, z, r) pts[#pts + 1] = { GetOffsetFromEntityInWorldCoords(ent, x, y, z), r } end
-    if IsEntityAVehicle(ent) then
-        -- profil de carrosserie : bas de caisse sur toute la longueur, ceinture, toit sur la partie centrale
-        local L, Wd = mx.y - mn.y, mx.x - mn.x
-        local zb, zm, zt = mn.z + 0.12, mn.z + (mx.z - mn.z) * 0.55, mx.z
-        local cy = (mn.y + mx.y) / 2
-        for _, f in ipairs({ 0.0, 0.25, 0.5, 0.75, 1.0 }) do
-            local y = mn.y + L * f
-            for _, x in ipairs({ mn.x + Wd * 0.04, mx.x - Wd * 0.04 }) do
-                at(x, y, zb, 0.06)
-                at(x, y, zm, 0.06)
-            end
-        end
-        for _, f in ipairs({ -0.28, -0.1, 0.1, 0.22 }) do
-            local y = cy + L * f
-            at(mn.x + Wd * 0.14, y, zt, 0.05) at(mx.x - Wd * 0.14, y, zt, 0.05)
-        end
-        return pts
-    end
-    -- objet : les huit coins de son volume (seule l'enveloppe extérieure est tracée)
-    for _, x in ipairs({ mn.x, mx.x }) do for _, y in ipairs({ mn.y, mx.y }) do for _, z in ipairs({ mn.z, mx.z }) do at(x, y, z, 0.03) end end end
-    return pts
+-- Corps d'une personne : capsules entre os (os A, os B, rayon en mètres)
+local BODY = {
+    { 31086, 31086, 0.115, 0.07 },            -- tête (centrée un peu au-dessus de l'os)
+    { 39317, 24818, 0.075 },                  -- cou → haut du buste
+    { 24818, 11816, 0.155 },                  -- buste
+    { 64729, 10706, 0.08 },                   -- épaules
+    { 64729, 45509, 0.07 }, { 10706, 40269, 0.07 },
+    { 45509, 61163, 0.062 }, { 40269, 28252, 0.062 },   -- bras
+    { 61163, 18905, 0.05 }, { 28252, 57005, 0.05 },     -- avant-bras
+    { 18905, 18905, 0.06 }, { 57005, 57005, 0.06 },     -- mains
+    { 11816, 58271, 0.13 }, { 11816, 51826, 0.13 },     -- bassin
+    { 58271, 63931, 0.09 }, { 51826, 36864, 0.09 },     -- cuisses
+    { 63931, 14201, 0.066 }, { 36864, 52301, 0.066 },   -- mollets
+    { 14201, 20781, 0.055 }, { 52301, 35502, 0.055 },   -- pieds
+}
+
+-- distance d'un point au segment [a, b] (coordonnées écran corrigées de l'aspect)
+local function segDist(px, py, ax, ay, bx, by)
+    local dx, dy = bx - ax, by - ay
+    local l = dx * dx + dy * dy
+    local t = l > 0 and ((px - ax) * dx + (py - ay) * dy) / l or 0
+    if t < 0 then t = 0 elseif t > 1 then t = 1 end
+    local qx, qy = ax + t * dx - px, ay + t * dy - py
+    return math.sqrt(qx * qx + qy * qy)
 end
 
--- Enveloppe convexe (chaîne monotone) de points 2D { x, y }
-local function hull(P)
-    table.sort(P, function(a, b) return a.x < b.x or (a.x == b.x and a.y < b.y) end)
-    local function cross(o, a, b) return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x) end
-    local lower, upper = {}, {}
-    for _, p in ipairs(P) do
-        while #lower >= 2 and cross(lower[#lower - 1], lower[#lower], p) <= 0 do lower[#lower] = nil end
-        lower[#lower + 1] = p
-    end
-    for i = #P, 1, -1 do
-        local p = P[i]
-        while #upper >= 2 and cross(upper[#upper - 1], upper[#upper], p) <= 0 do upper[#upper] = nil end
-        upper[#upper + 1] = p
-    end
-    lower[#lower] = nil upper[#upper] = nil
-    for _, p in ipairs(upper) do lower[#lower + 1] = p end
-    return lower
-end
-
-local RING = {}
-for i = 0, 7 do RING[i + 1] = { math.cos(i * math.pi / 4), math.sin(i * math.pi / 4) } end
-
-local function Highlight(ent, kind, text)
-    if not ent or ent == 0 or not DoesEntityExist(ent) then return end
-    local c = KIND_COLOR[kind] or KIND_COLOR.player
-    local r, g, b = c[1], c[2], c[3]
-    local pulse = 0.7 + 0.3 * math.abs(math.sin(GetGameTimer() / 280))
+-- Contour d'un corps fait de capsules (monde : point A, point B, rayon en mètres) :
+-- champ de distance sur une grille à l'écran puis « marching squares » (lignes de niveau interpolées).
+-- La ligne suit la silhouette : bras et jambes séparés, tête, mains, pieds.
+local function capsuleContour(world, r, g, b, pulse)
     local cam = GetGameplayCamCoord()
-    local center = GetEntityCoords(ent)
-    local dist = #(center - cam)
-    if dist < 0.3 then return end
     local aspect = GetAspectRatio(false)
     local tanH = math.tan(math.rad(GetGameplayCamFov()) / 2)
-    -- 1. silhouette à l'écran : chaque point devient un petit cercle (épaisseur du corps / de la carrosserie)
-    local P2, minD = {}, dist
-    for _, pt in ipairs(silhouettePoints(ent)) do
-        local w = pt[1]
+    local caps, minD, maxR = {}, 1e9, 0
+    local x0, y0, x1, y1 = 1e9, 1e9, -1e9, -1e9
+    local function proj(w)
         local on, sx, sy = GetScreenCoordFromWorldCoord(w.x, w.y, w.z)
-        if on then
-            local d = math.max(0.5, #(w - cam))
-            if d < minD then minD = d end
-            local ry = pt[2] / (2 * d * tanH)          -- rayon en hauteur d'écran
-            local rx = ry / aspect
-            for _, k in ipairs(RING) do P2[#P2 + 1] = { x = sx + k[1] * rx, y = sy + k[2] * ry } end
+        local d = #(w - cam)
+        if d < minD then minD = d end
+        return on and { sx * aspect, sy, d } or nil
+    end
+    for _, c in ipairs(world) do
+        local A, B = proj(c[1]), proj(c[2])
+        if A and B then
+            local rs = c[3] / (2 * ((A[3] + B[3]) / 2) * tanH)
+            caps[#caps + 1] = { A[1], A[2], B[1], B[2], rs }
+            if rs > maxR then maxR = rs end
+            x0, y0 = math.min(x0, A[1], B[1]), math.min(y0, A[2], B[2])
+            x1, y1 = math.max(x1, A[1], B[1]), math.max(y1, A[2], B[2])
         end
     end
-    if #P2 < 3 then return end
-    local H = hull(P2)
-    if #H < 3 then return end
-    -- 2. contour lumineux : trois traits concentriques (cœur net + halo), tracés juste devant la cible
-    local cx, cy = 0, 0
-    for _, p in ipairs(H) do cx, cy = cx + p.x, cy + p.y end
-    cx, cy = cx / #H, cy / #H
-    local depth = math.max(0.4, minD - 0.15)
-    for layer, glow in ipairs({ { 0.0, 255 }, { 0.0022, 120 }, { 0.0045, 45 } }) do
-        local grow, alpha = glow[1], math.floor(glow[2] * pulse)
-        local W = {}
-        for i, p in ipairs(H) do
-            local dx, dy = (p.x - cx) * aspect, p.y - cy
-            local l = math.sqrt(dx * dx + dy * dy)
-            local ox, oy = 0, 0
-            if l > 0 then ox, oy = (dx / l) * grow / aspect, (dy / l) * grow end
-            local from, dir = CursorRay(p.x + ox, p.y + oy)
-            W[i] = from + dir * depth
+    if #caps == 0 or minD < 0.4 then return nil end
+    local glow = 0.0028                                   -- épaisseur du halo (hauteur d'écran)
+    local m = maxR + glow * 2 + 0.004
+    x0, y0, x1, y1 = x0 - m, y0 - m, x1 + m, y1 + m
+    local rows = 56
+    local h = (y1 - y0) / rows
+    local cols = math.max(8, math.min(56, math.ceil((x1 - x0) / h)))
+    local wcell = (x1 - x0) / cols
+    local F = {}
+    for j = 0, rows do
+        local py = y0 + j * h
+        local row = {}
+        for i = 0, cols do
+            local px = x0 + i * wcell
+            local best = 1e9
+            for k = 1, #caps do
+                local c = caps[k]
+                local d = segDist(px, py, c[1], c[2], c[3], c[4]) - c[5]
+                if d < best then best = d end
+            end
+            row[i] = best
         end
-        for i = 1, #W do
-            local p, q = W[i], W[i % #W + 1]
-            DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, alpha)
+        F[j] = row
+    end
+    local depth = math.max(0.4, minD - 0.12)
+    local lines = 0
+    local function toWorld(x, y)
+        local from, dir = CursorRay(x / aspect, y)
+        return from + dir * depth
+    end
+    local function iso(level, alpha)
+        local function lerp(va, vb) return (level - va) / (vb - va) end
+        for j = 0, rows - 1 do
+            local ya, yb = y0 + j * h, y0 + (j + 1) * h
+            local r0, r1 = F[j], F[j + 1]
+            for i = 0, cols - 1 do
+                local a, bb, c, d = r0[i], r0[i + 1], r1[i + 1], r1[i]   -- haut-gauche, haut-droit, bas-droit, bas-gauche
+                local idx = (a < level and 1 or 0) + (bb < level and 2 or 0) + (c < level and 4 or 0) + (d < level and 8 or 0)
+                if idx ~= 0 and idx ~= 15 then
+                    local xa, xb = x0 + i * wcell, x0 + (i + 1) * wcell
+                    local P = {}
+                    if (a < level) ~= (bb < level) then P[#P + 1] = { xa + lerp(a, bb) * wcell, ya } end
+                    if (bb < level) ~= (c < level) then P[#P + 1] = { xb, ya + lerp(bb, c) * h } end
+                    if (d < level) ~= (c < level) then P[#P + 1] = { xa + lerp(d, c) * wcell, yb } end
+                    if (a < level) ~= (d < level) then P[#P + 1] = { xa, ya + lerp(a, d) * h } end
+                    for k = 1, #P - 1, 2 do
+                        local p, q = toWorld(P[k][1], P[k][2]), toWorld(P[k + 1][1], P[k + 1][2])
+                        DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, alpha)
+                        lines = lines + 1
+                    end
+                end
+            end
         end
     end
-    -- 3. petite étiquette au-dessus (nom de la cible et nombre d'actions)
-    if text then
-        local top = 1.0
-        for _, p in ipairs(H) do if p.y < top then top = p.y end end
-        local from, dir = CursorRay(cx, math.max(0.02, top - 0.035))
-        local w = from + dir * depth
-        label3D(w.x, w.y, w.z, text, r, g, b)
+    iso(0.0, math.floor(255 * pulse))
+    iso(glow, math.floor(90 * pulse))
+    return { top = y0 + m, cx = (x0 + x1) / 2, depth = depth, aspect = aspect, lines = lines }
+end
+
+local function pedContour(ent, r, g, b, pulse)
+    local world = {}
+    if IsPedHuman(ent) then
+        for _, c in ipairs(BODY) do
+            local A = GetPedBoneCoords(ent, c[1], 0.0, 0.0, 0.0)
+            local B = c[2] == c[1] and A or GetPedBoneCoords(ent, c[2], 0.0, 0.0, 0.0)
+            if c[4] then A, B = vector3(A.x, A.y, A.z + c[4]), vector3(B.x, B.y, B.z + c[4]) end
+            world[#world + 1] = { A, B, c[3] }
+        end
+    else
+        -- animal : pas d'os humains ; corps = capsule le long du modèle (avant → arrière-train)
+        local mn, mx = dims(ent)
+        local rr = math.min(mx.x - mn.x, mx.z - mn.z) * 0.45
+        local cz = (mn.z + mx.z) / 2
+        world[1] = { GetOffsetFromEntityInWorldCoords(ent, 0.0, mx.y - rr, cz), GetOffsetFromEntityInWorldCoords(ent, 0.0, mn.y + rr, cz), rr }
     end
+    return capsuleContour(world, r, g, b, pulse)
+end
+
+local function Highlight(ent, kind, text)
+    if not ent or ent == 0 or not DoesEntityExist(ent) then Outline(nil) return end
+    local c = KIND_COLOR[kind] or KIND_COLOR.player
+    local r, g, b = c[1], c[2], c[3]
+    local labelPos
+    if IsEntityAPed(ent) then
+        Outline(nil)
+        local pulse = 0.75 + 0.25 * math.abs(math.sin(GetGameTimer() / 280))
+        local res = pedContour(ent, r, g, b, pulse)
+        if res and text then
+            local from, dir = CursorRay(res.cx / res.aspect, math.max(0.02, res.top - 0.03))
+            labelPos = from + dir * res.depth
+        end
+    else
+        Outline(ent, c)
+        if text then
+            local _, mx = dims(ent)
+            labelPos = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, mx.z + 0.25)
+        end
+    end
+    if labelPos then label3D(labelPos.x, labelPos.y, labelPos.z, text, r, g, b) end
 end
 
 local function CloseMenu()
     if not menuOpen then return end
     menuOpen, menuCtx, menuOpts = false, nil, nil
+    Outline(nil)
     C.Focus('alt', false)
     SendNUIMessage({ action = 'altMenu', show = false })
 end
@@ -398,6 +448,8 @@ local function Start()
             -- plus de message en haut à gauche : la cible qui a des actions s'allume, ALT + clic gauche ouvre le menu
             if #opts > 0 and ctx.entity then
                 Highlight(ctx.entity, ctx.kind, ('%s  ·  %d action%s'):format(Title(ctx), #opts, #opts > 1 and 's' or ''))
+            else
+                Outline(nil)
             end
             if IsDisabledControlJustPressed(0, 24) and #opts > 0 then
                 menuCtx, menuOpts = ctx, Options(ctx)
@@ -412,6 +464,7 @@ local function Start()
             Wait(0)
         end
         Stop()
+        Outline(nil)
     end)
 end
 
@@ -442,6 +495,8 @@ RegisterCommand('+police_alt', Start, false)
 RegisterCommand('-police_alt', Stop, false)
 RegisterKeyMapping('+police_alt', 'Interactions : porter, coffre, police (maintenir ALT, clic sur la cible)', 'keyboard', Config.Keys.alt)
 
+
+AddEventHandler('onResourceStop', function(res) if res == GetCurrentResourceName() then Outline(nil) end end)
 
 -- Pour les tests hors du jeu (tests/alt_sim.lua)
 C.AltContext, C.AltHighlight = Context, Highlight

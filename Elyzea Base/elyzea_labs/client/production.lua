@@ -37,8 +37,9 @@ function C.SpawnEquipment(list)
             -- décor (accessoires posés sur / à côté de l'équipement), fourni par elyzea_drogues
             local dk = Config.LabDecor and Config.LabDecor[e.type]
             if dk and drogues() then
-                local ok, list = pcall(function() return exports.elyzea_drogues:SpawnDecor(obj, dk) end)
-                entry.decor = ok and list or {}
+                local ok, res = pcall(function() return exports.elyzea_drogues:SpawnDecor(obj, dk) end)
+                entry.decor = ok and type(res) == 'table' and res.props or {}
+                entry.chair = ok and type(res) == 'table' and res.chair or nil
                 if gen ~= mine then for _, o in ipairs(entry.decor) do if DoesEntityExist(o) then DeleteEntity(o) end end return end
             end
         end
@@ -99,9 +100,9 @@ RegisterNUICallback('craft', function(body, cb)
     crafting = r.token
     if r.game and drogues() then
         -- mini-jeu + scène (elyzea_drogues), résultat revérifié par le serveur
-        local ent
-        for _, e in ipairs(shown) do if e.id == tonumber(body.id) then ent = e.ent end end
-        local id = exports.elyzea_drogues:RunStep({ game = r.game, profile = r.game.profile, entity = ent, siteType = nil, duration = r.duration / 1000 })
+        local ent, chair
+        for _, e in ipairs(shown) do if e.id == tonumber(body.id) then ent, chair = e.ent, e.chair end end
+        local id = exports.elyzea_drogues:RunStep({ game = r.game, profile = r.game.profile, entity = ent, chair = chair, siteType = nil, duration = r.duration / 1000 })
         if not id then crafting = nil C.Pub('craftCancel') return C.Notify('Termine d\'abord ce que tu fais.', 'error') end
         stepWaits[id] = r.token
         return
