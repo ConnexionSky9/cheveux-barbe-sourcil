@@ -201,18 +201,27 @@ end)
 -- Connexion / choix du personnage : la mini-carte est cachée puis réaffichée (multichar, fondu, caméra).
 -- Une position posée pendant qu'elle est cachée n'est pas prise en compte par GTA (carte trop grande,
 -- mal cadrée) : on la repose dès qu'elle redevient visible à l'écran.
+-- On attend que GTA dessine vraiment la carte (IsMinimapRendering) : avant, la position est ignorée.
+-- Puis on la repose plusieurs fois pendant 20 s (le jeu finit de charger l'interface pendant ce temps).
+local function settle()
+    enforceToken = enforceToken + 1
+    local token = enforceToken
+    CreateThread(function()
+        for _, delay in ipairs({ 0, 300, 700, 1500, 2500, 4000, 7000, 12000, 20000 }) do
+            Wait(delay)
+            if token ~= enforceToken then return end
+            if not preview and not IsBigmapActive() and not IsPauseMenuActive() and not IsRadarHidden() then apply() end
+        end
+    end)
+end
 CreateThread(function()
     local wasVisible = false
     while true do
-        local visible = not IsRadarHidden() and IsScreenFadedIn() and not GetIsLoadingScreenActive()
-            and not IsPlayerSwitchInProgress() and not IsBigmapActive()
-        if visible and not wasVisible and not preview then
-            apply()
-            SetTimeout(600, function() if not preview and not IsBigmapActive() then apply() end end)
-            SetTimeout(2500, function() if not preview and not IsBigmapActive() then apply() end end)
-        end
+        local visible = not IsRadarHidden() and IsMinimapRendering() and IsScreenFadedIn() and not GetIsLoadingScreenActive()
+            and not IsPlayerSwitchInProgress() and not IsBigmapActive() and not IsPauseMenuActive()
+        if visible and not wasVisible and not preview then settle() end
         wasVisible = visible
-        Wait(visible and 1000 or 200)
+        Wait(visible and 1000 or 100)
     end
 end)
 
