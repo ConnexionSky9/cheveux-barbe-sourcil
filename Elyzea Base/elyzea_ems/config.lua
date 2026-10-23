@@ -250,12 +250,18 @@ Config.Lab = {
 Config.Stretcher = {
     enabled = true,
     models = { 'v_med_emptybed' },              -- 1er modèle disponible utilisé (lit roulant de l'hôpital, jeu de base)
-    -- brancard par rapport à l'EMS (os racine) : devant lui, au niveau du sol
-    stretcher = { pos = { 0.0, 1.45, -0.98 }, rot = { 0.0, 0.0, 90.0 } },
-    -- patient par rapport au brancard : allongé sur le dos dessus
-    patient = { pos = { 0.0, 0.0, 1.32 }, rot = { 0.0, 0.0, 90.0 } },
-    emsAnim = { 'anim@heists@box_carry@', 'idle', 49 },                     -- l'EMS tient le brancard
-    patientAnim = { 'amb@world_human_sunbathe@male@back@base', 'base', 1 },  -- allongé sur le dos
+    -- Le brancard roule au sol devant l'EMS, qui se tient à son BOUT (côté court). Sa longueur et sa hauteur
+    -- sont lues sur le modèle : seuls ces écarts se règlent.
+    stretcher = {
+        gap = 0.25,          -- distance entre l'EMS et le bout du brancard (m)
+        height = 0.0,        -- décalage vertical si le brancard s'enfonce / flotte (m)
+        heading = 0.0,       -- rotation en plus (180 = l'autre bout vers l'EMS)
+        turnSmooth = 0.12,   -- 0.05 = tourne lentement derrière l'EMS, 1 = suit instantanément
+    },
+    -- patient par rapport au brancard : allongé dans la longueur, sur le matelas
+    patient = { pos = { 0.0, 0.0, 1.05 }, rot = { 0.0, 0.0, 180.0 } },
+    emsAnim = { 'anim@heists@box_carry@', 'idle', 49 },              -- l'EMS tient le bout du brancard
+    patientAnim = { 'anim@gangops@morgue@table@', 'body_search', 1 }, -- allongé à plat sur le dos
     noSprint = true,                            -- pas de course en tirant le brancard
 }
 

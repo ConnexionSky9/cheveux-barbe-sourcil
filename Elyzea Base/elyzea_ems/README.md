@@ -210,14 +210,22 @@ Tests hors jeu : `python3 tests/run_procedures_sim.py`, `python3 tests/run_proce
 
 ## 🛏️ Brancard (« Accompagner le patient »)
 
-ALT ou F6 › **Allonger sur le brancard** : un brancard apparaît devant l'EMS, le patient (conscient ou non) est allongé
-dessus et l'EMS le tire (pas de course, pas de saut, pas d'arme). **Retirer du brancard** le repose au sol à côté.
-**Installer le patient dans le véhicule** (ALT) range le brancard et installe le patient dans l'ambulance.
-Le brancard disparaît aussi si l'EMS monte dans un véhicule, tombe à terre, se déconnecte, ou si le patient se déconnecte.
+ALT ou F6 › **Allonger sur le brancard** : un brancard roulant apparaît devant l'EMS, qui se tient à son **bout**.
+Le patient (conscient ou non) est allongé à plat dans la longueur. Le brancard roule au sol : il suit le terrain,
+s'incline dans les pentes et tourne progressivement derrière l'EMS. Pendant ce temps, pas de course, de saut ni d'arme.
+**Retirer du brancard** repose le patient au sol à côté. **Installer le patient dans le véhicule** (ALT) range le brancard
+et installe le patient dans l'ambulance. Le brancard disparaît aussi si l'EMS monte dans un véhicule, tombe à terre ou se
+déconnecte, ou si le patient se déconnecte.
 
-Réglages : `config.lua` › `Config.Stretcher` (activer, modèle, positions, animations). `enabled = false` = ancien mode
-(tenu par le bras / porté sur l'épaule). Si aucun modèle de la liste n'existe, l'ancien mode revient tout seul.
+Réglages : `config.lua` › `Config.Stretcher`. La longueur et la hauteur du brancard sont lues sur le modèle en jeu ;
+seuls l'écart avec l'EMS, un décalage de hauteur, la rotation et la position du patient se règlent. `enabled = false` =
+ancien mode (tenu par le bras / porté sur l'épaule) ; si aucun modèle de la liste n'existe, l'ancien mode revient tout seul.
 
-**Positions à ajuster en jeu** : `/brancard_reglage brancard x y z rx ry rz` (EMS) et `/brancard_reglage patient x y z rx ry rz`
-(patient) changent la position tout de suite, pour toi seulement ; `/brancard_reglage` seul affiche les valeurs. Recopie-les ensuite
-dans `Config.Stretcher`. Test hors jeu : `python3 tests/run_stretcher_sim.py` (deux clients simulés).
+**Ajuster en jeu**, sans redémarrer (pour toi seulement, à recopier ensuite dans `Config.Stretcher`) :
+- `/brancard_reglage brancard <écart> <hauteur> <rotation>` (EMS), ex. `/brancard_reglage brancard 0.25 0 0` ;
+  rotation `180` = l'autre bout du lit vers l'EMS ;
+- `/brancard_reglage patient <x> <y> <z> <rx> <ry> <rz>` (patient allongé), ex. `/brancard_reglage patient 0 0 1.05 0 0 180` ;
+  `z` monte / descend le patient sur le matelas, `rz` `0` ou `180` met la tête de l'autre côté ;
+- `/brancard_reglage` seul affiche les valeurs actuelles.
+
+Test hors jeu : `python3 tests/run_stretcher_sim.py` (deux clients simulés).

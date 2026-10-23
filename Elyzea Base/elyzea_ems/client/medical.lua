@@ -122,10 +122,41 @@ local function StretcherModel()
     return nil
 end
 
-local function AttachStretcher(obj, ped)
-    local p, r = ST.stretcher.pos, ST.stretcher.rot
-    AttachEntityToEntity(obj, ped, GetPedBoneIndex(ped, 0), p[1] + 0.0, p[2] + 0.0, p[3] + 0.0, r[1] + 0.0, r[2] + 0.0, r[3] + 0.0,
-        false, false, false, false, 2, true)
+-- Géométrie du modèle (lue en jeu) : axe long, longueur, hauteur sous l'origine
+local function Geometry(h)
+    local mn, mx = GetModelDimensions(h)
+    local lx, ly = mx.x - mn.x, mx.y - mn.y
+    return { long = math.max(lx, ly), extra = lx > ly and 90.0 or 0.0, bottom = mn.z }
+end
+
+local function GroundZ(x, y, z, def)
+    local ok, gz = GetGroundZFor_3dCoord(x, y, z + 1.5, false)
+    if ok and gz and gz > z - 4.0 then return gz end
+    return def
+end
+
+-- Place le brancard au sol devant l'EMS (bout du brancard contre lui), incliné selon la pente.
+-- Il « roule » : sa direction rejoint doucement celle de l'EMS au lieu de tourner d'un bloc.
+local function PlaceStretcher(obj, ped, geo, state)
+    local cfg = ST.stretcher or {}
+    local target = GetEntityHeading(ped) + (cfg.heading or 0.0)
+    local k = math.max(0.01, math.min(1.0, cfg.turnSmooth or 0.12))
+    if not state.h then state.h = target end
+    local d = ((target - state.h + 540.0) % 360.0) - 180.0
+    state.h = (state.h + d * k) % 360.0
+    local rad = math.rad(state.h)
+    local fx, fy = -math.sin(rad), math.cos(rad)
+    local me = GetEntityCoords(ped)
+    local half = geo.long / 2.0
+    local dist = (cfg.gap or 0.25) + half
+    local cx, cy = me.x + fx * dist, me.y + fy * dist
+    local feet = me.z - 1.0
+    local zc = GroundZ(cx, cy, me.z, feet)
+    local zn = GroundZ(cx - fx * half, cy - fy * half, me.z, zc)
+    local zf = GroundZ(cx + fx * half, cy + fy * half, me.z, zc)
+    local pitch = math.deg(math.atan(zf - zn, geo.long))
+    SetEntityCoordsNoOffset(obj, cx, cy, zc - geo.bottom + (cfg.height or 0.0), false, false, false)
+    SetEntityRotation(obj, pitch, 0.0, state.h + geo.extra, 2, true)
 end
 
 local function AttachOnStretcher(ped, obj)
@@ -223,8 +254,10 @@ RegisterNetEvent('ems:client:escorting', function(patient, downed, stretcher)
             SetModelAsNoLongerNeeded(h)
             if not obj or obj == 0 then return TriggerServerEvent('ems:server:stretcherFail') end
             myStretcher = obj
+            local geo, place = Geometry(h), {}
             SetEntityCollision(obj, false, false)
-            AttachStretcher(obj, me)
+            FreezeEntityPosition(obj, true)
+            PlaceStretcher(obj, me, geo, place)
             local net = NetworkGetNetworkIdFromEntity(obj)
             SetNetworkIdExistsOnAllMachines(net, true)
             TriggerServerEvent('ems:server:stretcher', net)
@@ -232,7 +265,7 @@ RegisterNetEvent('ems:client:escorting', function(patient, downed, stretcher)
             while escortingTok == tok do
                 local p = PlayerPedId()
                 if not DoesEntityExist(obj) then break end
-                if not IsEntityAttachedToEntity(obj, p) then AttachStretcher(obj, p) end
+                PlaceStretcher(obj, p, geo, place)
                 if GetGameTimer() >= nextAnim then
                     nextAnim = GetGameTimer() + 500
                     local a = ST.emsAnim
@@ -265,22 +298,28 @@ RegisterNetEvent('ems:client:escorting', function(patient, downed, stretcher)
 end)
 
 -- Réglage des positions en jeu (seulement pour toi, à recopier ensuite dans config.lua › Config.Stretcher)
--- /brancard_reglage brancard 0 1.45 -0.98 0 0 90   ·   /brancard_reglage patient 0 0 1.32 0 0 90
+-- /brancard_reglage brancard <écart> <hauteur> <rotation>     ex. /brancard_reglage brancard 0.25 0 0
+-- /brancard_reglage patient <x> <y> <z> <rx> <ry> <rz>         ex. /brancard_reglage patient 0 0 1.05 0 0 180
 RegisterCommand('brancard_reglage', function(_, args)
-    local which = args[1] == 'patient' and 'patient' or (args[1] == 'brancard' and 'stretcher' or nil)
-    if not which or not ST[which] then
-        return C.Notify(('Brancard : %s %s / patient : %s %s'):format(json.encode(ST.stretcher and ST.stretcher.pos), json.encode(ST.stretcher and ST.stretcher.rot),
-            json.encode(ST.patient and ST.patient.pos), json.encode(ST.patient and ST.patient.rot)), 'inform')
+    local s, pa = ST.stretcher or {}, ST.patient or {}
+    if args[1] == 'brancard' then
+        local g, hgt, rot = tonumber(args[2]), tonumber(args[3]), tonumber(args[4])
+        if not (g and hgt and rot) then return C.Notify('Usage : /brancard_reglage brancard <écart> <hauteur> <rotation>', 'error') end
+        s.gap, s.height, s.heading = g, hgt, rot
+        ST.stretcher = s
+        return C.Notify(('Brancard : écart %.2f, hauteur %.2f, rotation %.0f'):format(g, hgt, rot), 'success')
     end
-    local n = {}
-    for i = 2, 7 do n[#n + 1] = tonumber(args[i]) end
-    if #n ~= 6 then return C.Notify('Usage : /brancard_reglage brancard|patient x y z rx ry rz', 'error') end
-    ST[which].pos = { n[1], n[2], n[3] }
-    ST[which].rot = { n[4], n[5], n[6] }
-    -- détache : la boucle rattache aussitôt avec les nouvelles valeurs
-    if which == 'stretcher' and myStretcher and DoesEntityExist(myStretcher) then DetachEntity(myStretcher, false, false) end
-    if which == 'patient' and lyingOn then DetachEntity(PlayerPedId(), false, false) end
-    C.Notify(('%s : position %s, rotation %s'):format(args[1], json.encode(ST[which].pos), json.encode(ST[which].rot)), 'success')
+    if args[1] == 'patient' then
+        local n = {}
+        for i = 2, 7 do n[#n + 1] = tonumber(args[i]) end
+        if #n ~= 6 then return C.Notify('Usage : /brancard_reglage patient x y z rx ry rz', 'error') end
+        pa.pos, pa.rot = { n[1], n[2], n[3] }, { n[4], n[5], n[6] }
+        ST.patient = pa
+        if lyingOn then DetachEntity(PlayerPedId(), false, false) end   -- la boucle rattache aussitôt
+        return C.Notify(('Patient : position %s, rotation %s'):format(json.encode(pa.pos), json.encode(pa.rot)), 'success')
+    end
+    C.Notify(('Brancard : écart %.2f, hauteur %.2f, rotation %.0f · patient : %s %s'):format(s.gap or 0, s.height or 0, s.heading or 0,
+        json.encode(pa.pos), json.encode(pa.rot)), 'inform')
 end, false)
 
 AddEventHandler('onResourceStop', function(res)

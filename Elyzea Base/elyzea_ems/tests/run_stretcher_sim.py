@@ -9,9 +9,12 @@ from lupa import lua54
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EMS, PAT = 1, 2                      # server ids
 PED = {EMS: 101, PAT: 102}
-W = {'ents': {}, 'next': 500, 'net': {}, 'time': 0, 'anims': {}, 'models': {'v_med_emptybed'}}
+W = {'ents': {}, 'next': 500, 'net': {}, 'time': 0, 'anims': {}, 'models': {'v_med_emptybed'},
+     'slope': 0.0}   # sol : z = 29 + slope * y
+# dimensions simulées du lit (axe long = Y, 2,2 m ; origine 0,4 m au-dessus du sol)
+DIMS = ((-0.5, -1.1, -0.4), (0.5, 1.1, 0.9))
 for sid, ped in PED.items():
-    W['ents'][ped] = {'type': 'ped', 'pos': [0.0, 0.0 + sid, 30.0], 'att': None}
+    W['ents'][ped] = {'type': 'ped', 'pos': [0.0, 0.0 + sid, 30.0], 'att': None, 'heading': 0.0}
 
 def joaat(s):
     h = 0
@@ -76,7 +79,11 @@ class Client:
         function IsPedInAnyVehicle() return false end
         function GetEntityCoords(e) local p = py:pos(e) return vector3(p[1], p[2], p[3]) end
         function GetOffsetFromEntityInWorldCoords(e, x, y, z) local p = py:pos(e) return vector3(p[1] + x, p[2] + y, p[3] + z) end
-        function GetGroundZFor_3dCoord(x, y, z) return true, 29.0 end
+        function GetGroundZFor_3dCoord(x, y, z) return true, py:ground(y) end
+        function GetEntityHeading(e) return py:heading(e) end
+        function GetModelDimensions() local a, b = py:dims() return vector3(a[1], a[2], a[3]), vector3(b[1], b[2], b[3]) end
+        function SetEntityCoordsNoOffset(e, x, y, z) py:setPos(e, x, y, z) end
+        function SetEntityRotation(e, rx, ry, rz) py:setRot(e, rx, ry, rz) end
         function SetEntityCoords(e, x, y, z) py:setPos(e, x, y, z) end
         function GetPedBoneIndex() return 0 end
         function GetCurrentResourceName() return 'elyzea_ems' end
@@ -125,6 +132,10 @@ class Client:
     def pos(self, e): return self.L.table_from(W['ents'][e]['pos'])
     def setPos(self, e, x, y, z): W['ents'][e]['pos'] = [x, y, z]
     def pedOf(self, sid): return PED.get(sid)
+    def ground(self, y): return 29.0 + W['slope'] * y
+    def heading(self, e): return W['ents'][e].get('heading', 0.0)
+    def dims(self): return self.L.table_from(DIMS[0]), self.L.table_from(DIMS[1])
+    def setRot(self, e, rx, ry, rz): W['ents'][e]['rot'] = (rx, ry, rz)
     def note(self, m): self.notes.append(m)
     def request(self, a, d): self.req.append((a, dict(d.items()) if d else {}))
     # --- pilotage
@@ -159,16 +170,41 @@ ems.fire('ems:client:escorting', PAT, False, True)
 relay(); pat.tick(); ems.tick()
 st = stretchers()
 check(len(st) == 1 and W['ents'][st[0]]['model'] == 'v_med_emptybed', 'un brancard créé par l\'EMS (v_med_emptybed)')
-check(st and W['ents'][st[0]]['att'] and W['ents'][st[0]]['att'][0] == PED[EMS], 'brancard attaché devant l\'EMS')
+b = W['ents'][st[0]] if st else {}
+check(st and b['att'] is None, 'brancard posé au sol (pas porté par l\'EMS)')
+check(st and abs(b['pos'][0]) < 1e-6 and abs(b['pos'][1] - (1 + 0.25 + 1.1)) < 1e-6,
+      'EMS au bout : centre du lit à 0,25 m + demi-longueur (1,1 m) devant lui')
+check(st and abs(b['pos'][2] - 29.4) < 1e-6, 'roues au sol (hauteur lue sur le modèle)')
+check(st and abs(b['rot'][2]) < 1e-6 and abs(b['rot'][0]) < 1e-6, 'lit dans l\'axe de l\'EMS, à plat')
 check(st and W['ents'][PED[PAT]]['att'] and W['ents'][PED[PAT]]['att'][0] == st[0], 'patient attaché sur le brancard')
-check(W['anims'].get(PED[PAT]) == 'amb@world_human_sunbathe@male@back@base/base', 'patient allongé sur le dos')
+check(W['anims'].get(PED[PAT]) == 'anim@gangops@morgue@table@/body_search', 'patient allongé à plat sur le dos')
+pa = W['ents'][PED[PAT]]['att']
+check(pa and abs(pa[1][5] - 180.0) < 1e-6, 'patient dans la longueur du lit (rotation 180, pas en travers)')
 check(W['anims'].get(PED[EMS]) == 'anim@heists@box_carry@/idle', 'EMS tient le brancard (animation)')
 
+print('\n[Le brancard roule : virage et pente]')
+W['ents'][PED[EMS]]['heading'] = 90.0
+ems.tick(1)
+h1 = W['ents'][st[0]]['rot'][2]
+check(0 < h1 < 30, 'virage : le lit tourne progressivement (%.1f° après une image)' % h1)
+ems.tick(80)
+b = W['ents'][st[0]]
+check(abs(b['rot'][2] - 90.0) < 0.5 and abs(b['pos'][0] + 1.35) < 0.02 and abs(b['pos'][1] - 1) < 0.02, 'virage terminé : lit de nouveau devant l\'EMS, dans son axe')
+W['ents'][PED[EMS]]['heading'] = 0.0; ems.tick(80)
+W['slope'] = 0.1; ems.tick()
+b = W['ents'][st[0]]
+check(b['rot'][0] > 5.0 and abs(b['pos'][2] - (29.0 + 0.1 * 2.35 + 0.4)) < 1e-6, 'pente : le lit suit le sol et s\'incline (%.1f°)' % b['rot'][0])
+W['slope'] = 0.0; ems.tick()
+
 print('\n[Réglage des positions en jeu]')
-ems.cmds['brancard_reglage'](None, ems.L.table_from(['brancard', '0', '1.6', '-1.0', '0', '0', '180']))
+ems.cmds['brancard_reglage'](None, ems.L.table_from(['brancard', '0.5', '0.1', '0']))
 ems.tick()
-off = W['ents'][st[0]]['att'][1] if st and W['ents'][st[0]]['att'] else None
-check(off is not None and abs(off[1] - 1.6) < 1e-6 and abs(off[5] - 180) < 1e-6, '/brancard_reglage : brancard rattaché avec les nouvelles valeurs')
+b = W['ents'][st[0]]
+check(abs(b['pos'][1] - (1 + 0.5 + 1.1)) < 1e-6 and abs(b['pos'][2] - 29.5) < 1e-6, '/brancard_reglage brancard : écart et hauteur appliqués')
+pat.cmds['brancard_reglage'](None, pat.L.table_from(['patient', '0', '0.1', '1.2', '0', '0', '0']))
+pat.tick()
+pa = W['ents'][PED[PAT]]['att']
+check(pa and abs(pa[1][2] - 1.2) < 1e-6 and abs(pa[1][5]) < 1e-6, '/brancard_reglage patient : patient rattaché avec les nouvelles valeurs')
 
 print('\n[Lâcher le patient]')
 pat.fire('ems:client:escort', None)
