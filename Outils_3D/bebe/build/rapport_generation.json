@@ -146,16 +146,28 @@
     "corps": {
       "peau1_couche": "ely_bebe_corps_peau1_couche.png",
       "peau1_pyjama": "ely_bebe_corps_peau1_pyjama.png",
+      "peau1_pyjama_rose": "ely_bebe_corps_peau1_pyjama_rose.png",
+      "peau1_pyjama_bleu": "ely_bebe_corps_peau1_pyjama_bleu.png",
       "peau2_couche": "ely_bebe_corps_peau2_couche.png",
       "peau2_pyjama": "ely_bebe_corps_peau2_pyjama.png",
+      "peau2_pyjama_rose": "ely_bebe_corps_peau2_pyjama_rose.png",
+      "peau2_pyjama_bleu": "ely_bebe_corps_peau2_pyjama_bleu.png",
       "peau3_couche": "ely_bebe_corps_peau3_couche.png",
       "peau3_pyjama": "ely_bebe_corps_peau3_pyjama.png",
+      "peau3_pyjama_rose": "ely_bebe_corps_peau3_pyjama_rose.png",
+      "peau3_pyjama_bleu": "ely_bebe_corps_peau3_pyjama_bleu.png",
       "peau4_couche": "ely_bebe_corps_peau4_couche.png",
       "peau4_pyjama": "ely_bebe_corps_peau4_pyjama.png",
+      "peau4_pyjama_rose": "ely_bebe_corps_peau4_pyjama_rose.png",
+      "peau4_pyjama_bleu": "ely_bebe_corps_peau4_pyjama_bleu.png",
       "peau5_couche": "ely_bebe_corps_peau5_couche.png",
       "peau5_pyjama": "ely_bebe_corps_peau5_pyjama.png",
+      "peau5_pyjama_rose": "ely_bebe_corps_peau5_pyjama_rose.png",
+      "peau5_pyjama_bleu": "ely_bebe_corps_peau5_pyjama_bleu.png",
       "peau6_couche": "ely_bebe_corps_peau6_couche.png",
-      "peau6_pyjama": "ely_bebe_corps_peau6_pyjama.png"
+      "peau6_pyjama": "ely_bebe_corps_peau6_pyjama.png",
+      "peau6_pyjama_rose": "ely_bebe_corps_peau6_pyjama_rose.png",
+      "peau6_pyjama_bleu": "ely_bebe_corps_peau6_pyjama_bleu.png"
     },
     "yeux": {
       "ardoise": "ely_bebe_yeux_ardoise.png",
@@ -174,7 +186,12 @@
       "touffe_chatain": "ely_bebe_cheveux_touffe_chatain.png",
       "touffe_brun": "ely_bebe_cheveux_touffe_brun.png",
       "touffe_noir": "ely_bebe_cheveux_touffe_noir.png",
-      "touffe_roux": "ely_bebe_cheveux_touffe_roux.png"
+      "touffe_roux": "ely_bebe_cheveux_touffe_roux.png",
+      "naissance_blond": "ely_bebe_cheveux_naissance_blond.png",
+      "naissance_chatain": "ely_bebe_cheveux_naissance_chatain.png",
+      "naissance_brun": "ely_bebe_cheveux_naissance_brun.png",
+      "naissance_noir": "ely_bebe_cheveux_naissance_noir.png",
+      "naissance_roux": "ely_bebe_cheveux_naissance_roux.png"
     },
     "paupieres": {
       "peau1": "ely_bebe_paupieres_peau1.png",
@@ -219,7 +236,9 @@
   },
   "tenues": [
     "couche",
-    "pyjama"
+    "pyjama",
+    "pyjama_rose",
+    "pyjama_bleu"
   ],
   "yeux": {
     "ardoise": [
@@ -251,7 +270,8 @@
   "cheveux": {
     "styles": [
       "duvet",
-      "touffe"
+      "touffe",
+      "naissance"
     ],
     "couleurs": {
       "blond": [
@@ -303,5 +323,5 @@
     "tibia.R",
     "pied.R"
   ],
-  "duree_s": 604.4
+  "duree_s": 709.9
 }

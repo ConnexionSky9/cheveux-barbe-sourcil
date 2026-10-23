@@ -29,8 +29,12 @@ local SCHEMA = {
     { s = 'annulation', k = 'intimite.dureeMinPourConception', p = { 'Intimite', 'dureeMinPourConception' }, t = 'pct', min = 0.1, max = 1.0,
       l = 'Seuil pour un moment arrêté', a = 'Utilisé seulement si l\'option précédente est activée : part de la durée à atteindre.' },
     -- Positionnement
+    { s = 'position', k = 'intimite.animation', p = { 'Intimite', 'animation' }, t = 'choix', choix = { 'baiser', 'bise' },
+      l = 'Animation', a = 'baiser (V8) : face à face, contre l\'autre. bise : ancienne animation (bise sur la joue, ressemble à un câlin).' },
+    { s = 'position', k = 'intimite.baiserAvant', p = { 'Intimite', 'anims', 'baiser', 'attache', 'avant' }, t = 'num', min = 0, max = 0.6, step = 0.01, u = 'm',
+      l = 'Baiser : écart entre les deux personnages', a = 'Distance entre les bassins (0,08 m par défaut). À ajuster en jeu si les visages ne se touchent pas.' },
     { s = 'position', k = 'intimite.distanceCouple', p = { 'Intimite', 'distanceCouple' }, t = 'num', min = 0.3, max = 2.0, step = 0.05, u = 'm',
-      l = 'Distance entre les deux personnages', a = 'La personne qui accepte se place face à l\'autre, à cette distance.' },
+      l = 'Distance (animation « bise »)', a = 'La personne qui accepte se place face à l\'autre, à cette distance.' },
     -- Conditions de déclenchement
     { s = 'conditions', k = 'intimite.distanceMax', p = { 'Intimite', 'distanceMax' }, t = 'num', min = 1.0, max = 10.0, step = 0.5, u = 'm',
       l = 'Distance maximale pour proposer', a = 'Distance entre les deux personnes pour envoyer et accepter une demande.' },

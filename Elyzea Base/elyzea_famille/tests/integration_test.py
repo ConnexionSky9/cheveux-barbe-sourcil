@@ -472,6 +472,10 @@ s = session_rows()
 check('6. session créée (active)', len(s) == 1 and s[0]['status'] == 'active', s)
 check('6. préservatif retiré une seule fois au demandeur', W.inv[2]['preservatif'] == 1)
 check('6. début envoyé aux deux joueurs', last_client('elyzea_famille:client:intimeDebut', 1) and last_client('elyzea_famille:client:intimeDebut', 2))
+d1, d2 = last_client('elyzea_famille:client:intimeDebut', 1), last_client('elyzea_famille:client:intimeDebut', 2)
+check('6. V8 : baiser (hs3_ext-20) pour les deux, rôles distincts, placement face à face contre l\'autre transmis',
+      d1[3]['dict'] == 'hs3_ext-20' and d2[3]['dict'] == 'hs3_ext-20' and d1[3]['clip'] != d2[3]['clip']
+      and d1[0]['attache']['os'] == 11816 and abs(d1[0]['attache']['avant'] - 0.08) < 1e-9, (d1[3], d2[3], d1[0].get('attache')))
 advance(full_duration())
 s = session_rows()[0]
 att = q('SELECT * FROM rp_conception_attempts WHERE session_id = %s', (s['id'],))
@@ -1208,6 +1212,16 @@ check('60. diagnostic admin du suivi : grossesse en cours et état du téléphon
 ok_d2, msg_d2 = admin(3, 'diag_suivi', {'sid': 999})
 check('60. diagnostic : joueur inconnu signalé', ok_d2 is False, msg_d2)
 admin(3, 'test_fin', {'sid': 1})
+
+# 61. V8 : choix de l'animation du moment intime (menu admin), valeur invalide refusée
+v = admin_data(3)['values']; v['intimite.animation'] = 'bise'
+ok, msg = admin(3, 'save', {'values': v})
+check('61. V8 : animation « bise » (ancienne) sélectionnable', ok is True and G.Config.Intimite.animation == 'bise', msg)
+v['intimite.animation'] = 'calin'
+ok, msg = admin(3, 'save', {'values': v})
+check('61. V8 : animation inconnue refusée', ok is False and G.Config.Intimite.animation == 'bise', msg)
+v['intimite.animation'] = 'baiser'
+admin(3, 'save', {'values': v})
 ok, msg = admin(3, 'reset')
 SUIVI[0] = 60
 G.Config.Grossesse.suivi = 60

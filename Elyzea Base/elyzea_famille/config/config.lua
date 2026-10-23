@@ -33,10 +33,21 @@ Config.Intimite = {
     fondu = 1500,                -- millisecondes du fondu au noir / retour
     delaiAvantNoir = 2500,       -- millisecondes d'étreinte visible avant le fondu
     toucheAnnuler = 73,          -- contrôle GTA « X » (INPUT_VEH_DUCK) : arrêter
-    -- Animations natives de GTA V (paire utilisée aussi par rpemotes pour « hug »). Aucune animation explicite.
-    anim = {
-        demandeur = { dict = 'mp_ped_interaction', clip = 'kisses_guy_a' },
-        partenaire = { dict = 'mp_ped_interaction', clip = 'kisses_guy_b' },
+    -- Animations natives de GTA V vérifiées dans la liste des animations du jeu. Aucune animation explicite.
+    -- V8 : « baiser » (défaut) = le baiser de Lester et Georgina, épilogue du braquage du casino (hs3_ext-20) : la
+    -- personne qui accepte est placée face à l'autre, contre elle (attache au bassin, comme les emotes partagées) ;
+    -- « bise » = l'ancienne animation (bise sur la joue avec accolade, perçue comme un câlin). Choix dans le menu admin.
+    animation = 'baiser',
+    anims = {
+        baiser = {
+            demandeur = { dict = 'hs3_ext-20', clip = 'cs_lestercrest_3_dual-20' },
+            partenaire = { dict = 'hs3_ext-20', clip = 'csb_georginacheng_dual-20' },
+            attache = { os = 11816, avant = 0.08, cote = 0.0, hauteur = 0.0 },     -- 11816 = SKEL_Pelvis
+        },
+        bise = {
+            demandeur = { dict = 'mp_ped_interaction', clip = 'kisses_guy_a' },
+            partenaire = { dict = 'mp_ped_interaction', clip = 'kisses_guy_b' },
+        },
     },
     commande = 'intimite',       -- /intimite : proposer à la personne en face (si le menu ALT n'est pas disponible)
 }

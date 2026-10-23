@@ -142,8 +142,11 @@ local function demarrer(a, b, ja, jb, optA, optB)
     parJoueur[a], parJoueur[b] = id, id
     local base = { id = id, duree = duree, fondu = fondu, delaiAvantNoir = delaiNoir,
         distance = I.distanceCouple, touche = I.toucheAnnuler, preservatif = fournisseur ~= nil }
-    TriggerClientEvent('elyzea_famille:client:intimeDebut', a, base, 'demandeur', b, I.anim.demandeur)
-    TriggerClientEvent('elyzea_famille:client:intimeDebut', b, base, 'partenaire', a, I.anim.partenaire)
+    -- V8 : animation choisie dans le menu admin (baiser par défaut) ; « attache » = placement face à face, contre l'autre
+    local A = I.anims[I.animation] or I.anims.baiser
+    base.attache = A.attache
+    TriggerClientEvent('elyzea_famille:client:intimeDebut', a, base, 'demandeur', b, A.demandeur)
+    TriggerClientEvent('elyzea_famille:client:intimeDebut', b, base, 'partenaire', a, A.partenaire)
     local total = delaiNoir + fondu + duree * 1000
     SetTimeout(total, function() terminer(id, 'terminee', 'fin') end)
 end

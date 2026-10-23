@@ -88,7 +88,7 @@ def main():
         for tenue in rep['tenues']:
             body_img.filepath = os.path.join(T, f'ely_bebe_corps_{tone}_{tenue}.png')
             body_img.reload()
-            nrm_img.filepath = os.path.join(T, f'ely_bebe_corps_{tenue}_n.png')
+            nrm_img.filepath = os.path.join(T, f"ely_bebe_corps_{'pyjama' if tenue.startswith('pyjama') else tenue}_n.png")
             nrm_img.reload()
             p = os.path.join(tmp, f'tenue_{tone}_{tenue}.png')
             sc.render.filepath = p

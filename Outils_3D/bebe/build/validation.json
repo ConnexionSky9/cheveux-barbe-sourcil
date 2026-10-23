@@ -39,7 +39,7 @@
     {
       "controle": "textures (présentes, puissance de 2)",
       "ok": true,
-      "detail": "35 fichiers"
+      "detail": "52 fichiers"
     },
     {
       "controle": "squelette",
@@ -179,12 +179,12 @@
     {
       "controle": "ressource FiveM : fichiers binaires",
       "ok": true,
-      "detail": "148/148 dans stream/"
+      "detail": "217/217 dans stream/"
     },
     {
       "controle": "ressource FiveM : chaque fichier < 16 Mo",
       "ok": true,
-      "detail": "le plus gros : ely_bebe_corps_txd.ytd 6.7 Mo"
+      "detail": "le plus gros : ely_bebe_corps_txd.ytd 10.0 Mo"
     }
   ]
 }

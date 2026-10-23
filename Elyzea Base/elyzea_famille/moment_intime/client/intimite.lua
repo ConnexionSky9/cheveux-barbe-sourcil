@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA FAMILLE - client : déroulé d'un moment intime
---  Mise en place face à face, étreinte (animation native), fondu au noir, retour à l'état normal.
+--  Mise en place face à face, baiser (animation native, V8), fondu au noir, retour à l'état normal.
 --  Aucune représentation explicite : l'écran reste noir pendant toute la durée.
 --  L'état du personnage est TOUJOURS restauré (fin normale, arrêt, déconnexion de l'autre, ressource arrêtée).
 -- =====================================================================
@@ -17,6 +17,7 @@ end
 
 local function restaurer()
     local ped = PlayerPedId()
+    if IsEntityAttached(ped) then DetachEntity(ped, true, false) end      -- V8 : placement « baiser »
     FreezeEntityPosition(ped, false)
     SetEntityInvincible(ped, false)
     ClearPedTasks(ped)
@@ -31,8 +32,14 @@ RegisterNetEvent('elyzea_famille:client:intimeDebut', function(p, role, partenai
     local pped = pid ~= -1 and GetPlayerPed(pid) or 0
     actif = { id = p.id, touche = p.touche, garde = GetGameTimer() + p.delaiAvantNoir + p.fondu * 2 + p.duree * 1000 + 30000 }
 
-    -- Mise en place : la personne qui accepte se place face à celle qui a proposé
-    if pped ~= 0 then
+    -- Mise en place : la personne qui accepte se place face à celle qui a proposé.
+    -- V8, baiser : elle est attachée face à l'autre, contre elle (même méthode que les emotes partagées de rpemotes),
+    -- ce qui garde les deux personnages alignés et synchronisés pendant toute l'animation.
+    local A = p.attache
+    if pped ~= 0 and A and role == 'partenaire' then
+        AttachEntityToEntity(ped, pped, GetPedBoneIndex(pped, A.os or 11816), A.cote or 0.0, A.avant or 0.08, A.hauteur or 0.0,
+            0.0, 0.0, 180.0, false, false, false, true, 1, true)
+    elseif pped ~= 0 then
         local pc = GetEntityCoords(pped)
         if role == 'partenaire' then
             local fwd = GetEntityForwardVector(pped)
@@ -44,7 +51,7 @@ RegisterNetEvent('elyzea_famille:client:intimeDebut', function(p, role, partenai
             SetEntityHeading(ped, GetHeadingFromVector_2d(pc.x - mc.x, pc.y - mc.y))
         end
     end
-    FreezeEntityPosition(ped, true)
+    if not (A and role == 'partenaire') then FreezeEntityPosition(ped, true) end
     SetEntityInvincible(ped, true)
     if anim and chargerAnim(anim.dict) then
         TaskPlayAnim(ped, anim.dict, anim.clip, 3.0, 3.0, -1, 1, 0.0, false, false, false)

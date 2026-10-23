@@ -154,6 +154,22 @@
     },
     "uv_superposees": 0
   },
+  "biberon": {
+    "triangles": 748,
+    "boite": [
+      [
+        -0.031,
+        -0.031,
+        -0.055
+      ],
+      [
+        0.031,
+        0.031,
+        0.116
+      ]
+    ],
+    "uv_superposees": 0
+  },
   "textures": {
     "pb_ventral": {
       "n": "ely_bebe_pb_ventral_n.png",
@@ -181,6 +197,10 @@
       "n": "ely_bebe_roue_av_n.png",
       "graphite": "ely_bebe_roue_av_graphite.png",
       "sable": "ely_bebe_roue_av_sable.png"
+    },
+    "biberon": {
+      "n": "ely_bebe_biberon_n.png",
+      "standard": "ely_bebe_biberon_standard.png"
     }
   },
   "coloris": {
@@ -192,6 +212,9 @@
     "poussette": [
       "graphite",
       "sable"
+    ],
+    "biberon": [
+      "standard"
     ]
   },
   "objets": {
@@ -199,7 +222,8 @@
     "pb_dorsal": "ely_bebe_pb_dorsal",
     "poussette": "ely_bebe_poussette",
     "roue_ar": "ely_bebe_roue_ar",
-    "roue_av": "ely_bebe_roue_av"
+    "roue_av": "ely_bebe_roue_av",
+    "biberon": "ely_bebe_biberon"
   },
-  "duree_s": 195.4
+  "duree_s": 254.8
 }
