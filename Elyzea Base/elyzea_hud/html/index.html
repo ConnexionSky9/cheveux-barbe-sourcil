@@ -37,6 +37,12 @@
   .frame .tag{position:absolute;left:calc(var(--u)*10);top:calc(var(--u)*-15);font-size:calc(var(--u)*10);letter-spacing:.35em;color:var(--cyan);font-weight:700;
     text-shadow:0 0 calc(var(--u)*6) rgba(34,211,238,.6)}
   .frame.round .br,.frame.round .tag{display:none}
+  /* Contour net : bande opaque posée sur le bord de la carte (cache le fondu flou de GTA, 4 px à l'intérieur,
+     10 px à l'extérieur), même teinte que les cartes du HUD ; fin liseré cyan à l'intérieur */
+  .frame .edge{position:absolute;inset:calc(var(--u)*-10);border:calc(var(--u)*14) solid rgba(6,11,20,.94);
+    clip-path:polygon(0 0,calc(100% - var(--u)*20) 0,100% calc(var(--u)*20),100% 100%,calc(var(--u)*20) 100%,0 calc(100% - var(--u)*20));
+    box-shadow:inset 0 0 0 calc(var(--u)*1) rgba(120,190,255,.35)}
+  .frame.round .edge{border-radius:50%;clip-path:none}
 
   /* ================= JOUEUR (à droite de la carte) ================= */
   .player{position:absolute;left:calc(var(--mx) + var(--mw) + var(--u)*18);bottom:calc(100vh - var(--my) - var(--mh) - var(--u)*4);
@@ -130,7 +136,7 @@
 </head>
 <body>
 <div id="hud">
-  <div class="frame" id="frame"><i class="br b1"></i><i class="br b2"></i><span class="tag">GPS</span></div>
+  <div class="frame" id="frame"><i class="edge"></i><i class="br b1"></i><i class="br b2"></i><span class="tag">GPS</span></div>
 
   <!-- Joueur : identité, vie, bouclier, faim, soif, voix -->
   <div class="player">

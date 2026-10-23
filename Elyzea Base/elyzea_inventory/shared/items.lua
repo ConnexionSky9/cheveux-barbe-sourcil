@@ -354,6 +354,20 @@ do
     Items.dried_mushroom.close, Items.dried_mushroom.description = true, 'Champignons séchés : à ensacher, ou à manger.'
     Items.weed_pouch.close, Items.cocaine.close, Items.ketamine.close = true, true, true
 end
+-- ───────── Presse (ressource elyzea_presse : métier de journaliste) ─────────
+-- Matériel pris gratuitement au point « Matériel » de la rédaction (un de chaque, à rendre) ; utilisable
+-- seulement par un journaliste en service (vérifié par elyzea_presse, jamais consommé).
+-- Images : newsmic.png et newscam.png existent déjà ; sans image, l'icône (emoji) s'affiche.
+Items.presse_micro = { label = 'Micro de reportage', weight = 400, stack = false, close = true, image = 'newsmic.png', icon = '🎤',
+    description = 'Utiliser : le tenir en main / le ranger. Nécessaire pour demander une interview (ALT sur la personne).' }
+Items.presse_camera = { label = 'Caméra de reportage', weight = 3500, stack = false, close = true, image = 'newscam.png', icon = '🎥',
+    description = 'Utiliser : la porter à l\'épaule. G : viseur, clic : filmer / arrêter. La séquence est enregistrée dans la tablette (lieu, heure, durée).' }
+Items.presse_appareil = { label = 'Appareil photo', weight = 900, stack = false, close = true, icon = '📷',
+    description = 'Utiliser : le tenir en main. G : viseur, molette : zoom, clic : photo (légende, lieu et heure enregistrés dans la tablette).' }
+Items.presse_bloc = { label = 'Bloc-notes de reportage', weight = 150, stack = false, close = true, icon = '📝',
+    description = 'Utiliser : ouvrir les notes de l\'interview en cours (texte saisi par le journaliste, aucun enregistrement audio).' }
+Items.presse_carte = { label = 'Carte de presse', weight = 10, stack = false, close = true, icon = '🪪',
+    description = 'Carte nominative délivrée par la direction. Utiliser : la montrer aux personnes proches (validité vérifiée).' }
 
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }

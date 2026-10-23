@@ -1,7 +1,7 @@
 -- =====================================================================
 --  ELYZEA AGENCES - configuration
 --  Plusieurs agences pour un même métier : plusieurs polices (LSPD, BCSO…),
---  plusieurs EMS, plusieurs garages mécano, plusieurs agences Dynasty 8.
+--  plusieurs EMS, plusieurs garages mécano, plusieurs agences Dynasty 8, plusieurs rédactions (presse).
 --  Chaque agence a son métier elyzea_core, son compte de société, ses grades,
 --  ses employés, son préfixe de matricule, son téléphone de service et sa
 --  zone d'alerte (dessinée sur la carte ou en jeu). Tout se gère EN JEU :
@@ -25,6 +25,8 @@ Config.Kinds = {
       defaults = { job = 'mechanic',   label = 'Mécano',    short = 'MECA', mat = 'MECA-', phone = '913', color = '#f59e0b' } },
     { id = 'dynasty', res = 'elyzea_dynasty', label = 'Dynasty 8', icon = '🏠', alerts = false,
       defaults = { job = 'realestate', label = 'Dynasty 8', short = 'D8',   mat = 'D8-',   phone = '914', color = '#22c55e' } },
+    { id = 'presse',  res = 'elyzea_presse',  label = 'Presse',    icon = '📰', alerts = false,
+      defaults = { job = 'journaliste', label = 'Weazel News', short = 'WZL', mat = 'WZL-', phone = '916', color = '#e11d48' } },
 }
 
 -- Alerte hors de toutes les zones dessinées :

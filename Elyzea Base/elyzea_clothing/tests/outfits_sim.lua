@@ -79,6 +79,7 @@ function inv:CanCarryItems() return true end
 function inv:SetBagEquipped(src, state) if BAG[src .. 'heavy'] and not state then return false, 'trop lourd' end BAG[src] = state return true end
 function inv:Items() return { label = 'x' } end
 function inv:RegisterUsableItem() end
+function inv:GetSlot(src, n) local it = slotsOf(src)[n] return it and { slot = n, name = it.name, count = it.count, metadata = copy(it.metadata) } or nil end
 local core = {}
 function core:GetCitizenId(src) return CITIZEN[src] end
 exports = setmetatable({ elyzea_inventory = inv, elyzea_core = core }, { __index = function() return {} end })
@@ -393,6 +394,25 @@ source = 1 sent = {} handlers['elyzea_clothing:outfitEdit'](DB.outfits[1].id, 'C
 source = 1 sent = {} handlers['elyzea_clothing:outfitEdit'](DB.outfits[1].id, 'Clic 2', '', {})
 local d, m = payload(sent)
 check(DB.outfits[1].name == 'Clic 1' and before ~= 'Clic 1' and d == nil and m and m:find('réessaie'), 'deux clics trop rapprochés : le second est refusé, avec une réponse (boutons réactivés)')
+
+section('Tenue de service (elyUniform, ex. vestiaire elyzea_presse)')
+CLOCK = CLOCK + 2000
+INVS[1] = { [1] = item('tops', WORN.tops) }
+MAX_SLOTS[1] = 10
+Player(1).state:set('elyUniform', 'presse')
+out = call(1, 'elyzea_clothing:outfitWear', DB.outfits[1].id, copy(NOW_WORN), {})
+check(lastOf(out, 'elyzea_clothing:outfitApply') == nil and countItems(1, 'tops', WORN.tops) == 1, 'en tenue de service : porter une tenue est refusé, rien ne change')
+CLOCK = CLOCK + 2000
+out = call(1, 'elyzea_clothing:equip', 1, { drawable = 50, texture = 0 })
+check(lastOf(out, 'elyzea_clothing:apply') == nil and countItems(1, 'tops', WORN.tops) == 1 and countItems(1, 'tops', { drawable = 50, texture = 0 }) == 0,
+    'en tenue de service : porter un vêtement-objet est refusé (l\'uniforme ne devient pas un objet)')
+CLOCK = CLOCK + 2000
+out = call(1, 'elyzea_clothing:unequip', 'tops', { drawable = 50, texture = 0 })
+check(lastOf(out, 'elyzea_clothing:apply') == nil and countItems(1, 'tops', { drawable = 50, texture = 0 }) == 0, 'en tenue de service : ranger une pièce portée est refusé')
+Player(1).state:set('elyUniform', nil)
+CLOCK = CLOCK + 2000
+out = call(1, 'elyzea_clothing:equip', 1, { drawable = 50, texture = 0 })
+check(lastOf(out, 'elyzea_clothing:apply') ~= nil, 'tenue de service retirée : porter un vêtement fonctionne de nouveau')
 
 print(('\n%d ok, %d échec(s)'):format(PASS, FAIL))
 return FAIL

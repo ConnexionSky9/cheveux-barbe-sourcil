@@ -101,6 +101,7 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
     if not okMethod then return result(src, false, 'Moyen de paiement refusé.') end
     local sex = Items.sexOf(src)
     if not sex then return result(src, false, 'Personnage non compatible.') end
+    if wearNow and Items.inUniform(src) then return result(src, false, 'Tu portes une tenue de service : achète sans porter (les vêtements iront dans ton inventaire).') end
 
     local allowed, seen, total, list = {}, {}, 0, {}
     for _, id in ipairs(s.shop.categories) do allowed[id] = true end

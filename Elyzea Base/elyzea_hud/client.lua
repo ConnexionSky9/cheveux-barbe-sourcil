@@ -6,6 +6,14 @@
 -- =====================================================================
 local hunger, thirst = 100, 100
 local hudVisible = true
+-- HUD masqué temporairement par d'autres ressources (ex. viseur de la caméra de presse).
+-- exports.elyzea_hud:SetHidden('raison', true / false) ; tout est rendu si la ressource s'arrête.
+local hiddenBy = {}   -- [raison] = ressource
+local function HudShown() return hudVisible and next(hiddenBy) == nil end
+exports('SetHidden', function(reason, on)
+    hiddenBy[tostring(reason or 'autre')] = on and (GetInvokingResource() or '?') or nil
+end)
+exports('IsHidden', function() return not HudShown() end)
 local rect = nil              -- { x, y, w, h } en fractions d'écran, coin haut gauche
 local ownsMinimap = false     -- true si admin_menu n'est pas là
 
@@ -252,7 +260,7 @@ CreateThread(function()
     while true do
         local ped = PlayerPedId()
         local veh = GetVehiclePedIsIn(ped, false)
-        local show = hudVisible and not IsPauseMenuActive()
+        local show = HudShown() and not IsPauseMenuActive()
         if veh ~= 0 and show then
             inVehicle = true
             SendNUIMessage({ action = 'vehicle', vehicle = vehicleData(veh) })
@@ -288,14 +296,14 @@ CreateThread(function()
         local maxHp = GetEntityMaxHealth(ped) - 100
         local hp = math.max(0, GetEntityHealth(ped) - 100)
         local paused = IsPauseMenuActive()
-        local show = hudVisible and not paused
+        local show = HudShown() and not paused
 
         -- La carte suit le HUD (/hud) ; « seulement en véhicule » est géré par admin_menu ou par la config
-        local wantRadar = hudVisible
+        local wantRadar = HudShown()
         if ownsMinimap and Config.Minimap.onlyInVehicle then wantRadar = wantRadar and IsPedInAnyVehicle(ped, false) end
         if Config.HideMinimap then
             -- rien : la mini-carte est toujours cachée
-        elseif ownsMinimap or not hudVisible then
+        elseif ownsMinimap or not HudShown() then
             if radarForced ~= wantRadar then DisplayRadar(wantRadar) radarForced = wantRadar end
         elseif radarForced == false then
             DisplayRadar(true) radarForced = nil
@@ -338,6 +346,7 @@ AddEventHandler('onClientResourceStart', function(res)
     if res == 'admin_menu' then ownsMinimap = false end
 end)
 AddEventHandler('onClientResourceStop', function(res)
+    for k, owner in pairs(hiddenBy) do if owner == res then hiddenBy[k] = nil end end
     if res == 'admin_menu' then ownsMinimap = true SetTimeout(500, setupMinimap) end
 end)
 

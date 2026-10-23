@@ -14,6 +14,7 @@ Chaque agence a **son métier elyzea_core** (ex. `bcso`), **ses grades**, **ses 
 | EMS | `elyzea_ems` | `ambulance` · SAMS |
 | Mécano | `elyzea_meca` | `mechanic` · Mécano |
 | Dynasty 8 | `elyzea_dynasty` | `realestate` · Dynasty 8 |
+| Presse | `elyzea_presse` | `journaliste` · Weazel News |
 
 La concession (`elyzea_concess`) était déjà multi-concessions et n'est pas concernée.
 

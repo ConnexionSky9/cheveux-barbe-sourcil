@@ -23,6 +23,9 @@ SENT = {}
 function TriggerClientEvent(ev, target, ...) SENT[#SENT + 1] = { ev = ev, target = target, args = { ... } } end
 function RegisterNetEvent(ev, fn) if fn then H[ev] = fn end end
 function AddEventHandler(ev, fn) H[ev] = H[ev] or fn end
+-- State bags des joueurs (tenue de service : elyUniform)
+local STATE = {}
+function Player(src) STATE[src] = STATE[src] or {} return { state = STATE[src] } end
 function GetPlayerName(s) return 'Joueur' .. s end
 PEDS, MONEY = {}, {}
 function GetPlayerPed(s) return s end
