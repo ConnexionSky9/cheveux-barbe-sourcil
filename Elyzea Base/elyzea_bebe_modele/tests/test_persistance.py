@@ -150,13 +150,15 @@ test_id = L('function() return CreerBebe({}, vector3(110.0, 100.0, 30.0), 0.0, {
 G.Advance(2500)
 check('2. bébé de test (/bebe_creer) : non enregistré', test_id and not q('SELECT 1 FROM rp_bebes WHERE id=%s', (test_id,)))
 
-# ════════════ 3. responsables, confier ════════════
-G.Net('elyzea_bebe_modele:prendre', 3, bid, 'bras')
-check('3. personne non autorisée : « Ce n\'est pas votre enfant »', G.Notified(3, "pas votre enfant") and bebes(S)[0][bid].etat == 'pose')
-G.Cmd('bebe_confier', 1, L("{ '3' }"))
-G.Advance(3500)
-G.Net('elyzea_bebe_modele:prendre', 3, bid, 'bras')
-check('3. confié par un parent (/bebe_confier) : la personne peut le prendre', bebes(S)[0][bid].etat == 'porte' and bebes(S)[0][bid].porteur == 3)
+# ════════════ 3. V8 : tout le monde peut prendre le bébé contre soi ; la filiation ne change pas ════════════
+G.Net('elyzea_bebe_modele:prendre', 3, bid, 'contre')
+check('3. V8 : une personne qui n\'est pas parent prend le bébé contre soi', bebes(S)[0][bid].etat == 'porte' and bebes(S)[0][bid].porteur == 3
+      and bebes(S)[0][bid].mode == 'face')
+G.Advance(2500)
+r = q('SELECT responsables FROM rp_bebes WHERE id=%s', (bid,))[0]
+check('3. filiation inchangée en base (responsables = les parents)', json.loads(r['responsables']) == ['CID1', 'CID2'], r)
+G.Net('elyzea_bebe_modele:prendre', 1, bid, 'contre')
+check('3. un parent ne peut pas arracher le bébé à son porteur', G.Notified(1, 'pas disponible') and bebes(S)[0][bid].porteur == 3)
 G.Net('elyzea_bebe_modele:poser', 3, 'allonge', L('vector3(101.0, 101.0, 30.0)'), 0.0)
 G.Advance(3500)
 

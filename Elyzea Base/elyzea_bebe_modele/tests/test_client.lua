@@ -48,8 +48,8 @@ end
 -- ── bébé posé, joueur sans équipement
 ENT[10] = { pos = vector3(1, 0, 0), state = { bebe = 'BB-1', bebePiece = 'corps' } }
 local o = options(10)
-check('1. bébé posé, sans porte-bébé : prises bras / face seulement', o:find('prendre:bras') and o:find('prendre:face')
-    and not o:find('ventral') and not o:find('dorsal'), o)
+check('1. V8 : bébé posé, sans porte-bébé : une seule prise, « contre soi » (plus de « dans les bras »)', o:find('prendre:face')
+    and not o:find('prendre:bras') and not o:find('ventral') and not o:find('dorsal'), o)
 check('1. option « endormir »', o:find('dormir:BB%-1'), o)
 
 -- ── avec le porte-bébé ventral équipé
@@ -63,7 +63,7 @@ GlobalState.bebeReglages.ventral = true
 
 -- ── poussette garée vide, joueur qui porte le bébé dans les bras
 ENT[20] = { pos = vector3(1.5, 0, 0), state = { bebePoussette = 'PO-1', bebeDedans = false } }
-LocalPlayer.state.bebePorte = { id = 'BB-1', mode = 'bras', mains = true }
+LocalPlayer.state.bebePorte = { id = 'BB-1', mode = 'face', mains = true }
 o = options(20)
 check('3. poussette vide + bébé dans les bras : « installer », pas « pousser » (mains occupées)', o:find('installer:PO%-1')
     and not o:find('pousser'), o)
@@ -73,8 +73,8 @@ check('3. poussette vide : « ranger » proposé', o:find('ranger:PO%-1'), o)
 LocalPlayer.state.bebePorte = nil
 ENT[20].state.bebeDedans = 'BB-1'
 o = options(20)
-check('4. poussette avec bébé : pousser, sortir le bébé (bras / face / ventral), endormir', o:find('pousser:PO%-1')
-    and o:find('prendrepo:bras') and o:find('prendrepo:ventral') and o:find('dormir:BB%-1'), o)
+check('4. poussette avec bébé : pousser, sortir le bébé (contre soi / ventral), endormir', o:find('pousser:PO%-1')
+    and o:find('prendrepo:face') and not o:find('prendrepo:bras') and o:find('prendrepo:ventral') and o:find('dormir:BB%-1'), o)
 check('4. poussette avec bébé : pas de « ranger »', not o:find('ranger'), o)
 
 -- ── V6 : frein, lâcher, renversée

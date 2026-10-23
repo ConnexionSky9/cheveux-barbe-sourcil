@@ -21,18 +21,17 @@ local function v3(t, def) return t and vector3(t[1] + 0.0, t[2] + 0.0, t[3] + 0.
 -- equipement = le mode n'est possible qu'avec ce porte-bébé équipé (objet d'inventaire).
 Config.Portage = {
     modes = {
-        bras = {
-            label = 'Dans les bras', pose = 'porte', mainsOccupees = true,
-            -- animation native vérifiée : avant-bras à l'horizontale devant soi (aucune animation de bercement n'existe
-            -- dans GTA) ; V6 : bébé couché en travers des avant-bras, un peu plus près du corps
-            anim = { dict = 'anim@heists@box_carry@', clip = 'idle', flag = 49 },
-            pos = vector3(0.02, 0.30, 0.20), rot = vector3(0.0, 0.0, 90.0),
-        },
+        -- V8 : UNE seule prise à la main, « contre soi » (l'ancienne prise « Dans les bras » est supprimée ; « bras » = alias).
+        -- Pose bercée : le bébé (modèle « porté » : couché sur le dos, jambes repliées) est allongé à l'horizontale en
+        -- travers du buste, tête vers le bras gauche (creux du coude), soutenu par les avant-bras croisés contre le torse.
+        -- GTA n'a aucune animation de bercement (vérifié dans les 20 179 dictionnaires) : les bras croisés natifs sont
+        -- la position la plus proche (avant-bras à l'horizontale contre le torse). Position et rotations réglables
+        -- dans le menu admin (Famille › Position du bébé porté) et en jeu (/bebe_ajuster).
         face = {
-            -- V6 : contre soi, tenu dans les bras croisés (animation native vérifiée) ; plus proche du buste
-            label = 'Contre moi', pose = 'ventral', mainsOccupees = true,
+            label = 'Contre soi', pose = 'porte', mainsOccupees = true,
             anim = { dict = 'amb@world_human_hang_out_street@female_arms_crossed@base', clip = 'base', flag = 49 },
-            pos = vector3(0.0, 0.22, 0.16), rot = vector3(0.0, 0.0, 0.0),
+            -- contrôle hors du jeu : Outils_3D/bebe/scripts/controle_portage.py (écart au buste du mannequin : 2,9 cm homme, 1,3 cm femme)
+            pos = vector3(0.06, 0.22, 0.27), rot = vector3(0.0, -20.0, -90.0),
         },
         ventral = {
             label = 'Porte-bébé ventral', pose = 'ventral', mainsOccupees = false, equipement = 'ventral',
@@ -46,7 +45,7 @@ Config.Portage = {
         },
     },
     -- anciens noms (V3) acceptés par les commandes
-    alias = { portebebe = 'ventral' },
+    alias = { portebebe = 'ventral', bras = 'face', contre = 'face' },
     -- Poses au sol (lit, berceau, banc, sol)
     poses = {
         allonge = { label = 'Poser allongé', pose = 'allonge' },
@@ -62,15 +61,15 @@ Config.Portage = {
     bloquerMelee = true,         -- le porteur ne peut pas frapper (il reste vulnérable : aucune protection)
     rangerArme = true,           -- modes « mains occupées » : l'arme en main est rangée tant que l'on porte le bébé
     verification = 2000,         -- ms entre deux vérifications serveur (attaches, mort, déconnexion, abandon)
-    -- true : seuls les responsables du bébé (parents, liste fournie à la naissance) et les personnes à qui un parent
-    -- l'a confié (/bebe_confier) peuvent le prendre ; un bébé sans responsables (bébé de test) reste libre. false : tout le monde
-    reserveAuxResponsables = true,
+    -- V8 : tout le monde peut prendre un bébé contre soi (le portage ne change jamais la filiation ni les responsables).
+    -- On ne prend jamais un bébé déjà porté : son porteur doit d'abord le poser.
+    reserveAuxResponsables = false,
     -- Personnages féminins : bébé et porte-bébé décalés (personnage plus petit), par prise. Calculé sur le mannequin.
     morphologies = {
         [GetHashKey('mp_f_freemode_01')] = {
             ventral = v3(GEO.ventral and GEO.ventral.decalage_femme, vector3(0.0, 0.016, -0.07)),
             dorsal = v3(GEO.dorsal and GEO.dorsal.decalage_femme, vector3(0.0, 0.004, -0.07)),
-            defaut = vector3(0.0, 0.0, -0.06),     -- bras, face, poussette
+            defaut = vector3(0.0, 0.0, -0.06),     -- contre soi, poussette
         },
     },
 }
@@ -124,10 +123,9 @@ Config.Poussette = {
 
 -- Commandes (joueurs)
 Config.Commandes = {
-    prendre = 'bebe_prendre',    -- /bebe_prendre [bras|face|ventral|dorsal] : le bébé posé le plus proche
+    prendre = 'bebe_prendre',    -- /bebe_prendre [contre|ventral|dorsal] : le bébé posé le plus proche (contre soi par défaut)
     poser = 'bebe_poser',        -- /bebe_poser [allonge|assis]
-    mode = 'bebe_mode',          -- /bebe_mode [bras|face|ventral|dorsal]
-    confier = 'bebe_confier',    -- /bebe_confier [id joueur] : un parent autorise une autre personne à s'occuper du bébé
+    mode = 'bebe_mode',          -- /bebe_mode [contre|ventral|dorsal]
 }
 
 -- ─────────────────────────── Persistance (base de données, tables créées automatiquement) ───────────────────────────

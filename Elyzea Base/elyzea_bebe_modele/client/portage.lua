@@ -2,7 +2,7 @@
 --  ELYZEA BÉBÉ (modèle) - client : porter, porte-bébés, poussette (bébé réseau, visible par tous) — V4
 --  Le serveur crée les objets et décide de qui porte / pousse quoi (server/bebes.lua). Ici :
 --   · attache des pièces au personnage quand le serveur le demande (l'attache est synchronisée par FiveM) ;
---   · animations natives (porter à deux bras, pousser un chariot) ;
+--   · animations natives (bébé contre soi dans les bras croisés, pousser la poussette) ;
 --   · poussette : pas de course (réglable), arrêt devant un obstacle, hauteur ajustée au relief ;
 --   · pendant le portage / la poussée : coups bloqués (le serveur annule aussi ces dégâts), aucune protection ;
 --   · menu ALT (fournisseur « elyzea_bebe_modele ») et commandes.
@@ -119,7 +119,7 @@ RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode, netPous
     local pos, rot = m.pos + morpho(mode), m.rot
     if type(dec) == 'table' then
         pos = pos + vector3((dec.x or 0) / 100.0, (dec.y or 0) / 100.0, (dec.z or 0) / 100.0)
-        rot = rot + vector3(0.0, 0.0, dec.rz or 0.0)
+        rot = rot + vector3(dec.rx or 0.0, dec.ry or 0.0, dec.rz or 0.0)
     end
     if porte and porte.id == id and porte.mode == mode and porte.pos then pos, rot = porte.pos, porte.rot end
     if not attacherPieces(nets, pos, rot) then return end
@@ -331,7 +331,7 @@ local function prendre(mode, obj)
     obj = obj or bebeProche(P.distancePrendre)
     if not obj then return Notify('Aucun bébé à portée.', 'error') end
     geste(P.gestes and P.gestes.prendre)
-    TriggerServerEvent('elyzea_bebe_modele:prendre', Entity(obj).state.bebe, P.alias[mode] or mode or 'bras')
+    TriggerServerEvent('elyzea_bebe_modele:prendre', Entity(obj).state.bebe, P.alias[mode] or mode or 'face')
 end
 
 local function poser(pose)
@@ -344,7 +344,7 @@ end
 local function changerMode(mode)
     if not etat() then return Notify('Vous ne portez pas de bébé.', 'error') end
     mode = P.alias[mode] or mode
-    if not P.modes[mode] then return Notify('Prises : bras, face, ventral, dorsal', 'error') end
+    if not P.modes[mode] then return Notify('Prises : contre, ventral, dorsal', 'error') end
     TriggerServerEvent('elyzea_bebe_modele:mode', mode)
 end
 
@@ -440,6 +440,11 @@ local function modesPossibles()
     return out
 end
 
+-- « Prendre contre soi » (seule prise à la main) ; porte-bébés : proposés seulement quand ils sont équipés
+local function libellePrendre(k, m)
+    return k == 'face' and 'Prendre contre soi' or ('Prendre · ' .. m.label)
+end
+
 exports('AltTarget', function(ent)
     if not ent or ent == 0 or not DoesEntityExist(ent) then return nil end
     local st = Entity(ent).state
@@ -495,7 +500,7 @@ exports('AltOptions', function(ctx)
         end
         if st.bebeDedans and not e then
             for k, m in pairs(modesPossibles()) do
-                out[#out + 1] = { id = 'prendrepo:' .. k, label = 'Sortir le bébé · ' .. m.label, icon = 'carry' }
+                out[#out + 1] = { id = 'prendrepo:' .. k, label = k == 'face' and 'Sortir le bébé et le prendre contre soi' or ('Sortir le bébé · ' .. m.label), icon = 'carry' }
             end
             out[#out + 1] = { id = 'dormir:' .. st.bebeDedans, label = 'Endormir / réveiller le bébé', icon = 'out' }
         end
@@ -503,7 +508,7 @@ exports('AltOptions', function(ctx)
             out[#out + 1] = { id = 'ranger:' .. st.bebePoussette, label = 'Ranger la poussette', icon = 'out' }
         end
     elseif not e and st.bebe then
-        for k, m in pairs(modesPossibles()) do out[#out + 1] = { id = 'prendre:' .. k, label = 'Prendre · ' .. m.label, icon = 'carry' } end
+        for k, m in pairs(modesPossibles()) do out[#out + 1] = { id = 'prendre:' .. k, label = libellePrendre(k, m), icon = 'carry' } end
         out[#out + 1] = { id = 'dormir:' .. st.bebe, label = 'Endormir / réveiller', icon = 'out' }
     end
     table.sort(out, function(a, b) return a.id < b.id end)

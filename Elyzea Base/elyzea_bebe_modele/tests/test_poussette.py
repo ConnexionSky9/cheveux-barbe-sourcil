@@ -158,10 +158,10 @@ n_bebes = len(list(bebes().keys()))
 check('11. un seul bébé, entités = poussette + 3 pièces du bébé', n_bebes == 1 and G.CountEnts() == 4, (n_bebes, G.CountEnts()))
 
 # 12. réglages du menu admin (transmis par elyzea_famille)
-ok = G.W.exp['AppliquerReglages'](L("{ ['bebe.physique'] = false, ['bebe.dec.bras.y'] = -4, ['bebe.dec.bras.rz'] = 10, ['bebe.crr'] = 0.06, ['bebe.roues'] = false, ['bebe.colorisPoussette'] = 'sable', ['bebe.dec.face.z'] = 99 }"))
+ok = G.W.exp['AppliquerReglages'](L("{ ['bebe.physique'] = false, ['bebe.dec.face.y'] = -4, ['bebe.dec.face.rz'] = 10, ['bebe.dec.face.ry'] = 12, ['bebe.crr'] = 0.06, ['bebe.roues'] = false, ['bebe.colorisPoussette'] = 'sable', ['bebe.dec.face.z'] = 99 }"))
 R = G.GlobalState.bebeReglages
 check('12. réglages appliqués et publiés (décalage de prise, roues, physique)', ok and R.physique is False and R.roues is False
-      and R.decalages.bras.y == -4 and R.decalages.bras.rz == 10 and R.decalages.face.z == 0 and L('Config.Poussette.coloris') == 'sable'
+      and R.decalages.face.y == -4 and R.decalages.face.rz == 10 and R.decalages.face.ry == 12 and R.decalages.face.z == 0 and L('Config.Poussette.coloris') == 'sable'
       and abs(L('Config.Poussette.physique.parametres.crr') - 0.06) < 1e-9)
 add_player(1, 101.0, 124.0, 27.5)
 G.Advance(3500)

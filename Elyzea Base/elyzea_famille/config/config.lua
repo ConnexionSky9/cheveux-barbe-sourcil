@@ -171,7 +171,6 @@ Config.Bebe = {
     abandon = 20,             -- minutes avant de ranger une poussette vide abandonnée
     diagnostic = false,       -- journal détaillé dans la console serveur
     -- V6
-    reserve = true,           -- seuls les parents (et les personnes à qui ils l'ont confié) peuvent prendre le bébé
     garder = true,            -- porteur déconnecté : le bébé reste avec lui et revient à sa connexion
     physique = true,          -- poussette lâchée sans frein : elle roule selon la pente
     crr = 0.035,              -- résistance au roulement
@@ -182,7 +181,7 @@ Config.Bebe = {
     colorisPoussette = 'graphite', -- coloris par défaut de la poussette (graphite, sable)
     -- décalages de chaque prise (cm, degrés), ajoutés aux positions calculées : réglage fin après essai en jeu
     decalages = {
-        bras = { x = 0, y = 0, z = 0, rz = 0 }, face = { x = 0, y = 0, z = 0, rz = 0 },
+        face = { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0 },   -- V8 : « contre soi » (seule prise à la main)
         ventral = { x = 0, y = 0, z = 0, rz = 0 }, dorsal = { x = 0, y = 0, z = 0, rz = 0 },
     },
 }

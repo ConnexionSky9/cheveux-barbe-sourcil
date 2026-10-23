@@ -260,9 +260,10 @@ check('5. un autre joueur frappe le porteur : dégâts NON annulés', G.Damage(3
 check('5. porteur avec arme à feu : non concerné (pas de restriction ajoutée)', G.Damage(1, PISTOL) is False)
 
 # 6. changement de prise
-G.Net('elyzea_bebe_modele:mode', 1, 'face')
+G.Net('elyzea_bebe_modele:mode', 1, 'bras')
 e = ents_of(bid)
-check('6. prise « face » : modèles ventral, toujours 3 pièces', model_name(e['corps']) == 'ely_bebe_ventral_peau4_couche' and G.CountEnts() == 3)
+check('6. V8 : prise unique « contre soi » (l\'ancienne « bras » en est un alias) : pose bercée « porte », 3 pièces',
+      baby()[0][bid].mode == 'face' and model_name(e['corps']) == 'ely_bebe_porte_peau4_couche' and G.CountEnts() == 3)
 G.ClientAttache(1)
 G.Net('elyzea_bebe_modele:mode', 1, 'portebebe')
 check('6. ancien nom « portebebe » = ventral : refusé sans porte-bébé équipé', G.Notified(1, 'Équipez') and baby()[0][bid].mode == 'face')
@@ -358,7 +359,7 @@ check('13. objet non consommé', W.inv[3]['porte_bebe_ventral'] == 1)
 # 14. bébé dans le porte-bébé ventral
 G.Advance(3500)
 G.Net('elyzea_bebe_modele:mode', 1, 'ventral')
-check('14. prise ventrale sans porte-bébé : refus', G.Notified(1, 'Équipez') and baby()[0][bid].mode == 'bras')
+check('14. prise ventrale sans porte-bébé : refus', G.Notified(1, 'Équipez') and baby()[0][bid].mode == 'face')
 G.Advance(3500)
 G.Net('elyzea_bebe_modele:poser', 1, 'allonge', L('vector3(100.5, 100.0, 30.0)'), 0)
 G.Advance(3500)
@@ -375,13 +376,13 @@ G.Advance(3500)
 G.Use('porte_bebe_ventral', 3)
 check('15. retirer le porte-bébé avec le bébé dedans : refus', G.Notified(3, 'Sortez d\'abord') and equip(3) is not None)
 G.Advance(3500)
-G.Net('elyzea_bebe_modele:mode', 3, 'bras')
+G.Net('elyzea_bebe_modele:mode', 3, 'face')
 G.ClientAttache(3)
 ent_pb = equip(3).ent
 G.Advance(3500)
 G.Use('porte_bebe_ventral', 3)
-check('16. bébé dans les bras, porte-bébé retiré proprement (objet supprimé)', equip(3) is None and ent_pb not in W.ents
-      and baby()[0][bid].mode == 'bras' and W.pstate[3]['bebeEquipement'] is None)
+check('16. bébé contre soi, porte-bébé retiré proprement (objet supprimé)', equip(3) is None and ent_pb not in W.ents
+      and baby()[0][bid].mode == 'face' and W.pstate[3]['bebeEquipement'] is None)
 
 # 17. porte-bébé dorsal (modèle distinct, position dans le dos)
 G.Advance(3500)

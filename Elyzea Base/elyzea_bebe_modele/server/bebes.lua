@@ -6,7 +6,7 @@
 --
 --  États d'un bébé (un seul à la fois, changé ici sous verrou) :
 --   · pose      : figé au sol (lit, berceau, banc…) ;
---   · porte     : attaché au porteur, prise « bras », « face », « ventral » (porte-bébé ventral équipé)
+--   · porte     : attaché au porteur, prise « face » (contre soi), « ventral » / « dorsal » (porte-bébé équipé)
 --                 ou « dorsal » (porte-bébé dorsal équipé) ;
 --   · poussette : couché dans la nacelle d'une poussette (garée : figé ; poussée : attaché au pousseur).
 --  Chaque changement : vérification de l'état actuel et des conditions → suppression des anciennes pièces →
@@ -418,7 +418,7 @@ end
 
 -- ─────────── Réglages enregistrés (menu admin, via elyzea_famille) ───────────
 
-local MODES_DEC = { 'bras', 'face', 'ventral', 'dorsal' }
+local MODES_DEC = { 'face', 'ventral', 'dorsal' }
 P.decalages = P.decalages or {}
 
 local function publierReglages()
@@ -461,6 +461,7 @@ local function appliquerReglages(v)
         P.decalages[m] = {
             x = num(('bebe.dec.%s.x'):format(m), -20, 20, d.x or 0), y = num(('bebe.dec.%s.y'):format(m), -20, 20, d.y or 0),
             z = num(('bebe.dec.%s.z'):format(m), -20, 20, d.z or 0), rz = num(('bebe.dec.%s.rz'):format(m), -45, 45, d.rz or 0),
+            rx = num(('bebe.dec.%s.rx'):format(m), -45, 45, d.rx or 0), ry = num(('bebe.dec.%s.ry'):format(m), -45, 45, d.ry or 0),
         }
     end
     publierReglages()
@@ -558,47 +559,8 @@ local function modeRefuse(src, mode)
     return nil
 end
 
--- Peut s'occuper du bébé : responsables (parents), personnes à qui un responsable l'a confié, ou tout le monde
--- si le bébé n'a pas de responsables (bébé de test) ou si la réservation est désactivée.
-local function responsable(src, b)
-    if not P.reserveAuxResponsables or type(b.responsables) ~= 'table' or #b.responsables == 0 then return true end
-    local cid = citizenid(src)
-    for _, r in ipairs(b.responsables) do if r == cid then return true end end
-    return cid ~= nil and b.confies ~= nil and b.confies[cid] == true
-end
-
-local function estParent(src, b)
-    if type(b.responsables) ~= 'table' or #b.responsables == 0 then return true end
-    local cid = citizenid(src)
-    for _, r in ipairs(b.responsables) do if r == cid then return true end end
-    return false
-end
-
--- /bebe_confier [id joueur] : un parent confie le bébé qu'il porte (ou le plus proche) à une autre personne (jusqu'au redémarrage)
-RegisterCommand(Config.Commandes.confier, function(src, args)
-    if src == 0 then return end
-    local cible = tonumber(args[1])
-    if not cible or not present(cible) or cible == src then return notify(src, 'Usage : /' .. Config.Commandes.confier .. ' [id du joueur]', 'error') end
-    local b = Bebes[parPorteur[src] or '']
-    if not b then
-        local pc, bestD = GetEntityCoords(GetPlayerPed(src)), nil
-        for _, x in pairs(Bebes) do
-            local e = x.ents and x.ents.corps
-            if e and DoesEntityExist(e) then
-                local d = #(pc - GetEntityCoords(e))
-                if d < 3.0 and (not bestD or d < bestD) then b, bestD = x, d end
-            end
-        end
-    end
-    if not b then return notify(src, 'Portez le bébé ou placez-vous à côté.', 'error') end
-    if not estParent(src, b) then return notify(src, 'Seul un parent peut confier ce bébé.', 'error') end
-    local cid = citizenid(cible)
-    if not cid then return notify(src, 'Joueur introuvable.', 'error') end
-    b.confies = b.confies or {}
-    b.confies[cid] = true
-    notify(src, 'Bébé confié : cette personne peut s\'en occuper.', 'success')
-    notify(cible, 'On vous a confié un bébé : vous pouvez le prendre (ALT).', 'inform')
-end, false)
+-- V8 : tout le monde peut prendre un bébé (plus de réservation aux parents ni de /bebe_confier). Les responsables
+-- (filiation) ne servent qu'à la garde à la déconnexion, aux notifications des besoins et à la persistance.
 
 -- Exécute un changement sous verrou (bébé + joueur) : aucune autre demande n'est traitée pendant ce temps
 local function sousVerrou(src, objets, fn)
@@ -620,14 +582,13 @@ RegisterNetEvent('elyzea_bebe_modele:prendre', function(id, mode)
     if not limite(src, 'prendre', 4, 3000) then return end
     if type(id) ~= 'string' or not Bebes[id] then return end
     mode = alias(mode)
-    mode = P.modes[mode] and mode or 'bras'
+    mode = P.modes[mode] and mode or 'face'
     local b = Bebes[id]
     local err = peutAgir(src)
         or (parPorteur[src] and 'Vous portez déjà un bébé.')
         or ((b.etat ~= 'pose' and b.etat ~= 'poussette') and 'Ce bébé n\'est pas disponible.')
         or (GetPlayerRoutingBucket(src) ~= (b.bucket or 0) and 'Bébé introuvable.')
         or (not procheDe(src, b.ents and b.ents.corps, P.distancePrendre + 0.5) and 'Le bébé est trop loin.')
-        or (not responsable(src, b) and 'Ce n\'est pas votre enfant.')
         or modeRefuse(src, mode)
     local po = b.etat == 'poussette' and Poussettes[b.poussette] or nil
     if not err and po and po.etat == 'poussee' and po.pousseur ~= src then err = 'Quelqu\'un pousse cette poussette.' end
@@ -811,7 +772,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:pousser', function(pid)
         or (parPousseur[src] and 'Vous poussez déjà une poussette.')
         or (po.etat == 'poussee' and 'Quelqu\'un pousse déjà cette poussette.')
         or (po.etat == 'renversee' and 'La poussette est renversée : relevez-la d\'abord.')
-        or (b and b.etat == 'porte' and P.modes[b.mode].mainsOccupees and 'Vos mains sont occupées (bébé dans les bras).')
+        or (b and b.etat == 'porte' and P.modes[b.mode].mainsOccupees and 'Vos mains sont occupées (bébé porté contre vous).')
         or (GetPlayerRoutingBucket(src) ~= (po.bucket or 0) and 'Poussette introuvable.')
         or (not procheDe(src, po.ent, PO.distance + 0.5) and 'La poussette est trop loin.')
     if err then return notify(src, err, 'error') end
