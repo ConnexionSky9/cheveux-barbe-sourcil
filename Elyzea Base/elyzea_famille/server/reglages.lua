@@ -439,6 +439,9 @@ exports('AdminAction', function(src, name, data)
     elseif name == 'test_debut' or name == 'test_fin' then
         if type(Fam.ActionTest) ~= 'function' then return false, 'Indisponible.' end
         return Fam.ActionTest(name, acteur, data)
+    elseif name == 'diag_suivi' then
+        if type(Fam.DiagSuivi) ~= 'function' then return false, 'Indisponible.' end
+        return Fam.DiagSuivi(data)
     elseif name == 'reset' then
         if not MySQL.transaction.await({ { query = 'DELETE FROM `rp_famille_reglages`', values = {} } }) then
             return false, 'Erreur de base de données : rien n\'a été modifié.'

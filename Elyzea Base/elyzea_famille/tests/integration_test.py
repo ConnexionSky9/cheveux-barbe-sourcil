@@ -1102,6 +1102,12 @@ rx = from_lua(sg(999))
 check('59. export pour l\'Aura : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
       and r1['grossesse']['id'] == gid and r1['historique'][0]['titre'] == 'Grossesse de test', r1)
 check('59. un autre joueur ne voit que ses propres données ; joueur inconnu refusé', r3.get('statut') == 'aucune' and 'erreur' in rx, (r3, rx))
+check('60. application : date de découverte, examens, prochaines étapes fournis', r1.get('decouverte') and r1['decouverte'].get('date')
+      and isinstance(r1.get('prochaines'), list) and len(r1['prochaines']) >= 1 and isinstance(r1.get('examens'), (list, dict, type(None))), r1.get('prochaines'))
+ok_d, msg_d = admin(3, 'diag_suivi', {'sid': 1})
+check('60. diagnostic admin du suivi : grossesse en cours et état du téléphone indiqués', ok_d is True and gid in msg_d and 'Téléphone' in msg_d, msg_d)
+ok_d2, msg_d2 = admin(3, 'diag_suivi', {'sid': 999})
+check('60. diagnostic : joueur inconnu signalé', ok_d2 is False, msg_d2)
 admin(3, 'test_fin', {'sid': 1})
 ok, msg = admin(3, 'reset')
 SUIVI[0] = 60

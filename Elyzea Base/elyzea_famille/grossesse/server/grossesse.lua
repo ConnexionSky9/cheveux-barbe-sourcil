@@ -100,12 +100,42 @@ local function lignesHistorique(gid)
     return out
 end
 
+-- Examens et tests passés (pour l'application) : extraits de l'historique
+local function examensDe(histo)
+    local out = {}
+    for _, e in ipairs(histo) do
+        if e.kind == 'examen' or e.kind == 'test' or e.kind == 'decouverte' then out[#out + 1] = { titre = e.titre, description = e.description, date = e.date } end
+    end
+    return out
+end
+
+-- Prochaines étapes utiles (texte) selon l'avancement et la procédure d'accouchement en cours
+local function prochainesEtapes(g, av)
+    local out = {}
+    if av.terme then
+        local tr = Fam.TravailInfo and Fam.TravailInfo(g)
+        if tr then out[#out + 1] = tr
+        else out[#out + 1] = 'Terme atteint : contactez les EMS (application Urgences ou /ems). L\'accouchement se fait uniquement avec un EMS.' end
+        return out
+    end
+    if av.avantTrimestre then
+        out[#out + 1] = ('Trimestre %d dans %s.'):format(av.trimestre + 1, Regles.texteDuree(av.avantTrimestre))
+    end
+    out[#out + 1] = ('Terme prévu dans %s.'):format(Regles.texteDuree(av.avantTerme))
+    if tonumber(g.bebes_connus) ~= 1 then out[#out + 1] = 'Un examen par un EMS permet de connaître le nombre de bébés.' end
+    if Regles.accouchementPossible and Regles.accouchementPossible(av, G.fin) then
+        out[#out + 1] = 'L\'accouchement est désormais possible : prenez contact avec les EMS.'
+    end
+    return out
+end
+
 function Fam.DonneesSuivi(cid, now)
     now = now or os.time()
     local g = enCours(cid)
     if g and g.discovered_at then
         local av = Fam.ProgresserGrossesse and Fam.ProgresserGrossesse(g, now) or Regles.avancement(g, now, G)
         local J = 24 * HEURE
+        local histo = lignesHistorique(g.id)
         return {
             statut = 'en_cours', now = now,
             grossesse = {
@@ -118,7 +148,12 @@ function Fam.DonneesSuivi(cid, now)
                 avantTermeTexte = Regles.texteDuree(av.avantTerme), joursAvantTerme = math.ceil(av.avantTerme / J),
                 bebes = (tonumber(g.bebes_connus) == 1) and g.bebes or nil,
             },
-            historique = lignesHistorique(g.id),
+            historique = histo,
+            examens = examensDe(histo),
+            prochaines = prochainesEtapes(g, av),
+            decouverte = { date = os.date('%d/%m/%Y %H:%M', tonumber(g.discovered_at)),
+                par = (histo[1] and histo[1].kind == 'decouverte') and histo[1].description or nil },
+            travail = Fam.TravailEtat and Fam.TravailEtat(g) or nil,
             -- anciens champs (panneau V5)
             bebes = (tonumber(g.bebes_connus) == 1) and g.bebes or nil,
             jour = math.min(av.jour, math.max(1, av.jours)), jours = av.jours, pct = av.pct, etape = av.etape, terme = av.terme, due_at = g.due_at,
@@ -137,11 +172,41 @@ end
 
 -- Suivi de grossesse du personnage du joueur src (jamais celui d'un autre) : panneau /grossesse et
 -- application « Grossesse » du téléphone Elyzea Aura (export SuiviGrossesse, appelé par le serveur de l'Aura)
+-- Erreurs : { erreur = texte, code = 'personnage' | 'limite' | 'serveur' } (jamais « indisponible » pour une grossesse connue)
 local function suiviJoueur(src)
     local j = Fam.Joueur(src)
-    if not j then return { erreur = 'Personnage non chargé.' } end
-    if not Fam.Limite(src, 'grossesse', 20, 60) then return { erreur = 'Patientez un peu.' } end
-    return Fam.DonneesSuivi(j.cid)
+    if not j then return { erreur = 'Personnage non chargé : réessayez dans un instant.', code = 'personnage' } end
+    if not Fam.Limite(src, 'suivi', 30, 60) then return { erreur = 'Trop de demandes : patientez quelques secondes.', code = 'limite' } end
+    local ok, r = pcall(Fam.DonneesSuivi, j.cid)
+    if not ok then
+        Fam.err(('suivi de grossesse (%s) : %s'):format(j.cid, tostring(r)))
+        return { erreur = 'Erreur du serveur lors de la lecture du suivi.', code = 'serveur' }
+    end
+    return r
+end
+Fam.SuiviJoueur = suiviJoueur
+
+-- Diagnostic (menu admin › Famille › Tests) : ce que l'application « Grossesse » afficherait pour ce joueur, et pourquoi
+function Fam.DiagSuivi(data)
+    local sid = tonumber(type(data) == 'table' and data.sid)
+    local j = sid and Fam.Joueur(sid)
+    if not j then return false, 'Joueur introuvable (ID en jeu).' end
+    local ok, r = pcall(Fam.DonneesSuivi, j.cid)
+    if not ok then return false, ('%s : erreur de lecture du suivi (%s).'):format(j.nom, tostring(r)) end
+    local aura = GetResourceState('elyzea_aura')
+    local brute = MySQL.single.await("SELECT `id`, `discovered_at` FROM `rp_pregnancies` WHERE `porteur_cid` = ? AND `active_key` IS NOT NULL LIMIT 1", { j.cid })
+    local txt
+    if r.statut == 'en_cours' then
+        txt = ('grossesse %s en cours, %s, découverte le %s'):format(r.grossesse.id, r.grossesse.terme and 'terme atteint'
+            or (r.grossesse.trimestre .. 'e trimestre'), r.decouverte and r.decouverte.date or '?')
+    elseif r.statut == 'terminee' then
+        txt = ('grossesse %s terminée le %s'):format(r.fin.id, r.fin.date)
+    elseif brute then
+        txt = ('grossesse %s en cours mais PAS encore découverte (test ou examen EMS nécessaire) : l\'application affiche « aucune grossesse confirmée »'):format(brute.id)
+    else
+        txt = 'aucune grossesse'
+    end
+    return true, ('%s (%s) : %s. Téléphone elyzea_aura : %s.'):format(j.nom, j.cid, txt, aura == 'started' and 'démarré' or aura)
 end
 Ely.callback.register('famille:grossesse', suiviJoueur)
 exports('SuiviGrossesse', suiviJoueur)

@@ -73,7 +73,8 @@
     const tests = () => `<div class="section"><h2>Tests de grossesse</h2>
         <div class="btn-row"><input class="input" type="number" min="1" id="famTestSid" placeholder="ID du joueur" style="max-width:160px">
         <button class="btn" data-fa="test_debut">Démarrer une grossesse de test</button>
-        <button class="btn" data-fa="test_fin">Terminer la grossesse de test</button></div>
+        <button class="btn" data-fa="test_fin">Terminer la grossesse de test</button>
+        <button class="btn" data-fa="diag_suivi">Vérifier son suivi (application Grossesse)</button></div>
         <p class="hint">Utilise les durées enregistrées (réglez par ex. 20 s par trimestre et enregistrez d'abord). La fin de test ne crée pas de bébé, garde l'historique et ne bloque pas une nouvelle grossesse.</p></div>`;
 
     // Diagnostic des bébés, porte-bébés et poussettes (lu à l'ouverture de l'onglet)
@@ -134,7 +135,7 @@
         switch (n.dataset.fa) {
             case 'save': send('save', { values: F.draft }); F.draft = null; return;
             case 'cancel': F.draft = null; return render();
-            case 'test_debut': case 'test_fin': {
+            case 'test_debut': case 'test_fin': case 'diag_suivi': {
                 const sid = Number((document.getElementById('famTestSid') || {}).value);
                 if (!Number.isInteger(sid) || sid < 1) return;
                 send(n.dataset.fa, { sid });
