@@ -128,6 +128,40 @@ Config.Poussette = {
     roues = true,                -- roues séparées qui tournent (objets locaux, vus par chaque joueur)
 }
 
+-- ─────────────────────────── V8 : soins et besoins du bébé ───────────────────────────
+-- Trois jauges de 0 (aucun besoin) à 100 (besoin maximal), enregistrées en base et recalculées avec le temps :
+--   faim (le biberon de lait nourrit ET désaltère un nouveau-né : une seule jauge « faim et soif »),
+--   fatigue (monte quand le bébé est éveillé, descend quand il dort ; plus vite s'il est couché),
+--   couche (monte avec le temps ; une couche propre la remet à 0).
+-- Toutes les valeurs sont réglables dans le menu admin (Famille › Soins du bébé) ; « vitesse » accélère tout pour les tests.
+Config.Soins = {
+    actif = true,
+    vitesse = 1,                 -- multiplicateur du temps (60 = une heure de besoins par minute, pour tester)
+    parHeure = { faim = 14, fatigue = 10, couche = 9 },   -- points gagnés par heure (bébé éveillé)
+    recuperation = { couche = 30, porte = 15 },           -- points de fatigue perdus par heure de sommeil (couché / porté)
+    seuilAlerte = 60,            -- notification « commence à… »
+    seuilUrgent = 85,            -- notification plus insistante
+    rappel = 10,                 -- minutes entre deux rappels pour un même besoin (pas de répétition en dessous)
+    pauseGarde = true,           -- bébé « avec » un personnage déconnecté : les besoins ne changent pas
+    rattrapageMax = 12,          -- heures maximales comptées après un redémarrage du serveur
+    reveilAuto = true,           -- le bébé se réveille seul une fois reposé (fatigue à 0)
+    intervalle = 10,             -- secondes entre deux calculs
+    dureeBiberon = 12,           -- secondes
+    dureeCouche = 15,            -- secondes
+    distance = 2.0,              -- distance pour nourrir / changer / habiller un bébé posé
+    itemBiberon = 'biberon',
+    itemCouche = 'couche',
+    -- vêtements achetés chez la puéricultrice : objet -> tenue du modèle (stream/ : ely_bebe_<pose>_<peau>_<tenue>.ydr)
+    vetements = {
+        vetement_bebe_blanc = { tenue = 'pyjama', label = 'Pyjama blanc' },
+        vetement_bebe_rose = { tenue = 'pyjama_rose', label = 'Pyjama rose' },
+        vetement_bebe_bleu = { tenue = 'pyjama_bleu', label = 'Pyjama bleu' },
+    },
+    -- objet tenu à la main pour nourrir (modèle 3D créé pour la ressource : aucun biberon n'existe dans GTA)
+    biberon = { modele = 'biberon', os = 57005, pos = vector3(0.10, 0.02, -0.02), rot = vector3(-70.0, 0.0, 10.0) },
+    animSol = { dict = 'amb@medic@standing@tendtodead@idle_a', clip = 'idle_a', flag = 1 },   -- s'occuper d'un bébé posé
+}
+
 -- Commandes (joueurs)
 Config.Commandes = {
     prendre = 'bebe_prendre',    -- /bebe_prendre [contre|ventral|dorsal] : le bébé posé le plus proche (contre soi par défaut)

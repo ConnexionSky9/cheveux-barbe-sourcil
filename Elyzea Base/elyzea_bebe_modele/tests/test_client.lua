@@ -38,6 +38,7 @@ BebeNotify = function() end
 dofile('shared/modeles.lua')
 dofile('config.lua')
 dofile('client/portage.lua')
+dofile('client/soins.lua')
 
 local function options(ent)
     local ids = {}
@@ -91,6 +92,21 @@ ENT[21] = nil
 local d = Config.Portage.morphologies[GetHashKey('mp_f_freemode_01')]
 check('6. morphologie féminine : décalage par prise (ventral, dorsal), vers le bas', d and d.ventral.z < 0 and d.dorsal.z < 0
     and d.ventral.y ~= d.dorsal.y, d and d.ventral.y)
+
+-- ── V8 : soins (menu ALT)
+LocalPlayer.state.bebePorte = nil
+ENT[10] = { pos = vector3(1, 0, 0), state = { bebe = 'BB-1', bebePiece = 'corps', bebeTenue = 'pyjama_rose' } }
+o = options(10)
+check('7. V8 : bébé posé : biberon, couche, habiller, retirer le pyjama, état', o:find('soinnourrir:BB%-1') and o:find('soinchanger:BB%-1')
+    and o:find('soinhabiller:BB%-1') and o:find('soindeshabiller:BB%-1') and o:find('soinetat:BB%-1'), o)
+ENT[10].state.bebeTenue = 'couche'
+o = options(10)
+check('7. V8 : bébé en couche : pas d\'option « retirer le pyjama »', not o:find('soindeshabiller'), o)
+ENT[20] = { pos = vector3(1.5, 0, 0), state = { bebePoussette = 'PO-1', bebeDedans = 'BB-1' } }
+o = options(20)
+check('7. V8 : bébé dans la poussette : biberon et état, pas de change (le poser d\'abord)', o:find('soinnourrir:BB%-1') and o:find('soinetat')
+    and not o:find('soinchanger'), o)
+ENT[20] = nil
 
 print(('\n%d contrôles réussis, %d échec(s)'):format(OK, KO))
 os.exit(KO == 0 and 0 or 1)

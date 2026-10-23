@@ -217,6 +217,21 @@ check('7. redémarrage : poussette garée restaurée, bébé dedans, toujours en
       and b.etat == 'poussette' and b.endormi and 'paup' in (S['model_name'](b.ents.yeux) or ''), (po and po.etat, b and b.etat))
 check('7. aucune entité en double (poussette + 3 pièces du bébé)', G.CountEnts() == 4, G.CountEnts())
 
+# ════════════ 7b. V8 : besoins et vêtements enregistrés, migration de la table ════════════
+cols = [r['COLUMN_NAME'] for r in q("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rp_bebes'")]
+check('7b. migration V8 : colonne « besoins » ajoutée à rp_bebes (aucune autre modifiée)', 'besoins' in cols and 'apparence' in cols, cols)
+L('function(b) b.besoins = { faim = 42.4, fatigue = 17.0, couche = 63.9, at = os.time() } b.apparence.tenue = "couche" end')(b)
+G.Advance(2500)
+r = q('SELECT besoins, apparence FROM rp_bebes WHERE id=%s', (bid,))[0]
+nb = json.loads(r['besoins'] or 'null') or {}
+check('7b. besoins et tenue écrits en base', nb.get('faim') == 42 and nb.get('couche') == 63 and json.loads(r['apparence'])['tenue'] == 'couche', r)
+arreter(S)
+S = demarrer({1: (100.0, 100.0, 31.0), 2: (101.0, 100.0, 31.0)})
+G, L = S['G'], S['L']
+b = bebes(S)[0][bid]
+check('7b. redémarrage : besoins et tenue retrouvés', b and b.besoins and b.besoins.faim == 42 and b.besoins.couche == 63
+      and b.apparence.tenue == 'couche' and S['model_name'](b.ents.corps).endswith('_couche'), b and b.besoins and b.besoins.faim)
+
 # ════════════ 8. suppression ════════════
 G.Net('elyzea_bebe_modele:prendre', 1, bid, 'bras')
 G.ClientAttache(1)

@@ -215,6 +215,17 @@ Items.porte_bebe_dorsal = { label = 'Porte-bébé dorsal', weight = 1100, stack 
     description = 'Utiliser : équiper / retirer. Puis ALT sur le bébé › « Porte-bébé dorsal ». Bébé dans le dos, mains libres.' }
 Items.poussette = { label = 'Poussette', weight = 7500, stack = false, max = 1, image = 'poussette.png', icon = '🛒', close = true,
     description = 'Utiliser : sortir la poussette devant soi. ALT dessus : pousser, garer, installer le bébé, ranger.' }
+-- V8 : soins du bébé (ressource elyzea_bebe_modele) : retirés par le serveur au début du soin (jamais automatiquement)
+Items.biberon = { label = 'Biberon de lait', weight = 250, stack = true, max = 10, image = 'biberon.png', icon = '🍼', close = true,
+    description = 'Nourrit et désaltère le bébé. Utiliser (ou ALT sur le bébé › Donner le biberon) : bébé porté ou tout près.' }
+Items.couche = { label = 'Couche propre', weight = 60, stack = true, max = 20, image = 'couche.png', icon = '🧷', close = true,
+    description = 'Utiliser (ou ALT sur le bébé › Changer la couche) : bébé posé allongé, tout près.' }
+Items.vetement_bebe_blanc = { label = 'Pyjama de bébé (blanc)', weight = 150, stack = true, max = 5, image = 'vetement_bebe_blanc.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
+Items.vetement_bebe_rose = { label = 'Pyjama de bébé (rose)', weight = 150, stack = true, max = 5, image = 'vetement_bebe_rose.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
+Items.vetement_bebe_bleu = { label = 'Pyjama de bébé (bleu)', weight = 150, stack = true, max = 5, image = 'vetement_bebe_bleu.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
 
 -- Argent en billets : 1 000 $ = 1 g, une seule pile sans limite (pas de « inventaire plein »)
 Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'black_money.png', icon = '💵',

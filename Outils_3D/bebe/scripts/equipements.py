@@ -47,6 +47,8 @@ COLORIS_PB = {       # tissu principal, sangles (sRGB)
     'marine': ((44, 58, 92), (30, 34, 46)),
     'sauge': ((126, 146, 120), (70, 82, 66)),
 }
+# V8 : biberon (aucun dans GTA) : flacon (lait), bague, tétine
+COLORIS_BIBERON = {'standard': ((246, 243, 232), (120, 182, 226), (212, 170, 120))}
 COLORIS_POUSSETTE = {  # tissu, intérieur, châssis
     'graphite': ((56, 58, 62), (196, 190, 178), (170, 172, 176)),
     'sable': ((186, 168, 140), (236, 230, 218), (36, 36, 38)),
@@ -523,6 +525,31 @@ def roue_seule(R, name):
     return joindre(pieces, f'{PREFIX}_{name}')
 
 
+def biberon():
+    """V8 : biberon tenu à la main pour nourrir le bébé. Axe = +Z (tétine en haut), origine au centre du flacon.
+    Flacon 5,4 cm × 11 cm, bague 6 cm, tétine silicone. Matières (R, G, B) = flacon, bague, tétine."""
+    pieces = []
+    bpy.ops.mesh.primitive_cylinder_add(vertices=28, radius=0.027, depth=0.11, location=(0, 0, 0))
+    flacon = bpy.context.active_object
+    md = flacon.modifiers.new('b', 'BEVEL')
+    md.width = 0.006
+    md.segments = 3
+    apply_mods(flacon)
+    pieces.append(masque(flacon, (1, 0, 0)))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=28, radius=0.0305, depth=0.024, location=(0, 0, 0.066))
+    pieces.append(masque(bpy.context.active_object, (0, 1, 0)))
+    pieces.append(masque(tube([(0, 0, 0.077), (0, 0, 0.090), (0, 0, 0.101), (0, 0, 0.110), (0, 0, 0.1155)], 0.0, 'tetine',
+                              segs=20, rayons=[0.017, 0.0115, 0.0080, 0.0068, 0.0035]), (0, 0, 1)))
+    return joindre(pieces, f'{PREFIX}_biberon')
+
+
+def texture_biberon(m, ao, flacon, bague, tetine):
+    col = (G.srgb_to_lin(flacon)[None, None, :] * m[..., 0:1] + G.srgb_to_lin(bague)[None, None, :] * m[..., 1:2]
+           + G.srgb_to_lin(tetine)[None, None, :] * m[..., 2:3])
+    col = col / np.clip(m.sum(2, keepdims=True), 1e-3, None)
+    return G.lin_to_srgb(col * (0.7 + 0.3 * ao)[..., None])
+
+
 # position des 4 roues dans le repère de la poussette (x, y, z du centre, rayon)
 ROUES = {'ar': (X_AR, Y_AR, ROUE_AR, ROUE_AR), 'av': (X_AV, Y_AV, ROUE_AV, ROUE_AV)}
 
@@ -847,6 +874,11 @@ def main():
         'roues': {k: [round(v, 4) for v in ROUES[k]] for k in ROUES},
     }
     log(f'poussette : {rapport["poussette"]}')
+    objets['biberon'] = biberon()
+    Vbib = verts_of([objets['biberon']])
+    rapport['biberon'] = {'triangles': len(objets['biberon'].data.polygons),
+                          'boite': [[round(float(x), 3) for x in Vbib.min(0)], [round(float(x), 3) for x in Vbib.max(0)]]}
+    log(f'biberon : {rapport["biberon"]}')
 
     # ── UV, cuissons, textures
     textures = {}
@@ -860,7 +892,12 @@ def main():
         nrm = relief_tissu(m, sz, sz)
         G.save_png(nrm, os.path.join(T, f'{PREFIX}_{key}_n.png'))
         textures[key]['n'] = f'{PREFIX}_{key}_n.png'
-        if key.startswith('pb_'):
+        if key == 'biberon':
+            for cname, cols in COLORIS_BIBERON.items():
+                f = f'{PREFIX}_{key}_{cname}.png'
+                G.save_png(texture_biberon(m, ao, *cols), os.path.join(T, f))
+                textures[key][cname] = f
+        elif key.startswith('pb_'):
             for cname, (tissu, sangle) in COLORIS_PB.items():
                 f = f'{PREFIX}_{key}_{cname}.png'
                 G.save_png(texture_pb(m, ao, tissu, sangle), os.path.join(T, f))
@@ -873,7 +910,7 @@ def main():
                 textures[key][cname] = f
         log(f'{key} : textures {list(textures[key])}')
     rapport['textures'] = textures
-    rapport['coloris'] = {'pb': list(COLORIS_PB), 'poussette': list(COLORIS_POUSSETTE)}
+    rapport['coloris'] = {'pb': list(COLORIS_PB), 'poussette': list(COLORIS_POUSSETTE), 'biberon': list(COLORIS_BIBERON)}
 
     # ── matériaux d'aperçu et rendus de contrôle
     for key, ob in objets.items():
@@ -936,6 +973,10 @@ def main():
         p = os.path.join(R, f'_eq_poussette_{nom}.png')
         G.render_view(p, tgt, d, scl, (560, 640))
         vues.append((p, f'poussette · {nom}'))
+    montrer([objets['biberon']])
+    p = os.path.join(R, '_eq_biberon.png')
+    G.render_view(p, (0, 0, 0.02), (0.8, 1, 0.4), 0.22, (560, 640))
+    vues.append((p, 'biberon'))
     # coloris
     for key, ob in objets.items():
         if key.startswith('roue_'):

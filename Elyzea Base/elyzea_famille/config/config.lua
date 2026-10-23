@@ -179,6 +179,9 @@ Config.Bebe = {
     roues = true,             -- roues qui tournent
     colorisPb = 'gris',       -- coloris par défaut des porte-bébés (gris, marine, sauge)
     colorisPoussette = 'graphite', -- coloris par défaut de la poussette (graphite, sable)
+    -- V8 : soins (mêmes valeurs que Config.Soins d'elyzea_bebe_modele) ; « vitesse » accélère tout pour les tests
+    soins = { actif = true, vitesse = 1, faim = 14, fatigue = 10, couche = 9, sommeilCouche = 30, sommeilPorte = 15,
+              seuilAlerte = 60, seuilUrgent = 85, rappel = 10, dureeBiberon = 12, dureeCouche = 15, pauseGarde = true, reveilAuto = true },
     animPoussee = 'tondeuse',  -- V8 : animation de poussée (tondeuse = buste droit, bras vers la poignée ; chariot = ancienne)
     decalagePoussette = { y = 0, z = 0 },   -- V8 : cm, poussette poussée (réglage fin après essai en jeu)
     -- décalages de chaque prise (cm, degrés), ajoutés aux positions calculées : réglage fin après essai en jeu

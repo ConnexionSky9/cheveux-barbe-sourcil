@@ -135,7 +135,7 @@ local function creerEntites(b, pose, coords, cap, figer)
     local ents, nets = {}, {}
     for _, k in ipairs(PIECES) do
         if noms[k] then
-            local e, n = creerObjet(noms[k], coords, cap, figer, b.bucket, { bebe = b.id, bebePiece = k })
+            local e, n = creerObjet(noms[k], coords, cap, figer, b.bucket, { bebe = b.id, bebePiece = k, bebeTenue = b.apparence.tenue })
             if not e then
                 b.ents = ents
                 supprimerEntites(b)
@@ -472,6 +472,7 @@ local function appliquerReglages(v)
             rx = num(('bebe.dec.%s.rx'):format(m), -45, 45, d.rx or 0), ry = num(('bebe.dec.%s.ry'):format(m), -45, 45, d.ry or 0),
         }
     end
+    if BB and BB.appliquerSoins then BB.appliquerSoins(v, num, bool) end
     publierReglages()
     return true
 end
@@ -498,7 +499,7 @@ function CreerBebe(apparence, coords, cap, opts)
     if Bebes[id] then return nil end
     local b = { id = id, apparence = apparencePropre(apparence), responsables = opts.responsables, bucket = tonumber(opts.bucket) or 0,
                 persistant = opts.persistant == true, grossesse = opts.grossesse, rang = tonumber(opts.rang), nom = opts.nom,
-                endormi = opts.endormi == true }
+                endormi = opts.endormi == true, besoins = type(opts.besoins) == 'table' and opts.besoins or nil }
     Bebes[id] = b
     if not poserA(b, opts.pose == 'assis' and 'assis' or 'allonge', vec(coords), tonumber(cap) or 0.0) then
         Bebes[id] = nil
@@ -511,7 +512,7 @@ end
 local function nouveauGarde(apparence, opts, gardien)
     local b = { id = opts.id, apparence = apparencePropre(apparence), responsables = opts.responsables, bucket = tonumber(opts.bucket) or 0,
                 persistant = true, grossesse = opts.grossesse, rang = tonumber(opts.rang), nom = opts.nom, endormi = opts.endormi == true,
-                etat = 'garde', gardien = gardien }
+                etat = 'garde', gardien = gardien, besoins = type(opts.besoins) == 'table' and opts.besoins or nil }
     Bebes[b.id] = b
     return b
 end
@@ -595,6 +596,7 @@ RegisterNetEvent('elyzea_bebe_modele:prendre', function(id, mode)
     local err = peutAgir(src)
         or (parPorteur[src] and 'Vous portez déjà un bébé.')
         or ((b.etat ~= 'pose' and b.etat ~= 'poussette') and 'Ce bébé n\'est pas disponible.')
+        or (b.soin and 'Quelqu\'un s\'occupe du bébé (biberon, couche…).')
         or (GetPlayerRoutingBucket(src) ~= (b.bucket or 0) and 'Bébé introuvable.')
         or (not procheDe(src, b.ents and b.ents.corps, P.distancePrendre + 0.5) and 'Le bébé est trop loin.')
         or modeRefuse(src, mode)
@@ -640,6 +642,7 @@ RegisterNetEvent('elyzea_bebe_modele:poser', function(pose, coords, cap)
     if not limite(src, 'poser', 4, 3000) then return end
     local b = Bebes[parPorteur[src] or '']
     if not b or b.etat ~= 'porte' or b.verrou then return end
+    if b.soin then return notify(src, 'Terminez d\'abord le soin en cours.', 'error') end
     if not P.poses[pose] or type(coords) ~= 'vector3' and type(coords) ~= 'table' then return end
     local x, y, z = tonumber(coords.x), tonumber(coords.y), tonumber(coords.z)
     if not x or not y or not z then return end
@@ -1264,6 +1267,8 @@ local function diagnostic()
         lignes[#lignes + 1] = ('bébé %s : %s%s%s%s%s%s'):format(id, b.etat, b.mode and (' · ' .. b.mode) or '', b.porteur and (' · porteur ' .. b.porteur) or '',
             b.poussette and (' · poussette ' .. b.poussette) or '', b.gardien and (' · avec ' .. b.gardien) or '',
             b.persistant and ' · enregistré' or ' · test (non enregistré)')
+            .. (' · tenue ' .. tostring(b.apparence and b.apparence.tenue))
+            .. ((BB and BB.texteBesoins and BB.texteBesoins(b)) and (' · ' .. BB.texteBesoins(b)) or '')
     end
     for id, po in pairs(Poussettes) do
         lignes[#lignes + 1] = ('poussette %s : %s%s · %s%s%s'):format(id, po.etat, po.frein == false and ' (frein desserré)' or '', po.cid or '?',
@@ -1291,4 +1296,7 @@ BB = {
     Bebes = Bebes, Poussettes = Poussettes, parPorteur = parPorteur, parPousseur = parPousseur,
     citizenid = citizenid, notify = notify, present = present, log = log,
     poserA = poserA, garerA = garerA, nouveauGarde = nouveauGarde, placer = placer, majDedans = majDedans, devant = devant, nouvelId = nouvelId,
+    -- V8 : soins (server/soins.lua)
+    sousVerrou = sousVerrou, procheDe = procheDe, peutAgir = peutAgir, limite = limite, nbObjets = nbObjets,
+    creerObjet = creerObjet, supprimer = supprimer, poserDeSecours = poserDeSecours, Equip = Equip,
 }

@@ -63,8 +63,13 @@ HAIR_STYLES = {
     # densité max, étendue (0 = sommet seulement, 1 = toute la zone du cuir chevelu)
     'duvet': {'density': 0.50, 'extent': 0.55, 'contraste': 1.8},   # V6 : duvet clairsemé (plus d'effet « casque »)
     'touffe': {'density': 0.85, 'extent': 1.0},
+    # V8 : chevelure de naissance, plus fournie que le duvet (densité et étendue plus grandes) sans l'effet « casque »
+    # de la touffe : implantation progressive conservée (contraste des mèches), bord flou sur le front et la nuque
+    'naissance': {'density': 0.74, 'extent': 0.82, 'contraste': 1.35},
 }
 ONESIE_COLOR = (236, 234, 228)   # blanc cassé (pyjama / grenouillère)
+# V8 : pyjamas de couleur (vêtements achetés chez la puéricultrice) : même maillage, même relief, autre teinte du tissu
+ONESIE_COLORS = {'pyjama': ONESIE_COLOR, 'pyjama_rose': (236, 190, 200), 'pyjama_bleu': (184, 210, 236)}
 
 BONES = [
     # nom, tête, queue, parent
@@ -249,7 +254,12 @@ def value_noise(shape, scale, seed):
 
 # ─────────────────────────── 1. Masques par sommet (maillage HD) ───────────────────────────
 
-TENUES = ('couche', 'pyjama')     # couche seule (corps visible) ou pyjama (texture par-dessus le même corps)
+TENUES = ('couche', 'pyjama', 'pyjama_rose', 'pyjama_bleu')     # couche seule (corps visible) ou pyjama (texture par-dessus)
+
+
+def tenue_base(tenue):
+    """Relief commun : tous les pyjamas partagent la carte de normales du pyjama."""
+    return 'pyjama' if tenue.startswith('pyjama') else tenue
 
 
 def vertex_masks(v, zones, part):
@@ -581,7 +591,7 @@ def compose_body(m1, m2, m3, m4, ao, tone, tenue):
         # jersey fin (peu de bruit) ; bords côtelés un peu plus denses ; ombre douce dans le creux des plis
         knit = 0.975 + 0.025 * value_noise((H, W), 1.5, 11) + 0.015 * value_noise((H, W), 10, 12)
         knit = knit * (1 - 0.05 * m4[..., 2]) * (0.97 + 0.06 * m4[..., 0])
-        fabric = srgb_to_lin(ONESIE_COLOR)[None, None, :] * knit[..., None]
+        fabric = srgb_to_lin(ONESIE_COLORS.get(tenue, ONESIE_COLOR))[None, None, :] * knit[..., None]
         # couche visible en transparence : légèrement plus claire sous le pyjama
         fabric = fabric * (1 + 0.04 * couche[..., None])
     col = skin * (1 - cloth[..., None]) + fabric * cloth[..., None]
@@ -598,7 +608,7 @@ def detail_normal(nrm, m1, m3, m4, tenue, seed=5):
     couche, pyjama = m1[..., 0], m3[..., 1]
     cloth = couche if tenue == 'couche' else np.maximum(couche, pyjama)
     h = (value_noise((H, W), 3.0, seed) - 0.5) * (1 - cloth) * 0.18 + (value_noise((H, W), 2.2, seed + 1) - 0.5) * cloth * 0.6
-    if tenue == 'pyjama':
+    if tenue_base(tenue) == 'pyjama':
         h = h + blur(m4[..., 0], 0.7) * 1.4 + blur(m4[..., 1], 2.5) * 2.2
     gy, gx = np.gradient(h)
     n = nrm * 2 - 1
@@ -1070,7 +1080,8 @@ def main():
     report['etapes'].append({'uv': {'couverture': round(float(couvert.mean()), 3)}})
     T = dirs['textures']
     for tenue in TENUES:
-        save_png(detail_normal(NRM, M1, M3, M4, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))
+        if tenue_base(tenue) == tenue:
+            save_png(detail_normal(NRM, M1, M3, M4, tenue), os.path.join(T, f'{PREFIX}_corps_{tenue}_n.png'))
     save_png(np.stack([M1[..., 0], M1[..., 1], M1[..., 2]], 2), os.path.join(T, 'masque_couche_rougeurs_levres.png'))
     save_png(np.stack([M2[..., 0], M2[..., 1], M2[..., 2]], 2), os.path.join(T, 'masque_sourcils_cils_cuir.png'))
     save_png(np.repeat(AO[..., None], 3, 2), os.path.join(T, 'occlusion.png'))

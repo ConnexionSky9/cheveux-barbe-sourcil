@@ -812,7 +812,7 @@ Config.Editor = {
           npc = { payment = 'cash', casino = { role = 'wheel', name = 'Roue de la fortune', wheel = 'lucky' } } },
         { id = 'casino_cashier', icon = '💰', label = 'Guichetier du casino', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Caissier',
           npc = { payment = 'cash', casino = { role = 'cashier', name = 'Caisse du casino' } } },
-        -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette, objets non consommés
+        -- Puériculture (elyzea_bebe_modele) : porte-bébés et poussette (non consommés) ; V8 : biberons, couches, pyjamas
         { id = 'puericulture', icon = '🍼', label = 'Puériculture', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse puériculture',
           npc = { payment = 'cash', market = { name = 'Puériculture', payChoice = true, blip = true, blipSprite = 52, blipColor = 8,
                   items = {
@@ -820,6 +820,11 @@ Config.Editor = {
                       { item = 'porte_bebe_dorsal',  price = 220, cat = 'Portage',   max = 2 },
                       { item = 'poussette',          price = 650, cat = 'Poussette', max = 1 },
                       { item = 'test_grossesse',     price = 25,  cat = 'Grossesse', max = 3 },
+                      { item = 'biberon',            price = 15,  cat = 'Soins',     max = 10 },
+                      { item = 'couche',             price = 8,   cat = 'Soins',     max = 20 },
+                      { item = 'vetement_bebe_blanc', price = 45, cat = 'Vêtements', max = 3 },
+                      { item = 'vetement_bebe_rose', price = 45,  cat = 'Vêtements', max = 3 },
+                      { item = 'vetement_bebe_bleu', price = 45,  cat = 'Vêtements', max = 3 },
                   } } } },
         { id = 'gunshop', icon = '🔫', label = 'Armurerie', scenario = 'WORLD_HUMAN_GUARD_STAND', name = 'Armurier',
           npc = { payment = 'cash', gunshop = { name = 'Ammu-Nation', payChoice = true, blip = true, useDefaults = true,

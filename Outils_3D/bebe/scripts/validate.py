@@ -46,7 +46,7 @@ def main():
         check(f'pose {pose} (.obj)', os.path.isfile(os.path.join(b, 'poses', f'ely_bebe_{pose}.obj')))
 
     # textures
-    tex = [t for g in rep['textures'].values() for t in g.values()] + [f'ely_bebe_corps_{t}_n.png' for t in rep['tenues']]
+    tex = [t for g in rep['textures'].values() for t in g.values()] + [f'ely_bebe_corps_{t}_n.png' for t in rep['tenues'] if not t.startswith('pyjama_')]
     bad = []
     for t in tex:
         p = os.path.join(b, 'textures', t)

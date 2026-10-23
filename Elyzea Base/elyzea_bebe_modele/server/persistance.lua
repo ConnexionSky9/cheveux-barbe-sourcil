@@ -62,6 +62,12 @@ end
 -- État « au repos » d'un bébé tel qu'il doit être retrouvé après un redémarrage
 local function etatBebe(b)
     local e = { etat = b.etat, endormi = b.endormi and 1 or 0, bucket = b.bucket or 0 }
+    -- V8 : besoins (arrondis à l'unité : une écriture par point gagné au plus) et apparence (vêtements)
+    if b.besoins then
+        e.besoins = { faim = math.floor(b.besoins.faim or 0), fatigue = math.floor(b.besoins.fatigue or 0),
+                      couche = math.floor(b.besoins.couche or 0), at = b.besoins.at }
+    end
+    e.tenue = b.apparence and b.apparence.tenue
     if b.etat == 'pose' then
         e.x, e.y, e.z, e.cap, e.pose_sol = b.coords.x, b.coords.y, b.coords.z, b.cap or 0.0, b.poseSol or 'allonge'
     elseif b.etat == 'porte' then
@@ -87,13 +93,14 @@ end
 local function ecrireBebe(b, e)
     local now = os.time()
     MySQL.insert([[INSERT INTO `rp_bebes` (`id`, `nom`, `apparence`, `responsables`, `pregnancy_id`, `rang`, `etat`, `gardien_cid`, `x`, `y`, `z`, `cap`,
-            `pose_sol`, `poussette_id`, `endormi`, `bucket`, `created_at`, `updated_at`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE `etat` = VALUES(`etat`), `gardien_cid` = VALUES(`gardien_cid`), `x` = VALUES(`x`), `y` = VALUES(`y`),
+            `pose_sol`, `poussette_id`, `endormi`, `bucket`, `created_at`, `updated_at`, `besoins`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE `apparence` = VALUES(`apparence`), `besoins` = VALUES(`besoins`), `etat` = VALUES(`etat`), `gardien_cid` = VALUES(`gardien_cid`), `x` = VALUES(`x`), `y` = VALUES(`y`),
             `z` = VALUES(`z`), `cap` = VALUES(`cap`), `pose_sol` = VALUES(`pose_sol`), `poussette_id` = VALUES(`poussette_id`),
             `endormi` = VALUES(`endormi`), `bucket` = VALUES(`bucket`), `responsables` = VALUES(`responsables`), `updated_at` = VALUES(`updated_at`)]],
         { b.id, b.nom, json.encode(b.apparence), b.responsables and json.encode(b.responsables) or nil, b.grossesse, b.rang,
-          e.etat, e.gardien, e.x, e.y, e.z, e.cap, e.pose_sol, e.poussette, e.endormi, e.bucket, now, now })
+          e.etat, e.gardien, e.x, e.y, e.z, e.cap, e.pose_sol, e.poussette, e.endormi, e.bucket, now, now,
+          e.besoins and json.encode(e.besoins) or nil })
 end
 
 local function ecrirePoussette(po, c, cap)
@@ -110,7 +117,10 @@ function Persist.enregistrer()
         if b.persistant then
             local e = etatBebe(b)
             if e then
+                local at = e.besoins and e.besoins.at
+                if e.besoins then e.besoins.at = nil end
                 local cle = json.encode(e)
+                if e.besoins then e.besoins.at = at end
                 if ecritB[id] ~= cle then ecritB[id] = cle ecrireBebe(b, e) end
             end
         end
@@ -178,11 +188,21 @@ end)
 
 -- ─────────── Chargement au démarrage ───────────
 
+-- V8 : migration (ajout de colonne seulement, aucune donnée modifiée ni supprimée)
+local function colonne(tbl, col, def)
+    local n = MySQL.scalar.await('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', { tbl, col })
+    if tonumber(n) == 0 then
+        local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` ADD COLUMN `%s` %s'):format(tbl, col, def))
+        print(ok and ('^2[%s] colonne %s.%s ajoutée^0'):format(RES, tbl, col) or ('^1[%s] colonne %s.%s : %s^0'):format(RES, tbl, col, tostring(err)))
+    end
+end
+
 local function charger()
     for _, q in ipairs(TABLES) do
         local ok, err = pcall(MySQL.query.await, q)
         if not ok then print(('^1[%s] création de table : %s^0'):format(RES, tostring(err))) end
     end
+    colonne('rp_bebes', 'besoins', 'TEXT NULL AFTER `endormi`')     -- V8 : faim, fatigue, couche, heure du dernier calcul
     local nP, nB = 0, 0
     for _, r in ipairs(MySQL.query.await('SELECT * FROM `rp_poussettes`') or {}) do
         if not BB.Poussettes[r.id] then
@@ -195,7 +215,9 @@ local function charger()
         if not BB.Bebes[r.id] then
             local okA, app = pcall(json.decode, r.apparence or '{}')
             local okR, resp = pcall(json.decode, r.responsables or 'null')
+            local okB, besoins = pcall(json.decode, r.besoins or 'null')
             local opts = { id = r.id, persistant = true, grossesse = r.pregnancy_id, rang = tonumber(r.rang), nom = r.nom,
+                           besoins = okB and type(besoins) == 'table' and besoins or nil,
                            endormi = tonumber(r.endormi) == 1, bucket = tonumber(r.bucket) or 0, responsables = okR and resp or nil }
             local po = r.poussette_id and BB.Poussettes[r.poussette_id]
             local b

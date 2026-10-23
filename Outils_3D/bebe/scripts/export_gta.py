@@ -65,7 +65,9 @@ def main():
     from PIL import Image as _Img
     import numpy as _np
     jobs = []
-    for tenue in report['tenues']:
+    def tenue_base(t):            # V8 : les pyjamas de couleur partagent le relief du pyjama
+        return 'pyjama' if t.startswith('pyjama') else t
+    for tenue in sorted({tenue_base(t) for t in report['tenues']}):
         _n = _np.asarray(_Img.open(os.path.join(tex_dir, f'{PREFIX}_corps_{tenue}_n.png')).convert('RGBA')).copy()
         _n[..., 1] = 255 - _n[..., 1]
         _Img.fromarray(_n, 'RGBA').save(os.path.join(dds_dir, f'{PREFIX}_corps_{tenue}_n_gta.png'))
@@ -150,7 +152,7 @@ def main():
     for tone in report['teintes']:
         for tenue in report['tenues']:
             mats[('corps', tone, tenue)] = material('normal.sps', {'DiffuseSampler': f'{PREFIX}_corps_{tone}_{tenue}',
-                                                                   'BumpSampler': f'{PREFIX}_corps_{tenue}_n'},
+                                                                   'BumpSampler': f'{PREFIX}_corps_{tenue_base(tenue)}_n'},
                                                     f'corps_{tone}_{tenue}', PEAU)
         mats[('paupieres', tone)] = material('default.sps', {'DiffuseSampler': f'{PREFIX}_paupieres_{tone}'}, f'paupieres_{tone}')
     for eye in report['yeux']:
@@ -314,7 +316,7 @@ def main():
     for arch in yt.archetypes:
         arch.lod_dist = LOD_DIST
         arch.hd_texture_dist = 15.0
-        if arch.name.startswith((f'{PREFIX}_pb_', f'{PREFIX}_poussette', f'{PREFIX}_roue')):
+        if arch.name.startswith((f'{PREFIX}_pb_', f'{PREFIX}_poussette', f'{PREFIX}_roue', f'{PREFIX}_biberon')):
             arch.texture_dictionary = TXD_EQUIP
             arch.lod_dist = 90.0
         else:

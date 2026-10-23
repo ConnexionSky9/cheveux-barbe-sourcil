@@ -20,6 +20,7 @@ client_scripts {
     'client/main.lua',
     'client/portage.lua',
     'client/poussette.lua',
+    'client/soins.lua',
 }
 
 server_scripts {
@@ -27,6 +28,7 @@ server_scripts {
     'server/main.lua',
     'server/bebes.lua',
     'server/persistance.lua',
+    'server/soins.lua',
 }
 
 dependencies { 'elyzea_core' }

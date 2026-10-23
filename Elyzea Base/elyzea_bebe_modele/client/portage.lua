@@ -517,6 +517,8 @@ exports('AltOptions', function(ctx)
             out[#out + 1] = { id = 'installer:x', label = 'Installer dans la poussette', icon = 'carry' }
         end
         out[#out + 1] = { id = 'dormir:' .. st.bebe, label = 'Endormir / réveiller', icon = 'out' }
+        out[#out + 1] = { id = 'coucher:' .. st.bebe, label = 'Coucher le bébé pour qu\'il dorme', icon = 'out' }
+        if BebeOptionsSoins then BebeOptionsSoins(out, st.bebe, st.bebeTenue, true, false) end
     elseif st.bebePoussette then
         local mienne = pousse and pousse.id == st.bebePoussette
         if mienne then
@@ -538,6 +540,7 @@ exports('AltOptions', function(ctx)
                 out[#out + 1] = { id = 'prendrepo:' .. k, label = k == 'face' and 'Sortir le bébé et le prendre contre soi' or ('Sortir le bébé · ' .. m.label), icon = 'carry' }
             end
             out[#out + 1] = { id = 'dormir:' .. st.bebeDedans, label = 'Endormir / réveiller le bébé', icon = 'out' }
+            if BebeOptionsSoins then BebeOptionsSoins(out, st.bebeDedans, nil, false, false) end
         end
         if not mienne and not st.bebeDedans then
             out[#out + 1] = { id = 'ranger:' .. st.bebePoussette, label = 'Ranger la poussette', icon = 'out' }
@@ -545,6 +548,7 @@ exports('AltOptions', function(ctx)
     elseif not e and st.bebe then
         for k, m in pairs(modesPossibles()) do out[#out + 1] = { id = 'prendre:' .. k, label = libellePrendre(k, m), icon = 'carry' } end
         out[#out + 1] = { id = 'dormir:' .. st.bebe, label = 'Endormir / réveiller', icon = 'out' }
+        if BebeOptionsSoins then BebeOptionsSoins(out, st.bebe, st.bebeTenue, false, true) end
     end
     table.sort(out, function(a, b) return a.id < b.id end)
     return out
@@ -554,7 +558,13 @@ exports('AltSelect', function(id, ctx)
     local action, arg = tostring(id):match('^(%w+):([%w%-_]+)$')
     local ent = ctx and ctx.entity
     CreateThread(function()
-        if action == 'prendre' then prendre(arg, ent)
+        if BebeChoixSoin and BebeChoixSoin(action, arg) then return end
+        if action == 'coucher' then
+            -- poser allongé puis endormir (le bébé récupère plus vite couché)
+            poser('allonge')
+            Wait(2500)
+            TriggerServerEvent('elyzea_bebe_modele:dormir', arg)
+        elseif action == 'prendre' then prendre(arg, ent)
         elseif action == 'prendrepo' then
             local bid = ent and Entity(ent).state.bebeDedans
             if bid then TriggerServerEvent('elyzea_bebe_modele:prendre', bid, arg) end
