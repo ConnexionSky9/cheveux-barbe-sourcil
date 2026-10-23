@@ -1637,6 +1637,7 @@ RegisterNetEvent('adminmenu:duty', function(on, silent)
     sendData(src)
     pushReportCount(src)
     pushTag(src)
+    if was ~= Duty[src] then TriggerEvent('adminmenu:server:dutyChanged', src, Duty[src]) end
 end)
 
 -- Le client demande le compteur (connexion, redémarrage de la ressource)

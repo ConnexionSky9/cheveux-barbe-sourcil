@@ -945,6 +945,13 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
 - Détails, tests à faire et limites : `elyzea_concess/README.md`. Non testé en jeu.
 
 ## 🩺 Santé (permission `health_manage`, ressource elyzea_ems)
+
+> L'onglet n'apparaît qu'avec la permission `health_manage` (le Fondateur l'a toujours). Si ton `config.lua` est plus ancien
+> et ne la contient pas, `permissions_extra.lua` l'ajoute automatiquement (comme `presse_manage`, `tags_manage`,
+> `drugs_manage`, `drugs_effects`, `labs_manage`) : rien à recopier.
+>
+> **Staff en service** : jamais blessé ni malade (chute, rhume, contagion, MST) et aucun effet (boiterie, toux) tant qu'il est en
+> service ; tout revient en mode RP. Le bouton « Donner » de cet onglet fonctionne quand même (pour tester).
 Économie et services › **Santé** :
 - **Maladies et blessures** : rhume, jambe blessée après une chute, MST. Pour chacune : activer ou couper, nom, connue ou non, durée, chances, contagion, symptômes.
 - **Hauteur de chute** qui blesse la jambe, et durée sans course après l'attelle.

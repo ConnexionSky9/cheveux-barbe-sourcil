@@ -51,11 +51,30 @@ local function RowView(r)
     return { id = r.id, since = tonumber(r.contracted_at), expires = tonumber(r.expires_at), diagnosed = tonumber(r.diagnosed) == 1, splinted = tonumber(r.splinted) == 1 }
 end
 
+-- Staff en service (admin_menu) : ne peut être ni blessé ni malade, et ses effets sont suspendus
+local STAFF_RES = 'admin_menu'
+function P.StaffOnDuty(src)
+    if not src or GetResourceState(STAFF_RES) ~= 'started' then return false end
+    local ok, on = pcall(function() return exports[STAFF_RES]:IsStaffOnDuty(src) end)
+    return ok and on == true
+end
+
 function P.HealthPush(src)
     local h = P.health[src]
     if not h then return end
+    if P.StaffOnDuty(src) then
+        -- Aucun effet en service staff (pas de boiterie, de toux…) ; ils reviennent en mode RP
+        TriggerClientEvent('ems:client:health', src, { limp = false, noSprint = false, cough = 0, symptoms = {} })
+        return
+    end
     TriggerClientEvent('ems:client:health', src, HR.Effects(h.active, P.HealthSettings()))
 end
+
+-- admin_menu prévient quand un staff prend ou quitte son service
+AddEventHandler('adminmenu:server:dutyChanged', function(src)
+    src = tonumber(src)
+    if src and P.health[src] then P.HealthPush(src) end
+end)
 
 local function Load(src)
     local cid = P.Cid(src)
@@ -98,6 +117,8 @@ function P.HealthGive(src, kind, source, cid)
     if not c then return false, 'Maladie inconnue.' end
     if src then cid = P.Cid(src) end
     if not cid then return false, 'Personnage non chargé.' end
+    -- Staff en service : jamais blessé ni malade (chute, rhume, contagion, MST). Seul le menu staff peut forcer.
+    if src and source ~= 'staff' and P.StaffOnDuty(src) then return false, 'Staff en service.' end
     local h = src and P.health[src]
     if src and not h then Load(src) h = P.health[src] end
     if h and h.active[kind] then return false, 'Déjà atteint.' end

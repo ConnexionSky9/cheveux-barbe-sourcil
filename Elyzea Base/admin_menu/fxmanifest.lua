@@ -11,6 +11,7 @@ dependencies { 'elyzea_core', 'elyzea_inventory' }
 
 shared_scripts {
     'config.lua',
+    'permissions_extra.lua',          -- permissions récentes, ajoutées si config.lua est plus ancien
     'barber_data.lua',
     'npc_area.lua',
 }

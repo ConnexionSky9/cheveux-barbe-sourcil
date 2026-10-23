@@ -33,12 +33,15 @@ GetCurrentResourceName = function() return 'elyzea_ems' end
 json = { encode = function() return '{}' end, decode = function() return {} end }
 local exported = {}
 exports = setmetatable({}, { __index = function(_, res)
-    return setmetatable({}, { __index = function(_, fn) return function(_, ...) if res == 'elyzea_aura' and fn == 'SendNotification' then
+    return setmetatable({}, { __index = function(_, fn) return function(_, ...)
+    if res == 'admin_menu' and fn == 'IsStaffOnDuty' then local s = ... return STAFF_DUTY[s] == true end
+    if res == 'elyzea_aura' and fn == 'SendNotification' then
         local src, title, text = ...
         sentClient[#sentClient + 1] = { name = 'aura', target = src, args = { title, text } }
     end end end })
 end, __call = function(_, name, fn) exported[name] = fn end })
-GetResourceState = function(res) return res == 'elyzea_aura' and 'started' or 'missing' end
+STAFF_DUTY = {}   -- joueurs staff en service (admin_menu)
+GetResourceState = function(res) return (res == 'elyzea_aura' or res == 'admin_menu') and 'started' or 'missing' end
 
 -- joueurs
 local players = {
@@ -330,6 +333,33 @@ check('examen EMS : MST découverte', #dg == 1 and dg[1].label == 'Chlamydia' an
 check('patient prévenu de consulter l\'appli Santé', (lastNote(1) or {}).msg:find('application Santé') ~= nil)
 P.HealthTreat(1, 'treat', 2)
 check('traitement EMS : MST soignée', not P.HealthHas(1, 'chlamydia') and P.HealthMine(1).past[1] ~= nil)
+-- staff en service (admin_menu) : ni blessé ni malade
+STAFF_DUTY[3] = true
+source = 3
+NOW = NOW + 20
+events['ems:server:fall'](50.0)
+check('staff en service : grosse chute sans blessure', not P.HealthHas(3, 'leg'))
+P.HealthGive(3, 'cold', 'hasard')
+P.HealthGive(3, 'cold', 'contagion')
+check('staff en service : ni rhume au hasard ni contagion', not P.HealthHas(3, 'cold'))
+TriggerEvent('elyzea_famille:server:momentIntime', 'C1', 'C3', false, 1, 'terminee')
+P.HealthGive(1, 'syphilis', 'staff')
+TriggerEvent('elyzea_famille:server:momentIntime', 'C1', 'C3', false, 1, 'terminee')
+check('staff en service : pas de MST transmise', not P.HealthHas(3, 'syphilis'))
+P.HealthCure(1, 'syphilis', 'Staff')
+local g = exported.HealthAdmin('give', 2, { target = 3, kind = 'leg' })
+check('staff en service : le menu staff peut quand même forcer (tests)', g.ok and P.HealthHas(3, 'leg'))
+P.HealthPush(3)
+check('staff en service : aucun effet (pas de boiterie)', lastFx(3) and lastFx(3).limp == false and lastFx(3).noSprint == false)
+STAFF_DUTY[3] = nil
+TriggerEvent('adminmenu:server:dutyChanged', 3, false)
+check('fin de service (mode RP) : la boiterie revient', lastFx(3) and lastFx(3).limp == true)
+NOW = NOW + 20
+P.HealthCure(3, 'leg', 'Staff')
+events['ems:server:fall'](50.0)
+check('mode RP : la chute blesse de nouveau', P.HealthHas(3, 'leg'))
+P.HealthCure(3, 'leg', 'Staff')
+source = 1
 -- staff
 local a = exported.HealthAdmin('give', 2, { target = 3, kind = 'cold' })
 check('staff : donner le rhume', a.ok and P.HealthHas(3, 'cold'))
