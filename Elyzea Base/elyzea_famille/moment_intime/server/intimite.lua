@@ -76,7 +76,8 @@ local function terminer(id, statut, raison, par)
     local now = os.time()
     -- part du moment réalisée : 100 % s'il est arrivé à son terme (minuteur du serveur) ; sinon calculée
     -- (les secondes de os.time() sont arrondies : un moment terminé ne doit jamais compter pour 93 %)
-    local pct = statut == 'terminee' and 1.0 or math.max(0, math.min(1, (now - s.noirA) / s.duree))
+    local pct = 1.0
+    if statut ~= 'terminee' then pct = s.duree > 0 and math.max(0, math.min(1, (now - s.noirA) / s.duree)) or 0.0 end
     for _, p in ipairs({ s.a, s.b }) do
         if GetPlayerName(p) then TriggerClientEvent('elyzea_famille:client:intimeFin', p, id, statut, par == p) end
     end

@@ -164,19 +164,105 @@ function R.etape(pct, etapes)
     end
 end
 
--- Avancement d'une grossesse : jour (1..), part écoulée, étape, terme atteint
+-- ─────────── Durées par trimestre (V7) ───────────
+-- Config.Grossesse.unite : 'secondes' | 'minutes' | 'heures' | 'jours' ; Config.Grossesse.trimestres = { t1, t2, t3 }
+-- dans cette unité. 0 est une valeur valable (trimestre instantané). La durée totale = t1 + t2 + t3 (jamais saisie à part :
+-- aucune incohérence possible). Valeurs négatives ou invalides -> 0 (jamais de valeur par défaut cachée derrière « or »).
+R.UNITES = { secondes = 1, minutes = 60, heures = 3600, jours = 86400 }
+
+local function nonNegatif(v)
+    v = tonumber(v)
+    if v == nil or v ~= v or v == math.huge or v < 0 then return 0 end
+    return v
+end
+
+-- Renvoie les durées des trois trimestres et la durée totale, en secondes
+function R.durees(G)
+    local u = R.UNITES[G.unite]
+    if u == nil then u = HEURE end
+    local t = G.trimestres or {}
+    local d1, d2, d3 = nonNegatif(t[1]) * u, nonNegatif(t[2]) * u, nonNegatif(t[3]) * u
+    return d1, d2, d3, d1 + d2 + d3
+end
+
+-- Durée lisible (« 2 j 4 h », « 1 min 20 s », « 0 s »)
+function R.texteDuree(sec)
+    sec = math.max(0, math.floor((tonumber(sec) or 0) + 0.5))
+    if sec < 60 then return ('%d s'):format(sec) end
+    if sec < HEURE then
+        local m, r = sec // 60, sec % 60
+        return r > 0 and ('%d min %d s'):format(m, r) or ('%d min'):format(m)
+    end
+    if sec < 24 * HEURE then
+        local h, m = sec // HEURE, (sec % HEURE) // 60
+        return m > 0 and ('%d h %02d'):format(h, m) or ('%d h'):format(h)
+    end
+    local j, h = sec // (24 * HEURE), (sec % (24 * HEURE)) // HEURE
+    return h > 0 and ('%d j %d h'):format(j, h) or ('%d j'):format(j)
+end
+
+-- Avancement d'une grossesse, calculé avec les durées ACTUELLES (un changement de réglage s'applique aux grossesses en cours).
+-- La progression acquise n'est jamais perdue : g.trimestre (trimestre déjà atteint, enregistré) et g.terme_at (terme déjà
+-- atteint) ne reculent pas, même si l'administrateur allonge les durées.
 function R.avancement(g, now, G)
-    -- durée propre à CETTE grossesse (terme enregistré) : un changement de réglage ne touche pas les grossesses en cours
-    local total = math.max(HEURE, (tonumber(g.due_at) or 0) - (tonumber(g.conceived_at) or 0))
-    local ecoule = math.max(0, now - g.conceived_at)
-    local pct = math.min(1, ecoule / total)
-    local terme = now >= tonumber(g.due_at)
+    local d1, d2, d3, total = R.durees(G)
+    local ecoule = math.max(0, now - (tonumber(g.conceived_at) or now))
+    local tri = 1
+    if ecoule >= d1 then tri = 2 end
+    if ecoule >= d1 + d2 then tri = 3 end
+    tri = math.max(tri, math.min(3, tonumber(g.trimestre) or 1))
+    local terme = ecoule >= total or tonumber(g.terme_at) ~= nil
+    local pct = total > 0 and math.min(1, ecoule / total) or 1
+    if terme then pct = 1 end
+    -- limite du trimestre suivant (secondes depuis la conception) ; au 3e trimestre : le terme
+    local prochain = tri == 1 and d1 or (tri == 2 and d1 + d2 or total)
     local etape, n = R.etape(terme and 1 or pct, G.etapes)
     -- la dernière étape (« Terme atteint ») n'est affichée qu'au terme réel
     if terme then etape, n = G.etapes[#G.etapes].label, #G.etapes
     elseif n == #G.etapes and n > 1 then n = n - 1 etape = G.etapes[n].label end
-    return { jour = math.floor(ecoule / (24 * HEURE)) + 1, jours = math.ceil(total / (24 * HEURE)), pct = pct,
-        etape = etape, numeroEtape = n, terme = terme }
+    return {
+        ecoule = ecoule, total = total, durees = { d1, d2, d3 },
+        jour = math.floor(ecoule / (24 * HEURE)) + 1, jours = math.ceil(total / (24 * HEURE)),
+        joursEcoules = math.floor(ecoule / (24 * HEURE)),
+        trimestre = tri, terme = terme, pct = pct, etape = etape, numeroEtape = n,
+        avantTrimestre = tri < 3 and math.max(0, prochain - ecoule) or nil,
+        avantTerme = math.max(0, total - ecoule),
+    }
+end
+
+-- Étapes automatiques à enregistrer UNE fois : trimestres 2 et 3 franchis depuis « dejaTri », terme
+function R.etapesFranchies(av, dejaTri, dejaTerme)
+    local out = {}
+    dejaTri = tonumber(dejaTri) or 1
+    for t = dejaTri + 1, av.trimestre do out[#out + 1] = 't' .. t end
+    if av.terme and not dejaTerme then out[#out + 1] = 'terme' end
+    return out
+end
+
+-- Texte RP d'un événement de l'historique (titre, description). data = table décodée (ou nil)
+function R.texteEvenement(kind, data)
+    data = type(data) == 'table' and data or {}
+    local L = (FamLocale and FamLocale.evenements) or {}
+    local function t(cle) local x = L[cle] or { cle, '' } return x[1], x[2] end
+    if kind == 'decouverte' then
+        return t(data.par == 'examen' and 'decouverte_examen' or 'decouverte_test')
+    elseif kind == 'test' then
+        return t(data.resultat == 'positif' and 'test_positif' or 'test_negatif')
+    elseif kind == 'examen' then
+        local titre, desc = t('examen')
+        return titre, desc:format(data.jour and (L.examen_jour or ', jour %s'):format(data.jour) or '')
+    elseif kind == 't2' or kind == 't3' or kind == 'terme' or kind == 'travail' then
+        return t(kind)
+    elseif kind == 'naissance' then
+        local n = math.max(1, math.min(3, math.floor(tonumber(data.bebes) or 1)))
+        local x = L.naissance or { 'naissance', '', '', '' }
+        return x[1], x[1 + n]
+    elseif kind == 'fin' then
+        return t(data.raison == 'reinitialisation_test' and 'fin_test' or 'fin')
+    elseif kind == 'evenement' then
+        return data.titre or L.evenement or 'evenement', data.description or ''
+    end
+    return nil
 end
 
 -- Symptômes actifs à une étape donnée (numéro 1..n). S = Config.Grossesse.symptomes. Renvoie { faim = S.faim, … }
@@ -209,9 +295,10 @@ function R.accouchementPossible(av, F)
     return av.terme or av.pct >= (F.accouchementDes or 1)
 end
 
--- Date prévue d'accouchement
+-- Date prévue d'accouchement (avec les durées actuelles)
 function R.terme(conception, G)
-    return conception + math.floor(G.duree * HEURE)
+    local _, _, _, total = R.durees(G)
+    return conception + math.floor(total)
 end
 
 return Regles

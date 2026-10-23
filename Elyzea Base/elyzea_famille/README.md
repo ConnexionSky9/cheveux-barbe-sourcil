@@ -1,4 +1,4 @@
-# elyzea_famille — moment intime, contraception, conception, grossesse, symptômes, accouchement, ventre (version 0.5)
+# elyzea_famille — moment intime, contraception, conception, grossesse, symptômes, accouchement, ventre, suivi de grossesse (version 0.7)
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
 > - règles de calcul : **68/68 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques ;
@@ -6,10 +6,28 @@
 > - ventre (logique client, fonctions du jeu simulées) : **17/17** (`lua5.4 tests/test_ventre.lua`) ;
 > - syntaxe Lua et JavaScript ; onglet admin affiché dans Chromium (`docs/famille/captures/`).
 >
-> À tester en jeu : voir `docs/famille/LIVRAISON_V5.md` › « Tests à faire en jeu ».
+> Chiffres ci-dessus : V5. Résultats V7 (durées par trimestre, historique, réorganisation) : `docs/famille/LIVRAISON_V7.md`.
+> À tester en jeu : `docs/famille/LIVRAISON_V7.md` › « Tests à faire en jeu ».
 
 Première brique de l'écosystème famille (architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
 Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, crèche…) s'ajouteront dans cette même ressource.
+
+## Organisation des fichiers (V7)
+| Dossier | Contenu |
+|---|---|
+| `config/config.lua` | valeurs par défaut (remplacées par les réglages du menu admin, sans modifier le fichier) |
+| `locales/fr.lua` | textes de l'historique de grossesse |
+| `shared/regles.lua` | règles de calcul communes (durées, trimestres, risques, tests) |
+| `server/` | commun : base de données et migrations (`base.lua`), réglages admin (`reglages.lua`), commandes staff (`staff.lua`) |
+| `client/main.lua` | commun : interface, objets, `/grossesse` |
+| `moment_intime/` | consentement, moment intime (serveur + client) |
+| `contraception/` | préservatif, pilule, implant |
+| `grossesse/` | conception, test, examen, suivi et trimestres, historique, accouchement, symptômes, ventre |
+| `bebe/`, `equipement_bebe/` | renvoi vers la ressource séparée `elyzea_bebe_modele` (voir leur `README.md`) |
+| (téléphone) | application **Grossesse** du téléphone légal Elyzea Aura (magasin « Appli ») : export serveur `SuiviGrossesse(source)`, mêmes données que `/grossesse` |
+| `sql/install.sql` | tables (créées aussi automatiquement au démarrage) |
+| `html/` | interface du panneau de grossesse et du moment intime |
+| `tests/` | tests hors du jeu |
 
 ## Installation
 1. Dossier `elyzea_famille` dans `Elyzea Base` ; `server.cfg` : `ensure elyzea_famille` (déjà ajouté, après les métiers).
@@ -66,14 +84,14 @@ Aucun second menu : un onglet **Famille** est ajouté au menu admin existant (`a
 
 - **Enregistrer** : chaque valeur est revalidée par `elyzea_famille` (type, bornes, règles croisées : minimum ≤ durée ≤ maximum,
   jumeaux + triplés ≤ 100 %, renouvellement ≤ durée de la pilule). Une seule valeur invalide = rien n'est enregistré, message précis.
-- Les valeurs sont stockées dans la table `rp_famille_reglages` et **réappliquées à chaque démarrage** ; `config.lua` n'est jamais modifié.
-- **Valeurs par défaut** : supprime les valeurs enregistrées et revient à `config.lua`.
+- Les valeurs sont stockées dans la table `rp_famille_reglages` et **réappliquées à chaque démarrage** ; `config/config.lua` n'est jamais modifié.
+- **Valeurs par défaut** : supprime les valeurs enregistrées et revient à `config/config.lua`.
 - **Moment déjà commencé** : il garde la durée et le fondu de son démarrage ; les nouveaux réglages valent pour les moments suivants.
 - La permission est vérifiée **deux fois côté serveur** (admin_menu, puis `elyzea_famille`) ; un appel sans permission est refusé
   et journalisé (`rp_famille_logs`, action `suspect`). Chaque modification est journalisée (`reglages_enregistres`, `reglages_reinitialises`).
 - X arrête toujours un moment, pour les deux personnes : ce n'est pas un réglage.
 
-## Contraception et conception (valeurs par défaut, `config.lua`)
+## Contraception et conception (valeurs par défaut, `config/config.lua`)
 | Réglage | Défaut |
 |---|---|
 | Probabilité « volontaire » (les deux ont coché *essayer d'avoir un enfant*) | 35 % |

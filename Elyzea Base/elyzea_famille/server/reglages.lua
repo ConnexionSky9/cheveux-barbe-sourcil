@@ -10,16 +10,16 @@
 local RES = GetCurrentResourceName()
 local PERM = 'famille_manage'
 
--- section, clé, chemin dans Config, type (int | num | pct | bool | str), bornes, libellé, aide
+-- section, clé, chemin dans Config, type (int | num | pct | bool | str | choix), bornes, libellé, aide
 local SCHEMA = {
     -- Moment intime : durée
-    { s = 'duree', k = 'intimite.duree', p = { 'Intimite', 'duree' }, t = 'int', min = 5, max = 600, u = 's',
+    { s = 'duree', k = 'intimite.duree', p = { 'Intimite', 'duree' }, t = 'int', min = 0, max = 600, u = 's',
       l = 'Durée de l\'écran noir', a = 'Durée du moment intime (après l\'étreinte). Doit rester entre la durée minimale et maximale ci-dessous.' },
-    { s = 'duree', k = 'intimite.dureeMin', p = { 'Intimite', 'dureeMin' }, t = 'int', min = 5, max = 600, u = 's',
+    { s = 'duree', k = 'intimite.dureeMin', p = { 'Intimite', 'dureeMin' }, t = 'int', min = 0, max = 600, u = 's',
       l = 'Durée minimale autorisée', a = 'Garde-fou : la durée ne peut pas être réglée en dessous.' },
-    { s = 'duree', k = 'intimite.dureeMax', p = { 'Intimite', 'dureeMax' }, t = 'int', min = 5, max = 600, u = 's',
+    { s = 'duree', k = 'intimite.dureeMax', p = { 'Intimite', 'dureeMax' }, t = 'int', min = 0, max = 600, u = 's',
       l = 'Durée maximale autorisée', a = 'Garde-fou : la durée ne peut pas être réglée au-dessus.' },
-    { s = 'duree', k = 'intimite.fondu', p = { 'Intimite', 'fondu' }, t = 'int', min = 200, max = 5000, u = 'ms',
+    { s = 'duree', k = 'intimite.fondu', p = { 'Intimite', 'fondu' }, t = 'int', min = 0, max = 5000, u = 'ms',
       l = 'Fondu au noir / retour', a = 'Durée du fondu d\'écran au début et à la fin.' },
     { s = 'duree', k = 'intimite.delaiAvantNoir', p = { 'Intimite', 'delaiAvantNoir' }, t = 'int', min = 0, max = 10000, u = 'ms',
       l = 'Étreinte visible avant le noir', a = 'Temps pendant lequel l\'étreinte est visible avant le fondu.' },
@@ -55,8 +55,16 @@ local SCHEMA = {
       l = 'Jumeaux', a = 'Tiré séparément, seulement après une conception.' },
     { s = 'grossesse', k = 'conception.triples', p = { 'Conception', 'multiples', 'triples' }, t = 'pct', min = 0, max = 0.2,
       l = 'Triplés', a = 'Tiré séparément, seulement après une conception.' },
-    { s = 'grossesse', k = 'grossesse.duree', p = { 'Grossesse', 'duree' }, t = 'int', min = 24, max = 2160, u = 'h',
-      l = 'Durée de la grossesse', a = 'Heures réelles entre conception et terme (s\'applique aux nouvelles grossesses).' },
+    { s = 'progression', k = 'grossesse.unite', p = { 'Grossesse', 'unite' }, t = 'choix', choix = { 'secondes', 'minutes', 'heures', 'jours' },
+      l = 'Unité des durées', a = 'Unité des trois trimestres ci-dessous (conversion exacte en secondes par le serveur).' },
+    { s = 'progression', k = 'grossesse.t1', p = { 'Grossesse', 'trimestres', 1 }, t = 'num', min = 0, max = 100000, step = 0.01,
+      l = 'Durée du 1er trimestre', a = 'Avant le passage au 2e trimestre. 0 = instantané.' },
+    { s = 'progression', k = 'grossesse.t2', p = { 'Grossesse', 'trimestres', 2 }, t = 'num', min = 0, max = 100000, step = 0.01,
+      l = 'Durée du 2e trimestre', a = 'Commence à la fin du 1er. 0 = instantané.' },
+    { s = 'progression', k = 'grossesse.t3', p = { 'Grossesse', 'trimestres', 3 }, t = 'num', min = 0, max = 100000, step = 0.01,
+      l = 'Durée du 3e trimestre', a = 'Commence à la fin du 2e ; le terme arrive à sa fin. Durée totale = somme des trois (affichée en haut).' },
+    { s = 'progression', k = 'conception.delaiApresGrossesse', p = { 'Conception', 'delaiApresGrossesse' }, t = 'num', min = 0, max = 720, step = 0.01, u = 'h',
+      l = 'Délai avant une nouvelle grossesse', a = 'Heures après la fin d\'une grossesse avant qu\'une nouvelle conception soit possible (0 = aucun).' },
     { s = 'grossesse', k = 'grossesse.test.delaiMinutes', p = { 'Grossesse', 'test', 'delaiMinutes' }, t = 'int', min = 0, max = 10080, u = 'min',
       l = 'Délai de détection du test', a = 'Temps après la conception avant qu\'un test de grossesse puisse être positif. Avant : négatif (le message rappelle qu\'un test trop tôt peut être négatif). 0 = détectable tout de suite.' },
     { s = 'grossesse', k = 'grossesse.test.fiabilite', p = { 'Grossesse', 'test', 'fiabilite' }, t = 'pct', min = 0.5, max = 1,
@@ -84,7 +92,7 @@ local SCHEMA = {
       l = 'Nausées : jusqu\'à l\'étape', a = '' },
     { s = 'symptomes', k = 'symptomes.nausees.parHeure', p = { 'Grossesse', 'symptomes', 'nausees', 'parHeure' }, t = 'num', min = 0, max = 30, step = 0.5, u = '/h',
       l = 'Nausées : fréquence', a = 'Nombre moyen d\'épisodes par heure de jeu (moments tirés au hasard).' },
-    { s = 'symptomes', k = 'symptomes.nausees.duree', p = { 'Grossesse', 'symptomes', 'nausees', 'duree' }, t = 'int', min = 3, max = 120, u = 's',
+    { s = 'symptomes', k = 'symptomes.nausees.duree', p = { 'Grossesse', 'symptomes', 'nausees', 'duree' }, t = 'int', min = 0, max = 120, u = 's',
       l = 'Nausées : durée', a = 'Durée d\'un épisode.' },
     { s = 'symptomes', k = 'symptomes.nausees.intensite', p = { 'Grossesse', 'symptomes', 'nausees', 'intensite' }, t = 'pct', min = 0.1, max = 1,
       l = 'Nausées : intensité', a = 'Force du flou et du tangage.' },
@@ -105,10 +113,12 @@ local SCHEMA = {
     -- Fin de grossesse
     { s = 'fin', k = 'fin.accouchementDes', p = { 'Grossesse', 'fin', 'accouchementDes' }, t = 'pct', min = 0.5, max = 1,
       l = 'Accouchement possible à partir de', a = 'Part de la grossesse écoulée à partir de laquelle un EMS peut faire accoucher (100 % = au terme).' },
-    { s = 'fin', k = 'fin.dureeAccouchement', p = { 'Grossesse', 'fin', 'dureeAccouchement' }, t = 'int', min = 5, max = 120, u = 's',
+    { s = 'fin', k = 'fin.dureeAccouchement', p = { 'Grossesse', 'fin', 'dureeAccouchement' }, t = 'int', min = 0, max = 120, u = 's',
       l = 'Durée de l\'accouchement', a = 'Écran noir pour la patiente ; l\'EMS doit rester à côté.' },
-    { s = 'fin', k = 'fin.naissanceAuto', p = { 'Grossesse', 'fin', 'naissanceAuto' }, t = 'int', min = 0, max = 720, u = 'h',
-      l = 'Naissance automatique après le terme', a = 'Sans EMS, la naissance a lieu ce nombre d\'heures après le terme (personnage connecté). 0 = jamais.' },
+    { s = 'fin', k = 'fin.naissanceAutoActive', p = { 'Grossesse', 'fin', 'naissanceAutoActive' }, t = 'bool',
+      l = 'Naissance automatique sans EMS', a = 'Activé : si aucun EMS n\'a fait accoucher, la naissance a lieu après le délai ci-dessous (personnage connecté).' },
+    { s = 'fin', k = 'fin.naissanceAuto', p = { 'Grossesse', 'fin', 'naissanceAuto' }, t = 'num', min = 0, max = 720, step = 0.01, u = 'h',
+      l = 'Délai de la naissance automatique', a = 'Heures après le terme (0 = dès le terme ; 0,01 h ≈ 36 s pour les tests).' },
     { s = 'fin', k = 'fin.bebesEnJeu', p = { 'Grossesse', 'fin', 'bebesEnJeu' }, t = 'bool',
       l = 'Bébé placé dans le jeu à la naissance', a = 'Le ou les bébés (elyzea_bebe_modele) apparaissent à côté de la patiente.' },
     -- Ventre (vêtement d'un pack ; numéros à relever en jeu avec /ventre_info)
@@ -139,13 +149,13 @@ local SCHEMA = {
       l = 'Fiabilité du préservatif', a = '98 % = le risque est multiplié par 0,02.' },
     { s = 'contraception', k = 'contraception.pilule.fiabilite', p = { 'Contraception', 'pilule', 'fiabilite' }, t = 'pct', min = 0, max = 1,
       l = 'Fiabilité de la pilule', a = 'Appliquée si une prise est encore active pour la personne qui porte.' },
-    { s = 'contraception', k = 'contraception.pilule.duree', p = { 'Contraception', 'pilule', 'duree' }, t = 'int', min = 1, max = 720, u = 'h',
+    { s = 'contraception', k = 'contraception.pilule.duree', p = { 'Contraception', 'pilule', 'duree' }, t = 'int', min = 0, max = 720, u = 'h',
       l = 'Protection d\'une pilule', a = 'Durée de protection après une prise.' },
     { s = 'contraception', k = 'contraception.pilule.renouvellement', p = { 'Contraception', 'pilule', 'renouvellement' }, t = 'int', min = 0, max = 720, u = 'h',
       l = 'Renouvellement de la pilule', a = 'Nouvelle prise acceptée seulement dans ces dernières heures (pas de cumul).' },
     { s = 'contraception', k = 'contraception.implant.fiabilite', p = { 'Contraception', 'implant', 'fiabilite' }, t = 'pct', min = 0, max = 1,
       l = 'Fiabilité de l\'implant', a = 'Appliquée tant que l\'implant est actif.' },
-    { s = 'contraception', k = 'contraception.implant.duree', p = { 'Contraception', 'implant', 'duree' }, t = 'int', min = 24, max = 8760, u = 'h',
+    { s = 'contraception', k = 'contraception.implant.duree', p = { 'Contraception', 'implant', 'duree' }, t = 'int', min = 0, max = 8760, u = 'h',
       l = 'Durée de l\'implant', a = 'S\'applique aux implants posés ensuite.' },
     -- Bébés et équipements (ressource elyzea_bebe_modele : valeurs transmises à chaque enregistrement et au démarrage)
     { s = 'bebe', k = 'bebe.ventral', p = { 'Bebe', 'ventral' }, t = 'bool',
@@ -156,10 +166,60 @@ local SCHEMA = {
       l = 'Poussette', a = 'Désactivé : impossible de sortir, pousser une poussette ou d\'y installer le bébé (on peut encore en sortir le bébé et la ranger).' },
     { s = 'bebe', k = 'bebe.courseInterdite', p = { 'Bebe', 'courseInterdite' }, t = 'bool',
       l = 'Pas de course avec la poussette', a = 'Activé : en poussant, la touche de course est bloquée (marche et petit trot).' },
-    { s = 'bebe', k = 'bebe.abandon', p = { 'Bebe', 'abandon' }, t = 'int', min = 5, max = 240, u = 'min',
+    { s = 'bebe', k = 'bebe.abandon', p = { 'Bebe', 'abandon' }, t = 'int', min = 0, max = 240, u = 'min',
       l = 'Poussette vide abandonnée', a = 'Une poussette vide, garée loin de son propriétaire (ou propriétaire parti), est rangée après ce délai.' },
     { s = 'bebe', k = 'bebe.diagnostic', p = { 'Bebe', 'diagnostic' }, t = 'bool',
       l = 'Journal de diagnostic', a = 'Activé : chaque prise, pose, attache refusée… est écrite dans la console serveur (pour le développement).' },
+    { s = 'bebe', k = 'bebe.reserve', p = { 'Bebe', 'reserve' }, t = 'bool',
+      l = 'Bébé réservé aux parents', a = 'Activé : seuls les parents (et les personnes à qui un parent l\'a confié, /bebe_confier) peuvent prendre le bébé. Les bébés de test restent libres.' },
+    { s = 'bebe', k = 'bebe.garder', p = { 'Bebe', 'garder' }, t = 'bool',
+      l = 'Bébé gardé à la déconnexion', a = 'Activé : un bébé porté par un joueur qui se déconnecte reste avec ce personnage et revient à ses pieds à sa connexion. Désactivé : posé au sol.' },
+    { s = 'bebe', k = 'bebe.physique', p = { 'Bebe', 'physique' }, t = 'bool',
+      l = 'Poussette : physique', a = 'Activé : lâchée sans frein (ou frein desserré), elle roule selon la pente, s\'arrête aux obstacles, peut se renverser. Désactivé : toujours garée frein serré.' },
+    { s = 'bebe', k = 'bebe.roues', p = { 'Bebe', 'roues' }, t = 'bool',
+      l = 'Poussette : roues qui tournent', a = 'Roues séparées animées par chaque joueur (aucun coût réseau).' },
+    { s = 'bebe', k = 'bebe.crr', p = { 'Bebe', 'crr' }, t = 'num', min = 0.005, max = 0.2, step = 0.005,
+      l = 'Poussette : résistance au roulement', a = 'Plus haut = s\'arrête plus vite (0,035 ≈ roues gonflées sur bitume).' },
+    { s = 'bebe', k = 'bebe.seuilDepart', p = { 'Bebe', 'seuilDepart' }, t = 'num', min = 0, max = 0.3, step = 0.005,
+      l = 'Poussette : pente de départ', a = 'Pente (0,045 = 4,5 %) à partir de laquelle une poussette arrêtée, frein desserré, se met à rouler.' },
+    { s = 'bebe', k = 'bebe.vChoc', p = { 'Bebe', 'vChoc' }, t = 'num', min = 1, max = 8, step = 0.1, u = 'm/s',
+      l = 'Poussette : choc qui la renverse', a = 'Vitesse au moment d\'un choc au-delà de laquelle elle se renverse (le bébé est posé à côté).' },
+    { s = 'bebe', k = 'bebe.colorisPb', p = { 'Bebe', 'colorisPb' }, t = 'choix', choix = { 'gris', 'marine', 'sauge' },
+      l = 'Coloris par défaut des porte-bébés', a = 'Chaque joueur peut choisir le sien (/coloris_porte_bebe).' },
+    { s = 'bebe', k = 'bebe.colorisPoussette', p = { 'Bebe', 'colorisPoussette' }, t = 'choix', choix = { 'graphite', 'sable' },
+      l = 'Coloris par défaut de la poussette', a = 'Chaque joueur peut choisir le sien (/coloris_poussette).' },
+    { s = 'decalages', k = 'bebe.dec.bras.x', p = { 'Bebe', 'decalages', 'bras', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.y', p = { 'Bebe', 'decalages', 'bras', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.z', p = { 'Bebe', 'decalages', 'bras', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Dans les bras : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.bras.rz', p = { 'Bebe', 'decalages', 'bras', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Dans les bras : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.x', p = { 'Bebe', 'decalages', 'face', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.y', p = { 'Bebe', 'decalages', 'face', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.z', p = { 'Bebe', 'decalages', 'face', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Contre moi : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.face.rz', p = { 'Bebe', 'decalages', 'face', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Contre moi : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.x', p = { 'Bebe', 'decalages', 'ventral', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.y', p = { 'Bebe', 'decalages', 'ventral', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.z', p = { 'Bebe', 'decalages', 'ventral', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé ventral : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.ventral.rz', p = { 'Bebe', 'decalages', 'ventral', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Porte-bébé ventral : rotation', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.x', p = { 'Bebe', 'decalages', 'dorsal', 'x' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : gauche / droite', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.y', p = { 'Bebe', 'decalages', 'dorsal', 'y' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : avant / arrière', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.z', p = { 'Bebe', 'decalages', 'dorsal', 'z' }, t = 'num', min = -20, max = 20, step = 0.5, u = 'cm',
+      l = 'Porte-bébé dorsal : haut / bas', a = '' },
+    { s = 'decalages', k = 'bebe.dec.dorsal.rz', p = { 'Bebe', 'decalages', 'dorsal', 'rz' }, t = 'num', min = -45, max = 45, step = 0.5, u = '°',
+      l = 'Porte-bébé dorsal : rotation', a = '' },
 }
 
 local SECTIONS = {
@@ -168,12 +228,14 @@ local SECTIONS = {
     { id = 'position', label = 'Positionnement des personnages' },
     { id = 'conditions', label = 'Conditions de déclenchement' },
     { id = 'grossesse', label = 'Risque de grossesse' },
+    { id = 'progression', label = 'Durée et progression de grossesse' },
     { id = 'etapes', label = 'Étapes de la grossesse' },
     { id = 'symptomes', label = 'Symptômes de grossesse' },
     { id = 'fin', label = 'Fin de grossesse' },
     { id = 'ventre', label = 'Ventre de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
+    { id = 'decalages', label = 'Position du bébé porté (réglage fin)' },
 }
 
 local PAR_CLE = {}
@@ -200,6 +262,10 @@ local function valider(d, v)
     if d.t == 'bool' then
         if type(v) ~= 'boolean' then return nil, 'oui / non attendu' end
         return v
+    end
+    if d.t == 'choix' then
+        for _, c in ipairs(d.choix) do if v == c then return v end end
+        return nil, 'choix : ' .. table.concat(d.choix, ', ')
     end
     if d.t == 'str' then
         if type(v) ~= 'string' then return nil, 'texte attendu' end
@@ -257,7 +323,7 @@ end
 -- Réglages des bébés : transmis à elyzea_bebe_modele (qui les applique et les publie aux clients)
 local function reglagesBebe()
     local v = {}
-    for _, d in ipairs(SCHEMA) do if d.s == 'bebe' then v[d.k] = lire(d.p) end end
+    for _, d in ipairs(SCHEMA) do if d.s == 'bebe' or d.s == 'decalages' then v[d.k] = lire(d.p) end end
     return v
 end
 
@@ -329,13 +395,19 @@ exports('AdminData', function(src)
     if not autorise(src) then return { available = true, denied = true } end
     local schema = {}
     for _, d in ipairs(SCHEMA) do
-        schema[#schema + 1] = { section = d.s, key = d.k, type = d.t, min = d.min, max = d.max, step = d.step, unit = d.u, label = d.l, help = d.a }
+        schema[#schema + 1] = { section = d.s, key = d.k, type = d.t, min = d.min, max = d.max, step = d.step, unit = d.u, label = d.l, help = d.a, choices = d.choix }
     end
     return {
         available = true,
         sections = SECTIONS, schema = schema,
         values = actuelles(), defaults = DEFAUTS,
+        dureeTotale = (function() local _, _, _, t = Regles.durees(Config.Grossesse) return { secondes = t, texte = Regles.texteDuree(t) } end)(),
         sessions = Fam.SessionsEnCours and Fam.SessionsEnCours() or 0,
+        diagnostic = (function()
+            if GetResourceState('elyzea_bebe_modele') ~= 'started' then return nil end
+            local ok, l = pcall(function() return exports.elyzea_bebe_modele:Diagnostic() end)
+            return ok and l or nil
+        end)(),
     }
 end)
 
@@ -364,6 +436,9 @@ exports('AdminAction', function(src, name, data)
         for k, v in pairs(propre) do if avant[k] ~= v then changes[#changes + 1] = ('%s=%s'):format(k, tostring(v)) end end
         Fam.Audit(acteur, 'reglages_enregistres', nil, table.concat(changes, ', '))
         return true, #changes > 0 and ('Réglages enregistrés (%d modification(s)). Ils s\'appliquent aux prochains moments.'):format(#changes) or 'Aucune modification.'
+    elseif name == 'test_debut' or name == 'test_fin' then
+        if type(Fam.ActionTest) ~= 'function' then return false, 'Indisponible.' end
+        return Fam.ActionTest(name, acteur, data)
     elseif name == 'reset' then
         if not MySQL.transaction.await({ { query = 'DELETE FROM `rp_famille_reglages`', values = {} } }) then
             return false, 'Erreur de base de données : rien n\'a été modifié.'

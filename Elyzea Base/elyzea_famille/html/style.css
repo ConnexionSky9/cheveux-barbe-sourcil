@@ -77,3 +77,8 @@ kbd { border: 1px solid var(--line-2); border-radius: .3rem; padding: .05rem .4r
 .progress { height: .45rem; background: var(--line); border-radius: 1rem; overflow: hidden; margin: .7rem 0 .5rem; }
 #g-barre { height: 100%; background: var(--accent); border-radius: 1rem; }
 .suivi .sub { color: var(--muted); font-size: .85rem; }
+/* V7 : détails du suivi de grossesse */
+#g-infos { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; }
+#g-infos .row { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; }
+#g-infos .row span:last-child { color: var(--text, inherit); font-weight: 600; }
+.historique .row small { color: var(--muted); }

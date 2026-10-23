@@ -11,6 +11,7 @@ Lancement depuis le dossier de la ressource :  python3 tests/integration_test.py
 import heapq
 import json
 import os
+import re
 import sys
 import time
 
@@ -218,7 +219,8 @@ api = {
     'admin': lambda s, perm: int(s) in W.admins and perm == 'famille_manage',
     'players': lambda: to_lua([str(k) for k in sorted(W.players)]),
     'add_needs': lambda s, h, t, st: W.needs.append((int(s), float(h or 0), float(t or 0), float(st or 0))) or True,
-    'naissance': lambda app, pos, resp: (W.nes.append((dict(app.items()), (pos.x, pos.y, pos.z), list(resp.values()) if resp else [])) or 'BB-N%d' % len(W.nes)),
+    'naissance': lambda app, pos, resp, pers=None, gid=None, rang=None: (W.nes.append((dict(app.items()), (pos.x, pos.y, pos.z), list(resp.values()) if resp else [],
+                                                                       {'persistant': pers, 'grossesse': gid, 'rang': rang})) or 'BB-N%d' % len(W.nes)),
     'frozen': lambda s: int(s) in W.frozen,
 }
 G.py = to_lua({})
@@ -243,6 +245,7 @@ function GetPlayerPed(s) if py.player_name(s) then return s * 100 end return 0 e
 function GetEntityCoords(ped) local p = py.pos(ped // 100) if not p then return vector3(0, 0, 0) end return vector3(p[1], p[2], p[3]) end
 function GetEntityHealth() return 200 end
 function GetEntityHeading() return 0.0 end
+function GetPlayerRoutingBucket() return 0 end
 GlobalState = {}
 function GetPlayers() local t = {} for _, v in ipairs(py.players()) do t[#t + 1] = v end return t end
 function Player(s) return { state = { elyNeedsFrozen = py.frozen(s) } } end
@@ -280,15 +283,20 @@ exports = {
     elyzea_police = { IsCuffed = function() return false end },
     elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end,
                            AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end,
-                           CreerBebe = function(_, app, pos, cap, opts) return py.naissance(app, pos, opts and opts.responsables) end },
+                           CreerBebe = function(_, app, pos, cap, opts) return py.naissance(app, pos, opts and opts.responsables, opts and opts.persistant, opts and opts.grossesse, opts and opts.rang) end },
     admin_menu = { HasPermission = function(_, s, perm) return py.admin(s, perm) end },
 }
 EXPORTS_LUA = {}
 setmetatable(exports, { __call = function(_, name, fn) EXPORTS_LUA[name] = fn end })
 ''')
 
-SERVER_FILES = ('config.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua', 'server/consentement.lua',
-                'server/contraception.lua', 'server/conception.lua', 'server/intimite.lua', 'server/grossesse.lua', 'server/suivi.lua', 'server/staff.lua')
+# même ordre que fxmanifest.lua (shared_scripts puis server_scripts) ; vérifié par le test 0
+SERVER_FILES = ('config/config.lua', 'locales/fr.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua',
+                'moment_intime/server/consentement.lua', 'contraception/server/contraception.lua', 'grossesse/server/conception.lua',
+                'moment_intime/server/intimite.lua', 'grossesse/server/grossesse.lua', 'grossesse/server/suivi.lua', 'server/staff.lua')
+
+
+SUIVI = [60]
 
 
 def start_resource():
@@ -297,6 +305,9 @@ def start_resource():
     W.net.clear(); W.events.clear(); W.callbacks.clear(); W.usables.clear(); W.commands.clear()
     for f in SERVER_FILES:
         lua.execute(open(os.path.join(RES_DIR, f), encoding='utf-8').read())
+    # suivi des grossesses : 5 s en production ; 60 s ici pour les scénarios qui avancent le temps de plusieurs jours
+    # (même calcul, moins de passages). Les tests V7 « grossesse de 60 s » repassent à 5 s.
+    G.Config.Grossesse.suivi = SUIVI[0]
     advance(1)   # tables, réglages, objets utilisables (Wait 500)
 
 
@@ -373,6 +384,21 @@ W.add_player(4, 'MIN04', 0, '2010-06-06', (100.5, 100.5, 30.0))     # mineur
 W.add_player(5, 'LOIN5', 0, '1990-01-01', (150.0, 100.0, 30.0))    # trop loin
 
 tables = {r['TABLE_NAME'] for r in q('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s', (DB,))}
+# 0. V7 : réorganisation en sous-dossiers — le manifeste ne cite que des fichiers existants, et les fichiers serveur
+#    chargés ici le sont dans l'ordre du manifeste
+_man = open(os.path.join(RES_DIR, 'fxmanifest.lua'), encoding='utf-8').read()
+_listes = {k: re.findall(r"^\s*'([^'@][^']*)',?\s*$", re.search(k + r'\s*\{(.*?)\}', _man, re.S).group(1), re.M)
+           for k in ('shared_scripts', 'server_scripts', 'client_scripts', 'files')}
+_manquants = [f for l in _listes.values() for f in l if not os.path.isfile(os.path.join(RES_DIR, f))]
+check('0. fxmanifest : tous les fichiers cités existent', not _manquants, _manquants)
+_ordre = _listes['shared_scripts'] + _listes['server_scripts']
+_pos = [(_ordre.index(f) if f in _ordre else -1) for f in SERVER_FILES]
+check('0. fichiers serveur chargés dans l\'ordre du manifeste', -1 not in _pos and _pos == sorted(_pos), _pos)
+_lua = [os.path.relpath(os.path.join(d, f), RES_DIR) for d, _, fs in os.walk(RES_DIR) for f in fs
+        if f.endswith('.lua') and f != 'fxmanifest.lua' and not os.path.relpath(d, RES_DIR).startswith('tests')]
+_oublies = [f for f in _lua if f not in _listes['shared_scripts'] + _listes['server_scripts'] + _listes['client_scripts']]
+check('0. aucun fichier Lua oublié par le manifeste', not _oublies, _oublies)
+
 check('1. tables créées au démarrage', {'rp_contraception', 'rp_contraception_log', 'rp_intimacy_sessions', 'rp_conception_attempts',
                                         'rp_pregnancies', 'rp_pregnancy_events', 'rp_famille_logs'} <= tables, tables)
 check('1. message « Prêt »', any('Prêt' in p for p in W.prints))
@@ -670,7 +696,7 @@ v = d['values']; v['bebe.dorsal'] = False; v['bebe.abandon'] = 45
 ok, msg = admin(3, 'save', {'values': v})
 check('27. enregistré et transmis à elyzea_bebe_modele', ok is True and W.bebe_reglages and W.bebe_reglages[-1]['bebe.dorsal'] is False
       and W.bebe_reglages[-1]['bebe.abandon'] == 45, (msg, W.bebe_reglages[-1:]))
-for bad, why in (({'bebe.abandon': 2}, 'délai trop court'), ({'bebe.ventral': 'non'}, 'booléen invalide')):
+for bad, why in (({'bebe.abandon': -1}, 'délai négatif'), ({'bebe.ventral': 'non'}, 'booléen invalide')):
     v = admin_data(3)['values']; v.update(bad)
     ok, msg = admin(3, 'save', {'values': v})
     check(f'27. valeur invalide refusée ({why})', ok is False and G.Config.Bebe.abandon == 45, msg)
@@ -814,7 +840,7 @@ advance(60 * 60)
 sym = [(t, a) for n, t, a in W.client_events[avant:] if n == 'elyzea_famille:client:symptome']
 check('37. menu admin : faim ×3 appliquée (8,4 points de plus)', ok is True and any(abs(h + 8.4) < 1e-6 for _, h, _, _ in W.needs), W.needs[:2])
 check('37. nausées à 30 / h : épisodes envoyés à la joueuse seulement, avec durée et intensité', len([1 for t, a in sym if a[0] == 'nausees']) >= 5
-      and all(t == 1 for t, _ in sym) and sym[0][1][1].get('duree') == 20, len(sym))
+      and all(t == 1 for t, _ in sym) and [a for _, a in sym if a[0] == 'nausees'][0][1].get('duree') == 20, len(sym))
 v.update({'symptomes.nausees.actif': False, 'symptomes.vomissements.actif': False})
 ok, msg = admin(3, 'save', {'values': v})
 avant = len(W.client_events)
@@ -844,7 +870,8 @@ r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
 check('40. accouchement terminé : grossesse close (accouchee / accouchement), plus active', r['status'] == 'accouchee' and r['end_reason'] == 'accouchement'
       and r['active_key'] is None and r['ended_at'])
 check('40. bébé(s) créé(s) à côté de la patiente, responsables = les deux parents', len(W.nes) - nes0 == int(g['bebes'])
-      and W.nes[-1][2] == ['F001', 'M002'] and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
+      and W.nes[-1][2] == ['F001', 'M002'] and W.nes[-1][3] == {'persistant': True, 'grossesse': g['id'], 'rang': int(g['bebes'])}
+      and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
 check('40. effets arrêtés (état « aucune grossesse » envoyé), félicitations', etat_client(1) is False and notif(1, 'Félicitations'))
 check('40. naissance journalisée', q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='naissance'", (g['id'],)))
 W.notifs.clear()
@@ -900,6 +927,185 @@ start_resource()
 check('44. après un redémarrage : réglages du ventre rechargés depuis la base', G.GlobalState.famVentre.collection == 'veloxfv1' and G.GlobalState.famVentre.actif is True)
 ok, msg = admin(3, 'reset')
 check('44. valeurs par défaut : ventre désactivé', G.GlobalState.famVentre.actif is False)
+
+# ═══════════ V6 : réglages bébé étendus (transmis à elyzea_bebe_modele) ═══════════
+v = admin_data(3)['values']
+v.update({'bebe.dec.bras.y': -4.0, 'bebe.colorisPoussette': 'sable', 'bebe.physique': False, 'bebe.crr': 0.05})
+ok, msg = admin(3, 'save', {'values': v})
+dern = W.bebe_reglages[-1]
+check('45. décalages, coloris, physique : enregistrés et transmis à la ressource bébé', ok is True and dern['bebe.dec.bras.y'] == -4.0
+      and dern['bebe.colorisPoussette'] == 'sable' and dern['bebe.physique'] is False and abs(dern['bebe.crr'] - 0.05) < 1e-9, msg)
+v.update({'bebe.colorisPoussette': 'rose'})
+ok, msg = admin(3, 'save', {'values': v})
+check('45. coloris inconnu refusé (liste de choix)', ok is False and 'graphite' in msg, msg)
+v.update({'bebe.colorisPoussette': 'sable', 'bebe.dec.face.z': 50})
+ok, msg = admin(3, 'save', {'values': v})
+check('45. décalage hors bornes (50 cm) refusé', ok is False, msg)
+sch = {d['key']: d for d in admin_data(3)['schema']}
+check('45. liste de choix fournie au menu (coloris)', sch['bebe.colorisPb']['choices'] == ['gris', 'marine', 'sauge'])
+ok, msg = admin(3, 'reset')
+
+
+# ═══════════ V7 : durées par trimestre, tests rapides, historique, application ═══════════
+import re as _re
+SUIVI[0] = 5
+G.Config.Grossesse.suivi = 5
+fin_grossesses()
+advance(10)
+
+
+def regler(t1, t2, t3, unite='secondes', auto=True, delai=0.0):
+    v = admin_data(3)['values']
+    v.update({'grossesse.unite': unite, 'grossesse.t1': t1, 'grossesse.t2': t2, 'grossesse.t3': t3,
+              'fin.naissanceAutoActive': auto, 'fin.naissanceAuto': delai, 'fin.bebesEnJeu': True})
+    return admin(3, 'save', {'values': v})
+
+
+def test_debut(sid=1):
+    ok_, msg_ = admin(3, 'test_debut', {'sid': sid})
+    m_ = _re.search(r'GRS-\w+', msg_ or '')
+    return ok_, msg_, m_.group(0) if m_ else None
+
+
+def nb(gid, kind):
+    return len(q('SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind=%s', (gid, kind)))
+
+
+def ligne(gid):
+    return q('SELECT * FROM rp_pregnancies WHERE id=%s', (gid,))[0]
+
+
+def appli(src=1):
+    G.source = src
+    return from_lua(W.callbacks['famille:grossesse'](src))
+
+
+# 50. grossesse de 60 s (3 × 20 s)
+ok, msg = regler(20, 20, 20)
+d = admin_data(3)
+check('50. menu : 3 × 20 s enregistrés, durée totale calculée 1 min', ok is True and d['dureeTotale']['secondes'] == 60
+      and d['dureeTotale']['texte'] == '1 min' and G.Config.Grossesse.unite == 'secondes', (msg, d.get('dureeTotale')))
+ok, msg, gid = test_debut()
+nes0 = len(W.nes)
+r = appli()
+check('51. grossesse de test : application = en cours, 1er trimestre, 20 s avant le suivant, 1 min avant le terme',
+      ok and gid and r['statut'] == 'en_cours' and r['grossesse']['trimestre'] == 1 and r['grossesse']['totalTexte'] == '1 min'
+      and r['grossesse']['avantTrimestreTexte'] in ('20 s', '19 s') and r['historique'][0]['titre'] == 'Grossesse de test', (msg, r))
+advance(25)
+check('51. à 25 s : 2e trimestre enregistré en base, une seule entrée d\'historique', ligne(gid)['trimestre'] == 2 and nb(gid, 't2') == 1
+      and appli()['grossesse']['trimestre'] == 2)
+advance(20)
+check('51. à 45 s : 3e trimestre', ligne(gid)['trimestre'] == 3 and nb(gid, 't3') == 1)
+advance(20)
+L_ = ligne(gid)
+check('51. à 65 s : terme atteint puis naissance automatique (délai 0), un seul bébé', L_['terme_at'] and L_['status'] == 'accouchee'
+      and nb(gid, 'terme') == 1 and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1, (L_['status'], len(W.nes) - nes0))
+advance(60)
+check('51. une minute plus tard : aucune étape ni naissance en double', nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and nb(gid, 'terme') == 1
+      and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1)
+r = appli()
+check('51. application : « accouchement terminé » + historique chronologique complet',
+      r['statut'] == 'terminee' and r['fin']['status'] == 'accouchee'
+      and [e['titre'] for e in r['historique']] == ['Grossesse de test', 'Deuxième trimestre', 'Troisième trimestre', 'Terme atteint', 'Naissance'],
+      [e['titre'] for e in r.get('historique', [])])
+
+# 52. un trimestre à 0
+ok, msg = regler(20, 0, 20)
+ok2, msg2, gid = test_debut()
+advance(26)     # suivi toutes les 5 s : l'étape est enregistrée au plus 5 s après la limite (20 s)
+check('52. 2e trimestre à 0 : à 26 s, 3e trimestre ; t2 et t3 enregistrés une fois chacun', ok and ok2 and ligne(gid)['trimestre'] == 3
+      and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and appli()['grossesse']['trimestre'] == 3, (msg, msg2))
+advance(25)
+check('52. puis terme et naissance (une fois)', ligne(gid)['status'] == 'accouchee' and nb(gid, 'naissance') == 1)
+
+# 53. tous les trimestres à 0
+ok, msg = regler(0, 0, 0)
+nes0 = len(W.nes)
+ok2, msg2, gid = test_debut()
+advance(6)
+check('53. trimestres à 0 : transitions instantanées (t2, t3, terme) et naissance, chacune une seule fois',
+      ok and ok2 and ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1]
+      and len(W.nes) - nes0 == 1, (msg2, [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')]))
+advance(30)
+check('53. aucune boucle : rien de plus après 30 s', [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1] and len(W.nes) - nes0 == 1)
+
+# 54. durées modifiées pendant une grossesse
+regler(1000, 1000, 1000)
+ok, msg, gid = test_debut()
+advance(30)
+check('54. durées longues : toujours au 1er trimestre à 30 s', ligne(gid)['trimestre'] == 1 and ligne(gid)['status'] == 'en_cours')
+regler(10, 10, 10)
+advance(6)
+check('54. durées réduites sous le temps écoulé : avance jusqu\'au terme puis naissance, étapes une seule fois',
+      ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
+regler(10, 1000, 1000)
+ok, msg, gid = test_debut()
+advance(15)
+regler(1000, 1000, 1000)
+advance(10)
+check('54. durées allongées au 2e trimestre : reste au 2e (progression acquise conservée)', ligne(gid)['trimestre'] == 2
+      and appli()['grossesse']['trimestre'] == 2 and nb(gid, 't2') == 1)
+admin(3, 'test_fin', {'sid': 1})
+check('54. fin de test : grossesse close sans naissance, historique gardé', ligne(gid)['end_reason'] == 'reinitialisation_test'
+      and nb(gid, 'naissance') == 0 and nb(gid, 'fin') == 1)
+
+# 55. déconnexion / reconnexion pendant la grossesse
+regler(20, 20, 20)
+ok, msg, gid = test_debut()
+nes0 = len(W.nes)
+drop(1)
+advance(50)
+check('55. joueuse déconnectée : les trimestres avancent quand même (enregistrés une fois)', ligne(gid)['trimestre'] == 3
+      and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and ligne(gid)['status'] == 'en_cours')
+W.add_player(1, 'F001', 1, '1996-04-02', (100.0, 100.0, 30.0))
+for fn in W.events.get('elyzea:server:playerLogin', []):
+    fn(1, False)
+advance(25)
+check('55. reconnexion : terme, naissance une seule fois, aucune étape en double', ligne(gid)['status'] == 'accouchee'
+      and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1] and len(W.nes) - nes0 == 1)
+
+# 56. redémarrage de la ressource pendant la grossesse
+ok, msg, gid = test_debut()
+advance(25)
+start_resource()
+G.Config.Grossesse.suivi = 5
+check('56. redémarrage : durées réglées rechargées depuis la base', G.Config.Grossesse.unite == 'secondes' and G.Config.Grossesse.trimestres[1] == 20)
+advance(45)
+check('56. après redémarrage : progression reprise, étapes et naissance une seule fois', ligne(gid)['status'] == 'accouchee'
+      and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
+
+# 57. permissions et validations
+ok, msg = admin(2, 'save', {'values': {'grossesse.t1': 0}})
+ok2, msg2 = admin(2, 'test_debut', {'sid': 1})
+check('57. joueur non autorisé : ni réglage ni grossesse de test', ok is False and ok2 is False and G.Config.Grossesse.trimestres[1] == 20)
+for bad, why in (({'grossesse.t1': -1}, 'durée négative'), ({'grossesse.unite': 'siecles'}, 'unité inconnue')):
+    v = admin_data(3)['values']; v.update(bad)
+    ok, msg = admin(3, 'save', {'values': v})
+    check(f'57. {why} refusée', ok is False and G.Config.Grossesse.trimestres[1] == 20 and G.Config.Grossesse.unite == 'secondes', msg)
+v = admin_data(3)['values']; v['grossesse.t1'] = None
+ok, msg = admin(3, 'save', {'values': v})
+check('57. champ vidé : valeur actuelle conservée (jamais remplacée en silence par une valeur par défaut)', ok is True and G.Config.Grossesse.trimestres[1] == 20, msg)
+ok, msg = regler(0, 0, 0)
+check('57. 0 accepté pour les trois trimestres', ok is True and G.Config.Grossesse.trimestres[1] == 0 and G.Config.Grossesse.trimestres[3] == 0, msg)
+r = appli(3)
+check('58. application d\'un personnage sans grossesse : état vide compréhensible', r['statut'] == 'aucune')
+
+# 59. export SuiviGrossesse (application « Grossesse » du téléphone Elyzea Aura) : mêmes données que /grossesse,
+#     toujours celles du personnage du joueur qui demande
+ok, msg = regler(1000, 1000, 1000)
+ok, msg, gid = test_debut(1)
+sg = G.EXPORTS_LUA['SuiviGrossesse']
+G.source = 1
+r1 = from_lua(sg(1))
+r3 = from_lua(sg(3))
+rx = from_lua(sg(999))
+check('59. export pour l\'Aura : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
+      and r1['grossesse']['id'] == gid and r1['historique'][0]['titre'] == 'Grossesse de test', r1)
+check('59. un autre joueur ne voit que ses propres données ; joueur inconnu refusé', r3.get('statut') == 'aucune' and 'erreur' in rx, (r3, rx))
+admin(3, 'test_fin', {'sid': 1})
+ok, msg = admin(3, 'reset')
+SUIVI[0] = 60
+G.Config.Grossesse.suivi = 60
 
 print(f'\n{OK} contrôles réussis, {KO} échec(s)')
 with root.cursor() as c:

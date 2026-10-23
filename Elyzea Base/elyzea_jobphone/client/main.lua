@@ -6,6 +6,7 @@
 --  · Aucune donnée n'est décidée ici : tout passe par « jobphone:req ».
 -- =====================================================================
 local isOpen, typing, prop = false, false, nil
+local StopAnim
 local call = nil          -- { id, state, name, number, channel }
 local blips = {}          -- alertes du téléphone (métiers sans système d'alerte)
 
@@ -51,9 +52,12 @@ local function AnimNow()
     return ped, dict, name
 end
 
+-- Le chargement attend quelques images : si le téléphone a été rangé entre-temps, on ne sort rien
+local function Wanted() return isOpen or (call ~= nil and call.state == 'active') end
+
 local function PlayAnim()
     local ped, dict, name = AnimNow()
-    if not LoadDict(dict) then return end
+    if not LoadDict(dict) or not Wanted() then return end
     if not IsEntityPlayingAnim(ped, dict, name, 3) then
         -- 49 = boucle + haut du corps + le joueur garde le contrôle (marche, course)
         TaskPlayAnim(ped, dict, name, 3.0, 3.0, -1, 49, 0, false, false, false)
@@ -63,7 +67,8 @@ local function PlayAnim()
         RequestModel(model)
         local t = GetGameTimer() + 3000
         while not HasModelLoaded(model) and GetGameTimer() < t do Wait(10) end
-        if HasModelLoaded(model) then
+        if not Wanted() then StopAnim() return end
+        if HasModelLoaded(model) and not (prop and DoesEntityExist(prop)) then
             local c = GetEntityCoords(ped)
             prop = CreateObject(model, c.x, c.y, c.z + 0.2, true, true, false)
             SetEntityCollision(prop, false, false)
@@ -73,7 +78,7 @@ local function PlayAnim()
     end
 end
 
-local function StopAnim()
+StopAnim = function()
     local ped = PlayerPedId()
     for _, d in ipairs({ Config.Anim.dict, Config.Anim.carDict }) do
         StopAnimTask(ped, d, Config.Anim.text, 2.0)
@@ -135,13 +140,13 @@ local function Open()
     end)
 end
 
--- Un seul basculement par appui : F6 est lié à la commande de CHAQUE métier (police, EMS, mécano, Dynasty 8,
--- concession) et chacune appelle Toggle. Sans ce garde, le téléphone s'ouvrait puis se refermait aussitôt
--- quand un nombre pair de ces ressources était démarré (animation visible, téléphone jamais affiché).
-local lastToggle = -100000
+-- F6 est lié par chaque métier (police, EMS, mécano, presse…) : FiveM exécute TOUTES ces commandes
+-- pour un même appui, et chacune appelle Toggle. Un seul basculement par appui (sinon le téléphone
+-- s'ouvre puis se referme aussitôt selon le nombre de métiers démarrés).
+local lastToggle = -1000
 local function Toggle()
     local now = GetGameTimer()
-    if now - lastToggle < 350 then return end
+    if now - lastToggle < 400 then return end
     lastToggle = now
     if isOpen then Close() else Open() end
 end

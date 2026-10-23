@@ -16,6 +16,7 @@ Config.Jobs = {
     { res = 'elyzea_meca',    bag = 'meca',    label = 'Mécano',    prefix = '913', color = '#f59e0b' },
     { res = 'elyzea_dynasty', bag = 'd8',      label = 'Dynasty 8', prefix = '914', color = '#22c55e' },
     { res = 'elyzea_concess', bag = 'concess', label = 'Concession', prefix = '915', color = '#a855f7' },
+    { res = 'elyzea_presse',  bag = 'presse',  label = 'Presse',    prefix = '916', color = '#e11d48' },
 }
 
 -- Alertes (mêmes niveaux que la police et l'EMS ; pour les autres métiers,

@@ -20,7 +20,7 @@
     try {
       const r = await fetch(`https://${RES}/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data || {}) });
       return await r.json();
-    } catch (e) { return { error: 'Téléphone indisponible.' }; }
+    } catch (e) { return { error: 'Téléphone indisponible.', network: true }; }
   }
   const req = (action, data) => post('req', { action, data });
 
@@ -37,7 +37,7 @@
     return true;
   }
 
-  function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; if (S.mapState) { cancelAnimationFrame(S.mapState.raf); if (S.mapState.up) window.removeEventListener('mouseup', S.mapState.up); S.mapState = null; } }
+  function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; if (S.mapState) { cancelAnimationFrame(S.mapState.raf); S.mapState = null; } }
   function go(view, arg, push = true) {
     clearTimers();
     if (push && S.view !== view) S.stack.push([S.view, S.arg]);
@@ -60,6 +60,8 @@
     { id: 'alerts', icon: '🚨', label: 'Alertes' },
     { id: 'tablet', icon: '💼', label: 'Tablette' },
     { id: 'menu', icon: '⚡', label: 'Menu rapide' },
+    { id: 'annonce', icon: '📣', label: 'Annonce' },
+    { id: 'planning', icon: '🗓️', label: 'Planning', res: 'elyzea_presse' },   // journalistes seulement
   ];
 
   async function loadHome() {
@@ -84,7 +86,7 @@
         <div class="sub">${esc(me.grade)} · Matricule ${esc(me.matricule)}</div>
         <div class="num">📱 ${esc(me.number || '—')} · <span class="${on ? 'life-ok' : ''}">${on ? 'En service' : 'Hors service'}</span></div>
       </div>
-      <div class="grid">${APPS.map((a) => `
+      <div class="grid">${APPS.filter((a) => !a.res || a.res === h.job.res).map((a) => `
         <div class="app ${lockedApp(a) ? 'locked' : ''}" data-app="${a.id}">
           <div class="ic">${a.icon}</div><span>${a.label}</span>
           ${lockedApp(a) ? '<i class="lock">🔒</i>' : ''}
@@ -296,8 +298,7 @@
     const sx = (x) => (x - st.cx) * st.scale + W / 2, sy = (y) => -(y - st.cy) * st.scale + H / 2;
     let drag = null;
     cv.onmousedown = (e) => (drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy });
-    st.up = () => (drag = null);
-    window.addEventListener('mouseup', st.up);   // retiré à la fermeture de la carte (clearTimers)
+    window.addEventListener('mouseup', () => (drag = null));
     cv.onmousemove = (e) => { if (!drag) return; st.cx = drag.cx - (e.clientX - drag.x) / st.scale; st.cy = drag.cy + (e.clientY - drag.y) / st.scale; };
     cv.onwheel = (e) => { e.preventDefault(); st.scale = Math.max(0.01, Math.min(0.6, st.scale * (e.deltaY < 0 ? 1.2 : 1 / 1.2))); };
     function draw() {
@@ -365,11 +366,195 @@
     S.timers.push(setInterval(load, 10000));
   };
 
+
+  // ------------------------------------------------------------------
+  // Annonce (entreprises) : commander des annonces à une rédaction (elyzea_presse)
+  // ------------------------------------------------------------------
+  const ann = (op, data) => req('annonce', { op, data });
+  const money = (n) => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} $`;
+  // Longueur visible (même règle que le serveur, elyzea_presse/server/annonces.lua · P.TextLength)
+  const EXT = [[0x0300, 0x036F], [0x1AB0, 0x1AFF], [0x1DC0, 0x1DFF], [0x20D0, 0x20FF], [0xFE00, 0xFE0F], [0xFE20, 0xFE2F], [0x1F3FB, 0x1F3FF], [0xE0020, 0xE007F], [0xE0100, 0xE01EF]];
+  function textLength(s) {
+    let n = 0, zwj = false, ri = false;
+    for (const ch of String(s || '')) {
+      const cp = ch.codePointAt(0);
+      if (cp === 0x200D) zwj = true;
+      else if (EXT.some(([a, b]) => cp >= a && cp <= b)) { /* rattaché au précédent */ }
+      else if (zwj) zwj = false;
+      else if (cp >= 0x1F1E6 && cp <= 0x1F1FF) { if (ri) ri = false; else { ri = true; n++; } }
+      else { ri = false; n++; }
+    }
+    return n;
+  }
+  const cleanText = (s) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  const uuid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
+  const ST_ORDER = { active: 'En cours', completed: 'Terminée', cancelled: 'Annulée' };
+
+  VIEWS.annonce = async () => {
+    screen.innerHTML = `${header('Annonce', '<button class="ib" id="annMine" title="Mes commandes">🧾</button>')}<div class="body" id="annList"><div class="empty">Chargement…</div></div>`;
+    wire();
+    $('#annMine').onclick = () => go('annOrders');
+    const r = await ann('agencies');
+    const box = $('#annList'); if (!box || S.view !== 'annonce') return;
+    if (r.error) { box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+    S.ann = { cfg: r, form: null };
+    const c = r.client;
+    box.innerHTML = `${!r.enabled ? '<div class="empty">Les annonces sont désactivées sur le serveur.</div>' : ''}
+      <div class="idcard"><div class="org">Votre entreprise</div><div class="nm">${esc(c ? c.label : '—')}</div>
+        <div class="sub">${c && c.canPay ? `Compte de l'entreprise : ${money(c.balance)}` : 'Seule la direction (accès au compte) peut payer.'}</div></div>
+      <div class="section">Entreprises de journalisme</div>
+      ${r.list.length ? r.list.map((a) => `<div class="row ${a.available ? '' : 'off'}" data-ag="${esc(a.job)}" style="cursor:${a.available ? 'pointer' : 'not-allowed'};${a.color ? `border-left:3px solid ${esc(a.color)}` : ''}">
+        <div class="av">📰</div><div class="tx"><div class="t1">${esc(a.label)}</div><div class="t2">${a.available ? `${money(a.price)} par annonce` : 'Ne prend pas de commandes'}</div></div>
+        ${a.available ? '<span class="t2">›</span>' : ''}</div>`).join('') : '<div class="empty">Aucune entreprise de journalisme.</div>'}`;
+    box.querySelectorAll('[data-ag]').forEach((el) => (el.onclick = () => {
+      const a = r.list.find((x) => x.job === el.dataset.ag);
+      if (!a || !a.available || !r.enabled) return toast('Cette rédaction ne prend pas de commandes.', 'err');
+      if (c && c.job === a.job) return toast('Votre rédaction ne peut pas se commander une annonce à elle-même.', 'err');
+      go('annForm', { agency: a });
+    }));
+  };
+
+  VIEWS.annForm = (arg) => {
+    const cfg = S.ann && S.ann.cfg;
+    if (!cfg) return go('annonce', null, false);
+    const a = arg.agency, max = cfg.textMax || 150;
+    const f = (S.ann.form && S.ann.form.job === a.job) ? S.ann.form : { job: a.job, text: '', freq: '1h', start: cfg.today, end: cfg.today };
+    S.ann.form = f;
+    screen.innerHTML = `${header(a.label)}<div class="body">
+      <div class="stat"><span>Prix d'une annonce</span><b>${money(a.price)}</b></div>
+      <div class="section">Texte de l'annonce</div>
+      <textarea class="field area" id="annText" rows="4" placeholder="Ex. : Le garage ouvre ses portes à 20 h !">${esc(f.text)}</textarea>
+      <div class="counter" id="annCount"></div>
+      <div class="section">Fréquence</div>
+      <div class="chips">${cfg.frequencies.map((x) => `<button class="chip ${f.freq === x.id ? 'on' : ''}" data-freq="${x.id}">${esc(x.daily ? `${x.label} (${cfg.daily})` : x.label)}</button>`).join('')}</div>
+      <div class="section">Période (heure du serveur, ${cfg.maxDays} jours max.)</div>
+      <div class="dates"><label>Du<input type="date" class="field" id="annStart" min="${cfg.today}" value="${esc(f.start)}"></label>
+        <label>Au<input type="date" class="field" id="annEnd" min="${cfg.today}" value="${esc(f.end)}"></label></div>
+      <div class="err" id="annErr"></div>
+      <button class="btn" id="annNext">Voir le récapitulatif</button></div>`;
+    wire(); typingWire();
+    const upd = () => {
+      f.text = $('#annText').value; f.start = $('#annStart').value; f.end = $('#annEnd').value;
+      const n = textLength(cleanText(f.text));
+      const c = $('#annCount');
+      c.textContent = `${n}/${max}`;
+      c.classList.toggle('bad', n > max);
+      let err = '';
+      if (n > max) err = `Texte trop long : ${n} caractères pour ${max} au maximum.`;
+      else if (f.start && f.end && f.end < f.start) err = 'La date de fin ne peut pas être avant la date de début.';
+      $('#annErr').textContent = err;
+      $('#annNext').disabled = !!err || n < 1 || !f.start || !f.end;
+    };
+    $('#annText').oninput = upd; $('#annStart').onchange = upd; $('#annEnd').onchange = upd;
+    screen.querySelectorAll('[data-freq]').forEach((b) => (b.onclick = () => { f.freq = b.dataset.freq; screen.querySelectorAll('[data-freq]').forEach((x) => x.classList.toggle('on', x === b)); }));
+    $('#annNext').onclick = async () => {
+      upd();
+      if ($('#annNext').disabled) return;
+      $('#annNext').disabled = true; $('#annNext').textContent = 'Calcul…';
+      const r = await ann('quote', { job: a.job, text: cleanText(f.text), freq: f.freq, start: f.start, end: f.end });
+      if (S.view !== 'annForm') return;
+      $('#annNext').textContent = 'Voir le récapitulatif';
+      if (r.error) { $('#annErr').textContent = r.error; $('#annNext').disabled = false; return; }
+      go('annRecap', { quote: r.quote, form: { ...f, text: cleanText(f.text) }, key: uuid() });
+    };
+    upd();
+  };
+
+  VIEWS.annRecap = (arg) => {
+    const q = arg.quote;
+    screen.innerHTML = `${header('Récapitulatif')}<div class="body">
+      <div class="recap"><div><span>Rédaction</span><b>${esc(q.agency)}</b></div><div><span>Entreprise</span><b>${esc(q.client || '')}</b></div>
+        <div class="txt"><span>Texte (${q.length} car.)</span><b></b></div>
+        <div><span>Fréquence</span><b>${esc(q.freqLabel)}</b></div><div><span>Du</span><b>${esc(q.startLabel)}</b></div><div><span>Au</span><b>${esc(q.endLabel)}</b></div>
+        <div><span>Première</span><b>${esc(q.first)}</b></div><div><span>Dernière</span><b>${esc(q.last)}</b></div>
+        <div><span>Diffusions</span><b>${q.count}</b></div><div><span>Prix unitaire</span><b>${money(q.unit)}</b></div>
+        <div class="total"><span>Total</span><b>${money(q.total)}</b></div></div>
+      <div class="err" id="annErr">${q.canPay ? '' : 'Seule la direction de votre entreprise (accès au compte) peut payer.'}</div>
+      <button class="btn" id="annPay" ${q.canPay ? '' : 'disabled'}>Payer ${money(q.total)} avec le compte de l'entreprise</button></div>`;
+    screen.querySelector('.recap .txt b').textContent = q.text;
+    wire();
+    $('#annPay').onclick = async () => {
+      const b = $('#annPay');
+      b.disabled = true; b.textContent = 'Paiement en cours…';
+      // Même clé tant que la demande n'a pas eu de réponse (double clic, réseau) : jamais deux commandes ni deux paiements
+      const r = await ann('order', { ...arg.form, requestKey: arg.key, expectedTotal: q.total, expectedCount: q.count });
+      if (S.view !== 'annRecap') return;
+      if (r.ok) { S.ann.form = null; return go('annDone', { quote: r.quote || q, uid: r.uid, already: r.already }, false); }
+      $('#annErr').textContent = r.error || 'Paiement impossible.';
+      // Réponse reçue (refus) : la tentative est close, un nouvel essai est une nouvelle demande.
+      // Pas de réponse (réseau) : même clé, le serveur reconnaîtra la demande si elle est déjà passée.
+      if (!r.network) arg.key = uuid();
+      if (r.quote) { toast('Le prix ou le nombre de diffusions a changé.', 'err'); return go('annRecap', { ...arg, quote: { ...r.quote, client: q.client, canPay: q.canPay }, key: uuid() }, false); }
+      b.disabled = false; b.textContent = r.refused ? 'Paiement refusé · réessayer' : `Payer ${money(q.total)} avec le compte de l'entreprise`;
+      toast(r.error || 'Paiement impossible.', 'err');
+    };
+  };
+
+  VIEWS.annDone = (arg) => {
+    const q = arg.quote || {};
+    screen.innerHTML = `${header('Commande confirmée')}<div class="body"><div class="done">✅</div>
+      <div class="empty" style="padding-top:0">${arg.already ? 'Cette commande était déjà payée.' : 'Paiement réussi.'} Commande <b>${esc(arg.uid || '')}</b> :
+        ${q.count || '?'} diffusion(s) programmée(s) chez ${esc(q.agency || '')}, ${money(q.total)}.</div>
+      <button class="btn" id="annOk">Mes commandes</button></div>`;
+    wire();
+    $('#annOk').onclick = () => go('annOrders');
+  };
+
+  VIEWS.annOrders = async () => {
+    screen.innerHTML = `${header('Mes commandes')}<div class="body" id="annOrd"><div class="empty">Chargement…</div></div>`;
+    wire();
+    const r = await ann('myOrders');
+    const box = $('#annOrd'); if (!box || S.view !== 'annOrders') return;
+    box.innerHTML = (r.list || []).length ? r.list.map((o) => `<div class="row" style="align-items:flex-start"><div class="tx">
+      <div class="t1">${esc(o.agency_label || '')} · ${esc(ST_ORDER[o.status] || o.status)}</div><div class="t2 wrap">${esc(o.text)}</div>
+      <div class="t2">${o.sent}/${o.slots} diffusée(s) · ${money(o.total)}${o.refunded ? ` · ${money(o.refunded)} remboursés` : ''} · ${esc(o.start)} → ${esc(o.end)}${o.next ? ` · prochaine ${esc(o.next)}` : ''}</div></div></div>`).join('')
+      : `<div class="empty">${esc(r.error || 'Aucune commande.')}</div>`;
+  };
+
+  // ------------------------------------------------------------------
+  // Planning (journalistes) : annonces de la rédaction, bouton « Envoyer l'annonce »
+  // ------------------------------------------------------------------
+  const SLOT_ST = { offered: 'À envoyer', scheduled: 'Programmée', queued: 'En file d\'attente', broadcasting: 'À l\'écran', sent: 'Envoyée' };
+  VIEWS.planning = async () => {
+    screen.innerHTML = `${header('Planning')}<div class="body" id="plan"><div class="empty">Chargement…</div></div>`;
+    wire();
+    const load = async () => {
+      if (S.view !== 'planning') return;
+      const r = await req('planning', { op: 'planning' });
+      const box = $('#plan'); if (!box || S.view !== 'planning') return;
+      if (r.error) { box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+      const item = (s, btn) => `<div class="row slot ${s.late ? 'late' : ''}" style="align-items:flex-start"><div class="tx">
+        <div class="t1">${esc(s.dueLabel)} · ${esc(s.client || '')}${s.late ? ' · <span class="life-hurt">en retard</span>' : ''}</div>
+        <div class="t2 wrap">${esc(s.text)}</div>
+        <div class="t2 meta">${s.mode === 'manual' && s.by ? `Par ${esc(s.by)} · ` : s.mode === 'auto' && s.status !== 'scheduled' ? 'Automatique · ' : ''}${esc(SLOT_ST[s.status] || s.status)} · commande ${money(s.orderTotal)} (${money(s.unit)}/annonce)
+          ${s.myCommission != null ? ` · prime ${money(s.myCommission)}` : ''}${s.status === 'sent' && s.commission ? ` · prime ${money(s.commission)}` : ''}</div>
+        ${btn ? `<button class="btn small" data-send="${s.id}" ${s.available && r.me.duty && r.me.enabled ? '' : 'disabled'}>${s.available ? (r.me.duty ? 'Envoyer l\'annonce' : 'Prenez votre service') : `Disponible à ${esc(s.dueLabel.split(' ')[1])}`}</button>` : ''}
+        </div></div>`;
+      const sec = (t, l, btn, none) => `<div class="section">${t} (${l.length})</div>${l.length ? l.map((s) => item(s, btn)).join('') : `<div class="empty small">${none}</div>`}`;
+      box.innerHTML = `${r.me.enabled ? '' : '<div class="empty">Les annonces sont désactivées sur le serveur.</div>'}
+        ${sec('À envoyer maintenant', r.due, true, 'Rien à envoyer.')}
+        ${r.queued.length ? sec('En file d\'attente', r.queued, false, '') : ''}
+        ${sec('Aujourd\'hui', r.today, true, 'Plus rien aujourd\'hui.')}
+        ${sec('Prochaines', r.next, false, 'Aucune autre annonce programmée.')}
+        ${sec('Déjà envoyées', r.sent, false, 'Aucune annonce envoyée.')}
+        <div class="empty small">Chaque annonce reste ${r.displaySeconds} s à l'écran ; une seule à la fois. Sans journaliste en service, elles partent toutes seules (sans prime).</div>`;
+      box.querySelectorAll('[data-send]').forEach((b) => (b.onclick = async () => {
+        b.disabled = true; b.textContent = 'Envoi…';
+        const x = await req('planning', { op: 'planSend', data: { id: Number(b.dataset.send) } });
+        result(x);
+        load();
+      }));
+    };
+    S.reloadPlanning = load;
+    load();
+    S.timers.push(setInterval(load, 10000));
+  };
+
   // ------------------------------------------------------------------
   // Saisie : le clavier passe au téléphone uniquement pendant l'écriture
   // ------------------------------------------------------------------
   function typingWire() {
-    screen.querySelectorAll('input').forEach((i) => {
+    screen.querySelectorAll('input, textarea').forEach((i) => {
       i.addEventListener('focus', () => post('typing', { on: true }));
       i.addEventListener('blur', () => post('typing', { on: false }));
     });
@@ -405,6 +590,7 @@
       if (d.what === 'home') { S.home = null; if (S.view === 'home' || S.view === 'service') go(S.view, null, false); }
       else if (d.what === 'directory' && (S.view === 'directory' || S.view === 'dialer')) go(S.view, null, false);
       else if (d.what === 'alerts' && S.view === 'alerts' && S.reloadAlerts) S.reloadAlerts();
+      else if (d.what === 'planning' && S.view === 'planning' && S.reloadPlanning) S.reloadPlanning();
     } else if (d.action === 'message') {
       if (S.home) S.home.unread = (S.home.unread || 0) + 1;
       if (!S.open) return;

@@ -14,10 +14,39 @@ local suivis = {}      -- [src] = { gid, cid, faim, nausee, vomi, etat }
 
 local function started(res) return GetResourceState(res) == 'started' end
 
-local function evenement(gid, kind, data)
+local function evenement(gid, kind, data, at)
     MySQL.insert('INSERT INTO `rp_pregnancy_events` (`pregnancy_id`, `kind`, `at`, `data`) VALUES (?, ?, ?, ?)',
-        { gid, kind, os.time(), data and json.encode(data) or nil })
+        { gid, kind, at or os.time(), data and json.encode(data) or nil })
 end
+
+-- ─────────── Progression (V7) : trimestres et terme, enregistrés UNE seule fois ───────────
+-- Calculée avec les durées actuelles du menu admin, pour toutes les grossesses en cours (personnage connecté ou non).
+-- Chaque étape est écrite par une mise à jour conditionnelle (trimestre < n, terme_at IS NULL) : si deux calculs se
+-- croisent ou si le serveur redémarre, l'étape n'est enregistrée et ajoutée à l'historique qu'une fois.
+local function progresser(g, now)
+    local d1, d2, _, total = Regles.durees(G)
+    local due = math.floor((tonumber(g.conceived_at) or now) + total)
+    if tonumber(g.due_at) ~= due then
+        MySQL.update('UPDATE `rp_pregnancies` SET `due_at` = ? WHERE `id` = ?', { due, g.id })
+        g.due_at = due
+    end
+    local av = Regles.avancement(g, now, G)
+    local c = tonumber(g.conceived_at) or now
+    for _, k in ipairs(Regles.etapesFranchies(av, g.trimestre, g.terme_at ~= nil)) do
+        if k == 'terme' then
+            local at = math.min(now, c + math.floor(total))
+            local n = MySQL.update.await('UPDATE `rp_pregnancies` SET `terme_at` = ? WHERE `id` = ? AND `terme_at` IS NULL', { at, g.id })
+            if (tonumber(n) or 0) >= 1 then g.terme_at = at evenement(g.id, 'terme', nil, at) end
+        else
+            local t = tonumber(k:sub(2))
+            local at = math.min(now, c + math.floor(t == 2 and d1 or d1 + d2))
+            local n = MySQL.update.await('UPDATE `rp_pregnancies` SET `trimestre` = ? WHERE `id` = ? AND `trimestre` < ?', { t, g.id, t })
+            if (tonumber(n) or 0) >= 1 then g.trimestre = t evenement(g.id, k, nil, at) end
+        end
+    end
+    return Regles.avancement(g, now, G)
+end
+Fam.ProgresserGrossesse = progresser
 
 local function envoyerEtat(src, st, etat)
     local cle = etat and json.encode(etat) or 'false'
@@ -54,7 +83,9 @@ local function creerBebes(g, src)
         local dx = 0.45 * (i - ((tonumber(g.bebes) or 1) + 1) / 2)
         local pos = vector3(c.x - math.sin(r) * 0.7 + math.cos(r) * dx, c.y + math.cos(r) * 0.7 + math.sin(r) * dx, c.z - 0.98)
         local ok, id = pcall(function()
-            return exports.elyzea_bebe_modele:CreerBebe(F.apparenceBebe, pos, cap, { responsables = { g.porteur_cid, g.partenaire_cid } })
+            -- enregistré en base par elyzea_bebe_modele (grossesse + rang : jamais deux fois le même bébé)
+            return exports.elyzea_bebe_modele:CreerBebe(F.apparenceBebe, pos, cap, { responsables = { g.porteur_cid, g.partenaire_cid },
+                persistant = true, grossesse = g.id, rang = i, bucket = GetPlayerRoutingBucket and GetPlayerRoutingBucket(src) or 0 })
         end)
         if ok and id then ids[#ids + 1] = id else Fam.err('naissance : bébé non créé (' .. tostring(id) .. ')') end
     end
@@ -64,7 +95,7 @@ end
 -- raison : 'accouchement' (EMS) | 'naissance_auto' | 'naissance_staff' | 'fin_staff'
 -- Renvoie true, ids des bébés ; false si la grossesse était déjà terminée.
 function Fam.TerminerGrossesse(g, raison, src, par)
-    local naissance = raison ~= 'fin_staff'
+    local naissance = raison ~= 'fin_staff' and raison ~= 'reinitialisation_test'
     local now = os.time()
     local n = MySQL.update.await("UPDATE `rp_pregnancies` SET `status` = ?, `active_key` = NULL, `ended_at` = ?, `end_reason` = ? WHERE `id` = ? AND `active_key` IS NOT NULL",
         { naissance and 'accouchee' or 'terminee', now, raison, g.id })
@@ -86,9 +117,10 @@ local function suivre(src, cid, g, now)
         st = { gid = g.id, cid = cid, faim = now }
         suivis[src] = st
     end
-    local av = Regles.avancement(g, now, G)
+    local av = progresser(g, now)
     local F = G.fin
-    if av.terme and (F.naissanceAuto or 0) > 0 and now >= tonumber(g.due_at) + F.naissanceAuto * HEURE then
+    -- naissance automatique : une fois le terme atteint + le délai réglé (0 = dès le terme) ; TerminerGrossesse est atomique
+    if av.terme and F.naissanceAutoActive and g.terme_at and now >= tonumber(g.terme_at) + math.max(0, tonumber(F.naissanceAuto) or 0) * HEURE then
         if Fam.TerminerGrossesse(g, 'naissance_auto', src, 'serveur') then
             Fam.Notify(src, 'Le travail a commencé… votre bébé est né.', 'success')
         end
@@ -137,6 +169,7 @@ local function tick()
             return
         end
         local now, a = os.time(), actives()
+        for _, g in pairs(a) do progresser(g, now) end      -- trimestres / terme pour TOUTES les grossesses en cours
         for _, s in ipairs(GetPlayers()) do
             local src = tonumber(s)
             local j = Fam.Joueur(src)
@@ -144,7 +177,7 @@ local function tick()
         end
     end)
     if not ok then Fam.err('suivi des grossesses : ' .. tostring(err)) end
-    SetTimeout(math.max(10, tonumber(G.suivi) or 60) * 1000, tick)
+    SetTimeout(math.max(1, tonumber(G.suivi) or 5) * 1000, tick)
 end
 SetTimeout(5000, tick)
 
@@ -190,7 +223,8 @@ RegisterNetEvent('elyzea_famille:accouchement', function(cible)
         if not accepte then return Fam.Notify(src, 'La patiente a refusé.', 'inform') end
         if enCours[patient.cid] or not Fam.EmsEnService(src) then return end
         enCours[patient.cid] = true
-        local duree = math.max(5, tonumber(G.fin.dureeAccouchement) or 20)
+        local duree = math.max(0, tonumber(G.fin.dureeAccouchement) or 20)     -- 0 accepté : accouchement immédiat
+        evenement(g.id, 'travail', { ems = ems.cid })
         TriggerClientEvent('elyzea_famille:client:accouchement', cible, 'patiente', duree)
         TriggerClientEvent('elyzea_famille:client:accouchement', src, 'ems', duree)
         SetTimeout(duree * 1000, function()
@@ -217,6 +251,36 @@ RegisterNetEvent('elyzea_famille:accouchement', function(cible)
     end)
     if not envoye then Fam.Notify(src, 'La patiente a déjà une demande en attente.', 'error') end
 end)
+
+-- ─────────── Tests (menu admin, permission famille_manage vérifiée par reglages.lua) ───────────
+-- test_debut : grossesse de test pour le personnage (ID en jeu), découverte tout de suite, avec les durées actuelles.
+-- test_fin   : termine la grossesse en cours sans naissance (raison « reinitialisation_test ») ; l'historique est gardé et
+--              cette fin ne bloque pas une nouvelle conception (délai après grossesse ignoré).
+function Fam.ActionTest(name, acteur, data)
+    local sid = tonumber(type(data) == 'table' and data.sid)
+    local j = sid and Fam.Joueur(sid)
+    if not j then return false, 'Joueur introuvable (ID en jeu d\'un personnage chargé).' end
+    local g = Fam.GrossesseEnCours(j.cid)
+    if name == 'test_fin' then
+        if not g then return false, 'Aucune grossesse en cours pour ce personnage.' end
+        Fam.TerminerGrossesse(g, 'reinitialisation_test', sid, acteur)
+        return true, ('Grossesse %s terminée (test). Historique conservé.'):format(g.id)
+    end
+    if g then return false, 'Ce personnage a déjà une grossesse en cours : terminez-la d\'abord (« Terminer la grossesse de test »).' end
+    local now = os.time()
+    local gid = Fam.NouvelId('GRS')
+    local ok = MySQL.transaction.await({
+        { query = 'INSERT INTO `rp_pregnancies` (`id`, `porteur_cid`, `bebes`, `conceived_at`, `due_at`, `status`, `active_key`, `discovered_at`, `created_at`) VALUES (?, ?, 1, ?, ?, \'en_cours\', ?, ?, ?)',
+          values = { gid, j.cid, now, Regles.terme(now, G), j.cid, now, now } },
+        { query = 'INSERT INTO `rp_pregnancy_events` (`pregnancy_id`, `kind`, `at`, `data`) VALUES (?, \'evenement\', ?, ?)',
+          values = { gid, now, json.encode({ titre = 'Grossesse de test', description = 'Grossesse créée par l\'administration pour un test.' }) } },
+    })
+    if not ok then return false, 'Création impossible (grossesse déjà en cours ?).' end
+    Fam.Audit(acteur, 'test_grossesse', j.cid, { grossesse = gid })
+    Fam.SuivreJoueur(sid)
+    local _, _, _, total = Regles.durees(G)
+    return true, ('Grossesse de test %s créée pour %s (terme dans %s).'):format(gid, j.nom, Regles.texteDuree(total))
+end
 
 -- ─────────── Fin par le staff ───────────
 
