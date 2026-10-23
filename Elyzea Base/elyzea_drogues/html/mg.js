@@ -158,7 +158,7 @@
     const S = {
       cfg, x: cfg.extra || {}, r: rng(cfg.seed || 1), accent: th.a, done: 0, total: Math.max(1, cfg.count | 0), mistakes: 0, max: Math.max(0, cfg.maxMistakes | 0),
       t0: performance.now(), limit: Math.max(10, cfg.limit || 60) * 1000, ended: false, m: { x: W / 2, y: H / 2, down: false, px: W / 2, py: H / 2 }, key: {},
-      lastMiss: 0,
+      lastMiss: -1e9,
       hit(n = 1) { if (S.ended) return; S.done = Math.min(S.total, S.done + n); refreshHud(S); if (S.done >= S.total) end(S, true); },
       miss(msg) {
         if (S.ended) return;

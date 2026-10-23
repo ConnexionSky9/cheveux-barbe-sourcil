@@ -1,4 +1,4 @@
-// Usage : node tests/ui_bot.js <dossier_captures> html/index.html  (Playwright + Chromium requis)
+// Usage : node tests/ui_bot.js <dossier_captures> html/index.html   (MISTAKE=1 : une erreur volontaire au début de chaque partie, puis on finit)
 // Joueur automatique : fait chaque mini-jeu de bout en bout dans Chromium (page de l'interface réelle)
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const path = require('path');
@@ -30,7 +30,7 @@ const CASES = [
   { type: 'syringe', drug: 'opiates', count: 2, title: 'Préparer les seringues' },
 ];
 const BOT = String.raw`
-window.__bot = (cfg) => new Promise((resolve) => {
+window.__bot = (cfg, mistakeFirst) => new Promise((resolve) => {
   const MG = window.ElyMG, cv = document.querySelector('#mg canvas');
   let res = null; MG.onResult = (r) => { res = r; };
   MG.start(Object.assign({ id: 1, seed: 12345, maxMistakes: 3, limit: 90 }, cfg));
@@ -40,11 +40,17 @@ window.__bot = (cfg) => new Promise((resolve) => {
   let busy = false, t = 0;
   const steps = (pts, done) => { busy = true; const go = () => { const p = pts.shift(); if (!p) { busy = false; if (done) done(); return; } ev(p[0], p[1], p[2]); setTimeout(go, p[3] || 16); }; go(); };
   const line = (x0, y0, x1, y1, n, ms) => { const a = []; for (let i = 1; i <= n; i++) a.push(['pointermove', x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, ms]); return a; };
-  let hold = false, ang = 0;
+  let hold = false, ang = 0, pre = !!mistakeFirst, preT = 0, preSentAt = 0;
   const tick = () => {
     if (res) { resolve(Object.assign({ mistakes: S.mistakes }, res)); return; }
     t += 16;
     const st = S.g;
+    if (pre && S.mistakes >= 1) { pre = false; if (hold) { ev('pointerup', 380, 230); hold = false; } }
+    const ONESHOT = { trim: 1, roll: 1, count: 1, cut: 1, press: 1, sort: 1, syringe: 1 };
+    if (pre && !busy) { preT += 16;
+      if (preT > 15000) { pre = false; }
+      else if (ONESHOT[cfg.type] && preSentAt && t - preSentAt < 1500) { setTimeout(tick, 16); return; }   // une seule erreur, on attend qu'elle compte
+      else { const before = busy; doMistake(st); if (busy && !before) preSentAt = t; setTimeout(tick, 16); return; } }
     if (!busy) switch (cfg.type) {
       case 'trim': {
         if (!st.bud || st.slide !== 0) break;
@@ -83,6 +89,29 @@ window.__bot = (cfg) => new Promise((resolve) => {
     setTimeout(tick, 16);
   };
   const D_clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function doMistake(st) {
+    switch (cfg.type) {
+      case 'trim': if (st.bud && st.slide === 0) steps([['pointerdown', st.bud.cx, st.bud.cy], ['pointerup', st.bud.cx, st.bud.cy, 60]]); break;
+      case 'hang': {
+        if (st.phase === 'hang') { const it = st.items.find((k) => !k.at); const sp = st.spots.find((s) => !s.used); const ty = sp.y + (st.grid ? 0 : 40);
+          steps([['pointerdown', it.x, it.y], ...line(it.x, it.y, sp.x, ty, 8, 16), ['pointerup', sp.x, ty]]); }
+        else { const band = st.band; const x = 270 + (band[0] > 0.5 ? 0 : 1) * 360; if (!hold) { ev('pointerdown', x, 358); hold = true; } else ev('pointermove', x, 358); }
+        break; }
+      case 'grind': { const cx = 320, cy = 230; ang += 0.9; const x = cx + Math.cos(ang) * 90, y = cy + Math.sin(ang) * 90; if (!hold) { ev('pointermove', x, y); ev('pointerdown', x, y); hold = true; } else ev('pointermove', x, y); break; }
+      case 'roll': if (st.phase === 0) steps([['pointerdown', 560, 230], ['pointerup', 560, 230, 60]]); else if (st.phase === 2) steps([['pointerdown', 380, 300], ['pointerup', 380, 300, 30]]); break;
+      case 'scale': case 'pour': { const x = cfg.type === 'scale' ? 560 : 470 + st.idx * 95, y = cfg.type === 'scale' ? 150 : 120; if (!hold) { ev('pointerdown', x, y); hold = true; } break; }
+      case 'count': { const it = st.items.find((k) => !k.good && !k.placed); const sl = st.slots.find((q) => !q.it); if (it && sl) steps([['pointerdown', it.x, it.y], ...line(it.x, it.y, sl.x, sl.y, 6, 16), ['pointerup', sl.x, sl.y]]); break; }
+      case 'heat': if (!hold) { ev('pointerdown', 300, 250); hold = true; } break;
+      case 'shake': { if (!hold) { ev('pointerdown', 380, 200); hold = true; } ang += 1; ev('pointermove', 380 + (ang % 2 ? 170 : -170), 200); break; }
+      case 'cut': { const l = st.lines.find((k) => !k.done); if (!l) break;
+        const dx = l.bx - l.ax, dy = l.by - l.ay, n = Math.hypot(dx, dy), px = -dy / n * 40, py = dx / n * 40;   // on s'écarte du trait
+        steps([['pointerdown', l.ax, l.ay], ...line(l.ax, l.ay, l.ax + px, l.ay + py, 5, 16), ['pointerup', l.ax + px, l.ay + py]]); break; }
+      case 'smash': break;
+      case 'press': if (Math.abs(st.r - 36) > 40) steps([['pointerdown', 300, 230], ['pointerup', 300, 230, 30]]); break;
+      case 'sort': { const it = st.items.find((k) => k.good && k.x > 60 && k.x < 500); if (it) steps([['pointerdown', it.x, it.y], ...line(it.x, it.y, 645, 360, 6, 16), ['pointerup', 645, 360]]); break; }
+      case 'syringe': { const x0 = 170 + st.v * 436; steps([['pointerdown', x0, 220], ...line(x0, 220, 610, 220, 10, 16), ['pointerup', 610, 220, 60]]); break; }
+    }
+  }
   setTimeout(tick, 50);
 });
 window.__fail = (cfg) => new Promise((resolve) => {
@@ -105,9 +134,9 @@ window.__fail = (cfg) => new Promise((resolve) => {
   let ok = 0, ko = 0;
   for (const [i, c] of CASES.entries()) {
     const shot = p.waitForTimeout(2200).then(() => p.screenshot({ path: `${OUT}/${String(i + 1).padStart(2, '0')}_${c.type}${c.skin ? '_' + c.skin : ''}.png` }));
-    const r = await Promise.race([p.evaluate((cfg) => window.__bot(cfg), c), p.waitForTimeout(80000).then(() => ({ ok: false, reason: 'bot-timeout' }))]);
+    const r = await Promise.race([p.evaluate(([cfg, mf]) => window.__bot(cfg, mf), [c, !!process.env.MISTAKE]), p.waitForTimeout(80000).then(() => ({ ok: false, reason: 'bot-timeout' }))]);
     await shot.catch(() => {});
-    const good = r.ok && r.done === c.count;
+    const good = r.ok && r.done === c.count && (!process.env.MISTAKE || r.mistakes >= 1);
     good ? ok++ : ko++;
     console.log(`${good ? 'ok  ' : 'ÉCHEC'} ${c.type}${c.skin ? '/' + c.skin : ''} : réussi=${r.ok} objectifs=${r.done}/${c.count} erreurs=${r.mistakes} durée=${(r.ms / 1000).toFixed(1)}s ${r.reason || ''}`);
     await p.waitForTimeout(1000);

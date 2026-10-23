@@ -129,7 +129,15 @@
       if (this.onBud(b, x, y)) S.miss('Ne pince pas la fleur !');
     },
     move(S, x, y) {
-      const st = S.g, gr = st.grab; if (!gr || !S.m.down) return;
+      const st = S.g;
+      if (!st.grab && S.m.down && st.bud && st.slide === 0) {   // bouton toujours tenu (après une erreur) : on attrape la feuille survolée
+        for (let i = st.bud.leaves.length - 1; i >= 0; i--) {
+          const l = st.bud.leaves[i]; if (l.gone) continue;
+          const [lx, ly] = this.leafPos(l);
+          if (D.segDist(x, y, lx + Math.cos(l.a) * 16, ly + Math.sin(l.a) * 16, lx + Math.cos(l.a) * (l.L + 12), ly + Math.sin(l.a) * (l.L + 12)) < 15) { st.grab = { l, x0: x, y0: y }; break; }
+        }
+      }
+      const gr = st.grab; if (!gr || !S.m.down) return;
       const l = gr.l, dx = x - gr.x0, dy = y - gr.y0;
       const along = dx * Math.cos(l.a) + dy * Math.sin(l.a), side = Math.abs(-dx * Math.sin(l.a) + dy * Math.cos(l.a));
       l.pull = D.clamp(along, 0, 70);
@@ -406,17 +414,20 @@
   MG.games.scale = {
     init(S) {
       const t = S.x.grams || 1.0, tol = S.x.tol || Math.max(0.05, t * 0.06);
-      return { t, tol, w: 0, flow: 0, lag: 0, stable: 0, bags: 0, pour: false, skin: S.cfg.skin || 'powder' };
+      return { t, tol, w: 0, flow: 0, lag: 0, stable: 0, bags: 0, pour: false, pause: 0, skin: S.cfg.skin || 'powder' };
     },
-    down(S, x, y) { if (x > 430 && x < 720 && y > 60 && y < 300) S.g.pour = true; },
+    onJar(x, y) { return x > 430 && x < 720 && y > 60 && y < 300; },
+    down(S, x, y) { if (this.onJar(x, y) && S.g.pause <= 0) S.g.pour = true; },
     up(S) { const st = S.g; st.pour = false; st.lag = st.flow * 0.22; },
     key(S, code, on) { if (code === 'Space') { S.g.pour = on; if (!on) S.g.lag = S.g.flow * 0.22; } },
     update(S, dt) {
       const st = S.g;
+      // après une erreur : on reprend tout seul si le bouton est toujours tenu sur le pot (plus besoin de relâcher)
+      if (st.pause > 0) { st.pause -= dt; if (st.pause <= 0 && S.m.down && this.onJar(S.m.x, S.m.y)) st.pour = true; }
       if (st.pour) { st.flow = Math.min(st.t * 0.9, st.flow + st.t * 0.8 * dt); st.w += st.flow * dt; }
       else { st.flow = 0; if (st.lag > 0) { const d = Math.min(st.lag, st.t * 0.35 * dt); st.w += d; st.lag -= d; } }
       if (Math.random() < (st.pour ? 0.9 : 0)) D.burst(560 + (Math.random() - 0.5) * 10, 200, this.color(S), 1, 30, 2, 600);
-      if (st.w > st.t + st.tol) { st.w = 0; st.lag = 0; st.flow = 0; st.pour = false; st.stable = 0; S.miss('Trop lourd : on reverse et on recommence'); return; }
+      if (st.w > st.t + st.tol) { st.w = 0; st.lag = 0; st.flow = 0; st.pour = false; st.stable = 0; st.pause = 0.7; S.miss('Trop lourd : on reverse et on recommence'); return; }
       if (!st.pour && st.lag <= 0.0001 && Math.abs(st.w - st.t) <= st.tol) { st.stable += dt; if (st.stable > 0.6) { st.bags++; st.w = 0; st.stable = 0; S.good('Sachet fermé'); S.hit(); } }
       else st.stable = 0;
     },

@@ -15,14 +15,15 @@
       return st;
     },
     tol: 0.035,
-    down(S, x, y) { const st = S.g, bx = 470 + st.idx * 95; if (Math.abs(x - bx) < 45 && y > 40 && y < 200) st.pour = true; },
+    down(S, x, y) { const st = S.g, bx = 470 + st.idx * 95; if ((st.pause || 0) <= 0 && Math.abs(x - bx) < 45 && y > 40 && y < 200) st.pour = true; },
     up(S) { const st = S.g; if (!st.pour) return; st.pour = false; st.lag = st.flow * 0.18; },
     key(S, code, on) { if (code === 'Space') { if (on) S.g.pour = true; else this.up(S); } },
     update(S, dt) {
       const st = S.g, t = st.targets[st.idx];
+      if (st.pause > 0) { st.pause -= dt; if (st.pause <= 0 && S.m.down && Math.abs(S.m.x - (470 + st.idx * 95)) < 45 && S.m.y > 40 && S.m.y < 200) st.pour = true; }
       if (st.pour) { st.flow = Math.min(0.22, st.flow + 0.25 * dt); st.level += st.flow * dt; }
       else { st.flow = 0; if (st.lag > 0) { const d = Math.min(st.lag, 0.08 * dt); st.level += d; st.lag -= d; } }
-      if (st.level > t + this.tol) { S.miss('Trop versé : mélange rattrapé'); st.level = st.idx > 0 ? st.targets[st.idx - 1] : 0; st.pour = false; st.flow = 0; st.lag = 0; return; }
+      if (st.level > t + this.tol) { S.miss('Trop versé : mélange rattrapé'); st.level = st.idx > 0 ? st.targets[st.idx - 1] : 0; st.pour = false; st.flow = 0; st.lag = 0; st.pause = 0.7; return; }
       if (!st.pour && st.lag <= 0.0001 && Math.abs(st.level - t) <= this.tol) {
         st.layers.push(st.list[st.idx].color); st.idx++; S.hit();
         if (st.idx >= st.list.length) { st.beakers++; S.good('Mélange prêt'); if (!S.ended) st.newBeaker(); }
@@ -177,7 +178,9 @@
       }
     },
     move(S, x, y) {
-      const st = S.g, c = st.cur; if (!c) return;
+      const st = S.g;
+      if (!st.cur && S.m.down) this.down(S, x, y);   // bouton toujours tenu (après une coupe ratée) : reprise sur un bout de trait
+      const c = st.cur; if (!c) return;
       const l = c.l;
       if (D.segDist(x, y, l.ax, l.ay, l.bx, l.by) > 15) { st.cur = null; S.miss('Coupe de travers'); return; }
       const end = c.from === 'a' ? [l.bx, l.by] : [l.ax, l.ay];
@@ -335,7 +338,11 @@
       }
       if (Math.abs(y - 220) < 40 && x > 120 && x < 680) st.drag = true;
     },
-    move(S, x) { const st = S.g; if (st.drag) st.v = D.clamp((x - 170) / 440, 0, 1); },
+    move(S, x, y) {
+      const st = S.g;
+      if (!st.drag && S.m.down && !st.bubbles.length && Math.abs(y - 220) < 40 && x > 120 && x < 680) st.drag = true;   // reprise sans relâcher
+      if (st.drag) st.v = D.clamp((x - 170) / 440, 0, 1);
+    },
     up(S) {
       const st = S.g; if (!st.drag) return; st.drag = false;
       if (Math.abs(st.v - st.target) <= this.tol) { for (let i = 0; i < 2 + Math.floor(S.r() * 2); i++) st.bubbles.push({ x: 200 + S.r() * st.v * 380, y: 212 + (S.r() - 0.5) * 16 }); S.hint('Tapote les bulles d\'air pour les chasser.'); }

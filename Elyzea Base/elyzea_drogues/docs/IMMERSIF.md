@@ -102,6 +102,15 @@ Les **laboratoires** (`elyzea_labs`) utilisent exactement les mêmes mini-jeux, 
   On y travaille assis (effeuiller, rouler, préparer).
 - **Réglage** : si la hauteur ou la position n'est pas parfaite avec tes modèles de chaise, utilise `/drogues_assise`. Le réglage est enregistré pour toutes les tables de ce type.
 
+## Après une erreur, on continue (v2.1.2)
+
+- Une erreur coûte une chance, et la partie continue tant qu'il en reste. Le geste repart **sans avoir à relâcher le clic** :
+  - **pesée et dosage** : après « trop lourd » ou « trop versé », courte pause de 0,7 s, puis le versement reprend si le clic est toujours tenu sur le pot ou le flacon ;
+  - **découpe** : la coupe reprend dès qu'on repasse sur un bout de trait ;
+  - **seringue** : le piston se reprend ;
+  - **effeuillage** : on attrape une feuille en passant dessus.
+- Vérifié : les 23 parties ont été jouées par un script avec une erreur volontaire au début de chacune, puis finies (`MISTAKE=1 node tests/ui_bot.js …`).
+
 ## Décor permanent et chaise
 
 Chaque poste reçoit ses accessoires, visibles de tous :
