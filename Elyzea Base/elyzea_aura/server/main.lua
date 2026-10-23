@@ -2246,6 +2246,60 @@ Register('sendAlert', function(src, me, args)
     return { ok = true, count = count }
 end)
 
+-- ---------------------------------------------------------
+--  SANTÉ (et GROSSESSE) : données fournies par d'autres ressources
+--  · grossesse : elyzea_famille (export SuiviGrossesse, privé : le personnage du joueur seulement)
+--  · rendez-vous, maladies et blessures : elyzea_ems (exports AppointmentsMine, AppointmentCreate,
+--    AppointmentCancel, HealthMine) ; l'EMS revérifie tout
+-- ---------------------------------------------------------
+local function Ext(res, fn, ...)
+    if GetResourceState(res) ~= 'started' then return nil, 'indisponible' end
+    local args = { ... }
+    local ok, r = pcall(function() return exports[res][fn](exports[res], table.unpack(args)) end)
+    if not ok then print(('[elyzea_aura] %s:%s : %s'):format(res, fn, tostring(r))) return nil, 'erreur' end
+    return r
+end
+
+local function Grossesse(src)
+    local r, why = Ext('elyzea_famille', 'SuiviGrossesse', src)
+    if not r then return { ok = false, indisponible = why == 'indisponible', error = why == 'erreur' and 'Réessayez dans un instant.' or nil } end
+    if r.erreur then return { ok = false, error = r.erreur } end
+    r.ok = true
+    return r
+end
+
+Register('grossesseSuivi', function(src, me)
+    if not HasApp(me, 'grossesse') and not HasApp(me, 'sante') then return { ok = false, error = 'Application non installée' } end
+    return Grossesse(src)
+end)
+
+Register('santeHome', function(src, me)
+    if not HasApp(me, 'sante') then return { ok = false, error = 'Application non installée' } end
+    local out = { ok = true }
+    out.grossesse = Grossesse(src)
+    local rdv, why = Ext('elyzea_ems', 'AppointmentsMine', src)
+    out.rdv = rdv or { ok = false, indisponible = why == 'indisponible' }
+    local h = Ext('elyzea_ems', 'HealthMine', src)
+    out.health = h or { ok = false }
+    return out
+end)
+
+Register('santeRdvCreate', function(src, me, args)
+    if not HasApp(me, 'sante') then return { ok = false, error = 'Application non installée' } end
+    local r = Ext('elyzea_ems', 'AppointmentCreate', src, { type = tostring(args.type or ''), reason = trim(args.reason, 200) })
+    if not r then return { ok = false, error = 'Les rendez-vous sont indisponibles.' } end
+    if r.error then return { ok = false, error = r.error } end
+    return { ok = true, message = r.message }
+end)
+
+Register('santeRdvCancel', function(src, me, args)
+    if not HasApp(me, 'sante') then return { ok = false, error = 'Application non installée' } end
+    local r = Ext('elyzea_ems', 'AppointmentCancel', src, tonumber(args.id))
+    if not r then return { ok = false, error = 'Les rendez-vous sont indisponibles.' } end
+    if r.error then return { ok = false, error = r.error } end
+    return { ok = true, message = r.message }
+end)
+
 -- Export pratique pour d'autres ressources
 exports('GetPhoneNumber', function(src)
     local p = EnsurePlayer(src)

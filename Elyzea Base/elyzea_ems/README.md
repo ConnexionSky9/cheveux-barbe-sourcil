@@ -129,3 +129,59 @@ ou substance reliée à aucune source de données. Durées de détection et seui
 Permissions données une fois aux grades existants : Directeur / direction / `reports_manage` → les trois,
 `records_write` → prélèvement et consultation. Tables : `ems_lab_consumptions`, `ems_lab_samples`, `ems_lab_meta` (créées toutes seules).
 Tests hors jeu : `python3 tests/run_lab_sim.py`.
+
+## Santé : postes des dossiers, rendez-vous, maladies et blessures
+
+> **Rien n'a été testé en jeu.** Vérifié hors jeu : simulation serveur (`python3 tests/run_health_sim.py`, 73 vérifications sur les vrais fichiers),
+> et interfaces jouées dans Chromium (poste des dossiers, examen, application Santé, téléphone de service, onglet admin).
+
+### Dossiers médicaux : plus dans la tablette
+- L'onglet **Patients** de la tablette, le bouton « Dossier » de l'examen, du F6 et du menu ALT sont retirés.
+- Les dossiers se consultent à un **poste des dossiers** (ex. le PC de l'accueil), placé :
+  - par la direction : tablette › Direction › **Garage** › « Postes des dossiers médicaux » ;
+  - ou par le staff : admin_menu › **Santé** › « Placer ici ».
+- Au poste, **E** ouvre l'écran de recherche : on tape **le nom et le prénom** (dans n'importe quel ordre, sans accents), puis « Rechercher ».
+- Le dossier complet s'affiche :
+  - fiche (groupe sanguin, allergies, notes, modifiables avec `records_write`) ;
+  - **maladies et blessures** (en cours et antécédents) ;
+  - actes, **rendez-vous**, **analyses**, comptes rendus, PPA, appels.
+- Le serveur vérifie la distance au poste à chaque lecture et chaque modification. Chaque recherche et consultation est journalisée.
+
+### Rendez-vous
+- Demandés par les joueurs dans l'application **Santé** d'Elyzea Aura :
+  - consultation médicale ;
+  - consultation psychiatrique ;
+  - prise de sang ;
+  - suivi de grossesse.
+- Les EMS en service sont prévenus. Les demandes apparaissent dans l'application **Rendez-vous** du téléphone de service : « Accepter », puis « Terminé ».
+- Quand un EMS accepte, le joueur reçoit sur son téléphone : « L'EMS *Prénom* a accepté votre rendez-vous ».
+- Sans EMS au bout de 2 h (réglable), la demande est annulée et le joueur prévenu. S'il est absent, le message lui est remis à sa connexion.
+- Réglages : admin_menu › Santé (ouverture, délai, nombre de demandes, types proposés).
+
+### Maladies et blessures
+- **Chute** d'au moins 6 m à pied (réglable) : jambe blessée. Le joueur boite et ne peut plus courir ni sauter.
+  - Un EMS pose une **attelle** : ALT sur le patient › « Poser une attelle », ou bien F6, ou l'examen.
+  - Par défaut, l'attelle guérit tout de suite. Option : pas de course pendant X minutes.
+- **Rhume** : attrapé au hasard (2 %/h) ou près d'un malade (4 %/min à moins de 2 m).
+  - Toux de temps en temps, visible des autres.
+  - Passe tout seul en 45 à 90 min, ou plus vite avec un « Traitement » EMS.
+- **MST** (chlamydia, gonorrhée, herpès, syphilis) : transmises lors d'un moment intime **sans préservatif** (`elyzea_famille`).
+  - Symptômes discrets de temps en temps.
+  - Invisibles pour le joueur tant qu'un EMS ne l'a pas **examiné**. L'examen affiche un « Diagnostic » et le joueur voit ensuite la maladie dans l'application Santé.
+  - Soignées par un « Traitement » EMS.
+- Les effets ne sont envoyés qu'au joueur concerné : aucun autre joueur ne peut lire ses maladies.
+- Facturation : nouveaux actes « Pose d'une attelle » (600 $) et « Traitement » (300 $), modifiables dans Finance › Tarifs.
+- **admin_menu › Santé** (permission `health_manage`) :
+  - activer ou couper chaque maladie, avec ses durées, chances, contagion et symptômes ;
+  - hauteur de chute et réglage de l'attelle ;
+  - donner ou soigner une maladie à un joueur, tout soigner.
+- Valeurs de départ : `Config.Health`, `Config.Appointments`, `Config.Records` (config.lua).
+
+### Tables ajoutées (créées toutes seules)
+`ems_appointments`, `ems_conditions`.
+
+### Limites
+- La boiterie remplace la démarche du personnage. Un autre script de démarche peut la changer ; elle est réappliquée toutes les 2 s.
+- La détection de chute se fait côté client. Le serveur limite à une chute toutes les 10 s et refuse les hauteurs absurdes.
+- Les MST ne se transmettent que par le moment intime d'`elyzea_famille`. Le rhume se transmet par la proximité.
+- La réapparition à l'hôpital ne soigne pas la jambe : il faut une attelle.

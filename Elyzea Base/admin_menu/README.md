@@ -943,3 +943,11 @@ puis la victime encaisse. La portée du boss grandit avec sa taille (×2,2 : env
   sorties, emplacements d'exposition) et catalogue propre à chaque concession (activé / visible / vendable / exposable / prix).
 - Le PNJ « Catalogue concession » de l'éditeur de map ouvre le catalogue de la concession la plus proche.
 - Détails, tests à faire et limites : `elyzea_concess/README.md`. Non testé en jeu.
+
+## 🩺 Santé (permission `health_manage`, ressource elyzea_ems)
+Économie et services › **Santé** :
+- **Maladies et blessures** : rhume, jambe blessée après une chute, MST. Pour chacune : activer ou couper, nom, connue ou non, durée, chances, contagion, symptômes.
+- **Hauteur de chute** qui blesse la jambe, et durée sans course après l'attelle.
+- **Rendez-vous** : ouverture, délai avant annulation, demandes par joueur, types proposés.
+- **Postes des dossiers médicaux** : « Placer ici » (à ta position) ou « Retirer ». C'est le seul endroit où les EMS consultent les dossiers.
+- **Joueurs connectés** : voir leurs maladies, en donner une, soigner, tout soigner.

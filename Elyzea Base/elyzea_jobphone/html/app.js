@@ -62,6 +62,7 @@
     { id: 'menu', icon: '⚡', label: 'Menu rapide' },
     { id: 'annonce', icon: '📣', label: 'Annonce' },
     { id: 'planning', icon: '🗓️', label: 'Planning', res: 'elyzea_presse' },   // journalistes seulement
+    { id: 'rdv', icon: '📅', label: 'Rendez-vous', res: 'elyzea_ems' },          // EMS seulement
   ];
 
   async function loadHome() {
@@ -551,6 +552,45 @@
   };
 
   // ------------------------------------------------------------------
+  // Rendez-vous (EMS) : demandes des patients (application Santé d'Elyzea Aura)
+  // Accepter = le patient reçoit « L'EMS Prénom a accepté votre rendez-vous ».
+  // ------------------------------------------------------------------
+  const left = (s) => { s = Math.max(0, Math.floor(s || 0)); return s >= 3600 ? `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}` : `${Math.ceil(s / 60)} min`; };
+  VIEWS.rdv = async () => {
+    screen.innerHTML = `${header('Rendez-vous')}<div class="body" id="rdv"><div class="empty">Chargement…</div></div>`;
+    wire();
+    const load = async () => {
+      if (S.view !== 'rdv') return;
+      const r = await req('rdv', { op: 'list' });
+      const box = $('#rdv'); if (!box || S.view !== 'rdv') return;
+      if (r.error) { box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+      const item = (a, kind) => `<div class="row" style="align-items:flex-start"><div class="tx">
+          <div class="t1">${esc(a.typeLabel)} · ${esc(a.name)}${a.online ? ' <span class="life-ok">●</span>' : ''}</div>
+          ${a.reason ? `<div class="t2 wrap">« ${esc(a.reason)} »</div>` : ''}
+          <div class="t2 meta">Demandé à ${hhmm(a.created)}${a.phone ? ` · 📱 ${esc(a.phone)}` : ''}${kind === 'pending' ? ` · annulé dans ${left(a.expiresIn)}` : ''}${kind === 'others' && a.ems ? ` · pris par ${esc(a.ems)}` : ''}</div>
+          ${kind === 'pending' ? `<button class="btn small" data-acc="${a.id}">Accepter</button>` : kind === 'mine' ? `<button class="btn small" data-done="${a.id}">Terminé</button>` : ''}
+        </div></div>`;
+      const sec = (t, l, kind, none) => `<div class="section">${t} (${l.length})</div>${l.length ? l.map((a) => item(a, kind)).join('') : `<div class="empty small">${none}</div>`}`;
+      box.innerHTML = sec('Demandes en attente', r.pending, 'pending', 'Aucune demande en attente.')
+        + sec('Mes rendez-vous', r.mine, 'mine', 'Aucun rendez-vous accepté par vous.')
+        + (r.others.length ? sec('Pris par des collègues', r.others, 'others', '') : '');
+      box.querySelectorAll('[data-acc]').forEach((b) => (b.onclick = async () => {
+        b.disabled = true; b.textContent = '…';
+        result(await req('rdv', { op: 'accept', data: { id: Number(b.dataset.acc) } }));
+        load();
+      }));
+      box.querySelectorAll('[data-done]').forEach((b) => (b.onclick = async () => {
+        b.disabled = true;
+        result(await req('rdv', { op: 'done', data: { id: Number(b.dataset.done) } }));
+        load();
+      }));
+    };
+    S.reloadRdv = load;
+    load();
+    S.timers.push(setInterval(load, 15000));
+  };
+
+  // ------------------------------------------------------------------
   // Saisie : le clavier passe au téléphone uniquement pendant l'écriture
   // ------------------------------------------------------------------
   function typingWire() {
@@ -591,6 +631,7 @@
       else if (d.what === 'directory' && (S.view === 'directory' || S.view === 'dialer')) go(S.view, null, false);
       else if (d.what === 'alerts' && S.view === 'alerts' && S.reloadAlerts) S.reloadAlerts();
       else if (d.what === 'planning' && S.view === 'planning' && S.reloadPlanning) S.reloadPlanning();
+      else if (d.what === 'rdv' && S.view === 'rdv' && S.reloadRdv) S.reloadRdv();
     } else if (d.action === 'message') {
       if (S.home) S.home.unread = (S.home.unread || 0) + 1;
       if (!S.open) return;

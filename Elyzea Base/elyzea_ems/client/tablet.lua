@@ -56,6 +56,70 @@ function C.OpenTablet(opts)
 end
 
 -- ---------------------------------------------------------------------
+-- Poste des dossiers médicaux (placé en jeu) : E ouvre l'écran de recherche.
+-- Même interface que la tablette, réduite aux dossiers ; le serveur vérifie la distance.
+-- ---------------------------------------------------------------------
+local kiosk = nil   -- poste ouvert { x, y, z }
+local function CloseKiosk()
+    if not kiosk then return end
+    kiosk = nil
+    C.Focus('tablet', false)
+    SendNUIMessage({ action = 'tablet', show = false })
+end
+
+function C.OpenRecords(point)
+    if isOpen then Close() end
+    if kiosk then return end
+    if not C.Can('records_view') then return C.Notify('Votre grade ne permet pas de consulter les dossiers médicaux.', 'error') end
+    kiosk = point
+    C.Focus('tablet', true)
+    SendNUIMessage({ action = 'tablet', show = true, state = C.State(), cfg = C.cfg, opts = { kiosk = true, label = point.label } })
+    CreateThread(function()
+        while kiosk == point do
+            local ped = PlayerPedId()
+            if #(GetEntityCoords(ped) - vector3(point.x, point.y, point.z)) > Config.Records.useRadius or IsEntityDead(ped) or C.IsDown() or not C.IsEms() then
+                CloseKiosk()
+                break
+            end
+            Wait(500)
+        end
+    end)
+end
+
+-- La fermeture de l'écran (Échap / ✕) ferme aussi le poste
+local closeTablet = C.ui.tablet.close
+C.ui.tablet.close = function(...)
+    if kiosk then return CloseKiosk() end
+    return closeTablet(...)
+end
+
+CreateThread(function()
+    while true do
+        local sleep = 1500
+        local pts = GlobalState.emsRecordsPoints
+        if pts and #pts > 0 and C.IsEms() and C.Can('records_view') and not kiosk and not C.IsDown() then
+            local pos = GetEntityCoords(PlayerPedId())
+            for _, p in ipairs(pts) do
+                local d = #(pos - vector3(p.x, p.y, p.z))
+                if d < 12.0 then
+                    sleep = 0
+                    if Config.Records.marker then
+                        DrawMarker(20, p.x, p.y, p.z - 0.35, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.2, 59, 130, 246, 150, true, true, 2, false, nil, nil, false)
+                    end
+                    if d < Config.Records.radius and not C.AnyOpen() then
+                        BeginTextCommandDisplayHelp('STRING')
+                        AddTextComponentSubstringPlayerName('~INPUT_CONTEXT~ ' .. (p.label or 'Dossiers médicaux'))
+                        EndTextCommandDisplayHelp(0, false, false, -1)
+                        if IsControlJustPressed(0, 38) then C.OpenRecords(p) end
+                    end
+                end
+            end
+        end
+        Wait(sleep)
+    end
+end)
+
+-- ---------------------------------------------------------------------
 -- Proposition de recrutement : Accepter / Refuser (souris ou Y / L)
 -- ---------------------------------------------------------------------
 local offer = nil

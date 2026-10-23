@@ -44,7 +44,10 @@ Dans chacun des 5 métiers :
 | Alertes faible / moyenne / urgente | 🔒 | ✅ |
 | Tablette (grisée si le grade n'a pas la permission « tablet ») | 🔒 | ✅ |
 | Menu rapide (ancien F6) | 🔒 | ✅ |
+| Rendez-vous (**EMS seulement**) : demandes des patients (application Santé d'Elyzea Aura), « Accepter », « Terminé » | 🔒 | ✅ |
 
+- **Rendez-vous** (EMS) : demandes en attente (motif, téléphone du patient, temps avant annulation), mes rendez-vous, pris par des collègues.
+  « Accepter » prévient le patient : « L'EMS Prénom a accepté votre rendez-vous ». Liste mise à jour toute seule à chaque nouvelle demande.
 - **Alertes** : police = alerte agent existante, EMS = soutien existant ;
   mécano / Dynasty 8 / concession = alertes du téléphone (blip + itinéraire).
 - **Tablette** : la direction choisit les grades autorisés comme avant

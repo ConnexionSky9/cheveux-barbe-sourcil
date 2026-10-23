@@ -87,7 +87,7 @@ function f6Render() {
     if (p.medical) body += item('med', '🩺', 'Actions médicales', duty ? (d.near ? `Personne proche · ID ${d.near.id}` : 'Personne à proximité') : 'Prenez votre service', { chev: true, disabled: !duty });
     if (p.calls) body += item('calls', '📟', `Appels${nCalls ? ` (${nCalls})` : ''}`, duty ? 'Accepter, GPS, statut' : 'Prenez votre service', { chev: true, disabled: !duty });
     if (p.support) body += item('support', '🚨', `Soutien${nSup ? ` (${nSup})` : ''}`, duty ? 'Demander de l\'aide aux EMS' : 'Prenez votre service', { chev: true, disabled: !duty });
-    if (p.tablet) body += item('tablet', '📱', 'Ouvrir la tablette', 'Dispatch, patients, comptes rendus');
+    if (p.tablet) body += item('tablet', '📱', 'Ouvrir la tablette', 'Dispatch, comptes rendus, laboratoire');
     if (p.direction) body += item('direction', '🏛️', 'Direction', 'Personnel, grades, finance', { attrs: 'data-page="employees"' });
   } else if (F6.view === 'status') {
     body += back('Statut opérationnel') + '<div class="f6-list">' + APP.statuses.map((s) => `<button class="f6-item" data-f6s="${s.id}"><span class="ico" style="color:${s.color}">●</span>
@@ -100,10 +100,11 @@ function f6Render() {
     body += `<div class="near">Patient : <b>ID ${n.id}</b> · ${n.distance} m${n.down ? ' · <span style="color:#fca5a5">inconscient</span>' : ''}${n.inVehicle ? ' · dans un véhicule' : ''}</div><div class="f6-list">`;
     const m = (act, ico, label, ok = true, sub = '') => (ok ? `<button class="f6-item" data-med="${act}" data-t="${n.id}"><span class="ico">${ico}</span><span class="txt">${label}${sub ? `<small>${sub}</small>` : ''}</span></button>` : '');
     body += m('examine', '🩺', 'Examiner / état de santé', p.medical);
-    body += n.down ? m('stabilize', '🩹', 'Stabiliser', p.stabilize) + m('revive', '❤️', 'Réanimer', p.revive) : m('heal', '💊', 'Soigner', p.heal);
+    body += n.down ? m('stabilize', '🩹', 'Stabiliser', p.stabilize) + m('revive', '❤️', 'Réanimer', p.revive)
+      : m('heal', '💊', 'Soigner', p.heal) + m('splint', '🦴', 'Poser une attelle', p.heal, 'Blessure à la jambe') + m('treat', '💉', 'Donner un traitement', p.heal, 'Rhume, MST…');
     if (!n.inVehicle) body += m('escort', '🚶', n.escorted ? 'Lâcher le patient' : (n.down ? 'Porter le patient' : 'Accompagner le patient'), p.escort);
     body += n.inVehicle ? m('takeOut', '🚪', 'Sortir du véhicule', p.vehicle) : m('putIn', '🚑', 'Installer dans le véhicule', p.vehicle && d.vehicle, d.vehicle ? '' : 'Aucun véhicule proche');
-    body += m('record', '📋', 'Dossier médical', p.records_view) + m('report', '📝', 'Compte rendu', p.reports_write) + m('bill', '🧾', 'Facturer les soins', p.billing);
+    body += m('report', '📝', 'Compte rendu', p.reports_write) + m('bill', '🧾', 'Facturer les soins', p.billing);
     if (!n.down) body += m('ppa_civil', '📜', 'Délivrer un PPA civil', p.ppa_civil) + m('ppa_fdo', '📜', 'Délivrer un PPA force de l\'ordre', p.ppa_fdo);
     return `${head}${body}</div>`;
   } else if (F6.view === 'calls') {
@@ -244,10 +245,13 @@ function examRender() {
       ${x.hunger != null ? `<div class="vital"><span>Faim</span><b>${x.hunger} %</b></div><div class="vital"><span>Soif</span><b>${x.thirst} %</b></div>` : ''}
     </div>
     <div class="kv"><span>Groupe sanguin</span><b>${esc(x.blood || 'non renseigné')}</b><span>Allergies</span><b>${esc(x.allergies || 'non renseignées')}</b></div>
+    <div class="section-label" style="margin-top:.6rem">Diagnostic</div>
+    ${(x.conditions || []).length ? `<div class="kv">${x.conditions.map((c) => `<span>${c.type === 'std' ? 'MST' : c.type === 'injury' ? 'Blessure' : 'Maladie'}</span><b>${esc(c.label)}${c.splinted ? ' · attelle posée' : ''}<small class="faint"> · ${c.cure === 'splint' ? 'attelle' : 'traitement'}</small></b>`).join('')}</div>`
+      : '<p class="faint" style="font-size:.8rem">Aucune maladie ni blessure décelée.</p>'}
     <div class="actions" style="flex-wrap:wrap">
       ${x.down ? `${p.stabilize && !x.stabilized ? '<button class="btn" data-ex="stabilize">🩹 Stabiliser</button>' : ''}${p.revive ? '<button class="btn primary" data-ex="revive">❤️ Réanimer</button>' : ''}`
-        : (p.heal ? '<button class="btn primary" data-ex="heal">💊 Soigner</button>' : '')}
-      ${p.records_view ? '<button class="btn" data-ex="record">📋 Dossier</button>' : ''}${p.billing ? '<button class="btn" data-ex="bill">🧾 Facturer</button>' : ''}
+        : (p.heal ? `<button class="btn primary" data-ex="heal">💊 Soigner</button>${(x.conditions || []).some((c) => c.cure === 'splint' && !c.splinted) ? '<button class="btn" data-ex="splint">🦴 Attelle</button>' : ''}${(x.conditions || []).some((c) => c.cure === 'treat') ? '<button class="btn" data-ex="treat">💉 Traitement</button>' : ''}` : '')}
+${p.billing ? '<button class="btn" data-ex="bill">🧾 Facturer</button>' : ''}
       <button class="btn" data-ex="close">Fermer</button></div>`;
 }
 $('#exam').addEventListener('click', (e) => {

@@ -178,6 +178,14 @@ function Ops.alertClose(src, d)
     return { native = true }
 end
 
+-- Rendez-vous des patients (application « Rendez-vous », EMS seulement : actions apptList / apptAccept / apptDone)
+local RDV = { list = 'apptList', accept = 'apptAccept', done = 'apptDone' }
+function Ops.rdv(src, d)
+    local a = RDV[d.op]
+    if not a or not P.Actions[a] then return { error = 'Application indisponible pour ce métier.' } end
+    return Run(src, a, type(d.data) == 'table' and d.data or {})
+end
+
 exports('PhoneBridge', function(op, src, data)
     local f = Ops[op]
     src = tonumber(src)

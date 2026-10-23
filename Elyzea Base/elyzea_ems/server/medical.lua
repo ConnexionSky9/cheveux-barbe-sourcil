@@ -12,6 +12,9 @@ local KINDS = {
     heal      = { perm = 'heal',      duration = Config.Heal.duration,      label = 'Soins' },
     stabilize = { perm = 'stabilize', duration = Config.Stabilize.duration, label = 'Stabilisation' },
     revive    = { perm = 'revive',    duration = Config.Revive.duration,    label = 'Réanimation' },
+    -- Maladies et blessures (server/health.lua)
+    splint    = { perm = 'heal',      duration = (Config.Health.splint or {}).duration or 8000, label = 'Pose d\'une attelle' },
+    treat     = { perm = 'heal',      duration = (Config.Health.treat or {}).duration or 6000,  label = 'Traitement' },
 }
 
 local pending = {}        -- [ems] = { kind, target, t }
@@ -91,6 +94,7 @@ P.Actions.examine = { perm = 'medical', duty = true, fn = function(src, d)
         stabilized = down and down.stabilized or false, cause = down and down.cause or nil,
         hunger = tonumber(md.hunger) and math.floor(md.hunger) or nil, thirst = tonumber(md.thirst) and math.floor(md.thirst) or nil,
         blood = file and file.blood or nil, allergies = file and file.allergies or nil, cid = cid,
+        conditions = P.HealthDiagnose and P.HealthDiagnose(t) or {},
     } }
 end }
 
@@ -109,6 +113,9 @@ P.Actions.medStart = { perm = 'medical', duty = true, fn = function(src, d)
     if d.kind == 'stabilize' and not down then return { error = 'Le patient n\'est pas à terre.' } end
     if d.kind == 'stabilize' and down.stabilized then return { error = 'Le patient est déjà stabilisé.' } end
     if d.kind == 'revive' and not down then return { error = 'Le patient n\'est pas inconscient.' } end
+    if (d.kind == 'splint' or d.kind == 'treat') and #P.HealthCurable(t, d.kind) == 0 then
+        return { error = d.kind == 'splint' and 'Le patient n\'a pas de blessure à la jambe à immobiliser.' or 'Le patient n\'a aucune maladie à traiter.' }
+    end
     local miss = Missing(src, d.kind)
     if miss then return { error = ('Matériel manquant : %s.'):format(miss) } end
     pending[src] = { kind = d.kind, target = t, t = GetGameTimer() }
@@ -135,6 +142,8 @@ P.Actions.medFinish = { perm = 'medical', duty = true, fn = function(src, d)
     elseif pd.kind == 'revive' then
         if not P.down[t] then return { error = 'Le patient n\'est plus inconscient.' } end
         P.Revive(t)
+    elseif pd.kind == 'splint' or pd.kind == 'treat' then
+        if not P.HealthTreat(t, pd.kind, src) then return { error = 'Plus rien à soigner.' } end
     end
     P.AddTreatment(t, pd.kind, src)
     P.Notify(t, ('%s : %s.'):format(k.label, P.Name(src)), 'success')

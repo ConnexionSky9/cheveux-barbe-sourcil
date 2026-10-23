@@ -20,8 +20,18 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 ## Nouveautés de la version 5.2
 - **Livrézy** : commande de repas, snacks, boissons et alcool depuis le téléphone (plus cher qu'en supérette, avec frais de livraison). Un livreur PNJ part en voiture du commerce le plus proche, se suit en direct sur la carte et dans l'app, descend vous remettre la commande puis repart. Paiement par banque ou en espèces, annulation possible, remboursement automatique en cas de problème.
 
+## Nouveautés : application Santé
+- **Santé** (magasin Appli) : trois onglets.
+  - **Rendez-vous** : demander un rendez-vous à l'hôpital (consultation médicale, psychiatrique, prise de sang, suivi de grossesse), avec un motif facultatif.
+    On suit sa demande : *En attente* (avec le temps avant annulation), *Accepté par …*, *Annulé : aucun EMS disponible*.
+    On peut annuler. Notification quand un EMS accepte (« L'EMS Prénom a accepté votre rendez-vous ») ou quand la demande expire.
+  - **Ma santé** : maladies et blessures connues ou découvertes par un examen EMS, avec conseils, et antécédents.
+  - **Grossesse** : même suivi que l'application Grossesse (temps écoulé, temps restant, trimestre, historique), avec un raccourci « Prendre un rendez-vous de suivi ».
+- Données fournies par `elyzea_ems` (rendez-vous, santé) et `elyzea_famille` (grossesse). Sans elles, l'onglet affiche « indisponible ».
+- **Correctif** : l'application Grossesse n'avait pas de réponse côté serveur (`grossesseSuivi`) ; elle lit maintenant `exports.elyzea_famille:SuiviGrossesse`.
+
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua

@@ -30,6 +30,7 @@ const APP_ICONS = {
   garage:    { c1: '#7FA8FF', c2: '#3A55D8', fill: '<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>', line: '<path d="M7 21v-6.5h10V21M7 17.5h10"/>' },
   carplay:   { c1: '#5EF0D2', c2: '#1B6FE0', fill: '<circle cx="12" cy="12" r="9"/>', line: '<circle cx="12" cy="12" r="2.6"/><path d="M3.5 10.5c3-1.2 5.6-1.6 8.5-1.6s5.5.4 8.5 1.6M12 14.6v6.2M9.6 13.4 4.8 17.6M14.4 13.4l4.8 4.2"/>' },
   grossesse: { c1: '#FF9CC8', c2: '#C2387F', fill: '<path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/>', line: '<circle cx="12" cy="12.6" r="2.2"/><path d="M12 3.2v2.2"/>' },
+  sante:     { c1: '#7DF0C8', c2: '#0E9F8A', fill: '<rect x="4" y="4" width="16" height="16" rx="4"/>', line: '<path d="M12 8.2v7.6M8.2 12h7.6"/>' },
   auradrop:  { c1: '#6FE7F2', c2: '#7C6CFF', fill: '<circle cx="12" cy="12" r="3.2"/>', line: '<path d="M7.5 16.5a6.4 6.4 0 0 1 0-9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 19.4a10.5 10.5 0 0 1 0-14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/>' },
   system:    { c1: '#9AA0B8', c2: '#4B5169', fill: '<circle cx="12" cy="12" r="8"/>', line: '<path d="M12 8v4.5M12 15.5v.3"/>' },
 };

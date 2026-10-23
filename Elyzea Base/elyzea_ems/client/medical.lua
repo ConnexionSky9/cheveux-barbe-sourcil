@@ -10,8 +10,10 @@ local ANIMS = {
     heal      = { 'amb@medic@standing@tendtodead@idle_a', 'idle_a', 1 },
     stabilize = { 'amb@medic@standing@tendtodead@idle_a', 'idle_a', 1 },
     revive    = { 'mini@cpr@char_a@cpr_str', 'cpr_pumpchest', 1 },
+    splint    = { 'amb@medic@standing@kneel@idle_a', 'idle_a', 1 },
+    treat     = { 'mp_common', 'givetake1_a', 1 },
 }
-local LABELS = { heal = 'Soins en cours', stabilize = 'Stabilisation', revive = 'Massage cardiaque' }
+local LABELS = { heal = 'Soins en cours', stabilize = 'Stabilisation', revive = 'Massage cardiaque', splint = 'Pose de l\'attelle', treat = 'Traitement' }
 
 local function Me() return GetPlayerServerId(PlayerId()) end
 local function PedOf(sid) local _, ped = C.PlayerFromServerId(sid) return ped end
@@ -84,9 +86,8 @@ RegisterNUICallback('examAction', function(body, cb)
     C.ui.exam.close()
     CreateThread(function()
         local a = body.act
-        if a == 'heal' or a == 'stabilize' or a == 'revive' then C.MedAct(a, sid)
+        if a == 'heal' or a == 'stabilize' or a == 'revive' or a == 'splint' or a == 'treat' then C.MedAct(a, sid)
         elseif a == 'bill' then C.OpenBill(sid)
-        elseif a == 'record' then C.OpenTablet({ page = 'patient', src = sid })
         elseif a == 'report' then C.OpenTablet({ page = 'reportNew', src = sid }) end
     end)
 end)
@@ -197,6 +198,8 @@ function C.AltOptions(ctx)
             if C.Can('revive') then out[#out + 1] = { id = 'revive', label = 'Réanimer', icon = 'revive' } end
         elseif C.Can('heal') then
             out[#out + 1] = { id = 'heal', label = 'Soigner', icon = 'heal' }
+            out[#out + 1] = { id = 'splint', label = 'Poser une attelle (jambe)', icon = 'heal' }
+            out[#out + 1] = { id = 'treat', label = 'Donner un traitement (rhume, MST…)', icon = 'heal' }
         end
         if C.Can('escort') and not ctx.inVehicle then
             out[#out + 1] = { id = 'escort', label = mine and 'Lâcher le patient' or (down and 'Porter le patient' or 'Accompagner le patient'), icon = 'escort' }
@@ -208,7 +211,6 @@ function C.AltOptions(ctx)
                 out[#out + 1] = { id = 'putIn', label = 'Installer dans le véhicule', icon = 'in', disabled = not veh, desc = not veh and 'Aucun véhicule à proximité' or nil }
             end
         end
-        if C.Can('records_view') then out[#out + 1] = { id = 'record', label = 'Dossier médical', icon = 'record' } end
         if C.Can('lab_sample') and not ctx.inVehicle then out[#out + 1] = { id = 'lab_sample', label = 'Prélèvement sanguin (laboratoire)', icon = 'blood' } end
         if C.Can('reports_write') then out[#out + 1] = { id = 'report', label = 'Compte rendu d\'intervention', icon = 'record' } end
         if C.Can('billing') then out[#out + 1] = { id = 'bill', label = 'Facturer les soins', icon = 'fine' } end
@@ -240,11 +242,10 @@ function C.AltSelect(id, ctx)
     local t = ctx and ctx.sid
     if not t then return end
     if id == 'examine' then C.Examine(t)
-    elseif id == 'heal' or id == 'stabilize' or id == 'revive' then C.MedAct(id, t)
+    elseif id == 'heal' or id == 'stabilize' or id == 'revive' or id == 'splint' or id == 'treat' then C.MedAct(id, t)
     elseif id == 'escort' then C.Do('escort', { target = t })
     elseif id == 'putIn' then PutIn(t)
     elseif id == 'takeOut' then C.Do('takeOut', { target = t })
-    elseif id == 'record' then C.OpenTablet({ page = 'patient', src = t })
     elseif id == 'lab_sample' then C.LabSample(t)
     elseif id == 'report' then C.OpenTablet({ page = 'reportNew', src = t })
     elseif id == 'bill' then C.OpenBill(t)

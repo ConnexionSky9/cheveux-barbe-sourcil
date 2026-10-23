@@ -14,51 +14,74 @@ for _, s in ipairs(Config.Billing.services) do SERVICE_LABEL[s.id] = s.label end
 -- ---------------------------------------------------------------------
 -- Patients
 -- ---------------------------------------------------------------------
-P.Actions.patients = { perm = 'records_view', fn = function(_, d)
-    local q = P.Clean(d.q, 60):gsub('[%%_]', '')
+-- Dossiers médicaux : uniquement à un poste des dossiers (server/records_points.lua), jamais depuis la tablette
+local NOT_AT = 'Les dossiers médicaux se consultent au poste des dossiers (accueil de l\'hôpital).'
+local HR = HealthRules
+
+-- Recherche par nom ET prénom, dans n'importe quel ordre (« durand elodie » = « Élodie Durand »)
+P.Actions.patients = { perm = 'records_view', fn = function(src, d)
+    if not P.AtRecords(src) then return { error = NOT_AT } end
+    local tokens = HR.SearchTokens(d.q)
+    local total = 0
+    for _, t in ipairs(tokens) do total = total + #t end
+    if total < Config.Records.minSearch then return { list = {}, needQuery = true } end
     local out, seen = {}, {}
     -- Personnes présentes (connectées)
-    for src, p in pairs(core:GetPlayers()) do
-        local name = P.Name(src)
-        if q == '' or name:lower():find(q:lower(), 1, true) then
-            local cid = p.PlayerData.citizenid
-            seen[cid] = true
-            out[#out + 1] = { cid = cid, name = name, online = true, id = src }
+    for s in pairs(core:GetPlayers()) do
+        local name = P.Name(s)
+        if HR.NameMatches(name, tokens) then
+            local cid = P.Cid(s)
+            if cid and not seen[cid] then
+                seen[cid] = true
+                out[#out + 1] = { cid = cid, name = name, online = true, id = s }
+            end
         end
     end
-    local rows
-    if q ~= '' then
-        local like = '%' .. q .. '%'
-        rows = MySQL.query.await([[SELECT `patient_cid` AS cid, MAX(`patient_name`) AS name, MAX(UNIX_TIMESTAMP(`created_at`)) AS t FROM `ems_treatments`
-            WHERE `patient_name` LIKE ? GROUP BY `patient_cid` ORDER BY t DESC LIMIT 40]], { like })
-    else
-        rows = MySQL.query.await([[SELECT `patient_cid` AS cid, MAX(`patient_name`) AS name, MAX(UNIX_TIMESTAMP(`created_at`)) AS t FROM `ems_treatments`
-            GROUP BY `patient_cid` ORDER BY t DESC LIMIT 40]])
+    -- Personnes déjà connues de l'EMS (dossier, actes) : chaque mot doit être dans le nom
+    local function like(col)
+        local w, a = {}, {}
+        for _, t in ipairs(tokens) do w[#w + 1] = ('%s LIKE ?'):format(col) a[#a + 1] = '%' .. t:gsub('[%%_]', '') .. '%' end
+        return table.concat(w, ' AND '), a
     end
-    for _, r in ipairs(rows or {}) do
-        if not seen[r.cid] then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name, last = r.t } end
+    local wt, at = like('`patient_name`')
+    for _, r in ipairs(MySQL.query.await(([[SELECT `patient_cid` AS cid, MAX(`patient_name`) AS name, MAX(UNIX_TIMESTAMP(`created_at`)) AS t
+        FROM `ems_treatments` WHERE %s GROUP BY `patient_cid` ORDER BY t DESC LIMIT 40]]):format(wt), at) or {}) do
+        if not seen[r.cid] and HR.NameMatches(r.name, tokens) then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name, last = r.t } end
     end
-    if #out < 60 then
-        for _, r in ipairs(MySQL.query.await('SELECT `citizenid` AS cid, `name` FROM `ems_patients`' .. (q ~= '' and ' WHERE `name` LIKE ?' or '') .. ' LIMIT 40',
-            q ~= '' and { '%' .. q .. '%' } or {}) or {}) do
-            if not seen[r.cid] then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name } end
+    local wp, ap = like('`name`')
+    for _, r in ipairs(MySQL.query.await(('SELECT `citizenid` AS cid, `name` FROM `ems_patients` WHERE %s LIMIT 40'):format(wp), ap) or {}) do
+        if not seen[r.cid] and HR.NameMatches(r.name, tokens) then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name } end
+    end
+    -- Tous les habitants (fiches du core), même sans passage à l'EMS
+    local ok, rows = pcall(MySQL.query.await, ([[SELECT `citizenid` AS cid, CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.firstname')), ' ',
+        JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.lastname'))) AS name FROM `players` WHERE %s LIMIT 30]]):format((like('`charinfo`'))), select(2, like('`charinfo`')))
+    if ok then
+        for _, r in ipairs(rows or {}) do
+            if r.cid and r.name and not seen[r.cid] and HR.NameMatches(r.name, tokens) then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name } end
         end
     end
+    P.Log(src, 'Recherche de dossier', table.concat(tokens, ' '))
     return { list = out }
 end }
 
 P.Actions.patient = { perm = 'records_view', fn = function(src, d)
+    if not P.AtRecords(src) then return { error = NOT_AT } end
     local cid = tostring(d.cid or ''):sub(1, 50)
-    if d.src then cid = P.Cid(tonumber(d.src) or -1) or '' end
     if cid == '' then return { error = 'Patient introuvable.' } end
     local file = MySQL.single.await('SELECT `name`, `blood`, `allergies`, `notes`, `updated_by`, UNIX_TIMESTAMP(`updated_at`) AS u FROM `ems_patients` WHERE `citizenid` = ?', { cid }) or {}
     local s = core:GetSourceByCitizenId(cid)
     local name = s and P.Name(s) or file.name
     if not name then name = MySQL.scalar.await('SELECT `patient_name` FROM `ems_treatments` WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 1', { cid }) end
+    if not name then
+        local okn, n = pcall(MySQL.scalar.await, [[SELECT CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.firstname')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.lastname')))
+            FROM `players` WHERE `citizenid` = ?]], { cid })
+        if okn then name = n end
+    end
     if not name then return { error = 'Aucun dossier pour cette personne.' } end
     local treatments = MySQL.query.await([[SELECT `service`, `ems_name`, `call_id`, `invoice_uid`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments`
         WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 80]], { cid }) or {}
     for _, t in ipairs(treatments) do t.label = SERVICE_LABEL[t.service] or t.service end
+    P.Log(src, 'Consultation de dossier', name)
     return { patient = {
         cid = cid, name = name, online = s ~= nil, id = s, down = s and P.IsDown(s) or false,
         blood = file.blood, allergies = file.allergies, notes = file.notes, updatedBy = file.updated_by, updated = file.u,
@@ -71,11 +94,19 @@ P.Actions.patient = { perm = 'records_view', fn = function(src, d)
             WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 30]], { cid }) or {},
         calls = MySQL.query.await([[SELECT `id`, `reason`, `status`, `assigned_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_calls`
             WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 20]], { cid }) or {},
+        conditions = P.HealthHistory and P.HealthHistory(cid) or {},
+        appointments = P.ApptHistory and P.ApptHistory(cid) or {},
+        labs = (function()
+            local okl, rows = pcall(MySQL.query.await, [[SELECT `id`, `status`, `sampled_by_name`, `sampled_at` AS t FROM `ems_lab_samples`
+                WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 20]], { cid })
+            return okl and rows or {}
+        end)(),
         canWrite = P.Can(src, 'records_write'),
     } }
 end }
 
 P.Actions.patientSave = { perm = 'records_write', fn = function(src, d)
+    if not P.AtRecords(src) then return { error = NOT_AT } end
     local cid = tostring(d.cid or ''):sub(1, 50)
     local name = P.Clean(d.name, 100)
     if cid == '' or name == '' then return { error = 'Patient introuvable.' } end

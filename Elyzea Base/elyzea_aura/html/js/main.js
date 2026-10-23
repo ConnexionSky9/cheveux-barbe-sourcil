@@ -320,6 +320,18 @@ const Mock = {
       debutTexte: '12/10/2026 18:40', bebes: 0 }, historique: [
       { kind: 'decouverte', titre: 'Grossesse découverte', description: 'Découverte grâce à un test de grossesse.', date: '13/10/2026 09:12' },
       { kind: 't2', titre: 'Deuxième trimestre', description: 'Entrée dans le deuxième trimestre.', date: '17/10/2026 10:40' }] };
+    if (d.name === 'santeHome') {
+      const gro = this.handle('request', { name: 'grossesseSuivi', args: {} });
+      this.rdv = this.rdv || [{ id: 2, type: 'blood', typeLabel: 'Prise de sang', status: 'accepted', ems: 'Lucas Martin', created: n - 3600, accepted: n - 1800, reason: 'Bilan annuel' },
+        { id: 1, type: 'medical', typeLabel: 'Consultation médicale', status: 'expired', created: n - 90000 }];
+      return { ok: true, grossesse: gro,
+        rdv: { ok: true, enabled: true, maxOpen: 2, expireMinutes: 120, list: this.rdv, types: [{ id: 'medical', label: 'Consultation médicale', icon: '🩺' },
+          { id: 'psy', label: 'Consultation psychiatrique', icon: '🧠' }, { id: 'blood', label: 'Prise de sang', icon: '🩸' }, { id: 'pregnancy', label: 'Suivi de grossesse', icon: '🤰' }] },
+        health: { ok: true, now: n, current: [{ kind: 'cold', label: 'Rhume', type: 'illness', cure: 'treat', since: n - 1200, expires: n + 2400 },
+          { kind: 'leg', label: 'Blessure à la jambe', type: 'injury', cure: 'splint', since: n - 600 }], past: [{ label: 'Chlamydia', since: n - 400000, cured: n - 300000, curedBy: 'Lucas Martin' }] } };
+    }
+    if (d.name === 'santeRdvCreate') { this.rdv.unshift({ id: Date.now(), type: a.type, typeLabel: { medical: 'Consultation médicale', psy: 'Consultation psychiatrique', blood: 'Prise de sang', pregnancy: 'Suivi de grossesse' }[a.type], status: 'pending', created: n, reason: a.reason }); return { ok: true, message: 'Demande envoyée.' }; }
+    if (d.name === 'santeRdvCancel') { const x = this.rdv.find(r => r.id === a.id); if (x) x.status = 'cancelled'; return { ok: true, message: 'Rendez-vous annulé.' }; }
     if (d.name === 'deliveryCancel') { this.order = null; return { ok: true, refund: 99 }; }
     if (d.name === 'datingSaveProfile') { this.dating = Object.assign({ id: 1, active: true }, a); return { ok: true }; }
     if (d.name === 'datingSwipe') return a.id === 12 && a.like ? { ok: true, match: { id: 5, profile: this.deck[1] } } : { ok: true };

@@ -241,6 +241,12 @@ do
         meta.v31 = true
         Storage.save('meta', meta)
     end
+    if not meta.sante1 then
+        -- Santé (elyzea_ems : maladies, rendez-vous, postes des dossiers) : ajouté au SuperAdmin déjà sauvegardé
+        if Ranks.superadmin then Ranks.superadmin.perms.health_manage = true end
+        meta.sante1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.drogues1 then
         -- Drogues (elyzea_drogues), vente de drogue, vêtements cachés et laboratoires (elyzea_labs) :
         -- ajoutés au SuperAdmin déjà sauvegardé (le Fondateur a toujours tout, automatiquement)

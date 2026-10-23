@@ -112,6 +112,8 @@ Config.Billing = {
         { id = 'stabilize', label = 'Stabilisation',         price = 400,  enabled = true },
         { id = 'revive',    label = 'Réanimation',           price = 1500, enabled = true },
         { id = 'transport', label = 'Transport en ambulance', price = 800, enabled = true },
+        { id = 'splint',    label = 'Pose d\'une attelle',    price = 600,  enabled = true },
+        { id = 'treat',     label = 'Traitement (rhume, MST…)', price = 300, enabled = true },
     },
 }
 
@@ -222,5 +224,75 @@ Config.Lab = {
         { id = 'psilocybin',   label = 'Psilocybine (champignons)', detectionHours = 24, recentHours = 4, items = { 'magic_mushroom', 'dried_mushroom' } },
         -- Exemple de substance personnalisée :
         -- { id = 'lsd', label = 'LSD', detectionHours = 24, recentHours = 4, items = { 'lsd_tab' } },
+    },
+}
+
+-- ---------------------------------------------------------------------
+-- POSTES DES DOSSIERS MÉDICAUX
+-- Les dossiers ne sont plus dans la tablette : on les consulte à un poste
+-- (ex. PC de l'accueil), placé par la direction (tablette › Direction › Garage)
+-- ou par le staff (admin_menu › Santé). E au poste : recherche par nom / prénom.
+-- ---------------------------------------------------------------------
+Config.Records = {
+    radius = 1.5,        -- distance pour appuyer sur E
+    useRadius = 3.0,     -- distance contrôlée par le serveur pour lire ou modifier un dossier
+    marker = true,       -- petit marqueur au sol (visible des EMS)
+    maxPoints = 30,
+    minSearch = 2,       -- lettres minimum pour une recherche
+}
+
+-- ---------------------------------------------------------------------
+-- RENDEZ-VOUS (application Santé d'Elyzea Aura ↔ application « Rendez-vous » du téléphone de service EMS)
+-- Réglages modifiables en jeu : admin_menu › Santé.
+-- ---------------------------------------------------------------------
+Config.Appointments = {
+    enabled = true,
+    expireMinutes = 120,    -- demande non acceptée au bout de ce délai : annulée, le joueur est prévenu
+    acceptedHours = 24,     -- rendez-vous accepté : classé « terminé » au bout de ce délai
+    maxOpen = 2,            -- demandes en cours au maximum par personne
+    cooldown = 60,          -- secondes entre deux demandes
+    keepDays = 30,          -- historique gardé
+    types = {
+        { id = 'medical',   label = 'Consultation médicale',      icon = '🩺' },
+        { id = 'psy',       label = 'Consultation psychiatrique', icon = '🧠' },
+        { id = 'blood',     label = 'Prise de sang',              icon = '🩸' },
+        { id = 'pregnancy', label = 'Suivi de grossesse',         icon = '🤰' },
+    },
+}
+
+-- ---------------------------------------------------------------------
+-- MALADIES ET BLESSURES
+-- Valeurs de départ : tout se règle ensuite dans admin_menu › Santé (enregistré en base).
+--   cure = 'treat'  : un EMS soigne avec « Traitement »
+--   cure = 'splint' : un EMS pose une attelle
+--   duration : minutes avant guérison toute seule (0 = jamais, il faut un EMS)
+--   known : la personne le sait tout de suite (sinon il faut un examen EMS)
+-- ---------------------------------------------------------------------
+Config.Health = {
+    enabled = true,
+    tick = 60,                      -- secondes entre deux vérifications (contagion, guérison)
+    fall = { enabled = true, minHeight = 6.0 },   -- chute d'au moins X m (à pied) : blessure à la jambe
+    splint = { duration = 8000, healMinutes = 0 },   -- attelle : 0 = guéri tout de suite ; sinon plus de boiterie mais pas de course pendant X min
+    treat = { duration = 6000 },
+    conditions = {
+        cold = { label = 'Rhume', type = 'illness', cure = 'treat', known = true, enabled = true,
+            durationMin = 45, durationMax = 90,         -- disparaît tout seul entre 45 et 90 min
+            randomPerHour = 2,                          -- % de chance par heure de jeu d'attraper un rhume
+            contagionRadius = 2.0, contagionChance = 4, -- % par minute passée près d'un malade
+            symptomEvery = 90 },                        -- secondes entre deux quintes de toux / éternuements
+        leg = { label = 'Blessure à la jambe', type = 'injury', cure = 'splint', known = true, enabled = true,
+            durationMin = 0, durationMax = 0 },         -- boite jusqu'à la pose d'une attelle
+        chlamydia = { label = 'Chlamydia', type = 'std', cure = 'treat', known = false, enabled = true,
+            durationMin = 0, durationMax = 0, transmission = 35, symptomEvery = 900,
+            symptoms = { 'Vous ressentez une brûlure en urinant.', 'Vous avez des douleurs au bas-ventre.' } },
+        gonorrhea = { label = 'Gonorrhée', type = 'std', cure = 'treat', known = false, enabled = true,
+            durationMin = 0, durationMax = 0, transmission = 30, symptomEvery = 900,
+            symptoms = { 'Vous ressentez une forte brûlure en urinant.', 'Vous vous sentez fiévreux.' } },
+        herpes = { label = 'Herpès génital', type = 'std', cure = 'treat', known = false, enabled = true,
+            durationMin = 0, durationMax = 0, transmission = 20, symptomEvery = 1200,
+            symptoms = { 'Vous avez des démangeaisons très gênantes.', 'De petites lésions douloureuses apparaissent.' } },
+        syphilis = { label = 'Syphilis', type = 'std', cure = 'treat', known = false, enabled = true,
+            durationMin = 0, durationMax = 0, transmission = 15, symptomEvery = 1500,
+            symptoms = { 'Vous remarquez une petite plaie indolore.', 'Vous êtes fatigué et avez mal à la tête.' } },
     },
 }

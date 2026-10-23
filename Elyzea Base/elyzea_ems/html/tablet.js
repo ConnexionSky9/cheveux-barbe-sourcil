@@ -6,7 +6,7 @@
    Chaque bouton appelle le serveur, qui revérifie les droits et recalcule les montants.
    ===================================================================== */
 (() => {
-  const T = { open: false, page: 'dashboard', perms: {}, st: null, timer: null, map: null, gen: 0 };
+  const T = { open: false, page: 'dashboard', perms: {}, st: null, timer: null, map: null, gen: 0, kiosk: false, kioskLabel: '' };
   const body = () => $('#tabBody');
   const can = (p) => !!T.perms[p];
   const canAny = (...l) => l.some(can);
@@ -44,10 +44,10 @@
     { id: 'ppa', label: 'PPA', ico: '📜', perm: ['ppa_manage', 'finance', 'stats_view'], group: 'Finance' },
     { id: 'transactions', label: 'Transactions', ico: '🔁', perm: ['finance'], group: 'Finance' },
   ];
-  const allowed = (n) => canAny(...n.perm) && (n.group !== 'Direction' || can('direction'));
+  const allowed = (n) => (T.kiosk ? n.id === 'patients' : n.id !== 'patients') && canAny(...n.perm) && (n.group !== 'Direction' || can('direction'));
 
   function renderNav() {
-    let last = null, html = `<div class="brand"><div class="shield">✚</div><div><b>${esc((APP.cfg && APP.cfg.job) || 'SAMS')}</b><small>Tablette médicale</small></div></div>`;
+    let last = null, html = `<div class="brand"><div class="shield">✚</div><div><b>${esc((APP.cfg && APP.cfg.job) || 'SAMS')}</b><small>${T.kiosk ? 'Poste des dossiers médicaux' : 'Tablette médicale'}</small></div></div>`;
     NAV.filter(allowed).forEach((n) => {
       if (n.group && n.group !== last) html += `<div class="nav-group">${n.group}</div>`;
       last = n.group;
@@ -76,7 +76,7 @@
   async function go(page, keepSub) {
     stopTimers();
     const nav = NAV.find((n) => n.id === page);
-    if (!nav || !allowed(nav)) page = 'dashboard';
+    if (!nav || !allowed(nav)) page = T.kiosk ? 'patients' : 'dashboard';
     T.page = page;
     T.gen++;
     if (!keepSub) { RS.mode = 'list'; ES.cid = null; PT.cid = null; PT.src = null; DS.sel = null; LS.id = null; LS.cid = null; }
@@ -196,23 +196,34 @@
   const PT = { q: '', list: null, cid: null, src: null, p: null };
   PAGES.patients = async (g) => {
     if (PT.cid || PT.src) return patientView(g);
+    setTitle('Recherche de dossier', T.kioskLabel || 'Dossiers médicaux');
+    const bar = `<div class="toolbar"><input class="input grow" id="ptq" placeholder="Nom et prénom du patient (ex : Élodie Durand)" value="${esc(PT.q)}" autocomplete="off">
+      <button class="btn primary" data-pt="search">🔎 Rechercher</button></div>`;
+    if (!PT.q.trim()) {
+      body().innerHTML = `${bar}<div class="card"><div class="empty">Entrez le nom et le prénom de la personne, puis « Rechercher ».<br>
+        <small class="faint">Le dossier complet s'affiche : fiche médicale, maladies et blessures, actes, rendez-vous, analyses, comptes rendus, PPA, appels.</small></div></div>`;
+      const i = $('#ptq'); if (i) i.focus();
+      return;
+    }
     const d = await req('patients', { q: PT.q });
     if (stale(g)) return;
-    if (d.error) { body().innerHTML = empty(d.error); return; }
-    body().innerHTML = `<div class="toolbar"><input class="input grow" id="ptq" placeholder="Rechercher un patient par nom" value="${esc(PT.q)}"><button class="btn" data-pt="search">Rechercher</button></div>
-      <div class="card" style="padding:.3rem .6rem">${d.list.length ? `<table class="tbl"><tr><th>Patient</th><th>Présence</th><th>Dernier acte</th></tr>${d.list.map((p) => `<tr class="click" data-pcid="${esc(p.cid)}">
-        <td><b>${esc(p.name)}</b></td><td>${p.online ? `<span class="pill on">Présent · ID ${p.id}</span>` : '<span class="pill off">Absent</span>'}</td><td class="muted">${p.last ? fmtTime(p.last) : '—'}</td></tr>`).join('')}</table>` : empty('Aucun patient trouvé.')}</div>`;
+    if (d.error) { body().innerHTML = bar + empty(d.error); return; }
+    body().innerHTML = `${bar}
+      <div class="card" style="padding:.3rem .6rem">${d.needQuery ? empty('Tapez au moins deux lettres.') : d.list.length ? `<table class="tbl"><tr><th>Patient</th><th>Présence</th><th>Dernier acte</th></tr>${d.list.map((p) => `<tr class="click" data-pcid="${esc(p.cid)}">
+        <td><b>${esc(p.name)}</b></td><td>${p.online ? `<span class="pill on">Présent · ID ${p.id}</span>` : '<span class="pill off">Absent</span>'}</td><td class="muted">${p.last ? fmtTime(p.last) : '—'}</td></tr>`).join('')}</table>` : empty('Aucune personne trouvée avec ce nom.')}</div>`;
   };
   async function patientView(g) {
-    const r = await req('patient', PT.src ? { src: PT.src } : { cid: PT.cid });
+    const r = await req('patient', { cid: PT.cid });
     if (stale(g)) return;
     if (r.error) { toast(r.error, false); PT.cid = null; PT.src = null; return PAGES.patients(g); }
     const p = r.patient;
     PT.p = p; PT.cid = p.cid; PT.src = null;
     setTitle(p.name, 'Dossier médical');
     const ro = p.canWrite ? '' : 'disabled';
-    body().innerHTML = `<div class="toolbar"><button class="btn" data-pt="back">‹ Patients</button><span style="flex:1"></span>
-        ${can('reports_write') ? '<button class="btn" data-pt="report">📝 Compte rendu</button>' : ''}</div>
+    const COND = { illness: 'Maladie', injury: 'Blessure', std: 'MST' };
+    const APST = { pending: ['warn', 'En attente'], accepted: ['on', 'Accepté'], done: ['off', 'Terminé'], cancelled: ['off', 'Annulé'], expired: ['off', 'Expiré'] };
+    const cur = (p.conditions || []).filter((c) => c.active), past = (p.conditions || []).filter((c) => !c.active);
+    body().innerHTML = `<div class="toolbar"><button class="btn" data-pt="back">‹ Nouvelle recherche</button><span style="flex:1"></span></div>
       <div class="split"><div>
         <div class="card"><h2>Fiche médicale ${p.online ? `<span class="pill ${p.down ? 'bad' : 'on'}">${p.down ? 'À terre' : 'Présent'} · ID ${p.id}</span>` : ''}</h2><div class="form-grid">
           <label class="field"><span>Groupe sanguin</span><select class="input" id="pBlood" ${ro}><option value="">Non renseigné</option>${['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => `<option ${p.blood === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
@@ -222,8 +233,14 @@
           ${p.updatedBy ? `<p class="faint" style="font-size:.75rem;margin-top:.6rem">Modifié par ${esc(p.updatedBy)} · ${fmtTime(p.updated)}</p>` : ''}</div>
         <div class="card"><h2>Actes médicaux</h2>${p.treatments.length ? `<table class="tbl"><tr><th>Acte</th><th>Secouriste</th><th>Appel</th><th>Facture</th><th>Date</th></tr>${p.treatments.map((t) => `<tr>
           <td><b>${esc(t.label)}</b></td><td>${esc(t.ems_name || '—')}</td><td class="mono faint">${t.call_id ? `#${t.call_id}` : '—'}</td><td class="mono faint">${esc(t.invoice_uid || 'non facturé')}</td><td class="muted">${fmtTime(t.t)}</td></tr>`).join('')}</table>` : empty('Aucun acte enregistré.')}</div>
+        <div class="card"><h2>Maladies et blessures</h2>
+          ${cur.length ? cur.map((c) => `<div class="list-row"><div class="main"><b>${esc(c.label)}</b><small>${COND[c.type] || ''} · depuis ${fmtTime(c.since)}${c.splinted ? ' · attelle posée' : ''}${c.diagnosed ? '' : ' · non diagnostiqué'}</small></div><span class="pill bad">En cours</span></div>`).join('') : empty('Aucune maladie ni blessure en cours.')}
+          ${past.length ? `<div class="section-label" style="margin-top:.6rem">Antécédents</div>${past.map((c) => `<div class="list-row"><div class="main"><b>${esc(c.label)}</b><small>${fmtTime(c.since)} → ${c.cured ? fmtTime(c.cured) : '—'}${c.curedBy ? ` · soigné par ${esc(c.curedBy)}` : ' · guéri'}</small></div></div>`).join('')}` : ''}</div>
+        <div class="card"><h2>Rendez-vous</h2>${(p.appointments || []).map((a) => { const st = APST[a.status] || ['off', a.status];
+          return `<div class="list-row"><div class="main"><b>${esc(a.typeLabel)}</b><small>${fmtTime(a.created)}${a.ems ? ` · ${esc(a.ems)}` : ''}${a.reason ? ` · ${esc(a.reason)}` : ''}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`; }).join('') || empty('Aucun rendez-vous.')}</div>
       </div><div class="detail">
-        <div class="card"><h2>Comptes rendus</h2>${p.reports.map((x) => `<div class="list-row click" data-open-report="${x.id}"><div class="main"><b>${esc(x.title)}</b><small>${esc(x.outcome || '')} · ${esc(x.author_name)} · ${fmtTime(x.t)}</small></div></div>`).join('') || empty('Aucun compte rendu.')}</div>
+        <div class="card"><h2>Analyses (laboratoire)</h2>${(p.labs || []).map((x) => `<div class="list-row"><div class="main"><b>Prélèvement #${x.id}</b><small>${esc(x.sampled_by_name || '')} · ${fmtTime(x.t)}</small></div><span class="pill ${x.status === 'done' ? 'on' : 'off'}">${x.status === 'done' ? 'Analysé' : x.status === 'pending' ? 'En attente' : 'Annulé'}</span></div>`).join('') || empty('Aucune analyse.')}</div>
+        <div class="card"><h2>Comptes rendus</h2>${p.reports.map((x) => `<div class="list-row"><div class="main"><b>${esc(x.title)}</b><small>${esc(x.outcome || '')} · ${esc(x.author_name)} · ${fmtTime(x.t)}</small></div></div>`).join('') || empty('Aucun compte rendu.')}</div>
         <div class="card"><h2>PPA</h2>${p.ppa.map((x) => `<div class="list-row"><div class="main"><b>${esc(PPAK[x.type] || x.type)} ${x.number ? `· ${esc(x.number)}` : ''}</b><small>${esc(PST[x.delivery_status] || x.delivery_status)} · ${esc(PST[x.payment_status] || x.payment_status)} · ${money(x.price)} · ${fmtTime(x.t)}</small></div></div>`).join('') || empty('Aucun PPA.')}</div>
         ${p.invoices ? `<div class="card"><h2>Factures</h2>${p.invoices.map((x) => `<div class="list-row"><div class="main"><b class="mono">${esc(x.uid)}</b><small>${x.kind === 'ppa' ? 'PPA' : 'Soins'} · ${fmtTime(x.t)}</small></div><b class="inv-${x.status}">${money(x.amount)} · ${esc(INV[x.status] || x.status)}</b></div>`).join('') || empty('Aucune facture.')}</div>` : ''}
         <div class="card"><h2>Appels</h2>${p.calls.map((x) => `<div class="list-row"><div class="main"><b>#${x.id} · ${esc(x.reason)}</b><small>${esc(x.assigned_name || '—')} · ${fmtTime(x.t)}</small></div>${stPill(x.status)}</div>`).join('') || empty('Aucun appel.')}</div>
@@ -291,7 +308,6 @@
         <div class="lab-legend"><span class="pill lab-negative">Négatif</span><span class="pill lab-positive">Positif</span><span class="pill lab-indeterminate">Indéterminé</span></div></div>`;
     }
     body().innerHTML = `<div class="toolbar"><button class="btn" data-lab="back">‹ Laboratoire</button><span style="flex:1"></span>
-        ${can('records_view') ? `<button class="btn" data-lab="patient" data-cid="${esc(x.cid)}">🩺 Dossier médical</button>` : ''}
         <button class="btn" data-lab="patientlabs" data-cid="${esc(x.cid)}">🧪 Analyses du patient</button></div>
       <div class="split"><div>
         <div class="card"><h2>Compte rendu d'analyse sanguine <span class="pill ${st[0]}">${st[1]}</span></h2>
@@ -316,7 +332,6 @@
     if (a === 'all') { LS.cid = null; LS.q = ''; return go('lab', true); }
     if (a === 'back') { LS.id = null; return go('lab', true); }
     if (a === 'patientlabs') { LS.id = null; LS.cid = b.dataset.cid; return go('lab', true); }
-    if (a === 'patient') { PT.cid = b.dataset.cid; PT.src = null; return go('patients', true); }
     if (a === 'analyze') { const r = await call('labAnalyze', { id: LS.id }, b); if (!r.error) go('lab', true); return; }
     if (a === 'cancel') {
       const v = await confirmBox('Annuler ce prélèvement ?', 'Il ne pourra plus être analysé. Le motif est gardé dans l\'historique.', 'Annuler le prélèvement', true,
@@ -626,9 +641,11 @@
   const VTYPES = [['automobile', 'Voiture / ambulance'], ['heli', 'Hélicoptère'], ['boat', 'Bateau'], ['bike', 'Moto']];
   PAGES.garage = async (g) => {
     const d = await req('garageSettings');
+    const rp = await req('recordsPoints');
     if (stale(g)) return;
     if (d.error) { body().innerHTML = empty(d.error); return; }
     GA.data = d;
+    GA.records = rp.list || [];
     drawGarage();
   };
   function drawGarage() {
@@ -643,7 +660,12 @@
             <td><select class="input" data-v="minLevel">${lv.map((l) => `<option value="${l.level}" ${v.minLevel === l.level ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></td>
             <td><button class="btn small danger" data-vdel="${i}">✕</button></td></tr>`).join('')}</table>
           <div class="actions-row"><button class="btn small" data-vadd="1">+ Ajouter un modèle</button><span style="flex:1"></span><button class="btn primary small" data-vsave="1">Enregistrer les véhicules</button></div>
-          <p class="faint" style="font-size:.76rem;margin-top:.6rem">Nom du modèle exact (ex. « ambulance » ou un modèle de pack ajouté au serveur). S'il n'existe pas, la sortie l'indique.</p></div></div>`;
+          <p class="faint" style="font-size:.76rem;margin-top:.6rem">Nom du modèle exact (ex. « ambulance » ou un modèle de pack ajouté au serveur). S'il n'existe pas, la sortie l'indique.</p></div></div>
+      <div class="card"><h2>Postes des dossiers médicaux</h2>
+        <p class="faint" style="font-size:.8rem;margin-bottom:.6rem">Les dossiers médicaux ne s'ouvrent plus depuis la tablette : seulement à un poste (ex. le PC de l'accueil). Placez-vous devant le PC, puis « Placer ici ». Au poste, <b>E</b> ouvre la recherche par nom et prénom.</p>
+        ${(GA.records || []).map((p) => `<div class="point"><div><b>${esc(p.label)}</b><br><small class="faint">${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}</small></div>
+          <button class="btn small danger" data-rpr="${p.id}">Retirer</button></div>`).join('') || '<div class="empty">Aucun poste : personne ne peut consulter les dossiers.</div>'}
+        <div class="actions-row"><input class="input grow" id="rpLabel" maxlength="60" placeholder="Nom du poste (ex : Accueil – Pillbox)"><button class="btn primary small" data-rpa="1">📍 Placer un poste ici</button></div></div>`;
   }
   function captureVehicles() {
     return [...body().querySelectorAll('[data-vrow]')].map((tr) => ({ model: $('[data-v="model"]', tr).value.trim(), label: $('[data-v="label"]', tr).value.trim(),
@@ -1028,6 +1050,19 @@
       if (r.ok) return PAGES.garage(T.gen);
       return;
     }
+    if ((b = e.target.closest('[data-rpa]'))) {
+      const label = ($('#rpLabel') || {}).value || '';
+      if (!(await confirmBox('Placer un poste des dossiers ici ?', 'Le poste sera enregistré à votre position actuelle.', 'Placer'))) return;
+      const r = await call('recordsPointAdd', { label }, b);
+      if (r.ok) return PAGES.garage(T.gen);
+      return;
+    }
+    if ((b = e.target.closest('[data-rpr]'))) {
+      if (!(await confirmBox('Retirer ce poste ?', 'Les dossiers ne seront plus consultables à cet endroit.', 'Retirer', true))) return;
+      const r = await call('recordsPointRemove', { id: Number(b.dataset.rpr) }, b);
+      if (r.ok) return PAGES.garage(T.gen);
+      return;
+    }
     if ((b = e.target.closest('[data-vadd]'))) { GA.data.settings.vehicles = captureVehicles(); GA.data.settings.vehicles.push({ model: '', label: '', type: 'automobile', minLevel: (GA.data.levels[0] || {}).level || 1 }); return drawGarage(); }
     if ((b = e.target.closest('[data-vdel]'))) { const list = captureVehicles(); list.splice(Number(b.dataset.vdel), 1); GA.data.settings.vehicles = list; return drawGarage(); }
     if ((b = e.target.closest('[data-vsave]'))) {
@@ -1079,7 +1114,7 @@
   /* ------------------------------------------------------------------ */
   function applyOpts(o) {
     if (!o) return false;
-    if (o.page === 'patient') { PT.src = o.src || null; PT.cid = o.cid || null; go('patients', true); return true; }
+    if (o.kiosk) { PT.q = ''; PT.cid = null; PT.src = null; go('patients'); return true; }
     if (o.page === 'reportNew') { newReport(o.callId ? { callId: o.callId } : { src: o.src }); return true; }
     if (o.page) { go(o.page); return true; }
     return false;
@@ -1089,11 +1124,14 @@
       T.open = true;
       T.st = st || APP.st || T.st;
       T.perms = (T.st && T.st.perms) || {};
+      T.kiosk = !!(opts && opts.kiosk);
+      T.kioskLabel = (opts && opts.label) || '';
+      if (!T.kiosk && T.page === 'patients') T.page = 'dashboard';
       $('#tablet').classList.remove('hidden');
       if (!applyOpts(opts)) go(T.page || 'dashboard', T.page === 'reports');
     },
     goTo(opts) { applyOpts(opts); },
-    hide() { T.open = false; stopTimers(); $('#tablet').classList.add('hidden'); },
+    hide() { T.open = false; T.kiosk = false; PT.cid = null; PT.p = null; stopTimers(); $('#tablet').classList.add('hidden'); if (T.page === 'patients') T.page = 'dashboard'; },
     isOpen: () => T.open,
     back() {
       if (T.page === 'reports' && RS.mode !== 'list') { RS.mode = 'list'; go('reports'); return true; }
@@ -1111,7 +1149,7 @@
       if (!st) return post('close', { ui: 'tablet' });
       renderNav();
       const nav = NAV.find((n) => n.id === T.page);
-      if (!nav || !allowed(nav)) go('dashboard');
+      if (!nav || !allowed(nav)) go(T.kiosk ? 'patients' : 'dashboard');
     },
   };
 })();

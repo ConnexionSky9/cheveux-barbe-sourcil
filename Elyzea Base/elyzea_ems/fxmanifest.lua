@@ -12,6 +12,7 @@ shared_scripts {
     'config.lua',
     'shared/perms.lua',
     'shared/lab_rules.lua',
+    'shared/health_rules.lua',
 }
 
 server_scripts {
@@ -27,6 +28,9 @@ server_scripts {
     'server/billing.lua',
     'server/ppa.lua',
     'server/records.lua',
+    'server/records_points.lua',
+    'server/appointments.lua',
+    'server/health.lua',
     'server/lab.lua',
     'server/direction.lua',
     'server/garage.lua',
@@ -43,6 +47,7 @@ client_scripts {
     'client/tablet.lua',
     'client/phone.lua',
     'client/garage.lua',
+    'client/health.lua',
 }
 
 ui_page 'html/index.html'

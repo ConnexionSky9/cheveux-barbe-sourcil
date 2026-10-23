@@ -89,6 +89,8 @@ local function terminer(id, statut, raison, par)
             local autre = par == s.a and s.b or s.a
             if GetPlayerName(autre) then Fam.Notify(autre, 'L\'autre personne s\'est déconnectée.', 'inform') end
         end
+        -- Pour les autres ressources (ex. elyzea_ems : transmission des MST sans préservatif)
+        if pct > 0 then TriggerEvent('elyzea_famille:server:momentIntime', s.ja.cid, s.jb.cid, s.preservatif ~= nil, pct, statut) end
         -- Tentative de conception : seulement pour un moment terminé (ou interrompu si la config l'autorise)
         if statut == 'terminee' then
             Fam.ResoudreConception(s, pct, false)

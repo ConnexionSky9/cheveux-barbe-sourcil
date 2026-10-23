@@ -144,7 +144,8 @@ Config.Limits = {
 }
 
 -- Applications téléchargeables depuis "Appli"
-Config.StoreApps = { 'birdy', 'instapick', 'itoune', 'etincelle', 'livrezy', 'helpmecano', 'garage', 'carplay', 'grossesse' }
+Config.StoreApps = { 'birdy', 'instapick', 'itoune', 'etincelle', 'livrezy', 'helpmecano', 'garage', 'carplay', 'grossesse', 'sante' }
+-- « sante » : grossesse (elyzea_famille), rendez-vous EMS et maladies / blessures connues (elyzea_ems)
 -- « grossesse » : suivi de grossesse, données fournies par la ressource elyzea_famille (sans elle, l'application affiche « indisponible »)
 
 -- =========================================================
