@@ -6,6 +6,8 @@
 local DC = Config.Doors
 local registered = {}   -- [hashPorte] = true
 local doorOpen = false   -- panneau ouvert
+local panelOpen = false  -- pupitre de commande ouvert
+local nearPanel = nil    -- pupitre à portée (prioritaire sur les portes pour la touche E)
 if type(LastInteract) ~= 'number' then LastInteract = 0 end
 
 local function leafHash(id, i) return GetHashKey(('am_door_%d_%d'):format(id, i)) end
@@ -61,7 +63,7 @@ CreateThread(function()
         -- Chaque porte a sa propre distance d'ouverture (sinon celle de la config)
         local found, bestRatio = nil, 1.0
         local doors = Editor.doors or {}
-        if #doors > 0 and not doorOpen and not IsNoclipActive() then
+        if #doors > 0 and not doorOpen and not panelOpen and not nearPanel and not IsNoclipActive() then
             local p = GetEntityCoords(PlayerPedId())
             for _, d in ipairs(doors) do
                 local reach = d.distance or DC.interactDistance
@@ -88,7 +90,10 @@ local lastHandled = 0
 CreateThread(function()
     while true do
         Wait(50)
-        if nearDoor and LastInteract > lastHandled then
+        if nearPanel and LastInteract > lastHandled then
+            lastHandled = LastInteract
+            TriggerServerEvent('adminmenu:doorpanel:open', nearPanel.id)
+        elseif nearDoor and LastInteract > lastHandled then
             lastHandled = LastInteract
             -- E : ouverture/fermeture directe pour les détenteurs des clés.
             -- Les visiteurs reçoivent uniquement le pavé de code si un code existe.
@@ -205,3 +210,95 @@ function StartDoorPick(name)
     end)
 end
 function CancelDoorPick() picking = nil end
+
+-- =========================================================
+--  PUPITRES DE COMMANDE (ex. PC des cellules de la LSPD)
+--  E dans la zone : liste des portes du pupitre, ouvrir / fermer à distance.
+--  L'aide n'est affichée qu'aux métiers autorisés et au staff ; le serveur revérifie tout.
+-- =========================================================
+local CATS = {}
+for _, c in ipairs(DC.jobCategories or {}) do CATS[c.key] = true end
+
+local function myCoreJob()
+    local ok, name = pcall(function()
+        local pd = exports.elyzea_core:GetPlayerData()
+        return pd and pd.job and pd.job.name
+    end)
+    return ok and name or nil
+end
+
+local function panelAllowed(p)
+    if HasPerm and HasPerm('editor_doors') and CanUseEditor and CanUseEditor() then return true end
+    if not p.jobs or #p.jobs == 0 then return false end
+    local st, job = LocalPlayer.state, myCoreJob()
+    for _, k in ipairs(p.jobs) do
+        if CATS[k] and type(st[k]) == 'table' then return true end
+        if job == k then return true end
+        for c in pairs(CATS) do
+            local s = st[c]
+            if type(s) == 'table' and s.job == k then return true end
+        end
+    end
+    return false
+end
+
+CreateThread(function()
+    local KEY = ('~INPUT_%X~'):format((GetHashKey('+harvest_plant') | 0x80000000) & 0xFFFFFFFF)
+    local allowedCache, allowedAt = {}, 0
+    while true do
+        local found = nil
+        local panels = Editor.doorPanels or {}
+        if #panels > 0 and not panelOpen and not doorOpen and not IsNoclipActive() then
+            local p = GetEntityCoords(PlayerPedId())
+            if GetGameTimer() - allowedAt > 2000 then allowedCache, allowedAt = {}, GetGameTimer() end
+            local best
+            for _, q in ipairs(panels) do
+                local d = #(p - vector3(q.x, q.y, q.z))
+                if d <= (q.radius or DC.panelRadius or 1.5) and (not best or d < best) then
+                    if allowedCache[q.id] == nil then allowedCache[q.id] = panelAllowed(q) end
+                    if allowedCache[q.id] then best, found = d, q end
+                end
+            end
+        end
+        nearPanel = found
+        Wait(found and 0 or 500)
+        if found then
+            BeginTextCommandDisplayHelp('STRING')
+            AddTextComponentSubstringPlayerName(('%s %s : commande des portes'):format(KEY, found.name))
+            EndTextCommandDisplayHelp(0, false, false, -1)
+        end
+    end
+end)
+
+RegisterNetEvent('adminmenu:doorpanel:show', function(data)
+    panelOpen = true
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'doorpanel', data = data })
+end)
+RegisterNUICallback('doorpanel_close', function(_, cb) panelOpen = false SetNuiFocus(false, false) cb('ok') end)
+RegisterNUICallback('doorpanel_set', function(b, cb)
+    cb('ok')
+    local locked = nil
+    if b.locked == true or b.locked == false then locked = b.locked end
+    TriggerServerEvent('adminmenu:doorpanel:set', tonumber(b.id), tonumber(b.door), locked)
+end)
+RegisterNUICallback('doorpanel_all', function(b, cb) cb('ok') TriggerServerEvent('adminmenu:doorpanel:all', tonumber(b.id), b.locked == true) end)
+
+-- S'éloigner du pupitre referme l'interface
+CreateThread(function()
+    while true do
+        Wait(1000)
+        if panelOpen and not nearPanel then
+            local still = false
+            local pc = GetEntityCoords(PlayerPedId())
+            for _, q in ipairs(Editor.doorPanels or {}) do
+                if #(pc - vector3(q.x, q.y, q.z)) <= (q.radius or DC.panelRadius or 1.5) + 1.5 then still = true break end
+            end
+            if not still then
+                panelOpen = false
+                SetNuiFocus(false, false)
+                SendNUIMessage({ action = 'doorpanel_hide' })
+            end
+        end
+    end
+end)

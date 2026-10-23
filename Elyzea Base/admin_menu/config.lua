@@ -1085,6 +1085,23 @@ Config.Doors = {
     codeMin = 4, codeMax = 8, -- longueur du code (chiffres)
     maxTries = 5,             -- essais de code ratés avant blocage
     lockout = 60,             -- secondes de blocage après trop d'essais
+
+    -- Portes réservées à des métiers : catégories proposées dans le menu.
+    -- Une catégorie = tous les employés de la ressource (toutes agences), lus dans leur état joueur.
+    -- On peut aussi choisir un métier précis du serveur (ex. « lspd ») dans le menu.
+    jobCategories = {
+        { key = 'police',  label = 'Police (toutes agences)', icon = '🚓' },
+        { key = 'ems',     label = 'EMS (toutes agences)',    icon = '🚑' },
+        { key = 'meca',    label = 'Mécanos',                 icon = '🔧' },
+        { key = 'd8',      label = 'Dynasty 8',               icon = '🏠' },
+        { key = 'concess', label = 'Concessionnaires',        icon = '🚗' },
+    },
+    jobNeedDuty = false,      -- true : il faut être en service pour ouvrir les portes de son métier
+    maxJobs = 10,             -- métiers maximum par porte ou par pupitre
+
+    -- Pupitres de commande (ex. PC des cellules de la LSPD) : E dans la zone ouvre la liste des portes
+    panelRadius = 1.5, panelMinRadius = 0.8, panelMaxRadius = 6.0,
+    panelMaxDoors = 40,
 }
 
 -- =========================================================

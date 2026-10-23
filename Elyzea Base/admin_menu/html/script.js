@@ -144,6 +144,12 @@ window.addEventListener('message', (e) => {
         case 'door':
             openDoor(m.data);
             break;
+        case 'doorpanel':
+            openDoorPanel(m.data);
+            break;
+        case 'doorpanel_hide':
+            $('#doorpanel').classList.add('hidden'); DPANEL = null;
+            break;
         case 'jailhud':
             jailHud(m);
             break;
@@ -176,6 +182,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('#station').classList.contains('hidden')) return closeStation();
     if (e.key === 'Escape' && !$('#npc').classList.contains('hidden')) return closeNpc();
     if (e.key === 'Escape' && !$('#door').classList.contains('hidden')) return closeDoor();
+    if (e.key === 'Escape' && !$('#doorpanel').classList.contains('hidden')) return closeDoorPanel();
     if (!isOpen) return;
     if (e.key === 'Escape') {
         if ($('#modal-root').innerHTML) return closeModal();
@@ -2556,6 +2563,69 @@ function edZones() {
 
 /* ----- Portes ----- */
 let doorEditId = null;
+let dpEdit = null;   // pupitre en cours de modification (null = création)
+
+// Métiers pour les portes : catégories (toute la police, tous les EMS…) ou un métier précis du serveur
+const doorJobCats = () => (D.config && D.config.doorJobCategories) || [];
+function doorJobLabel(k) {
+    const c = doorJobCats().find((x) => x.key === k);
+    return c ? `${c.icon || '💼'} ${c.label}` : `💼 ${jobLabelOf(k)}`;
+}
+function doorJobPicker(dk) {
+    const cur = draft(dk);
+    const jobs = serverJobs();
+    return `<select class="input" data-draft="${dk}"><option value="">Choisir un métier…</option>
+        <optgroup label="Tout un métier (toutes agences)">${doorJobCats().map((c) => `<option value="${esc(c.key)}" ${cur === c.key ? 'selected' : ''}>${esc((c.icon || '') + ' ' + c.label)}</option>`).join('')}</optgroup>
+        ${jobs.length ? `<optgroup label="Un métier précis du serveur">${jobs.map((x) => `<option value="${esc(x.name)}" ${cur === x.name ? 'selected' : ''}>${esc(x.label)} (${esc(x.name)})</option>`).join('')}</optgroup>` : ''}
+    </select>`;
+}
+const jobChips = (jobs, act, id) => (jobs || []).map((k) => `<span class="zbadge">${esc(doorJobLabel(k))} <button class="kick-owner" data-ed="${act}" data-id="${id}" data-job="${esc(k)}" title="Retirer">✕</button></span>`).join('');
+
+function newPanelDraft() { return { name: '', radius: (D.config && D.config.doorPanelRadius) || 1.5, jobs: [], doors: [] }; }
+const dpDraft = () => dpEdit || (drafts.dp = drafts.dp || newPanelDraft());
+
+function edDoorPanels(doors) {
+    const panels = (D.editor.doorPanels || []).slice().sort(byDist);
+    const p = dpDraft();
+    const nameOf = (id) => (doors.find((d) => d.id === id) || {}).name || `#${id} (supprimée)`;
+    const minR = D.config.doorPanelMinRadius || 0.8, maxR = D.config.doorPanelMaxRadius || 6;
+    return `<div class="section"><h2>🖥️ Pupitres de commande ${dpEdit ? `<span class="muted" style="font-size:14px">· modification de « ${esc(dpEdit.name)} »</span>` : ''}</h2>
+        <p class="hint">Un pupitre est une zone (par exemple devant le PC du commissariat). Les métiers autorisés y appuient sur
+            <span class="keycap">E</span> : une interface liste les portes choisies et permet de les <b>ouvrir ou fermer à distance</b>
+            (cellules, sas, portail du parking…). Place-toi à l'endroit voulu avant de poser le pupitre.</p>
+        <div class="form-grid" style="grid-template-columns:1.4fr 1fr;max-width:640px;align-items:end">
+            <div><label>Nom du pupitre</label><input class="input" data-dpf="name" value="${esc(p.name)}" placeholder="ex : PC des cellules – LSPD Mission Row"></div>
+            <div><label>Taille de la zone · <b id="dpRadVal">${Number(p.radius).toFixed(1)} m</b></label>
+                <input class="input" type="range" style="padding:0" min="${minR}" max="${maxR}" step="0.1" data-dpf="radius" value="${p.radius}"
+                    oninput="document.getElementById('dpRadVal').textContent = Number(this.value).toFixed(1) + ' m'"></div>
+        </div>
+        <h3 class="sub-h" style="font-size:16px">Métiers autorisés</h3>
+        <div class="door-jobchips">${p.jobs.length ? p.jobs.map((k) => `<span class="zbadge">${esc(doorJobLabel(k))} <button class="kick-owner" data-ed="dp_rm_job" data-job="${esc(k)}" title="Retirer">✕</button></span>`).join('') : '<span class="muted">Aucun : seul le staff en service pourra l\'utiliser.</span>'}</div>
+        <div class="inline" style="max-width:640px">${doorJobPicker('dpJob')}<button class="btn" data-ed="dp_add_job">Ajouter</button></div>
+        <h3 class="sub-h" style="font-size:16px;margin-top:12px">Portes commandées (${p.doors.length})</h3>
+        ${doors.length ? `<div class="dp-doorpick">${doors.map((d) => `<div data-ed="dp_door" data-id="${d.id}" class="${p.doors.includes(d.id) ? 'on' : ''}">
+            <input type="checkbox" tabindex="-1" ${p.doors.includes(d.id) ? 'checked' : ''}> ${d.locked ? '🔒' : '🔓'} ${esc(d.name)} <span class="muted">${distTxt(d.dist)}</span></div>`).join('')}</div>`
+            : '<p class="hint">Ajoute d\'abord des portes (en haut de cette page).</p>'}
+        <div class="btn-row">
+            ${dpEdit ? `<button class="btn primary" data-ed="dp_save">Enregistrer</button>
+                <button class="btn" data-ed="dp_move" data-id="${dpEdit.id}">📍 Déplacer le pupitre ici</button>
+                <button class="btn" data-ed="dp_cancel">Annuler</button>`
+                : '<button class="btn primary big" data-ed="dp_create">📍 Poser le pupitre ici</button>'}
+        </div></div>
+        <div class="section"><h2>Pupitres enregistrés (${panels.length})</h2>
+        ${!panels.length ? '<div class="empty">Aucun pupitre pour le moment.</div>' : panels.map((q) => `
+            <div class="card">
+                <div class="card-head"><strong>🖥️ ${esc(q.name)}</strong><span class="muted">${distTxt(q.dist)} · zone ${Number(q.radius || 1.5).toFixed(1)} m</span></div>
+                <div class="recipe-preview">🚪 ${q.doors.length ? q.doors.map((id) => esc(nameOf(id))).join(', ') : '<span class="muted">aucune porte</span>'}<br>
+                    ${q.jobs.length ? q.jobs.map((k) => esc(doorJobLabel(k))).join(' · ') : '<span class="muted">Staff uniquement</span>'}</div>
+                <div class="btn-row">
+                    <button class="btn primary" data-ed="dp_edit" data-id="${q.id}">Modifier</button>
+                    <button class="btn" data-ed="tp" data-kind="doorpanel" data-id="${q.id}">Y aller</button>
+                    <button class="btn danger" data-ed="delete" data-kind="doorpanel" data-id="${q.id}">Supprimer</button>
+                </div>
+            </div>`).join('')}</div>`;
+}
+
 function edDoors() {
     const ed = D.editor;
     const list = (ed.doors || []).slice().sort(byDist);
@@ -2594,6 +2664,12 @@ function edDoors() {
                     ${others.map((p) => `<option value="${p.id}" ${String(draft('doorOwner')) === String(p.id) ? 'selected' : ''}>[${p.id}] ${esc(p.name)}</option>`).join('')}</select>
                 <button class="btn primary" data-ed="door_add_owner" data-id="${sel.id}">Donner les clés</button>
             </div>
+            <h3 class="sub-h" style="font-size:16px;margin-top:14px">💼 Métiers autorisés</h3>
+            <p class="hint">Tous les membres de ces métiers ouvrent et ferment la porte avec <span class="keycap">E</span>, sans code.
+                Les joueurs en dehors de ces métiers ne peuvent pas (sauf s'ils ont les clés ou le code).</p>
+            <div class="door-jobchips">${(sel.jobs || []).length ? jobChips(sel.jobs, 'door_rm_job', sel.id) : '<span class="muted">Aucun métier.</span>'}</div>
+            <div class="inline" style="max-width:620px">${doorJobPicker('doorJob')}
+                <button class="btn primary" data-ed="door_add_job" data-id="${sel.id}">Autoriser ce métier</button></div>
             <p class="hint" style="margin-top:12px">Code d'accès : <b>${sel.hasCode ? 'défini par le propriétaire' : 'aucun'}</b>
                 ${sel.hasCode ? `<button class="btn" style="margin-left:8px" data-ed="door_reset_code" data-id="${sel.id}">Supprimer le code</button>` : ''}</p>
         </div></div>` : ''}
@@ -2603,6 +2679,7 @@ function edDoors() {
                 <div class="card-head"><strong>${d.locked ? '🔒' : '🔓'} ${esc(d.name)}</strong><span class="muted">${d.double ? 'Porte double · ' : ''}${distTxt(d.dist)}</span></div>
                 <div class="field-stats">
                     <span>${(d.owners || []).length ? `🔑 ${d.owners.map((o) => esc(o.name)).join(', ')}` : '🔑 Aucun propriétaire'}</span>
+                    <span>${(d.jobs || []).length ? d.jobs.map((k) => esc(doorJobLabel(k))).join(' · ') : '💼 Aucun métier'}</span>
                     <span>${d.hasCode ? '🔢 Code défini' : '🔢 Pas de code'}</span>
                     <span>📏 S'ouvre à ${Number(d.distance || D.config.doorDistance || 2.2).toFixed(1)} m${d.distance ? '' : ' (défaut)'}</span>
                 </div>
@@ -2612,7 +2689,8 @@ function edDoors() {
                     <button class="btn" data-ed="tp" data-kind="door" data-id="${d.id}">Y aller</button>
                     <button class="btn danger" data-ed="delete" data-kind="door" data-id="${d.id}">Supprimer</button>
                 </div>
-            </div>`).join('')}</div>`;
+            </div>`).join('')}</div>
+        ${edDoorPanels(list)}`;
 }
 
 async function handleEditor(n) {
@@ -2688,7 +2766,8 @@ async function handleEditor(n) {
         case 'delete': {
             if (kind === 'zone' && zoneEditId === id) { zoneEditId = null; drafts.zone = null; }
             if (kind === 'door' && doorEditId === id) doorEditId = null;
-            const labels = { door: 'cette porte (elle sera déverrouillée)', zone: 'cette zone', spawn: 'ce point de spawn', prop: 'ce prop', ped: 'ce PNJ', field: 'cette zone et tous ses plants', stash: 'ce coffre (son contenu reste enregistré)' };
+            if (kind === 'doorpanel' && dpEdit && dpEdit.id === id) dpEdit = null;
+            const labels = { doorpanel: 'ce pupitre de commande (les portes restent)', door: 'cette porte (elle sera déverrouillée)', zone: 'cette zone', spawn: 'ce point de spawn', prop: 'ce prop', ped: 'ce PNJ', field: 'cette zone et tous ses plants', stash: 'ce coffre (son contenu reste enregistré)' };
             if (await confirmBox('Supprimer définitivement ?', `Tu vas supprimer ${labels[kind]}. Cette action est sauvegardée.`)) {
                 action('editor_delete', { kind, id });
                 setTimeout(() => post('refresh'), 300);
@@ -2861,6 +2940,48 @@ async function handleEditor(n) {
             drafts.doorOwner = '';
             return setTimeout(() => post('refresh'), 300);
         case 'door_rm_owner': action('editor_door_remove_owner', { id, owner: n.dataset.owner }); return setTimeout(() => post('refresh'), 300);
+        case 'door_add_job':
+            if (!draft('doorJob')) return toast('Choisis un métier dans la liste.', 'error');
+            action('editor_door_add_job', { id, job: draft('doorJob') });
+            drafts.doorJob = '';
+            return setTimeout(() => post('refresh'), 300);
+        case 'door_rm_job': action('editor_door_remove_job', { id, job: n.dataset.job }); return setTimeout(() => post('refresh'), 300);
+        case 'dp_add_job': {
+            const k = draft('dpJob'), p = dpDraft();
+            if (!k) return toast('Choisis un métier dans la liste.', 'error');
+            if (!p.jobs.includes(k)) p.jobs.push(k);
+            drafts.dpJob = '';
+            return render();
+        }
+        case 'dp_rm_job': { const p = dpDraft(); p.jobs = p.jobs.filter((k) => k !== n.dataset.job); return render(); }
+        case 'dp_door': {
+            const p = dpDraft();
+            p.doors = p.doors.includes(id) ? p.doors.filter((x) => x !== id) : [...p.doors, id];
+            return render();
+        }
+        case 'dp_create': {
+            const p = dpDraft();
+            if (!p.doors.length) return toast('Coche au moins une porte à commander.', 'error');
+            if (!p.jobs.length && !(await confirmBox('Aucun métier ?', 'Sans métier autorisé, seul le staff en service pourra utiliser ce pupitre. Continuer ?'))) return;
+            action('editor_add_doorpanel', { name: p.name, radius: Number(p.radius), jobs: p.jobs, doors: p.doors });
+            drafts.dp = null;
+            return setTimeout(() => post('refresh'), 300);
+        }
+        case 'dp_edit': {
+            const q = (D.editor.doorPanels || []).find((x) => x.id === id);
+            if (!q) return;
+            dpEdit = { id: q.id, name: q.name, radius: q.radius || (D.config.doorPanelRadius || 1.5), jobs: [...(q.jobs || [])], doors: [...(q.doors || [])] };
+            return render();
+        }
+        case 'dp_cancel': dpEdit = null; return render();
+        case 'dp_save': {
+            const p = dpEdit;
+            if (!p) return;
+            action('editor_doorpanel_update', { id: p.id, name: p.name, radius: Number(p.radius), jobs: p.jobs, doors: p.doors });
+            dpEdit = null;
+            return setTimeout(() => post('refresh'), 300);
+        }
+        case 'dp_move': action('editor_doorpanel_move', { id }); return setTimeout(() => post('refresh'), 300);
         case 'door_reset_code':
             if (await confirmBox('Supprimer le code ?', 'Seuls les propriétaires pourront ouvrir la porte.')) { action('editor_door_reset_code', { id }); setTimeout(() => post('refresh'), 300); }
             return;
@@ -3054,6 +3175,7 @@ content.addEventListener('input', (e) => {
     }
     if (t.id === 'log-search') { logSearch = t.value; $('#log-list').innerHTML = logRows(); return; }
     if (t.dataset.draft) drafts[t.dataset.draft] = t.value;
+    if (t.dataset.dpf) dpDraft()[t.dataset.dpf] = t.value;
     if (t.dataset.ann) {
         const a = annDraft();
         a[t.dataset.ann] = t.dataset.ann === 'ticker' ? t.value === 'true' : t.value;
@@ -3136,6 +3258,7 @@ content.addEventListener('change', (e) => {
     }
     const t = e.target;
     if (t.dataset.draft) drafts[t.dataset.draft] = t.value;
+    if (t.dataset.dpf) dpDraft()[t.dataset.dpf] = t.value;
     if (t.dataset.draft === 'pedJob') {
         const job = serverJobs().find((x) => x.name === t.value);
         drafts.pedJobGrade = job && job.grades.length ? job.grades[0].level : 0;
@@ -3800,6 +3923,9 @@ function renderDoor() {
                 <button class="btn" data-door="setcode">${d.hasCode ? 'Changer' : 'Créer'}</button></div>
             ${d.hasCode ? '<button class="btn danger" style="margin-top:8px" data-door="delcode">Supprimer le code</button>' : ''}
             ${d.role === 'admin' ? '<p class="hint" style="margin-top:10px">Tu ouvres en tant que staff.</p>' : ''}`;
+    } else if (d.role === 'job') {
+        body = `<button class="btn primary big" style="width:100%" data-door="toggle">${d.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller'}</button>
+            <p class="hint" style="margin-top:10px;text-align:center">Accès de ton métier.</p>`;
     } else if (d.hasCode) {
         body = `<p class="hint" style="text-align:center">Entre le code pour ${d.locked ? 'ouvrir' : 'fermer'} :</p>
             <div class="keypad-screen">${doorCode ? '•'.repeat(doorCode.length) : '<span class="muted">— — — —</span>'}</div>
@@ -3832,6 +3958,37 @@ $('#door').addEventListener('click', (e) => {
         post('door_setcode', { id: DOOR.id, code: doorNewCode }); doorNewCode = ''; return;
     }
     if (a === 'delcode') return post('door_setcode', { id: DOOR.id, code: '' });
+});
+
+/* =========================================================
+   PUPITRE DE COMMANDE : ouvrir / fermer des portes à distance
+   ========================================================= */
+let DPANEL = null;
+function openDoorPanel(p) { DPANEL = p; renderDoorPanel(); $('#doorpanel').classList.remove('hidden'); }
+function closeDoorPanel() { $('#doorpanel').classList.add('hidden'); DPANEL = null; post('doorpanel_close'); }
+function renderDoorPanel() {
+    const p = DPANEL;
+    if (!p) return;
+    const locked = p.doors.filter((d) => d.locked).length;
+    $('#doorpanel').innerHTML = `<div class="st-box dp-box">
+        <div class="st-head"><img src="logo.png" alt=""><h2>${esc(p.name)}</h2><button class="sb-close" data-dp="close">✕</button></div>
+        <p class="muted" style="padding:10px 20px 0">${p.doors.length} porte(s) · ${locked} verrouillée(s) · ${p.doors.length - locked} ouverte(s)</p>
+        ${p.doors.length ? `<div class="dp-all"><button class="btn danger" data-dp="all_lock">🔒 Tout verrouiller</button><button class="btn" data-dp="all_open">🔓 Tout ouvrir</button></div>` : ''}
+        <div class="st-list">${p.doors.length ? p.doors.map((d) => `<div class="dp-row ${d.locked ? 'locked' : 'open'}">
+                <span class="dp-ico">${d.locked ? '🔒' : '🔓'}</span>
+                <span class="dp-name"><strong>${esc(d.name)}</strong><span>${d.locked ? 'Verrouillée' : 'Ouverte'}</span></span>
+                <button class="btn ${d.locked ? 'primary' : 'danger'}" data-dp="set" data-door="${d.id}" data-lock="${d.locked ? '0' : '1'}">${d.locked ? 'Ouvrir' : 'Fermer'}</button>
+            </div>`).join('') : '<div class="empty">Aucune porte reliée à ce pupitre.</div>'}</div>
+        <p class="muted st-foot">Échap pour fermer</p></div>`;
+}
+$('#doorpanel').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dp]');
+    if (!b || !DPANEL) return;
+    const a = b.dataset.dp;
+    if (a === 'close') return closeDoorPanel();
+    if (a === 'set') return post('doorpanel_set', { id: DPANEL.id, door: Number(b.dataset.door), locked: b.dataset.lock === '1' });
+    if (a === 'all_lock') return post('doorpanel_all', { id: DPANEL.id, locked: true });
+    if (a === 'all_open') return post('doorpanel_all', { id: DPANEL.id, locked: false });
 });
 
 /* =========================================================

@@ -113,6 +113,29 @@ E pour sélectionner, Entrée pour terminer. Elle est aussitôt verrouillée pou
 - Les portes sont verrouillées avec le système de portes du jeu (rien n'est supprimé).
   Si tu utilises déjà ox_doorlock, ne mets pas la même porte dans les deux.
 
+### 💼 Portes réservées à des métiers
+Éditeur de map › 🚪 Portes › **Gérer les clés** › **Métiers autorisés** : choisis un métier et « Autoriser ce métier ».
+- **Tout un métier** : Police (toutes agences), EMS, Mécanos, Dynasty 8, Concessionnaires. La liste se règle dans `Config.Doors.jobCategories`.
+- **Un métier précis du serveur**, par exemple `lspd` seul et pas le BCSO.
+- Les membres de ces métiers ouvrent et ferment la porte avec **E**, sans code. Les autres joueurs ne peuvent pas.
+  Seuls les détenteurs des clés et le staff gèrent le code invité.
+- Par défaut, il n'est pas nécessaire d'être en service. Mets `Config.Doors.jobNeedDuty = true` pour l'exiger.
+
+### 🖥️ Pupitres de commande (ouvrir / fermer à distance)
+Éditeur de map › 🚪 Portes › **Pupitres de commande**. Exemple : le PC des cellules de la LSPD.
+1. Place-toi à l'endroit voulu, par exemple devant un PC posé avec les props.
+2. Donne un nom, la taille de la zone, les métiers autorisés et coche les portes à commander.
+3. Clique sur « 📍 Poser le pupitre ici ».
+
+En jeu, un membre d'un métier autorisé entre dans la zone et appuie sur **E**. La liste des portes s'affiche, avec leur état :
+- **Ouvrir** / **Fermer** pour chaque porte ;
+- **Tout verrouiller** / **Tout ouvrir**.
+
+Le serveur vérifie à chaque clic le métier, la distance au pupitre et que la porte fait bien partie de ce pupitre.
+Un pupitre sans métier n'est utilisable que par le staff en service. Les pupitres sont enregistrés dans `data/door_panels.json`.
+
+Tests hors jeu : `python3 tests/run_doors_sim.py` (59 vérifications, dont le vrai `server/editor.lua`).
+
 ## Prison (jail)
 1. Éditeur de map › Points de spawn : ajoute ta position à l'endroit de la prison, puis « ⛓️ Point de jail ».
 2. Fiche d'un joueur › **⛓️ Jail** : durée (5 min à 2 h, ou autre) et raison.

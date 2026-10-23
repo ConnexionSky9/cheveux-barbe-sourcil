@@ -416,6 +416,7 @@ RegisterNetEvent('adminmenu:data', function(data)
         market = { defaultItems = (Config.Market or {}).defaultItems or {}, categories = (Config.Market or {}).categories or {},
                    blipSprite = (Config.Market or {}).blipSprite or 52, blipColor = (Config.Market or {}).blipColor or 2 },
         doorDistance = Config.Doors.interactDistance, doorMinDistance = Config.Doors.minDistance, doorMaxDistance = Config.Doors.maxDistance,
+        doorJobCategories = Config.Doors.jobCategories or {}, doorPanelRadius = Config.Doors.panelRadius, doorPanelMinRadius = Config.Doors.panelMinRadius, doorPanelMaxRadius = Config.Doors.panelMaxRadius,
         editor      = {
             minLevel = Config.Editor.minLevel,
             quickProps = Config.Editor.quickProps,

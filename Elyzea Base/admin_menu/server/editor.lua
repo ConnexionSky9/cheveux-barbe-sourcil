@@ -16,6 +16,7 @@ local Data = {
     hidden = Storage.load('hidden', {}),     -- objets de la map retirés
     zones = Storage.load('zones', {}),       -- safe zones, quartiers…
     doors = Storage.load('doors', {}),       -- portes et portails verrouillables
+    doorPanels = Storage.load('door_panels', {}), -- pupitres de commande des portes (ex. PC des cellules)
     propFolders = Storage.load('prop_folders', {}), -- dossiers pour ranger les props
     stashes = Storage.load('stashes', {}),   -- coffres (inventaires) posés sur la map
 }
@@ -74,7 +75,7 @@ local function coords(d)
     return round(x), round(y), round(z), round((h or 0.0) % 360)
 end
 
-local STORAGE_NAME = { propFolders = 'prop_folders' }
+local STORAGE_NAME = { propFolders = 'prop_folders', doorPanels = 'door_panels' }
 local function save(kind)
     Storage.saveLater(STORAGE_NAME[kind] or kind, Data[kind])
     if kind == 'props' then TriggerEvent('adminmenu:propsChanged') end
@@ -89,7 +90,7 @@ local function publicList(kind)
     if kind ~= 'doors' then return Data[kind] end
     local out = {}
     for _, d in ipairs(Data.doors) do
-        out[#out + 1] = { id = d.id, name = d.name, leaves = d.leaves, locked = d.locked, hasCode = d.codeHash ~= nil, owners = d.owners, distance = d.distance }
+        out[#out + 1] = { id = d.id, name = d.name, leaves = d.leaves, locked = d.locked, hasCode = d.codeHash ~= nil, owners = d.owners, distance = d.distance, jobs = d.jobs }
     end
     return out
 end
@@ -910,6 +911,81 @@ def('editor_door_reset_code', 'editor_doors', function(src, d)
     AM.notify(src, ('Code de « %s » supprimé.'):format(door.name), 'success')
 end)
 
+-- Métiers autorisés sur une porte (police, ems… ou un métier précis du serveur)
+local DC = Config.Doors
+local function jobKey(v) return DoorAccess.CleanJobs({ v })[1] end
+
+def('editor_door_add_job', 'editor_doors', function(src, d)
+    local door = doorOf(d.id)
+    local k = jobKey(d.job)
+    if not door or not k then return AM.notify(src, 'Choisis un métier.', 'error') end
+    door.jobs = door.jobs or {}
+    for _, j in ipairs(door.jobs) do if j == k then return AM.notify(src, 'Ce métier a déjà accès à cette porte.', 'info') end end
+    if #door.jobs >= (DC.maxJobs or 10) then return AM.notify(src, 'Trop de métiers sur cette porte.', 'error') end
+    door.jobs[#door.jobs + 1] = k
+    save('doors') broadcast('doors')
+    AM.notify(src, ('Le métier « %s » peut maintenant ouvrir et fermer « %s ».'):format(k, door.name), 'success')
+    AM.addLog(src, 'Porte : métier autorisé', ('#%d %s → %s'):format(door.id, door.name, k))
+end)
+
+def('editor_door_remove_job', 'editor_doors', function(src, d)
+    local door = doorOf(d.id)
+    local k = jobKey(d.job)
+    if not door or not k then return end
+    for i, j in ipairs(door.jobs or {}) do
+        if j == k then
+            table.remove(door.jobs, i)
+            if #door.jobs == 0 then door.jobs = nil end
+            save('doors') broadcast('doors')
+            AM.notify(src, ('Le métier « %s » n\'a plus accès à « %s ».'):format(k, door.name), 'success')
+            AM.addLog(src, 'Porte : métier retiré', ('#%d %s → %s'):format(door.id, door.name, k))
+            return
+        end
+    end
+end)
+
+-- Pupitres de commande : une zone (ex. PC du commissariat) d'où l'on ouvre / ferme
+-- à distance une liste de portes. Réservé à des métiers (et au staff en service).
+local function panelOf(id) local _, p = findIndex(Data.doorPanels, id) return p end
+local function panelFields(p, d)
+    local name = cleanName(d.name)
+    if name ~= '' then p.name = name end
+    p.radius = math.floor(num(d.radius, DC.panelMinRadius or 0.8, DC.panelMaxRadius or 6.0, p.radius or DC.panelRadius or 1.5) * 10 + 0.5) / 10
+    if d.jobs ~= nil then p.jobs = DoorAccess.CleanJobs(d.jobs, DC.maxJobs) end
+    if d.doors ~= nil then
+        p.doors = DoorAccess.CleanDoorIds(d.doors, function(id) return doorOf(id) ~= nil end, DC.panelMaxDoors)
+    end
+end
+
+def('editor_add_doorpanel', 'editor_doors', function(src, d)
+    local c = GetEntityCoords(GetPlayerPed(src))
+    local id = nextId(Data.doorPanels)
+    local p = { id = id, name = ('Pupitre #%d'):format(id), x = round(c.x), y = round(c.y), z = round(c.z), jobs = {}, doors = {} }
+    panelFields(p, d)
+    table.insert(Data.doorPanels, p)
+    save('doorPanels') broadcast('doorPanels')
+    AM.notify(src, ('Pupitre « %s » posé ici : %d porte(s), %d métier(s).'):format(p.name, #p.doors, #p.jobs), 'success')
+    AM.addLog(src, 'Pupitre de portes créé', ('#%d %s'):format(id, p.name))
+end)
+
+def('editor_doorpanel_update', 'editor_doors', function(src, d)
+    local p = panelOf(d.id)
+    if not p then return AM.notify(src, 'Pupitre introuvable.', 'error') end
+    panelFields(p, d)
+    save('doorPanels') broadcast('doorPanels')
+    AM.notify(src, ('Pupitre « %s » enregistré.'):format(p.name), 'success')
+    AM.addLog(src, 'Pupitre de portes modifié', ('#%d %s'):format(p.id, p.name))
+end)
+
+def('editor_doorpanel_move', 'editor_doors', function(src, d)
+    local p = panelOf(d.id)
+    if not p then return end
+    local c = GetEntityCoords(GetPlayerPed(src))
+    p.x, p.y, p.z = round(c.x), round(c.y), round(c.z)
+    save('doorPanels') broadcast('doorPanels')
+    AM.notify(src, ('Pupitre « %s » déplacé ici.'):format(p.name), 'success')
+end)
+
 -- Suppression générique ------------------------------------
 local KIND = {
     spawn = { list = 'spawns', perm = 'editor_spawns', label = 'Point de spawn' },
@@ -921,6 +997,7 @@ local KIND = {
     hidden = { list = 'hidden', perm = 'editor_props', label = 'Objet de la map (restauré)' },
     zone = { list = 'zones', perm = 'editor_zones', label = 'Zone' },
     door = { list = 'doors', perm = 'editor_doors', label = 'Porte' },
+    doorpanel = { list = 'doorPanels', perm = 'editor_doors', label = 'Pupitre de portes' },
     stash = { list = 'stashes', perm = 'editor_stashes', label = 'Coffre' },
 }
 
@@ -1954,11 +2031,17 @@ local function nearDoor(src, door)
     return false
 end
 
+local function doorAdmin(src) return AM.hasPerm(src, 'editor_doors') and AM.getLevel(src) >= MIN and AM.onDuty(src) end
+
+-- Le joueur fait-il partie d'un de ces métiers ? (état police/ems/meca/d8/concess + métier du core)
+local function inJobs(src, keys)
+    local job, _, onduty = Bridge.GetJob(src)
+    return DoorAccess.InJobs(Player(src).state, job, onduty, keys, Config.Doors)
+end
+
+-- admin (staff en service) · owner (clés) · job (métier autorisé) · visitor
 local function doorRole(src, door)
-    if AM.hasPerm(src, 'editor_doors') and AM.getLevel(src) >= MIN and AM.onDuty(src) then return 'admin' end
-    local cid = Bridge.GetCharId(src)
-    for _, o in ipairs(door.owners) do if o.id == cid then return 'owner' end end
-    return 'visitor'
+    return DoorAccess.Role(doorAdmin(src), Bridge.GetCharId(src), door, function(keys) return inJobs(src, keys) end)
 end
 
 local function codeHash(door, code) return GetHashKey(('am_door_%d_%s'):format(door.id, code)) end
@@ -1967,7 +2050,7 @@ local function sendDoorPanel(src, door)
     local role = doorRole(src, door)
     TriggerClientEvent('adminmenu:door:panel', src, {
         id = door.id, name = door.name, locked = door.locked, role = role, hasCode = door.codeHash ~= nil,
-        owners = (role ~= 'visitor') and door.owners or nil,
+        owners = DoorAccess.CanManageCode(role) and door.owners or nil,
     })
 end
 
@@ -2004,7 +2087,7 @@ RegisterNetEvent('adminmenu:door:interact', function(id)
     local door = doorOf(tonumber(id))
     if not door or not nearDoor(src, door) then return end
     local role = doorRole(src, door)
-    if role == 'owner' or role == 'admin' then
+    if DoorAccess.CanToggle(role) then
         return toggleDoorFor(src, door)
     end
     if not door.codeHash then
@@ -2020,7 +2103,7 @@ RegisterNetEvent('adminmenu:door:managecode', function(id)
     local door = doorOf(tonumber(id))
     if not door or not nearDoor(src, door) then return end
     local role = doorRole(src, door)
-    if role ~= 'owner' and role ~= 'admin' then
+    if not DoorAccess.CanManageCode(role) then
         return AM.notify(src, 'Seuls les détenteurs des clés peuvent gérer le code invité.', 'error')
     end
     sendDoorPanel(src, door)
@@ -2049,7 +2132,7 @@ RegisterNetEvent('adminmenu:door:setcode', function(id, code)
     local door = doorOf(tonumber(id))
     if not door or not nearDoor(src, door) then return end
     local role = doorRole(src, door)
-    if role ~= 'owner' and role ~= 'admin' then
+    if not DoorAccess.CanManageCode(role) then
         return AM.notify(src, 'Seuls les détenteurs des clés peuvent modifier le code invité.', 'error')
     end
     code = tostring(code or '')
@@ -2066,6 +2149,70 @@ RegisterNetEvent('adminmenu:door:setcode', function(id, code)
     save('doors')
     broadcast('doors')
     sendDoorPanel(src, door)
+end)
+
+-- ---------------------------------------------------------
+--  PUPITRES : ouvrir / fermer des portes à distance
+-- ---------------------------------------------------------
+local function nearPanel(src, p)
+    local c = GetEntityCoords(GetPlayerPed(src))
+    return #(c - vector3(p.x, p.y, p.z)) <= (p.radius or DC.panelRadius or 1.5) + 1.5
+end
+
+-- Vérifie zone + accès. Renvoie le pupitre ou nil (avec un message)
+local function usablePanel(src, id)
+    local p = panelOf(tonumber(id))
+    if not p or not nearPanel(src, p) then return nil end
+    if not DoorAccess.CanUsePanel(doorAdmin(src), p, function(keys) return inJobs(src, keys) end) then
+        AM.notify(src, 'Accès refusé : ce pupitre est réservé à un autre métier.', 'error')
+        return nil
+    end
+    return p
+end
+
+local function sendPanel(src, p)
+    local doors = {}
+    for _, id in ipairs(p.doors or {}) do
+        local d = doorOf(id)
+        if d then doors[#doors + 1] = { id = d.id, name = d.name, locked = d.locked == true } end
+    end
+    TriggerClientEvent('adminmenu:doorpanel:show', src, { id = p.id, name = p.name, doors = doors })
+end
+
+RegisterNetEvent('adminmenu:doorpanel:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'doorpanel', 5, 1000) then return end
+    local p = usablePanel(src, id)
+    if p then sendPanel(src, p) end
+end)
+
+-- doorId = une porte ; locked = true / false (état voulu) ou nil (inverser)
+RegisterNetEvent('adminmenu:doorpanel:set', function(id, doorId, locked)
+    local src = source
+    if not AM.rateLimit(src, 'doorpanel', 8, 1000) then return end
+    local p = usablePanel(src, id)
+    if not p or not DoorAccess.PanelHasDoor(p, doorId) then return end
+    local door = doorOf(tonumber(doorId))
+    if not door then return end
+    if locked == nil then door.locked = not door.locked else door.locked = locked == true end
+    save('doors') broadcast('doors')
+    sendPanel(src, p)
+end)
+
+-- Tout verrouiller / tout ouvrir
+RegisterNetEvent('adminmenu:doorpanel:all', function(id, locked)
+    local src = source
+    if not AM.rateLimit(src, 'doorpanel_all', 2, 1000) then return end
+    local p = usablePanel(src, id)
+    if not p then return end
+    local n = 0
+    for _, did in ipairs(p.doors or {}) do
+        local door = doorOf(did)
+        if door and door.locked ~= (locked == true) then door.locked = locked == true n = n + 1 end
+    end
+    if n > 0 then save('doors') broadcast('doors') end
+    AM.notify(src, locked and ('🔒 %d porte(s) verrouillée(s).'):format(n) or ('🔓 %d porte(s) ouverte(s).'):format(n), 'success')
+    sendPanel(src, p)
 end)
 
 AddEventHandler('playerDropped', function()
@@ -2170,7 +2317,7 @@ end)
 -- Liste des prisonniers dans le menu
 -- Liste des métiers du serveur (pour les menus déroulants de l'éditeur : garages…)
 table.insert(AM.DataHooks, function(src, data)
-    if AM.hasPerm(src, 'editor_peds') or AM.hasPerm(src, 'editor_stashes') then
+    if AM.hasPerm(src, 'editor_peds') or AM.hasPerm(src, 'editor_stashes') or AM.hasPerm(src, 'editor_doors') then
         data.jobs = Bridge.GetJobs()
         data.gangs = Bridge.GetGangs()
     end

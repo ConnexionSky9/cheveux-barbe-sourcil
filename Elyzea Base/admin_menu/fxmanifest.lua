@@ -56,6 +56,7 @@ server_scripts {
     'server/storage.lua',
     'server/main.lua',
     'server/bridge.lua',
+    'server/door_access.lua',
     'server/editor.lua',
     'server/gofast.lua',
     'server/zombies.lua',

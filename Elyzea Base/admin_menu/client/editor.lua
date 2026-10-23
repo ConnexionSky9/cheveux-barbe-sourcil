@@ -6,7 +6,7 @@
 --  - Récolte pour tous les joueurs
 -- =========================================================
 local E = Config.Editor
-Editor = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, down = {}, looted = {}, propFolders = {}, stashes = {} }
+Editor = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, down = {}, looted = {}, propFolders = {}, stashes = {} }
 
 local spawned = {}   -- [clé] = { ent, sig }
 local lookup = {}    -- [entité] = { kind, id, fieldId, idx }
@@ -182,6 +182,7 @@ RegisterNetEvent('adminmenu:editor:sync', function(kind, list)
     if kind == 'hidden' then applyHides() return end
     if kind == 'zones' then if RefreshZones then RefreshZones() end return end
     if kind == 'doors' then if RefreshDoors then RefreshDoors() end return end
+    if kind == 'doorPanels' then return end
     if kind ~= 'spawns' then RebuildEditorIndex() end
     if kind == 'peds' and RefreshBarberBlips then RefreshBarberBlips() end
     if kind == 'peds' and RefreshShopBlips then RefreshShopBlips() end
@@ -869,7 +870,7 @@ end
 function EditorMenuData()
     local pos = GetEntityCoords(PlayerPedId())
     local function dist(r) return math.floor(#(pos - vector3(r.x, r.y, r.z))) end
-    local out = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, stashes = {} }
+    local out = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, stashes = {} }
     for _, r in ipairs(Editor.stashes or {}) do
         out.stashes[#out.stashes + 1] = { id = r.id, name = r.name, model = r.model, weight = r.weight, slots = r.slots,
             jobs = r.jobs or {}, gangs = r.gangs or {}, dist = dist(r) }
@@ -877,7 +878,10 @@ function EditorMenuData()
     for _, d in ipairs(Editor.doors) do
         local l = d.leaves[1]
         out.doors[#out.doors + 1] = { id = d.id, name = d.name, locked = d.locked, hasCode = d.hasCode, owners = d.owners,
-            double = #d.leaves == 2, dist = l and dist(l) or nil, distance = d.distance }
+            double = #d.leaves == 2, dist = l and dist(l) or nil, distance = d.distance, jobs = d.jobs or {} }
+    end
+    for _, p in ipairs(Editor.doorPanels or {}) do
+        out.doorPanels[#out.doorPanels + 1] = { id = p.id, name = p.name, radius = p.radius, jobs = p.jobs or {}, doors = p.doors or {}, dist = dist(p) }
     end
     for _, z in ipairs(Editor.zones) do
         local cx, cy
@@ -937,7 +941,7 @@ function EditorMenuData()
 end
 
 local function teleportTo(kind, id)
-    local list = ({ spawn = Editor.spawns, prop = Editor.props, ped = Editor.peds, station = Editor.stations, hidden = Editor.hidden, stash = Editor.stashes })[kind]
+    local list = ({ spawn = Editor.spawns, prop = Editor.props, ped = Editor.peds, station = Editor.stations, hidden = Editor.hidden, stash = Editor.stashes, doorpanel = Editor.doorPanels })[kind]
     if kind == 'door' then
         for _, dd in ipairs(Editor.doors) do
             if dd.id == id and dd.leaves[1] then

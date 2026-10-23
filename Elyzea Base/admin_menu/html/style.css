@@ -318,7 +318,7 @@ table.loot.wide td select.input { min-width: 125px; }
 #warn small { display: block; margin-top: 12px; color: var(--muted); }
 
 /* ---------- Atelier (joueur) ---------- */
-#station, #npc, #door { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 80; background: rgba(5, 8, 14, .4); }
+#station, #npc, #door, #doorpanel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 80; background: rgba(5, 8, 14, .4); }
 .st-box { width: min(640px, 92vw); max-height: 80vh; display: flex; flex-direction: column; background: var(--asphalt); border: 1px solid rgba(217, 181, 106, .35); border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.55); overflow: hidden; }
 .st-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); position: relative; }
 .st-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, var(--info), var(--signal), var(--danger)); }
@@ -431,6 +431,19 @@ table.loot.wide td select.input { min-width: 125px; }
 .door-state.locked { color: #ff9b94; background: rgba(224, 67, 59, .1); }
 .door-state.open { color: var(--ok); background: rgba(79, 179, 169, .1); }
 .door-sep { height: 1px; background: var(--line); margin: 16px 0 12px; }
+.dp-box { width: min(560px, 94vw); }
+.dp-all { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px 4px; }
+.dp-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 14px; }
+.dp-row.locked { border-left: 3px solid var(--danger); }
+.dp-row.open { border-left: 3px solid var(--ok); }
+.dp-ico { font-size: 22px; }
+.dp-name strong { font-family: var(--display); font-size: 18px; display: block; }
+.dp-name span { font-size: 13px; }
+.dp-row.locked .dp-name span { color: #ff9b94; }
+.dp-row.open .dp-name span { color: var(--ok); }
+.door-jobchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.dp-doorpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; max-height: 240px; overflow-y: auto; margin: 6px 0 12px; }
+.dp-doorpick > div { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; cursor: pointer; font-size: 14px; }
 .keypad-screen { text-align: center; font-family: var(--display); font-size: 30px; letter-spacing: .3em; padding: 10px; margin-bottom: 12px;
     background: #0a0f1b; border: 1px solid var(--line); border-radius: 10px; min-height: 58px; }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -913,3 +926,4 @@ body.quick-open #reporthud, #app:not(.hidden) ~ #reporthud { display: none; }
 
 .tag-preview { font-family: var(--display); font-weight: 700; font-size: 18px; padding: 4px 12px; border-radius: 6px; background: rgba(0, 0, 0, .45);
     text-shadow: 0 0 2px #000, 0 0 2px #000; min-width: 80px; text-align: center; }
+.dp-doorpick > div.on { border-color: var(--ok); }
