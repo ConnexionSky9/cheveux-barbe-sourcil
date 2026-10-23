@@ -44,8 +44,8 @@ function Filter.normalize(text, one)
     end
     local flat = table.concat(out)
     local words, compact = {}, {}
-    for raw in flat:gmatch('[%a%d]+') do
-        local w = squash(raw)
+    for w in flat:gmatch('[%a%d]+') do
+        w = squash(w)
         words[#words + 1] = w
         compact[#compact + 1] = w
     end

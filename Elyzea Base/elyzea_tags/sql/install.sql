@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS `elyzea_tags` (
     `x` DOUBLE NOT NULL, `y` DOUBLE NOT NULL, `z` DOUBLE NOT NULL,
     `nx` DOUBLE NOT NULL, `ny` DOUBLE NOT NULL, `nz` DOUBLE NOT NULL,
     `size` FLOAT NOT NULL DEFAULT 1.6,
+    `rot` FLOAT NOT NULL DEFAULT 0,
     `text` VARCHAR(100) NOT NULL,
     `color` VARCHAR(7) NOT NULL,
     `font` VARCHAR(24) NOT NULL,
@@ -18,3 +19,6 @@ CREATE TABLE IF NOT EXISTS `elyzea_tags` (
     KEY `citizenid` (`citizenid`),
     KEY `zone_id` (`zone_id`)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Mise à jour d'une installation existante (fait automatiquement au démarrage) :
+-- ALTER TABLE `elyzea_tags` ADD COLUMN `rot` FLOAT NOT NULL DEFAULT 0 AFTER `size`;

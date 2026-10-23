@@ -22,9 +22,17 @@ solvant anti-graffiti, et le staff peut voir **qui a écrit quoi** et tout suppr
 **Peindre** : utiliser la *Bombe de peinture* →
 1. une fenêtre s'ouvre : texte (20 caractères), couleur (★ = couleur de ton groupe illégal), style d'écriture, aperçu ;
 2. le texte est vérifié **avant** de peindre (mots interdits) ;
-3. vise un mur : l'aperçu est **blanc** si l'emplacement est bon, **rouge** sinon (trop loin, pas un mur, le tag dépasse du mur) ;
-   **molette** ou **↑ / ↓** pour la taille, **E** pour peindre, **Retour** pour annuler ;
-4. animation de 7 s (annulable avec **X**), puis le tag apparaît pour tout le monde.
+3. vise un mur (ou mets-toi simplement face à lui) : l'aperçu et son contour sont **blancs** si l'emplacement est bon, **rouges** sinon,
+   avec la raison affichée (pas un mur, trop loin, zone protégée, le tag dépasse du mur…) ;
+   **molette** ou **↑ / ↓** pour la taille, **← / →** pour la rotation (45° max), **E** pour peindre, **Retour** pour annuler ;
+4. le serveur vérifie l'emplacement **avant** l'animation (aucune bombe perdue pour rien) ;
+5. animation de graffiti de 7 s (annulable avec **X**), puis le tag apparaît pour tout le monde.
+
+**Surfaces acceptées** : tout le décor de la map (murs extérieurs et intérieurs, façades, béton, brique…) et les objets fixes du décor,
+murs inclinés jusqu'à ~37° (`Config.Spray.maxSlope`). Refusés : sols, plafonds, véhicules, joueurs, objets posés par un script ou un joueur,
+matières listées dans `Config.Spray.forbiddenMaterials` (le staff obtient le numéro d'une matière avec `/tagmat` en la visant),
+et les zones de `Config.ForbiddenZones` si tu en ajoutes (aucune par défaut : exemples en commentaire dans `config.lua`).
+Le tag doit tenir sur la surface : centre + au moins 3 coins, avec 15 cm de creux / bosses tolérés (briques, joints).
 
 **Effacer** : se placer devant un tag et utiliser le *Solvant anti-graffiti* → animation de 9 s → le tag disparaît pour tout le monde.
 Réglable : réservé à certains métiers (`Config.CleanJobs`, ex. `{ 'police', 'mairie' }`) et prime par tag effacé (menu).
@@ -38,11 +46,12 @@ Réglable : réservé à certains métiers (`Config.CleanJobs`, ex. `{ 'police',
 - **Chaque tag garde son auteur** (personnage, citizenid, licence Rockstar, groupe, territoire, date) : visible par le staff seulement.
 - **Logs** : chaque tag peint / effacé / supprimé va dans l'onglet **Logs** du menu staff (+ son Discord), et `Config.DiscordWebhook` si rempli.
 - **admin_menu › Illégal › Tags** (permission `tags_manage`, donnée automatiquement aux Modérateurs, Administrateurs et SuperAdmins) :
-  - réglages : activer / couper, seulement dans les territoires, réservé aux groupes, repasse, bombe / solvant consommés,
+  - réglages : activer / couper, réservé aux groupes, repasse, bombe / solvant consommés,
     délai entre deux tags, maximum par personnage et par territoire, expiration (0 = jamais), prime de nettoyage, **mots interdits** ;
   - liste des tags (recherche texte / auteur / citizenid / groupe / territoire) : **Y aller**, **Supprimer**,
     **Tous ses tags** (efface tous les tags d'un joueur), **Supprimer une zone**, **Tout supprimer**.
-- En jeu (staff `tags_manage`) : `/taginfo` (auteur du tag le plus proche, 6 m) et `/tagclean` (efface le tag le plus proche, sans solvant).
+- En jeu (staff `tags_manage`) : `/taginfo` (auteur du tag le plus proche, 6 m), `/tagclean` (efface le tag le plus proche, sans solvant)
+  et `/tagmat` (numéro de la matière visée, pour interdire les vitres par exemple).
 
 ## Limites (anti-spam)
 - Délai entre deux tags d'un même personnage (120 s par défaut).
@@ -51,8 +60,10 @@ Réglable : réservé à certains métiers (`Config.CleanJobs`, ex. `{ 'police',
 - Expiration facultative après N jours (`0` par défaut : les tags restent jusqu'au nettoyage).
 
 ## Territoires
-Avec « Seulement dans les territoires » (activé par défaut), on ne tague que dans les zones de l'éditeur de map cochées
-**Territoire de vente** (les mêmes que la vente de drogue d'`elyzea_illegal`). Le territoire et le groupe de l'auteur sont enregistrés avec le tag.
+On tague **partout sur la carte**, dans un territoire ou non (il n'y a plus d'option « seulement dans les territoires »).
+Si le tag est dans une zone de l'éditeur de map cochée **Territoire de vente**, ce territoire est enregistré avec le tag
+(affiché au staff, limite « tags par territoire »). Le groupe de l'auteur est aussi enregistré.
+Aucune zone protégée par défaut : `Config.ForbiddenZones` contient des exemples en commentaire à réactiver si besoin.
 Si `elyzea_illegal` n'est pas démarré, coupe ce réglage dans le menu pour taguer partout.
 
 ## Sécurité

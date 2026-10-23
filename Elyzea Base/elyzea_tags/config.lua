@@ -26,13 +26,12 @@ Config.Items = {
 -- ---------------------------------------------------------
 Config.Defaults = {
     enabled = true,          -- false : plus personne ne peut peindre (les tags existants restent)
-    territoryOnly = true,    -- tags seulement dans les territoires (éditeur de map › zone « Territoire de vente »)
     requireGroup = false,    -- true : seuls les membres d'un groupe illégal peuvent taguer
     consumeSpray = true,     -- une bombe est utilisée par tag
     consumeRemover = true,   -- un solvant est utilisé par tag effacé
     cooldown = 120,          -- secondes entre deux tags d'un même personnage
     maxPerPlayer = 10,       -- tags actifs par personnage (au-delà, son plus ancien tag disparaît)
-    maxPerZone = 40,         -- tags par territoire (au-delà, le plus ancien du territoire disparaît)
+    maxPerZone = 40,         -- tags dans un même territoire (au-delà, le plus ancien du territoire disparaît) ; hors territoire : seule la limite par personnage compte
     expireDays = 0,          -- 0 : les tags restent jusqu'au nettoyage ; sinon ils s'effacent après N jours
     overwrite = true,        -- peindre par-dessus un tag (moins de 1 m) le remplace (repasse des gangs rivaux)
     cleanReward = 0,         -- argent donné pour chaque tag effacé (0 = rien), sur Config.CleanRewardAccount
@@ -75,8 +74,25 @@ Config.Fonts = {
 Config.Spray = {
     duration = 7000,          -- ms d'animation pour peindre
     reach = 3.0,              -- distance max joueur → mur
-    maxSlope = 0.45,          -- murs seulement (0 = vertical parfait, 1 = sol) ; au-delà, refusé
+    maxSlope = 0.6,           -- 0 = mur vertical, 1 = sol ; 0.6 accepte les murs inclinés (≈ 37°), refuse sols et plafonds
+    flatness = 0.15,          -- creux / bosses tolérés sous le tag (m) : briques, joints, moulures
     minSpacing = 1.0,         -- distance sous laquelle deux tags se superposent
+    -- Matières interdites (vitres, eau…) : numéros affichés par /tagmat (staff) en visant la surface.
+    -- Exemple : forbiddenMaterials = { 1500272081, 937503243 }
+    forbiddenMaterials = {},
+}
+
+-- Rotation du tag sur le mur (flèches ← →)
+Config.Rotation = { max = 45.0, speed = 1.5 }   -- degrés max de chaque côté ; degrés par image en maintenant la flèche
+
+-- On tague PARTOUT sur la carte, dans un territoire ou non.
+-- Zones protégées (facultatif) : aucun tag possible dedans (vérifié par le client ET le serveur).
+-- Vide = aucune zone protégée. Pour en remettre, enlève les -- devant les lignes voulues
+-- (coordonnées approximatives : ajuste-les avec ta position dans le menu staff).
+Config.ForbiddenZones = {
+    -- { name = 'Commissariat de Mission Row', x = 441.0,  y = -982.0, z = 30.7, radius = 60.0 },
+    -- { name = 'Hôpital Pillbox',             x = 300.0,  y = -584.0, z = 43.3, radius = 70.0 },
+    -- { name = 'Mairie',                      x = -544.0, y = -204.0, z = 38.2, radius = 50.0 },
 }
 Config.Clean = {
     duration = 9000,          -- ms d'animation pour effacer

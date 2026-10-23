@@ -52,7 +52,6 @@
                     <code>/taginfo</code> montre l'auteur du tag le plus proche. Chaque tag peint ou effacé est écrit dans les Logs.</p>
                 <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-bottom:12px">
                     ${tog('enabled', s.enabled ? 'Tags activés' : 'Tags coupés', 'Coupés : plus personne ne peut peindre (les tags existants restent).')}
-                    ${tog('territoryOnly', 'Seulement dans les territoires', 'Zones de l\'éditeur de map cochées « Territoire de vente ».')}
                     ${tog('requireGroup', 'Réservés aux groupes illégaux', 'Sinon, tout joueur avec une bombe peut taguer.')}
                     ${tog('overwrite', 'Repasse autorisée', 'Peindre sur un tag (moins de 1 m) le remplace.')}
                     ${tog('consumeSpray', 'Bombe utilisée', 'Une bombe de peinture par tag.')}
@@ -65,7 +64,7 @@
                     ${num('expireDays', 'Effacés après (jours, 0 = jamais)', 'min="0"')}
                     ${num('cleanReward', 'Prime par tag effacé ($)', 'min="0"')}
                 </div>
-                <p class="hint" style="margin-top:8px">Au-delà des maximums, le <b>plus ancien</b> tag du joueur (ou du territoire) disparaît.</p>
+                <p class="hint" style="margin-top:8px">On tague <b>partout sur la carte</b>, dans un territoire ou non. Au-delà des maximums, le <b>plus ancien</b> tag du joueur (ou du territoire, pour les tags faits dans un territoire) disparaît.</p>
                 <div class="field" style="margin-top:12px;max-width:1100px"><label>Mots interdits (un par ligne)</label>
                     <textarea class="input" data-tgw style="min-height:140px">${esc((s.blacklist || []).join('\n'))}</textarea></div>
                 <p class="hint">Repérés malgré les majuscules, accents, lettres répétées, espaces, points et l33t (« P.u.u.t.3 » = « pute »).
