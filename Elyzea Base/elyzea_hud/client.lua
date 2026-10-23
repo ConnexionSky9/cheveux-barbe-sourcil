@@ -24,8 +24,10 @@ local function SharpMask(on)
             maskTxd = CreateRuntimeTxd('elyzea_minimap')
             CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
         end
+        local res = GetTextureResolution('elyzea_minimap', 'radarmasksm')
+        if not res or res.x < 8 then return end
+        -- petite carte seulement : la grande carte garde le masque de GTA
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
-        AddReplaceTexture('platform:/textures/graphics', 'radarmask1g', 'elyzea_minimap', 'radarmasksm')
     else
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
@@ -63,9 +65,12 @@ local function setupMinimap()
         local g = GEO[name]
         SetMinimapComponentPosition(comp, 'L', 'B', gx + g.dx * sc, base + g.dy * sc, g.w * sc, g.h * sc)
     end
-    SetBigmapActive(true, false)
-    Wait(0)
-    SetBigmapActive(false, false)
+    -- recalcul de GTA seulement si la carte est dessinée (sinon elle resterait agrandie)
+    if not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
+        SetBigmapActive(true, false)
+        Wait(0)
+        SetBigmapActive(false, false)
+    end
     rect = { x = left, y = bottom - mapH, w = mapW * k, h = mapH, align = right and 'RB' or 'LB' }
     sendRect()
 end

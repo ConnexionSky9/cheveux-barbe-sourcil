@@ -32,8 +32,13 @@ local function SharpMask(on)
             maskTxd = CreateRuntimeTxd('elyzea_minimap')
             CreateRuntimeTextureFromImage(maskTxd, 'radarmasksm', 'minimap/radarmask.png')
         end
+        -- Texture réellement chargée ? Sinon on garde le masque de GTA (sinon la carte n'est plus découpée)
+        local res = GetTextureResolution('elyzea_minimap', 'radarmasksm')
+        if not res or res.x < 8 then return end
+        -- Seulement le masque de la PETITE carte : celui de la grande carte (radarmask1g) reste celui de GTA,
+        -- sinon la grande carte n'est plus découpée et couvre la moitié de l'écran.
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
-        AddReplaceTexture('platform:/textures/graphics', 'radarmask1g', 'elyzea_minimap', 'radarmasksm')
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
     else
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
@@ -78,6 +83,20 @@ local function layout(s)
 end
 function RectOf() return MinimapRect end
 
+-- GTA ne recalcule la mini-carte qu'après un passage d'une image en grande carte.
+-- JAMAIS pendant que la carte est cachée (chargement, choix du personnage) : GTA ne revient alors
+-- pas à la petite carte et l'affiche agrandie à la connexion. On attend qu'elle soit dessinée.
+local pendingRefresh, refreshing = false, false
+local function RefreshGta()
+    if IsRadarHidden() or not IsMinimapRendering() or IsPauseMenuActive() then pendingRefresh = true return end
+    pendingRefresh = false
+    refreshing = true
+    SetBigmapActive(true, false)
+    Wait(0)
+    SetBigmapActive(false, false)
+    refreshing = false
+end
+
 local function place(relayout)
     local s = current()
     if not s or s.enabled == false then return end
@@ -98,12 +117,7 @@ local function place(relayout)
     local changed = not MinimapRect or MinimapRect.x ~= rect.x or MinimapRect.y ~= rect.y or MinimapRect.w ~= rect.w or MinimapRect.h ~= rect.h
     MinimapRect = rect
     if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
-    if relayout then
-        -- GTA ne recalcule la mini-carte qu'après un passage en grande carte
-        SetBigmapActive(true, false)
-        Wait(0)
-        SetBigmapActive(false, false)
-    end
+    if relayout then RefreshGta() end
 end
 
 -- Pose complète (avec recalcul de GTA)
@@ -248,6 +262,21 @@ CreateThread(function()
     apply()
 end)
 AddEventHandler('playerSpawned', function() SetTimeout(1000, apply) end)
+
+-- Grande carte restée ouverte toute seule (bascule faite pendant le chargement, autre script) : refermée,
+-- sauf si le joueur maintient lui-même la touche d'agrandissement (Z). Puis recalcul en attente.
+CreateThread(function()
+    while true do
+        Wait(250)
+        if not refreshing and IsBigmapActive() and not IsPauseMenuActive() and not IsControlPressed(0, 20) and not IsDisabledControlPressed(0, 20) then
+            SetBigmapActive(false, false)
+            pendingRefresh = true
+        end
+        if pendingRefresh and not IsRadarHidden() and IsMinimapRendering() and not IsBigmapActive() and not IsPauseMenuActive() and not preview then
+            apply()
+        end
+    end
+end)
 
 -- Le changement de résolution déplace la mini-carte : on la repose de temps en temps
 CreateThread(function()
