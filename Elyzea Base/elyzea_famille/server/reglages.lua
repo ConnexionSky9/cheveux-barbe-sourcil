@@ -114,13 +114,36 @@ local SCHEMA = {
     { s = 'fin', k = 'fin.accouchementDes', p = { 'Grossesse', 'fin', 'accouchementDes' }, t = 'pct', min = 0.5, max = 1,
       l = 'Accouchement possible à partir de', a = 'Part de la grossesse écoulée à partir de laquelle un EMS peut faire accoucher (100 % = au terme).' },
     { s = 'fin', k = 'fin.dureeAccouchement', p = { 'Grossesse', 'fin', 'dureeAccouchement' }, t = 'int', min = 0, max = 120, u = 's',
-      l = 'Durée de l\'accouchement', a = 'Écran noir pour la patiente ; l\'EMS doit rester à côté.' },
-    { s = 'fin', k = 'fin.naissanceAutoActive', p = { 'Grossesse', 'fin', 'naissanceAutoActive' }, t = 'bool',
-      l = 'Naissance automatique sans EMS', a = 'Activé : si aucun EMS n\'a fait accoucher, la naissance a lieu après le délai ci-dessous (personnage connecté).' },
-    { s = 'fin', k = 'fin.naissanceAuto', p = { 'Grossesse', 'fin', 'naissanceAuto' }, t = 'num', min = 0, max = 720, step = 0.01, u = 'h',
-      l = 'Délai de la naissance automatique', a = 'Heures après le terme (0 = dès le terme ; 0,01 h ≈ 36 s pour les tests).' },
+      l = 'Durée de l\'étape « Naissance »', a = 'Écran noir pour la patiente (sauf péridurale) ; l\'EMS doit rester à côté. Plus aucune naissance automatique (V8).' },
     { s = 'fin', k = 'fin.bebesEnJeu', p = { 'Grossesse', 'fin', 'bebesEnJeu' }, t = 'bool',
       l = 'Bébé placé dans le jeu à la naissance', a = 'Le ou les bébés (elyzea_bebe_modele) apparaissent à côté de la patiente.' },
+    -- V8 : accouchement obligatoirement assisté par un EMS (étapes, délais, péridurale, secours)
+    { s = 'accouchement', k = 'acc.evaluation.delai', p = { 'Grossesse', 'accouchement', 'etapes', 2, 'delai' }, t = 'int', min = 0, max = 3600, u = 's',
+      l = 'Évaluation : délai après l\'étape précédente', a = 'Secondes minimales (0 = aussitôt, pour les tests).' },
+    { s = 'accouchement', k = 'acc.evaluation.duree', p = { 'Grossesse', 'accouchement', 'etapes', 2, 'duree' }, t = 'int', min = 0, max = 120, u = 's',
+      l = 'Évaluation : durée de l\'acte', a = 'Secondes pendant lesquelles l\'EMS et la patiente restent sur place (0 = immédiat).' },
+    { s = 'accouchement', k = 'acc.preparation.delai', p = { 'Grossesse', 'accouchement', 'etapes', 3, 'delai' }, t = 'int', min = 0, max = 3600, u = 's',
+      l = 'Préparation : délai après l\'étape précédente', a = 'Secondes minimales (0 = aussitôt, pour les tests).' },
+    { s = 'accouchement', k = 'acc.preparation.duree', p = { 'Grossesse', 'accouchement', 'etapes', 3, 'duree' }, t = 'int', min = 0, max = 120, u = 's',
+      l = 'Préparation : durée de l\'acte', a = 'Secondes pendant lesquelles l\'EMS et la patiente restent sur place (0 = immédiat).' },
+    { s = 'accouchement', k = 'acc.travail.delai', p = { 'Grossesse', 'accouchement', 'etapes', 4, 'delai' }, t = 'int', min = 0, max = 3600, u = 's',
+      l = 'Travail : délai après l\'étape précédente', a = 'Secondes minimales (0 = aussitôt, pour les tests).' },
+    { s = 'accouchement', k = 'acc.travail.duree', p = { 'Grossesse', 'accouchement', 'etapes', 4, 'duree' }, t = 'int', min = 0, max = 120, u = 's',
+      l = 'Travail : durée de l\'acte', a = 'Secondes pendant lesquelles l\'EMS et la patiente restent sur place (0 = immédiat).' },
+    { s = 'accouchement', k = 'acc.naissance.delai', p = { 'Grossesse', 'accouchement', 'etapes', 5, 'delai' }, t = 'int', min = 0, max = 3600, u = 's',
+      l = 'Naissance : délai après l\'étape précédente', a = 'Secondes minimales (0 = aussitôt, pour les tests).' },
+    { s = 'accouchement', k = 'acc.validation.delai', p = { 'Grossesse', 'accouchement', 'etapes', 6, 'delai' }, t = 'int', min = 0, max = 3600, u = 's',
+      l = 'Validation finale : délai après l\'étape précédente', a = 'Secondes minimales (0 = aussitôt, pour les tests).' },
+    { s = 'accouchement', k = 'acc.peridurale', p = { 'Grossesse', 'accouchement', 'peridurale' }, t = 'bool',
+      l = 'Péridurale proposée', a = 'L\'EMS peut la proposer après l\'évaluation ; la patiente accepte ou refuse. Elle ne fait jamais naître le bébé.' },
+    { s = 'accouchement', k = 'acc.distance', p = { 'Grossesse', 'accouchement', 'distance' }, t = 'num', min = 1, max = 15, step = 0.5, u = 'm',
+      l = 'Distance EMS / patiente', a = 'Distance maximale pour chaque étape.' },
+    { s = 'accouchement', k = 'acc.appelAuTerme', p = { 'Grossesse', 'accouchement', 'appelAuTerme' }, t = 'bool',
+      l = 'Appel automatique des EMS au terme', a = 'Activé : un appel part vers le dispatch EMS quand l\'accouchement devient possible. Sinon la patiente appelle (Urgences, /ems).' },
+    { s = 'accouchement', k = 'acc.secours', p = { 'Grossesse', 'accouchement', 'secours' }, t = 'bool',
+      l = 'Procédure de secours (administration)', a = 'Bloc « Tests » : accouchement sans EMS, permission famille_manage, motif obligatoire, journalisé.' },
+    { s = 'accouchement', k = 'acc.secoursSansEms', p = { 'Grossesse', 'accouchement', 'secoursSansEmsSeulement' }, t = 'bool',
+      l = 'Secours seulement si aucun EMS en service', a = 'Activé : refusée dès qu\'un EMS est en service (la procédure normale reste obligatoire).' },
     -- Ventre (vêtement d'un pack ; numéros à relever en jeu avec /ventre_info)
     { s = 'ventre', k = 'ventre.actif', p = { 'Ventre', 'actif' }, t = 'bool',
       l = 'Ventre de grossesse', a = 'Pose le ventre du pack par-dessus la tenue selon l\'étape. N\'activer qu\'après avoir relevé les numéros (/ventre_info).' },
@@ -260,6 +283,7 @@ local SECTIONS = {
     { id = 'etapes', label = 'Étapes de la grossesse' },
     { id = 'symptomes', label = 'Symptômes de grossesse' },
     { id = 'fin', label = 'Fin de grossesse' },
+    { id = 'accouchement', label = 'Accouchement assisté par un EMS' },
     { id = 'ventre', label = 'Ventre de grossesse' },
     { id = 'contraception', label = 'Effets de la contraception' },
     { id = 'bebe', label = 'Bébés et équipements' },
@@ -468,6 +492,9 @@ exports('AdminAction', function(src, name, data)
     elseif name == 'test_debut' or name == 'test_fin' then
         if type(Fam.ActionTest) ~= 'function' then return false, 'Indisponible.' end
         return Fam.ActionTest(name, acteur, data)
+    elseif name == 'accouchement_secours' then
+        if type(Fam.AccouchementSecours) ~= 'function' then return false, 'Indisponible.' end
+        return Fam.AccouchementSecours(data, acteur)
     elseif name == 'diag_suivi' then
         if type(Fam.DiagSuivi) ~= 'function' then return false, 'Indisponible.' end
         return Fam.DiagSuivi(data)

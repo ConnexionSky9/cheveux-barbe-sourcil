@@ -118,12 +118,20 @@ end)
 
 -- ─────────── Accouchement ───────────
 
-RegisterNetEvent('elyzea_famille:client:accouchement', function(role, duree)
+RegisterNetEvent('elyzea_famille:client:accouchement', function(role, duree, etape)
     duree = math.max(0, math.min(120, tonumber(duree) or 20))
     local ped = PlayerPedId()
-    if duree == 0 then return end          -- accouchement immédiat (réglage 0) : pas d'écran noir
+    if duree == 0 then return end          -- étape immédiate (réglage 0) : pas d'écran noir
     occupe = true
-    if role == 'patiente' then
+    if role == 'patiente_calme' then
+        -- V8 : étape sans écran noir (évaluation, préparation, travail ; naissance sous péridurale) : on ne bouge pas
+        if etape then FamNotify(('Accouchement : %s…'):format(tostring(etape):lower()), 'inform') end
+        local fin = GetGameTimer() + duree * 1000
+        while GetGameTimer() < fin do
+            for _, c in ipairs({ 21, 22, 24, 25, 30, 31, 32, 33, 34, 35 }) do DisableControlAction(0, c, true) end
+            Wait(0)
+        end
+    elseif role == 'patiente' then
         local f = math.min(1500, math.floor(duree * 1000 / 3))   -- fondus raccourcis pour une durée courte
         DoScreenFadeOut(f)
         Wait(f)

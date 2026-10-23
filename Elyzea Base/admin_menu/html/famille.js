@@ -75,6 +75,10 @@
         <button class="btn" data-fa="test_debut">Démarrer une grossesse de test</button>
         <button class="btn" data-fa="test_fin">Terminer la grossesse de test</button>
         <button class="btn" data-fa="diag_suivi">Vérifier son suivi (application Grossesse)</button></div>
+        <div class="btn-row" style="margin-top:8px"><input class="input" type="text" id="famSecoursMotif" maxlength="200" placeholder="Motif (obligatoire) : ex. aucun EMS connecté" style="max-width:420px">
+        <button class="btn" data-fa="accouchement_secours">Accouchement de secours (sans EMS)</button></div>
+        <p class="hint">V8 : l'accouchement normal se fait uniquement avec un EMS en service (menu ALT sur la patiente). Le secours est refusé
+            s'il y a un EMS en service (réglable), demande un motif et est journalisé.</p>
         <p class="hint">Utilise les durées enregistrées (réglez par ex. 20 s par trimestre et enregistrez d'abord). La fin de test ne crée pas de bébé, garde l'historique et ne bloque pas une nouvelle grossesse.</p></div>`;
 
     // Diagnostic des bébés, porte-bébés et poussettes (lu à l'ouverture de l'onglet)
@@ -139,6 +143,14 @@
                 const sid = Number((document.getElementById('famTestSid') || {}).value);
                 if (!Number.isInteger(sid) || sid < 1) return;
                 send(n.dataset.fa, { sid });
+                return;
+            }
+            case 'accouchement_secours': {
+                const sid = Number((document.getElementById('famTestSid') || {}).value);
+                const raison = String((document.getElementById('famSecoursMotif') || {}).value || '').trim();
+                if (!Number.isInteger(sid) || sid < 1) return;
+                if (!(await confirmBox('Accouchement de secours ?', `Le bébé naîtra sans EMS pour le joueur ${sid}. À utiliser seulement si aucun EMS n'est disponible.`))) return;
+                send('accouchement_secours', { sid, raison });
                 return;
             }
             case 'reset':

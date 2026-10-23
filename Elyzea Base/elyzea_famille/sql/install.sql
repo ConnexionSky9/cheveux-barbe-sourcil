@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS `rp_pregnancies` (
     `due_at`        BIGINT      NOT NULL,
     `trimestre`     TINYINT     NOT NULL DEFAULT 1,              -- trimestre déjà atteint (ne recule jamais)
     `terme_at`      BIGINT      NULL,                           -- heure où le terme a été atteint
+    `travail_etape` VARCHAR(24) NULL,                           -- V8 : dernière étape de l'accouchement (EMS)
+    `travail`       TEXT        NULL,                           -- V8 : détail de l'accouchement (JSON)
     `status`        VARCHAR(16) NOT NULL DEFAULT 'en_cours',  -- en_cours | accouchee | terminee
     `active_key`    VARCHAR(64) NULL,
     `discovered_at` BIGINT      NULL,

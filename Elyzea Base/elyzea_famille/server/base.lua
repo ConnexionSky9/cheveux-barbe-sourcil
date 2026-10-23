@@ -177,6 +177,8 @@ MySQL.ready(function()
     colonne('rp_pregnancies', 'end_reason', 'VARCHAR(32) NULL AFTER `ended_at`')   -- V5 : accouchement, naissance_auto, fin_staff…
     colonne('rp_pregnancies', 'trimestre', 'TINYINT NOT NULL DEFAULT 1 AFTER `due_at`')   -- V7 : trimestre déjà atteint (ne recule jamais)
     colonne('rp_pregnancies', 'terme_at', 'BIGINT NULL AFTER `trimestre`')               -- V7 : heure où le terme a été atteint
+    colonne('rp_pregnancies', 'travail_etape', 'VARCHAR(24) NULL AFTER `terme_at`')     -- V8 : dernière étape de l'accouchement
+    colonne('rp_pregnancies', 'travail', 'TEXT NULL AFTER `travail_etape`')             -- V8 : détail (EMS, heures, péridurale)
     -- Un redémarrage interrompt les moments intimes en cours : aucune conception pour eux
     MySQL.update.await("UPDATE `rp_intimacy_sessions` SET `status` = 'interrompue', `ended_at` = ?, `end_reason` = 'redemarrage' WHERE `status` = 'active'", { os.time() })
     Fam.TablesPretes = true

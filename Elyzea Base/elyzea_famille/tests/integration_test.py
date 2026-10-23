@@ -48,6 +48,8 @@ class World:
         self.players = {}
         self.inv = {}
         self.ems = set()
+        self.actes = []      # V8 : actes inscrits au dossier médical EMS (AddTreatment)
+        self.appels = []
         self.client_events = []
         self.notifs = []
         self.usables = {}
@@ -204,6 +206,9 @@ api = {
     'inv_count': inv_count, 'inv_remove': inv_remove, 'inv_add': inv_add,
     'usable': lambda name, fn: W.usables.__setitem__(name, fn),
     'ems': lambda s: int(s) in W.ems,
+    'ems_count': lambda: len(W.ems),
+    'acte': lambda t, srv, e: W.actes.append((int(t), srv, int(e))),
+    'appel': lambda d: W.appels.append(from_lua(d)),
     'client': lambda name, target, args: W.client_events.append((name, int(target), from_lua(args))),
     'notify': lambda src, msg, kind: W.notifs.append((int(src), msg, kind)),
     'json': lambda v: json.dumps(from_lua(v), ensure_ascii=False),
@@ -279,7 +284,10 @@ exports = {
         AddItem = function(_, s, item, n) return py.inv_add(s, item, n) end,
         RegisterUsableItem = function(_, name, fn) py.usable(name, fn) end,
     },
-    elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end },
+    elyzea_ems = { IsOnDuty = function(_, s) return py.ems(s) end, IsDown = function() return false end,
+                   GetOnDutyCount = function() return py.ems_count() end,
+                   AddTreatment = function(_, t, srv, e) py.acte(t, srv, e) return true end,
+                   SendCall = function(_, d) py.appel(d) return 1 end },
     elyzea_police = { IsCuffed = function() return false end },
     elyzea_bebe_modele = { BebePortePar = function(_, s) return py.porte_bebe(s) end,
                            AppliquerReglages = function(_, v) py.bebe_reglages(v) return true end,
@@ -293,7 +301,8 @@ setmetatable(exports, { __call = function(_, name, fn) EXPORTS_LUA[name] = fn en
 # même ordre que fxmanifest.lua (shared_scripts puis server_scripts) ; vérifié par le test 0
 SERVER_FILES = ('config/config.lua', 'locales/fr.lua', 'shared/regles.lua', 'server/base.lua', 'server/reglages.lua',
                 'moment_intime/server/consentement.lua', 'contraception/server/contraception.lua', 'grossesse/server/conception.lua',
-                'moment_intime/server/intimite.lua', 'grossesse/server/grossesse.lua', 'grossesse/server/suivi.lua', 'server/staff.lua')
+                'moment_intime/server/intimite.lua', 'grossesse/server/grossesse.lua', 'grossesse/server/suivi.lua',
+                'grossesse/server/accouchement.lua', 'server/staff.lua')
 
 
 SUIVI = [60]
@@ -361,6 +370,25 @@ def use(item, src):
 def answer(src, accept, options=None):
     args = last_client('elyzea_famille:client:consentement', src)
     net('elyzea_famille:consentement', src, args[0], accept, options or {})
+
+
+def etape_acc(gid):
+    return q('SELECT travail_etape FROM rp_pregnancies WHERE id=%s', (gid,))[0]['travail_etape']
+
+
+def accoucher(pat=1, ems=3):
+    """V8 : accouchement complet par un EMS en service, délais et durées des étapes ramenés à 0 (tests rapides).
+    Attend d'abord 31 s : la limite anti-abus (12 demandes / 30 s par EMS) n'est pas faite pour deux accouchements d'affilée."""
+    advance(31)
+    W.ems.add(ems)
+    for e in G.Config.Grossesse.accouchement.etapes.values():
+        e.delai, e.duree = 0, 0
+    G.Config.Grossesse.fin.dureeAccouchement = 0
+    net('elyzea_famille:accouchement', ems, pat)
+    answer(pat, True)
+    for _ in range(len(list(G.Config.Grossesse.accouchement.etapes.values()))):
+        net('elyzea_famille:accouchement', ems, pat)
+        advance(1)
 
 
 def wait_delay():
@@ -860,23 +888,66 @@ nes0 = len(W.nes)
 net('elyzea_famille:accouchement', 3, 1)
 check('39. accouchement à 60 % : refusé (« trop tôt »)', notif(3, 'trop tôt'))
 placer(g, 0.95)
+net('elyzea_famille:accouchement', 2, 1)
+check('39. V8 : un joueur qui n\'est pas EMS en service ne peut rien faire (refus serveur, signalé)', etape_acc(g['id']) is None)
+net('elyzea_famille:accouchement', 1, 1)
+check('39. V8 : la patiente ne peut pas faire avancer son accouchement seule', etape_acc(g['id']) is None)
 net('elyzea_famille:accouchement', 3, 1)
 answer(1, True)
-check('39. accouchement accepté : écran noir patiente, animation EMS', last_client('elyzea_famille:client:accouchement', 1)[0] == 'patiente'
-      and last_client('elyzea_famille:client:accouchement', 3)[0] == 'ems')
+check('39. V8 : prise en charge acceptée, enregistrée en base, inscrite au dossier médical', etape_acc(g['id']) == 'prise_en_charge'
+      and (1, 'consult', 3) in W.actes, (etape_acc(g['id']), W.actes))
+W.notifs.clear()
 net('elyzea_famille:accouchement', 3, 1)
-advance(G.Config.Grossesse.fin.dureeAccouchement + 1)
+check('39. V8 : étape suivante trop tôt (délai réglé) : refusée avec le temps restant', etape_acc(g['id']) == 'prise_en_charge' and notif(3, 'possible dans'))
+advance(21)
+net('elyzea_famille:accouchement', 3, 1)
+check('39. V8 : évaluation en cours : patiente immobile (sans écran noir), EMS à genoux', last_client('elyzea_famille:client:accouchement', 1)[0] == 'patiente_calme'
+      and last_client('elyzea_famille:client:accouchement', 3)[0] == 'ems' and etape_acc(g['id']) == 'prise_en_charge')
+net('elyzea_famille:accouchement', 3, 1)
+check('39. V8 : pas de seconde étape pendant un acte en cours', notif(3, 'déjà en cours'))
+advance(9)
+check('39. V8 : évaluation faite', etape_acc(g['id']) == 'evaluation')
+net('elyzea_famille:accouchement:peridurale', 3, 1)
+answer(1, True)
+tr = json.loads(q('SELECT travail FROM rp_pregnancies WHERE id=%s', (g['id'],))[0]['travail'])
+check('39. V8 : péridurale proposée et acceptée (choix de la patiente), au dossier, sans faire avancer l\'accouchement',
+      tr.get('peridurale') == 'acceptee' and (1, 'peridurale', 3) in W.actes and etape_acc(g['id']) == 'evaluation', tr)
+# l'EMS quitte le service pendant une étape : rien n'est validé
+advance(21)
+net('elyzea_famille:accouchement', 3, 1)
+W.ems.discard(3)
+advance(9)
+check('39. V8 : EMS hors service pendant l\'acte : étape interrompue, rien d\'enregistré', etape_acc(g['id']) == 'evaluation' and notif(3, 'interrompue'))
+W.ems.add(3)
+# redémarrage de la ressource au milieu de la procédure : elle reprend où elle en était
+start_resource()
+G.Config.Grossesse.suivi = SUIVI[0]
+check('39. V8 : après un redémarrage, l\'étape enregistrée est conservée', etape_acc(g['id']) == 'evaluation')
+for _ in range(3):
+    advance(21)
+    net('elyzea_famille:accouchement', 3, 1)
+    advance(G.Config.Grossesse.fin.dureeAccouchement + 13)
+check('40. V8 : préparation, travail et naissance faits dans l\'ordre ; naissance sous péridurale sans écran noir ; pas encore de bébé',
+      etape_acc(g['id']) == 'naissance' and last_client('elyzea_famille:client:accouchement', 1)[0] == 'patiente_calme' and len(W.nes) == nes0,
+      etape_acc(g['id']))
+net('elyzea_famille:accouchement', 3, 1)
+advance(1)
 r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
-check('40. accouchement terminé : grossesse close (accouchee / accouchement), plus active', r['status'] == 'accouchee' and r['end_reason'] == 'accouchement'
-      and r['active_key'] is None and r['ended_at'])
+check('40. validation finale par l\'EMS : grossesse close (accouchee / accouchement), plus active', r['status'] == 'accouchee' and r['end_reason'] == 'accouchement'
+      and r['active_key'] is None and r['ended_at'] and r['travail_etape'] == 'validation')
 check('40. bébé(s) créé(s) à côté de la patiente, responsables = les deux parents', len(W.nes) - nes0 == int(g['bebes'])
       and W.nes[-1][2] == ['F001', 'M002'] and W.nes[-1][3] == {'persistant': True, 'grossesse': g['id'], 'rang': int(g['bebes'])}
       and abs(W.nes[-1][1][2] - 29.02) < 0.01 and abs(W.nes[-1][1][1] - 100.7) < 0.01, W.nes[nes0:])
-check('40. effets arrêtés (état « aucune grossesse » envoyé), félicitations', etat_client(1) is False and notif(1, 'Félicitations'))
-check('40. naissance journalisée', q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='naissance'", (g['id'],)))
+check('40. V8 : nouveau-né en couche, chevelure « naissance »', W.nes[-1][0].get('tenue') == 'couche' and W.nes[-1][0].get('coiffure') == 'naissance_brun', W.nes[-1][0])
+check('40. effets arrêtés (état « aucune grossesse » envoyé), félicitations ; accouchement au dossier médical', etat_client(1) is False
+      and notif(1, 'Félicitations') and (1, 'accouchement', 3) in W.actes)
+check('40. naissance et étapes journalisées (une fois chacune)', len(q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='naissance'", (g['id'],))) == 1
+      and len(q("SELECT 1 FROM rp_pregnancy_events WHERE pregnancy_id=%s AND kind='travail'", (g['id'],))) == 6)
 W.notifs.clear()
 net('elyzea_famille:accouchement', 3, 1)
 check('40. second accouchement : « pas de grossesse », aucun bébé en plus', notif(3, 'Pas de grossesse') and len(W.nes) - nes0 == int(g['bebes']))
+for e in G.Config.Grossesse.accouchement.etapes.values():
+    pass
 
 # fin par le staff (sans bébé)
 advance(49 * H)
@@ -888,14 +959,35 @@ r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
 check('41. /famille_fin : grossesse terminée par le staff, aucun bébé', r['status'] == 'terminee' and r['end_reason'] == 'fin_staff' and len(W.nes) == n_avant
       and etat_client(1) is False)
 
-# naissance automatique après le terme (réglage 24 h)
+# V8 : plus de naissance automatique ; secours de l'administration strictement encadré
 advance(49 * H)
 g, _ = nouvelle_grossesse()
 total = int(g['due_at']) - int(g['conceived_at'])
 q("UPDATE rp_pregnancies SET conceived_at=%s, due_at=%s WHERE id=%s", (W.now - total - 25 * H, W.now - 25 * H, g['id']))
+W.notifs.clear()
 advance(61)
 r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
-check('42. naissance automatique 24 h après le terme (connectée)', r['status'] == 'accouchee' and r['end_reason'] == 'naissance_auto' and len(W.nes) > n_avant)
+check('42. V8 : 25 h après le terme, AUCUNE naissance automatique ; la patiente est invitée à contacter les EMS',
+      r['status'] == 'en_cours' and len(W.nes) == n_avant and notif(1, 'uniquement avec un EMS'))
+W.ems.add(3)
+ok, msg = admin(3, 'accouchement_secours', {'sid': 1, 'raison': 'aucun EMS connecté'})
+check('42. V8 : secours refusé quand un EMS est en service', ok is False and 'EMS en service' in msg, msg)
+W.ems.clear()
+ok, msg = admin(3, 'accouchement_secours', {'sid': 1, 'raison': ''})
+check('42. V8 : secours sans motif refusé', ok is False and 'Motif' in msg, msg)
+ok, msg = admin(2, 'accouchement_secours', {'sid': 1, 'raison': 'aucun EMS connecté'})
+check('42. V8 : secours refusé à un joueur sans la permission', ok is False)
+W.commands['famille_fin'](0, to_lua(['1', 'naissance']), '')
+advance(1)
+check('42. V8 : /famille_fin naissance sans motif : refusé (même règles que le secours)', q("SELECT status FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]['status'] == 'en_cours')
+ok, msg = admin(3, 'accouchement_secours', {'sid': 1, 'raison': 'aucun EMS connecté'})
+r = q("SELECT * FROM rp_pregnancies WHERE id=%s", (g['id'],))[0]
+check('42. V8 : secours autorisé (aucun EMS, motif) : naissance, motif journalisé', ok is True and r['status'] == 'accouchee'
+      and r['end_reason'] == 'secours_admin' and len(W.nes) == n_avant + int(g['bebes'])
+      and q("SELECT 1 FROM rp_famille_logs WHERE action='accouchement_secours' AND details LIKE %s", ('%aucun EMS%',)), msg)
+ok, msg = admin(3, 'accouchement_secours', {'sid': 1, 'raison': 'aucun EMS connecté'})
+check('42. V8 : pas de seconde naissance pour la même grossesse', ok is False and len(W.nes) == n_avant + int(g['bebes']))
+W.ems.add(3)
 
 # persistance : redémarrage de la ressource, la grossesse et ses effets reprennent
 advance(49 * H)
@@ -954,10 +1046,9 @@ fin_grossesses()
 advance(10)
 
 
-def regler(t1, t2, t3, unite='secondes', auto=True, delai=0.0):
+def regler(t1, t2, t3, unite='secondes'):
     v = admin_data(3)['values']
-    v.update({'grossesse.unite': unite, 'grossesse.t1': t1, 'grossesse.t2': t2, 'grossesse.t3': t3,
-              'fin.naissanceAutoActive': auto, 'fin.naissanceAuto': delai, 'fin.bebesEnJeu': True})
+    v.update({'grossesse.unite': unite, 'grossesse.t1': t1, 'grossesse.t2': t2, 'grossesse.t3': t3, 'fin.bebesEnJeu': True})
     return admin(3, 'save', {'values': v})
 
 
@@ -998,15 +1089,18 @@ advance(20)
 check('51. à 45 s : 3e trimestre', ligne(gid)['trimestre'] == 3 and nb(gid, 't3') == 1)
 advance(20)
 L_ = ligne(gid)
-check('51. à 65 s : terme atteint puis naissance automatique (délai 0), un seul bébé', L_['terme_at'] and L_['status'] == 'accouchee'
-      and nb(gid, 'terme') == 1 and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1, (L_['status'], len(W.nes) - nes0))
+check('51. à 65 s : terme atteint (une fois), V8 : pas de naissance sans EMS', L_['terme_at'] and L_['status'] == 'en_cours'
+      and nb(gid, 'terme') == 1 and nb(gid, 'naissance') == 0 and len(W.nes) - nes0 == 0, (L_['status'], len(W.nes) - nes0))
+accoucher()
 advance(60)
-check('51. une minute plus tard : aucune étape ni naissance en double', nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and nb(gid, 'terme') == 1
-      and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1)
+check('51. accouchement par l\'EMS, puis une minute plus tard : aucune étape ni naissance en double', ligne(gid)['status'] == 'accouchee'
+      and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and nb(gid, 'terme') == 1 and nb(gid, 'naissance') == 1 and len(W.nes) - nes0 == 1)
 r = appli()
 check('51. application : « accouchement terminé » + historique chronologique complet',
       r['statut'] == 'terminee' and r['fin']['status'] == 'accouchee'
-      and [e['titre'] for e in r['historique']] == ['Grossesse de test', 'Deuxième trimestre', 'Troisième trimestre', 'Terme atteint', 'Naissance'],
+      and [e['titre'] for e in r['historique']][:4] == ['Grossesse de test', 'Deuxième trimestre', 'Troisième trimestre', 'Terme atteint']
+      and [e['titre'] for e in r['historique']][-2:] == ['Accouchement : validation finale par l\'ems', 'Naissance']
+      and sum(1 for e in r['historique'] if e['titre'].startswith('Accouchement :')) == 6,
       [e['titre'] for e in r.get('historique', [])])
 
 # 52. un trimestre à 0
@@ -1016,14 +1110,16 @@ advance(26)     # suivi toutes les 5 s : l'étape est enregistrée au plus 5 s a
 check('52. 2e trimestre à 0 : à 26 s, 3e trimestre ; t2 et t3 enregistrés une fois chacun', ok and ok2 and ligne(gid)['trimestre'] == 3
       and nb(gid, 't2') == 1 and nb(gid, 't3') == 1 and appli()['grossesse']['trimestre'] == 3, (msg, msg2))
 advance(25)
-check('52. puis terme et naissance (une fois)', ligne(gid)['status'] == 'accouchee' and nb(gid, 'naissance') == 1)
+accoucher()
+check('52. puis terme, accouchement EMS et naissance (une fois)', ligne(gid)['status'] == 'accouchee' and nb(gid, 'naissance') == 1 and nb(gid, 'terme') == 1)
 
 # 53. tous les trimestres à 0
 ok, msg = regler(0, 0, 0)
 nes0 = len(W.nes)
 ok2, msg2, gid = test_debut()
 advance(6)
-check('53. trimestres à 0 : transitions instantanées (t2, t3, terme) et naissance, chacune une seule fois',
+accoucher()
+check('53. trimestres à 0 : transitions instantanées (t2, t3, terme), puis naissance par l\'EMS, chacune une seule fois',
       ok and ok2 and ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1]
       and len(W.nes) - nes0 == 1, (msg2, [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')]))
 advance(30)
@@ -1036,7 +1132,8 @@ advance(30)
 check('54. durées longues : toujours au 1er trimestre à 30 s', ligne(gid)['trimestre'] == 1 and ligne(gid)['status'] == 'en_cours')
 regler(10, 10, 10)
 advance(6)
-check('54. durées réduites sous le temps écoulé : avance jusqu\'au terme puis naissance, étapes une seule fois',
+accoucher()
+check('54. durées réduites sous le temps écoulé : avance jusqu\'au terme, puis naissance (EMS), étapes une seule fois',
       ligne(gid)['status'] == 'accouchee' and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
 regler(10, 1000, 1000)
 ok, msg, gid = test_debut()
@@ -1061,7 +1158,8 @@ W.add_player(1, 'F001', 1, '1996-04-02', (100.0, 100.0, 30.0))
 for fn in W.events.get('elyzea:server:playerLogin', []):
     fn(1, False)
 advance(25)
-check('55. reconnexion : terme, naissance une seule fois, aucune étape en double', ligne(gid)['status'] == 'accouchee'
+accoucher()
+check('55. reconnexion : terme, naissance (EMS) une seule fois, aucune étape en double', ligne(gid)['status'] == 'accouchee'
       and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1] and len(W.nes) - nes0 == 1)
 
 # 56. redémarrage de la ressource pendant la grossesse
@@ -1071,7 +1169,8 @@ start_resource()
 G.Config.Grossesse.suivi = 5
 check('56. redémarrage : durées réglées rechargées depuis la base', G.Config.Grossesse.unite == 'secondes' and G.Config.Grossesse.trimestres[1] == 20)
 advance(45)
-check('56. après redémarrage : progression reprise, étapes et naissance une seule fois', ligne(gid)['status'] == 'accouchee'
+accoucher()
+check('56. après redémarrage : progression reprise, étapes et naissance (EMS) une seule fois', ligne(gid)['status'] == 'accouchee'
       and [nb(gid, k) for k in ('t2', 't3', 'terme', 'naissance')] == [1, 1, 1, 1])
 
 # 57. permissions et validations

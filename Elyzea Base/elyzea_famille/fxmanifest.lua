@@ -25,6 +25,7 @@ server_scripts {
     'moment_intime/server/intimite.lua',
     'grossesse/server/grossesse.lua',
     'grossesse/server/suivi.lua',
+    'grossesse/server/accouchement.lua',
     'server/staff.lua',
 }
 

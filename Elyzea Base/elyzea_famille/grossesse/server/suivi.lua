@@ -2,7 +2,7 @@
 --  ELYZEA FAMILLE - serveur : effets d'une grossesse et fin de grossesse
 --  · Toutes les Config.Grossesse.suivi secondes : étape, symptômes (faim, nausées, vomissements, démarche),
 --    envoyés à la seule personne concernée (rien n'est publié aux autres joueurs).
---  · Fin : accouchement par un EMS (menu ALT, consentement), automatique après le terme, ou par le staff.
+--  · Fin : accouchement par un EMS uniquement (V8, grossesse/server/accouchement.lua), secours admin, ou fin staff.
 --    La grossesse est close en base (une seule fois, même en cas de demandes simultanées), les effets s'arrêtent
 --    et le ou les bébés sont créés dans le jeu (elyzea_bebe_modele).
 --  Tout est recalculé à partir des dates enregistrées : rien n'est perdu après une déconnexion ou un redémarrage.
@@ -92,7 +92,8 @@ local function creerBebes(g, src)
     return ids
 end
 
--- raison : 'accouchement' (EMS) | 'naissance_auto' | 'naissance_staff' | 'fin_staff'
+-- raison : 'accouchement' (EMS, V8 : seule voie normale) | 'secours_admin' | 'fin_staff' | 'reinitialisation_test'
+-- (anciennes valeurs encore lisibles dans l'historique : 'naissance_auto', 'naissance_staff')
 -- Renvoie true, ids des bébés ; false si la grossesse était déjà terminée.
 function Fam.TerminerGrossesse(g, raison, src, par)
     local naissance = raison ~= 'fin_staff' and raison ~= 'reinitialisation_test'
@@ -118,13 +119,17 @@ local function suivre(src, cid, g, now)
         suivis[src] = st
     end
     local av = progresser(g, now)
-    local F = G.fin
-    -- naissance automatique : une fois le terme atteint + le délai réglé (0 = dès le terme) ; TerminerGrossesse est atomique
-    if av.terme and F.naissanceAutoActive and g.terme_at and now >= tonumber(g.terme_at) + math.max(0, tonumber(F.naissanceAuto) or 0) * HEURE then
-        if Fam.TerminerGrossesse(g, 'naissance_auto', src, 'serveur') then
-            Fam.Notify(src, 'Le travail a commencé… votre bébé est né.', 'success')
+    -- V8 : plus de naissance automatique. Au terme (ou dès que l'accouchement est possible), la patiente est prévenue
+    -- une fois par connexion qu'elle doit être prise en charge par un EMS ; appel automatique des EMS en option.
+    if Regles.accouchementPossible(av, G.fin) and not g.travail_etape and not st.prevenue then
+        st.prevenue = true
+        Fam.Notify(src, 'Le travail peut commencer : faites-vous prendre en charge par un EMS (application Urgences ou /ems). L\'accouchement se fait uniquement avec un EMS.', 'inform')
+        if G.accouchement.appelAuTerme and started('elyzea_ems') then
+            pcall(function()
+                local c = GetEntityCoords(GetPlayerPed(src))
+                exports.elyzea_ems:SendCall({ reason = 'Accouchement : patiente à prendre en charge', coords = c, urgency = 2 })
+            end)
         end
-        return
     end
     local S = Regles.symptomesActifs(av.numeroEtape, G.symptomes)
     -- faim plus rapide (au rythme du core)
@@ -199,58 +204,7 @@ AddEventHandler('elyzea_famille:server:conception', function(_, cid)
     end
 end)
 
--- ─────────── Accouchement par un EMS (menu ALT) ───────────
-
-local enCours = {}     -- [cid patiente] = true pendant l'accouchement
-RegisterNetEvent('elyzea_famille:accouchement', function(cible)
-    local src = source
-    if not Config.Modules.conception then return end
-    if type(cible) ~= 'number' then return Fam.Suspect(src, 'accouchement invalide') end
-    if not Fam.Limite(src, 'accouchement', 4, 60) then return Fam.Notify(src, 'Patientez un peu.', 'error') end
-    if not Fam.EmsEnService(src) then return Fam.Suspect(src, 'accouchement sans être EMS en service') end
-    local ems, patient = Fam.Joueur(src), Fam.Joueur(cible)
-    if not ems or not patient or cible == src then return Fam.Notify(src, 'Patiente introuvable.', 'error') end
-    local d = Fam.Distance(src, cible)
-    if d and d > 3.0 then return Fam.Notify(src, 'La patiente est trop loin.', 'error') end
-    if enCours[patient.cid] then return Fam.Notify(src, 'Un accouchement est déjà en cours.', 'error') end
-    local g = Fam.GrossesseEnCours(patient.cid)
-    if not g then return Fam.Notify(src, 'Pas de grossesse : aucun accouchement possible.', 'inform') end
-    if not Regles.accouchementPossible(Regles.avancement(g, os.time(), G), G.fin) then
-        return Fam.Notify(src, 'Le travail n\'a pas commencé : il est trop tôt pour accoucher.', 'inform')
-    end
-    local envoye = Fam.Consentement(cible, { type = 'medical', titre = 'Accouchement',
-        texte = 'Un EMS propose de vous accompagner pour l\'accouchement.' }, 30, function(accepte)
-        if not accepte then return Fam.Notify(src, 'La patiente a refusé.', 'inform') end
-        if enCours[patient.cid] or not Fam.EmsEnService(src) then return end
-        enCours[patient.cid] = true
-        local duree = math.max(0, tonumber(G.fin.dureeAccouchement) or 20)     -- 0 accepté : accouchement immédiat
-        evenement(g.id, 'travail', { ems = ems.cid })
-        TriggerClientEvent('elyzea_famille:client:accouchement', cible, 'patiente', duree)
-        TriggerClientEvent('elyzea_famille:client:accouchement', src, 'ems', duree)
-        SetTimeout(duree * 1000, function()
-            enCours[patient.cid] = nil
-            local ok, err = pcall(function()
-                local p2 = Fam.Joueur(cible)
-                local d2 = Fam.Distance(src, cible)
-                if not p2 or p2.cid ~= patient.cid or not Fam.EmsEnService(src) or (d2 and d2 > 5.0) then
-                    Fam.Notify(src, 'Accouchement interrompu.', 'error')
-                    if GetPlayerName(cible) then Fam.Notify(cible, 'Accouchement interrompu.', 'error') end
-                    return
-                end
-                local g2 = Fam.GrossesseEnCours(patient.cid)
-                if not g2 or g2.id ~= g.id then return end
-                local fait, ids = Fam.TerminerGrossesse(g2, 'accouchement', cible, ems.cid)
-                if not fait then return end
-                local txt = g2.bebes == 1 and 'un bébé' or (g2.bebes == 2 and 'des jumeaux' or 'des triplés')
-                Fam.Notify(src, ('Accouchement réussi : %s.'):format(txt), 'success')
-                Fam.Notify(cible, ('Félicitations : %s !'):format(txt), 'success')
-                if G.fin.bebesEnJeu and #ids == 0 then Fam.Notify(src, 'Le bébé n\'a pas pu être placé dans le jeu (voir la console serveur).', 'error') end
-            end)
-            if not ok then Fam.err('accouchement : ' .. tostring(err)) end
-        end)
-    end)
-    if not envoye then Fam.Notify(src, 'La patiente a déjà une demande en attente.', 'error') end
-end)
+-- ─────────── Accouchement : grossesse/server/accouchement.lua (V8 : uniquement avec un EMS, par étapes) ───────────
 
 -- ─────────── Tests (menu admin, permission famille_manage vérifiée par reglages.lua) ───────────
 -- test_debut : grossesse de test pour le personnage (ID en jeu), découverte tout de suite, avec les durées actuelles.
@@ -287,13 +241,18 @@ end
 RegisterCommand(Config.Staff.fin, function(src, args)
     local function dire(t) if src == 0 then print(t) else TriggerClientEvent('chat:addMessage', src, { args = { 'Famille', t } }) end end
     local cible = tonumber(args[1])
-    if not cible then return dire('Usage : /' .. Config.Staff.fin .. ' [id joueur] [naissance]') end
+    if not cible then return dire('Usage : /' .. Config.Staff.fin .. ' [id joueur] [naissance motif…]') end
     local j = Fam.Joueur(cible)
     if not j then return dire('Joueur introuvable ou personnage non chargé.') end
     local g = Fam.GrossesseEnCours(j.cid)
     if not g then return dire('Aucune grossesse en cours pour ce personnage.') end
     local acteur = src == 0 and 'console' or ((Fam.Joueur(src) or {}).cid or ('src:' .. src))
-    local fait, ids = Fam.TerminerGrossesse(g, args[2] == 'naissance' and 'naissance_staff' or 'fin_staff', cible, acteur)
+    if args[2] == 'naissance' then
+        -- V8 : une naissance sans EMS passe par la procédure de secours (aucun EMS en service, motif obligatoire)
+        local ok, msg = Fam.AccouchementSecours({ sid = cible, raison = table.concat(args, ' ', 3) }, acteur)
+        return dire(msg)
+    end
+    local fait, ids = Fam.TerminerGrossesse(g, 'fin_staff', cible, acteur)
     dire(fait and ('Grossesse %s terminée (%s, %d bébé(s) placé(s)).'):format(g.id, args[2] == 'naissance' and 'naissance' or 'sans naissance', #ids)
         or 'Déjà terminée.')
 end, true)

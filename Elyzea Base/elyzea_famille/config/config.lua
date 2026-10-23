@@ -122,11 +122,31 @@ Config.Grossesse = {
     -- Fin de grossesse
     fin = {
         accouchementDes = 0.90,  -- part de la grossesse à partir de laquelle un EMS peut faire accoucher (1 = au terme seulement)
-        dureeAccouchement = 20,  -- secondes (écran noir pour la patiente, l'EMS reste à genoux)
-        naissanceAutoActive = true, -- naissance automatique sans EMS (personnage connecté)
-        naissanceAuto = 24,      -- heures après le terme avant cette naissance automatique ; 0 = dès le terme
+        dureeAccouchement = 20,  -- secondes : étape « Naissance » (écran noir pour la patiente sans péridurale, l'EMS à genoux)
+        -- V8 : plus AUCUNE naissance automatique : l'accouchement se fait uniquement avec un EMS en service (ci-dessous)
         bebesEnJeu = true,       -- crée le ou les bébés (ressource elyzea_bebe_modele) à côté de la patiente
-        apparenceBebe = { teinte = 'peau3', tenue = 'pyjama', yeux = 'ardoise', coiffure = 'duvet_brun' },
+        -- V8 : à la naissance, une simple couche et la chevelure « naissance » (plus fournie que le duvet). Habillable ensuite.
+        apparenceBebe = { teinte = 'peau3', tenue = 'couche', yeux = 'ardoise', coiffure = 'naissance_brun' },
+    },
+    -- V8 : accouchement OBLIGATOIREMENT assisté par un EMS en service (menu ALT sur la patiente › Accouchement).
+    -- Chaque étape est validée par le serveur (EMS en service, distance, ordre, délai), enregistrée en base
+    -- (rp_pregnancies.travail_etape / travail) et reprise après une déconnexion ou un redémarrage.
+    accouchement = {
+        -- délai = secondes minimales depuis l'étape précédente ; duree = acte en cours (animations), 0 = immédiat ;
+        -- acte = soin inscrit au dossier médical EMS (tablette › Patients ; facturable selon les tarifs de la direction)
+        etapes = {
+            { id = 'prise_en_charge', label = 'Prise en charge par un EMS', delai = 0, duree = 0, acte = 'consult' },
+            { id = 'evaluation', label = 'Évaluation de la patiente (contractions, dilatation, rythme du bébé)', delai = 20, duree = 8 },
+            { id = 'preparation', label = 'Préparation à l\'accouchement', delai = 20, duree = 8 },
+            { id = 'travail', label = 'Accompagnement du travail', delai = 20, duree = 12 },
+            { id = 'naissance', label = 'Naissance', delai = 10, duree = 20 },   -- durée remplacée par fin.dureeAccouchement
+            { id = 'validation', label = 'Validation finale par l\'EMS', delai = 0, duree = 0, acte = 'accouchement' },
+        },
+        peridurale = true,       -- proposée par l'EMS après l'évaluation et avant la naissance ; choix de la patiente
+        distance = 4.0,          -- mètres entre l'EMS et la patiente
+        appelAuTerme = false,    -- au terme, appel automatique des EMS (dispatch existant). Sinon : la patiente appelle (Urgences / /ems)
+        secours = true,          -- procédure de secours dans le menu admin (permission famille_manage, motif obligatoire, journalisée)
+        secoursSansEmsSeulement = true, -- secours refusé s'il y a au moins un EMS en service
     },
 }
 

@@ -112,6 +112,9 @@ Config.Billing = {
         { id = 'stabilize', label = 'Stabilisation',         price = 400,  enabled = true },
         { id = 'revive',    label = 'Réanimation',           price = 1500, enabled = true },
         { id = 'transport', label = 'Transport en ambulance', price = 800, enabled = true },
+        -- V8 (elyzea_famille) : accouchement assisté et péridurale, inscrits au dossier du patient
+        { id = 'accouchement', label = 'Accouchement', price = 2500, enabled = true },
+        { id = 'peridurale', label = 'Péridurale', price = 600, enabled = true },
     },
 }
 

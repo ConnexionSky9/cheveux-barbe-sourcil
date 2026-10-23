@@ -251,6 +251,9 @@ function R.texteEvenement(kind, data)
     elseif kind == 'examen' then
         local titre, desc = t('examen')
         return titre, desc:format(data.jour and (L.examen_jour or ', jour %s'):format(data.jour) or '')
+    elseif kind == 'travail' and data.label then
+        -- V8 : étapes de l'accouchement assisté par un EMS
+        return ('Accouchement : %s'):format(data.label:lower()), 'Étape réalisée par un EMS en service.'
     elseif kind == 't2' or kind == 't3' or kind == 'terme' or kind == 'travail' then
         return t(kind)
     elseif kind == 'naissance' then

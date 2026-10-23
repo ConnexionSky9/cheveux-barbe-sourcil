@@ -8,6 +8,14 @@ exports('IsOnDuty', function(src) return P.OnDuty(tonumber(src)) end)
 exports('HasPermission', function(src, perm) return P.Can(tonumber(src), perm) end)
 exports('GetOnDutyCount', function() return #P.CrewOnDuty() end)
 exports('IsDown', function(src) return P.IsDown(tonumber(src)) end)
+-- V8 (elyzea_famille) : acte inscrit au dossier du patient (tablette › Patients ; facturable selon les tarifs).
+-- Le service doit exister dans Config.Billing.services ; emsSrc = EMS qui a réalisé l'acte.
+exports('AddTreatment', function(target, service, emsSrc)
+    target, emsSrc = tonumber(target), tonumber(emsSrc)
+    if not target or type(service) ~= 'string' or not P.OnDuty(emsSrc) then return false end
+    P.AddTreatment(target, service, emsSrc)
+    return true
+end)
 
 -- Réanimation par une autre ressource (le contrôle d'accès est fait par l'appelant)
 exports('Revive', function(src, health) return P.Revive(tonumber(src), health) end)

@@ -160,7 +160,12 @@ exports('AltOptions', function(ctx)
     end
     if Config.Modules.conception and Config.Grossesse.examenEms and emsEnService() then
         out[#out + 1] = { id = 'examen', label = 'Examen de grossesse', icon = 'examine' }
-        out[#out + 1] = { id = 'accouchement', label = 'Accouchement', icon = 'examine' }
+        -- V8 : accouchement par étapes (le serveur fait l'étape suivante de la procédure enregistrée)
+        out[#out + 1] = { id = 'accouchement', label = 'Accouchement : étape suivante', icon = 'examine' }
+        if Config.Grossesse.accouchement and Config.Grossesse.accouchement.peridurale then
+            out[#out + 1] = { id = 'peridurale', label = 'Accouchement : proposer la péridurale', icon = 'examine' }
+        end
+        out[#out + 1] = { id = 'accouchement_etat', label = 'Accouchement : où en est-on ?', icon = 'examine' }
     end
     return out
 end)
@@ -171,7 +176,9 @@ exports('AltSelect', function(id, ctx)
         if id == 'intime' then proposer(ctx.sid)
         elseif id == 'implant' or id == 'retrait' or id == 'ordonnance' then TriggerServerEvent('elyzea_famille:ems', id, ctx.sid)
         elseif id == 'examen' then TriggerServerEvent('elyzea_famille:examen', ctx.sid)
-        elseif id == 'accouchement' then TriggerServerEvent('elyzea_famille:accouchement', ctx.sid) end
+        elseif id == 'accouchement' then TriggerServerEvent('elyzea_famille:accouchement', ctx.sid)
+        elseif id == 'peridurale' then TriggerServerEvent('elyzea_famille:accouchement:peridurale', ctx.sid)
+        elseif id == 'accouchement_etat' then TriggerServerEvent('elyzea_famille:accouchement:etat', ctx.sid) end
     end)
     return true
 end)
