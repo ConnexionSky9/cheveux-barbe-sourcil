@@ -82,7 +82,11 @@ P.Actions.patient = { perm = 'records_view', fn = function(src, d)
         WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 80]], { cid }) or {}
     for _, t in ipairs(treatments) do t.label = SERVICE_LABEL[t.service] or t.service end
     P.Log(src, 'Consultation de dossier', name)
+    local procs, vacc = {}, {}
+    if P.ProcHistory then procs, vacc = P.ProcHistory(cid, src) end
     return { patient = {
+        procedures = procs, vaccinations = vacc,
+        injuries = P.InjuryHistory and P.InjuryHistory(cid) or {},
         cid = cid, name = name, online = s ~= nil, id = s, down = s and P.IsDown(s) or false,
         blood = file.blood, allergies = file.allergies, notes = file.notes, updatedBy = file.updated_by, updated = file.u,
         treatments = treatments,

@@ -1102,6 +1102,29 @@ rx = from_lua(sg(999))
 check('59. export pour l\'Aura : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
       and r1['grossesse']['id'] == gid and r1['historique'][0]['titre'] == 'Grossesse de test', r1)
 check('59. un autre joueur ne voit que ses propres données ; joueur inconnu refusé', r3.get('statut') == 'aucune' and 'erreur' in rx, (r3, rx))
+
+# 60. actes EMS en mini-jeux (elyzea_ems) : échographie, pose et retrait de l'implant par export
+#     (consentement et mini-jeu vérifiés par le serveur d'elyzea_ems avant l'appel)
+pack = lua.eval('function(f, ...) return table.pack(f(...)) end')
+ech = from_lua(G.EXPORTS_LUA['EchographieEms'](3, 1))
+check('60. échographie EMS : grossesse en cours, jour et terme', ech.get('pregnant') is True and ech.get('day', 0) >= 1 and ech.get('days', 0) >= ech.get('day', 0), ech)
+check('60. échographie EMS : événement « examen » ajouté au suivi', nb(gid, 'examen') >= 1)
+ech3 = from_lua(G.EXPORTS_LUA['EchographieEms'](3, 3))
+check('60. échographie EMS sans grossesse : négatif', ech3.get('pregnant') is False, ech3)
+check('60. implant du test 13 expiré depuis : fin passée', (G.EXPORTS_LUA['ImplantFin'](2) or 0) <= W.now)
+r = pack(G.EXPORTS_LUA['RetraitImplantEms'], 2, 3)
+check('60. retrait sans implant actif : refusé', r[1] is False)
+W.inv[3]['implant_contraceptif'] = 1
+r = pack(G.EXPORTS_LUA['PoseImplantEms'], 2, 1)
+check('60. pose par un non-EMS : refusée, objet gardé', r[1] is False and W.inv[3]['implant_contraceptif'] == 1)
+r = pack(G.EXPORTS_LUA['PoseImplantEms'], 2, 3)
+check('60. pose EMS : implant posé, objet retiré une fois, date de fin renvoyée', r[1] is True and W.inv[3]['implant_contraceptif'] == 0
+      and r[2] == G.EXPORTS_LUA['ImplantFin'](2) and r[2] == W.now + 720 * H, (r[1], r[2]))
+r = pack(G.EXPORTS_LUA['PoseImplantEms'], 2, 3)
+check('60. 2e pose : refusée (implant déjà en place)', r[1] is False)
+r = pack(G.EXPORTS_LUA['RetraitImplantEms'], 2, 3)
+check('60. retrait EMS : implant retiré et journalisé', r[1] is True and G.EXPORTS_LUA['ImplantFin'](2) == 0
+      and q("SELECT 1 FROM rp_contraception_log WHERE citizenid = 'M002' AND action = 'retrait'"), r[1])
 admin(3, 'test_fin', {'sid': 1})
 ok, msg = admin(3, 'reset')
 SUIVI[0] = 60

@@ -86,7 +86,11 @@ RegisterNUICallback('examAction', function(body, cb)
     C.ui.exam.close()
     CreateThread(function()
         local a = body.act
+        if a == 'revive' and Proc('cpr') then a = 'cpr' end
+        if a == 'splint' and Proc('cast') then a = 'procs' end
         if a == 'heal' or a == 'stabilize' or a == 'revive' or a == 'splint' or a == 'treat' then C.MedAct(a, sid)
+        elseif a == 'procs' then C.ProcMenu(sid)
+        elseif a == 'cpr' or a == 'hemostasis' then C.ProcMenu(sid, a)
         elseif a == 'bill' then C.OpenBill(sid)
         elseif a == 'report' then C.OpenTablet({ page = 'reportNew', src = sid }) end
     end)
@@ -184,6 +188,9 @@ end
 -- ALT : options et choix (appelés par elyzea_police/client/alt.lua)
 -- ---------------------------------------------------------------------
 local function NameOf(sid) return ('Personne · ID %d'):format(sid) end
+-- Actes en mini-jeux actifs (publiés par le serveur : server/procedures.lua)
+local function Proc(act) local g = GlobalState.emsProcs return type(g) == 'table' and g[act] == true end
+local function AnyProc() local g = GlobalState.emsProcs if type(g) ~= 'table' then return false end for _, on in pairs(g) do if on then return true end end return false end
 
 function C.AltOptions(ctx)
     local out = {}
@@ -193,13 +200,26 @@ function C.AltOptions(ctx)
         local down = IsDownSid(sid)
         local mine = Player(sid).state.emsEscortedBy == Me()
         if C.Can('medical') then out[#out + 1] = { id = 'examine', label = 'Examiner / état de santé', icon = 'examine' } end
+        -- accès rapide d'urgence (sans passer par la liste des actes)
+        local st = Player(sid).state.emsProc
+        if st and st.act == 'hemostasis' and st.ems ~= Me() and C.Can('stabilize') then
+            out[#out + 1] = { id = 'assist', label = 'Aider à la compression', icon = 'stabilize', desc = 'Hémorragie critique' }
+        elseif Proc('hemostasis') and C.Can('stabilize') and not ctx.inVehicle then
+            out[#out + 1] = { id = 'hemostasis', label = 'Contrôler l\'hémorragie', icon = 'stabilize' }
+        end
         if down then
             if C.Can('stabilize') then out[#out + 1] = { id = 'stabilize', label = 'Stabiliser', icon = 'stabilize' } end
-            if C.Can('revive') then out[#out + 1] = { id = 'revive', label = 'Réanimer', icon = 'revive' } end
+            if C.Can('revive') then
+                if Proc('cpr') then out[#out + 1] = { id = 'cpr', label = 'Massage cardiaque (réanimation)', icon = 'revive' }
+                else out[#out + 1] = { id = 'revive', label = 'Réanimer', icon = 'revive' } end
+            end
         elseif C.Can('heal') then
             out[#out + 1] = { id = 'heal', label = 'Soigner', icon = 'heal' }
-            out[#out + 1] = { id = 'splint', label = 'Poser une attelle (jambe)', icon = 'heal' }
+            if not Proc('cast') then out[#out + 1] = { id = 'splint', label = 'Poser une attelle (jambe)', icon = 'heal' } end
             out[#out + 1] = { id = 'treat', label = 'Donner un traitement (rhume, MST…)', icon = 'heal' }
+        end
+        if C.Can('medical') and AnyProc() and not ctx.inVehicle then
+            out[#out + 1] = { id = 'procs', label = 'Actes et examens…', icon = 'examine', desc = 'Prise de sang, imagerie, attelle, vaccin…' }
         end
         if C.Can('escort') and not ctx.inVehicle then
             out[#out + 1] = { id = 'escort', label = mine and 'Lâcher le patient' or (down and 'Porter le patient' or 'Accompagner le patient'), icon = 'escort' }
@@ -211,7 +231,7 @@ function C.AltOptions(ctx)
                 out[#out + 1] = { id = 'putIn', label = 'Installer dans le véhicule', icon = 'in', disabled = not veh, desc = not veh and 'Aucun véhicule à proximité' or nil }
             end
         end
-        if C.Can('lab_sample') and not ctx.inVehicle then out[#out + 1] = { id = 'lab_sample', label = 'Prélèvement sanguin (laboratoire)', icon = 'blood' } end
+        if C.Can('lab_sample') and not ctx.inVehicle and not Proc('blood') then out[#out + 1] = { id = 'lab_sample', label = 'Prélèvement sanguin (laboratoire)', icon = 'blood' } end
         if C.Can('reports_write') then out[#out + 1] = { id = 'report', label = 'Compte rendu d\'intervention', icon = 'record' } end
         if C.Can('billing') then out[#out + 1] = { id = 'bill', label = 'Facturer les soins', icon = 'fine' } end
         if C.Can('ppa_civil') and not down then out[#out + 1] = { id = 'ppa_civil', label = 'Délivrer un PPA civil', icon = 'ppa' } end
@@ -241,12 +261,18 @@ function C.AltSelect(id, ctx)
     end
     local t = ctx and ctx.sid
     if not t then return end
+    -- actes simples remplacés par les mini-jeux quand ils sont actifs (F6, examen)
+    if id == 'revive' and Proc('cpr') then id = 'cpr' end
+    if id == 'splint' and Proc('cast') then id = 'procs' end
     if id == 'examine' then C.Examine(t)
     elseif id == 'heal' or id == 'stabilize' or id == 'revive' or id == 'splint' or id == 'treat' then C.MedAct(id, t)
     elseif id == 'escort' then C.Do('escort', { target = t })
     elseif id == 'putIn' then PutIn(t)
     elseif id == 'takeOut' then C.Do('takeOut', { target = t })
     elseif id == 'lab_sample' then C.LabSample(t)
+    elseif id == 'procs' then C.ProcMenu(t)
+    elseif id == 'cpr' or id == 'hemostasis' then C.ProcMenu(t, id)
+    elseif id == 'assist' then C.ProcAssist(t)
     elseif id == 'report' then C.OpenTablet({ page = 'reportNew', src = t })
     elseif id == 'bill' then C.OpenBill(t)
     elseif id == 'ppa_civil' then C.OpenPpa(t, 'civil')

@@ -126,6 +126,7 @@ files {
     'html/drugsale.js',
     'html/drogues.js',
     'html/sante.js',
+    'html/sante_actes.js',
     'html/labs.js',
     'html/tags.js',
     'html/guards.js',

@@ -64,6 +64,12 @@ Items = {
     morphine      = { label = 'Morphine', weight = 100, stack = true, max = 10, icon = '💉' },
     blood_bag     = { label = 'Poche de sang', weight = 500, stack = true, max = 10, icon = '🩸' },
     splint        = { label = 'Attelle', weight = 300, stack = true, max = 10, icon = '🦴' },
+    -- Actes médicaux en mini-jeux (elyzea_ems/config_procedures.lua) : retirés par le serveur EMS à la fin de l'acte réussi
+    kit_prelevement = { label = 'Kit de prélèvement', weight = 80, stack = true, max = 20, icon = '🩸', description = 'Aiguille, tubes et garrot pour une prise de sang (EMS).' },
+    platre          = { label = 'Bande plâtrée', weight = 400, stack = true, max = 10, icon = '🩼', description = 'Pose d\'un plâtre après radiographie (EMS).' },
+    vaccin_grippe   = { label = 'Vaccin anti-grippal', weight = 20, stack = true, max = 20, icon = '💉', description = 'Protège du rhume pendant 30 jours (EMS).' },
+    vaccin_tetanos  = { label = 'Vaccin antitétanique', weight = 20, stack = true, max = 20, icon = '💉', description = 'Vaccination RP (EMS).' },
+    vaccin_mst      = { label = 'Prévention MST (RP)', weight = 20, stack = true, max = 20, icon = '💉', description = 'Protocole RP, si activé par le staff (EMS).' },
 
     -- Récoltes et ateliers (admin_menu)
     weed_leaf        = { label = 'Feuille de weed', weight = 20, stack = true, max = 500 },

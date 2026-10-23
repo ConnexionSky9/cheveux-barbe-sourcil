@@ -70,7 +70,8 @@ Règles de hiérarchie (serveur) : on n'agit que sur un grade inférieur au sien
 
 ## Tables
 `ems_settings`, `ems_grades`, `ems_employees`, `ems_admin_log`, `ems_sessions`, `ems_rates`, `ems_transactions`, `ems_calls`, `ems_call_log`,
-`ems_support`, `ems_treatments`, `ems_invoices`, `ems_ppa`, `ems_patients`, `ems_reports`, `ems_report_history`.
+`ems_support`, `ems_treatments`, `ems_invoices`, `ems_ppa`, `ems_patients`, `ems_reports`, `ems_report_history`,
+`ems_injuries`, `ems_procedures`, `ems_vaccinations` (actes médicaux en mini-jeux).
 
 ## Exports
 Serveur : `IsEms(src)`, `IsOnDuty(src)`, `HasPermission(src, perm)`, `GetOnDutyCount()`, `IsDown(src)`, `Revive(src, health)`,
@@ -185,3 +186,24 @@ Tests hors jeu : `python3 tests/run_lab_sim.py`.
 - La détection de chute se fait côté client. Le serveur limite à une chute toutes les 10 s et refuse les hauteurs absurdes.
 - Les MST ne se transmettent que par le moment intime d'`elyzea_famille`. Le rhume se transmet par la proximité.
 - La réapparition à l'hôpital ne soigne pas la jambe : il faut une attelle.
+
+## Actes médicaux en mini-jeux
+
+> **Rien n'a été testé en jeu.** Tout est détaillé dans **[ACTES_MEDICAUX.md](ACTES_MEDICAUX.md)** :
+> audit, fonctionnement, réglages, installation, fichiers, résultats réels des tests hors jeu, plan de test en jeu, limites.
+
+Le menu ALT › **« Actes et examens… »** (aussi dans F6 et la fenêtre d'examen) propose les actes suivants, chacun sous forme de mini-jeu de difficulté intermédiaire :
+- prise de sang ;
+- radiographie ;
+- attelle / plâtre ;
+- contrôle d'hémorragie et pansement compressif ;
+- massage cardiaque ;
+- échographie ;
+- scanner ;
+- vaccination ;
+- pose et retrait d'implant contraceptif.
+
+Le serveur vérifie chaque étape : permission, service, distance, consentement du patient, matériel, un seul acte à la fois, résultat validé une seule fois.
+Les actes réussis vont dans le dossier médical (« Examens et actes ») et dans les actes facturables.
+Réglages : admin_menu › Santé › « Actes médicaux (mini-jeux) ».
+Tests hors jeu : `python3 tests/run_procedures_sim.py`, `python3 tests/run_procedures_sim.py --client`, `node tests/ui_proc.js`.

@@ -10,9 +10,11 @@ version '1.0.0'
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
     'config.lua',
+    'config_procedures.lua',
     'shared/perms.lua',
     'shared/lab_rules.lua',
     'shared/health_rules.lua',
+    'shared/procedure_rules.lua',
 }
 
 server_scripts {
@@ -32,6 +34,8 @@ server_scripts {
     'server/appointments.lua',
     'server/health.lua',
     'server/lab.lua',
+    'server/injuries.lua',
+    'server/procedures.lua',
     'server/direction.lua',
     'server/garage.lua',
     'server/phone.lua',
@@ -48,6 +52,7 @@ client_scripts {
     'client/phone.lua',
     'client/garage.lua',
     'client/health.lua',
+    'client/procedures.lua',
 }
 
 ui_page 'html/index.html'
@@ -58,6 +63,8 @@ files {
     'html/app.js',
     'html/tablet.js',
     'html/map.js',
+    'html/proc.js',
+    'html/proc.css',
     'html/img/*',
 }
 

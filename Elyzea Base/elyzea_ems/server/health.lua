@@ -101,6 +101,8 @@ function P.HealthGive(src, kind, source, cid)
     local h = src and P.health[src]
     if src and not h then Load(src) h = P.health[src] end
     if h and h.active[kind] then return false, 'Déjà atteint.' end
+    -- vaccin en cours de validité (server/procedures.lua) : protège des contaminations, pas des maladies données par le staff
+    if source ~= 'staff' and P.ProcImmune and P.ProcImmune(cid, kind) then return false, 'Protégé par un vaccin.' end
     if not h then
         local n = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `ems_conditions` WHERE `citizenid` = ? AND `kind` = ? AND `active` = 1', { cid, kind })) or 0
         if n > 0 then return false, 'Déjà atteint.' end
@@ -235,7 +237,11 @@ RegisterNetEvent('ems:server:fall', function(height)
     lastFall[src] = now
     -- (une chute qui met à terre blesse aussi la jambe : on boite après la réanimation)
     if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then return end
-    if HR.FallInjury(height, set) and not P.HealthHas(src, 'leg') then P.HealthGive(src, 'leg', 'chute') end
+    if HR.FallInjury(height, set) then
+        if not P.HealthHas(src, 'leg') then P.HealthGive(src, 'leg', 'chute') end
+        -- fracture localisée (radiographie, attelle / plâtre) : server/injuries.lua
+        if P.InjuryFall then P.InjuryFall(src, height) end
+    end
 end)
 AddEventHandler('playerDropped', function() lastFall[source] = nil end)
 
@@ -321,7 +327,7 @@ local function OnlineList()
             local c = set.conditions[kind]
             conds[#conds + 1] = { kind = kind, label = c and c.label or kind, splinted = r.splinted, diagnosed = r.diagnosed, since = r.since, expires = r.expires }
         end
-        out[#out + 1] = { id = src, name = P.Name(src), conditions = conds }
+        out[#out + 1] = { id = src, name = P.Name(src), conditions = conds, injuries = P.ProcAdminPlayer and P.ProcAdminPlayer(src) or {} }
     end
     table.sort(out, function(a, b) return a.id < b.id end)
     return out
@@ -332,7 +338,8 @@ local function AdminData()
     local conds = {}
     for _, id in ipairs(set.order) do conds[#conds + 1] = set.conditions[id] end
     return { ok = true, enabled = set.enabled, fall = set.fall, splint = set.splint, conditions = conds,
-        appointments = P.ApptSettings(), points = P.RecordsPoints(), players = OnlineList() }
+        appointments = P.ApptSettings(), points = P.RecordsPoints(), players = OnlineList(),
+        procedures = P.ProcAdminData and P.ProcAdminData() or nil }
 end
 
 exports('HealthAdmin', function(op, src, d)
@@ -374,6 +381,11 @@ exports('HealthAdmin', function(op, src, d)
     if op == 'pointRemove' then
         local ok, msg = P.RecordsPointRemove(src, d.id)
         return ok and { ok = true, message = msg } or { error = msg }
+    end
+    -- Actes médicaux en mini-jeux et blessures localisées (server/procedures.lua)
+    if P.ProcAdmin then
+        local r = P.ProcAdmin(op, src, d)
+        if r then return r end
     end
     return { error = 'Action inconnue.' }
 end)

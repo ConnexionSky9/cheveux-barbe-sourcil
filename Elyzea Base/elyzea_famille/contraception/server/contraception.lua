@@ -104,6 +104,49 @@ local function poserImplant(patientSrc, fournisseurSrc, parCid)
     return res
 end
 
+-- Actes EMS en mini-jeux (elyzea_ems) : consentement et mini-jeu déjà validés par le serveur d'elyzea_ems
+local function emsProc(acte)
+    if GetResourceState('elyzea_ems') ~= 'started' then return false end
+    local ok, on = pcall(function() return exports.elyzea_ems:ProcEnabled(acte) end)
+    return ok and on == true
+end
+
+-- Fin de protection de l'implant du joueur (0 = aucun)
+exports('ImplantFin', function(src)
+    local j = Fam.Joueur(src)
+    if not j then return nil end
+    return tonumber(Fam.EtatContraception(j.cid).implant_until) or 0
+end)
+
+-- Pose : l'objet est retiré à l'EMS ; renvoie true + fin de protection
+exports('PoseImplantEms', function(patientSrc, emsSrc)
+    if not Config.Modules.contraception or not C.implant.actif then return false end
+    local ems = Fam.Joueur(emsSrc)
+    if not ems or not Fam.EmsEnService(emsSrc) then return false end
+    local ok = poserImplant(patientSrc, emsSrc, ems.cid)
+    if ok then
+        local j = Fam.Joueur(patientSrc)
+        Fam.Audit(ems.cid, 'ems_implant', j and j.cid)
+        return true, j and tonumber(Fam.EtatContraception(j.cid).implant_until) or nil
+    end
+    return false
+end)
+
+-- Retrait (acte distinct de la pose)
+exports('RetraitImplantEms', function(patientSrc, emsSrc)
+    if not Config.Modules.contraception then return false end
+    local ems, patient = Fam.Joueur(emsSrc), Fam.Joueur(patientSrc)
+    if not ems or not patient or not Fam.EmsEnService(emsSrc) then return false end
+    if (tonumber(Fam.EtatContraception(patient.cid).implant_until) or 0) <= os.time() then return false end
+    if not verrou(patient.cid) then return false end
+    ecrire(patient.cid, 'implant_until', 0)
+    liberer(patient.cid)
+    Fam.JournalContraception(patient.cid, 'implant', 'retrait', ems.cid, 0)
+    Fam.Notify(patientSrc, 'Implant retiré : vous n\'êtes plus protégé(e) par l\'implant.', 'inform')
+    Fam.Audit(ems.cid, 'ems_retrait', patient.cid)
+    return true
+end)
+
 local function utiliserImplant(src)
     if not Config.Modules.contraception or not C.implant.actif then return end
     if C.implant.poseParEms then
@@ -128,6 +171,10 @@ RegisterNetEvent('elyzea_famille:ems', function(acte, cible)
     if not Fam.Limite(src, 'ems', 5, 60) then return Fam.Notify(src, 'Patientez un peu.', 'error') end
     if not Fam.EmsEnService(src) then return Fam.Suspect(src, 'acte EMS sans être EMS en service') end
     if acte == 'implant' and not (C.implant.actif and C.implant.poseParEms) then return end
+    -- pose / retrait faits par l'acte en mini-jeu d'elyzea_ems quand il est actif (pas de raccourci)
+    if (acte == 'implant' or acte == 'retrait') and emsProc('implant') then
+        return Fam.Notify(src, 'Utilisez l\'acte « Implant contraceptif » du menu EMS (Actes et examens).', 'inform')
+    end
     if acte == 'ordonnance' and not (C.pilule.actif and C.pilule.ordonnance) then return end
     local ems, patient = Fam.Joueur(src), Fam.Joueur(cible)
     if not ems or not patient or cible == src then return Fam.Notify(src, 'Patient introuvable.', 'error') end

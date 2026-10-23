@@ -114,6 +114,14 @@ Config.Billing = {
         { id = 'transport', label = 'Transport en ambulance', price = 800, enabled = true },
         { id = 'splint',    label = 'Pose d\'une attelle',    price = 600,  enabled = true },
         { id = 'treat',     label = 'Traitement (rhume, MST…)', price = 300, enabled = true },
+        -- Actes médicaux en mini-jeux (config_procedures.lua)
+        { id = 'blood',      label = 'Prise de sang',          price = 300, enabled = true },
+        { id = 'xray',       label = 'Radiographie',           price = 400, enabled = true },
+        { id = 'hemostasis', label = 'Contrôle d\'hémorragie', price = 400, enabled = true },
+        { id = 'echo',       label = 'Échographie',            price = 500, enabled = true },
+        { id = 'scan',       label = 'Scanner',                price = 800, enabled = true },
+        { id = 'vaccine',    label = 'Vaccination',            price = 150, enabled = true },
+        { id = 'implant',    label = 'Implant contraceptif (pose / retrait)', price = 400, enabled = true },
     },
 }
 
@@ -168,15 +176,15 @@ Config.DefaultGrades = {
                 'records_view', 'records_write', 'reports_write', 'map', 'billing' } },
     { name = 'Infirmier',     level = 3, salary = 700,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
-                'records_view', 'records_write', 'reports_write', 'map', 'billing', 'ppa_civil', 'lab_sample', 'lab_view' } },
+                'records_view', 'records_write', 'reports_write', 'map', 'billing', 'ppa_civil', 'lab_sample', 'lab_view', 'imaging', 'vaccinate' } },
     { name = 'Médecin',       level = 4, salary = 900,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
                 'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view',
-                'lab_sample', 'lab_analyze', 'lab_view' } },
+                'lab_sample', 'lab_analyze', 'lab_view', 'imaging', 'vaccinate', 'implant', 'records_sensitive' } },
     { name = 'Chef de service', level = 5, salary = 1100,
       perms = { 'duty', 'medical', 'heal', 'stabilize', 'revive', 'escort', 'vehicle', 'calls', 'calls_manage', 'support', 'support_close', 'tablet',
                 'records_view', 'records_write', 'reports_write', 'reports_manage', 'map', 'billing', 'ppa_civil', 'ppa_fdo', 'stats_view',
-                'lab_sample', 'lab_analyze', 'lab_view', 'direction', 'recruit', 'employees_view', 'promote', 'demote', 'history_view' } },
+                'lab_sample', 'lab_analyze', 'lab_view', 'imaging', 'vaccinate', 'implant', 'records_sensitive', 'direction', 'recruit', 'employees_view', 'promote', 'demote', 'history_view' } },
     { name = 'Directeur',     level = 6, salary = 1400, perms = 'all' },
 }
 
