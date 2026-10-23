@@ -9,11 +9,11 @@
    SERVEUR
    --------------------------------------------------------------------- */
 const server = {
-    name: "ELYZEA",                       // Nom animé lettre par lettre
+    name: "ELYZEA",                       // Nom affiché sous le logo (l'intro utilise intro.words)
     subtitle: "Roleplay",                 // Petit texte sous le nom
     slogan: "Choisis ton camp. Écris ton histoire.", // Texte « machine à écrire » ("" pour désactiver)
     logo: "assets/logo/logo.webp",         // Chemin du logo
-    logoSize: "min(40vh, 62vw)",          // Taille du logo (toute valeur CSS)
+    logoSize: "min(32vh, 56vw)",          // Taille du logo dans l'interface (toute valeur CSS)
     showName: true                        // false = n'affiche que le logo
 };
 
@@ -29,16 +29,17 @@ const server = {
          effect: "zoom-in",                       // facultatif (sinon automatique)
          transition: "blur"                       // facultatif (sinon automatique)
        }
+   label : facultatif, remplace « Côté légal / illégal » dans la légende.
    Effets disponibles      : zoom-in, zoom-out, pan-left, pan-right, pan-up, pan-down, rotate, drift
    Transitions disponibles : fade, blur, zoom, wipe-left, wipe-right, iris
    --------------------------------------------------------------------- */
 const slides = [
-    { src: "assets/images/photo1.jpg", title: "Los Santos Police Department", side: "legal" },
-    { src: "assets/images/photo2.jpg", title: "Les rues appartiennent aux gangs", side: "illegal" },
-    { src: "assets/images/photo3.jpg", title: "EMS · Pillbox Hill Medical", side: "legal" },
-    { src: "assets/images/photo4.jpg", title: "Braquages & courses-poursuites", side: "illegal" },
-    { src: "assets/images/photo5.jpg", title: "Justice de San Andreas", side: "legal" },
-    { src: "assets/images/photo6.jpg", title: "Trafics sur le port", side: "illegal" }
+    // Versions retouchées (assets/images/stylised). Les captures d'origine sont dans assets/images/originals.
+    { src: "assets/images/stylised/mrpd.webp",           title: "MRPD · Poste de police",  side: "legal" },
+    { src: "assets/images/stylised/scene.webp",          title: "La scène du centre-ville", side: "neutral", label: "Vie de la ville" },
+    { src: "assets/images/stylised/palais_justice.webp", title: "Palais de justice",       side: "legal" },
+    { src: "assets/images/stylised/moore_club.webp",     title: "Moore Club",              side: "illegal", label: "Vie nocturne" },
+    { src: "assets/images/stylised/champ.webp",          title: "Plantation clandestine",  side: "illegal" }
 ];
 
 const slideshow = {
@@ -115,11 +116,39 @@ const links = [
 ];
 
 /* ---------------------------------------------------------------------
+   INTRO CINÉMATIQUE — tous les temps sont en millisecondes (vitesse 1)
+   Séquence : logo (impact) → lettres E-L-Y-Z-E-A → explosion « FA » → transition
+   --------------------------------------------------------------------- */
+const intro = {
+    enabled: true,          // false = pas d'intro, l'interface apparaît directement
+    speed: 1,               // 1 = normal, 0.7 = plus rapide, 1.3 = plus lent
+    skippable: true,        // bouton « Passer » + touche Échap / Entrée
+    words: "ELYZEA",        // lettres qui sortent du logo (une par une)
+    tag: "FA",              // texte graffiti de l'explosion (dessiné en SVG dans index.html)
+
+    logoAt: 250,            // impact du logo
+    logoDuration: 700,
+    lettersAt: 1150,        // première lettre qui sort du logo
+    letterStagger: 170,     // écart entre deux lettres
+    letterFlight: 900,      // durée du trajet d'une lettre
+    trails: 3,              // traînées par lettre (0 = aucune)
+    chargeAt: 3000,         // tremblement avant l'explosion
+    explodeAt: 3350,        // explosion + « FA »
+    tagHold: 1900,          // durée d'affichage du « FA »
+    wipeIn: 650,            // la peinture recouvre l'écran
+    wipeOut: 800,           // la peinture se retire et révèle l'interface
+
+    shards: 26,             // éclats autour du logo à l'impact
+    sprayDots: 150          // gouttelettes de peinture à l'explosion
+};
+
+/* ---------------------------------------------------------------------
    EFFETS VISUELS
    --------------------------------------------------------------------- */
 const effects = {
-    intro: true,           // Séquence d'introduction (logo, nom, slogan)
-    introSpeed: 1,         // 1 = normal, 0.5 = deux fois plus rapide, 1.5 = plus lent
+    // Effets réduits : "auto" (suit le réglage « réduire les animations » du système),
+    // true (toujours réduits : pas d'éclats, de traînées, de particules ni de flou) ou false.
+    reduced: "auto",
     particles: true,       // Braises lumineuses discrètes
     particleCount: 40,
     grain: true,           // Grain cinématique

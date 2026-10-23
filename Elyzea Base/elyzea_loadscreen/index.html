@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Elyzea — Chargement</title>
+    <link rel="icon" href="data:,">
 
     <!-- Polices (Google Fonts). Si elles ne chargent pas, des polices de secours sont prévues dans style.css -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -50,15 +51,13 @@
         <!-- Centre -->
         <section class="hero">
             <div class="emblem" id="emblem">
-                <div class="emblem__beam emblem__beam--legal"></div>
-                <div class="emblem__beam emblem__beam--illegal"></div>
                 <div class="emblem__glow"></div>
                 <svg class="emblem__ring" viewBox="0 0 200 200">
                     <defs>
                         <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stop-color="#4f8cff"/>
-                            <stop offset="50%" stop-color="#e9d3a1"/>
-                            <stop offset="100%" stop-color="#ff2d43"/>
+                            <stop offset="0%" stop-color="#2e6eff"/>
+                            <stop offset="50%" stop-color="#eccc8c"/>
+                            <stop offset="100%" stop-color="#ff2c42"/>
                         </linearGradient>
                     </defs>
                     <circle cx="100" cy="100" r="97" />
@@ -84,7 +83,7 @@
         <footer class="bottombar">
 
             <!-- Légende de la photo -->
-            <div class="caption" id="caption">
+            <div class="caption panel" id="caption">
                 <div class="caption__row">
                     <span class="caption__side" id="captionSide"></span>
                     <span class="caption__count" id="captionCount"></span>
@@ -108,12 +107,12 @@
                 <p class="loader__log" id="loaderLog"></p>
             </div>
 
-            <!-- Lecteur musical -->
-            <div class="player" id="player">
+            <!-- Lecteur musical (un seul lecteur, un seul <audio>) -->
+            <div class="player panel" id="player">
                 <div class="player__top">
                     <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
                     <div class="player__meta">
-                        <p class="player__label" id="playerLabel">En lecture</p>
+                        <p class="player__label"><b class="player__dot" aria-hidden="true"></b><span id="playerLabel">Chargement…</span></p>
                         <p class="player__title" id="trackTitle">—</p>
                         <p class="player__artist" id="trackArtist"></p>
                     </div>
@@ -133,7 +132,7 @@
                         <button class="icon-btn" id="btnPrev" title="Précédent" aria-label="Morceau précédent">
                             <svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
                         </button>
-                        <button class="play-btn" id="btnPlay" title="Lecture / Pause (Espace)" aria-label="Lecture">
+                        <button class="play-btn" id="btnPlay" title="Lecture / Pause (Espace)" aria-label="Lecture / pause">
                             <svg viewBox="0 0 24 24" class="ico-play"><path d="M8 5v14l11-7z"/></svg>
                             <svg viewBox="0 0 24 24" class="ico-pause"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
                         </button>
@@ -141,7 +140,11 @@
                             <svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
                         </button>
                     </div>
-                    <span></span>
+                    <div class="player__end">
+                        <button class="icon-btn" id="btnStop" title="Arrêter (S)" aria-label="Arrêter la musique">
+                            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="seek">
@@ -150,13 +153,97 @@
                         <div class="slider__buffer" id="seekBuffer"></div>
                         <div class="slider__fill" id="seekFill"></div>
                     </div>
-                    <span class="seek__time" id="timeTotal">00:00</span>
+                    <span class="seek__time" id="timeTotal">--:--</span>
                 </div>
 
                 <button class="unlock" id="unlock">Cliquer pour lancer la musique</button>
             </div>
         </footer>
     </main>
+
+    <!-- ================= INTRO CINÉMATIQUE =================
+         Logo → lettres E-L-Y-Z-E-A → explosion « FA » → transition peinture.
+         Construite et animée par js/script.js (module Intro), retirée du DOM à la fin. -->
+    <div class="intro" id="intro" aria-hidden="true">
+        <div class="intro__shake" id="introShake">
+            <div class="intro__lockup" id="introLockup">
+                <div class="intro__logo" id="introLogo"><img id="introLogoImg" alt=""></div>
+                <div class="intro__word" id="introWord"></div>
+            </div>
+            <div class="intro__ring" id="introRing"></div>
+            <div class="intro__splats" id="introSplats"></div>
+            <div class="intro__fa" id="introFa">
+                <svg viewBox="0 0 1000 640" class="fa" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="faFill" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0"   stop-color="#5d8dff"/>
+                            <stop offset=".32" stop-color="#2e6eff"/>
+                            <stop offset=".5"  stop-color="#fff1cf"/>
+                            <stop offset=".56" stop-color="#eccc8c"/>
+                            <stop offset=".74" stop-color="#ff2c42"/>
+                            <stop offset="1"   stop-color="#a3001a"/>
+                        </linearGradient>
+                        <linearGradient id="faBand" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0"  stop-color="#fff" stop-opacity=".0"/>
+                            <stop offset=".46" stop-color="#fff" stop-opacity=".0"/>
+                            <stop offset=".47" stop-color="#000" stop-opacity=".28"/>
+                            <stop offset=".62" stop-color="#000" stop-opacity=".12"/>
+                            <stop offset=".63" stop-color="#fff" stop-opacity=".0"/>
+                        </linearGradient>
+                        <radialGradient id="faHalo">
+                            <stop offset="0" stop-color="#ff2c42" stop-opacity=".55"/>
+                            <stop offset=".45" stop-color="#2e6eff" stop-opacity=".28"/>
+                            <stop offset="1" stop-color="#000" stop-opacity="0"/>
+                        </radialGradient>
+                        <!-- Lettre F (bloc incliné, flèche sur la barre du haut) -->
+                        <path id="faF" d="M92 92 L452 64 L560 112 L470 178 L278 190 L281 246 L402 240 L456 284 L402 336 L284 342 L290 470 L328 520 L104 534 L146 474 L128 160 Z"/>
+                        <!-- Lettre A (contre-forme en trou) -->
+                        <path id="faA" fill-rule="evenodd" d="M548 530 L676 84 L728 40 L842 70 L978 522 L796 536 L776 452 L716 456 L700 532 Z M730 360 L770 358 L752 252 Z"/>
+                        <!-- Coulures -->
+                        <path id="faDrips" d="M182 520 h26 v54 a13 13 0 0 1 -26 0 Z M262 512 h22 v92 a11 11 0 0 1 -22 0 Z M598 522 h24 v66 a12 12 0 0 1 -24 0 Z M846 524 h22 v104 a11 11 0 0 1 -22 0 Z M916 516 h20 v46 a10 10 0 0 1 -20 0 Z"/>
+                    </defs>
+                    <ellipse class="fa__halo" cx="520" cy="300" rx="520" ry="320" fill="url(#faHalo)"/>
+                    <g class="fa__art" transform="skewX(-10) rotate(-4 520 300) translate(70 10)">
+                        <!-- volume 3D -->
+                        <g class="fa__depth" fill="#12060c" stroke="#12060c" stroke-width="14" stroke-linejoin="round">
+                            <use href="#faF" transform="translate(26 30)"/><use href="#faA" transform="translate(26 30)"/>
+                        </g>
+                        <!-- contour extérieur blanc (« nuage ») -->
+                        <g fill="none" stroke="#fff6e4" stroke-width="46" stroke-linejoin="round">
+                            <use href="#faF"/><use href="#faA"/>
+                        </g>
+                        <!-- contour sombre -->
+                        <g fill="none" stroke="#06070d" stroke-width="22" stroke-linejoin="round">
+                            <use href="#faF"/><use href="#faA"/>
+                        </g>
+                        <!-- coulures (grandissent après l'impact) -->
+                        <g class="fa__drips">
+                            <use href="#faDrips" fill="#06070d" stroke="#06070d" stroke-width="12"/>
+                            <use href="#faDrips" fill="url(#faFill)"/>
+                        </g>
+                        <!-- remplissage -->
+                        <g fill="url(#faFill)"><use href="#faF"/><use href="#faA"/></g>
+                        <g fill="url(#faBand)"><use href="#faF"/><use href="#faA"/></g>
+                        <!-- reflets -->
+                        <g class="fa__shine" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".85">
+                            <path d="M140 150 L150 330"/><path d="M180 120 L420 102"/><path d="M700 110 L640 330"/><path d="M314 214 L372 212"/>
+                        </g>
+                        <g class="fa__stars" fill="#fff">
+                            <path d="M470 60 l9 26 26 9 -26 9 -9 26 -9 -26 -26 -9 26 -9 Z"/>
+                            <path d="M880 120 l6 17 17 6 -17 6 -6 17 -6 -17 -17 -6 17 -6 Z"/>
+                            <path d="M150 470 l5 14 14 5 -14 5 -5 14 -5 -14 -14 -5 14 -5 Z"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            <canvas class="intro__fx" id="introFx"></canvas>
+        </div>
+        <div class="intro__flash" id="introFlash"></div>
+        <button class="intro__skip" id="introSkip" type="button">Passer ›</button>
+    </div>
+
+    <!-- Transition « coup de rouleau » entre l'intro et l'interface -->
+    <div class="wipe" id="wipe" aria-hidden="true"><i></i><i></i><i></i></div>
 
     <!-- Écran noir d'entrée / de sortie -->
     <div class="curtain" id="curtain"></div>

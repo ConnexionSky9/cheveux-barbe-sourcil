@@ -7,8 +7,8 @@ lua54 'yes'
 
 name 'loading-screen'
 author 'Elyzea'
-description 'Loading screen cinématique Elyzea (légal / illégal)'
-version '1.0.0'
+description 'Loading screen cinématique Elyzea (street art : logo, ELYZEA, FA, légal / illégal)'
+version '2.0.0'
 
 -- Page affichée pendant le chargement
 loadscreen 'index.html'
@@ -22,7 +22,11 @@ loadscreen_cursor 'yes'
 
 client_script 'client.lua'
 
--- Tous les fichiers utilisés par la page doivent être déclarés ici
+-- Tous les fichiers utilisés par la page doivent être déclarés ici.
+-- Non déclarés exprès (donc jamais téléchargés par les joueurs) :
+--   assets/images/originals/  captures d'origine (sources de la retouche)
+--   assets/images/demo/       anciennes photos de démonstration
+--   tools/                    script de retouche des photos
 files {
     'index.html',
     'css/*.css',
@@ -34,6 +38,8 @@ files {
     'assets/images/*.jpeg',
     'assets/images/*.png',
     'assets/images/*.webp',
+    'assets/images/stylised/*.webp',   -- photos retouchées affichées en jeu
+    'assets/images/stylised/*.jpg',
     'assets/music/*.mp3',
     'assets/music/*.ogg'
 }
