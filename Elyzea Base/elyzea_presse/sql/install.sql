@@ -5,6 +5,63 @@
 --  Aucune table existante n'est modifiée ou supprimée. Désinstaller : sql/uninstall.sql
 -- =====================================================================
 
+CREATE TABLE IF NOT EXISTS `presse_ad_orders` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `uid` varchar(40) NOT NULL,
+  `request_key` varchar(64) NOT NULL,
+  `job` varchar(40) NOT NULL,
+  `agency_label` varchar(60) DEFAULT NULL,
+  `client_key` varchar(60) NOT NULL,
+  `client_label` varchar(80) DEFAULT NULL,
+  `client_society` varchar(60) NOT NULL,
+  `client_cid` varchar(50) NOT NULL,
+  `client_name` varchar(100) DEFAULT NULL,
+  `text` varchar(160) NOT NULL,
+  `frequency` varchar(4) NOT NULL,
+  `start_date` varchar(10) NOT NULL,
+  `end_date` varchar(10) NOT NULL,
+  `unit_price` int(11) NOT NULL,
+  `slots` int(11) NOT NULL,
+  `total` int(11) NOT NULL,
+  `refunded` int(11) NOT NULL DEFAULT 0,
+  `status` varchar(10) NOT NULL DEFAULT 'pending',
+  `txid` varchar(40) DEFAULT NULL,
+  `note` varchar(160) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uid` (`uid`),
+  UNIQUE KEY `request_key` (`request_key`),
+  KEY `job` (`job`,`status`),
+  KEY `client_key` (`client_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+;
+
+CREATE TABLE IF NOT EXISTS `presse_ad_slots` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `job` varchar(40) NOT NULL,
+  `due_ts` int(11) NOT NULL,
+  `status` varchar(12) NOT NULL DEFAULT 'scheduled',
+  `mode` varchar(6) DEFAULT NULL,
+  `sent_by_cid` varchar(50) DEFAULT NULL,
+  `sent_by_name` varchar(100) DEFAULT NULL,
+  `commission` int(11) NOT NULL DEFAULT 0,
+  `commission_status` varchar(8) DEFAULT NULL,
+  `offered_ts` int(11) DEFAULT NULL,
+  `queued_ts` int(11) DEFAULT NULL,
+  `started_ts` int(11) DEFAULT NULL,
+  `sent_ts` int(11) DEFAULT NULL,
+  `attempts` int(11) NOT NULL DEFAULT 0,
+  `last_error` varchar(160) DEFAULT NULL,
+  `refund_status` varchar(8) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `order_due` (`order_id`,`due_ts`),
+  KEY `st_due` (`status`,`due_ts`),
+  KEY `job_st` (`job`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+;
+
 CREATE TABLE IF NOT EXISTS `presse_admin_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `actor_cid` varchar(50) DEFAULT NULL,
@@ -19,31 +76,6 @@ CREATE TABLE IF NOT EXISTS `presse_admin_log` (
   `job` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `target_cid` (`target_cid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-;
-
-CREATE TABLE IF NOT EXISTS `presse_ads` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `job` varchar(40) NOT NULL,
-  `uid` varchar(40) NOT NULL,
-  `tier` varchar(20) NOT NULL,
-  `client_cid` varchar(50) NOT NULL,
-  `client_name` varchar(100) DEFAULT NULL,
-  `text` varchar(300) NOT NULL,
-  `price` int(11) NOT NULL,
-  `method` varchar(6) DEFAULT NULL,
-  `status` varchar(10) NOT NULL DEFAULT 'active',
-  `seller_cid` varchar(50) DEFAULT NULL,
-  `seller_name` varchar(100) DEFAULT NULL,
-  `txid` varchar(40) DEFAULT NULL,
-  `note` varchar(160) DEFAULT NULL,
-  `handled_by` varchar(100) DEFAULT NULL,
-  `expires_at` datetime NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uid` (`uid`),
-  KEY `job` (`job`),
-  KEY `active` (`status`,`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ;
 

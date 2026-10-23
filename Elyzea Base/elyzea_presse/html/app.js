@@ -201,41 +201,6 @@ $('#notes').addEventListener('click', async (e) => {
 });
 
 /* =====================================================================
-   Annonces payantes
-   ===================================================================== */
-function showAdForm(d) {
-  const tiers = d.tiers || [], near = d.near || [];
-  $('#adForm .modal').innerHTML = `<div class="eyebrow">Annonce payante</div><h2>Préparer l'annonce</h2>
-    <p class="lead">Le client voit le texte et le prix, puis accepte (et paie) ou refuse. Le prix est celui des tarifs de la rédaction.</p>
-    <div class="stack"><label class="field"><span>Client</span><select class="input" id="adTarget">${near.map((n) => `<option value="${n.id}" ${n.id === d.target ? 'selected' : ''}>ID ${n.id} · ${n.distance} m</option>`).join('') || `<option value="${d.target}">ID ${d.target}</option>`}</select></label>
-      <label class="field"><span>Formule</span><select class="input" id="adTier">${tiers.map((t) => `<option value="${t.id}">${esc(t.label)} · ${money(t.price)} · ${t.hours} h${t.broadcast ? ' · diffusée' : ''}</option>`).join('')}</select></label>
-      <label class="field"><span>Texte de l'annonce</span><textarea class="input" id="adText" maxlength="${d.textMax || 300}"></textarea></label></div>
-    <div class="err" id="adErr"></div>
-    <div class="actions"><button class="btn" data-af="no">Annuler</button><button class="btn primary" data-af="yes" ${tiers.length ? '' : 'disabled'}>Envoyer au client</button></div>`;
-  show('#adForm', true);
-}
-$('#adForm').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-af]');
-  if (!b) return;
-  if (b.dataset.af === 'no') return post('close', { ui: 'adForm' });
-  const r = await act(post('adSend', { target: Number($('#adTarget').value), tier: $('#adTier').value, text: $('#adText').value }), b);
-  if (r.error) $('#adErr').textContent = r.error;
-});
-
-function showAdOffer(o) {
-  $('#adOffer .modal').innerHTML = `<div class="eyebrow">${esc(o.agency)} · Annonce</div><h2>${esc(o.tier)}</h2>
-    <div class="recap"><span>Journaliste</span><b>${esc(o.seller)}</b><span>Durée</span><b>${o.hours} h${o.broadcast ? ' · diffusée à tout le serveur' : ''}</b>
-      <span>Texte</span><b style="white-space:pre-wrap">${esc(o.text)}</b><span>Prix</span><b class="total">${money(o.price)}</b></div>
-    <label class="field"><span>Paiement</span><select class="input" id="adMethod"><option value="bank">Banque</option><option value="cash">Liquide</option></select></label>
-    <p class="lead" style="margin-top:.6rem">En acceptant, le prix est prélevé tout de suite. Vous pouvez refuser sans rien payer.</p>
-    <div class="actions" style="justify-content:stretch"><button class="btn danger block" data-ao="no">Refuser</button><button class="btn primary block" data-ao="yes">Accepter et payer</button></div>
-    <div class="countdown"><i id="adBar" style="width:100%"></i></div>`;
-  show('#adOffer', true);
-  countdown('#adBar', o.timeout);
-}
-$('#adOffer').addEventListener('click', (e) => { const b = e.target.closest('[data-ao]'); if (b) post('adAnswer', { accept: b.dataset.ao === 'yes', method: $('#adMethod').value }); });
-
-/* =====================================================================
    Viseur, légende, matériel en main
    ===================================================================== */
 function viewfinder(m) {
@@ -326,6 +291,28 @@ function showFlash(f) {
 }
 
 /* =====================================================================
+   Annonce diffusée : juste au-dessus de la mini-carte (position donnée par le jeu),
+   une seule à la fois (la file d'attente du serveur attend la fin de l'affichage).
+   ===================================================================== */
+let annTimer = null;
+function showAnnonce(m) {
+  const el = $('#annonce');
+  clearTimeout(annTimer);
+  if (!m.show) { el.classList.add('hidden'); return; }
+  const r = m.rect || { x: 0.015, y: 0.78, w: 0.16, h: 0.18 };
+  el.style.left = `${(r.x * 100).toFixed(3)}vw`;
+  el.style.bottom = `calc(${((1 - r.y) * 100).toFixed(3)}vh + 0.6vh)`;
+  el.style.width = `max(${(r.w * 100).toFixed(3)}vw, 20rem)`;
+  if (m.color) el.style.setProperty('--c', m.color); else el.style.removeProperty('--c');
+  el.innerHTML = `<div class="ann-head">${esc(m.agency || '')}</div><div class="ann-text"></div><i class="ann-bar"></i>`;
+  el.querySelector('.ann-text').textContent = m.text || '';   // texte tel quel : espaces, accents, emojis
+  el.querySelector('.ann-bar').style.animationDuration = `${(m.seconds || 10) * 1000}ms`;
+  el.classList.remove('hidden', 'out');
+  void el.offsetWidth;
+  annTimer = setTimeout(() => { el.classList.add('out'); annTimer = setTimeout(() => el.classList.add('hidden'), 300); }, Math.max(1, (m.seconds || 10)) * 1000 - 300);
+}
+
+/* =====================================================================
    Le journal (tout le monde)
    ===================================================================== */
 const RD = { data: null, f: { job: '', category: '', q: '', page: 0, archives: false }, art: null, tab: 'news' };
@@ -342,11 +329,10 @@ function readerRender() {
       ${(a.media || []).length ? `<div class="media">${a.media.map((m) => `<div>${m.kind === 'video' ? '🎥 Séquence' : '📷 Photo'} : ${esc(m.caption)}${m.street ? ` — ${esc(m.street)}` : ''} · ${esc(m.author_name || '')}, ${fmtTime(m.t)}${m.seconds ? ` · ${dur(m.seconds)}` : ''}</div>`).join('')}</div>` : ''}
       ${RD.staff ? `<div style="margin-top:1rem"><button class="btn small mod" data-rd="modArt" data-id="${a.id}">Staff : retirer l'article</button></div>` : ''}</div></div>`;
   } else {
-    content = `<div class="content"><div>${d.list.map((x) => `<div class="art" data-art="${x.id}"><div class="meta"><span class="src" style="--c:${esc(x.color || '#1c1917')}">${esc(x.agency)}</span> · ${esc(catLabel(x.category))} · ${fmtTime(x.t)}</div>
+    content = `<div class="content single"><div>${d.list.map((x) => `<div class="art" data-art="${x.id}"><div class="meta"><span class="src" style="--c:${esc(x.color || '#1c1917')}">${esc(x.agency)}</span> · ${esc(catLabel(x.category))} · ${fmtTime(x.t)}</div>
         <h3>${esc(x.title)}</h3>${x.summary ? `<p>${esc(x.summary)}</p>` : ''}<div class="meta">Par ${esc(x.author_name || '')}</div></div>`).join('') || `<div class="empty">${f.archives ? 'Aucune archive.' : 'Aucun article publié pour le moment.'}</div>`}
         <div style="display:flex;gap:.5rem;margin-top:.8rem">${f.page > 0 ? '<button class="btn small" data-rd="prev">‹ Plus récents</button>' : ''}${d.more ? '<button class="btn small" data-rd="next">Plus anciens ›</button>' : ''}</div></div>
-      <aside class="side"><h4>Petites annonces</h4>${(d.ads || []).map((x) => `<div class="ad">${esc(x.text)}<small>${esc(x.agency)} · ${esc(x.client_name || '')} · jusqu'au ${fmtTime(x.e)}</small>
-        ${RD.staff ? `<button class="btn small mod" data-rd="modAd" data-uid="${esc(x.uid)}">Retirer</button>` : ''}</div>`).join('') || '<div class="empty">Aucune annonce.</div>'}</aside></div>`;
+</div>`;
   }
   $('#reader').innerHTML = `<div class="paper"><div class="mast"><div><h1>${esc(ag ? ag.label : 'Le Journal')}</h1><small>${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · toutes les rédactions de la ville</small></div>
       <button class="icon-btn" data-rd="close" aria-label="Fermer">✕</button></div>
@@ -377,11 +363,11 @@ $('#reader').addEventListener('click', async (e) => {
   if (a === 'search') { RD.f.q = $('#rdQ').value; RD.f.page = 0; return readerLoad(); }
   if (a === 'archives') { RD.f.archives = !RD.f.archives; RD.f.page = 0; return readerLoad(); }
   if (a === 'next' || a === 'prev') { RD.f.page += a === 'next' ? 1 : -1; return readerLoad(); }
-  if (a === 'modArt' || a === 'modAd') {
+  if (a === 'modArt') {
     const v = await confirmBox('Retirer ce contenu ?', 'Action du staff : il disparaît du journal (gardé en base, l\'auteur est prévenu).', 'Retirer', true,
       '<label class="field" style="margin-top:.6rem"><span>Motif (obligatoire)</span><input class="input" data-cfv="reason" maxlength="160"></label>');
     if (!v) return;
-    const r = await act(pub(a, a === 'modArt' ? { id: Number(b.dataset.id), reason: v.reason } : { uid: b.dataset.uid, reason: v.reason }), b);
+    const r = await act(pub(a, { id: Number(b.dataset.id), reason: v.reason }), b);
     if (r.ok) readerLoad();
   }
 });
@@ -407,8 +393,7 @@ window.addEventListener('message', (e) => {
     case 'ivAsk': if (m.show) showIvAsk(m); else show('#ivAsk', false); return;
     case 'ivBanner': return ivBanner(m.iv);
     case 'notes': if (m.show) showNotes(m); else show('#notes', false); return;
-    case 'adForm': if (m.show) showAdForm(m.data); else show('#adForm', false); return;
-    case 'adOffer': if (m.show) showAdOffer(m.offer); else show('#adOffer', false); return;
+    case 'annonce': return showAnnonce(m);
     case 'viewfinder': return viewfinder(m);
     case 'flashShot': { const s = $('#shot'); s.classList.remove('go'); void s.offsetWidth; s.classList.add('go'); return; }
     case 'caption': return captionBox(m);
@@ -423,12 +408,12 @@ window.addEventListener('message', (e) => {
     case 'tablet': if (window.Tablet) { if (m.show) { applyCfg(m.cfg || APP.cfg); Tablet.open(m.state, m.opts); } else Tablet.hide(); } return;
     case 'tabletGo': if (window.Tablet) Tablet.goTo(m.opts); return;
     case 'closeAll':
-      ['#f6', '#offer', '#ivOffer', '#ivAsk', '#notes', '#adForm', '#adOffer', '#caption', '#garage', '#gear', '#wardrobe', '#reader', '#confirm', '#viewfinder'].forEach((s) => show(s, false));
+      ['#f6', '#offer', '#ivOffer', '#ivAsk', '#notes', '#caption', '#garage', '#gear', '#wardrobe', '#reader', '#confirm', '#viewfinder'].forEach((s) => show(s, false));
       if (window.Tablet) Tablet.hide(); return;
   }
 });
 
-const ESC_UI = [['#caption', 'caption'], ['#ivOffer', 'ivOffer'], ['#adOffer', 'adOffer'], ['#offer', 'offer'], ['#ivAsk', 'ivAsk'], ['#adForm', 'adForm'], ['#notes', 'notes'],
+const ESC_UI = [['#caption', 'caption'], ['#ivOffer', 'ivOffer'], ['#offer', 'offer'], ['#ivAsk', 'ivAsk'], ['#notes', 'notes'],
   ['#garage', 'garage'], ['#gear', 'gear'], ['#wardrobe', 'wardrobe']];
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

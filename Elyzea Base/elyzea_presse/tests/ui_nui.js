@@ -26,7 +26,7 @@ const OUT = process.argv[2] || require('os').tmpdir();
         if (a === 'news') return { list: [{ id: 7, job: 'journaliste', title: art.title, summary: art.summary, category: 'societe', author_name: 'Sam Stagiaire', t: now, agency: 'Weazel News', color: '#e11d48' },
           { id: 8, job: 'ls_times', title: 'Course de côte à Vinewood', category: 'sport', author_name: 'Léo', t: now - 3000, agency: 'Los Santos Times', color: '#2563eb' }],
           agencies: [{ job: 'journaliste', label: 'Weazel News', color: '#e11d48' }, { job: 'ls_times', label: 'Los Santos Times', color: '#2563eb' }],
-          categories: [{ id: 'societe', label: 'Société' }, { id: 'sport', label: 'Sport' }], ads: [{ uid: 'ANN-1', text: 'Vends vélo bleu, très bon état', client_name: 'Carl', agency: 'Weazel News', e: now + 86400 }], staff: true, more: false, page: 0 };
+          categories: [{ id: 'societe', label: 'Société' }, { id: 'sport', label: 'Sport' }], staff: true, more: false, page: 0 };
         if (a === 'newsGet') return { article: { ...art, agency: 'Weazel News', color: '#e11d48', published: now, reviewer: 'Chloé' }, staff: true };
         return { ok: true, message: 'ok' };
       }
@@ -41,8 +41,8 @@ const OUT = process.argv[2] || require('os').tmpdir();
         case 'interviews': return { list: [{ id: 3, subject: 'La circulation', guest: 'Anonyme', anonymous: true, journalist: 'Diane', status: 'ended', started: now - 900, ended: now - 300, endReason: 'terminée par la personne interviewée', mine: true, hasNotes: true }], canAll: true };
         case 'interviewGet': return { interview: { id: 3, subject: 'La circulation', guest: 'Anonyme', anonymous: true, notes: 'Q : …\nR : …', started: now } };
         case 'flashes': return { list: [{ kind: 'flash', author_name: 'Chloé', title: 'Alerte', text: 'Incendie sur le port', t: now }], wait: 0, waitMe: 0 };
-        case 'ads': return { list: [{ uid: 'ANN-1', tier: 'petite', client_name: 'Carl', text: 'Vends vélo bleu', price: 250, method: 'bank', status: 'active', seller_name: 'Julie', t: now, e: now + 86400 }],
-          tiers: [{ id: 'petite', label: 'Petite annonce', price: 250, hours: 24, enabled: true }, { id: 'flash', label: 'Annonce diffusée', price: 2500, hours: 24, broadcast: true, enabled: true }], canManage: true, maxPrice: 1000000 };
+        case 'adSettings': return { price: 500, enabled: true, system: true, canManage: true, maxPrice: 100000, grades: [{ id: 3, name: 'Journaliste', level: 3, commission: 100 }],
+          orders: [{ id: 1, uid: 'ANN-1', client_label: 'Mécano', client_name: 'Max', text: 'Garage ouvert ce soir 🚗', freqLabel: 'Toutes les heures', start: '20/10/2026', end: '20/10/2026', unit_price: 500, slots: 24, sent: 11, total: 12000, refunded: 0, status: 'active' }] };
         case 'cards': return { list: [{ number: 'WZL-26-0001', name: 'Julie Journaliste', matricule: 'WZL-003', issued_by: 'Diane', t: now }, { number: 'WZL-26-0002', name: 'Sam', matricule: 'WZL-002', t: now, r: now, revoke_reason: 'départ' }],
           employees: [{ cid: 'A', name: 'Julie Journaliste', matricule: 'WZL-003', online: true }, { cid: 'B', name: 'Sam Stagiaire', matricule: 'WZL-002', online: false }] };
         case 'pointsSettings': return { settings: { gear: { x: 100.2, y: 200.4, z: 30 }, vehicles: [{ model: 'rumpo', label: 'Fourgon de reportage', minLevel: 1, type: 'automobile' }], kiosks: [{ x: 1, y: 2, z: 3, label: 'Kiosque' }] },
@@ -109,12 +109,17 @@ const OUT = process.argv[2] || require('os').tmpdir();
   await check('refus envoyé au jeu', () => { const s = window.LAST.filter((x) => x[0] === 'ivAnswer').pop(); return s && s[1].accept === false; });
   await msg({ action: 'ivOffer', show: false });
 
-  // Annonce payante (client)
-  await msg({ action: 'adOffer', show: true, offer: { id: 2, agency: 'Weazel News', seller: 'Julie', tier: 'Petite annonce', hours: 24, price: 250, text: 'Vends vélo bleu', timeout: 45 } });
-  await p.waitForTimeout(100);
-  await p.selectOption('#adMethod', 'cash'); await p.click('[data-ao="yes"]');
-  await check('annonce acceptée en liquide', () => { const s = window.LAST.filter((x) => x[0] === 'adAnswer').pop(); return s && s[1].accept === true && s[1].method === 'cash'; });
-  await msg({ action: 'adOffer', show: false });
+  // Annonce diffusée : au-dessus de la mini-carte (rectangle donné par le jeu)
+  await msg({ action: 'annonce', show: true, agency: 'Weazel News', color: '#e11d48', text: 'Le garage ouvre ses portes à 20 h ! 🚗 👨‍🔧', seconds: 3, rect: { x: 0.015, y: 0.78, w: 0.16, h: 0.18 } });
+  await p.waitForTimeout(200);
+  await check('annonce : nom de la rédaction puis texte (emojis gardés), posée juste au-dessus de la mini-carte', () => {
+    const el = document.querySelector('#annonce'), r = el.getBoundingClientRect();
+    return !el.classList.contains('hidden') && el.querySelector('.ann-head').textContent === 'Weazel News' && el.querySelector('.ann-text').textContent.includes('🚗 👨‍🔧')
+      && Math.abs(r.bottom - innerHeight * 0.78) < innerHeight * 0.02 && r.left < innerWidth * 0.03;
+  });
+  await shot('presse_annonce_minicarte.png');
+  await p.waitForTimeout(3300);
+  await check('annonce : disparaît après la durée reçue (3 s)', () => document.querySelector('#annonce').classList.contains('hidden'));
 
   // Flash, carte, viseur, bandeau d'interview
   await msg({ action: 'flash', flash: { kind: 'flash', agency: 'Weazel News', color: '#e11d48', title: 'Alerte', text: 'Incendie en cours sur le port de Los Santos.', author: 'Chloé', seconds: 12 } });
@@ -131,7 +136,7 @@ const OUT = process.argv[2] || require('os').tmpdir();
   const news = await p.evaluate(() => window.EDemo('pub', { action: 'news' }));
   await msg({ action: 'reader', show: true, data: news, job: '' });
   await p.waitForTimeout(150);
-  await check('journal : 2 articles de 2 rédactions et 1 petite annonce', () => document.querySelectorAll('.paper .art').length === 2 && document.querySelectorAll('.paper .ad').length === 1);
+  await check('journal : 2 articles de 2 rédactions', () => document.querySelectorAll('.paper .art').length === 2);
   await shot('presse_journal.png');
   await p.click('.paper .art[data-art="7"]'); await p.waitForTimeout(150);
   await check('journal : article complet, crédit photo, bouton staff', () => /Vespucci Blvd/.test(document.querySelector('.paper .media').textContent) && document.querySelector('[data-rd="modArt"]'));

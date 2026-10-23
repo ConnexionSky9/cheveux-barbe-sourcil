@@ -124,3 +124,84 @@ menu ALT police / EMS / mécano / animations, F6 et téléphone de service des a
 6. Images facultatives : `elyzea_inventory/html/img/presse_appareil.png`, `presse_bloc.png`, `presse_carte.png` (256 × 256).
 7. Intégrations externes non faites (absentes du serveur) : capture d'images (`screenshot-basic` + hébergement), application de
    journal dans un téléphone personnel.
+
+
+---
+
+# Mise à jour : annonces commandées par les entreprises (applications « Annonce » et « Planning »)
+
+> Même règle : **rien n'a pu être testé dans le jeu**. Les vérifications ci-dessous ont été réellement exécutées hors jeu.
+
+## A. Analyse : ce qui est réutilisé
+
+| Besoin | Système existant réutilisé |
+|---|---|
+| Entreprises de journalisme multiples | Rédactions `elyzea_agences` (type presse) : chacune son métier, ses employés, ses grades, son compte de société |
+| Comptes bancaires professionnels | `elyzea_core` : `RemoveSocietyMoney` (débit atomique, refusé si le solde manque), `AddSocietyMoney`, journal `elyzea_society_logs` ; droit de payer = `job.bankAuth` (grade patron) ; concessions : `elyzea_concess:GetShopOf().society` |
+| Téléphone de service | `elyzea_jobphone` : 2 applications ajoutées dans son interface et ses actions serveur (aucun nouveau téléphone) |
+| Employés en service, grades, permissions | Socle du métier (`P.CrewOnDuty`, `P.Can`, permissions `ads` / `ads_manage`) |
+| Primes | Même circuit que la paie et la commission existantes : compte de la rédaction → `P.PayBank`, ligne `commission` dans `presse_transactions` |
+| Menu administratif | `admin_menu` : nouvel onglet sur le modèle des onglets existants (`AM.Actions` + `DataHooks`), permission `presse_manage` |
+| Position de la mini-carte | `exports.admin_menu:GetMinimapRect()` (rectangle réel calculé par la mini-carte) |
+| Persistance | Tables créées au démarrage dans la base existante (`@elyzea_core/lib/MySQL.lua`), réglages dans `presse_settings` |
+
+**Remplacé** : l'ancien système « annonce payante proposée par ALT à un joueur » (table `presse_ads`) faisait doublon ; il est retiré
+(code, interface, ALT). La table n'est plus créée ; `sql/uninstall.sql` la supprime si elle existe.
+
+## B. Fichiers
+
+**Créés** : `elyzea_presse/server/annonces.lua` (cœur : texte, calendrier, commande et paiement, planificateur, file, primes, reprise, API du téléphone et d'admin_menu),
+`elyzea_presse/client/annonce.lua` (affichage au-dessus de la mini-carte), `admin_menu/server/presse.lua`, `admin_menu/html/presse.js`,
+`elyzea_presse/tests/ui_phone.js`, `elyzea_presse/tests/ui_admin.js`.
+
+**Modifiés** : `elyzea_jobphone/server/main.lua` (actions `annonce` et `planning`, transmises à `elyzea_presse`), `elyzea_jobphone/html/app.js` et `style.css`
+(applications Annonce et Planning) ; `admin_menu/fxmanifest.lua`, `html/index.html`, `config.lua` (libellé de `presse_manage`) ;
+`elyzea_presse` : `config.lua` (`Config.Annonces`), `shared/perms.lua`, `fxmanifest.lua`, `server/main.lua`, `server/articles.lua`, `html/*`, `client/alt.lua`, `client/interview.lua`,
+`sql/install.sql`, `sql/uninstall.sql`, `tests/server_bench.lua`, `tests/ui_nui.js`, `README.md`. **Supprimé** : `elyzea_presse/server/ads.lua`.
+
+## C. Base de données
+
+Deux tables, créées automatiquement (ou `sql/install.sql`) : `presse_ad_orders` (commande : rédaction, entreprise et compte clients, texte, fréquence, dates,
+prix unitaire contractuel, nombre, total, remboursé, état, clé de demande **unique**) et `presse_ad_slots` (une ligne par diffusion : heure, état
+`scheduled → offered → queued → broadcasting → sent` ou `missed` / `cancelled` / `failed`, mode auto / manuel, journaliste, prime et son état, essais, erreur,
+remboursement ; **unique** (commande, heure)). Aucune table existante modifiée. Réglages globaux : clé `annonces` de `presse_settings` ;
+par rédaction : clé `adcfg:<métier>`.
+
+## D. Vérifications réellement exécutées
+
+| Test | Résultat |
+|---|---|
+| Banc serveur (vrais fichiers, **MariaDB 10.11**) — 64 nouvelles vérifications pour les annonces | **203 / 203** |
+| Téléphone de service dans Chromium (vrai `elyzea_jobphone/html`) : Annonce, compteur 150/151, emojis, dates, récapitulatif, refus, paiement, commandes, Planning | **16 / 16**, aucune erreur JS |
+| Onglet admin_menu « Annonces presse » (vrai `admin_menu/html`) | **5 / 5**, aucune erreur JS |
+| Interface du métier (bandeau au-dessus de la mini-carte, page Annonces de la tablette) | **34 / 34**, aucune erreur JS |
+| Installation / désinstallation SQL sur MariaDB | OK (16 tables ; la désinstallation ne touche pas aux autres métiers) |
+
+Les 20 scénarios demandés sont couverts par le banc serveur : rédactions indépendantes (2), changement de tarif, 150 caractères accepté,
+151 refusé, emojis, paiement par le compte de l'entreprise, fonds insuffisants, nombre de diffusions (30 min, 1 h, quotidien, aujourd'hui,
+dates invalides), envoi automatique sans journaliste, envoi manuel, prime seulement après une diffusion manuelle réelle, aucune prime en automatique,
+3 annonces à la même heure affichées l'une après l'autre (écart mesuré = durée d'affichage + pause), durée réglée à 5 s depuis admin_menu,
+aucune double diffusion ni double prime (deux journalistes, envoi rejoué, même demande envoyée deux fois, prix modifié par le client), reprise après
+redémarrage (affichage coupé, paiement coupé), refus pour les non-autorisés (sans entreprise, employé sans accès au compte, non-journaliste, stagiaire,
+hors service), isolation entre rédactions, journaliste qui quitte son service, erreurs d'affichage (nouvel essai, échec, relance), file en pause,
+diffusion trop en retard remboursée, annulation contrôlée d'une commande.
+
+Défaut trouvé par les tests et corrigé : après un paiement **refusé**, le téléphone réutilisait la même clé de demande, et le serveur refusait
+(à raison) le nouvel essai. Désormais : même clé seulement sans réponse (réseau / double clic), nouvelle clé après un refus.
+
+## E. À vérifier en jeu (au moins 3 joueurs : patron d'une entreprise, journaliste, spectateur)
+
+1. Commander depuis le téléphone d'un patron (et refus pour un employé), voir le débit du compte de l'entreprise et le crédit de la rédaction (tablettes Finance).
+2. Journaliste en service : notification, Planning, « Envoyer l'annonce », bandeau chez tous les joueurs, prime en banque.
+3. Sans journaliste en service : envoi automatique à l'heure ; plusieurs annonces à la même heure : l'une après l'autre.
+4. Position du bandeau au-dessus de la mini-carte sur plusieurs résolutions (16:9, 21:9) et avec d'autres éléments du HUD.
+5. Durée d'affichage changée dans admin_menu ; pause / relance de la file ; `restart elyzea_presse` pendant un affichage.
+
+## F. Limites
+
+- « Tous les joueurs concernés » = tous les joueurs connectés (pas de ciblage par zone : le serveur n'en a pas pour les annonces).
+- Le serveur ne peut pas savoir si un client a réellement vu l'annonce : une diffusion est « envoyée » quand la durée d'affichage est écoulée pour tous.
+  Une diffusion coupée par un arrêt du serveur est rejouée (au pire vue deux fois, jamais perdue ni payée deux fois).
+- La longueur suit les règles Unicode des emojis courants (séquences ZWJ, teintes, drapeaux, accents combinés) ; le même calcul est fait dans le téléphone
+  et sur le serveur, donc le compteur et le contrôle serveur sont toujours d'accord.
+- Une entreprise sans téléphone de service (métier non raccordé à `elyzea_jobphone`) ne peut pas commander : le téléphone de service est le seul point d'entrée prévu.

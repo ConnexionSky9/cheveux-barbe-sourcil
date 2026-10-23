@@ -87,3 +87,27 @@ html, body { width: 100%; height: 100%; background: transparent; overflow: hidde
 .dial { display: flex; gap: 6px; margin-bottom: 8px; }
 .dial .field { flex: 1; }
 .field { flex: none; }
+/* Annonce / Planning (elyzea_presse) */
+.row.off { opacity: .5; }
+.area { border-radius: 14px; resize: none; font-family: inherit; line-height: 1.35; user-select: text; }
+.counter { text-align: right; font-size: 11px; color: var(--mute); margin: 3px 4px 0; font-variant-numeric: tabular-nums; }
+.counter.bad, .err { color: var(--bad); }
+.err { font-size: 11px; min-height: 14px; margin: 6px 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 14px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dates label { font-size: 11px; color: var(--mute); display: flex; flex-direction: column; gap: 3px; }
+.dates .field { padding: 7px 8px; color-scheme: dark; }
+.recap { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; margin-bottom: 4px; }
+.recap div { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 12px; border-bottom: 1px solid var(--line); }
+.recap div:last-child { border-bottom: 0; }
+.recap span { color: var(--mute); flex: none; } .recap b { text-align: right; overflow-wrap: anywhere; }
+.recap .txt { flex-direction: column; } .recap .txt b { text-align: left; font-weight: 500; white-space: pre-wrap; }
+.recap .total b { font-size: 15px; color: var(--accent); }
+.done { font-size: 46px; text-align: center; margin: 20px 0 6px; }
+.t2.wrap { white-space: normal; overflow: visible; color: var(--text); font-size: 12px; margin: 2px 0; overflow-wrap: anywhere; }
+.row.slot.late { border-left: 3px solid var(--warn); }
+.btn.small { padding: 7px; font-size: 12px; border-radius: 10px; margin-top: 6px; }
+.empty.small { padding: 8px; font-size: 11px; }
+.t2.meta { white-space: normal; }

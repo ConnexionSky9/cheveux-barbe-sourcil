@@ -15,7 +15,6 @@
   const CAT = { ad: 'Annonces', refund: 'Remboursements', salary: 'Salaires', commission: 'Commissions', other: 'Autre' };
   const STL = { draft: 'Brouillon', pending: 'Soumis', published: 'Publié', rejected: 'Renvoyé', archived: 'Archivé' };
   const stTag = (s) => `<span class="st ${esc(s)}">${esc(STL[s] || s)}</span>`;
-  const ADST = { active: 'En cours', expired: 'Expirée', removed: 'Retirée', refunded: 'Remboursée' };
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
   const lim = () => (APP.cfg && APP.cfg.limits) || { titleMax: 120, summaryMax: 300, bodyMax: 12000, bodyMin: 40, titleMin: 6, maxMedia: 6 };
 
@@ -29,7 +28,7 @@
     { id: 'interviews', label: 'Interviews', ico: '🎙️', perm: ['interview'], group: 'Terrain' },
     { id: 'media', label: 'Photos et séquences', ico: '📷', perm: ['media', 'write'], group: 'Terrain' },
     { id: 'flash', label: 'Flash info', ico: '⚡', perm: ['flash'], group: 'Diffusion' },
-    { id: 'ads', label: 'Annonces payantes', ico: '💬', perm: ['ads', 'ads_manage'], group: 'Diffusion' },
+    { id: 'ads', label: 'Annonces commandées', ico: '📣', perm: ['ads', 'ads_manage'], group: 'Diffusion' },
     { id: 'recruit', label: 'Recrutement', ico: '➕', perm: ['recruit'], group: 'Direction' },
     { id: 'employees', label: 'Employés', ico: '👥', perm: ['employees_view'], group: 'Direction' },
     { id: 'grades', label: 'Grades', ico: '🎖️', perm: ['direction'], group: 'Direction' },
@@ -278,20 +277,32 @@
   };
 
   /* ------------------------------------------------------------------ */
-  /* Annonces payantes                                                   */
+  /* Annonces commandées : tarif à l'unité, primes par grade, commandes   */
   /* ------------------------------------------------------------------ */
+  const OST = { active: 'En cours', completed: 'Terminée', cancelled: 'Annulée' };
   PAGES.ads = async (g) => {
-    const d = await req('ads');
+    const d = await req('adSettings');
     if (stale(g)) return;
     if (d.error) { body().innerHTML = empty(d.error); return; }
-    body().innerHTML = `<div class="note">Une annonce se vend avec <span class="kbd">ALT</span> sur le client (en service) : il voit le texte et le prix, et accepte ou refuse. L'argent va sur le compte de la rédaction.</div>
-      <div class="split"><div class="card" style="padding:.3rem .6rem">${d.list.length ? `<table class="tbl"><tr><th>Annonce</th><th>Client</th><th>Prix</th><th>Statut</th><th>Fin</th><th></th></tr>${d.list.map((a) => `<tr>
-        <td><b class="mono" style="font-size:.76rem">${esc(a.uid)}</b><br>${esc(a.text)}<br><small class="faint">${esc(a.seller_name || '')}</small></td><td>${esc(a.client_name || '')}</td>
-        <td class="mono nw">${money(a.price)}<br><small class="faint">${a.method === 'cash' ? 'liquide' : 'banque'}</small></td><td>${esc(ADST[a.status] || a.status)}${a.note ? `<br><small class="faint">${esc(a.note)}</small>` : ''}</td>
-        <td class="muted">${fmtTime(a.e)}</td><td style="text-align:right;white-space:nowrap">${d.canManage && (a.status === 'active' || a.status === 'expired') ? `<button class="btn small" data-adrm="${esc(a.uid)}">Retirer</button> <button class="btn small danger" data-adrf="${esc(a.uid)}">Rembourser</button>` : ''}</td></tr>`).join('')}</table>` : empty('Aucune annonce vendue.')}</div>
-      <div class="detail"><div class="card"><h2>Tarifs</h2>${d.tiers.map((t) => `<div class="list-row"><div class="main"><b>${esc(t.label)}</b><small>${t.hours} h${t.broadcast ? ' · diffusée à tout le serveur' : ''}</small></div>
-        ${d.canManage ? `<div class="rate"><input class="input" type="number" min="0" max="${d.maxPrice}" data-tier="${t.id}" value="${t.price}"><label class="extra"><input type="checkbox" class="check" data-tieron="${t.id}" ${t.enabled ? 'checked' : ''}> active</label></div>` : `<b class="mono">${money(t.price)}${t.enabled ? '' : ' · désactivée'}</b>`}</div>`).join('')}
-        ${d.canManage ? '<div class="actions-row"><button class="btn primary small" data-tiersave="1">Enregistrer les tarifs</button></div>' : ''}</div></div></div>`;
+    const M = d.canManage;
+    body().innerHTML = `<div class="note">Les entreprises commandent leurs annonces sur leur <b>téléphone de service › Annonce</b> et paient depuis le compte de leur entreprise.
+        Les diffusions arrivent dans l'application <b>Planning</b> des journalistes en service (prime ci-dessous) ; sans journaliste en service, elles partent toutes seules (sans prime).
+        ${d.system ? '' : '<br><b style="color:#fca5a5">Le système d\'annonces est désactivé par le staff.</b>'}</div>
+      <div class="split"><div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .4rem 0">Commandes</h2>${d.orders.length ? `<table class="tbl"><tr><th>Commande</th><th>Client</th><th>Diffusions</th><th>Montant</th><th>Statut</th><th></th></tr>${d.orders.map((o) => `<tr>
+        <td><b class="mono" style="font-size:.76rem">${esc(o.uid)}</b><br>${esc(o.text)}<br><small class="faint">${esc(o.freqLabel)} · ${esc(o.start)} → ${esc(o.end)}</small></td>
+        <td>${esc(o.client_label || '')}<br><small class="faint">${esc(o.client_name || '')}</small></td>
+        <td class="mono">${o.sent} / ${o.slots}</td><td class="mono nw">${money(o.total)}<br><small class="faint">${money(o.unit_price)} / annonce${o.refunded ? ` · ${money(o.refunded)} remboursés` : ''}</small></td>
+        <td>${esc(OST[o.status] || o.status)}${o.note ? `<br><small class="faint">${esc(o.note)}</small>` : ''}</td>
+        <td style="text-align:right">${M && o.status === 'active' ? `<button class="btn small danger" data-adcancel="${o.id}" data-left="${o.slots - o.sent}" data-unit="${o.unit_price}">Annuler</button>` : ''}</td></tr>`).join('')}</table>` : empty('Aucune commande.')}</div>
+      <div class="detail"><div class="card"><h2>Tarif</h2>
+        ${M ? `<label class="field"><span>Prix d'une annonce ($)</span><input class="input" type="number" min="0" max="${d.maxPrice}" id="adPrice" value="${d.price}"></label>
+          <label class="extra" style="margin-top:.5rem"><input type="checkbox" class="check" id="adOn" ${d.enabled ? 'checked' : ''}> Accepter les commandes</label>`
+          : `<div class="kv"><span>Prix</span><b>${money(d.price)} / annonce</b><span>Commandes</span><b>${d.enabled ? 'acceptées' : 'fermées'}</b></div>`}
+        <p class="faint" style="font-size:.76rem;margin-top:.5rem">Le client paie <b>nombre de diffusions × prix</b>. Une commande déjà payée garde son prix si vous changez le tarif.</p></div>
+        <div class="card"><h2>Prime par diffusion manuelle</h2>${d.grades.map((gr) => `<div class="list-row"><div class="main"><b>${esc(gr.name)}</b><small>Niv. ${gr.level}</small></div>
+          ${M ? `<div class="rate"><input class="input" type="number" min="0" data-adcom="${gr.id}" value="${gr.commission}"><span class="faint">$</span></div>` : `<b class="mono">${money(gr.commission)}</b>`}</div>`).join('')}
+          <p class="faint" style="font-size:.76rem;margin-top:.5rem">Versée au journaliste qui appuie sur « Envoyer l'annonce », une seule fois, prise sur le compte de la rédaction et plafonnée au prix de l'annonce. Rien pour un envoi automatique.</p>
+          ${M ? '<div class="actions-row"><button class="btn primary small" data-adsave="1">Enregistrer</button></div>' : ''}</div></div></div>`;
   };
 
   /* ------------------------------------------------------------------ */
@@ -674,17 +685,17 @@
       const r = await call('flashSend', { title, text }, b); if (r.ok) go('flash'); return;
     }
     // Annonces
-    if ((b = e.target.closest('[data-tiersave]'))) {
-      const tiers = {};
-      body().querySelectorAll('[data-tier]').forEach((i) => { tiers[i.dataset.tier] = { price: Number(i.value), enabled: !!(body().querySelector(`[data-tieron="${i.dataset.tier}"]`) || {}).checked }; });
-      const r = await call('adsSave', { tiers }, b); if (r.ok) go('ads'); return;
+    if ((b = e.target.closest('[data-adsave]'))) {
+      const commissions = {};
+      body().querySelectorAll('[data-adcom]').forEach((i) => { commissions[i.dataset.adcom] = Number(i.value) || 0; });
+      const r = await call('adSettingsSave', { price: Number($('#adPrice').value), enabled: $('#adOn').checked, commissions }, b); if (r.ok) go('ads'); return;
     }
-    if ((b = e.target.closest('[data-adrm],[data-adrf]'))) {
-      const refund = !!b.dataset.adrf, uid = b.dataset.adrf || b.dataset.adrm;
-      const v = await confirmBox(refund ? 'Retirer et rembourser ?' : 'Retirer l\'annonce ?', refund ? 'Le client est remboursé depuis le compte de la rédaction.' : 'Sans remboursement.', refund ? 'Rembourser' : 'Retirer', true,
-        '<label class="field" style="margin-top:.6rem"><span>Motif</span><input class="input" data-cfv="reason" maxlength="160"></label>');
+    if ((b = e.target.closest('[data-adcancel]'))) {
+      const left = Number(b.dataset.left), unit = Number(b.dataset.unit);
+      const v = await confirmBox('Annuler la commande ?', `Les diffusions pas encore faites sont annulées et remboursées au client depuis le compte de la rédaction (environ <b>${money(left * unit)}</b>). Les diffusions déjà faites restent payées.`, 'Annuler et rembourser', true,
+        '<label class="field" style="margin-top:.6rem"><span>Motif</span><input class="input" data-cfv="reason" maxlength="120"></label>');
       if (!v) return;
-      const r = await call(refund ? 'adRefund' : 'adRemove', { uid, reason: v.reason }, b); if (r.ok) go('ads'); return;
+      const r = await call('adOrderCancel', { id: Number(b.dataset.adcancel), reason: v.reason }, b); if (r.ok) go('ads'); return;
     }
     // Cartes
     if ((b = e.target.closest('[data-cardnew]'))) { const r = await call('cardIssue', { cid: $('#cardCid').value }, b); if (r.ok) go('cards'); return; }

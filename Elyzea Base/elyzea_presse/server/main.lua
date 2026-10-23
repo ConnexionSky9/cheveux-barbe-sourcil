@@ -198,22 +198,6 @@ P.Tables = {
         `seconds` INT NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX (`job`), INDEX (`author_cid`) ) ]],
-    presse_ads = [[ (
-        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        `job` VARCHAR(40) NOT NULL,
-        `uid` VARCHAR(40) NOT NULL UNIQUE,
-        `tier` VARCHAR(20) NOT NULL,
-        `client_cid` VARCHAR(50) NOT NULL, `client_name` VARCHAR(100) NULL,
-        `text` VARCHAR(300) NOT NULL,
-        `price` INT NOT NULL,
-        `method` VARCHAR(6) NULL,
-        `status` VARCHAR(10) NOT NULL DEFAULT 'active',
-        `seller_cid` VARCHAR(50) NULL, `seller_name` VARCHAR(100) NULL,
-        `txid` VARCHAR(40) NULL,
-        `note` VARCHAR(160) NULL, `handled_by` VARCHAR(100) NULL,
-        `expires_at` DATETIME NOT NULL,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX (`job`), INDEX `active` (`status`, `expires_at`) ) ]],
     presse_flashes = [[ (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `job` VARCHAR(40) NOT NULL,
@@ -234,7 +218,7 @@ P.Tables = {
         INDEX (`citizenid`) ) ]],
 }
 P.TableOrder = { 'presse_settings', 'presse_grades', 'presse_employees', 'presse_admin_log', 'presse_sessions', 'presse_rates', 'presse_transactions',
-    'presse_articles', 'presse_article_log', 'presse_interviews', 'presse_media', 'presse_ads', 'presse_flashes', 'presse_cards' }
+    'presse_articles', 'presse_article_log', 'presse_interviews', 'presse_media', 'presse_flashes', 'presse_cards' }
 
 local function InitDb()
     for _, name in ipairs(P.TableOrder) do

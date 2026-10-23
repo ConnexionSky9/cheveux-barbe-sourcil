@@ -18,8 +18,8 @@ DELETE FROM `ely_agencies` WHERE `kind` = 'presse';
 -- Coffre de la rédaction (elyzea_inventory). Videz-le d'abord en jeu si vous voulez récupérer les objets.
 DELETE FROM `elyzea_stashes` WHERE `id` LIKE 'presse\_stash%';
 
--- Tables du métier
-DROP TABLE IF EXISTS `presse_article_log`, `presse_articles`, `presse_interviews`, `presse_media`, `presse_ads`, `presse_flashes`, `presse_cards`,
+-- Tables du métier (dont les commandes d'annonces et leurs diffusions ; `presse_ads` : ancienne version)
+DROP TABLE IF EXISTS `presse_ad_slots`, `presse_ad_orders`, `presse_ads`, `presse_article_log`, `presse_articles`, `presse_interviews`, `presse_media`, `presse_flashes`, `presse_cards`,
     `presse_commission`, `presse_rates`, `presse_sessions`, `presse_transactions`, `presse_admin_log`, `presse_employees`, `presse_grades`, `presse_settings`;
 
 -- Non supprimés volontairement (traçabilité) : le compte de société « journaliste » (elyzea_society) et son

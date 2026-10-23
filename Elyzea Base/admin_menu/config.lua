@@ -170,7 +170,7 @@ Config.Permissions = {
     { key = 'dealer_manage',   label = 'Administration automobile : catalogue global, catégories, concessions, prix, points (elyzea_concess)', cat = 'Métiers' },
     { key = 'agencies_manage', label = 'Agences des métiers : plusieurs polices / EMS / mécanos / Dynasty 8, téléphone de service, zones d\'alerte (elyzea_agences)', cat = 'Métiers' },
     { key = 'property_manage', label = 'Gestion immobilière Dynasty 8 : biens, intérieurs, points, garages, contrats (elyzea_dynasty)', cat = 'Métiers' },
-    { key = 'presse_manage',   label = 'Presse : retirer un article ou une annonce de n\'importe quelle rédaction, depuis le journal (/journal) (elyzea_presse)', cat = 'Métiers' },
+    { key = 'presse_manage',   label = 'Presse : annonces commandées (réglages, durée d\'affichage, file d\'attente, commandes, remboursements) et retrait d\'articles du journal (elyzea_presse)', cat = 'Métiers' },
     { key = 'permis_manage',   label = 'Auto-école : questions du code et prix des permis', cat = 'Métiers' },
     { key = 'trunk_manage',    label = 'Coffres véhicules : emplacements et poids du coffre par catégorie de véhicule', cat = 'Gestion' },
     { key = 'fuel_manage',     label = 'Stations essence : consommation, prix au litre, ajouter / déplacer / supprimer des stations', cat = 'Gestion' },

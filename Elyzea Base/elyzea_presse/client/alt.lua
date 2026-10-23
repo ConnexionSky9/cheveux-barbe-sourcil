@@ -3,6 +3,7 @@
 --  Le menu ALT appartient à elyzea_police (pour tout le monde) : il demande au
 --  journaliste ses options par l'export AltOptions(ctx) et lui passe le choix par
 --  AltSelect(id, ctx). Le serveur revérifie tout (service, grade, distance).
+--  Les annonces des entreprises se commandent sur le téléphone de service (« Annonce »).
 -- =====================================================================
 local C = PresseC
 
@@ -16,7 +17,6 @@ function C.AltOptions(ctx)
     elseif C.Can('interview') then
         out[#out + 1] = { id = 'interview', label = 'Proposer une interview', icon = 'mic', desc = 'La personne accepte ou refuse' }
     end
-    if C.Can('ads') then out[#out + 1] = { id = 'ad', label = 'Proposer une annonce payante', icon = 'fine' } end
     return out
 end
 
@@ -28,28 +28,15 @@ function C.AltSelect(id, ctx)
     if id == 'interview' then
         C.Focus('ivAsk', true)
         SendNUIMessage({ action = 'ivAsk', show = true, target = sid, name = GetPlayerName(GetPlayerFromServerId(sid)) or ('ID ' .. sid) })
-    elseif id == 'ad' then
-        local r = C.Req('adPrepare')
-        if r.error then return C.Notify(r.error, 'error') end
-        r.target = sid
-        C.Focus('adForm', true)
-        SendNUIMessage({ action = 'adForm', show = true, data = r })
     end
 end
 
 C.ui.ivAsk = { close = function() C.Focus('ivAsk', false) SendNUIMessage({ action = 'ivAsk', show = false }) end }
-C.ui.adForm = { close = function() C.Focus('adForm', false) SendNUIMessage({ action = 'adForm', show = false }) end }
 RegisterNUICallback('ivAsk', function(body, cb)
     local r = C.Req('interviewRequest', { target = body.target, subject = body.subject })
     if r.ok then C.ui.ivAsk.close() C.Notify(r.message, 'success') end
     cb(r)
 end)
-RegisterNUICallback('adSend', function(body, cb)
-    local r = C.Req('adOffer', { target = body.target, tier = body.tier, text = body.text })
-    if r.ok then C.ui.adForm.close() C.Notify(r.message, 'success') end
-    cb(r)
-end)
-
 exports('AltOptions', function(ctx)
     local ok, list = pcall(C.AltOptions, ctx)
     return ok and list or {}

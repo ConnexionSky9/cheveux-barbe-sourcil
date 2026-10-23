@@ -148,7 +148,8 @@ Chaque joueur peut changer ses touches : Échap › Paramètres › Raccourcis �
 | **ALT** (maintenu) | Interactions : porter une personne, **copier son animation**, **lui proposer une animation**, coffre du véhicule (ouvrir, se cacher), + police en service : menotter, escorter, amende, fourrière ; + journaliste en service : interview, annonce payante | Tous |
 | **F6** | Police : menu rapide | Policiers |
 | **G** · **X** (seulement caméra / appareil photo / micro en main) | Presse : viseur (clic : photo / filmer, molette : zoom) · ranger le matériel | Journalistes en service |
-| `/journal` | Lire le journal (articles publiés, petites annonces) | Tous |
+| `/journal` | Lire le journal (articles publiés) | Tous |
+| F6 › **Annonce** / **Planning** | Commander une annonce (patron d'entreprise) · envoyer les annonces programmées (journaliste en service) | Téléphone de service |
 | **G** · **I** | Police : valider · décliner une alerte | Policiers en service |
 | **K** · **X** · **J** | Animations : menu · arrêter · déplacer | Tous |
 | **Y** · **L** | Accepter · refuser une demande (animation à deux) | Tous |

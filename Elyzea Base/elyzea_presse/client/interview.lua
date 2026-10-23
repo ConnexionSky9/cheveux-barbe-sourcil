@@ -1,10 +1,9 @@
 -- =====================================================================
---  ELYZEA PRESSE - client : interviews et annonces payantes (côté personne sollicitée)
+--  ELYZEA PRESSE - client : interviews (côté personne sollicitée), carte de presse, flash info
 --  · Demande d'interview : Accepter / Refuser (souris), case « rester anonyme ».
 --    Sans réponse, la demande expire : personne n'est jamais forcé.
 --  · Interview en cours : bandeau ; /fininterview pour y mettre fin à tout moment.
 --  · Notes (journaliste) : bloc-notes de reportage ou tablette › Interviews.
---  · Proposition d'annonce payante : récapitulatif, paiement banque / liquide, ou refus.
 -- =====================================================================
 local C = PresseC
 
@@ -89,42 +88,6 @@ RegisterNUICallback('notesSave', function(body, cb)
     local r = C.Req('interviewNotes', { id = body.id, notes = body.notes })
     if r.ok then C.Notify(r.message, 'success') end
     cb(r)
-end)
-
--- ---------------------------------------------------------------------
--- Annonce payante proposée par un journaliste
--- ---------------------------------------------------------------------
-local ad = nil
-local function EndAd()
-    if not ad then return end
-    ad = nil
-    C.Focus('adOffer', false)
-    SendNUIMessage({ action = 'adOffer', show = false })
-end
-C.ui.adOffer = { close = function()
-    if ad then TriggerServerEvent('presse:server:adAnswer', ad.id, false) end
-    EndAd()
-end }
-RegisterNetEvent('presse:client:adOffer', function(o)
-    if ad then TriggerServerEvent('presse:server:adAnswer', o.id, false) return end
-    ad = o
-    C.Focus('adOffer', true)
-    SendNUIMessage({ action = 'adOffer', show = true, offer = o })
-    local id = o.id
-    CreateThread(function()
-        local untilT = GetGameTimer() + (o.timeout or 45) * 1000
-        while ad and ad.id == id do
-            if GetGameTimer() > untilT then EndAd() break end
-            Wait(250)
-        end
-    end)
-end)
-RegisterNetEvent('presse:client:adOfferClosed', function(id) if ad and ad.id == id then EndAd() end end)
-RegisterNUICallback('adAnswer', function(body, cb)
-    cb({})
-    if not ad then return end
-    TriggerServerEvent('presse:server:adAnswer', ad.id, body.accept == true, body.method == 'cash' and 'cash' or 'bank')
-    EndAd()
 end)
 
 -- ---------------------------------------------------------------------

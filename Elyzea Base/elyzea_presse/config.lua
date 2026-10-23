@@ -175,21 +175,42 @@ Config.Garage = {
 }
 
 -- ---------------------------------------------------------------------
--- Annonces payantes (vendues par un journaliste à un joueur à côté de lui, qui accepte et paie)
--- Prix modifiables dans la tablette (permission ads_manage). broadcast = diffusée en bandeau.
+-- Annonces commandées (application « Annonce » du téléphone de service)
+-- Une entreprise cliente choisit une rédaction, écrit son texte, choisit la fréquence et les dates,
+-- paie depuis le compte de son entreprise. Les diffusions sont envoyées par un journaliste en service
+-- (application « Planning », commission) ou automatiquement s'il n'y en a aucun.
+-- Le tarif à l'unité et les commissions se règlent dans la tablette de chaque rédaction (ads_manage) ;
+-- la durée d'affichage, la file d'attente et le planificateur dans admin_menu (presse_manage).
 -- ---------------------------------------------------------------------
-Config.Ads = {
-    textMax = 300, maxPrice = 1000000, distance = 5.0, timeout = 45,
-    tiers = {
-        { id = 'petite', label = 'Petite annonce', price = 250, hours = 24 },
-        { id = 'encart', label = 'Encart publicitaire', price = 800, hours = 72 },
-        { id = 'flash', label = 'Annonce diffusée à tout le serveur', price = 2500, hours = 24, broadcast = true },
+Config.Annonces = {
+    textMax = 150,                 -- caractères visibles (emojis compris, voir P.TextLength)
+    frequencies = {
+        { id = '30m', label = 'Toutes les 30 minutes', minutes = 30 },
+        { id = '1h', label = 'Toutes les heures', minutes = 60 },
+        { id = '1d', label = 'Une fois par jour', daily = true },
     },
+    dailyHour = 19, dailyMinute = 0,   -- heure de la diffusion quotidienne (heure du serveur)
+    maxDays = 31,                  -- durée maximale d'une commande (jours)
+    maxSlots = 1500,               -- diffusions maximales par commande
+    minLeadSeconds = 60,           -- une diffusion doit être au moins à N s dans le futur
+    defaultPrice = 500, maxPrice = 100000,
+    -- Réglages globaux par défaut (modifiables dans admin_menu, gardés en base)
+    defaults = {
+        enabled = true,            -- système d'annonces actif
+        displaySeconds = 10,       -- durée d'affichage d'une annonce
+        tickSeconds = 15,          -- fréquence du planificateur
+        manualWindow = 300,        -- secondes laissées aux journalistes en service avant l'envoi automatique
+        maxLate = 7200,            -- au-delà de ce retard (serveur arrêté…), la diffusion est annulée et remboursée
+        maxAttempts = 3,           -- essais d'affichage avant de passer la diffusion en « échec » (à relancer)
+        gapMs = 750,               -- pause entre deux annonces de la file
+        queuePaused = false,
+    },
+    limits = { displaySeconds = { 3, 60 }, tickSeconds = { 5, 120 }, manualWindow = { 30, 3600 }, maxLate = { 300, 86400 }, maxAttempts = { 1, 10 } },
 }
 
 -- Lecture du journal (tout le monde) : commande et présentoirs
 Config.Reader = { command = 'journal', anywhere = true }
 
--- Staff : permission admin_menu pour retirer un article ou une annonce de n'importe quelle rédaction
+-- Staff : permission admin_menu (retirer un article, réglages des annonces et de leur file d'attente)
 Config.StaffPermission = 'presse_manage'
 Config.StaffAce = 'elyzea.presse'

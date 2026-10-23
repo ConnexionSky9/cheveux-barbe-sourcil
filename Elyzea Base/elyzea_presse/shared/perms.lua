@@ -18,8 +18,8 @@ PrPerms = {
     { key = 'media',          group = 'Terrain',    label = 'Photos et séquences (appareil photo, caméra)' },
     -- Diffusion
     { key = 'flash',          group = 'Diffusion',  label = 'Flash info à tout le serveur (et annonce des nouveaux articles)' },
-    { key = 'ads',            group = 'Diffusion',  label = 'Vendre des annonces payantes' },
-    { key = 'ads_manage',     group = 'Diffusion',  label = 'Tarifs des annonces, retrait et remboursement' },
+    { key = 'ads',            group = 'Diffusion',  label = 'Planning : envoyer les annonces commandées (commission)' },
+    { key = 'ads_manage',     group = 'Diffusion',  label = 'Tarif des annonces, commissions, annulation et remboursement des commandes' },
     -- Matériel et locaux
     { key = 'gear',           group = 'Matériel',   label = 'Retirer / rendre le matériel de service' },
     { key = 'wardrobe',       group = 'Matériel',   label = 'Utiliser le vestiaire' },

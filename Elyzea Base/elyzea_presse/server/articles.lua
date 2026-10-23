@@ -377,8 +377,7 @@ P.PubActions.news = { fn = function(src, d)
     end
     local agencies = {}
     for _, a in ipairs(P.agencyList) do agencies[#agencies + 1] = { job = a.job, label = a.label, color = a.color } end
-    return { list = rows, more = more, page = page, agencies = agencies, categories = Config.Categories, staff = P.IsStaff(src),
-        ads = P.ActiveAds and P.ActiveAds() or {} }
+    return { list = rows, more = more, page = page, agencies = agencies, categories = Config.Categories, staff = P.IsStaff(src) }
 end }
 
 P.PubActions.newsGet = { fn = function(src, d)

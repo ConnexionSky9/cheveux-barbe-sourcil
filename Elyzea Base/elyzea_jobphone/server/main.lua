@@ -5,6 +5,7 @@
 --    police / EMS) sont lues dans chaque métier via exports.<res>:PhoneBridge.
 --  · Propre au téléphone : numéros pro, messages, appels, alertes des
 --    métiers qui n'en avaient pas (mécano, Dynasty 8, concession).
+--  · Applications « Annonce » et « Planning » : passées à elyzea_presse (AnnonceApi).
 -- =====================================================================
 JP = { numbers = {}, byNumber = {}, ready = false }
 local core = exports.elyzea_core
@@ -383,9 +384,29 @@ function A.tablet(src, me)
 end
 function A.menu(src, me) return { ok = true, res = me.res } end
 
+-- Annonces (ressource elyzea_presse) : « Annonce » pour toutes les entreprises, « Planning » pour les journalistes.
+-- elyzea_presse revérifie tout (entreprise, droit de payer, prix, rédaction, grade, service).
+local ANNONCE_OPS = { agencies = true, quote = true, order = true, myOrders = true }
+local PLANNING_OPS = { planning = true, planSend = true }
+local function Presse(op, src, me, data)
+    if GetResourceState('elyzea_presse') ~= 'started' then return { error = 'Les annonces sont indisponibles.' } end
+    local ok, r = pcall(function() return exports.elyzea_presse:AnnonceApi(op, src, data, me.res) end)
+    return ok and type(r) == 'table' and r or { error = 'Les annonces ne répondent pas.' }
+end
+function A.annonce(src, me, d)
+    if not ANNONCE_OPS[d.op] then return { error = 'Action inconnue.' } end
+    return Presse(d.op, src, me, type(d.data) == 'table' and d.data or {})
+end
+function A.planning(src, me, d)
+    if me.res ~= 'elyzea_presse' then return { error = 'Application réservée aux journalistes.' } end
+    if not PLANNING_OPS[d.op] then return { error = 'Action inconnue.' } end
+    return Presse(d.op, src, me, type(d.data) == 'table' and d.data or {})
+end
+
 -- Applications : nil = toujours, true = en service
 local NEED_DUTY = { home = false, duty = false, directory = true, threads = true, messages = true, send = true, call = true,
-    answer = true, hangup = false, map = true, alerts = true, alert = true, alertClose = true, tablet = true, menu = true }
+    answer = true, hangup = false, map = true, alerts = true, alert = true, alertClose = true, tablet = true, menu = true,
+    annonce = true, planning = true }
 
 local rate = {}
 Ely.callback.register('jobphone:req', function(src, action, data)

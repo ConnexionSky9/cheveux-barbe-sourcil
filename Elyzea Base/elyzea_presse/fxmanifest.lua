@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_presse'
 author 'Elyzea FA'
-description 'Métier de journaliste Elyzea : rédactions (agences), articles (brouillons, validation, publication, archives), journal pour tous, interviews avec accord, photos et séquences, flash info, annonces payantes, matériel, carte de presse, vestiaire, garage, tablette (direction, finance, paie au taux horaire)'
+description 'Métier de journaliste Elyzea : rédactions (agences), articles (brouillons, validation, publication, archives), journal pour tous, interviews avec accord, photos et séquences, flash info, annonces commandées par les entreprises (téléphone de service : Annonce / Planning, file d\'attente, diffusion automatique, commissions), matériel, carte de presse, vestiaire, garage, tablette (direction, finance, paie au taux horaire)'
 version '1.0.0'
 
 shared_scripts {
@@ -25,7 +25,7 @@ server_scripts {
     'server/interviews.lua',
     'server/media.lua',
     'server/flash.lua',
-    'server/ads.lua',
+    'server/annonces.lua',
     'server/gear.lua',
     'server/points.lua',
     'server/direction.lua',
@@ -41,6 +41,7 @@ client_scripts {
     'client/points.lua',
     'client/wardrobe.lua',
     'client/reader.lua',
+    'client/annonce.lua',
     'client/alt.lua',
     'client/f6.lua',
     'client/tablet.lua',
