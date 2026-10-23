@@ -291,6 +291,9 @@ end)
 -- ---------------------------------------------------------
 local StoreApps = {}
 for _, id in ipairs(Config.StoreApps) do StoreApps[id] = true end
+-- Applications ajoutées par les mises à jour : toujours téléchargeables, même avec un ancien config.lua
+-- (sinon l'installation est retirée à l'enregistrement et l'application « ne se télécharge pas »)
+for _, id in ipairs({ 'grossesse', 'sante' }) do StoreApps[id] = true end
 local SocialApps = { birdy = true, instapick = true }
 
 local function HasApp(player, app)
