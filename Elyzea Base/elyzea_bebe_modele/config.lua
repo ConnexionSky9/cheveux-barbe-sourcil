@@ -92,8 +92,15 @@ Config.Equipements = {
 Config.Poussette = {
     actif = true, item = 'poussette', label = 'Poussette', modele = 'poussette',
     coloris = 'graphite',        -- graphite ou sable
-    -- poussée : la poussette est attachée devant le personnage (poignée dans les mains), animation native vérifiée
-    anim = { dict = 'amb@prop_human_bum_shopping_cart@male@base', clip = 'base', flag = 49 },
+    -- poussée : la poussette est attachée devant le personnage (poignée dans les mains), animation native vérifiée.
+    -- V8 : jardinier qui pousse une tondeuse (buste droit, bras tendus vers une poignée à hauteur de taille, haut du corps
+    -- seulement : les jambes marchent normalement). L'ancienne (sans-abri poussant un chariot, dos voûté) reste au choix
+    -- dans le menu admin (Famille › Bébés et équipements › Animation de poussée).
+    anims = {
+        tondeuse = { dict = 'timetable@gardener@lawnmow@', clip = 'base', flag = 49 },
+        chariot = { dict = 'amb@prop_human_bum_shopping_cart@male@base', clip = 'base', flag = 49 },
+    },
+    animChoix = 'tondeuse',
     pos = v3(GEO.poussette and GEO.poussette.poussee and GEO.poussette.poussee.pos, vector3(0.0, 0.90, -0.98)),
     rot = v3(GEO.poussette and GEO.poussette.poussee and GEO.poussette.poussee.rot, vector3(0.0, 0.0, 0.0)),
     -- bébé couché dans la nacelle (repère de la poussette)

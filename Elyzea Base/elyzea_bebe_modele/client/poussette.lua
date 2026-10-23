@@ -46,9 +46,14 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:simuler', function(pid, net, nets
     end
     local e = net and B.entite(net)
     if not e or not B.controle(e) then return fin(false) end
-    SetEntityCollision(e, true, true)      -- V7 : la poussette qui roule reste solide (collision du modèle), objet figé déplacé par le script
+    -- V8 : collision COUPÉE pendant le roulement. En V7 elle restait active : la mesure du sol sous les roues
+    -- (GetGroundZFor_3dCoord) pouvait rencontrer la collision de la poussette elle-même, qui « montait » alors sur
+    -- elle-même à chaque image et s'envolait (puis restait en l'air une fois le frein serré). Elle s'arrête quand même
+    -- devant les joueurs, véhicules et objets (détection d'obstacle). Garée, elle redevient solide (objet recréé).
+    SetEntityCollision(e, false, false)
     FreezeEntityPosition(e, true)
-    if type(nets) == 'table' then B.attacherPieces(nets, PO.nacelle.pos, PO.nacelle.rot, e) end
+    local bebeAttache = type(nets) ~= 'table' or B.attacherPieces(nets, PO.nacelle.pos, PO.nacelle.rot, e)
+    local prochainEssai = GetGameTimer() + 500
     local P = {}
     for k, v in pairs(Physique.defaut) do P[k] = v end
     for k, v in pairs(type(params) == 'table' and params or {}) do if P[k] ~= nil and type(v) == type(P[k]) then P[k] = v end end
@@ -57,6 +62,11 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:simuler', function(pid, net, nets
     while simulations[pid] == 'en_cours' do
         if not DoesEntityExist(e) then break end
         if not NetworkHasControlOfEntity(e) then NetworkRequestControlOfEntity(e) end
+        -- bébé pas encore attaché (contrôle de l'objet pas obtenu) : nouvel essai, sinon il resterait sur place
+        if not bebeAttache and GetGameTimer() > prochainEssai then
+            prochainEssai = GetGameTimer() + 500
+            CreateThread(function() bebeAttache = B.attacherPieces(nets, PO.nacelle.pos, PO.nacelle.rot, e) or bebeAttache end)
+        end
         local dt = math.min(0.05, math.max(0.001, GetFrameTime()))
         local ev
         st, ev = Physique.pas(st, dt, P, sol, obstacle)
@@ -69,6 +79,24 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:simuler', function(pid, net, nets
         Wait(0)
     end
     fin(renversee)
+end)
+
+-- ─────────── Poussettes garées : figées pour tous (V8) ───────────
+-- Le serveur crée une poussette garée figée, mais ce réglage n'est pas garanti chez tous les joueurs (propriétaire de
+-- l'objet qui change) ; depuis la V7 elle a une vraie collision : non figée, un choc pouvait la projeter. Chaque joueur
+-- fige donc localement toute poussette garée ou renversée proche (jamais celle qui est poussée ou qui roule).
+CreateThread(function()
+    while true do
+        local pc = GetEntityCoords(PlayerPedId())
+        for _, obj in ipairs(GetGamePool('CObject')) do
+            local st = Entity(obj).state
+            if st.bebePoussette and (st.bebeEtat == 'garee' or st.bebeEtat == 'renversee') and not IsEntityAttached(obj)
+                and #(GetEntityCoords(obj) - pc) < 80.0 then
+                FreezeEntityPosition(obj, true)
+            end
+        end
+        Wait(500)
+    end
 end)
 
 -- ─────────── Roues locales ───────────

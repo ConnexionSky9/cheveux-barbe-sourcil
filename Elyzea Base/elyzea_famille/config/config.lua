@@ -179,6 +179,8 @@ Config.Bebe = {
     roues = true,             -- roues qui tournent
     colorisPb = 'gris',       -- coloris par défaut des porte-bébés (gris, marine, sauge)
     colorisPoussette = 'graphite', -- coloris par défaut de la poussette (graphite, sable)
+    animPoussee = 'tondeuse',  -- V8 : animation de poussée (tondeuse = buste droit, bras vers la poignée ; chariot = ancienne)
+    decalagePoussette = { y = 0, z = 0 },   -- V8 : cm, poussette poussée (réglage fin après essai en jeu)
     -- décalages de chaque prise (cm, degrés), ajoutés aux positions calculées : réglage fin après essai en jeu
     decalages = {
         face = { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0 },   -- V8 : « contre soi » (seule prise à la main)

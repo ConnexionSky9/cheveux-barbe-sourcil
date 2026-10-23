@@ -166,7 +166,9 @@ local function demanderAttache(b)
     b.attacheDemandee = GetGameTimer()
     b.essais = (b.essais or 0) + 1
     local qui = b.etat == 'porte' and b.porteur or b.pousseur
-    -- poussette poussée (V6) : le bébé est attaché à la POUSSETTE (il suit son inclinaison sur les pentes)
+    -- poussette poussée (V8) : le bébé est attaché au POUSSEUR, à la place de la nacelle (comme la poussette elle-même).
+    -- V6 l'attachait à la poussette, elle-même attachée au joueur : GTA synchronise mal ces attaches en chaîne (le bébé
+    -- restait sur place chez les autres joueurs, la vérification échouait et le bébé était reposé au sol).
     local po = b.etat == 'poussette' and Poussettes[b.poussette or ''] or nil
     TriggerClientEvent('elyzea_bebe_modele:attacher', qui, b.id, b.nets, b.etat == 'porte' and b.mode or 'poussette', po and po.net or nil)
 end
@@ -187,8 +189,9 @@ end
 local function creerPoussetteEnt(po, coords, cap, figer)
     supprimer(po.ent)
     -- états lus par les clients : nacelle occupée, coloris (roues locales), frein, renversée
+    -- bebeEtat (V8) : garee / poussee / libre / renversee ; chaque client fige localement une poussette garée ou renversée
     po.ent, po.net = creerObjet(nomPoussette(po), coords, cap, figer, po.bucket, { bebePoussette = po.id, bebeDedans = po.bebe or false,
-        bebeColoris = po.coloris, bebeFrein = po.frein ~= false, bebeRenversee = po.etat == 'renversee' })
+        bebeColoris = po.coloris, bebeFrein = po.frein ~= false, bebeRenversee = po.etat == 'renversee', bebeEtat = po.etat })
     if po.ent and po.etat == 'renversee' then pcall(SetEntityRotation, po.ent, 0.0, 80.0, cap + 0.0, 2, false) end
     return po.ent ~= nil
 end
@@ -357,6 +360,7 @@ local function demarrerSimulation(po, src)
     if not sim then return false end
     po.etat, po.simulateur, po.simDebut = 'libre', sim, GetGameTimer()
     Entity(po.ent).state:set('bebeFrein', false, true)
+    Entity(po.ent).state:set('bebeEtat', 'libre', true)
     local b = Bebes[po.bebe or '']
     TriggerClientEvent('elyzea_bebe_modele:poussette:simuler', sim, po.id, po.net, b and b.nets or nil,
         { x = po.coords.x, y = po.coords.y, z = po.coords.z, cap = po.cap }, PH.parametres)
@@ -426,6 +430,7 @@ local function publierReglages()
         ventral = EQ.ventral.actif, dorsal = EQ.dorsal.actif, poussette = PO.actif,
         courseInterdite = PO.courseInterdite, debug = Config.Debug,
         roues = PO.roues ~= false, physique = PO.physique.actif, decalages = P.decalages,
+        animPoussee = PO.animChoix, decPoussette = PO.decalage or { y = 0, z = 0 },
     }
 end
 
@@ -456,6 +461,9 @@ local function appliquerReglages(v)
     local M = BebeModeles.equipements or {}
     if M.pb_ventral and M.pb_ventral[v['bebe.colorisPb']] then EQ.coloris = v['bebe.colorisPb'] end
     if M.poussette and M.poussette[v['bebe.colorisPoussette']] then PO.coloris = v['bebe.colorisPoussette'] end
+    if PO.anims[v['bebe.animPoussee']] then PO.animChoix = v['bebe.animPoussee'] end
+    local dp = PO.decalage or {}
+    PO.decalage = { y = num('bebe.dec.poussette.y', -30, 30, dp.y or 0), z = num('bebe.dec.poussette.z', -30, 30, dp.z or 0) }
     for _, m in ipairs(MODES_DEC) do
         local d = P.decalages[m] or {}
         P.decalages[m] = {
@@ -1062,7 +1070,7 @@ local function verifier()
                     local corps = bb.ents and bb.ents.corps
                     if not corps or not DoesEntityExist(corps) then
                         if not placer(bb) then poserDeSecours(bb, 'entite_perdue') end
-                    elseif GetEntityAttachedTo(corps) ~= po.ent then
+                    elseif GetEntityAttachedTo(corps) ~= ped then
                         if (bb.essais or 0) >= 3 then
                             po.bebe, bb.poussette, bb.pousseur = nil, nil, nil
                             majDedans(po)

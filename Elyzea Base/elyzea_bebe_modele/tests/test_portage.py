@@ -151,8 +151,8 @@ function ClientAttache(src)
     local corps = nets.corps - 50000
     if not W.ents[corps] then return false end
     for _, k in ipairs({ 'yeux', 'cheveux' }) do if nets[k] then W.ents[nets[k] - 50000].attached = corps end end
-    -- V6 : dans une poussette poussée, le bébé est attaché à la poussette (5e argument = son identifiant réseau)
-    if c.args[3] == 'poussette' and c.args[4] then W.ents[corps].attached = c.args[4] - 50000 else W.ents[corps].attached = src * 100 end
+    -- V8 : porté OU dans une poussette poussée, le bébé est attaché au joueur (plus d'attache en chaîne bébé → poussette → joueur)
+    W.ents[corps].attached = src * 100
     W.ents[corps].frozen = false
     Net('elyzea_bebe_modele:attache', src, c.args[1])
     return true
@@ -451,8 +451,11 @@ po = strollers()[pid]
 check('21. poussée par le joueur 1', po.etat == 'poussee' and po.pousseur == 1 and dbg()[3][1] == pid and W.pstate[1]['bebePoussette'].id == pid)
 check('21. poussette attachée devant le joueur', G.ClientPoussette(1) and W.ents[po.ent].attached == 100)
 att = G.LastClient('elyzea_bebe_modele:attacher', 1)
-check('21. bébé attaché à la poussette poussée, dans la nacelle (mode « poussette »)', att and att.args[3] == 'poussette' and G.ClientAttache(1)
-      and W.ents[baby()[0][bid].ents.corps].attached == po.ent)
+check('21. V8 : bébé dans la poussette poussée attaché au pousseur (pas à la poussette), mode « poussette »', att and att.args[3] == 'poussette'
+      and G.ClientAttache(1) and W.ents[baby()[0][bid].ents.corps].attached == 100)
+G.Advance(12000)
+check('21. V8 : 12 s plus tard, le bébé est toujours dans la poussette poussée (plus reposé au sol par la vérification)',
+      baby()[0][bid].etat == 'poussette' and W.ents[baby()[0][bid].ents.corps].attached == 100)
 check('21. pousseur : coups bloqués côté serveur', G.Damage(1, UNARMED) is True)
 n_att = sum(1 for c_ in W.client.values() if c_.name in ('elyzea_bebe_modele:attacher', 'elyzea_bebe_modele:poussette:attacher'))
 G.Advance(10000)

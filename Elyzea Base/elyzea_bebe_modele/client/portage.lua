@@ -63,11 +63,17 @@ local function jouerAnim(anim)
     end
 end
 
+-- animation de poussée choisie dans le menu admin (V8)
+local function animPoussee()
+    local r = GlobalState.bebeReglages or {}
+    return PO.anims[r.animPoussee or PO.animChoix] or PO.anims[PO.animChoix]
+end
+
 local function arreterAnim(seulement)
     local ped = PlayerPedId()
     local liste = {}
     if seulement ~= 'poussette' then for _, m in pairs(P.modes) do if m.anim then liste[#liste + 1] = m.anim end end end
-    if seulement ~= 'bebe' then liste[#liste + 1] = PO.anim end
+    if seulement ~= 'bebe' then for _, a in pairs(PO.anims) do liste[#liste + 1] = a end end
     for _, a in ipairs(liste) do
         if IsEntityPlayingAnim(ped, a.dict, a.clip, 3) then StopAnimTask(ped, a.dict, a.clip, 2.0) end
     end
@@ -100,14 +106,28 @@ local function attacherPieces(nets, pos, rot, parent)
 end
 
 -- Attache demandée par le serveur (prise en main, changement de prise, bébé dans la poussette poussée)
-RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode, netPoussette)
+-- Bébé dans la poussette POUSSÉE (V8) : attaché au personnage, à l'endroit de la nacelle. La position de la nacelle dans
+-- le repère du personnage = attache de la poussette (PO.pos, hauteur zoff) + nacelle tournée du tangage de la poussette.
+local function nacellePoussee(zoff, tangage)
+    local t = math.rad(tangage or 0.0)
+    local n = PO.nacelle.pos
+    local y = n.y * math.cos(t) - n.z * math.sin(t)
+    local z = n.y * math.sin(t) + n.z * math.cos(t)
+    local rz = PO.rot.z + PO.nacelle.rot.z
+    -- la nacelle est tournée de 180° : le tangage de la poussette devient une bascule opposée dans le repère du bébé
+    local rx = math.abs((PO.nacelle.rot.z % 360.0) - 180.0) < 1.0 and -(tangage or 0.0) or (tangage or 0.0)
+    local d = decPoussette()
+    return vector3(PO.pos.x + n.x, PO.pos.y + d.y + y, PO.pos.z + d.z + (zoff or 0.0) + z), vector3(rx, 0.0, rz)
+end
+
+RegisterNetEvent('elyzea_bebe_modele:attacher', function(id, nets, mode)
     if type(nets) ~= 'table' then return end
     local ped = PlayerPedId()
     if mode == 'poussette' then
-        -- V6 : le bébé est attaché à la poussette (il suit son inclinaison dans les pentes)
-        local parent = netPoussette and entite(netPoussette)
-        if not parent then return end
-        if attacherPieces(nets, PO.nacelle.pos, PO.nacelle.rot, parent) then
+        local zoff = pousse and pousse.zoff or 0.0
+        local tangage = pousse and pousse.tangage or 0.0
+        local pos, rot = nacellePoussee(zoff, tangage)
+        if attacherPieces(nets, pos, rot, ped) then
             if pousse then pousse.bebe = { id = id, nets = nets } end
             TriggerServerEvent('elyzea_bebe_modele:attache', id)
         end
@@ -154,8 +174,15 @@ end)
 
 -- ─────────── Poussette ───────────
 
+-- décalage de la poussette réglé dans le menu admin (cm), selon l'animation de poussée
+local function decPoussette()
+    local d = (GlobalState.bebeReglages or {}).decPoussette or {}
+    return vector3(0.0, (tonumber(d.y) or 0) / 100.0, (tonumber(d.z) or 0) / 100.0)
+end
+
 local function attacherPoussette(e, zoff, tangage)
-    AttachEntityToEntity(e, PlayerPedId(), 0, PO.pos.x, PO.pos.y, PO.pos.z + (zoff or 0.0), PO.rot.x + (tangage or 0.0), PO.rot.y, PO.rot.z,
+    local p = PO.pos + decPoussette()
+    AttachEntityToEntity(e, PlayerPedId(), 0, p.x, p.y, p.z + (zoff or 0.0), PO.rot.x + (tangage or 0.0), PO.rot.y, PO.rot.z,
         false, false, false, false, 2, true)
 end
 
@@ -170,7 +197,7 @@ RegisterNetEvent('elyzea_bebe_modele:poussette:attacher', function(pid, net)
     pousse = { id = pid, net = net, zoff = zoff, tangage = tangage, bebe = pousse and pousse.id == pid and pousse.bebe or nil }
     SetCurrentPedWeapon(PlayerPedId(), UNARMED, true)
     arreterAnim('poussette')
-    jouerAnim(PO.anim)
+    jouerAnim(animPoussee())
     TriggerServerEvent('elyzea_bebe_modele:poussette:attache', pid)
 end)
 
@@ -239,6 +266,13 @@ local function suivreSol()
     if math.abs(voulu - (pousse.zoff or 0.0)) < 0.03 and math.abs(tangage - (pousse.tangage or 0.0)) < 1.5 then return end
     pousse.zoff, pousse.tangage = voulu, tangage
     attacherPoussette(e, voulu, tangage)
+    -- le bébé (attaché au personnage) suit la nacelle
+    local bb = pousse.bebe and pousse.bebe.nets and pousse.bebe.nets.corps
+    local corps = bb and NetworkGetEntityFromNetworkId(bb)
+    if corps and corps ~= 0 and DoesEntityExist(corps) and IsEntityAttachedToEntity(corps, ped) then
+        local pos, rot = nacellePoussee(voulu, tangage)
+        AttachEntityToEntity(corps, ped, 0, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, false, false, false, false, 2, true)
+    end
 end
 
 -- Boucle pendant le portage / la poussée : mêlée bloquée, arme rangée (mains occupées), animations maintenues
@@ -264,7 +298,8 @@ CreateThread(function()
                 jouerAnim(m.anim)
             end
             if ep and pousse then
-                if libre and not IsEntityPlayingAnim(ped, PO.anim.dict, PO.anim.clip, 3) then jouerAnim(PO.anim) end
+                local ap = animPoussee()
+                if libre and not IsEntityPlayingAnim(ped, ap.dict, ap.clip, 3) then arreterAnim('poussette') jouerAnim(ap) end
                 local r = reglages()
                 if r.courseInterdite ~= false and PO.courseInterdite then DisableControlAction(0, 21, true) end   -- sprint
                 if now - dernierObstacle > 200 then

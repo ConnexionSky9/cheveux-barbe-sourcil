@@ -53,6 +53,7 @@ pid = list(strollers().keys())[0]
 po = strollers()[pid]
 check('1. poussette sortie : garée, frein serré (état visible par tous)', po.etat == 'garee' and po.frein is True
       and W.ents[po.ent].state['bebeFrein'] is True and W.ents[po.ent].state['bebeColoris'] == 'graphite')
+check('1. V8 : état « garée » transmis aux joueurs (chacun la fige localement : plus de poussette projetée)', W.ents[po.ent].state['bebeEtat'] == 'garee')
 
 G.Net('elyzea_bebe_modele:prendre', 1, bid, 'bras')
 G.ClientAttache(1)
@@ -72,6 +73,7 @@ sim = G.LastClient('elyzea_bebe_modele:poussette:simuler', 1)
 check('2. « Lâcher sans frein » : la poussette roule (état libre), simulée par le joueur qui l\'a lâchée', po.etat == 'libre'
       and po.simulateur == 1 and sim is not None and sim.args[1] == pid and sim.args[3] is not None and W.ents[po.ent].state['bebeFrein'] is False)
 check('2. le simulateur reçoit les pièces du bébé (pour les attacher à la poussette qui roule)', sim.args[3]['corps'] is not None)
+check('2. V8 : état « libre » transmis (les joueurs ne la figent plus pendant qu\'elle roule)', W.ents[po.ent].state['bebeEtat'] == 'libre')
 add_player(2, 101.5, 102.0)
 G.Advance(3500)
 G.Net('elyzea_bebe_modele:prendre', 2, bid, 'bras')

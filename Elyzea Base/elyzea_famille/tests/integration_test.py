@@ -930,10 +930,10 @@ check('44. valeurs par défaut : ventre désactivé', G.GlobalState.famVentre.ac
 
 # ═══════════ V6 : réglages bébé étendus (transmis à elyzea_bebe_modele) ═══════════
 v = admin_data(3)['values']
-v.update({'bebe.dec.bras.y': -4.0, 'bebe.colorisPoussette': 'sable', 'bebe.physique': False, 'bebe.crr': 0.05})
+v.update({'bebe.dec.face.y': -4.0, 'bebe.dec.face.ry': 8.0, 'bebe.animPoussee': 'chariot', 'bebe.dec.poussette.z': 5.0, 'bebe.colorisPoussette': 'sable', 'bebe.physique': False, 'bebe.crr': 0.05})
 ok, msg = admin(3, 'save', {'values': v})
 dern = W.bebe_reglages[-1]
-check('45. décalages, coloris, physique : enregistrés et transmis à la ressource bébé', ok is True and dern['bebe.dec.bras.y'] == -4.0
+check('45. décalages, coloris, physique : enregistrés et transmis à la ressource bébé', ok is True and dern['bebe.dec.face.y'] == -4.0 and dern['bebe.dec.face.ry'] == 8.0 and dern['bebe.animPoussee'] == 'chariot' and dern['bebe.dec.poussette.z'] == 5.0
       and dern['bebe.colorisPoussette'] == 'sable' and dern['bebe.physique'] is False and abs(dern['bebe.crr'] - 0.05) < 1e-9, msg)
 v.update({'bebe.colorisPoussette': 'rose'})
 ok, msg = admin(3, 'save', {'values': v})
