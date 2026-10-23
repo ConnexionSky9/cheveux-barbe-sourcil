@@ -112,6 +112,8 @@ end
 -- Prochaines étapes utiles (texte) selon l'avancement et la procédure d'accouchement en cours
 local function prochainesEtapes(g, av)
     local out = {}
+    -- accouchement en cours (V8) : seule l'étape suivante de la procédure compte
+    if g.travail_etape and Fam.TravailInfo then return { Fam.TravailInfo(g) } end
     if av.terme then
         local tr = Fam.TravailInfo and Fam.TravailInfo(g)
         if tr then out[#out + 1] = tr

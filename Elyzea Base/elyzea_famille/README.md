@@ -1,4 +1,4 @@
-# elyzea_famille — moment intime, contraception, conception, grossesse, symptômes, accouchement, ventre, suivi de grossesse (version 0.7)
+# elyzea_famille — moment intime, contraception, conception, grossesse, symptômes, accouchement, ventre, suivi de grossesse (version 0.8)
 
 > **Non testé en jeu.** Ce qui a été vérifié hors du jeu :
 > - règles de calcul : **68/68 tests** (`lua5.4 tests/test_regles.lua`), dont des tirages statistiques ;
@@ -7,7 +7,8 @@
 > - syntaxe Lua et JavaScript ; onglet admin affiché dans Chromium (`docs/famille/captures/`).
 >
 > Chiffres ci-dessus : V5. Résultats V7 (durées par trimestre, historique, réorganisation) : `docs/famille/LIVRAISON_V7.md`.
-> À tester en jeu : `docs/famille/LIVRAISON_V7.md` › « Tests à faire en jeu ».
+> **V8** (accouchement obligatoirement assisté par un EMS, application Aura fiabilisée, baiser) : `docs/famille/LIVRAISON_V8.md`
+> — 171/171 contrôles d'intégration, 85/85 règles, 17/17 ventre ; protocole de test à deux joueurs au §7.
 
 Première brique de l'écosystème famille (architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
 Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, crèche…) s'ajouteront dans cette même ressource.

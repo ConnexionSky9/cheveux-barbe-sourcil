@@ -854,7 +854,26 @@ const I18N = {
   "Personnage non chargé.": "Character not loaded.",
   "Santé": "Health",
   "Suivez votre grossesse, étape par étape.": "Follow your pregnancy, step by step.",
-  "Trimestre en cours, temps écoulé et temps restant avant l'accouchement, date de début et historique complet : découverte, examens médicaux, passages de trimestre, terme et naissance. Vos informations restent privées.": "Current trimester, time elapsed and time left before delivery, start date and full history: discovery, medical exams, trimester changes, due date and birth. Your information stays private."
+  "Trimestre en cours, temps écoulé et temps restant avant l'accouchement, date de début et historique complet : découverte, examens médicaux, passages de trimestre, terme et naissance. Vos informations restent privées.": "Current trimester, time elapsed and time left before delivery, start date and full history: discovery, medical exams, trimester changes, due date and birth. Your information stays private.",
+  // Grossesse V8
+  "Accouchement": "Delivery",
+  "Aucun examen": "No exams",
+  "Aucune grossesse confirmée": "No confirmed pregnancy",
+  "Découverte": "Discovered",
+  "Erreur de lecture du suivi": "Couldn't read tracking",
+  "Examens et tests": "Exams and tests",
+  "Installez Grossesse depuis Appli.": "Install Pregnancy from the App store.",
+  "Le serveur ne répond pas": "The server isn't responding",
+  "Le serveur utilise une ancienne version du suivi de grossesse. Prévenez l'administration.": "The server uses an old version of pregnancy tracking. Tell the staff.",
+  "Le suivi de grossesse est momentanément arrêté sur le serveur. Prévenez l'administration.": "Pregnancy tracking is currently stopped on the server. Tell the staff.",
+  "Patientez quelques secondes avant d'actualiser.": "Wait a few seconds before refreshing.",
+  "Personnage en cours de chargement": "Character loading",
+  "Prochaines étapes": "Next steps",
+  "Réessayer": "Try again",
+  "Service de suivi arrêté": "Tracking service stopped",
+  "Service de suivi à mettre à jour": "Tracking service needs an update",
+  "Trop de demandes": "Too many requests",
+  "Un EMS peut réaliser un examen de grossesse.": "An EMS can perform a pregnancy exam."
 },
   es: {
   "Récents": "Recientes",
@@ -1709,6 +1728,25 @@ const I18N = {
   "Personnage non chargé.": "Personaje no cargado.",
   "Santé": "Salud",
   "Suivez votre grossesse, étape par étape.": "Sigue tu embarazo, paso a paso.",
-  "Trimestre en cours, temps écoulé et temps restant avant l'accouchement, date de début et historique complet : découverte, examens médicaux, passages de trimestre, terme et naissance. Vos informations restent privées.": "Trimestre actual, tiempo transcurrido y restante hasta el parto, fecha de inicio e historial completo: descubrimiento, exámenes médicos, cambios de trimestre, término y nacimiento. Tu información es privada."
+  "Trimestre en cours, temps écoulé et temps restant avant l'accouchement, date de début et historique complet : découverte, examens médicaux, passages de trimestre, terme et naissance. Vos informations restent privées.": "Trimestre actual, tiempo transcurrido y restante hasta el parto, fecha de inicio e historial completo: descubrimiento, exámenes médicos, cambios de trimestre, término y nacimiento. Tu información es privada.",
+  // Grossesse V8
+  "Accouchement": "Parto",
+  "Aucun examen": "Ningún examen",
+  "Aucune grossesse confirmée": "Ningún embarazo confirmado",
+  "Découverte": "Descubierto",
+  "Erreur de lecture du suivi": "Error al leer el seguimiento",
+  "Examens et tests": "Exámenes y pruebas",
+  "Installez Grossesse depuis Appli.": "Instala Embarazo desde Appli.",
+  "Le serveur ne répond pas": "El servidor no responde",
+  "Le serveur utilise une ancienne version du suivi de grossesse. Prévenez l'administration.": "El servidor usa una versión antigua del seguimiento. Avisa a la administración.",
+  "Le suivi de grossesse est momentanément arrêté sur le serveur. Prévenez l'administration.": "El seguimiento del embarazo está detenido en el servidor. Avisa a la administración.",
+  "Patientez quelques secondes avant d'actualiser.": "Espera unos segundos antes de actualizar.",
+  "Personnage en cours de chargement": "Personaje cargando",
+  "Prochaines étapes": "Próximos pasos",
+  "Réessayer": "Reintentar",
+  "Service de suivi arrêté": "Servicio de seguimiento detenido",
+  "Service de suivi à mettre à jour": "El servicio de seguimiento debe actualizarse",
+  "Trop de demandes": "Demasiadas solicitudes",
+  "Un EMS peut réaliser un examen de grossesse.": "Un EMS puede hacer un examen de embarazo."
 }
 };

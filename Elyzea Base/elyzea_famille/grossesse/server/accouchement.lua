@@ -122,6 +122,11 @@ local function realiser(src, cible, ems, patient, g)
         if not ecrire(g2, precedente, e.id, t2) then
             return Fam.Notify(src, 'Cette étape vient déjà d\'être faite (par un autre EMS ?).', 'inform')
         end
+        if not precedente and not g2.discovered_at then
+            -- une prise en charge par un EMS confirme la grossesse : elle apparaît dans l'application de la patiente
+            local n = MySQL.update.await('UPDATE `rp_pregnancies` SET `discovered_at` = ? WHERE `id` = ? AND `discovered_at` IS NULL', { os.time(), g2.id })
+            if (tonumber(n) or 0) >= 1 then evenement(g2.id, 'decouverte', { par = 'examen' }) end
+        end
         evenement(g2.id, 'travail', { etape = e.id, label = e.label, ems = ems.cid })
         acteMedical(cible, e.acte, src)
         Fam.Audit(ems.cid, 'accouchement_' .. e.id, patient.cid, { grossesse = g2.id })

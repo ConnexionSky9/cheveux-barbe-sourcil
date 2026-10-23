@@ -42,7 +42,7 @@ function renderGrossesse() {
   if (r.statut === 'en_cours') {
     const g = r.grossesse || {};
     const pct = Math.max(0, Math.min(100, Math.round((g.pct || 0) * 100)));
-    const jours = (n) => ((g.joursTotal || 0) >= 1 ? ` · ${t('{n} j', { n })}` : '');   // jours : seulement pour une grossesse d'au moins un jour
+    const jours = () => '';   // les durées affichées contiennent déjà les jours (« 13 j 7 h »)
     const tri = g.terme ? t('Terme atteint') : (g.trimestre === 1 ? t('1er trimestre') : t('{n}e trimestre', { n: g.trimestre }));
     body.innerHTML = `
       <div class="gro-hero">
@@ -100,7 +100,7 @@ Views.grossesse = async () => {
       installer: [t('Application non installée'), t('Installez Grossesse depuis Appli.')],
     };
     const [titre, texte] = MSG[code] || [t('Erreur de lecture du suivi'), esc(t((r && r.error) || 'Réessayez dans un instant.'))];
-    $('.app__body', appView).innerHTML = empty(titre, texte, `<button class="btn" data-gro-retry style="margin-top:14px">${t('Réessayer')}</button>`);
+    $('.app__body', appView).innerHTML = empty(titre, texte, `<div style="margin-top:14px"><button class="btn" data-gro-retry>${t('Réessayer')}</button></div>`);
     $('[data-gro-retry]', appView).onclick = () => Views.grossesse();
     return;
   }

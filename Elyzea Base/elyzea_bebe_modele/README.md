@@ -1,4 +1,4 @@
-# elyzea_bebe_modele — bébé 3D, portage, porte-bébés, poussette (V6)
+# elyzea_bebe_modele — bébé 3D, portage, porte-bébés, poussette, soins (V8)
 
 > **Non testé en jeu** (pas de client GTA V / FiveM dans l'environnement de développement). Vérifié hors du jeu :
 > fichiers du jeu produits et relus par la bibliothèque de CodeWalker, rendus faits à partir de ces fichiers relus,
@@ -6,6 +6,8 @@
 > (`tests/test_portage.py`, `tests/test_poussette.py`), persistance contre une vraie base MariaDB (`tests/test_persistance.py`),
 > physique sur terrains simulés (`tests/test_physique.lua`), logique client (`tests/test_client.lua`).
 > Rapport complet et tests à faire en jeu : `docs/famille/LIVRAISON_BEBE_V6.md`.
+> **V8** (« Prendre contre soi » unique et ouvert à tous, bébé attaché au pousseur, frein sans envol, besoins, biberon, couche,
+> vêtements portés) : `docs/famille/LIVRAISON_V8.md` (`tests/test_soins.py` 25/25).
 
 Sources et fabrication des modèles : `Outils_3D/bebe/README_BEBE.md` (chaîne complète : `Outils_3D/bebe/construire.sh`).
 
@@ -81,4 +83,5 @@ grossesse + rang déjà enregistrée renvoie le même bébé) · `SupprimerBebe(
   réglables dans le menu admin (décalages) et `/bebe_ajuster`.
 - Physique simulée : la poussette qui roule s'arrête devant les joueurs, elle ne les pousse pas.
 - Collision (V7) : le modèle de la poussette contient une collision en 4 boîtes ; solide garée, renversée ou en roulement.
-  Pendant la poussée (attachée au personnage), sa collision est coupée. Non vérifié en jeu : `docs/famille/LIVRAISON_V7.md`.
+  Pendant la poussée (attachée au personnage), sa collision est coupée. V8 : collision aussi coupée pendant le roulement libre,
+  poussette garée figée chez chaque joueur (correction de l'envol). Non vérifié en jeu : `docs/famille/LIVRAISON_V8.md`.

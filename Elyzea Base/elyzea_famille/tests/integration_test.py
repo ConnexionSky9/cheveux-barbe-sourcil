@@ -898,6 +898,8 @@ net('elyzea_famille:accouchement', 1, 1)
 check('39. V8 : la patiente ne peut pas faire avancer son accouchement seule', etape_acc(g['id']) is None)
 net('elyzea_famille:accouchement', 3, 1)
 answer(1, True)
+check('39. V8 : prise en charge par un EMS = grossesse confirmée (visible dans l\'application de la patiente)',
+      q('SELECT discovered_at FROM rp_pregnancies WHERE id=%s', (g['id'],))[0]['discovered_at'] is not None)
 check('39. V8 : prise en charge acceptée, enregistrée en base, inscrite au dossier médical', etape_acc(g['id']) == 'prise_en_charge'
       and (1, 'consult', 3) in W.actes, (etape_acc(g['id']), W.actes))
 W.notifs.clear()
