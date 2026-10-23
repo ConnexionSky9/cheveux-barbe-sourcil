@@ -10,6 +10,8 @@ local Config = {
     DefaultStopKey = 'X',
     AcceptKey      = 'Y',          -- accepter une demande d'animation partagée
     RefuseKey      = 'L',          -- refuser une demande (N = parler, pma-voice)
+    -- Touches réservées à d'autres ressources : jamais utilisées par ce menu (ouvrir, arrêter, raccourcis)
+    ReservedKeys   = { F7 = 'Mes animaux (elyzea_animaux)' },
     NearbyRadius   = 3.0,          -- distance max (mètres) pour les animations partagées (3 m comme rpemotes)
     -- Aperçu 3D : caméra devant ton personnage pendant que le menu est ouvert
     PreviewCam = {
@@ -46,6 +48,32 @@ local settings = json.decode(GetResourceKvpString('elyzea_anim_settings') or 'nu
 settings.openKey = settings.openKey or Config.DefaultOpenKey
 settings.stopKey = settings.stopKey or Config.DefaultStopKey
 local binds = json.decode(GetResourceKvpString('elyzea_anim_binds') or 'null') or {}
+
+local function isReserved(key)
+    return type(key) == 'string' and Config.ReservedKeys[key:upper()] ~= nil
+end
+
+-- Une touche réservée (ex. F7 choisie avant la réservation) repasse sur la touche par défaut
+local function freeReservedKeys()
+    local changed = false
+    if isReserved(settings.openKey) then
+        settings.openKey = settings.stopKey ~= Config.DefaultOpenKey and Config.DefaultOpenKey or Config.DefaultStopKey
+        changed = true
+    end
+    if isReserved(settings.stopKey) then
+        settings.stopKey = settings.openKey ~= Config.DefaultStopKey and Config.DefaultStopKey or Config.DefaultOpenKey
+        changed = true
+    end
+    for key in pairs(binds) do
+        if isReserved(key) then binds[key] = nil changed = true end
+    end
+    return changed
+end
+
+if freeReservedKeys() then
+    SetResourceKvp('elyzea_anim_settings', json.encode(settings))
+    SetResourceKvp('elyzea_anim_binds', json.encode(binds))
+end
 
 local function notify(text, kind)
     SendNUIMessage({ action = 'notify', text = text, kind = kind })
@@ -665,7 +693,7 @@ local function onKey(key)
 end
 
 local function ensureKey(key)
-    if type(key) ~= 'string' or key == '' or registered[key] then return end
+    if type(key) ~= 'string' or key == '' or registered[key] or isReserved(key) then return end
     registered[key] = true
     local cmd = 'elyzea_anim_' .. key:lower()
     RegisterCommand(cmd, function() onKey(key) end, false)
@@ -708,6 +736,7 @@ RegisterNUICallback('respond', function(data, cb) respond(data.accept == true) c
 
 RegisterNUICallback('saveSettings', function(data, cb)
     settings = data or settings
+    if freeReservedKeys() then SendNUIMessage({ action = 'init', settings = settings, binds = binds }) end
     if settings.preview == false or not menuOpen then closePreview()
     elseif pv.active then
         -- position du menu changée : on replace la caméra
@@ -722,6 +751,7 @@ end)
 
 RegisterNUICallback('saveBinds', function(data, cb)
     binds = (data and data.binds) or {}
+    if freeReservedKeys() then SendNUIMessage({ action = 'init', settings = settings, binds = binds }) end
     for key in pairs(binds) do ensureKey(key) end
     SetResourceKvp('elyzea_anim_binds', json.encode(binds))
     cb(true)
@@ -768,7 +798,9 @@ CreateThread(function()
         })
     end
     Wait(1500)
-    SendNUIMessage({ action = 'init', settings = settings, binds = binds,
+    local reserved = {}
+    for key, label in pairs(Config.ReservedKeys) do reserved[key] = label end
+    SendNUIMessage({ action = 'init', settings = settings, binds = binds, reserved = reserved,
         keys = { accept = Config.AcceptKey, refuse = Config.RefuseKey,
                  place = Config.Placement.Enabled and Config.Placement.Key or nil } })
     -- Laisse le temps aux fichiers de rpemotes d'être chargés avant de vérifier

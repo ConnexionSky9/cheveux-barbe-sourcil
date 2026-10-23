@@ -104,11 +104,16 @@ function C.MyPets()
     return d
 end
 
+-- F7 appuyé plusieurs fois pendant la réponse du serveur : un seul menu
+local openingPets = false
 function C.OpenPets()
-    if C.ui then return end
+    if C.ui or openingPets then return end
     if IsPauseMenuActive() or IsEntityDead(PlayerPedId()) then return end
-    local d = C.MyPets()
-    if not d then return C.Notify('Tes animaux ne répondent pas, réessaie.', 'error') end
+    openingPets = true
+    local ok, d = pcall(C.MyPets)
+    openingPets = false
+    if not ok or not d then return C.Notify('Tes animaux ne répondent pas, réessaie.', 'error') end
+    if C.ui then return end
     C.OpenUI('pets', d)
 end
 

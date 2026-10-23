@@ -223,5 +223,50 @@ nui.respond({ accept = true }, function() end)
 local last = W.server[#W.server]
 check(last.name == 'elyzea_anim:respond' and last.args[1] == false and tostring(last.args[2]):find('terre'), 'à terre au moment d\'accepter : refus automatique avec la raison')
 
+
+section('Touche F7 réservée à « Mes animaux » (elyzea_animaux)')
+-- Recharge client.lua chez un joueur qui avait mis F7 pour ouvrir le menu et un raccourci sur F7
+local cmds, maps, kvp = {}, {}, {
+    elyzea_anim_settings = '{"openKey":"F7","stopKey":"X"}',
+    elyzea_anim_binds = '{"F7":{"emote":"wave","type":"emote"},"6":{"emote":"dance","type":"emote"}}',
+}
+RegisterCommand = function(name, fn) cmds[name] = fn end
+RegisterKeyMapping = function(name, _, _, key) maps[name] = key end
+GetResourceKvpString = function(k) return kvp[k] end
+SetResourceKvp = function(k, v) kvp[k] = v end
+local threads = {}
+CreateThread = function(fn) threads[#threads + 1] = fn end
+do
+    local chunk = assert(load(read_fivem('client.lua'), '@client.lua'))
+    chunk()
+end
+-- Lance le fil de démarrage jusqu'à sa première pause (enregistrement des touches)
+local boot = coroutine.create(threads[1])
+Wait = function() coroutine.yield() end
+coroutine.resume(boot)
+Wait = function() end
+local function boundTo(key) for name, k in pairs(maps) do if k == key then return name end end end
+check(boundTo('F7') == nil, 'F7 enregistrée ailleurs avant : plus aucune commande du menu des animations sur F7')
+check(cmds['elyzea_anim_f7'] == nil, 'pas de commande elyzea_anim_f7')
+check(maps['elyzea_anim_k'] == 'K', 'menu des animations : retour sur K (touche par défaut)')
+check(maps['elyzea_anim_x'] == 'X', 'arrêt toujours sur X')
+check(maps['elyzea_anim_6'] == '6', 'les autres raccourcis restent')
+local saved = json.decode(kvp.elyzea_anim_settings)
+check(saved.openKey == 'K', 'nouvelle touche sauvegardée (K)')
+check(json.decode(kvp.elyzea_anim_binds).F7 == nil, 'raccourci sur F7 retiré de la sauvegarde')
+-- Le menu (ou une vieille interface) renvoie F7 : refusé, rien n'est branché dessus
+W.nui = {}
+nui.saveSettings({ openKey = 'F7', stopKey = 'X' }, function() end)
+check(boundTo('F7') == nil and json.decode(kvp.elyzea_anim_settings).openKey == 'K', 'F7 envoyée par le menu : refusée, menu toujours sur K')
+check(W.nui[#W.nui] and W.nui[#W.nui].action == 'init' and W.nui[#W.nui].settings.openKey == 'K', 'le menu est remis à jour (K affiché)')
+nui.saveBinds({ binds = { F7 = { emote = 'wave', type = 'emote' } } }, function() end)
+check(boundTo('F7') == nil and json.decode(kvp.elyzea_anim_binds).F7 == nil, 'raccourci sur F7 envoyé par le menu : refusé')
+-- Le menu des animations s'ouvre toujours, avec sa touche
+W.nui = {}
+cmds['elyzea_anim_k']()
+local opened = false
+for _, m in ipairs(W.nui) do if m.action == 'open' then opened = true end end
+check(opened, 'K ouvre toujours le menu des animations (danses comprises)')
+
 print(('\n%d ok, %d échec(s)'):format(PASS, FAIL))
 return FAIL
