@@ -9,6 +9,8 @@ Config.ToggleCommand = 'hud'
 -- Mini-carte supprimée : true = jamais affichée, pour tout le monde, quoi que fassent les autres scripts.
 -- (La grande carte du menu Échap, le GPS et les points sur la carte restent.) false = mini-carte comme avant.
 Config.HideMinimap = false
+-- true (conseillé) : mini-carte d'origine de GTA, jamais déplacée ; le cadre du HUD se cale dessus.
+Config.MinimapNative = true
 
 -- Mini-carte : c'est admin_menu (onglet 🗺️ Carte) qui la place, pour tous les joueurs.
 -- Le HUD se colle à droite de la carte, où qu'elle soit.

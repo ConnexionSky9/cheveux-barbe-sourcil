@@ -11,12 +11,13 @@ local AM = AdminMenu
 local core = exports.elyzea_core
 local KEY = 'staffPrevJob'   -- métier d'origine, gardé dans le personnage
 local JOBS = {
-    police = { res = 'elyzea_police', job = 'police', label = 'Police' },
-    ems    = { res = 'elyzea_ems', job = 'ambulance', label = 'EMS' },
-    meca   = { res = 'elyzea_meca', job = 'mechanic', label = 'Mécano' },
-    d8     = { res = 'elyzea_dynasty', job = 'realestate', label = 'Dynasty 8' },
+    police = { res = 'elyzea_police', job = 'police', label = 'Police', tbl = 'police_grades' },
+    ems    = { res = 'elyzea_ems', job = 'ambulance', label = 'EMS', tbl = 'ems_grades' },
+    meca   = { res = 'elyzea_meca', job = 'mechanic', label = 'Mécano', tbl = 'meca_grades' },
+    d8     = { res = 'elyzea_dynasty', job = 'realestate', label = 'Dynasty 8', tbl = 'd8_grades' },
+    presse = { res = 'elyzea_presse', job = 'journaliste', label = 'Presse', tbl = 'presse_grades' },
 }
-local ORDER = { 'police', 'ems', 'meca', 'd8' }
+local ORDER = { 'police', 'ems', 'meca', 'd8', 'presse' }
 
 local function available(J) return J ~= nil and GetResourceState(J.res) == 'started' end
 local function call(J, fn, ...)
@@ -24,6 +25,35 @@ local function call(J, fn, ...)
     local ok, a, b = pcall(function() return exports[J.res][fn](exports[J.res], table.unpack(args)) end)
     if not ok then print(('^1[AdminMenu] %s:%s : %s^7'):format(J.res, fn, tostring(a))) return nil end
     return a, b
+end
+
+-- Grades d'un métier. D'abord ceux de la ressource (AdminGrades) ; si elle n'en renvoie aucun
+-- (ressource encore en démarrage, erreur, agences mal liées), on lit directement sa table en base
+-- pour que le staff puisse toujours choisir. Renvoie la liste et, si besoin, la raison.
+local warned = {}
+local function gradesOf(J)
+    local list = call(J, 'AdminGrades')
+    if type(list) == 'table' and #list > 0 then return list end
+    local why = list == nil and ('la ressource « %s » ne répond pas à AdminGrades'):format(J.res)
+        or ('la ressource « %s » n\'a renvoyé aucun grade'):format(J.res)
+    local rows
+    if J.tbl then
+        local ok, r = pcall(MySQL.query.await, ('SELECT `id`, `job`, `name`, `level`, `perms` FROM `%s` ORDER BY `job`, `level`'):format(J.tbl))
+        rows = ok and r or nil
+    end
+    local out, jobs = {}, {}
+    for _, r in ipairs(rows or {}) do jobs[r.job] = true end
+    local multi = next(jobs) and next(jobs, next(jobs)) ~= nil
+    for _, r in ipairs(rows or {}) do
+        local perms = tostring(r.perms or '')
+        out[#out + 1] = { id = r.id, name = multi and ('%s · %s'):format(r.job, r.name) or r.name, level = tonumber(r.level) or 0,
+            direction = perms:find('direction', 1, true) ~= nil or perms == 'all', job = r.job }
+    end
+    if not warned[J.res] then
+        warned[J.res] = true
+        print(('^3[AdminMenu] Métier staff : %s ; %d grade(s) lus dans la table %s.^7'):format(why, #out, J.tbl or '?'))
+    end
+    return out, why .. (#out > 0 and ' : grades lus directement en base.' or ' et sa table de grades est vide ou absente.')
 end
 
 local function prevJob(src)
@@ -112,7 +142,8 @@ table.insert(AM.DataHooks, function(src, data)
                 local info = call(J, 'AdminInfo', id)
                 if info then members[tostring(id)] = info end
             end
-            jobs[#jobs + 1] = { key = key, label = J.label, resource = J.res, available = true, grades = call(J, 'AdminGrades') or {},
+            local grades, why = gradesOf(J)
+            jobs[#jobs + 1] = { key = key, label = J.label, resource = J.res, available = true, grades = grades, gradesNote = why,
                 me = members[tostring(src)], members = members }
         end
     end

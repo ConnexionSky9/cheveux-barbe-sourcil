@@ -46,6 +46,35 @@ local function SharpMask(on)
     maskOn = on
 end
 
+
+-- =========================================================
+--  MODE « CARTE D'ORIGINE » (par défaut) : la mini-carte de GTA n'est pas déplacée ni
+--  redécoupée (c'est ce qui la faisait déborder ou s'agrandir à la connexion). On calcule
+--  seulement l'endroit exact où GTA la dessine, pour y caler le cadre du HUD.
+--  Config.Minimap.native = false : ancien mode (carte rectangulaire déplacée).
+-- =========================================================
+local NATIVE = not (Config.Minimap and Config.Minimap.native == false)
+-- Rectangle de la mini-carte de GTA (formule standard, suit la zone de sécurité et le format d'écran)
+local function NativeRect()
+    local safe = GetSafeZoneSize()
+    local rx, ry = GetActiveScreenResolution()
+    rx, ry = math.max(rx, 1), math.max(ry, 1)
+    local aspect = GetAspectRatio(false)
+    if not aspect or aspect <= 0 then aspect = rx / ry end
+    local margin = (1.0 / 20.0) * (math.abs(safe - 1.0) * 10)
+    local w = 1.0 / (4 * aspect)
+    local h = 1.0 / 5.674
+    local left, bottom = margin, 1.0 - margin
+    return { x = left, y = bottom - h, w = w, h = h, align = 'LB', native = true }
+end
+-- Position d'origine des trois éléments de la mini-carte (au cas où un ancien réglage les aurait déplacés)
+local function NativeComponents()
+    SetMinimapClipType(0)
+    SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, 0.002, 0.150, 0.188888)
+    SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.020, 0.032, 0.111, 0.159)
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.03, 0.022, 0.266, 0.237)
+end
+
 -- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le cadre du HUD
 MinimapRect = nil
 exports('GetMinimapRect', function() return MinimapRect end)
@@ -97,9 +126,24 @@ local function RefreshGta()
     refreshing = false
 end
 
+local nativeDone = false
 local function place(relayout)
     local s = current()
     if not s or s.enabled == false then return end
+    if NATIVE then
+        SharpMask(false)
+        local rect = NativeRect()
+        local changed = not MinimapRect or MinimapRect.x ~= rect.x or MinimapRect.y ~= rect.y or MinimapRect.w ~= rect.w or MinimapRect.h ~= rect.h
+        MinimapRect = rect
+        if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
+        -- Une seule fois par session : remettre la carte à sa place d'origine si un ancien réglage l'avait déplacée
+        if not nativeDone and not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
+            nativeDone = true
+            NativeComponents()
+            RefreshGta()
+        end
+        return
+    end
     local comps, rect = layout(s)
     if s.shape == 'round' then
         -- carte ronde : les trois éléments sur le même carré

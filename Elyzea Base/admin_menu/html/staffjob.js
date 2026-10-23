@@ -41,6 +41,8 @@
                     <div class="stat"><b>${me ? esc(me.grade || '?') : `Pas dans le métier ${L}`}</b><span>${me ? `Matricule ${esc(me.matricule || '')}` : `Grade ${L}`}</span></div>
                     <div class="stat"><b style="color:${me && me.duty ? 'var(--ok)' : 'var(--muted)'}">${me && me.duty ? 'En service' : 'Hors service'}</b><span>Service</span></div>
                     <div class="stat"><b>${d.prev ? esc(d.prev) : '—'}</b><span>Métier d'origine</span></div></div>
+                ${d.gradesNote ? `<p class="hint" style="color:var(--warn,#f5a524)">⚠️ ${esc(d.gradesNote)} Redémarre la ressource (ensure ${esc(d.resource)}) et regarde la console du serveur.</p>` : ''}
+                ${grades.length ? '' : `<p class="hint">Aucun grade trouvé pour ${L}.</p>`}
                 <div class="chips" style="margin:10px 0">${grades.map((g) => `<button class="btn ${me && me.gradeId === g.id ? 'on' : ''}" data-sjjoin="${g.id}">${gName(g)}</button>`).join('')}</div>
                 <div class="btn-row">
                     <button class="btn ${me && me.duty ? '' : 'primary'}" data-sja="duty" ${me ? '' : 'disabled'}>${me && me.duty ? 'Quitter le service' : 'Prendre le service'}</button>

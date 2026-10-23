@@ -29,6 +29,7 @@ local function SharpMask(on)
         -- petite carte seulement : la grande carte garde le masque de GTA
         AddReplaceTexture('platform:/textures/graphics', 'radarmasksm', 'elyzea_minimap', 'radarmasksm')
     else
+        RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
     end
@@ -46,7 +47,26 @@ local GEO = {
     mask = { dx = 0.0,   dy = 0.047, w = 0.128,  h = 0.20 },
     blur = { dx = -0.01, dy = 0.072, w = 0.262,  h = 0.300 },
 }
+-- Mode « carte d'origine » (Config.MinimapNative, par défaut) : la carte de GTA n'est pas déplacée ;
+-- le cadre se cale exactement sur l'endroit où GTA la dessine (formule standard).
+local function nativeRect()
+    local safe = GetSafeZoneSize()
+    local rx, ry = GetActiveScreenResolution()
+    rx, ry = math.max(rx, 1), math.max(ry, 1)
+    local aspect = GetAspectRatio(false)
+    if not aspect or aspect <= 0 then aspect = rx / ry end
+    local margin = (1.0 / 20.0) * (math.abs(safe - 1.0) * 10)
+    local w, h = 1.0 / (4 * aspect), 1.0 / 5.674
+    return { x = margin, y = 1.0 - margin - h, w = w, h = h, align = 'LB', native = true }
+end
+
 local function setupMinimap()
+    if Config.MinimapNative ~= false then
+        SharpMask(false)
+        rect = nativeRect()
+        sendRect()
+        return
+    end
     local m = Config.Minimap
     local sc = (m.size or 0.183) / 0.183
     local rx, ry = GetActiveScreenResolution()
