@@ -13,7 +13,8 @@ local function Nearest()
     if not sid then return nil end
     local _, ped = C.PlayerFromServerId(sid)
     return { id = sid, distance = math.floor(d * 10) / 10, down = Player(sid).state.emsDown == true,
-        inVehicle = ped and IsPedInAnyVehicle(ped, false) or false, escorted = Player(sid).state.emsEscortedBy == GetPlayerServerId(PlayerId()) }
+        inVehicle = ped and IsPedInAnyVehicle(ped, false) or false, escorted = Player(sid).state.emsEscortedBy == GetPlayerServerId(PlayerId()),
+        stretcher = Config.Stretcher and Config.Stretcher.enabled == true }
 end
 
 local function Payload(refreshTimes)

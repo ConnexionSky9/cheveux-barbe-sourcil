@@ -165,11 +165,22 @@ end }
 -- ---------------------------------------------------------------------
 -- Accompagner / porter un patient
 -- ---------------------------------------------------------------------
+P.stretcherNet = P.stretcherNet or {}   -- [ems] = brancard (net id), supprimé par le serveur en sécurité
+
+local function DeleteStretcher(ems)
+    local net = P.stretcherNet[ems]
+    P.stretcherNet[ems] = nil
+    if not net then return end
+    local e = NetworkGetEntityFromNetworkId(net)
+    if e and e ~= 0 and DoesEntityExist(e) then DeleteEntity(e) end
+end
+
 local function StopEscort(ems)
     local t = P.escort[ems]
     if not t then return end
     P.escort[ems] = nil
     P.escortedBy[t] = nil
+    DeleteStretcher(ems)
     if GetPlayerName(t) then
         Player(t).state:set('emsEscortedBy', nil, true)
         TriggerClientEvent('ems:client:escort', t, nil)
@@ -190,9 +201,11 @@ P.Actions.escort = { perm = 'escort', duty = true, fn = function(src, d)
     if Player(t).state.carriedBy or Player(t).state.escortedBy then return { error = 'Le patient est déjà tenu par quelqu\'un.' } end
     P.escort[src], P.escortedBy[t] = t, src
     local down = P.down[t] ~= nil
+    local stretcher = Config.Stretcher and Config.Stretcher.enabled == true
     Player(t).state:set('emsEscortedBy', src, true)
-    TriggerClientEvent('ems:client:escort', t, src, down)
-    TriggerClientEvent('ems:client:escorting', src, t, down)
+    TriggerClientEvent('ems:client:escort', t, src, down, stretcher)
+    TriggerClientEvent('ems:client:escorting', src, t, down, stretcher)
+    if stretcher then return { ok = true, message = 'Patient installé sur le brancard.' } end
     return { ok = true, message = down and 'Vous portez le patient.' or 'Vous accompagnez le patient.' }
 end }
 
@@ -229,8 +242,30 @@ AddEventHandler('playerDropped', function()
     local ems = P.escortedBy[src]
     if ems then
         P.escort[ems], P.escortedBy[src] = nil, nil
+        DeleteStretcher(ems)
         if GetPlayerName(ems) then TriggerClientEvent('ems:client:escorting', ems, nil) end
     end
+end)
+
+-- Brancard créé par l'EMS : transmis au patient (qui s'allonge dessus)
+RegisterNetEvent('ems:server:stretcher', function(net)
+    local src = source
+    local t = P.escort[src]
+    net = tonumber(net)
+    if not t or not net then return end
+    DeleteStretcher(src)
+    P.stretcherNet[src] = net
+    TriggerClientEvent('ems:client:stretcher', t, src, net)
+end)
+
+-- Aucun modèle de brancard disponible côté EMS : on repasse à l'ancien mode (bras / porté)
+RegisterNetEvent('ems:server:stretcherFail', function()
+    local src = source
+    local t = P.escort[src]
+    if not t then return end
+    local down = P.down[t] ~= nil
+    TriggerClientEvent('ems:client:escort', t, src, down, false)
+    TriggerClientEvent('ems:client:escorting', src, t, down, false)
 end)
 
 -- Le patient escorté est réanimé / relevé : on garde l'escorte mais on passe en « accompagner »

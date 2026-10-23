@@ -105,7 +105,9 @@ function f6Render() {
     body += m('hemostasis', '🩸', 'Contrôler l\'hémorragie', p.stabilize && pr.hemostasis, 'Compression d\'urgence');
     body += n.down ? m('stabilize', '🩹', 'Stabiliser', p.stabilize) + m('revive', '❤️', pr.cpr ? 'Massage cardiaque' : 'Réanimer', p.revive)
       : m('heal', '💊', 'Soigner', p.heal) + m('splint', '🦴', 'Poser une attelle', p.heal && !pr.cast, 'Blessure à la jambe') + m('treat', '💉', 'Donner un traitement', p.heal, 'Rhume, MST…');
-    if (!n.inVehicle) body += m('escort', '🚶', n.escorted ? 'Lâcher le patient' : (n.down ? 'Porter le patient' : 'Accompagner le patient'), p.escort);
+    if (!n.inVehicle) body += n.stretcher
+      ? m('escort', '🛏️', n.escorted ? 'Retirer du brancard' : 'Allonger sur le brancard', p.escort, n.escorted ? '' : 'Vous tirez le brancard')
+      : m('escort', '🚶', n.escorted ? 'Lâcher le patient' : (n.down ? 'Porter le patient' : 'Accompagner le patient'), p.escort);
     body += n.inVehicle ? m('takeOut', '🚪', 'Sortir du véhicule', p.vehicle) : m('putIn', '🚑', 'Installer dans le véhicule', p.vehicle && d.vehicle, d.vehicle ? '' : 'Aucun véhicule proche');
     body += m('report', '📝', 'Compte rendu', p.reports_write) + m('bill', '🧾', 'Facturer les soins', p.billing);
     if (!n.down) body += m('ppa_civil', '📜', 'Délivrer un PPA civil', p.ppa_civil) + m('ppa_fdo', '📜', 'Délivrer un PPA force de l\'ordre', p.ppa_fdo);

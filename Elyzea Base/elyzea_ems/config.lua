@@ -241,6 +241,24 @@ Config.Lab = {
 -- (ex. PC de l'accueil), placé par la direction (tablette › Direction › Garage)
 -- ou par le staff (admin_menu › Santé). E au poste : recherche par nom / prénom.
 -- ---------------------------------------------------------------------
+-- ---------------------------------------------------------------------
+-- Brancard : « Accompagner le patient » l'allonge sur un brancard que l'EMS tire.
+-- Le brancard apparaît devant l'EMS et disparaît quand il lâche le patient ou l'installe dans
+-- l'ambulance. Si aucun modèle n'est disponible, l'ancien mode revient (bras / porté sur l'épaule).
+-- Positions à ajuster en jeu avec /brancard_reglage (voir README).
+-- ---------------------------------------------------------------------
+Config.Stretcher = {
+    enabled = true,
+    models = { 'v_med_emptybed' },              -- 1er modèle disponible utilisé (lit roulant de l'hôpital, jeu de base)
+    -- brancard par rapport à l'EMS (os racine) : devant lui, au niveau du sol
+    stretcher = { pos = { 0.0, 1.45, -0.98 }, rot = { 0.0, 0.0, 90.0 } },
+    -- patient par rapport au brancard : allongé sur le dos dessus
+    patient = { pos = { 0.0, 0.0, 1.32 }, rot = { 0.0, 0.0, 90.0 } },
+    emsAnim = { 'anim@heists@box_carry@', 'idle', 49 },                     -- l'EMS tient le brancard
+    patientAnim = { 'amb@world_human_sunbathe@male@back@base', 'base', 1 },  -- allongé sur le dos
+    noSprint = true,                            -- pas de course en tirant le brancard
+}
+
 Config.Records = {
     radius = 1.5,        -- distance pour appuyer sur E
     useRadius = 3.0,     -- distance contrôlée par le serveur pour lire ou modifier un dossier

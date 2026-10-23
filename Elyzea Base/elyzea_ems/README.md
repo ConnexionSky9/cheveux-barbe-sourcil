@@ -207,3 +207,17 @@ Le serveur vérifie chaque étape : permission, service, distance, consentement 
 Les actes réussis vont dans le dossier médical (« Examens et actes ») et dans les actes facturables.
 Réglages : admin_menu › Santé › « Actes médicaux (mini-jeux) ».
 Tests hors jeu : `python3 tests/run_procedures_sim.py`, `python3 tests/run_procedures_sim.py --client`, `node tests/ui_proc.js`.
+
+## 🛏️ Brancard (« Accompagner le patient »)
+
+ALT ou F6 › **Allonger sur le brancard** : un brancard apparaît devant l'EMS, le patient (conscient ou non) est allongé
+dessus et l'EMS le tire (pas de course, pas de saut, pas d'arme). **Retirer du brancard** le repose au sol à côté.
+**Installer le patient dans le véhicule** (ALT) range le brancard et installe le patient dans l'ambulance.
+Le brancard disparaît aussi si l'EMS monte dans un véhicule, tombe à terre, se déconnecte, ou si le patient se déconnecte.
+
+Réglages : `config.lua` › `Config.Stretcher` (activer, modèle, positions, animations). `enabled = false` = ancien mode
+(tenu par le bras / porté sur l'épaule). Si aucun modèle de la liste n'existe, l'ancien mode revient tout seul.
+
+**Positions à ajuster en jeu** : `/brancard_reglage brancard x y z rx ry rz` (EMS) et `/brancard_reglage patient x y z rx ry rz`
+(patient) changent la position tout de suite, pour toi seulement ; `/brancard_reglage` seul affiche les valeurs. Recopie-les ensuite
+dans `Config.Stretcher`. Test hors jeu : `python3 tests/run_stretcher_sim.py` (deux clients simulés).
