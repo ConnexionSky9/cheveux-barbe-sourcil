@@ -6,7 +6,7 @@
 --  ont une texture : les autres ne coûtent rien.
 -- =========================================================
 local RES = GetCurrentResourceName()
-local Tags = {}          -- [id] = { id, text, color, font, size, pos, n, corners }
+local Tags = {}          -- [id] = { id, text, color, font, size, rot, pos, n, corners }
 local Slots = {}         -- textures réutilisables : { dui, txd, tagId, showAt }
 local Visible = {}       -- { { tag, slot } } : tags dessinés en ce moment
 local busy = false       -- formulaire, placement ou animation en cours
@@ -27,16 +27,24 @@ local function basis(n)
     return r, u
 end
 
-local function corners(pos, n, size)
+-- rot : rotation du tag sur le mur (degrés, sens inverse des aiguilles d'une montre)
+local function corners(pos, n, size, rot)
     local r, u = basis(n)
-    local c = pos + n * 0.015
+    if rot and rot ~= 0.0 then
+        local a = math.rad(rot)
+        local ca, sa = math.cos(a), math.sin(a)
+        r, u = r * ca + u * sa, u * ca - r * sa
+    end
+    local c = pos + n * 0.015   -- 1,5 cm devant le mur : ni enterré, ni flottant
     local w, h = r * (size / 2), u * (size / 4)   -- texture 2:1
     return { tl = c - w + h, tr = c + w + h, bl = c - w - h, br = c + w - h }
 end
 
 local function addTag(t)
     local pos, n = vector3(t.x + 0.0, t.y + 0.0, t.z + 0.0), norm(vector3(t.nx + 0.0, t.ny + 0.0, t.nz + 0.0))
-    Tags[t.id] = { id = t.id, text = t.text, color = t.color, font = t.font, size = t.size + 0.0, pos = pos, n = n, corners = corners(pos, n, t.size + 0.0) }
+    local rot = (tonumber(t.rot) or 0) + 0.0
+    Tags[t.id] = { id = t.id, text = t.text, color = t.color, font = t.font, size = t.size + 0.0, rot = rot, pos = pos, n = n,
+        corners = corners(pos, n, t.size + 0.0, rot) }
 end
 
 -- ---------------------------------------------------------
@@ -167,7 +175,7 @@ AddEventHandler('onResourceStop', function(res)
 end)
 
 -- ---------------------------------------------------------
---  Visée : point du mur devant la caméra
+--  Visée : surface devant la caméra (ou devant le joueur)
 -- ---------------------------------------------------------
 local function camDir()
     local r = GetGameplayCamRot(2)
@@ -175,27 +183,75 @@ local function camDir()
     return vector3(-math.sin(z) * math.abs(math.cos(x)), math.cos(z) * math.abs(math.cos(x)), math.sin(x))
 end
 
+-- Rayon : décor de la map (1) + objets (16). Le résultat « touché » vaut true ou 1 selon la version du jeu.
+local MAT_BLOCK = {}
+for _, h in ipairs(Config.Spray.forbiddenMaterials or {}) do MAT_BLOCK[h] = true end
+
 local function probe(from, to)
-    local h = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1, PlayerPedId(), 7)
-    local _, hit, at, normal = GetShapeTestResult(h)
-    return hit == 1, at, normal
+    local h = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1 | 16, PlayerPedId(), 7)
+    local _, hit, at, normal, material, ent = GetShapeTestResultIncludingMaterial(h)
+    return hit == true or hit == 1, at, normal, material, ent
 end
 
-local function aimWall()
-    local cam = GetGameplayCamCoord()
-    local hit, at, n = probe(cam, cam + camDir() * 10.0)
-    if not hit then return nil end
-    return at, norm(n)
-end
-
--- Le tag tient-il entièrement sur un mur plat ?
-local function fits(pos, n, size)
-    local c = corners(pos, n, size)
-    for _, p in pairs(c) do
-        local hit, _, n2 = probe(p + n * 0.25, p - n * 0.25)
-        if not hit or #(norm(n2) - n) > 0.25 then return false end
+-- Surface utilisable ? renvoie nil ou la raison du refus
+local function surfaceProblem(n, material, ent)
+    if math.abs(n.z) > Config.Spray.maxSlope then return 'Ce n\'est pas un mur (sol, plafond ou pente trop forte).' end
+    if MAT_BLOCK[material] then return 'Impossible de peindre sur cette matière.' end
+    if ent and ent ~= 0 and DoesEntityExist(ent) then
+        if IsEntityAPed(ent) or IsEntityAVehicle(ent) then return 'Impossible de peindre là-dessus.' end
+        -- Objet : seulement le décor de la map (non réseau) ; pas un objet posé par un joueur ou un script, qui peut disparaître
+        if NetworkGetEntityIsNetworked(ent) then
+            return 'Cet objet peut bouger : peins sur un mur.'
+        end
     end
-    return true
+    return nil
+end
+
+-- Point visé : rayon de la caméra ; s'il ne trouve rien à portée, rayon droit devant le joueur
+local function aimWall()
+    local ped = PlayerPedId()
+    local me = GetEntityCoords(ped)
+    local cam = GetGameplayCamCoord()
+    local hit, at, n, mat, ent = probe(cam, cam + camDir() * 12.0)
+    if not hit or #(at - me) > Config.Spray.reach then
+        local from = me + vector3(0.0, 0.0, 0.5)
+        local h2, at2, n2, mat2, ent2 = probe(from, from + GetEntityForwardVector(ped) * Config.Spray.reach)
+        if h2 then hit, at, n, mat, ent = h2, at2, n2, mat2, ent2 end
+    end
+    if not hit then return nil end
+    return at, norm(n), mat, ent
+end
+
+-- Le tag tient-il sur le mur ? Centre + au moins 3 coins sur la même surface (tolère briques, joints, petites bosses)
+local function fits(pos, n, size, rot)
+    local c = corners(pos, n, size, rot)
+    local function on(p)
+        local hit, at, n2 = probe(p + n * 0.3, p - n * 0.3)
+        if not hit then return false end
+        local depth = (at.x - pos.x) * n.x + (at.y - pos.y) * n.y + (at.z - pos.z) * n.z
+        local dot = n.x * n2.x + n.y * n2.y + n.z * n2.z
+        return math.abs(depth) <= Config.Spray.flatness and dot >= 0.8
+    end
+    if not on(pos) then return false end
+    local ok = 0
+    for _, p in pairs(c) do if on(p) then ok = ok + 1 end end
+    return ok >= 3
+end
+
+-- Zones interdites (Config.ForbiddenZones), vérifiées aussi par le serveur
+local function forbiddenAt(p)
+    for _, z in ipairs(Config.ForbiddenZones or {}) do
+        if #(vector3(z.x, z.y, z.z) - p) <= z.radius then return z.name end
+    end
+    return nil
+end
+
+-- Contour du tag (toujours visible, même avant le chargement de la texture)
+local function drawFrame(c, r, g, b)
+    DrawLine(c.tl.x, c.tl.y, c.tl.z, c.tr.x, c.tr.y, c.tr.z, r, g, b, 255)
+    DrawLine(c.tr.x, c.tr.y, c.tr.z, c.br.x, c.br.y, c.br.z, r, g, b, 255)
+    DrawLine(c.br.x, c.br.y, c.br.z, c.bl.x, c.bl.y, c.bl.z, r, g, b, 255)
+    DrawLine(c.bl.x, c.bl.y, c.bl.z, c.tl.x, c.tl.y, c.tl.z, r, g, b, 255)
 end
 
 -- ---------------------------------------------------------
@@ -223,45 +279,76 @@ local function askTag(opts)
     return Citizen.Await(p)
 end
 
-local function help(text) Ely.showTextUI(text) end
+local HELP = '[E] Peindre · [Molette / ↑ ↓] Taille · [← →] Rotation · [Retour] Annuler'
+local shownHelp
+local function help(text)
+    if text == shownHelp then return end
+    shownHelp = text
+    Ely.showTextUI(text)
+end
 
--- Placement : aperçu sur le mur, molette / flèches pour la taille, E pour peindre
+-- Placement : aperçu aligné sur le mur ; blanc = possible, rouge = impossible (raison affichée)
 local function place(d)
     Preview = Preview or newSlot(0)
     local slot = Preview
     paint(slot, { id = -1, text = d.text, color = d.color, font = d.font })
-    local size = Config.Size.default
+    local size, rot = Config.Size.default, 0.0
     local result
     local ped = PlayerPedId()
-    help('[E] Peindre  ·  [Molette] Taille  ·  [Retour] Annuler')
+    local nextCheck, ok, why, at, n = 0, false, nil, nil, nil
     while true do
         DisableControlAction(0, 24, true) DisableControlAction(0, 25, true) DisableControlAction(0, 14, true)
         DisableControlAction(0, 15, true) DisableControlAction(0, 16, true) DisableControlAction(0, 17, true)
-        DisableControlAction(0, 37, true) DisablePlayerFiring(PlayerId(), true)
-        if IsDisabledControlJustPressed(0, 15) or IsControlJustPressed(0, 172) then size = math.min(Config.Size.max, size + Config.Size.step) end
-        if IsDisabledControlJustPressed(0, 14) or IsControlJustPressed(0, 173) then size = math.max(Config.Size.min, size - Config.Size.step) end
+        DisableControlAction(0, 37, true) DisableControlAction(0, 174, true) DisableControlAction(0, 175, true)
+        DisablePlayerFiring(PlayerId(), true)
+        local changed = false
+        if IsDisabledControlJustPressed(0, 15) or IsControlJustPressed(0, 172) then size = math.min(Config.Size.max, size + Config.Size.step) changed = true end
+        if IsDisabledControlJustPressed(0, 14) or IsControlJustPressed(0, 173) then size = math.max(Config.Size.min, size - Config.Size.step) changed = true end
+        if IsDisabledControlPressed(0, 174) then rot = math.min(Config.Rotation.max, rot + Config.Rotation.speed) changed = true end
+        if IsDisabledControlPressed(0, 175) then rot = math.max(-Config.Rotation.max, rot - Config.Rotation.speed) changed = true end
         if IsControlJustPressed(0, 177) or IsControlJustPressed(0, 194) or IsEntityDead(ped) then break end
 
-        local at, n = aimWall()
-        local ok = false
-        if at then
-            ok = math.abs(n.z) <= Config.Spray.maxSlope and #(GetEntityCoords(ped) - at) <= Config.Spray.reach and fits(at, n, size)
-            if slot.showAt and GetGameTimer() >= slot.showAt then
-                drawQuad(corners(at, n, size), slot.txd, 255, ok and 255 or 70, ok and 255 or 70, ok and 190 or 120)
+        -- Détection limitée à 10 fois par seconde (les rayons ne sont pas lancés à chaque image)
+        local now = GetGameTimer()
+        if now >= nextCheck or changed then
+            nextCheck = now + 100
+            local mat, ent
+            at, n, mat, ent = aimWall()
+            if not at then ok, why = false, 'Vise un mur.'
+            else
+                why = surfaceProblem(n, mat, ent)
+                if not why and #(GetEntityCoords(ped) - at) > Config.Spray.reach then why = 'Rapproche-toi du mur.' end
+                if not why then local z = forbiddenAt(at) if z then why = ('Zone protégée : %s.'):format(z) end end
+                if not why and not fits(at, n, size, rot) then why = 'Le tag dépasse du mur : réduis la taille ou décale-toi.' end
+                ok = why == nil
             end
+            help(ok and HELP or (HELP .. '\n⛔ ' .. why))
+        end
+        if at then
+            local c = corners(at, n, size, rot)
+            if slot.showAt and now >= slot.showAt then
+                drawQuad(c, slot.txd, 255, ok and 255 or 70, ok and 255 or 70, ok and 200 or 130)
+            end
+            if ok then drawFrame(c, 255, 255, 255) else drawFrame(c, 255, 60, 60) end
         end
         if IsControlJustPressed(0, 38) then
-            if ok then result = { pos = at, n = n, size = size } break end
-            notify(at and 'Place le tag à plat sur un mur, plus près de toi.' or 'Vise un mur.', 'error')
+            if ok then result = { pos = at, n = n, size = size, rot = rot } break end
+            notify(why or 'Vise un mur.', 'error')
         end
         Wait(0)
     end
     Ely.hideTextUI()
+    shownHelp = nil
     slot.tagId, slot.showAt = nil, nil
     return result
 end
 
-local SPRAY_ANIM = { dict = 'switch@franklin@lamar_tagging_wall', clip = 'lamar_tagging_wall_loop_lamar', flag = 1 }
+-- Animation de graffiti de GTA Online (version homme / femme), même bombe que les emotes « tag »
+local function sprayAnim()
+    local female = GetEntityModel(PlayerPedId()) == joaat('mp_f_freemode_01')
+    return { dict = female and 'anim@scripted@freemode@postertag@graffiti_spray@heeled@' or 'anim@scripted@freemode@postertag@graffiti_spray@male@',
+        clip = female and 'spray_can_var_01_female' or 'spray_can_var_01_male', flag = 1 }
+end
 local SPRAY_PROP = { model = 'prop_cs_spray_can', bone = 28422, pos = vec3(0.0, 0.0, 0.07), rot = vec3(0.0, 0.0, 0.0) }
 
 -- Nuage de peinture (effet de la mission de Lamar, sinon fumée colorée)
@@ -293,18 +380,23 @@ RegisterNetEvent('elyzea_tags:client:spray', function(opts)
     local d = askTag(opts)
     if d then
         local spot = place(d)
+        local payload = spot and { text = d.text, color = d.color, font = d.font, size = spot.size, rot = spot.rot,
+            x = spot.pos.x, y = spot.pos.y, z = spot.pos.z, nx = spot.n.x, ny = spot.n.y, nz = spot.n.z }
+        -- Le serveur valide l'emplacement AVANT l'animation (territoire, zone, limites…) : pas de bombe vidée pour rien
+        if spot then
+            local okPlace, why = Ely.callback.await('elyzea_tags:canPlace', false, payload)
+            if not okPlace then notify(why or 'Impossible de peindre ici.', 'error') spot = nil end
+        end
         if spot then
             local ped = PlayerPedId()
             TaskTurnPedToFaceCoord(ped, spot.pos.x, spot.pos.y, spot.pos.z, 800)
             Wait(800)
             local fx = sprayFx(spot.pos + spot.n * 0.3, d.color)
             local done = Ely.progressBar({ duration = Config.Spray.duration, label = 'Tu peins ton tag…', canCancel = true,
-                disable = { move = true, car = true, combat = true }, anim = SPRAY_ANIM, prop = SPRAY_PROP })
+                disable = { move = true, car = true, combat = true }, anim = sprayAnim(), prop = SPRAY_PROP })
             if fx then StopParticleFxLooped(fx, false) end
-            if done then
-                TriggerServerEvent('elyzea_tags:server:place', { text = d.text, color = d.color, font = d.font, size = spot.size,
-                    x = spot.pos.x, y = spot.pos.y, z = spot.pos.z, nx = spot.n.x, ny = spot.n.y, nz = spot.n.z })
-            end
+            if done then TriggerServerEvent('elyzea_tags:server:place', payload)
+            else notify('Tag annulé.', 'inform') end
         end
     end
     busy = false
@@ -340,4 +432,14 @@ RegisterNetEvent('elyzea_tags:client:clean', function()
         disable = { move = true, car = true, combat = true }, anim = CLEAN_ANIM, prop = CLEAN_PROP })
     if done then TriggerServerEvent('elyzea_tags:server:clean', t.id) end
     busy = false
+end)
+
+-- ---------------------------------------------------------
+--  Staff : /tagmat affiche la matière visée (pour remplir Config.Spray.forbiddenMaterials)
+-- ---------------------------------------------------------
+RegisterNetEvent('elyzea_tags:client:material', function()
+    local at, n, mat, ent = aimWall()
+    if not at then return notify('Vise une surface.', 'error') end
+    notify(('Matière : %s · pente %.2f · %s'):format(tostring(mat), math.abs(n.z), (ent and ent ~= 0) and ('objet ' .. tostring(GetEntityModel(ent))) or 'décor de la map'), 'inform')
+    print(('[TAGS] matière visée : %s'):format(tostring(mat)))
 end)

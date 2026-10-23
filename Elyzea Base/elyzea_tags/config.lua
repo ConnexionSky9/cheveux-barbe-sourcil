@@ -26,7 +26,7 @@ Config.Items = {
 -- ---------------------------------------------------------
 Config.Defaults = {
     enabled = true,          -- false : plus personne ne peut peindre (les tags existants restent)
-    territoryOnly = true,    -- tags seulement dans les territoires (éditeur de map › zone « Territoire de vente »)
+    territoryOnly = false,   -- true : tags seulement dans les territoires (éditeur de map › zone « Territoire de vente ») ; false : partout (sauf zones protégées)
     requireGroup = false,    -- true : seuls les membres d'un groupe illégal peuvent taguer
     consumeSpray = true,     -- une bombe est utilisée par tag
     consumeRemover = true,   -- un solvant est utilisé par tag effacé
@@ -75,8 +75,23 @@ Config.Fonts = {
 Config.Spray = {
     duration = 7000,          -- ms d'animation pour peindre
     reach = 3.0,              -- distance max joueur → mur
-    maxSlope = 0.45,          -- murs seulement (0 = vertical parfait, 1 = sol) ; au-delà, refusé
+    maxSlope = 0.6,           -- 0 = mur vertical, 1 = sol ; 0.6 accepte les murs inclinés (≈ 37°), refuse sols et plafonds
+    flatness = 0.15,          -- creux / bosses tolérés sous le tag (m) : briques, joints, moulures
     minSpacing = 1.0,         -- distance sous laquelle deux tags se superposent
+    -- Matières interdites (vitres, eau…) : numéros affichés par /tagmat (staff) en visant la surface.
+    -- Exemple : forbiddenMaterials = { 1500272081, 937503243 }
+    forbiddenMaterials = {},
+}
+
+-- Rotation du tag sur le mur (flèches ← →)
+Config.Rotation = { max = 45.0, speed = 1.5 }   -- degrés max de chaque côté ; degrés par image en maintenant la flèche
+
+-- Zones protégées : aucun tag possible (vérifié par le client ET le serveur).
+-- Coordonnées approximatives : ajuste-les (ta position dans le menu staff) et ajoute les tiennes.
+Config.ForbiddenZones = {
+    { name = 'Commissariat de Mission Row', x = 441.0,  y = -982.0, z = 30.7, radius = 60.0 },
+    { name = 'Hôpital Pillbox',             x = 300.0,  y = -584.0, z = 43.3, radius = 70.0 },
+    { name = 'Mairie',                      x = -544.0, y = -204.0, z = 38.2, radius = 50.0 },
 }
 Config.Clean = {
     duration = 9000,          -- ms d'animation pour effacer

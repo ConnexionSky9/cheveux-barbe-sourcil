@@ -154,7 +154,7 @@ local function saveSettings() SetResourceKvp(KVP, json.encode(S)) end
 --  Base de données
 -- ---------------------------------------------------------
 local function public(t)
-    return { id = t.id, x = t.x, y = t.y, z = t.z, nx = t.nx, ny = t.ny, nz = t.nz, size = t.size, text = t.text, color = t.color, font = t.font }
+    return { id = t.id, x = t.x, y = t.y, z = t.z, nx = t.nx, ny = t.ny, nz = t.nz, size = t.size, rot = t.rot or 0.0, text = t.text, color = t.color, font = t.font }
 end
 
 local function broadcastRemove(ids)
@@ -188,6 +188,7 @@ CreateThread(function()
         `x` DOUBLE NOT NULL, `y` DOUBLE NOT NULL, `z` DOUBLE NOT NULL,
         `nx` DOUBLE NOT NULL, `ny` DOUBLE NOT NULL, `nz` DOUBLE NOT NULL,
         `size` FLOAT NOT NULL DEFAULT 1.6,
+        `rot` FLOAT NOT NULL DEFAULT 0,
         `text` VARCHAR(100) NOT NULL,
         `color` VARCHAR(7) NOT NULL,
         `font` VARCHAR(24) NOT NULL,
@@ -202,10 +203,14 @@ CreateThread(function()
         KEY `citizenid` (`citizenid`),
         KEY `zone_id` (`zone_id`)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
-    local rows = MySQL.query.await([[SELECT id, x, y, z, nx, ny, nz, size, text, color, font, citizenid, author, license, group_id, group_label,
+    -- Installations d'avant la rotation : colonne ajoutée si elle manque (les anciens tags restent droits)
+    local hasRot = MySQL.scalar.await([[SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'elyzea_tags' AND COLUMN_NAME = 'rot']])
+    if not hasRot then MySQL.query.await('ALTER TABLE `elyzea_tags` ADD COLUMN `rot` FLOAT NOT NULL DEFAULT 0 AFTER `size`') end
+    local rows = MySQL.query.await([[SELECT id, x, y, z, nx, ny, nz, size, rot, text, color, font, citizenid, author, license, group_id, group_label,
         zone_id, zone_name, UNIX_TIMESTAMP(created_at) AS created FROM `elyzea_tags`]]) or {}
     for _, r in ipairs(rows) do
-        Tags[r.id] = { id = r.id, x = r.x, y = r.y, z = r.z, nx = r.nx, ny = r.ny, nz = r.nz, size = r.size, text = r.text, color = r.color,
+        Tags[r.id] = { id = r.id, x = r.x, y = r.y, z = r.z, nx = r.nx, ny = r.ny, nz = r.nz, size = r.size, rot = tonumber(r.rot) or 0.0, text = r.text, color = r.color,
             font = r.font, cid = r.citizenid, author = r.author, license = r.license, groupId = r.group_id, groupLabel = r.group_label,
             zoneId = r.zone_id, zoneName = r.zone_name, created = tonumber(r.created) or os.time() }
     end
@@ -301,57 +306,89 @@ end
 
 local function num(v) v = tonumber(v) if not v or v ~= v or v == math.huge or v == -math.huge then return nil end return v + 0.0 end
 
-RegisterNetEvent('elyzea_tags:server:place', function(d)
-    local src = source
-    if not Ready or not rateLimit(src, 'place', 3, 10000) then return end
-    if not takePending(src, 'spray') then return end
-    if type(d) ~= 'table' then return end
-    if not S.enabled then return notify(src, 'Les tags sont désactivés pour le moment.', 'error') end
+-- Zone protégée (Config.ForbiddenZones) à cette position ?
+local function forbiddenAt(p)
+    for _, z in ipairs(Config.ForbiddenZones or {}) do
+        if #(vector3(z.x, z.y, z.z) - p) <= z.radius then return z.name end
+    end
+    return nil
+end
+
+-- Vérifie une demande de tag sans rien modifier. Renvoie le tag prêt à enregistrer, ou nil et la raison.
+local function validate(src, d)
+    if type(d) ~= 'table' then return nil, 'Demande invalide.' end
+    if not S.enabled then return nil, 'Les tags sont désactivés pour le moment.' end
     local c = cid(src)
-    if not c then return end
-    if S.consumeSpray and itemCount(src, Config.Items.spray) < 1 then return notify(src, 'Il te faut une bombe de peinture.', 'error') end
+    if not c then return nil, 'Personnage introuvable.' end
+    if S.consumeSpray and itemCount(src, Config.Items.spray) < 1 then return nil, 'Il te faut une bombe de peinture.' end
 
     local text, why = Filter.check(d.text, S.blacklist)
-    if not text then return notify(src, why, 'error') end
+    if not text then return nil, why end
     local color = type(d.color) == 'string' and d.color:match('^#%x%x%x%x%x%x$') and d.color:lower() or nil
-    if not color then return notify(src, 'Couleur invalide.', 'error') end
+    if not color then return nil, 'Couleur invalide.' end
     local font = fontOk(d.font) and d.font or Config.Fonts[1].key
     local size = num(d.size) or Config.Size.default
     size = math.max(Config.Size.min, math.min(Config.Size.max, size))
+    local rot = num(d.rot) or 0.0
+    rot = math.max(-Config.Rotation.max, math.min(Config.Rotation.max, rot))
 
     local x, y, z, nx, ny, nz = num(d.x), num(d.y), num(d.z), num(d.nx), num(d.ny), num(d.nz)
-    if not (x and y and z and nx and ny and nz) then return end
+    if not (x and y and z and nx and ny and nz) then return nil, 'Position invalide.' end
     local len = math.sqrt(nx * nx + ny * ny + nz * nz)
-    if len < 0.5 or len > 1.5 then return end
+    if len < 0.5 or len > 1.5 then return nil, 'Position invalide.' end
     nx, ny, nz = nx / len, ny / len, nz / len
-    if math.abs(nz) > Config.Spray.maxSlope then return notify(src, 'Il faut peindre sur un mur.', 'error') end
+    if math.abs(nz) > Config.Spray.maxSlope then return nil, 'Il faut peindre sur un mur.' end
     local pos = vector3(x, y, z)
     local ped = GetPlayerPed(src)
-    if ped == 0 or #(GetEntityCoords(ped) - pos) > Config.Spray.reach + 2.0 then return notify(src, 'Tu es trop loin du mur.', 'error') end
+    if ped == 0 or #(GetEntityCoords(ped) - pos) > Config.Spray.reach + 2.0 then return nil, 'Tu es trop loin du mur.' end
+    local fz = forbiddenAt(pos)
+    if fz then return nil, ('Zone protégée : %s.'):format(fz) end
 
     local zone = territoryAt(pos)
-    if S.territoryOnly and not zone then return notify(src, 'Tu ne peux taguer que dans un territoire.', 'error') end
+    if S.territoryOnly and not zone then return nil, 'Tu ne peux taguer que dans un territoire.' end
     local group = groupOf(src)
-    if S.requireGroup and not group then return notify(src, 'Seuls les membres d\'un groupe peuvent taguer.', 'error') end
+    if S.requireGroup and not group then return nil, 'Seuls les membres d\'un groupe peuvent taguer.' end
     local last = LastTag[c]
-    if last and os.time() - last < S.cooldown then return notify(src, 'Attends un peu avant de peindre un autre tag.', 'error') end
+    if last and os.time() - last < S.cooldown then return nil, ('Attends encore %d s avant de peindre un autre tag.'):format(S.cooldown - (os.time() - last)) end
 
     -- Tags superposés : remplacés (repasse) ou refus
     local under = {}
     for id, t in pairs(Tags) do
         if #(vector3(t.x, t.y, t.z) - pos) < Config.Spray.minSpacing then under[#under + 1] = id end
     end
-    if #under > 0 and not S.overwrite then return notify(src, 'Il y a déjà un tag ici : efface-le d\'abord.', 'error') end
+    if #under > 0 and not S.overwrite then return nil, 'Il y a déjà un tag ici : efface-le d\'abord.' end
+
+    return { x = x, y = y, z = z, nx = nx, ny = ny, nz = nz, size = size, rot = rot, text = text, color = color, font = font,
+        cid = c, group = group, zone = zone, under = under, pos = pos }
+end
+
+-- Vérification avant l'animation (le joueur ne vide pas sa bombe pour rien) ; rien n'est enregistré ici
+Ely.callback.register('elyzea_tags:canPlace', function(src, d)
+    if not rateLimit(src, 'canPlace', 6, 10000) then return false, 'Doucement.' end
+    local p = Pending[src]
+    if not p or p.kind ~= 'spray' or os.time() - p.t >= 300 then return false, 'Utilise d\'abord une bombe de peinture.' end
+    local v, why = validate(src, d)
+    return v ~= nil, why
+end)
+
+RegisterNetEvent('elyzea_tags:server:place', function(d)
+    local src = source
+    if not Ready or not rateLimit(src, 'place', 3, 10000) then return end
+    if not takePending(src, 'spray') then return end
+    local v, why = validate(src, d)
+    if not v then return notify(src, why, 'error') end
+    local c, group, zone, under = v.cid, v.group, v.zone, v.under
+    local x, y, z, nx, ny, nz, size, rot, text, color, font = v.x, v.y, v.z, v.nx, v.ny, v.nz, v.size, v.rot, v.text, v.color, v.font
 
     if S.consumeSpray and not removeItem(src, Config.Items.spray) then return notify(src, 'Il te faut une bombe de peinture.', 'error') end
 
     local author = charName(src)
-    local tag = { x = x, y = y, z = z, nx = nx, ny = ny, nz = nz, size = size, text = text, color = color, font = font,
+    local tag = { x = x, y = y, z = z, nx = nx, ny = ny, nz = nz, size = size, rot = rot, text = text, color = color, font = font,
         cid = c, author = author, license = license(src), groupId = group and group.id or nil, groupLabel = group and group.label or nil,
         zoneId = zone and zone.id or nil, zoneName = zone and zone.name or nil, created = os.time() }
-    local id = MySQL.insert.await([[INSERT INTO `elyzea_tags` (x, y, z, nx, ny, nz, size, text, color, font, citizenid, author, license,
-        group_id, group_label, zone_id, zone_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
-        { x, y, z, nx, ny, nz, size, text, color, font, c, author, tag.license, tag.groupId, tag.groupLabel, tag.zoneId, tag.zoneName })
+    local id = MySQL.insert.await([[INSERT INTO `elyzea_tags` (x, y, z, nx, ny, nz, size, rot, text, color, font, citizenid, author, license,
+        group_id, group_label, zone_id, zone_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
+        { x, y, z, nx, ny, nz, size, rot, text, color, font, c, author, tag.license, tag.groupId, tag.groupLabel, tag.zoneId, tag.zoneName })
     if not id then return notify(src, 'Le tag n\'a pas pu être enregistré.', 'error') end
     tag.id = id
     LastTag[c] = os.time()
@@ -443,6 +480,12 @@ RegisterCommand('tagclean', function(src)
     deleteTags({ t.id })
     notify(src, ('Tag « %s » effacé.'):format(t.text), 'success')
     log(src, 'Tag supprimé (staff)', ('%s a supprimé « %s » de %s [%s] (tag #%d)'):format(GetPlayerName(src) or '?', t.text, t.author or '?', t.cid or '?', t.id))
+end, false)
+
+-- /tagmat : matière de la surface visée (pour remplir Config.Spray.forbiddenMaterials)
+RegisterCommand('tagmat', function(src)
+    if src == 0 or not isStaff(src) then return end
+    TriggerClientEvent('elyzea_tags:client:material', src)
 end, false)
 
 AddEventHandler('playerDropped', function()
