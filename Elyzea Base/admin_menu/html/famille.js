@@ -49,33 +49,6 @@
             <p class="hint" style="margin:4px 0 0">${esc(d.help)} <span class="muted">(${esc(String(min))} à ${esc(String(max))})</span></p>${tag}</div>`;
     }
 
-    // Durée totale de grossesse calculée à partir du brouillon (même calcul que le serveur : somme des trimestres)
-    const UNITES = { secondes: 1, minutes: 60, heures: 3600, jours: 86400 };
-    const duree = (s) => {
-        s = Math.max(0, Math.round(s));
-        if (s < 60) return `${s} s`;
-        if (s < 3600) return `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}`;
-        if (s < 86400) return `${Math.floor(s / 3600)} h${Math.floor((s % 3600) / 60) ? ` ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}` : ''}`;
-        return `${Math.floor(s / 86400)} j${Math.floor((s % 86400) / 3600) ? ` ${Math.floor((s % 86400) / 3600)} h` : ''}`;
-    };
-    const totalBrouillon = (d) => {
-        const u = UNITES[d['grossesse.unite']] ?? 3600;
-        const t = ['grossesse.t1', 'grossesse.t2', 'grossesse.t3'].map((k) => { const v = Number(d[k]); return Number.isFinite(v) && v > 0 ? v : 0; });
-        return (t[0] + t[1] + t[2]) * u;
-    };
-    // Durées cumulées depuis le début : passage au 2e, au 3e trimestre, terme
-    const cumul = (d) => {
-        const u = UNITES[d['grossesse.unite']] ?? 3600;
-        const t = ['grossesse.t1', 'grossesse.t2', 'grossesse.t3'].map((k) => { const v = Number(d[k]); return Number.isFinite(v) && v > 0 ? v * u : 0; });
-        return `Depuis le début : 2e trimestre à <b>${esc(duree(t[0]))}</b> · 3e trimestre à <b>${esc(duree(t[0] + t[1]))}</b> · terme à <b>${esc(duree(t[0] + t[1] + t[2]))}</b>.`;
-    };
-    // Tests : grossesse de test pour un joueur (ID en jeu), puis fin sans naissance (historique conservé)
-    const tests = () => `<div class="section"><h2>Tests de grossesse</h2>
-        <div class="btn-row"><input class="input" type="number" min="1" id="famTestSid" placeholder="ID du joueur" style="max-width:160px">
-        <button class="btn" data-fa="test_debut">Démarrer une grossesse de test</button>
-        <button class="btn" data-fa="test_fin">Terminer la grossesse de test</button></div>
-        <p class="hint">Utilise les durées enregistrées (réglez par ex. 20 s par trimestre et enregistrez d'abord). La fin de test ne crée pas de bébé, garde l'historique et ne bloque pas une nouvelle grossesse.</p></div>`;
-
     // Diagnostic des bébés, porte-bébés et poussettes (lu à l'ouverture de l'onglet)
     const diag = (lignes) => (Array.isArray(lignes) ? `<div class="section"><h2>Diagnostic : bébés, porte-bébés, poussettes</h2>
         <pre style="white-space:pre-wrap;font-size:12px;max-height:260px;overflow:auto;margin:0">${esc(lignes.length ? lignes.join('\n') : 'Aucun bébé, porte-bébé ni poussette en jeu.')}</pre>
@@ -95,36 +68,29 @@
             const nums = fields.filter((d) => d.type !== 'bool').map(field).join('');
             return `<div class="section"><h2>${esc(s.label)}</h2>
                 ${bools ? `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));margin-bottom:12px">${bools}</div>` : ''}
-                ${nums ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1150px">${nums}</div>` : ''}
-                ${s.id === 'progression' ? `<p class="hint" id="famCumul">${cumul(F.draft)}</p>` : ''}</div>`;
+                ${nums ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1150px">${nums}</div>` : ''}</div>`;
         }).join('');
         const d = F.draft;
         const exemple = d['conception.probaAccidentelle'] * (1 - d['contraception.preservatif.fiabilite']) * (1 - d['contraception.pilule.fiabilite']);
         return `<div class="stats">
                 <div class="stat"><b>${esc(String(f.values['intimite.duree']))} s</b><span>Durée actuelle</span></div>
-                <div class="stat"><b id="famTotal">${esc(duree(totalBrouillon(d)))}</b><span>Durée totale de grossesse${totalBrouillon(d) !== totalBrouillon(f.values) ? ' (brouillon)' : ''}</span></div>
                 <div class="stat"><b>${pct(f.values['conception.probaAccidentelle'])}</b><span>Risque accidentel</span></div>
                 <div class="stat"><b>${pct(f.values['conception.probaVolontaire'])}</b><span>Risque volontaire</span></div>
                 <div class="stat"><b>${esc(String(f.sessions || 0))}</b><span>Moment(s) en cours</span></div></div>
             <p class="hint">Exemple avec le brouillon : moment accidentel + préservatif + pilule = <b>${pct(exemple)}</b> de risque.
                 X arrête toujours un moment, pour les deux personnes (non désactivable).</p>
-            ${bar}${sections}${tests()}${diag(f.diagnostic)}${bar}`;
+            ${bar}${sections}${diag(f.diagnostic)}${bar}`;
     };
 
     const on = () => isOpen && tab === 'famille' && F.draft;
     document.addEventListener('input', (ev) => {
         if (!on()) return;
         const t = ev.target;
-        const majTotal = () => {
-            const el = document.getElementById('famTotal'); if (el) el.textContent = duree(totalBrouillon(F.draft));
-            const c = document.getElementById('famCumul'); if (c) c.innerHTML = cumul(F.draft);
-        };
-        if (t.dataset.fs) { F.draft[t.dataset.fs] = t.value; majTotal(); return; }
+        if (t.dataset.fs) { F.draft[t.dataset.fs] = t.value; return; }
         if (!t.dataset.ff) return;
         if (t.value === '') { F.draft[t.dataset.ff] = null; return; }
         const n = Number(t.value);
         F.draft[t.dataset.ff] = t.dataset.pct === '1' ? n / 100 : n;
-        majTotal();
     });
     document.addEventListener('click', async (ev) => {
         if (!isOpen || tab !== 'famille' || !F.draft) return;
@@ -134,12 +100,6 @@
         switch (n.dataset.fa) {
             case 'save': send('save', { values: F.draft }); F.draft = null; return;
             case 'cancel': F.draft = null; return render();
-            case 'test_debut': case 'test_fin': {
-                const sid = Number((document.getElementById('famTestSid') || {}).value);
-                if (!Number.isInteger(sid) || sid < 1) return;
-                send(n.dataset.fa, { sid });
-                return;
-            }
             case 'reset':
                 if (await confirmBox('Valeurs par défaut ?', 'Tous les réglages Famille reviennent à ceux du fichier config.lua d\'elyzea_famille.')) { F.draft = null; send('reset'); }
                 return;
