@@ -37,7 +37,7 @@ function GetHeadingFromVector_2d() return 90.0 end
 function GetPedBoneIndex() return 0 end
 function NetworkGetEntityIsNetworked(e) return E[e] and E[e].net end
 function ObjToNet(e) return e end
-function TaskGoStraightToCoord(p, x, y) st.pos = { x, y, 0 } end
+function TaskGoStraightToCoord(p, x, y) st.pos = { x, y, 0 } st.walked = true end
 function TaskTurnPedToFaceCoord() end
 function ClearPedTasks() st.anim, st.scenario = nil, nil end
 function ClearPedTasksImmediately() st.anim, st.scenario = nil, nil end
@@ -49,9 +49,11 @@ function SetEntityCoordsNoOffset(e, x, y, z) st.pos = { x, y, z } end
 function IsPedRagdoll() return st.ragdoll end function IsEntityDead() return st.dead end function IsPedInAnyVehicle() return false end
 function DoesAnimDictExist(d) return st.dicts[d] ~= false end
 function RequestAnimDict() end function HasAnimDictLoaded() return true end function RemoveAnimDict() end
-function TaskPlayAnim(p, d, c) st.anim = d .. '/' .. c end
+function TaskPlayAnim(p, d, c) st.anim = d .. '/' .. c st.lift = (st.liftDicts or {})[d] or 0 end
+function GetPedBoneCoords() return vector3(st.pos[1], st.pos[2], (st.pos[3] or 0) - 0.95 + (st.anim and st.lift or 0)) end
+function GetEntityHeightAboveGround() return 1.0 end
 function TaskStartScenarioInPlace(p, s) st.scenario = s end
-function StopAnimTask() st.anim = nil end
+function StopAnimTask() st.anim = nil st.lift = 0 end
 function IsEntityPlayingAnim() return st.anim ~= nil end
 function SetNuiFocus(a) st.focus = a end
 function SendNUIMessage(m) st.nui[#st.nui + 1] = m if m.action == 'mg:start' and st.onStart then st.onStart(m.game) end end
@@ -83,7 +85,7 @@ local function run(fn) -- exécute une étape jusqu'au bout (boucle des fils sim
     return res
 end
 local function props() local k = 0 for id, e in pairs(E) do if not e.ped and e.model ~= 'station' and e.model ~= 'chair' then k = k + 1 end end return k end
-local function reset() st.focus, st.frozen, st.anim, st.scenario, st.dead, st.ragdoll, st.cancelBar, st.onStart, st.after, st.nui, st.server = false, false, nil, nil, false, false, false, nil, nil, {}, {} end
+local function reset() st.walked = nil st.focus, st.frozen, st.anim, st.scenario, st.dead, st.ragdoll, st.cancelBar, st.onStart, st.after, st.nui, st.server = false, false, nil, nil, false, false, false, nil, nil, {}, {} end
 local station = newEnt('station') E[station].model = 'station'
 local chair = newEnt('chair') E[chair].model = 'chair'
 local function game(id, extra) local g = { id = id, type = 'trim', count = 6, limit = 30, maxMistakes = 3, profile = 'weed_trim' } for k, v in pairs(extra or {}) do g[k] = v end return g end
@@ -94,6 +96,7 @@ reset() answer(function(g) return { id = g.id, ok = true, done = g.count, mistak
 local r = run(function() return DrugStep.Run({ game = game(11), profile = 'weed_trim', entity = station, chair = chair, siteType = 'weed_trim', duration = 8 }) end)
 check(r and r.ok and r.done == 6, 'mini-jeu réussi : résultat transmis')
 check(st.bar and st.bar.label == 'Finition…', 'mini-jeu fini avant la durée de la recette : courte finition sans couper la scène')
+check(st.walked == nil, 'chaise : directement assis, sans marcher jusqu\'à la chaise')
 check(st.seatUsed == 'PROP_HUMAN_SEAT_COMPUTER' and math.abs(st.seatZ - 0.5) < 0.01, 'assise : scénario « assis à une table » de GTA sur la chaise (hauteur d\'assise 0,5 m : pieds au sol)')
 check(not st.focus and not st.frozen and st.anim == nil and st.scenario == nil and props() == 0 and DrugStep.active == nil, 'fin : curseur rendu, personnage relevé et libre, objets supprimés')
 local sentNet = false for _, e in ipairs(st.server) do if e.ev == 'elyzea_drogues:sceneProps' and e.a == nil then sentNet = true end end
@@ -144,6 +147,18 @@ DrugStep.active = { props = {} }
 r = DrugStep.Run({ game = game(19), profile = 'weed_trim' })
 DrugStep.active = busy
 check(r.cancelled and r.reason == 'busy', 'deux étapes en même temps : la seconde est refusée')
+print('[Personnage soulevé par une animation]')
+reset() st.liftDicts = { ['anim@amb@business@coc@coc_packing_hi@'] = 0.6 }
+local played2
+local realPlay2 = DrugScene.PlayAnim
+DrugScene.PlayAnim = function(p, sp) local x = realPlay2(p, sp) played2 = x return x end
+answer(function(g) return { id = g.id, ok = true, done = g.count, mistakes = 0 } end)
+run(function() return DrugStep.Run({ game = game(21), profile = 'coca_bag', entity = station, duration = 1 }) end)
+DrugScene.PlayAnim = realPlay2
+check(played2 and played2.scenario == 'PROP_HUMAN_PARKING_METER', 'animation qui soulève les pieds : arrêtée, repli joué (pieds au sol)')
+st.liftDicts = nil
+local cfgS = Config.Steps
+check(cfgS.weed_dry.anim.dict == 'amb@prop_human_movie_bulb@idle_a' and cfgS.weed_pack.anim.dict == 'timetable@floyd@clean_kitchen@base', 'séchoir et conditionnement : animations vérifiées (plus l\'animation qui faisait flotter)')
 print('[Récolte sans mini-jeu]')
 reset()
 local okH = run(function() return DrugStep.Simple({ scene = Config.HarvestScenes.weed, entity = station, duration = 6, label = 'Récolter' }) end)

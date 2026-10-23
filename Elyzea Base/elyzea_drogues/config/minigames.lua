@@ -36,6 +36,7 @@ local AN = {
     machine    = { dict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', clip = 'machinic_loop_mechandplayer', flag = 1, fb = { scenario = 'PROP_HUMAN_PARKING_METER' } }, -- (v)
     bulb       = { dict = 'amb@prop_human_movie_bulb@idle_a', clip = 'idle_b', flag = 1, fb = { scenario = 'PROP_HUMAN_PARKING_METER' } },  -- (v)
     shaker     = { dict = 'anim@amb@clubhouse@bar@drink@idle_a', clip = 'idle_a_bartender', flag = 1, fb = { scenario = 'PROP_HUMAN_PARKING_METER' } }, -- (v)
+    counter    = { dict = 'timetable@floyd@clean_kitchen@base', clip = 'base', flag = 1, fb = { scenario = 'PROP_HUMAN_PARKING_METER' } },  -- (v) mains sur le plan de travail
     stove      = { scenario = 'PROP_HUMAN_BBQ' },
     kneel      = { scenario = 'CODE_HUMAN_MEDIC_KNEEL' },
     pickup     = { dict = 'random@domestic', clip = 'pickup_low', flag = 1, fb = { scenario = 'CODE_HUMAN_MEDIC_KNEEL' } },                 -- (v)
@@ -160,13 +161,13 @@ Config.Steps = S
 S.weed_trim  = { game = 'trim', per = 6, min = 6, cap = 30, maxMistakes = 3, secPer = 3, pose = 'seat', anim = AN.seat_trim, hand = HAND.bud,
     temp = { P(M.bud, 'top', 0.0, -0.45, 0) },
     title = 'Effeuiller les têtes', hint = 'Attrape chaque petite feuille et tire-la vers l\'extérieur pour la décrocher de la fleur. Ne pince pas la fleur.' }
-S.weed_dry   = { game = 'hang', skin = 'weed', per = 3, min = 3, cap = 9, plusOne = true, maxMistakes = 3, secPer = 5, pose = 'stand', anim = AN.dry_check, hand = HAND.bud,
+S.weed_dry   = { game = 'hang', skin = 'weed', per = 3, min = 3, cap = 9, plusOne = true, maxMistakes = 3, secPer = 5, pose = 'stand', anim = AN.bulb, hand = HAND.bud,
     title = 'Suspendre les têtes au séchoir', hint = 'Glisse chaque tête sur un crochet libre, puis règle la ventilation.' }
 S.weed_grind = { game = 'grind', skin = 'grinder', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 4, pose = 'seatIfChair', anim = AN.table_cut,
     title = 'Effriter au moulin', hint = 'Maintiens le clic et tourne autour du moulin, sans aller trop vite.' }
 S.weed_roll  = { game = 'roll', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 7, pose = 'seatIfChair', anim = AN.table_cut, hand = HAND.joint,
     title = 'Rouler un joint', hint = 'Répartis le cannabis : clique les 3 repères sur la feuille.' }
-S.weed_pack  = { game = 'scale', skin = 'bud', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = 10, pose = 'stand', anim = AN.dry_check, extra = { grams = 3.5 },
+S.weed_pack  = { game = 'scale', skin = 'bud', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = 10, pose = 'stand', anim = AN.counter, extra = { grams = 3.5 },
     title = 'Peser et ensacher', hint = 'Maintiens le clic sur le bocal pour remplir le sachet. Relâche au bon poids : il continue de couler un peu.' }
 -- Cocaïne
 S.coca_grind  = { game = 'grind', skin = 'crank', per = 3, min = 3, cap = 15, maxMistakes = 3, secPer = 4, pose = 'stand', anim = AN.machine,

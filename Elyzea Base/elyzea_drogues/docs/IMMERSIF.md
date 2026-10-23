@@ -93,7 +93,9 @@ Les **laboratoires** (`elyzea_labs`) utilisent exactement les mêmes mini-jeux, 
 
 - Le personnage s'assoit avec le **scénario d'assise de GTA** (« assis à une table », mains sur le plateau), placé sur l'assise de la chaise. Il a les **pieds au sol**, le fessier sur la chaise et fait face à la table.
 - L'ancienne méthode jouait une animation assise sans chaise sous le personnage, et le corps flottait.
-- **Se relever** : le jeu joue le geste de lever, puis le personnage est replacé devant la chaise. Il n'est jamais coincé.
+- **Directement assis** : pas de marche jusqu'à la chaise ni de geste pour s'asseoir. Le personnage est placé sur l'assise dès le début de l'étape.
+- **Se relever** : directement debout devant la chaise. Il n'est jamais coincé.
+- **Garde-fou** : si une animation soulève le personnage (pieds à plus de 20 cm du sol), elle est arrêtée et une animation de secours prend le relais. C'était le cas au séchoir et au conditionnement, qui utilisent maintenant des animations vérifiées.
 - **Postes avec chaise** :
   - postes de drogue : table de manucure et table de roulage ;
   - laboratoires : table de manucure.

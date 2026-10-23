@@ -85,8 +85,18 @@ local function loadDict(dict)
 end
 
 -- Joue l'animation (ou son repli). Renvoie la description réellement jouée (pour l'arrêter proprement)
+-- Hauteur des pieds (le plus bas des deux)
+local function feetZ(ped)
+    local l, r = GetPedBoneCoords(ped, 14201, 0.0, 0.0, 0.0), GetPedBoneCoords(ped, 52301, 0.0, 0.0, 0.0)
+    return math.min(l.z, r.z)
+end
+
+-- Joue l'animation (ou son repli). Garde-fou : si l'animation soulève le personnage (pieds à plus de
+-- 20 cm de leur hauteur de départ — animations de scène de GTA prévues pour une autre position),
+-- elle est arrêtée et le repli est joué. Renvoie la description réellement jouée.
 function SC.PlayAnim(ped, spec)
     local s = spec
+    local base = feetZ(ped)
     while s do
         if s.scenario then
             TaskStartScenarioInPlace(ped, s.scenario, 0, true)
@@ -94,7 +104,10 @@ function SC.PlayAnim(ped, spec)
         elseif s.dict and loadDict(s.dict) then
             TaskPlayAnim(ped, s.dict, s.clip, 3.0, 3.0, -1, s.flag or 1, 0, false, false, false)
             RemoveAnimDict(s.dict)
-            return s
+            Wait(450)
+            if feetZ(ped) - base <= 0.2 or not s.fb then return s end
+            print(('^3[elyzea_drogues] animation %s/%s : personnage soulevé, repli utilisé^0'):format(s.dict, s.clip))
+            StopAnimTask(ped, s.dict, s.clip, 8.0)
         end
         s = s.fb
     end
@@ -170,6 +183,9 @@ end
 function SC.SitAt(ped, chair, off)
     local pos, heading = SC.SeatPose(chair, off)
     ClearPedTasksImmediately(ped)
+    SetEntityCoordsNoOffset(ped, pos.x, pos.y, pos.z, false, false, false)
+    SetEntityHeading(ped, heading)
+    -- assis = true, téléportation = true : installé directement, sans le geste d'entrée
     TaskStartScenarioAtPosition(ped, SC.SEAT_SCENARIOS[1], pos.x, pos.y, pos.z, heading, 0, true, true)
     Wait(150)
     if not IsPedUsingScenario(ped, SC.SEAT_SCENARIOS[1]) then
@@ -177,29 +193,20 @@ function SC.SitAt(ped, chair, off)
     end
 end
 
+-- Directement assis : pas de marche jusqu'à la chaise ni de geste pour s'asseoir (téléporté sur l'assise)
 function SC.Sit(ped, chair, off)
     local front = GetOffsetFromEntityInWorldCoords(chair, 0.0, -0.6, 0.0)    -- l'assise regarde vers -Y
     local heading = GetEntityHeading(chair) + 180.0
-    if not SC.WalkTo(ped, front.x, front.y, heading) then return nil end
-    local standZ = GetEntityCoords(ped).z
+    local _, _, floorZ = SC.SeatPose(chair, off)
+    local standZ = floorZ + math.max(0.9, math.min(1.1, GetEntityHeightAboveGround(ped)))   -- hauteur du personnage debout
     SC.SitAt(ped, chair, off)
-    -- attente que le personnage soit installé (2,5 s max)
-    local t = GetGameTimer() + 2500
-    while GetGameTimer() < t and not IsPedUsingAnyScenario(ped) do Wait(50) end
-    Wait(600)
     return { front = front, z = standZ, heading = heading, chair = chair, seated = true }
 end
 
--- Se relever : le personnage se lève avec l'animation du jeu, puis il est replacé devant la chaise
--- (jamais coincé dans la chaise ni dans la table). quick = sans attendre (arrêt de la ressource).
+-- Se relever : directement debout devant la chaise (jamais coincé dans la chaise ni dans la table).
 function SC.StandUp(ped, sat, quick)
     FreezeEntityPosition(ped, false)
-    if sat and sat.seated and not quick then
-        ClearPedTasks(ped)
-        local t = GetGameTimer() + 1800
-        while GetGameTimer() < t and IsPedUsingAnyScenario(ped) do Wait(50) end
-    end
-    ClearPedTasksImmediately(ped)
+    ClearPedTasksImmediately(ped)      -- debout tout de suite, devant la chaise (pas de geste pour se lever)
     if sat then
         SetEntityCoordsNoOffset(ped, sat.front.x, sat.front.y, sat.z, false, false, false)
         SetEntityHeading(ped, sat.heading)

@@ -205,8 +205,13 @@
     const r = canvas.getBoundingClientRect();
     return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
   }
+  // Appui maintenu fiable : pas de « glisser » du navigateur (qui annulait l'appui en bougeant la souris),
+  // pas de sélection de texte, et le bouton relâché n'importe où (même hors du cadre) est bien pris en compte.
+  canvas.setAttribute('draggable', 'false');
+  ['dragstart', 'selectstart', 'contextmenu'].forEach((t) => root.addEventListener(t, (e) => e.preventDefault()));
   canvas.addEventListener('pointerdown', (e) => {
     const S = MG.cur; if (!S || S.ended) return;
+    e.preventDefault();
     const p = pos(e); S.m.px = S.m.x; S.m.py = S.m.y; S.m.x = p.x; S.m.y = p.y; S.m.down = true;
     try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* rien */ }
     const game = MG.games[S.cfg.type]; if (game.down) game.down(S, p.x, p.y, D);
@@ -214,6 +219,8 @@
   canvas.addEventListener('pointermove', (e) => {
     const S = MG.cur; if (!S) return;
     const p = pos(e); S.m.px = S.m.x; S.m.py = S.m.y; S.m.x = p.x; S.m.y = p.y;
+    // le bouton est toujours enfoncé mais l'appui avait été perdu : on le reprend
+    if (!S.m.down && (e.buttons & 1) && !S.ended) { S.m.down = true; const g0 = MG.games[S.cfg.type]; if (g0.down) g0.down(S, p.x, p.y, D); }
     if (S.ended) return;
     const game = MG.games[S.cfg.type]; if (game.move) game.move(S, p.x, p.y, D);
   });
@@ -224,9 +231,10 @@
     const p = e ? pos(e) : { x: S.m.x, y: S.m.y };
     const game = MG.games[S.cfg.type]; if (game.up) game.up(S, p.x, p.y, D);
   };
-  canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', up);
-  window.addEventListener('blur', () => up(null));
+  window.addEventListener('pointerup', (e) => { if (e.button === 0 || !(e.buttons & 1)) up(e); });
+  window.addEventListener('mouseup', (e) => { if (e.button === 0) up(e); });
+  // « pointercancel » (geste annulé par le navigateur) : on ne relâche que si le bouton n'est vraiment plus enfoncé
+  canvas.addEventListener('pointercancel', (e) => { if (!(e.buttons & 1)) up(e); });
   window.addEventListener('keydown', (e) => {
     const S = MG.cur; if (!S) return;
     if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); end(S, false, 'cancel'); return; }

@@ -368,8 +368,8 @@
         st.zt += dt; st.zone = 0.5 + Math.sin(st.zt * 0.9) * 0.28 + Math.sin(st.zt * 2.3) * 0.08;
         st.v += (S.m.down || S.key.Space ? 1.9 : -1.6) * dt; st.v *= 0.92; st.m = D.clamp(st.m + st.v * dt * 3, 0, 1);
         if (st.m === 0 || st.m === 1) st.v = 0;
-        if (Math.abs(st.m - st.zone) < 0.09) { st.fill += dt / 2.6; st.out = 0; } else { st.fill = Math.max(0, st.fill - dt * 0.12); st.out += dt; }
-        if (st.out > 1.5) { st.out = 0; st.fill = 0; S.miss('La feuille se déchire'); }
+        if (Math.abs(st.m - st.zone) < 0.1) { st.fill += dt / 2.6; st.out = 0; } else { st.fill = Math.max(0, st.fill - dt * 0.1); st.out += dt; }
+        if (st.out > 2.2) { st.out = 0; st.fill = Math.max(0, st.fill - 0.35); S.miss('La feuille se déchire'); }
         if (st.fill >= 1) { st.phase = 2; S.hit(); S.hint('Colle la feuille : clique quand l\'aiguille passe au centre.'); }
       } else if (st.phase === 2) { st.needle += st.nd * dt * 0.9; if (st.needle > 1) { st.needle = 1; st.nd = -1; } if (st.needle < 0) { st.needle = 0; st.nd = 1; } }
     },
@@ -387,9 +387,14 @@
       }
       if (st.phase >= 1) { g.fillStyle = '#efe9da'; D.rr(g, 160, 216, 440, 30 + (1 - rollK) * 10, 15); g.fill(); }
       if (st.phase === 1) {
-        D.gauge(g, 160, 330, 440, 12, st.m, D.clamp(st.zone - 0.09, 0, 1), D.clamp(st.zone + 0.09, 0, 1), S.accent);
+        D.gauge(g, 160, 330, 440, 12, st.m, D.clamp(st.zone - 0.1, 0, 1), D.clamp(st.zone + 0.1, 0, 1), S.accent);
         D.label(g, 'Tension', 380, 360, { size: 12, color: '#cbd5e1' });
-        D.ring(g, 680, 230, 26, st.fill, D.rgba(S.accent, 1));
+        // bouton « maintenir » (le clic marche partout dans le cadre, ou la barre Espace)
+        const held = S.m.down || S.key.Space;
+        g.fillStyle = held ? D.rgba(S.accent, 0.35) : 'rgba(255,255,255,.06)'; g.beginPath(); g.arc(680, 230, 34, 0, Math.PI * 2); g.fill();
+        D.ring(g, 680, 230, 34, st.fill, D.rgba(S.accent, 1));
+        D.label(g, held ? 'Roulé…' : 'Maintenir', 680, 230, { size: 11 });
+        D.label(g, 'clic ou Espace', 680, 282, { size: 10, color: '#94a3b8' });
       }
       if (st.phase === 2) { D.gauge(g, 160, 330, 440, 12, st.needle, 0.43, 0.57, S.accent); D.label(g, 'Colle !', 380, 360, { size: 12, color: '#cbd5e1' }); }
       D.label(g, `Joints : ${st.joints}`, 70, 26, { size: 13 });
