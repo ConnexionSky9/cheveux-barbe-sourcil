@@ -77,7 +77,17 @@ AddEventHandler('elyzea:minimapRect', function(r)
     sendRect()
 end)
 
+-- Mini-carte supprimée (Config.HideMinimap) : cachée à chaque image. Si un autre script la réaffiche
+-- (boutique, création de personnage, sélection…), elle disparaît aussitôt.
 CreateThread(function()
+    while Config.HideMinimap do
+        if not IsRadarHidden() then DisplayRadar(false) end
+        Wait(0)
+    end
+end)
+
+CreateThread(function()
+    if Config.HideMinimap then return end
     Wait(1000)
     ownsMinimap = not adminMap()
     if ownsMinimap then
@@ -258,7 +268,9 @@ CreateThread(function()
         -- La carte suit le HUD (/hud) ; « seulement en véhicule » est géré par admin_menu ou par la config
         local wantRadar = hudVisible
         if ownsMinimap and Config.Minimap.onlyInVehicle then wantRadar = wantRadar and IsPedInAnyVehicle(ped, false) end
-        if ownsMinimap or not hudVisible then
+        if Config.HideMinimap then
+            -- rien : la mini-carte est toujours cachée
+        elseif ownsMinimap or not hudVisible then
             if radarForced ~= wantRadar then DisplayRadar(wantRadar) radarForced = wantRadar end
         elseif radarForced == false then
             DisplayRadar(true) radarForced = nil

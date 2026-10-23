@@ -6,6 +6,10 @@ Config.UpdateRate = 200
 -- Commande pour afficher / masquer le HUD
 Config.ToggleCommand = 'hud'
 
+-- Mini-carte supprimée : true = jamais affichée, pour tout le monde, quoi que fassent les autres scripts.
+-- (La grande carte du menu Échap, le GPS et les points sur la carte restent.) false = mini-carte comme avant.
+Config.HideMinimap = true
+
 -- Mini-carte : c'est admin_menu (onglet 🗺️ Carte) qui la place, pour tous les joueurs.
 -- Le HUD se colle à droite de la carte, où qu'elle soit.
 -- Sans admin_menu (ou pendant son redémarrage), cette position est utilisée (bas gauche, rectangle),
