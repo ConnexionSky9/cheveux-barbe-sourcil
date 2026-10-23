@@ -135,7 +135,16 @@ local function Open()
     end)
 end
 
-local function Toggle() if isOpen then Close() else Open() end end
+-- Un seul basculement par appui : F6 est lié à la commande de CHAQUE métier (police, EMS, mécano, Dynasty 8,
+-- concession) et chacune appelle Toggle. Sans ce garde, le téléphone s'ouvrait puis se refermait aussitôt
+-- quand un nombre pair de ces ressources était démarré (animation visible, téléphone jamais affiché).
+local lastToggle = -100000
+local function Toggle()
+    local now = GetGameTimer()
+    if now - lastToggle < 350 then return end
+    lastToggle = now
+    if isOpen then Close() else Open() end
+end
 
 exports('Toggle', Toggle)
 exports('IsOpen', function() return isOpen end)
