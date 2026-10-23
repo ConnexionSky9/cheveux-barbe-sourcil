@@ -27,6 +27,7 @@ server_scripts {
     'server/death.lua',
     'server/calls.lua',
     'server/medical.lua',
+    'server/stretcher.lua',
     'server/billing.lua',
     'server/ppa.lua',
     'server/records.lua',
@@ -53,6 +54,8 @@ client_scripts {
     'client/garage.lua',
     'client/health.lua',
     'client/procedures.lua',
+    'client/stretcher.lua',
+    'client/wheelchair.lua',
 }
 
 ui_page 'html/index.html'

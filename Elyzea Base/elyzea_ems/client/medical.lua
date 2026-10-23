@@ -97,197 +97,47 @@ RegisterNUICallback('examAction', function(body, cb)
 end)
 
 -- ---------------------------------------------------------------------
--- Escorte / port / brancard
---  · Brancard (Config.Stretcher) : l'EMS crée un brancard devant lui et le tire ;
---    le patient est allongé dessus (conscient ou non).
---  · Sans brancard disponible : ancien mode (tenu par le bras / porté sur l'épaule).
+-- Escorte / port
 -- ---------------------------------------------------------------------
 local escortedBy, escorting = nil, nil
-local escortTok, escortingTok = 0, 0
 local CARRY = { patient = { 'nm', 'firemans_carry', 33 }, ems = { 'missfinale_c2mcs_1', 'fin_c2_mcs_1_camman', 49 } }
-local ST = Config.Stretcher or {}
-local myStretcher = nil   -- brancard créé par moi (EMS)
-local lyingOn = nil       -- net id du brancard sur lequel je suis allongé (patient)
 
-local function StretcherModel()
-    for _, m in ipairs(ST.models or {}) do
-        local h = type(m) == 'number' and m or GetHashKey(m)
-        if IsModelInCdimage(h) then
-            RequestModel(h)
-            local t = GetGameTimer() + 5000
-            while not HasModelLoaded(h) and GetGameTimer() < t do Wait(10) end
-            if HasModelLoaded(h) then return h end
-        end
-    end
-    return nil
-end
-
--- Géométrie du modèle (lue en jeu) : axe long, longueur, hauteur sous l'origine
-local function Geometry(h)
-    local mn, mx = GetModelDimensions(h)
-    local lx, ly = mx.x - mn.x, mx.y - mn.y
-    return { long = math.max(lx, ly), extra = lx > ly and 90.0 or 0.0, bottom = mn.z }
-end
-
-local function GroundZ(x, y, z, def)
-    local ok, gz = GetGroundZFor_3dCoord(x, y, z + 1.5, false)
-    if ok and gz and gz > z - 4.0 then return gz end
-    return def
-end
-
--- Place le brancard au sol devant l'EMS (bout du brancard contre lui), incliné selon la pente.
--- Il « roule » : sa direction rejoint doucement celle de l'EMS au lieu de tourner d'un bloc.
-local function PlaceStretcher(obj, ped, geo, state)
-    local cfg = ST.stretcher or {}
-    local target = GetEntityHeading(ped) + (cfg.heading or 0.0)
-    local k = math.max(0.01, math.min(1.0, cfg.turnSmooth or 0.12))
-    if not state.h then state.h = target end
-    local d = ((target - state.h + 540.0) % 360.0) - 180.0
-    state.h = (state.h + d * k) % 360.0
-    local rad = math.rad(state.h)
-    local fx, fy = -math.sin(rad), math.cos(rad)
-    local me = GetEntityCoords(ped)
-    local half = geo.long / 2.0
-    local dist = (cfg.gap or 0.25) + half
-    local cx, cy = me.x + fx * dist, me.y + fy * dist
-    local feet = me.z - 1.0
-    local zc = GroundZ(cx, cy, me.z, feet)
-    local zn = GroundZ(cx - fx * half, cy - fy * half, me.z, zc)
-    local zf = GroundZ(cx + fx * half, cy + fy * half, me.z, zc)
-    local pitch = math.deg(math.atan(zf - zn, geo.long))
-    SetEntityCoordsNoOffset(obj, cx, cy, zc - geo.bottom + (cfg.height or 0.0), false, false, false)
-    SetEntityRotation(obj, pitch, 0.0, state.h + geo.extra, 2, true)
-end
-
-local function AttachOnStretcher(ped, obj)
-    local p, r = ST.patient.pos, ST.patient.rot
-    AttachEntityToEntity(ped, obj, 0, p[1] + 0.0, p[2] + 0.0, p[3] + 0.0, r[1] + 0.0, r[2] + 0.0, r[3] + 0.0,
-        false, false, false, false, 2, true)
-end
-
-local function DeleteMyStretcher()
-    if myStretcher and DoesEntityExist(myStretcher) then
-        DetachEntity(myStretcher, true, false)
-        SetEntityAsMissionEntity(myStretcher, true, true)
-        DeleteEntity(myStretcher)
-    end
-    myStretcher = nil
-end
-
-local function StopPose(ped, a) if a then StopAnimTask(ped, a[1], a[2], 1.0) end end
-
--- Patient : quitte le brancard au sol, à côté
-local function LeaveStretcher(ped)
-    local c = GetEntityCoords(ped)
-    DetachEntity(ped, true, false)
-    StopPose(ped, ST.patientAnim)
-    local ok, gz = GetGroundZFor_3dCoord(c.x, c.y, c.z + 1.0, false)
-    SetEntityCoords(ped, c.x, c.y, ok and gz or (c.z - 0.9), false, false, false, false)
-end
-
-RegisterNetEvent('ems:client:escort', function(ems, downed, stretcher)
-    escortTok = escortTok + 1
-    local tok = escortTok
+RegisterNetEvent('ems:client:escort', function(ems, downed)
     local ped = PlayerPedId()
-    if lyingOn then LeaveStretcher(ped) else DetachEntity(ped, true, false) end
-    lyingOn = nil
-    StopPose(ped, CARRY.patient)
-    if not ems then escortedBy = nil return end
+    if not ems then
+        escortedBy = nil
+        DetachEntity(ped, true, false)
+        StopAnimTask(ped, CARRY.patient[1], CARRY.patient[2], 1.0)
+        return
+    end
     escortedBy = ems
     CreateThread(function()
-        while escortTok == tok do
+        while escortedBy == ems do
             local p = PlayerPedId()
             local emsPed = PedOf(ems)
             if not emsPed or not DoesEntityExist(emsPed) then TriggerServerEvent('ems:server:escortBreak') break end
-            if stretcher then
-                -- allongé sur le brancard dès qu'il existe chez moi
-                local obj = lyingOn and NetworkDoesNetworkIdExist(lyingOn) and NetworkGetEntityFromNetworkId(lyingOn) or 0
-                if obj ~= 0 and DoesEntityExist(obj) then
-                    if not IsEntityAttachedToEntity(p, obj) then AttachOnStretcher(p, obj) end
-                    local a = ST.patientAnim
-                    if a and not IsEntityPlayingAnim(p, a[1], a[2], 3) and C.LoadDict(a[1]) then
-                        TaskPlayAnim(p, a[1], a[2], 8.0, -8.0, -1, a[3] or 1, 0, false, false, false)
-                    end
+            if not IsEntityAttachedToEntity(p, emsPed) then
+                if downed then
+                    AttachEntityToEntity(p, emsPed, 0, 0.27, 0.15, 0.63, 0.5, 0.5, 180.0, false, false, false, false, 2, false)
+                else
+                    AttachEntityToEntity(p, emsPed, 11816, 0.45, 0.45, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 2, true)
                 end
-            else
-                if not IsEntityAttachedToEntity(p, emsPed) then
-                    if downed then
-                        AttachEntityToEntity(p, emsPed, 0, 0.27, 0.15, 0.63, 0.5, 0.5, 180.0, false, false, false, false, 2, false)
-                    else
-                        AttachEntityToEntity(p, emsPed, 11816, 0.45, 0.45, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 2, true)
-                    end
-                end
-                if downed and not IsEntityPlayingAnim(p, CARRY.patient[1], CARRY.patient[2], 3) and C.LoadDict(CARRY.patient[1]) then
-                    TaskPlayAnim(p, CARRY.patient[1], CARRY.patient[2], 8.0, -8.0, -1, CARRY.patient[3], 0, false, false, false)
-                end
+            end
+            if downed and not IsEntityPlayingAnim(p, CARRY.patient[1], CARRY.patient[2], 3) and C.LoadDict(CARRY.patient[1]) then
+                TaskPlayAnim(p, CARRY.patient[1], CARRY.patient[2], 8.0, -8.0, -1, CARRY.patient[3], 0, false, false, false)
             end
             Wait(250)
         end
     end)
 end)
 
--- Le serveur transmet le brancard créé par l'EMS
-RegisterNetEvent('ems:client:stretcher', function(ems, net)
-    if escortedBy == ems then lyingOn = tonumber(net) end
-end)
-
-RegisterNetEvent('ems:client:escorting', function(patient, downed, stretcher)
-    escortingTok = escortingTok + 1
-    local tok = escortingTok
+RegisterNetEvent('ems:client:escorting', function(patient, downed)
     local ped = PlayerPedId()
     escorting = patient
-    StopPose(ped, CARRY.ems)
-    StopPose(ped, ST.emsAnim)
-    DeleteMyStretcher()
-    if not patient then return end
-    if stretcher then
-        CreateThread(function()
-            local h = StretcherModel()
-            if escortingTok ~= tok then if h then SetModelAsNoLongerNeeded(h) end return end
-            if not h then
-                C.Notify('Aucun brancard disponible : le patient est pris en charge sans brancard.', 'inform')
-                return TriggerServerEvent('ems:server:stretcherFail')
-            end
-            local me = PlayerPedId()
-            local c = GetOffsetFromEntityInWorldCoords(me, 0.0, 1.5, -1.0)
-            local obj = CreateObject(h, c.x, c.y, c.z, true, true, false)
-            SetModelAsNoLongerNeeded(h)
-            if not obj or obj == 0 then return TriggerServerEvent('ems:server:stretcherFail') end
-            myStretcher = obj
-            local geo, place = Geometry(h), {}
-            SetEntityCollision(obj, false, false)
-            FreezeEntityPosition(obj, true)
-            PlaceStretcher(obj, me, geo, place)
-            local net = NetworkGetNetworkIdFromEntity(obj)
-            SetNetworkIdExistsOnAllMachines(net, true)
-            TriggerServerEvent('ems:server:stretcher', net)
-            local nextAnim = 0
-            while escortingTok == tok do
-                local p = PlayerPedId()
-                if not DoesEntityExist(obj) then break end
-                PlaceStretcher(obj, p, geo, place)
-                if GetGameTimer() >= nextAnim then
-                    nextAnim = GetGameTimer() + 500
-                    local a = ST.emsAnim
-                    if a and not IsEntityPlayingAnim(p, a[1], a[2], 3) and C.LoadDict(a[1]) then
-                        TaskPlayAnim(p, a[1], a[2], 8.0, -8.0, -1, a[3] or 49, 0, false, false, false)
-                    end
-                    -- dans un véhicule ou à terre : on lâche le patient
-                    if IsPedInAnyVehicle(p, false) or C.IsDown() then C.Do('escort', { target = patient }) break end
-                end
-                if ST.noSprint then DisableControlAction(0, 21, true) end   -- courir
-                DisableControlAction(0, 22, true)   -- sauter
-                DisableControlAction(0, 23, true)   -- entrer dans un véhicule (ALT › Installer le patient)
-                DisableControlAction(0, 24, true)   -- attaquer
-                DisableControlAction(0, 25, true)   -- viser
-                Wait(0)
-            end
-        end)
-        return
-    end
+    if not patient then StopAnimTask(ped, CARRY.ems[1], CARRY.ems[2], 1.0) return end
     if not downed then return end
     CreateThread(function()
-        while escortingTok == tok do
+        while escorting == patient do
             local p = PlayerPedId()
             if not IsEntityPlayingAnim(p, CARRY.ems[1], CARRY.ems[2], 3) and C.LoadDict(CARRY.ems[1]) then
                 TaskPlayAnim(p, CARRY.ems[1], CARRY.ems[2], 8.0, -8.0, -1, CARRY.ems[3], 0, false, false, false)
@@ -295,37 +145,6 @@ RegisterNetEvent('ems:client:escorting', function(patient, downed, stretcher)
             Wait(500)
         end
     end)
-end)
-
--- Réglage des positions en jeu (seulement pour toi, à recopier ensuite dans config.lua › Config.Stretcher)
--- /brancard_reglage brancard <écart> <hauteur> <rotation>     ex. /brancard_reglage brancard 0.25 0 0
--- /brancard_reglage patient <x> <y> <z> <rx> <ry> <rz>         ex. /brancard_reglage patient 0 0 1.05 0 0 180
-RegisterCommand('brancard_reglage', function(_, args)
-    local s, pa = ST.stretcher or {}, ST.patient or {}
-    if args[1] == 'brancard' then
-        local g, hgt, rot = tonumber(args[2]), tonumber(args[3]), tonumber(args[4])
-        if not (g and hgt and rot) then return C.Notify('Usage : /brancard_reglage brancard <écart> <hauteur> <rotation>', 'error') end
-        s.gap, s.height, s.heading = g, hgt, rot
-        ST.stretcher = s
-        return C.Notify(('Brancard : écart %.2f, hauteur %.2f, rotation %.0f'):format(g, hgt, rot), 'success')
-    end
-    if args[1] == 'patient' then
-        local n = {}
-        for i = 2, 7 do n[#n + 1] = tonumber(args[i]) end
-        if #n ~= 6 then return C.Notify('Usage : /brancard_reglage patient x y z rx ry rz', 'error') end
-        pa.pos, pa.rot = { n[1], n[2], n[3] }, { n[4], n[5], n[6] }
-        ST.patient = pa
-        if lyingOn then DetachEntity(PlayerPedId(), false, false) end   -- la boucle rattache aussitôt
-        return C.Notify(('Patient : position %s, rotation %s'):format(json.encode(pa.pos), json.encode(pa.rot)), 'success')
-    end
-    C.Notify(('Brancard : écart %.2f, hauteur %.2f, rotation %.0f · patient : %s %s'):format(s.gap or 0, s.height or 0, s.heading or 0,
-        json.encode(pa.pos), json.encode(pa.rot)), 'inform')
-end, false)
-
-AddEventHandler('onResourceStop', function(res)
-    if res ~= GetCurrentResourceName() then return end
-    DeleteMyStretcher()
-    if lyingOn or escortedBy then DetachEntity(PlayerPedId(), true, false) end
 end)
 
 -- ---------------------------------------------------------------------
@@ -402,10 +221,10 @@ function C.AltOptions(ctx)
         if C.Can('medical') and AnyProc() and not ctx.inVehicle then
             out[#out + 1] = { id = 'procs', label = 'Actes et examens…', icon = 'examine', desc = 'Prise de sang, imagerie, attelle, vaccin…' }
         end
-        if C.Can('escort') and not ctx.inVehicle then
-            local st = Config.Stretcher and Config.Stretcher.enabled
-            out[#out + 1] = { id = 'escort', icon = 'escort', label = mine and (st and 'Retirer du brancard' or 'Lâcher le patient')
-                or (st and 'Allonger sur le brancard' or (down and 'Porter le patient' or 'Accompagner le patient')) }
+        if Config.Stretcher and Config.Stretcher.enabled and C.StretcherPlayerOptions then
+            C.StretcherPlayerOptions(sid, ctx, out)         -- brancard (client/stretcher.lua)
+        elseif C.Can('escort') and not ctx.inVehicle then
+            out[#out + 1] = { id = 'escort', label = mine and 'Lâcher le patient' or (down and 'Porter le patient' or 'Accompagner le patient'), icon = 'escort' }
         end
         if C.Can('vehicle') then
             if ctx.inVehicle then out[#out + 1] = { id = 'takeOut', label = 'Sortir du véhicule', icon = 'out' }
@@ -429,12 +248,22 @@ function C.AltOptions(ctx)
             end
         end
         if escorting then out[#out + 1] = { id = 'putIn:' .. escorting, label = 'Installer le patient dans ce véhicule', icon = 'in' } end
+        if C.StretcherVehicleOptions then C.StretcherVehicleOptions(veh, out) end
+    elseif ctx.kind == 'ext' and ctx.entity and C.StretcherExtOptions then
+        C.StretcherExtOptions(ctx.entity, out)              -- le brancard visé
     end
     return out
 end
 
 function C.AltSelect(id, ctx)
     id = tostring(id or '')
+    -- brancard : actions de client/stretcher.lua (et « accompagner » quand le brancard est activé)
+    if C.StretcherSelect then
+        if id == 'escort' and Config.Stretcher and Config.Stretcher.enabled and ctx and ctx.sid then
+            id = Player(ctx.sid).state.emsOnStretcher and 'st_offp' or 'st_lay'
+        end
+        if C.StretcherSelect(id, ctx) then return end
+    end
     local kind, sid = id:match('^(%a+):(%d+)$')
     if kind == 'takeOut' then return C.Do('takeOut', { target = tonumber(sid) }) end
     if kind == 'putIn' then

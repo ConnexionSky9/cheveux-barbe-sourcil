@@ -14,7 +14,7 @@ local function Nearest()
     local _, ped = C.PlayerFromServerId(sid)
     return { id = sid, distance = math.floor(d * 10) / 10, down = Player(sid).state.emsDown == true,
         inVehicle = ped and IsPedInAnyVehicle(ped, false) or false, escorted = Player(sid).state.emsEscortedBy == GetPlayerServerId(PlayerId()),
-        stretcher = Config.Stretcher and Config.Stretcher.enabled == true }
+        stretcher = Config.Stretcher and Config.Stretcher.enabled == true, onStretcher = Player(sid).state.emsOnStretcher ~= nil }
 end
 
 local function Payload(refreshTimes)

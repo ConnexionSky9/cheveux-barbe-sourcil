@@ -242,16 +242,18 @@ Config.Lab = {
 -- ou par le staff (admin_menu › Santé). E au poste : recherche par nom / prénom.
 -- ---------------------------------------------------------------------
 -- ---------------------------------------------------------------------
--- Brancard : « Accompagner le patient » l'allonge sur un brancard que l'EMS tire.
--- Le brancard apparaît devant l'EMS et disparaît quand il lâche le patient ou l'installe dans
--- l'ambulance. Si aucun modèle n'est disponible, l'ancien mode revient (bras / porté sur l'épaule).
--- Positions à ajuster en jeu avec /brancard_reglage (voir README).
+-- Brancard (objet suivi par le serveur)
+--  · ALT sur le patient › « Allonger sur le brancard » : sort un brancard (ou prend celui qui est à côté)
+--  · ALT sur le brancard : prendre / lâcher, retirer le patient, charger dans un véhicule, ranger
+--  · ALT sur le véhicule : charger / sortir le brancard (le patient reste dessus)
+--  Le brancard roule au sol devant l'EMS, qui se tient à son bout. Longueur et hauteur lues sur le modèle.
+--  Positions à ajuster en jeu avec /brancard_reglage (voir README). enabled = false : ancien mode (bras / épaule).
 -- ---------------------------------------------------------------------
 Config.Stretcher = {
     enabled = true,
     models = { 'v_med_emptybed' },              -- 1er modèle disponible utilisé (lit roulant de l'hôpital, jeu de base)
-    -- Le brancard roule au sol devant l'EMS, qui se tient à son BOUT (côté court). Sa longueur et sa hauteur
-    -- sont lues sur le modèle : seuls ces écarts se règlent.
+    perEms = 1,                                 -- brancards sortis en même temps par EMS
+    reach = 3.0,                                -- distance EMS ↔ brancard pour agir (m)
     stretcher = {
         gap = 0.25,          -- distance entre l'EMS et le bout du brancard (m)
         height = 0.0,        -- décalage vertical si le brancard s'enfonce / flotte (m)
@@ -260,9 +262,33 @@ Config.Stretcher = {
     },
     -- patient par rapport au brancard : allongé dans la longueur, sur le matelas
     patient = { pos = { 0.0, 0.0, 1.05 }, rot = { 0.0, 0.0, 180.0 } },
+    -- dans un véhicule : le brancard est posé à l'arrière, dans l'axe (calculé sur le véhicule)
+    vehicle = {
+        reach = 6.0,         -- distance EMS ↔ véhicule pour charger / sortir (m)
+        floor = 0.55,        -- hauteur du plancher au-dessus du bas du véhicule (m)
+        inset = 0.30,        -- distance entre l'arrière du véhicule et le bout du brancard (m)
+        heading = 0.0,       -- rotation en plus dans le véhicule
+        side = 0.0,          -- décalage gauche / droite (m)
+    },
     emsAnim = { 'anim@heists@box_carry@', 'idle', 49 },              -- l'EMS tient le bout du brancard
     patientAnim = { 'anim@gangops@morgue@table@', 'body_search', 1 }, -- allongé à plat sur le dos
     noSprint = true,                            -- pas de course en tirant le brancard
+}
+
+-- ---------------------------------------------------------------------
+-- Fauteuil roulant : objet « wheelchair » de l'inventaire (utiliser = s'asseoir, X ou réutiliser = se lever)
+-- ZQSD / WASD : avancer, reculer, tourner. Le fauteuil n'est pas consommé.
+-- ---------------------------------------------------------------------
+Config.Wheelchair = {
+    enabled = true,
+    item = 'wheelchair',
+    models = { 'prop_wheelchair_01' },
+    seat = { pos = { 0.0, 0.05, 0.42 }, rot = { 0.0, 0.0, 180.0 } },    -- personne par rapport au fauteuil
+    anim = { 'missfinale_c2leadinoutfin_c_int', '_leadin_loop2_lester', 1 }, -- assis (fauteuil de Lester)
+    speed = 1.6,            -- m/s en avançant
+    reverse = 0.8,          -- m/s en reculant
+    turn = 90.0,            -- degrés par seconde
+    heading = 180.0,        -- rotation du fauteuil (avec seat.rot = 180 : la personne regarde vers l avant)
 }
 
 Config.Records = {

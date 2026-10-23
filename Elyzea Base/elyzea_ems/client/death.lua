@@ -35,7 +35,7 @@ local function SetUntil(i)
 end
 
 local function Lie(ped)
-    if IsPedInAnyVehicle(ped, false) or LocalPlayer.state.emsEscortedBy then return end
+    if IsPedInAnyVehicle(ped, false) or LocalPlayer.state.emsEscortedBy or LocalPlayer.state.emsOnStretcher then return end
     -- acte médical en cours (massage, imagerie…) : allongé sur le dos (client/procedures.lua)
     local a = C.PatientPose or ANIM
     if not IsEntityPlayingAnim(ped, a[1], a[2], 3) and C.LoadDict(a[1]) then

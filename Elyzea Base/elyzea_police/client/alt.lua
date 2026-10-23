@@ -50,6 +50,7 @@ end
 -- target = true : la ressource a ses propres cibles (PNJ, objets) via AltTarget(entité) / AltNearby()
 local ALT_PROVIDERS = {
     { res = 'elyzea_ems', prefix = 'ems:' },
+    { res = 'elyzea_ems', prefix = 'emsb:', target = true },   -- brancards (cible propre : l'objet brancard)
     { res = 'elyzea_meca', prefix = 'meca:' },
     { res = 'elyzea_famille', prefix = 'fam:' },
     { res = 'elyzea_animations', prefix = 'anim:' },  -- copier l'animation, proposer une animation (tout le monde)
@@ -194,7 +195,7 @@ local function Options(ctx)
     if C.CitizenOptions and ctx.kind ~= 'ext' then C.CitizenOptions(ctx, out) end
     -- Actions des métiers (EMS, mécano) : options fournies par leur ressource, préfixées « ems: » / « meca: »
     for _, prov in ipairs(ALT_PROVIDERS) do
-        if GetResourceState(prov.res) == 'started' and (((ctx.kind == 'player' or ctx.kind == 'vehicle') and not prov.target) or (ctx.kind == 'ext' and ctx.provider == prov.res)) then
+        if GetResourceState(prov.res) == 'started' and (((ctx.kind == 'player' or ctx.kind == 'vehicle') and not prov.target) or (ctx.kind == 'ext' and prov.target and ctx.provider == prov.res)) then
             local ok, list = pcall(function()
                 return exports[prov.res]:AltOptions({ kind = ctx.kind, sid = ctx.sid, inVehicle = ctx.inVehicle, entity = ctx.entity })
             end)

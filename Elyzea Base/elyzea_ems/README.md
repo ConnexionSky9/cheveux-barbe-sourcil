@@ -208,24 +208,40 @@ Les actes réussis vont dans le dossier médical (« Examens et actes ») et dan
 Réglages : admin_menu › Santé › « Actes médicaux (mini-jeux) ».
 Tests hors jeu : `python3 tests/run_procedures_sim.py`, `python3 tests/run_procedures_sim.py --client`, `node tests/ui_proc.js`.
 
-## 🛏️ Brancard (« Accompagner le patient »)
+## 🛏️ Brancard
 
-ALT ou F6 › **Allonger sur le brancard** : un brancard roulant apparaît devant l'EMS, qui se tient à son **bout**.
-Le patient (conscient ou non) est allongé à plat dans la longueur. Le brancard roule au sol : il suit le terrain,
-s'incline dans les pentes et tourne progressivement derrière l'EMS. Pendant ce temps, pas de course, de saut ni d'arme.
-**Retirer du brancard** repose le patient au sol à côté. **Installer le patient dans le véhicule** (ALT) range le brancard
-et installe le patient dans l'ambulance. Le brancard disparaît aussi si l'EMS monte dans un véhicule, tombe à terre ou se
-déconnecte, ou si le patient se déconnecte.
+Le brancard est un objet suivi par le serveur (qui le tient, qui est dessus, dans quel véhicule).
+Toutes les actions sont dans **ALT** (et F6 pour allonger / retirer) :
 
-Réglages : `config.lua` › `Config.Stretcher`. La longueur et la hauteur du brancard sont lues sur le modèle en jeu ;
-seuls l'écart avec l'EMS, un décalage de hauteur, la rotation et la position du patient se règlent. `enabled = false` =
-ancien mode (tenu par le bras / porté sur l'épaule) ; si aucun modèle de la liste n'existe, l'ancien mode revient tout seul.
+| Où viser (ALT) | Actions |
+|---|---|
+| **Le patient** | **Allonger sur le brancard** : sur celui que vous tenez, celui à côté, ou un brancard est sorti devant vous · **Retirer du brancard** |
+| **Le brancard** | **Prendre / Lâcher le brancard** (le patient reste dessus) · **Retirer le patient** · **Allonger ID x** (joueurs à côté) · **Charger dans le véhicule** · **Ranger le brancard** (vide) |
+| **Le véhicule** | **Charger le brancard dans ce véhicule** (avec le patient) · **Sortir le brancard du véhicule** (le patient reste dessus) |
+
+- Vous tenez le brancard à son **bout** ; il **roule au sol** devant vous, suit le terrain, s'incline dans les pentes et tourne
+  progressivement. Pendant ce temps : pas de course, de saut ni d'arme.
+- Dans un véhicule, le brancard est posé à l'arrière, sur le plancher (calculé sur le véhicule), et voyage avec lui.
+- **Patient retiré : il est posé à 1 m du brancard, là où se trouve le brancard** (position donnée par le serveur),
+  jamais à son ancienne position. Celui qui tient le brancard en garde le contrôle réseau, donc tout le monde le voit bouger.
+- Un brancard par EMS. Si l'EMS monte dans un véhicule ou tombe, il lâche le brancard (le patient reste dessus).
+  Patient déconnecté : retiré. Brancard disparu : oublié par le serveur, le patient descend.
+- « Installer dans le véhicule » (sur un siège) fait d'abord descendre le patient du brancard.
+
+Réglages : `config.lua` › `Config.Stretcher` (modèle, un brancard par EMS, distances, positions, animations, véhicule).
+`enabled = false` = ancien mode (tenu par le bras / porté sur l'épaule).
 
 **Ajuster en jeu**, sans redémarrer (pour toi seulement, à recopier ensuite dans `Config.Stretcher`) :
-- `/brancard_reglage brancard <écart> <hauteur> <rotation>` (EMS), ex. `/brancard_reglage brancard 0.25 0 0` ;
-  rotation `180` = l'autre bout du lit vers l'EMS ;
-- `/brancard_reglage patient <x> <y> <z> <rx> <ry> <rz>` (patient allongé), ex. `/brancard_reglage patient 0 0 1.05 0 0 180` ;
-  `z` monte / descend le patient sur le matelas, `rz` `0` ou `180` met la tête de l'autre côté ;
+- `/brancard_reglage brancard <écart> <hauteur> <rotation>` (en tenant le brancard), ex. `/brancard_reglage brancard 0.25 0 0` ;
+- `/brancard_reglage patient <x> <y> <z> <rx> <ry> <rz>` (allongé), ex. `/brancard_reglage patient 0 0 1.05 0 0 180` ;
+- `/brancard_reglage vehicule <plancher> <recul> <rotation> <côté>` (brancard chargé), ex. `/brancard_reglage vehicule 0.55 0.30 0 0` ;
 - `/brancard_reglage` seul affiche les valeurs actuelles.
 
-Test hors jeu : `python3 tests/run_stretcher_sim.py` (deux clients simulés).
+## ♿ Fauteuil roulant (objet `wheelchair`)
+
+Utiliser l'objet dans l'inventaire : un fauteuil apparaît, vous êtes assis dedans. **ZQSD / WASD** : avancer, reculer, tourner
+(il roule au sol et s'arrête devant un mur). **X** ou réutiliser l'objet : se lever (le fauteuil disparaît). L'objet n'est pas consommé.
+Réglages : `Config.Wheelchair` (modèle `prop_wheelchair_01`, vitesses, assise). Ajuster en jeu :
+`/fauteuil_reglage <x> <y> <z> <rotation personne> <rotation fauteuil>`, ex. `/fauteuil_reglage 0 0.05 0.42 180 180`.
+
+Test hors jeu (brancard + fauteuil, un serveur et deux clients simulés) : `python3 tests/run_stretcher_sim.py`.
