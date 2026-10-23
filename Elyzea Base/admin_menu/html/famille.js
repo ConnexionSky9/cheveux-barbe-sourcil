@@ -74,7 +74,7 @@
         <div class="btn-row"><input class="input" type="number" min="1" id="famTestSid" placeholder="ID du joueur" style="max-width:160px">
         <button class="btn" data-fa="test_debut">Démarrer une grossesse de test</button>
         <button class="btn" data-fa="test_fin">Terminer la grossesse de test</button>
-        <button class="btn" data-fa="diag_suivi">Vérifier son suivi (application Grossesse)</button></div>
+        <button class="btn" data-fa="diag_suivi">Vérifier son suivi de grossesse</button></div>
         <div class="btn-row" style="margin-top:8px"><input class="input" type="text" id="famSecoursMotif" maxlength="200" placeholder="Motif (obligatoire) : ex. aucun EMS connecté" style="max-width:420px">
         <button class="btn" data-fa="accouchement_secours">Accouchement de secours (sans EMS)</button></div>
         <p class="hint">V8 : l'accouchement normal se fait uniquement avec un EMS en service (menu ALT sur la patiente). Le secours est refusé

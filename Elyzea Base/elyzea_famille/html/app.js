@@ -95,7 +95,7 @@ function openPanel(d) {
 }
 $('#k-fermer').addEventListener('click', () => { post('fermer'); hideAll(); });
 
-/* ---------- Ma grossesse (mêmes données que l'application du téléphone) ---------- */
+/* ---------- Ma grossesse (mêmes données que l'export SuiviGrossesse) ---------- */
 function openGrossesse(d) {
   hideAll();
   const r = d.donnees || {};

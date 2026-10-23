@@ -69,7 +69,9 @@ test('tirage raté = aucune', R.decider(entree(), Config, NOW, fixe(0.99)).resul
 test('protégé', R.decider(entree({ preservatif = true }), Config, NOW, fixe(0.01)).resultat == 'protege')
 test('échec contraception', R.decider(entree({ preservatif = true }), Config, NOW, fixe(0.0)).resultat == 'echec_contraception')
 test('déjà enceinte', R.decider(entree({ enceinteA = true }), Config, NOW, fixe(0)).raison == 'deja_enceinte')
-test('délai après grossesse', R.decider(entree({ derniereFinA = NOW - 10 * H }), Config, NOW, fixe(0)).raison == 'delai_apres_grossesse')
+test('délai après grossesse à 0 (défaut) : grossesses enchaînées possibles', R.decider(entree({ derniereFinA = NOW - 1 }), Config, NOW, fixe(0)).resultat == 'conception')
+test('délai après grossesse réglé à 48 h : bloqué 10 h après', R.decider(entree({ derniereFinA = NOW - 10 * H }),
+    (function() local c = copie(Config) c.Conception.delaiApresGrossesse = 48 return c end)(), NOW, fixe(0)).raison == 'delai_apres_grossesse')
 local Cacc = copie(Config) Cacc.Conception.accidentelle = false
 test('accidentelle désactivée', R.decider(entree(), Cacc, NOW, fixe(0)).resultat == 'accidentelle_desactivee')
 test('volontaire possible si accidentelle désactivée', R.decider(entree({ volontaire = true }), Cacc, NOW, fixe(0.01)).resultat == 'conception')

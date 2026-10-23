@@ -1,5 +1,9 @@
 # Famille, grossesse, bébé — livraison V8
 
+> **Révision (après livraison)** : l'application « Grossesse » de l'Elyzea Aura est **retirée** (le suivi est déjà dans votre
+> application Santé) : `elyzea_aura` est remis exactement à son état d'avant la V7. Le **délai avant une nouvelle grossesse** vaut
+> désormais **0** par défaut (grossesses enchaînées possibles).
+>
 > **Rien n'a pu être testé dans le jeu** (pas de client GTA V / FiveM dans l'environnement de développement).
 > Ce document distingue : **corrections écrites** (§2), **tests automatiques réellement exécutés hors du jeu** (§6),
 > et le **protocole de test à deux joueurs** à faire en jeu (§7, résultats attendus ; colonne « observé » à remplir).
@@ -11,14 +15,14 @@
   → la V7 n'était probablement pas (entièrement) installée sur le serveur.
 - Systèmes réutilisés (aucun menu ni système parallèle) : menu admin (onglet Famille, permission `famille_manage`), inventaire
   `elyzea_inventory`, boutique de PNJ du menu admin (préréglage « Puériculture »), notifications `elyzea_core`, menu ALT commun,
-  `elyzea_ems` (service, dispatch, dossier médical), téléphone légal Elyzea Aura, base MariaDB.
+  `elyzea_ems` (service, dispatch, dossier médical), base MariaDB.
 - La « deuxième image » de référence pour le portage **n'était pas jointe** (seul `admin_menu.zip` est arrivé) : la pose suit la
   description écrite du cahier.
 
 ### Causes trouvées
 | Problème | Cause |
 |---|---|
-| Application : « Suivi indisponible » | Le message s'affichait pour **toute** erreur. Causes possibles relevées dans le code (vos journaux serveur ne sont pas disponibles ici) : (1) `elyzea_famille` d'une version antérieure à la V7, sans l'export `SuiviGrossesse` — probable vu le `famille.js` V6 ; (2) `config.lua` de l'Aura non mis à jour → l'application était retirée des applications installées ; (3) limite de fréquence commune avec `/grossesse` ; (4) erreur serveur non interceptée. Les quatre sont corrigées, et chaque cause a désormais son message et sa ligne dans la console. |
+| Application : « Suivi indisponible » | Application retirée (révision) : le suivi passe par votre application Santé. Côté `elyzea_famille`, l'export `SuiviGrossesse` (données du suivi) reste disponible et renvoie désormais une cause précise en cas d'erreur (personnage non chargé, limite de fréquence, erreur serveur). |
 | Poussette : ne roule pas avec le bébé | Le bébé était attaché à la poussette, elle-même attachée au joueur : GTA synchronise mal ces **attaches en chaîne** ; la vérification serveur échouait et reposait le bébé au sol au bout de 3 essais. |
 | Poussette : s'envole frein serré | **Régression V7 (de ma part)** : la collision restait active pendant le roulement et la mesure du sol sous les roues touchait la poussette elle-même, qui « montait » à chaque image puis restait en l'air une fois le frein serré. De plus, une poussette garée n'était figée que par le serveur (réglage non garanti chez chaque joueur). |
 | Moment intime « câlin » | La paire `mp_ped_interaction` `kisses_guy_a/b` (depuis la V1) est la **bise de salutation** avec accolade de GTA Online. |
@@ -26,7 +30,7 @@
 ## 2. Corrections et ajouts (code écrit)
 | § cahier | Réalisé |
 |---|---|
-| 2 Suivi | Application Aura fiabilisée (cause précise de chaque erreur, bouton Réessayer) ; **date de découverte, examens, prochaines étapes, procédure d'accouchement** en cours ; trois états (enceinte / non enceinte / erreur réelle) ; données privées ; une prise en charge EMS confirme la grossesse ; **diagnostic admin** « Vérifier son suivi » (Famille › Tests). |
+| 2 Suivi | Données de suivi complétées côté `elyzea_famille` (panneau `/grossesse`, export `SuiviGrossesse`) : **date de découverte, examens, prochaines étapes, procédure d'accouchement** en cours ; erreurs précises ; données privées ; une prise en charge EMS confirme la grossesse ; **diagnostic admin** « Vérifier son suivi de grossesse » (Famille › Tests). Application Aura : retirée (révision). |
 | 3.1–3.2 Portage | « Dans les bras » **supprimé** (ancien nom = alias, aucune option / commande restante) ; une seule prise à la main : **« Prendre contre soi »** ; **ouverte à tous** (plus de réservation aux parents ni de `/bebe_confier`) ; filiation jamais modifiée ; impossible de prendre un bébé déjà porté (le porteur doit le poser) ; deux prises simultanées : une seule réussit (verrou serveur) ; sortie propre de la poussette. Porte-bébés proposés seulement quand ils sont équipés. |
 | 3.3 Pose | Bébé **allongé à l'horizontale en travers du buste, tête vers le creux du bras gauche**, soutenu par les avant-bras croisés (modèle « porté » du bébé, couché, jambes repliées). Contrôle hors du jeu : aucune interpénétration avec le buste du mannequin (écart 2,9 cm homme, 1,3 cm femme). Réglage fin (cm / degrés, dont bascule et hauteur de tête) dans le menu admin. **GTA n'a aucune animation de bercement** (vérifié dans les 20 179 dictionnaires) : voir §8. |
 | 4.1 Poussette + bébé | Bébé attaché **au pousseur** à l'endroit de la nacelle (plus d'attache en chaîne), suit le tangage dans les pentes ; ré-attache automatique pendant le roulement libre. |
@@ -51,7 +55,7 @@
   `grossesse/client/grossesse.lua`, `moment_intime/client|server/intimite.lua`, `sql/install.sql`, tests.
 - `elyzea_bebe_modele` : `config.lua`, `fxmanifest.lua`, `server/bebes.lua`, `server/persistance.lua`, `client/portage.lua`,
   `client/poussette.lua`, `shared/modeles.lua` (généré), **`stream/` (217 fichiers, régénéré)**, tests.
-- `elyzea_aura` : `server/main.lua`, `html/js/grossesse.js`, `html/js/i18n.js`.
+- `elyzea_aura` : **aucun changement** (remis à l'état d'avant la V7).
 - `elyzea_ems` : `server/api.lua` (export `AddTreatment`), `config.lua` (tarifs accouchement, péridurale).
 - `elyzea_inventory/shared/items.lua` (5 objets) · `admin_menu/config.lua` (préréglage Puériculture) · `admin_menu/html/famille.js`.
 - `Outils_3D/bebe/scripts` : `generate_baby.py`, `equipements.py`, `export_gta.py`, `validate.py`, `render_galerie.py`.
@@ -68,23 +72,24 @@ Sauvegarder la base (`mysqldump`) avant la mise à jour, par précaution. Les te
 ## 5. Installation / redémarrage
 1. Arrêter le serveur ; sauvegarder la base.
 2. **Remplacer en entier** : `elyzea_famille/`, `elyzea_bebe_modele/` (`stream/` compris).
-3. Remplacer les fichiers : `elyzea_aura` (`server/main.lua`, `html/js/grossesse.js`, `html/js/i18n.js` + ceux de la V7 si absents),
-   `elyzea_ems/server/api.lua` et `elyzea_ems/config.lua`, `elyzea_inventory/shared/items.lua` + les 5 images,
+3. Remplacer les fichiers : `elyzea_ems/server/api.lua` et `elyzea_ems/config.lua`, `elyzea_inventory/shared/items.lua` + les 5 images,
    `admin_menu/config.lua` et `admin_menu/html/famille.js`.
 4. Démarrer. Console : colonnes ajoutées, `Persistance : …`.
 5. **Votre PNJ de puéricultrice existant** garde son catalogue enregistré : dans l'éditeur de PNJ (menu admin), ajoutez-lui
    `biberon`, `couche`, `vetement_bebe_blanc`, `vetement_bebe_rose`, `vetement_bebe_bleu` (prix au choix), ou réappliquez le
    préréglage « Puériculture ». Les nouveaux PNJ créés avec ce préréglage les ont directement.
 6. Réglages pour tester vite : Famille › Soins (vitesse 60 = 1 h par minute), Accouchement (délais 0), Durée de grossesse (secondes).
+   Délai avant une nouvelle grossesse : 0 par défaut ; **si une valeur a déjà été enregistrée dans le menu admin, elle reste
+   prioritaire** : remettez-la à 0 dans Famille › Durée et progression de grossesse.
 7. Si un dossier médical EMS doit facturer l'accouchement : tablette EMS › Finance › Tarifs (accouchement 2 500 $, péridurale 600 $ par défaut).
 
-Dépendances : inchangées (OneSync, `elyzea_core`, `elyzea_inventory`, `admin_menu`, `elyzea_police`, `elyzea_ems`, `elyzea_aura`).
+Dépendances : inchangées (OneSync, `elyzea_core`, `elyzea_inventory`, `admin_menu`, `elyzea_police`, `elyzea_ems`).
 
 ## 6. Tests automatiques réellement exécutés (hors du jeu)
 | Suite | Résultat |
 |---|---|
 | `elyzea_famille/tests/integration_test.py` (vraie base MariaDB, FiveM simulé) — dont accouchement EMS complet, refus non-EMS / patiente seule / trop tôt / délai, péridurale, EMS hors service pendant un acte, redémarrage au milieu, secours (EMS en service, sans motif, sans permission, autorisé), pas de seconde naissance, pas de naissance automatique, application, diagnostic, baiser | **171/171** |
-| `elyzea_famille/tests/test_regles.lua` / `test_ventre.lua` | **85/85** / **17/17** |
+| `elyzea_famille/tests/test_regles.lua` / `test_ventre.lua` | **86/86** / **17/17** |
 | `elyzea_bebe_modele/tests/test_soins.py` — besoins, notifications au bon joueur sans répétition, nouveau porteur, biberon (une fois, un à la fois, objet 3D), couche (bébé posé, deux joueurs), vêtements (modèle changé, ancien rendu, inventaire plein), sommeil et réveil, pause garde, réglages | **25/25** |
 | `test_persistance.py` (MariaDB) — dont migration `besoins`, besoins et tenue retrouvés après redémarrage, non-parent qui prend le bébé, filiation inchangée, pas d'arrachage | **23/23** |
 | `test_portage.py` (prise unique, bébé attaché au pousseur, toujours dans la poussette 12 s plus tard) / `test_poussette.py` (état garée / libre transmis) | **84/84** / **25/25** |
@@ -92,7 +97,7 @@ Dépendances : inchangées (OneSync, `elyzea_core`, `elyzea_inventory`, `admin_m
 | `elyzea_police/tests/test_alt.lua` | **10/10** |
 | Contrôle de la pose « contre soi » sur le mannequin (`controle_portage.py`) | aucune interpénétration |
 | Chaîne 3D : 217 fichiers convertis, **0 échec**, relus par CodeWalker ; **37/37** contrôles ; dictionnaire du corps 10 Mo (< 16 Mo) | OK |
-| Application Aura et onglet admin affichés dans Chromium avec les vraies données du test (0 erreur JavaScript) | captures `*_v8*` |
+| Onglet admin affiché dans Chromium avec les vraies données du test (0 erreur JavaScript) | captures `*_v8*` |
 | Syntaxe Lua / JavaScript de tous les fichiers modifiés | OK |
 
 Limite de ces tests : ils vérifient la logique serveur et client avec FiveM simulé. Ils **ne peuvent pas** montrer la synchronisation
@@ -104,9 +109,9 @@ métier EMS et se met en service. Notez pour chaque test : résultat observé, e
 
 | # | Action | Résultat attendu |
 |---|---|---|
-| 1 | Tests › votre ID › Démarrer une grossesse de test ; A ouvre Aura › Appli › Grossesse | Grossesse en cours, trimestre, découverte, prochaines étapes, historique |
-| 2 | B (non enceinte) ouvre l'application | « Aucune grossesse confirmée » |
-| 3 | A se déconnecte / reconnecte, rouvre | Mêmes informations ; en cas d'erreur, message précis + bouton Réessayer, et « Vérifier son suivi » dans le menu admin donne la cause |
+| 1 | Tests › votre ID › Démarrer une grossesse de test ; A tape `/grossesse` (et ouvre votre application Santé) | Grossesse en cours, trimestre, découverte, prochaines étapes, historique |
+| 2 | B (non enceinte) tape `/grossesse` | « Aucune grossesse confirmée » |
+| 3 | A se déconnecte / reconnecte, rouvre | Mêmes informations ; « Vérifier son suivi de grossesse » dans le menu admin les confirme |
 | 4 | A (parent) : ALT sur un bébé › Prendre contre soi | Bébé couché en travers du buste, tête au creux du bras gauche |
 | 5 | B (non parent) prend le bébé contre soi | Accepté |
 | 6 | Diagnostic (Famille) après 5 | Responsables inchangés |
@@ -146,10 +151,10 @@ métier EMS et se met en service. Notez pour chaque test : résultat observé, e
 - **Animation de poussée** : la tondeuse est vérifiée présente dans le jeu, mais l'alignement des mains sur la poignée est à
   vérifier ; décalages réglables dans le menu admin.
 - Sens de la bascule du bébé dans une pente (poussette poussée) : calculé, à confirmer en jeu.
-- **« Suivi indisponible »** : sans vos journaux serveur, la cause exacte sur votre serveur n'est pas prouvée ; toutes les causes
-  trouvées dans le code sont corrigées et la console indique désormais la cause précise.
+- Le suivi dans votre **application Santé** n'est pas dans le dépôt : il n'affiche pas forcément les nouvelles informations V8
+  (procédure d'accouchement, prochaines étapes). Envoyez-moi ses fichiers si vous voulez qu'il les montre (export `SuiviGrossesse`).
 - Le PNJ de puéricultrice existant doit recevoir les nouveaux articles dans l'éditeur (§5.5).
 
 ## 9. Retour arrière
 Supprimer `elyzea_famille` et `elyzea_bebe_modele`, puis remettre ceux du paquet V7 (ou `git checkout sauvegarde-v7 -- …`), ainsi que
-les fichiers V7 d'`elyzea_aura`, `elyzea_ems`, `elyzea_inventory`, `admin_menu`. Les colonnes ajoutées peuvent rester (ignorées).
+les fichiers V7 d'`elyzea_ems`, `elyzea_inventory`, `admin_menu`. Les colonnes ajoutées peuvent rester (ignorées).

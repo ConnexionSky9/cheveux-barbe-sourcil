@@ -2242,33 +2242,6 @@ Register('sendAlert', function(src, me, args)
     return { ok = true, count = count }
 end)
 
--- ---------------------------------------------------------
---  Grossesse : suivi fourni par elyzea_famille (données du personnage du joueur seulement)
--- ---------------------------------------------------------
--- L'application est toujours reconnue, même si Config.StoreApps n'a pas été mis à jour (sinon elle serait retirée des
--- applications installées au chargement du profil et la requête serait refusée)
-StoreApps.grossesse = true
--- Réponses en erreur : code = 'absent' (elyzea_famille arrêtée), 'version' (elyzea_famille sans l'export : ancienne version),
--- 'personnage', 'limite', 'serveur' (voir elyzea_famille) ; chaque cause est écrite dans la console du serveur
-Register('grossesseSuivi', function(src, me)
-    if not HasApp(me, 'grossesse') then return { ok = false, code = 'installer', error = 'Application non installée' } end
-    if GetResourceState('elyzea_famille') ~= 'started' then
-        print(('[elyzea_aura] Grossesse : la ressource elyzea_famille n\'est pas démarrée (état : %s).'):format(GetResourceState('elyzea_famille')))
-        return { ok = false, code = 'absent' }
-    end
-    local ok, r = pcall(function() return exports.elyzea_famille:SuiviGrossesse(src) end)
-    if not ok then
-        local manque = tostring(r):find('SuiviGrossesse', 1, true) ~= nil
-        print(('[elyzea_aura] Grossesse : appel de elyzea_famille impossible (%s)%s'):format(tostring(r),
-            manque and ' : elyzea_famille est une version antérieure à la V7, remplacez-la.' or ''))
-        return { ok = false, code = manque and 'version' or 'serveur' }
-    end
-    if type(r) ~= 'table' then return { ok = false, code = 'serveur' } end
-    if r.erreur then return { ok = false, code = r.code or 'serveur', error = r.erreur } end
-    r.ok = true
-    return r
-end)
-
 -- Export pratique pour d'autres ressources
 exports('GetPhoneNumber', function(src)
     local p = EnsurePlayer(src)

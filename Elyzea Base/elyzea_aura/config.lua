@@ -144,8 +144,7 @@ Config.Limits = {
 }
 
 -- Applications téléchargeables depuis "Appli"
-Config.StoreApps = { 'birdy', 'instapick', 'itoune', 'etincelle', 'livrezy', 'helpmecano', 'garage', 'carplay', 'grossesse' }
--- « grossesse » : suivi de grossesse, données fournies par la ressource elyzea_famille (sans elle, l'application affiche « indisponible »)
+Config.StoreApps = { 'birdy', 'instapick', 'itoune', 'etincelle', 'livrezy', 'helpmecano', 'garage', 'carplay' }
 
 -- =========================================================
 --  Livrézy : courses livrées par un PNJ en voiture

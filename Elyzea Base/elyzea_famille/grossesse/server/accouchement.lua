@@ -47,13 +47,13 @@ local function ecrire(g, precedente, suivante, t)
     return true
 end
 
--- ─────────── Informations pour l'application et l'EMS ───────────
+-- ─────────── Informations pour le suivi et l'EMS ───────────
 
 local function prochaine(g)
     return A.etapes[indexEtape(g.travail_etape) + 1]
 end
 
--- Texte « prochaine étape » (application de la patiente), nil sans procédure
+-- Texte « prochaine étape » (suivi de la patiente), nil sans procédure
 function Fam.TravailInfo(g)
     if not g.travail_etape then return nil end
     local p = prochaine(g)
@@ -63,7 +63,7 @@ function Fam.TravailInfo(g)
     return s
 end
 
--- État détaillé (application) : étapes faites / à venir
+-- État détaillé (suivi) : étapes faites / à venir
 function Fam.TravailEtat(g)
     if not g.travail_etape then return nil end
     local t = travailDe(g)
@@ -123,7 +123,7 @@ local function realiser(src, cible, ems, patient, g)
             return Fam.Notify(src, 'Cette étape vient déjà d\'être faite (par un autre EMS ?).', 'inform')
         end
         if not precedente and not g2.discovered_at then
-            -- une prise en charge par un EMS confirme la grossesse : elle apparaît dans l'application de la patiente
+            -- une prise en charge par un EMS confirme la grossesse : elle apparaît dans le suivi de la patiente
             local n = MySQL.update.await('UPDATE `rp_pregnancies` SET `discovered_at` = ? WHERE `id` = ? AND `discovered_at` IS NULL', { os.time(), g2.id })
             if (tonumber(n) or 0) >= 1 then evenement(g2.id, 'decouverte', { par = 'examen' }) end
         end

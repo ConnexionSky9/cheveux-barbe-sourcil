@@ -1195,7 +1195,7 @@ check('57. 0 accepté pour les trois trimestres', ok is True and G.Config.Grosse
 r = appli(3)
 check('58. application d\'un personnage sans grossesse : état vide compréhensible', r['statut'] == 'aucune')
 
-# 59. export SuiviGrossesse (application « Grossesse » du téléphone Elyzea Aura) : mêmes données que /grossesse,
+# 59. export SuiviGrossesse (utilisable par une application de téléphone) : mêmes données que /grossesse,
 #     toujours celles du personnage du joueur qui demande
 ok, msg = regler(1000, 1000, 1000)
 ok, msg, gid = test_debut(1)
@@ -1204,13 +1204,13 @@ G.source = 1
 r1 = from_lua(sg(1))
 r3 = from_lua(sg(3))
 rx = from_lua(sg(999))
-check('59. export pour l\'Aura : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
+check('59. export SuiviGrossesse : la joueuse voit sa grossesse en cours et son historique', r1.get('statut') == 'en_cours'
       and r1['grossesse']['id'] == gid and r1['historique'][0]['titre'] == 'Grossesse de test', r1)
 check('59. un autre joueur ne voit que ses propres données ; joueur inconnu refusé', r3.get('statut') == 'aucune' and 'erreur' in rx, (r3, rx))
-check('60. application : date de découverte, examens, prochaines étapes fournis', r1.get('decouverte') and r1['decouverte'].get('date')
+check('60. suivi : date de découverte, examens, prochaines étapes fournis', r1.get('decouverte') and r1['decouverte'].get('date')
       and isinstance(r1.get('prochaines'), list) and len(r1['prochaines']) >= 1 and isinstance(r1.get('examens'), (list, dict, type(None))), r1.get('prochaines'))
 ok_d, msg_d = admin(3, 'diag_suivi', {'sid': 1})
-check('60. diagnostic admin du suivi : grossesse en cours et état du téléphone indiqués', ok_d is True and gid in msg_d and 'Téléphone' in msg_d, msg_d)
+check('60. diagnostic admin du suivi : grossesse en cours indiquée', ok_d is True and gid in msg_d and 'en cours' in msg_d, msg_d)
 ok_d2, msg_d2 = admin(3, 'diag_suivi', {'sid': 999})
 check('60. diagnostic : joueur inconnu signalé', ok_d2 is False, msg_d2)
 admin(3, 'test_fin', {'sid': 1})

@@ -7,8 +7,8 @@
 > - syntaxe Lua et JavaScript ; onglet admin affiché dans Chromium (`docs/famille/captures/`).
 >
 > Chiffres ci-dessus : V5. Résultats V7 (durées par trimestre, historique, réorganisation) : `docs/famille/LIVRAISON_V7.md`.
-> **V8** (accouchement obligatoirement assisté par un EMS, application Aura fiabilisée, baiser) : `docs/famille/LIVRAISON_V8.md`
-> — 171/171 contrôles d'intégration, 85/85 règles, 17/17 ventre ; protocole de test à deux joueurs au §7.
+> **V8** (accouchement obligatoirement assisté par un EMS, baiser, grossesses enchaînées possibles) : `docs/famille/LIVRAISON_V8.md`
+> — 171/171 contrôles d'intégration, 86/86 règles, 17/17 ventre ; protocole de test à deux joueurs au §7.
 
 Première brique de l'écosystème famille (architecture : `docs/famille/AUDIT_ARCHITECTURE.md`).
 Les modules suivants (découverte et suivi de grossesse, accouchement, enfants, crèche…) s'ajouteront dans cette même ressource.

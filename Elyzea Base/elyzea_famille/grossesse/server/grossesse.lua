@@ -87,7 +87,7 @@ end)
 
 -- ─────────── Suivi privé ───────────
 
--- Données de suivi (application du téléphone, panneau /grossesse) : UNIQUEMENT pour la personne elle-même.
+-- Données de suivi (panneau /grossesse, export SuiviGrossesse) : UNIQUEMENT pour la personne elle-même.
 -- statut : 'aucune' (aucune grossesse connue), 'en_cours' (découverte), 'terminee' (accouchement / fin récents).
 -- Une grossesse non découverte reste « aucune » : la joueuse l'apprend par un test ou un examen.
 local function lignesHistorique(gid)
@@ -100,7 +100,7 @@ local function lignesHistorique(gid)
     return out
 end
 
--- Examens et tests passés (pour l'application) : extraits de l'historique
+-- Examens et tests passés (pour le suivi) : extraits de l'historique
 local function examensDe(histo)
     local out = {}
     for _, e in ipairs(histo) do
@@ -173,7 +173,7 @@ function Fam.DonneesSuivi(cid, now)
 end
 
 -- Suivi de grossesse du personnage du joueur src (jamais celui d'un autre) : panneau /grossesse et
--- application « Grossesse » du téléphone Elyzea Aura (export SuiviGrossesse, appelé par le serveur de l'Aura)
+-- export SuiviGrossesse (utilisable par une application de téléphone, ex. Santé)
 -- Erreurs : { erreur = texte, code = 'personnage' | 'limite' | 'serveur' } (jamais « indisponible » pour une grossesse connue)
 local function suiviJoueur(src)
     local j = Fam.Joueur(src)
@@ -188,14 +188,13 @@ local function suiviJoueur(src)
 end
 Fam.SuiviJoueur = suiviJoueur
 
--- Diagnostic (menu admin › Famille › Tests) : ce que l'application « Grossesse » afficherait pour ce joueur, et pourquoi
+-- Diagnostic (menu admin › Famille › Tests) : ce que le suivi de grossesse affiche pour ce joueur, et pourquoi
 function Fam.DiagSuivi(data)
     local sid = tonumber(type(data) == 'table' and data.sid)
     local j = sid and Fam.Joueur(sid)
     if not j then return false, 'Joueur introuvable (ID en jeu).' end
     local ok, r = pcall(Fam.DonneesSuivi, j.cid)
     if not ok then return false, ('%s : erreur de lecture du suivi (%s).'):format(j.nom, tostring(r)) end
-    local aura = GetResourceState('elyzea_aura')
     local brute = MySQL.single.await("SELECT `id`, `discovered_at` FROM `rp_pregnancies` WHERE `porteur_cid` = ? AND `active_key` IS NOT NULL LIMIT 1", { j.cid })
     local txt
     if r.statut == 'en_cours' then
@@ -204,11 +203,11 @@ function Fam.DiagSuivi(data)
     elseif r.statut == 'terminee' then
         txt = ('grossesse %s terminée le %s'):format(r.fin.id, r.fin.date)
     elseif brute then
-        txt = ('grossesse %s en cours mais PAS encore découverte (test ou examen EMS nécessaire) : l\'application affiche « aucune grossesse confirmée »'):format(brute.id)
+        txt = ('grossesse %s en cours mais PAS encore découverte (test ou examen EMS nécessaire) : le suivi affiche « aucune grossesse confirmée »'):format(brute.id)
     else
         txt = 'aucune grossesse'
     end
-    return true, ('%s (%s) : %s. Téléphone elyzea_aura : %s.'):format(j.nom, j.cid, txt, aura == 'started' and 'démarré' or aura)
+    return true, ('%s (%s) : %s.'):format(j.nom, j.cid, txt)
 end
 Ely.callback.register('famille:grossesse', suiviJoueur)
 exports('SuiviGrossesse', suiviJoueur)

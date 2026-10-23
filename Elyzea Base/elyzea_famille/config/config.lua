@@ -85,7 +85,7 @@ Config.Conception = {
     -- Règle RP : la personne qui porte l'enfant est la personne de sexe féminin (fiche d'identité),
     -- son ou sa partenaire de sexe masculin. Autres cas : aucune conception (adoption plus tard).
     ageMaxPorteur = 55,          -- au-delà : aucune conception
-    delaiApresGrossesse = 48,    -- heures après la fin d'une grossesse avant une nouvelle conception
+    delaiApresGrossesse = 0,     -- heures après la fin d'une grossesse avant une nouvelle conception (0 = aucun délai : grossesses enchaînées possibles)
     -- Grossesses multiples : tirées SÉPARÉMENT, seulement après une conception réussie
     multiples = { actif = true, jumeaux = 0.03, triples = 0.002, triplesActifs = true },
     -- Moment arrêté avant la fin (X, déconnexion…) : false = AUCUNE tentative (défaut) ;

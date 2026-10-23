@@ -21,7 +21,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - **Livrézy** : commande de repas, snacks, boissons et alcool depuis le téléphone (plus cher qu'en supérette, avec frais de livraison). Un livreur PNJ part en voiture du commerce le plus proche, se suit en direct sur la carte et dans l'app, descend vous remettre la commande puis repart. Paiement par banque ou en espèces, annulation possible, remboursement automatique en cas de problème.
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage et CarPlay. La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
