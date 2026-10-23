@@ -95,6 +95,10 @@ P.Actions.examine = { perm = 'medical', duty = true, fn = function(src, d)
         hunger = tonumber(md.hunger) and math.floor(md.hunger) or nil, thirst = tonumber(md.thirst) and math.floor(md.thirst) or nil,
         blood = file and file.blood or nil, allergies = file and file.allergies or nil, cid = cid,
         conditions = P.HealthDiagnose and P.HealthDiagnose(t) or {},
+        injuries = P.InjuryExamView and P.InjuryExamView(t) or {},
+        procs = P.ProcSettings and P.ProcSettings().enabled or false,
+        cprProc = P.ProcEnabled and P.ProcEnabled('cpr') or false,
+        castProc = P.ProcEnabled and P.ProcEnabled('cast') or false,
     } }
 end }
 
@@ -105,6 +109,13 @@ P.Actions.medStart = { perm = 'medical', duty = true, fn = function(src, d)
     local k = KINDS[tostring(d.kind or '')]
     if not k then return { error = 'Acte inconnu.' } end
     if not P.Can(src, k.perm) then return { error = 'Votre grade ne permet pas cet acte.' } end
+    -- Remplacés par les actes en mini-jeux quand ils sont actifs (server/procedures.lua)
+    if d.kind == 'splint' and P.ProcEnabled and P.ProcEnabled('cast') then
+        return { error = 'Utilisez « Attelle / plâtre » (Actes et examens), après une radiographie.' }
+    end
+    if d.kind == 'revive' and P.ProcEnabled and P.ProcEnabled('cpr') then
+        return { error = 'Utilisez le massage cardiaque (Actes et examens).' }
+    end
     if P.down[src] then return { error = 'Vous êtes à terre.' } end
     local t, why = Target(src, d.target)
     if not t then return { error = why } end

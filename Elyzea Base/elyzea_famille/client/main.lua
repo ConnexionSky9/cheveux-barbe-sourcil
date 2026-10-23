@@ -150,7 +150,9 @@ exports('AltOptions', function(ctx)
     end
     if Config.Modules.contraception and emsEnService() then
         local Cc = Config.Contraception
-        if Cc.implant.actif and Cc.implant.poseParEms then
+        -- remplacés par les actes en mini-jeux d'elyzea_ems quand ils sont actifs (Actes et examens)
+        local procs = GlobalState.emsProcs
+        if Cc.implant.actif and Cc.implant.poseParEms and not (type(procs) == 'table' and procs.implant) then
             out[#out + 1] = { id = 'implant', label = 'Poser un implant contraceptif', icon = 'implant' }
             out[#out + 1] = { id = 'retrait', label = 'Retirer l\'implant contraceptif', icon = 'implant' }
         end

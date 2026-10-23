@@ -90,6 +90,7 @@ RegisterNetEvent('ems:server:respawn', function()
         end
     end
     Clear(src)
+    if P.InjuryHospital then pcall(P.InjuryHospital, src) end
     TriggerClientEvent('ems:client:respawn', src, D.hospital)
     if fee > 0 then
         P.Notify(src, paidWith and ('Frais d\'hôpital : %d $.'):format(fee) or 'Vous n\'aviez pas de quoi payer les frais d\'hôpital.', paidWith and 'inform' or 'error')
@@ -111,6 +112,15 @@ function P.Revive(target, health)
     Clear(target)
     TriggerClientEvent('ems:client:revive', target, tonumber(health) or Config.Revive.health)
     return was
+end
+
+-- Massage efficace sans reprise : délai avant la perte du patient prolongé (perfusion maintenue)
+function P.DownExtend(target, seconds)
+    local d = P.down[target]
+    if not d or (tonumber(seconds) or 0) <= 0 then return false end
+    d.untilT = math.max(d.untilT, os.time()) + math.floor(seconds)
+    Push(target)
+    return true
 end
 
 function P.Stabilize(target)

@@ -184,3 +184,52 @@ CREATE TABLE IF NOT EXISTS `ems_report_history` (
     `action` VARCHAR(120) NOT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX (`report_id`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Actes médicaux en mini-jeux (créées toutes seules au démarrage, comme les autres)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `ems_injuries` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `citizenid` VARCHAR(50) NOT NULL,
+    `type` VARCHAR(12) NOT NULL,
+    `zone` VARCHAR(20) NOT NULL,
+    `severity` TINYINT NOT NULL DEFAULT 1,
+    `status` VARCHAR(12) NOT NULL DEFAULT 'active',
+    `source` VARCHAR(40) NULL,
+    `created_at` INT UNSIGNED NOT NULL,
+    `xray_at` INT UNSIGNED NULL,
+    `seen_at` INT UNSIGNED NULL,
+    `treated_at` INT UNSIGNED NULL,
+    `treated_by` VARCHAR(100) NULL,
+    `heal_at` INT UNSIGNED NULL,
+    `healed_at` INT UNSIGNED NULL,
+    `note` VARCHAR(160) NULL,
+    INDEX (`citizenid`, `status`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ems_procedures` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `uid` VARCHAR(40) NOT NULL UNIQUE,
+    `act` VARCHAR(20) NOT NULL,
+    `patient_cid` VARCHAR(50) NOT NULL, `patient_name` VARCHAR(100) NULL,
+    `ems_cid` VARCHAR(50) NULL, `ems_name` VARCHAR(100) NULL, `ems_grade` VARCHAR(50) NULL,
+    `zone` VARCHAR(20) NULL,
+    `result` VARCHAR(30) NULL,
+    `report` TEXT NULL,
+    `items` VARCHAR(255) NULL,
+    `score` TINYINT NULL,
+    `sensitive` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_at` INT UNSIGNED NOT NULL,
+    INDEX (`patient_cid`), INDEX (`act`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ems_vaccinations` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `citizenid` VARCHAR(50) NOT NULL,
+    `vaccine` VARCHAR(30) NOT NULL,
+    `label` VARCHAR(80) NULL,
+    `zone` VARCHAR(20) NULL,
+    `given_at` INT UNSIGNED NOT NULL,
+    `effective_at` INT UNSIGNED NOT NULL,
+    `expires_at` INT UNSIGNED NULL,
+    `ems_cid` VARCHAR(50) NULL, `ems_name` VARCHAR(100) NULL,
+    `proc_uid` VARCHAR(40) NOT NULL UNIQUE,
+    INDEX (`citizenid`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -8,7 +8,8 @@ local AM = AdminMenu
 local RES = 'elyzea_ems'
 local function available() return GetResourceState(RES) == 'started' end
 
-local OPS = { save = true, give = true, cure = true, cureAll = true, pointAdd = true, pointRemove = true }
+local OPS = { save = true, give = true, cure = true, cureAll = true, pointAdd = true, pointRemove = true,
+    procSave = true, injuryGive = true, injuryHeal = true }   -- actes médicaux en mini-jeux, blessures localisées
 AM.Actions.sante = { perm = 'health_manage', fn = function(src, d)
     if not available() then return AM.notify(src, ('La ressource « %s » n\'est pas démarrée.'):format(RES), 'error') end
     local op = tostring(d.op or '')

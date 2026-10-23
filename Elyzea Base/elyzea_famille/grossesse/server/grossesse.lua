@@ -85,6 +85,25 @@ RegisterNetEvent('elyzea_famille:examen', function(cible)
     if not envoye then Fam.Notify(src, 'Le patient a déjà une demande en attente.', 'error') end
 end)
 
+-- Échographie de suivi (acte EMS en mini-jeu, elyzea_ems) : le consentement a été demandé par elyzea_ems
+-- et le mini-jeu validé par son serveur. Renvoie { pregnant, day, days, babies } (le résultat va au patient et à l'EMS).
+exports('EchographieEms', function(emsSrc, cible)
+    if not Config.Modules.conception then return { pregnant = false } end
+    local ems, patient = Fam.Joueur(emsSrc), Fam.Joueur(cible)
+    if not ems or not patient then return nil end
+    local g = enCours(patient.cid)
+    if not g then
+        Fam.Audit(ems.cid, 'ems_echographie', patient.cid)
+        return { pregnant = false }
+    end
+    decouvrir(g, 'echographie')
+    MySQL.update.await('UPDATE `rp_pregnancies` SET `bebes_connus` = 1 WHERE `id` = ?', { g.id })
+    local av = Regles.avancement(g, os.time(), G)
+    evenement(g.id, 'examen', { ems = ems.cid, jour = av.jour, echographie = true })
+    Fam.Audit(ems.cid, 'ems_echographie', patient.cid)
+    return { pregnant = true, day = math.min(av.jour, av.jours), days = av.jours, babies = g.bebes }
+end)
+
 -- ─────────── Suivi privé ───────────
 
 -- Données de suivi (application du téléphone, panneau /grossesse) : UNIQUEMENT pour la personne elle-même.

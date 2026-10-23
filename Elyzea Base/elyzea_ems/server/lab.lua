@@ -166,22 +166,31 @@ local function view(row, full)
     return v
 end
 
--- Prélèvement : ALT › « Prélèvement sanguin » (le serveur vérifie service, permission, distance)
-P.Actions.labSample = { perm = 'lab_sample', duty = true, fn = function(src, d)
-    if not Lab.ready then return { error = 'Le laboratoire démarre, réessayez dans un instant.' } end
-    local t = tonumber(d.target)
-    if not t or t == src or not GetPlayerName(t) or not P.GetPlayer(t) then return { error = 'Patient introuvable.' } end
-    if P.Dist(src, t) > (L.sampleDistance or 3.0) + 1.0 then return { error = 'Le patient est trop loin.' } end
+-- Enregistre un prélèvement (heure du prélèvement = maintenant). Renvoie l'identifiant, ou nil + message.
+-- Utilisé par l'acte « Prise de sang » (server/procedures.lua) et par l'ancien prélèvement simple.
+function Lab.CreateSample(src, t, action)
+    if not Lab.ready then return nil, 'Le laboratoire démarre, réessayez dans un instant.' end
     local cid = P.Cid(t)
-    if not cid then return { error = 'Patient introuvable.' } end
-    if Lab.lastSample[cid] and os.time() - Lab.lastSample[cid] < (L.sampleCooldown or 60) then return { error = 'Un prélèvement vient déjà d\'être fait sur ce patient.' } end
+    if not cid then return nil, 'Patient introuvable.' end
+    if Lab.lastSample[cid] and os.time() - Lab.lastSample[cid] < (L.sampleCooldown or 60) then return nil, 'Un prélèvement vient déjà d\'être fait sur ce patient.' end
     Lab.lastSample[cid] = os.time()
     local now = os.time()
     local who = P.Name(src)
-    local history = { { at = now, by = who, action = 'Prélèvement sanguin effectué' } }
+    local history = { { at = now, by = who, action = action or 'Prélèvement sanguin effectué' } }
     local id = MySQL.insert.await([[INSERT INTO `ems_lab_samples` (`citizenid`, `patient_name`, `job`, `sampled_by_cid`, `sampled_by_name`, `sampled_at`, `status`, `history`)
         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)]], { cid, P.Name(t), P.MyJob(src), P.Cid(src), who, now, json.encode(history) })
-    if not id then return { error = 'Prélèvement non enregistré.' } end
+    if not id then Lab.lastSample[cid] = nil return nil, 'Prélèvement non enregistré.' end
+    return id
+end
+
+-- Prélèvement simple (sans mini-jeu) : seulement si l'acte « Prise de sang » est désactivé
+P.Actions.labSample = { perm = 'lab_sample', duty = true, fn = function(src, d)
+    if P.ProcEnabled and P.ProcEnabled('blood') then return { error = 'Utilisez l\'acte « Prise de sang » (Actes et examens).' } end
+    local t = tonumber(d.target)
+    if not t or t == src or not GetPlayerName(t) or not P.GetPlayer(t) then return { error = 'Patient introuvable.' } end
+    if P.Dist(src, t) > (L.sampleDistance or 3.0) + 1.0 then return { error = 'Le patient est trop loin.' } end
+    local id, err = Lab.CreateSample(src, t)
+    if not id then return { error = err } end
     if P.AddTreatment then P.AddTreatment(t, 'consult', src) end
     P.Notify(t, 'Un prélèvement sanguin vient de vous être fait.', 'inform')
     return { message = ('Prélèvement LAB-%05d enregistré. Analyse depuis la tablette › Laboratoire.'):format(id), id = id }

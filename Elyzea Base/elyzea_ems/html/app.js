@@ -100,8 +100,11 @@ function f6Render() {
     body += `<div class="near">Patient : <b>ID ${n.id}</b> · ${n.distance} m${n.down ? ' · <span style="color:#fca5a5">inconscient</span>' : ''}${n.inVehicle ? ' · dans un véhicule' : ''}</div><div class="f6-list">`;
     const m = (act, ico, label, ok = true, sub = '') => (ok ? `<button class="f6-item" data-med="${act}" data-t="${n.id}"><span class="ico">${ico}</span><span class="txt">${label}${sub ? `<small>${sub}</small>` : ''}</span></button>` : '');
     body += m('examine', '🩺', 'Examiner / état de santé', p.medical);
-    body += n.down ? m('stabilize', '🩹', 'Stabiliser', p.stabilize) + m('revive', '❤️', 'Réanimer', p.revive)
-      : m('heal', '💊', 'Soigner', p.heal) + m('splint', '🦴', 'Poser une attelle', p.heal, 'Blessure à la jambe') + m('treat', '💉', 'Donner un traitement', p.heal, 'Rhume, MST…');
+    const pr = APP.procs || {};
+    body += m('procs', '🧰', 'Actes et examens…', p.medical && Object.values(pr).some(Boolean), 'Prise de sang, imagerie, attelle, vaccin…');
+    body += m('hemostasis', '🩸', 'Contrôler l\'hémorragie', p.stabilize && pr.hemostasis, 'Compression d\'urgence');
+    body += n.down ? m('stabilize', '🩹', 'Stabiliser', p.stabilize) + m('revive', '❤️', pr.cpr ? 'Massage cardiaque' : 'Réanimer', p.revive)
+      : m('heal', '💊', 'Soigner', p.heal) + m('splint', '🦴', 'Poser une attelle', p.heal && !pr.cast, 'Blessure à la jambe') + m('treat', '💉', 'Donner un traitement', p.heal, 'Rhume, MST…');
     if (!n.inVehicle) body += m('escort', '🚶', n.escorted ? 'Lâcher le patient' : (n.down ? 'Porter le patient' : 'Accompagner le patient'), p.escort);
     body += n.inVehicle ? m('takeOut', '🚪', 'Sortir du véhicule', p.vehicle) : m('putIn', '🚑', 'Installer dans le véhicule', p.vehicle && d.vehicle, d.vehicle ? '' : 'Aucun véhicule proche');
     body += m('report', '📝', 'Compte rendu', p.reports_write) + m('bill', '🧾', 'Facturer les soins', p.billing);
@@ -234,8 +237,10 @@ function showNotif(m) {
    Examen
    ===================================================================== */
 let EXAM = null;
+const INJ_ST = { active: 'à prendre en charge', controlled: 'saignement contrôlé, pansement à poser', treated: 'traitée' };
 function examRender() {
   const x = EXAM.exam, p = EXAM.perms || {};
+  if (!Array.isArray(x.injuries)) x.injuries = Object.values(x.injuries || {});   // table Lua vide : {}
   const col = (v) => (v > 60 ? 'var(--green)' : v > 25 ? 'var(--orange)' : 'var(--red)');
   $('#exam .modal').innerHTML = `<div class="eyebrow">Examen · ID ${x.id}</div><h2>${esc(x.name)}</h2><p class="lead">${esc(x.state)}${x.cause ? ` · cause probable : ${esc(x.cause)}` : ''}</p>
     <div class="vitals">
@@ -245,12 +250,15 @@ function examRender() {
       ${x.hunger != null ? `<div class="vital"><span>Faim</span><b>${x.hunger} %</b></div><div class="vital"><span>Soif</span><b>${x.thirst} %</b></div>` : ''}
     </div>
     <div class="kv"><span>Groupe sanguin</span><b>${esc(x.blood || 'non renseigné')}</b><span>Allergies</span><b>${esc(x.allergies || 'non renseignées')}</b></div>
+    ${(x.injuries || []).length ? `<div class="section-label" style="margin-top:.6rem">Blessures</div><div class="kv">${x.injuries.map((i) => `<span>${esc(i.zoneLabel)}</span><b>${esc(i.label)}<small class="faint"> · ${esc(INJ_ST[i.status] || i.status)}</small></b>`).join('')}</div>` : ''}
     <div class="section-label" style="margin-top:.6rem">Diagnostic</div>
     ${(x.conditions || []).length ? `<div class="kv">${x.conditions.map((c) => `<span>${c.type === 'std' ? 'MST' : c.type === 'injury' ? 'Blessure' : 'Maladie'}</span><b>${esc(c.label)}${c.splinted ? ' · attelle posée' : ''}<small class="faint"> · ${c.cure === 'splint' ? 'attelle' : 'traitement'}</small></b>`).join('')}</div>`
       : '<p class="faint" style="font-size:.8rem">Aucune maladie ni blessure décelée.</p>'}
     <div class="actions" style="flex-wrap:wrap">
-      ${x.down ? `${p.stabilize && !x.stabilized ? '<button class="btn" data-ex="stabilize">🩹 Stabiliser</button>' : ''}${p.revive ? '<button class="btn primary" data-ex="revive">❤️ Réanimer</button>' : ''}`
-        : (p.heal ? `<button class="btn primary" data-ex="heal">💊 Soigner</button>${(x.conditions || []).some((c) => c.cure === 'splint' && !c.splinted) ? '<button class="btn" data-ex="splint">🦴 Attelle</button>' : ''}${(x.conditions || []).some((c) => c.cure === 'treat') ? '<button class="btn" data-ex="treat">💉 Traitement</button>' : ''}` : '')}
+      ${(x.injuries || []).some((i) => i.type === 'hemorrhage' && i.status === 'active') && p.stabilize && x.procs ? '<button class="btn danger" data-ex="hemostasis">🩸 Compression</button>' : ''}
+      ${x.down ? `${p.stabilize && !x.stabilized ? '<button class="btn" data-ex="stabilize">🩹 Stabiliser</button>' : ''}${p.revive ? `<button class="btn primary" data-ex="revive">❤️ ${x.cprProc ? 'Massage cardiaque' : 'Réanimer'}</button>` : ''}`
+        : (p.heal ? `<button class="btn primary" data-ex="heal">💊 Soigner</button>${!x.castProc && (x.conditions || []).some((c) => c.cure === 'splint' && !c.splinted) ? '<button class="btn" data-ex="splint">🦴 Attelle</button>' : ''}${(x.conditions || []).some((c) => c.cure === 'treat') ? '<button class="btn" data-ex="treat">💉 Traitement</button>' : ''}` : '')}
+      ${x.procs && p.medical ? '<button class="btn" data-ex="procs">🧰 Actes et examens</button>' : ''}
 ${p.billing ? '<button class="btn" data-ex="bill">🧾 Facturer</button>' : ''}
       <button class="btn" data-ex="close">Fermer</button></div>`;
 }
@@ -409,6 +417,7 @@ window.addEventListener('message', (e) => {
   const m = e.data || {};
   switch (m.action) {
     case 'init': return applyCfg(m.cfg);
+    case 'procs': APP.procs = m.procs || {}; return;
     case 'state': APP.st = m.state; if (m.state && m.state.agency && APP.cfg) APP.cfg.job = m.state.agency; if (window.Tablet) Tablet.onState(m.state); return;
     case 'f6':
       if (m.show) { F6.view = 'main'; F6.data = m; show('#f6', true); f6Draw(); } else show('#f6', false);

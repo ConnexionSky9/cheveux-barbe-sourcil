@@ -12,6 +12,10 @@ EmsPerms = {
     { key = 'escort',        group = 'Terrain',     label = 'Accompagner un patient' },
     { key = 'vehicle',       group = 'Terrain',     label = 'Installer / sortir un patient d\'une ambulance' },
     { key = 'garage',        group = 'Terrain',     label = 'Sortir et ranger les véhicules EMS' },
+    -- Actes médicaux en mini-jeux (config_procedures.lua)
+    { key = 'imaging',       group = 'Actes',       label = 'Imagerie : radiographie, échographie, scanner' },
+    { key = 'vaccinate',     group = 'Actes',       label = 'Vacciner' },
+    { key = 'implant',       group = 'Actes',       label = 'Poser / retirer un implant contraceptif' },
     -- Appels et soutien
     { key = 'calls',         group = 'Appels',      label = 'Recevoir et prendre les appels d\'urgence' },
     { key = 'calls_manage',  group = 'Appels',      label = 'Attribuer, clôturer ou annuler n\'importe quel appel' },
@@ -22,6 +26,7 @@ EmsPerms = {
     { key = 'map',           group = 'Tablette',    label = 'Voir la carte' },
     { key = 'records_view',  group = 'Tablette',    label = 'Consulter les dossiers médicaux' },
     { key = 'records_write', group = 'Tablette',    label = 'Modifier les dossiers médicaux' },
+    { key = 'records_sensitive', group = 'Tablette', label = 'Lire les actes confidentiels du dossier (grossesse, contraception, MST)' },
     { key = 'reports_write', group = 'Tablette',    label = 'Rédiger des comptes rendus' },
     { key = 'reports_manage', group = 'Tablette',   label = 'Modifier et archiver tous les comptes rendus' },
     { key = 'stats_view',    group = 'Tablette',    label = 'Consulter les statistiques et historiques' },

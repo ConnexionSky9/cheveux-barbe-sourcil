@@ -36,8 +36,10 @@ end
 
 local function Lie(ped)
     if IsPedInAnyVehicle(ped, false) or LocalPlayer.state.emsEscortedBy then return end
-    if not IsEntityPlayingAnim(ped, ANIM[1], ANIM[2], 3) and C.LoadDict(ANIM[1]) then
-        TaskPlayAnim(ped, ANIM[1], ANIM[2], 8.0, 8.0, -1, 1, 0, false, false, false)
+    -- acte médical en cours (massage, imagerie…) : allongé sur le dos (client/procedures.lua)
+    local a = C.PatientPose or ANIM
+    if not IsEntityPlayingAnim(ped, a[1], a[2], 3) and C.LoadDict(a[1]) then
+        TaskPlayAnim(ped, a[1], a[2], 8.0, 8.0, -1, a[3] or 1, 0, false, false, false)
     end
 end
 
