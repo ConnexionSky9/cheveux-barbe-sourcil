@@ -504,10 +504,12 @@ const canDo=i=>{
 };
 let cat="gestes", playing=null, binding=null, bindingEmote=null;
 let REQ_KEYS={accept:"Y",refuse:"L",place:"J"};
+// Touches d'autres ressources (envoyées par client.lua) : ni ouvrir, ni arrêter, ni raccourci
+let OTHER_KEYS={F7:"Mes animaux (elyzea_animaux)"};
 // Touches déjà prises sur le serveur Elyzea (une animation ne peut pas s'y mettre)
 const BASE_RESERVED=["W","A","S","D","Z","Q","E","F","G","R","T","C","V","H","P","N","U","I","L","M","ESPACE","TAB","ESCAPE",
   "1","2","3","4","5","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"];
-const isReserved=k=>BASE_RESERVED.includes(k)||k===REQ_KEYS.accept||k===REQ_KEYS.refuse||(REQ_KEYS.place&&k===REQ_KEYS.place);
+const isReserved=k=>BASE_RESERVED.includes(k)||!!OTHER_KEYS[k]||k===REQ_KEYS.accept||k===REQ_KEYS.refuse||(REQ_KEYS.place&&k===REQ_KEYS.place);
 const canPlace=i=>!PROPOSE&&REQ_KEYS.place!==null&&typeOf(i)==="emote"&&!ENV.inVehicle&&!i.f.includes("v");
 let req=null;
 
@@ -761,6 +763,7 @@ window.addEventListener("message",e=>{
   if(d.action==="notify") toast(d.text,d.kind);
   if(d.action==="init"){
     if(d.keys) REQ_KEYS={...REQ_KEYS,place:null,...d.keys};
+    if(d.reserved&&typeof d.reserved==="object") OTHER_KEYS=d.reserved;
     if(d.settings) S={...S,...d.settings};
     if(d.binds&&typeof d.binds==="object") binds=d.binds;
     store.set("settings",S);store.set("binds",binds);applySettings();renderAll();
@@ -847,6 +850,7 @@ document.addEventListener("keydown",e=>{
     if(!k||k==="ESCAPE") return;
     const other=binding==="open"?S.stopKey:S.openKey;
     if(k===other) return toast(`${pretty(k)} est déjà utilisée`);
+    if(OTHER_KEYS[k]) return toast(`${pretty(k)} est réservée à ${OTHER_KEYS[k]}, choisis une autre touche`,"err");
     if(binds[k]) return toast(`${pretty(k)} lance déjà ${byCmd[binds[k].emote]?.n||"une animation"}`);
     if(binding==="open") S.openKey=k; else S.stopKey=k;
     endBind();save();toast(`Touche enregistrée : ${pretty(k)}`);return;

@@ -94,6 +94,8 @@ Ces commandes sont celles de rpemotes, tu n'as normalement rien à changer.
 
 Touches acceptées pour les raccourcis : chiffres, F1 à F12, pavé numérique et lettres libres. Les touches du jeu (ZQSD, WASD, E, F, G, R, T, C, V, Espace, Tab) sont bloquées pour éviter les conflits.
 
+**F7 est réservée à « Mes animaux » (`elyzea_animaux`).** Le menu des animations ne peut plus s'ouvrir, s'arrêter ni lancer un raccourci avec F7. Un joueur qui avait choisi F7 repasse automatiquement sur **K** (son raccourci sur F7 est retiré). Liste des touches réservées : `ReservedKeys` en haut de `client.lua`.
+
 Les réglages et raccourcis sont sauvegardés pour chaque joueur et restent après une déconnexion. Ils apparaissent aussi dans **Paramètres GTA > Raccourcis > FiveM**, sous le nom « Elyzea animations ».
 
 ## Aperçu 3D
