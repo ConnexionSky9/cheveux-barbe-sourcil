@@ -249,14 +249,18 @@ function C.AltOptions(ctx)
         end
         if escorting then out[#out + 1] = { id = 'putIn:' .. escorting, label = 'Installer le patient dans ce véhicule', icon = 'in' } end
         if C.StretcherVehicleOptions then C.StretcherVehicleOptions(veh, out) end
-    elseif ctx.kind == 'ext' and ctx.entity and C.StretcherExtOptions then
-        C.StretcherExtOptions(ctx.entity, out)              -- le brancard visé
+    elseif ctx.kind == 'ext' and ctx.entity then
+        -- objet visé : MedicalBag (client/medbag.lua) ou brancard (client/stretcher.lua)
+        if not (C.BagExtOptions and C.BagExtOptions(ctx.entity, out)) and C.StretcherExtOptions then
+            C.StretcherExtOptions(ctx.entity, out)
+        end
     end
     return out
 end
 
 function C.AltSelect(id, ctx)
     id = tostring(id or '')
+    if C.BagSelect and C.BagSelect(id, ctx) then return end   -- MedicalBag (client/medbag.lua)
     -- brancard : actions de client/stretcher.lua (et « accompagner » quand le brancard est activé)
     if C.StretcherSelect then
         if id == 'escort' and Config.Stretcher and Config.Stretcher.enabled and ctx and ctx.sid then

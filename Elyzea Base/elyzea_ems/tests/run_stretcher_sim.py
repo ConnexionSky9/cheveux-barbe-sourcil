@@ -26,21 +26,23 @@ def hsh(s): h = joaat(s); HASH[h] = s; return h
 # dimensions simulées : lit 2,2 m (axe Y, origine 0,4 m au-dessus du sol), ambulance, fauteuil
 DIMS = {'v_med_emptybed': ((-0.5, -1.1, -0.4), (0.5, 1.1, 0.9)),
         'ambulance': ((-1.2, -3.5, -1.0), (1.2, 3.5, 1.6)),
-        'prop_wheelchair_01': ((-0.35, -0.5, 0.0), (0.35, 0.5, 1.0))}
+        'prop_wheelchair_01': ((-0.35, -0.5, 0.0), (0.35, 0.5, 1.0)),
+        'xm_prop_x17_bag_med_01a': ((-0.3, -0.2, 0.0), (0.3, 0.2, 0.4))}
 
 for _m in DIMS: hsh(_m)
+INV = {}
 
 W = {}
 def reset():
     W.clear()
-    W.update({'ents': {}, 'next': 500, 'time': 0, 'anims': {}, 'models': {'v_med_emptybed', 'prop_wheelchair_01'},
+    W.update({'ents': {}, 'next': 500, 'time': 0, 'anims': {}, 'models': {'v_med_emptybed', 'prop_wheelchair_01', 'xm_prop_x17_bag_med_01a'}, 'frozen': {}, 'pitch': {}, 'roof': None,
               'globals': {}, 'state': {EMS: {}, PAT: {}}, 'walls': [], 'online': {EMS, PAT}})
     W['ents'][101] = {'type': 'ped', 'pos': [0.0, 0.0, 30.0], 'heading': 0.0, 'att': None, 'sid': EMS}
     W['ents'][102] = {'type': 'ped', 'pos': [3.0, 0.0, 30.0], 'heading': 0.0, 'att': None, 'sid': PAT}
     W['ents'][VEH] = {'type': 'veh', 'model': 'ambulance', 'pos': [0.0, -8.0, 30.0], 'heading': 0.0, 'att': None,
                       'net': VEH + 9000, 'owner': None, 'migrate': True}
 PED = {EMS: 101, PAT: 102}
-def ground(x, y): return 29.0
+def ground(x, y): return W['roof'] if W.get('roof') is not None else 29.0
 
 def wpos(e):
     """Position monde (attaches résolues, rotation ignorée sauf le cap de la cible)."""
@@ -118,16 +120,25 @@ class Server:
         function __event(n, src, ...) source = src for _, fn in ipairs(handlers[n] or {}) do fn(...) end end
         function TriggerClientEvent(n, t, ...) py:toClient(n, t, ...) end
         function print() end
-        exports = setmetatable({}, { __index = function() return setmetatable({}, { __index = function() return function() end end }) end })
-        Ems = { Actions = {}, escortedBy = {}, treatments = {} }
+        __usable = {}   -- gardé côté Lua (fonction créée dans une coroutine)
+        local INVX = setmetatable({}, { __index = function(_, fn)
+            if fn == 'RegisterUsableItem' then return function(_, n, f) __usable[n] = f py:inv(fn, n, true) end end
+            return function(_, ...) return py:inv(fn, ...) end end })
+        exports = setmetatable({}, { __index = function(_, res)
+            if res == 'elyzea_inventory' then return INVX end
+            return setmetatable({}, { __index = function() return function() end end }) end })
+        function GetResourceState(r) return r == 'elyzea_inventory' and 'started' or 'missing' end
+        Ems = { Actions = {}, escortedBy = {}, treatments = {}, duty = {}, notes = {} }
         local P = Ems
         function P.GetPlayer(s) return py:online(s) and {} or nil end
         function P.Dist(a, b) return #(GetEntityCoords(py:pedOf(a)) - GetEntityCoords(py:pedOf(b))) end
         function P.Name(s) return 'Joueur ' .. s end
         function P.AddTreatment(t, kind) P.treatments[#P.treatments + 1] = kind end
+        function P.Notify(s, m) P.notes[#P.notes + 1] = m end
         ''')
         with open(os.path.join(root, 'config.lua'), encoding='utf8') as f: self.L.execute(f.read())
-        with open(os.path.join(root, 'server/stretcher.lua'), encoding='utf8') as f: self.L.execute(f.read())
+        for fn in ('server/stretcher.lua', 'server/medbag.lua'):
+            with open(os.path.join(root, fn), encoding='utf8') as f: self.L.execute(f.read())
         self.L.globals()['__tick']()
     def action(self, name, src, data):
         P = self.L.globals().Ems
@@ -138,6 +149,21 @@ class Server:
     # natives
     def enc(self, t): return json.dumps(to_py(t))
     def hash(self, s): return hsh(s)
+    def inv(self, fn, *a):
+        bag = lambda s: INV['items'].setdefault(s, {})
+        if fn == 'GetItemCount': return bag(a[0]).get(a[1], 0)
+        if fn == 'AddItem':
+            if INV.get('full'): return False
+            bag(a[0])[a[1]] = bag(a[0]).get(a[1], 0) + int(a[2]); return True
+        if fn == 'RemoveItem':
+            n = int(a[2])
+            if bag(a[0]).get(a[1], 0) < n: return False
+            bag(a[0])[a[1]] -= n; return True
+        if fn == 'RegisterShop': INV['shops'][a[0]] = to_py(a[1]); return True
+        if fn == 'RegisterUsableItem': INV['usable'][a[0]] = a[1]; return True
+        if fn == 'OpenInventory': INV['open'][a[0]] = (a[1], a[2]); return True
+        if fn == 'CloseInventory': INV['open'].pop(a[0], None); return True
+        return None
     def now(self): return W['time']
     def exists(self, e): return alive(e)
     def pos(self, e): return self.L.table_from(wpos(e))
@@ -201,10 +227,12 @@ class Client:
         function IsPedInAnyVehicle() return false end
         function IsEntityDead() return false end
         function GetOffsetFromEntityInWorldCoords(e, x, y, z) local p = py:pos(e) return vector3(p[1] + x, p[2] + y, p[3] + z) end
-        function GetGroundZFor_3dCoord(x, y, z) return true, 29.0 end
+        function GetGroundZFor_3dCoord(x, y, z) return true, py:ground(x, y) end
+        function FreezeEntityPosition(e, b) py:freeze(e, b) end
+        function __fire(fn, ...) local a = table.pack(...) CreateThread(function() fn(table.unpack(a, 1, a.n)) end) end
         function SetEntityCoords(e, x, y, z) py:setPos(e, x, y, z) end
         function SetEntityCoordsNoOffset(e, x, y, z) py:setPos(e, x, y, z) end
-        function SetEntityRotation(e, rx, ry, rz) py:setHeading(e, rz) end
+        function SetEntityRotation(e, rx, ry, rz) py:setHeading(e, rz) py:setPitch(e, rx) end
         function SetEntityHeading(e, h) py:setHeading(e, h) end
         function IsControlPressed(_, k) return py:key(k) end
         function IsControlJustPressed(_, k) return py:keyOnce(k) end
@@ -223,7 +251,7 @@ class Client:
         function C.ClosestVehicle(c, maxD) return py:closestVeh(maxD) end
         ''')
         with open(os.path.join(root, 'config.lua'), encoding='utf8') as f: self.L.execute(f.read())
-        for f in ('client/stretcher.lua', 'client/wheelchair.lua'):
+        for f in ('client/stretcher.lua', 'client/wheelchair.lua', 'client/medbag.lua'):
             with open(os.path.join(root, f), encoding='utf8') as fh: self.L.execute(fh.read())
     def export(self, name, fn): self.exports[name] = fn
     # natives
@@ -277,8 +305,13 @@ class Client:
     def pos(self, e): return self.L.table_from(wpos(e))
     def heading(self, e): return W['ents'][e].get('heading', 0.0)
     def model(self, e): m = W['ents'][e].get('model'); return joaat(m) if m else 0
-    def setPos(self, e, x, y, z): W['ents'][e]['pos'] = [x, y, z]
+    def setPos(self, e, x, y, z):
+        if W['ents'][e]['type'] == 'ped': z = 29.0 + 1.0     # un piéton se pose au sol (coordonnées ~1 m au-dessus)
+        W['ents'][e]['pos'] = [x, y, z]
     def setHeading(self, e, h): W['ents'][e]['heading'] = h
+    def setPitch(self, e, p): W['pitch'][e] = p
+    def freeze(self, e, b): W['frozen'][e] = bool(b)
+    def ground(self, x, y): return ground(x, y)
     def key(self, k): return k in self.keys
     def keyOnce(self, k):
         if ('once', k) in self.keys: self.keys.discard(('once', k)); return True
@@ -293,7 +326,7 @@ class Client:
         return VEH if math.dist(me[:2], v[:2]) <= maxD else None
     # pilotage
     def fire(self, n, *a):
-        for fn in self.events.get(n, []): fn(*[self._lua(x) for x in a])
+        for fn in self.events.get(n, []): self.L.globals()['__fire'](fn, *[self._lua(x) for x in a])
     def tick(self):
         while self.pending:
             n, a = self.pending.pop(0)
@@ -325,6 +358,7 @@ def walk(sid, dx, dy, heading=None):
     if heading is not None: p['heading'] = heading
 
 reset()
+INV.update({'items': {}, 'shops': {}, 'usable': {}, 'open': {}})
 SERVER = Server()
 CLIENTS = {EMS: Client(EMS), PAT: Client(PAT)}
 ems, pat = CLIENTS[EMS], CLIENTS[PAT]
@@ -385,7 +419,18 @@ check(any(o['id'] == 'st_unload' and 'patient' in (o.get('desc') or '') for o in
 ems.select('st_unload', {'kind': 'vehicle', 'entity': VEH})
 run(5)
 check(G()[0].get('veh') is None and G()[0].get('holder') == EMS, 'sorti : l\'EMS le tient')
-check(W['ents'][st[0]]['att'] is None and math.dist(wpos(st[0])[:2], [500.0, 796.35]) < 0.05, 'brancard au sol devant l\'EMS, à l\'arrivée')
+me = W['ents'][101]
+check(math.dist(me['pos'][:2], [500.0, 795.9]) < 0.05 and abs(me['heading'] - 180.0) < 1e-6, 'l\'EMS est placé derrière le véhicule, dos à lui')
+check(W['ents'][st[0]]['att'] is None and math.dist(wpos(st[0])[:2], [500.0, 795.9 - 1.35]) < 0.05, 'brancard au sol devant l\'EMS, à l\'arrivée (%.2f, %.2f)' % tuple(wpos(st[0])[:2]))
+check(abs(W['ents'][st[0]]['heading'] - 180.0) < 1e-6, 'brancard droit dans l\'axe du véhicule : pas de pivot à la sortie')
+check(W['frozen'].get(st[0]) is True and abs(W['pitch'].get(st[0], 0.0)) < 1e-6, 'brancard figé (sans physique) et à plat : il ne part pas dans tous les sens')
+check(W['ents'][102]['att'] and W['ents'][102]['att'][0] == st[0], 'patient toujours allongé dessus')
+W['roof'] = 33.5                                      # sol mesuré sur le toit du véhicule (mesure aberrante)
+run(2)
+z = wpos(st[0])[2]
+check(abs(z - (29.0 + 0.4)) < 0.05 and abs(W['pitch'].get(st[0], 0.0)) <= 20.0, 'mesure du sol aberrante (toit) ignorée : le brancard reste au sol (z %.2f)' % z)
+W['roof'] = None
+run(1)
 
 print('\n[6. Retirer le patient : il reste là où est le brancard]')
 for _ in range(10): walk(EMS, 0.0, 1.0); run(1)
@@ -395,7 +440,7 @@ run(4)
 p = W['ents'][102]['pos']
 check(W['ents'][102]['att'] is None and W['state'][PAT].get('emsOnStretcher') is None, 'patient descendu (détaché, état effacé)')
 check(math.dist(p[:2], bed[:2]) <= 1.05 and math.dist(p[:2], [3.0, 0.0]) > 500, 'posé à 1 m du brancard, à l\'arrivée (%.0f, %.0f) — pas à son ancienne position' % (p[0], p[1]))
-check(p[2] == 29.0, 'posé au sol')
+check(p[2] == 30.0, 'posé au sol (pieds au sol)')
 run(10)
 check(W['ents'][102]['att'] is None, 'il ne remonte pas sur le brancard (état réseau en retard)')
 
@@ -454,6 +499,59 @@ check(not alive(ch[0]) and W['ents'][102]['att'] is None, 'X : la personne se l�
 pat.pending.append(('ems:client:wheelchair', [])); run(2)
 pat.pending.append(('ems:client:wheelchair', [])); run(2)
 check(not [e for e, x in W['ents'].items() if x.get('model') == 'prop_wheelchair_01' and not x.get('deleted')], 'réutiliser l\'objet : se lever aussi')
+
+print('\n[10. MedicalBag]')
+E = SERVER.L.globals().Ems
+def use(sid): return SERVER.L.eval('function(n, s) return __usable[n](s) end')('medicbag', sid)
+def cnt(sid): return INV['items'].get(sid, {}).get('medicbag', 0)
+def bags(): return [e for e, x in W['ents'].items() if x.get('model') == 'xm_prop_x17_bag_med_01a' and not x.get('deleted')]
+def MB(): return W['globals'].get('emsMedbags') or []
+W['ents'][101].update({'pos': [50.0, 50.0, 30.0], 'heading': 0.0, 'att': None})
+shop = INV['shops'].get('ems_medbag')
+names = [i['name'] for i in (shop or {}).get('inventory', [])]
+check(shop and all(i['price'] == 0 for i in shop['inventory']) and {'bandage', 'defibrillator', 'morphine', 'platre'} <= set(names), 'contenu du sac : tous les objets EMS, gratuits (%d objets)' % len(names))
+check(shop and shop.get('groups') == {'__ems_medbag': 99}, 'boutique du sac verrouillée : un joueur ne peut pas l\'ouvrir lui-même')
+for n in ('medbagRegister', 'medbagOpen', 'medbagPickup'):
+    a = E.Actions[n]
+    check(a is not None and a.duty is True and a.perm is None, '%s : réservé aux EMS en service' % n)
+E.duty[EMS] = True
+E.MedbagDuty(EMS, True)
+check(cnt(EMS) == 1, 'prise de service : le MedicalBag arrive dans l\'inventaire')
+E.MedbagDuty(EMS, True)
+check(cnt(EMS) == 1, 'pas de 2e sac si on en a déjà un')
+r = use(EMS)
+run(4)
+b = bags()
+check(r is False and len(b) == 1 and cnt(EMS) == 0, 'utiliser l\'objet : sac posé au sol, retiré de l\'inventaire')
+check(W['frozen'].get(b[0]) is True and MB() and MB()[0]['owner'] == EMS, 'sac figé au sol et suivi par le serveur')
+check(ems.exports['AltTarget'](b[0]) == 'MedicalBag', 'ALT : le sac est une cible (« MedicalBag »)')
+ne = ems.exports['AltNearby']()
+check(ne and ne[0] == b[0], 'ALT sans viser : le sac le plus proche est proposé')
+opts = ems.options('BagExtOptions', b[0])
+check([o['id'] for o in opts] == ['bag_open', 'bag_pick'], 'options : « Ouvrir le sac » / « Ramasser le sac »')
+ctx = {'kind': 'ext', 'entity': b[0]}
+check(ems.L.globals().EmsC.BagSelect('bag_open', ems._lua(ctx)) is True, 'clic « Ouvrir le sac »')
+run(4)
+check(INV['open'].get(EMS) == ('shop', 'ems_medbag'), 'le sac s\'ouvre : objets à prendre vers l\'inventaire')
+walk(EMS, 10.0, 0.0); run(3)
+check(EMS not in INV['open'], 'l\'EMS s\'éloigne : le sac se ferme')
+walk(EMS, -10.0, 0.0)
+INV['items'][PAT] = {}
+check('error' in SERVER.action('medbagPickup', EMS, {'net': 99999}), 'ramasser un sac inconnu : refusé')
+ems.L.globals().EmsC.BagSelect('bag_pick', ems._lua(ctx)); run(4)
+check(cnt(EMS) == 1 and not bags() and not MB(), 'ramasser : le sac revient dans l\'inventaire et disparaît du sol')
+use(EMS); run(4)
+r = use(EMS); run(2)
+check(len(bags()) == 1, 'un seul sac posé par EMS')
+SERVER.action('medbagOpen', EMS, {'net': MB()[0]['net']})
+E.duty[EMS] = None
+E.MedbagDuty(EMS, False); run(2)
+check(cnt(EMS) == 0 and not bags() and not MB() and EMS not in INV['open'], 'fin de service : plus de sac (inventaire, sol), sac fermé')
+INV['items'][EMS] = {'medicbag': 1}
+use(EMS); run(3)
+check(not bags() and any('service' in str(n) for n in E.notes.values()), 'hors service : impossible de poser le sac')
+SERVER.L.eval('function(src) __event("elyzea:server:playerLoaded", nil, src) end')(EMS); run(3)
+check(cnt(EMS) == 0, 'connexion hors service avec un vieux sac : retiré')
 
 print('\n%d échec(s)' % fails)
 sys.exit(1 if fails else 0)

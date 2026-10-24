@@ -118,6 +118,7 @@ function P.SetDuty(src, on, silent, reason)
     else
         TriggerClientEvent('ems:client:clearCalls', src)
     end
+    if P.MedbagDuty then P.MedbagDuty(src, on) end   -- MedicalBag : donné en service, retiré à la fin (server/medbag.lua)
     if not silent then
         P.Notify(src, on and 'Vous êtes en service.' or 'Vous avez quitté votre service.', on and 'success' or 'inform')
         P.Log(src, on and 'Prise de service' or 'Fin de service')
@@ -251,7 +252,10 @@ CreateThread(function()
         Wait(60000)
         if P.ready then
             for src in pairs(P.duty) do
-                if not GetPlayerName(src) or not P.IsEms(src) then Gone(src, 'départ') end
+                if not GetPlayerName(src) or not P.IsEms(src) then
+                    Gone(src, 'départ')
+                    if GetPlayerName(src) and P.MedbagDuty then P.MedbagDuty(src, false) end
+                end
             end
             P.FlushAll()
         end
@@ -262,6 +266,7 @@ end)
 AddEventHandler('elyzea:server:setDuty', function(src, on)
     if not on and P.duty[src] then
         Gone(src, 'service retiré')
+        if P.MedbagDuty then P.MedbagDuty(src, false) end
         Player(src).state:set('emsDuty', nil, true)
         TriggerClientEvent('ems:client:clearCalls', src)
         P.PushState(src)

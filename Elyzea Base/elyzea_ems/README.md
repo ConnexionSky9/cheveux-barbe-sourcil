@@ -222,6 +222,9 @@ Toutes les actions sont dans **ALT** (et F6 pour allonger / retirer) :
 - Vous tenez le brancard à son **bout** ; il **roule au sol** devant vous, suit le terrain, s'incline dans les pentes et tourne
   progressivement. Pendant ce temps : pas de course, de saut ni d'arme.
 - Dans un véhicule, le brancard est posé à l'arrière, sur le plancher (calculé sur le véhicule), et voyage avec lui.
+- **Sortie du véhicule** : l'EMS prend d'abord le contrôle réseau du brancard, se place derrière le véhicule dos à lui,
+  et le brancard sort droit dans l'axe, figé (sans physique), à plat au sol. Les mesures du sol aberrantes (toit du véhicule…)
+  sont ignorées et l'inclinaison est limitée à 20° : le brancard ne part plus dans tous les sens.
 - **Patient retiré : il est posé à 1 m du brancard, là où se trouve le brancard** (position donnée par le serveur),
   jamais à son ancienne position. Celui qui tient le brancard en garde le contrôle réseau, donc tout le monde le voit bouger.
 - Un brancard par EMS. Si l'EMS monte dans un véhicule ou tombe, il lâche le brancard (le patient reste dessus).
@@ -237,6 +240,18 @@ Réglages : `config.lua` › `Config.Stretcher` (modèle, un brancard par EMS, d
 - `/brancard_reglage vehicule <plancher> <recul> <rotation> <côté>` (brancard chargé), ex. `/brancard_reglage vehicule 0.55 0.30 0 0` ;
 - `/brancard_reglage` seul affiche les valeurs actuelles.
 
+## 🎒 MedicalBag (objet `medicbag`)
+
+- **Prise de service EMS** : un MedicalBag arrive dans l'inventaire (un seul). **Fin de service**, départ du métier ou
+  connexion hors service : il est retiré de l'inventaire et le sac posé disparaît.
+- **Utiliser l'objet** : le sac est posé au sol devant vous (un par EMS) et quitte l'inventaire.
+- **ALT sur le sac** (EMS en service) : **Ouvrir le sac** → tous les objets EMS (`Config.MedicalBag.items`), gratuits et
+  illimités, à glisser dans votre inventaire · **Ramasser le sac** → il revient dans votre inventaire.
+- Le sac se ferme si vous vous éloignez ou quittez votre service.
+
+Réglages : `config.lua` › `Config.MedicalBag` (objet, modèles du sac, distance, liste des objets du sac).
+Le contenu passe par une boutique gratuite de l'inventaire (`ems_medbag`), ouverte uniquement par ce script.
+
 ## ♿ Fauteuil roulant (objet `wheelchair`)
 
 Utiliser l'objet dans l'inventaire : un fauteuil apparaît, vous êtes assis dedans. **ZQSD / WASD** : avancer, reculer, tourner
@@ -244,4 +259,4 @@ Utiliser l'objet dans l'inventaire : un fauteuil apparaît, vous êtes assis ded
 Réglages : `Config.Wheelchair` (modèle `prop_wheelchair_01`, vitesses, assise). Ajuster en jeu :
 `/fauteuil_reglage <x> <y> <z> <rotation personne> <rotation fauteuil>`, ex. `/fauteuil_reglage 0 0.05 0.42 180 180`.
 
-Test hors jeu (brancard + fauteuil, un serveur et deux clients simulés) : `python3 tests/run_stretcher_sim.py`.
+Test hors jeu (brancard + fauteuil + MedicalBag, un serveur et deux clients simulés) : `python3 tests/run_stretcher_sim.py`.

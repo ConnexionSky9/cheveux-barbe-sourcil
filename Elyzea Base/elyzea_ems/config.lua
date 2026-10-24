@@ -276,6 +276,29 @@ Config.Stretcher = {
 }
 
 -- ---------------------------------------------------------------------
+-- MedicalBag (sac médical EMS)
+--  · Donné à la prise de service (1 par EMS), retiré de l'inventaire à la fin du service
+--    (et à la connexion si la personne n'est pas en service).
+--  · Utiliser l'objet : le sac est posé au sol devant soi.
+--  · ALT sur le sac : « Ouvrir le sac » (tous les objets EMS ci-dessous, à prendre gratuitement,
+--    ils vont dans l'inventaire) ou « Ramasser le sac » (il revient dans l'inventaire).
+--  · Réservé aux EMS en service. Fin de service / déconnexion : le sac posé disparaît aussi.
+-- ---------------------------------------------------------------------
+Config.MedicalBag = {
+    enabled = true,
+    item = 'medicbag',                                   -- objet de l'inventaire (image medicbag.png)
+    models = { 'xm_prop_x17_bag_med_01a', 'prop_ld_health_pack' },
+    reach = 2.5,                                         -- distance pour ouvrir / ramasser (m)
+    perEms = 1,                                          -- sacs posés en même temps par EMS
+    -- contenu du sac (illimité) : objets utilisés par l'EMS (soins, actes, vaccins…)
+    items = {
+        'bandage', 'gauze', 'splint', 'platre', 'defibrillator', 'kit_prelevement',
+        'vaccin_grippe', 'vaccin_tetanos', 'vaccin_mst', 'implant_contraceptif',
+        'painkiller', 'morphine', 'blood_bag',
+    },
+}
+
+-- ---------------------------------------------------------------------
 -- Fauteuil roulant : objet « wheelchair » de l'inventaire (utiliser = s'asseoir, X ou réutiliser = se lever)
 -- ZQSD / WASD : avancer, reculer, tourner. Le fauteuil n'est pas consommé.
 -- ---------------------------------------------------------------------

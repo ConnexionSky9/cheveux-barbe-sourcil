@@ -28,6 +28,7 @@ server_scripts {
     'server/calls.lua',
     'server/medical.lua',
     'server/stretcher.lua',
+    'server/medbag.lua',
     'server/billing.lua',
     'server/ppa.lua',
     'server/records.lua',
@@ -55,6 +56,7 @@ client_scripts {
     'client/health.lua',
     'client/procedures.lua',
     'client/stretcher.lua',
+    'client/medbag.lua',
     'client/wheelchair.lua',
 }
 

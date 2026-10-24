@@ -70,6 +70,8 @@ Items = {
     vaccin_grippe   = { label = 'Vaccin anti-grippal', weight = 20, stack = true, max = 20, icon = '💉', description = 'Protège du rhume pendant 30 jours (EMS).' },
     vaccin_tetanos  = { label = 'Vaccin antitétanique', weight = 20, stack = true, max = 20, icon = '💉', description = 'Vaccination RP (EMS).' },
     vaccin_mst      = { label = 'Prévention MST (RP)', weight = 20, stack = true, max = 20, icon = '💉', description = 'Protocole RP, si activé par le staff (EMS).' },
+    medicbag        = { label = 'MedicalBag', weight = 1500, stack = false, max = 1, image = 'medicbag.png', icon = '🎒',
+                        description = 'Sac médical EMS : utilisez-le pour le poser au sol, puis ALT sur le sac pour l\'ouvrir ou le ramasser. Donné à la prise de service.' },
 
     -- Récoltes et ateliers (admin_menu)
     weed_leaf        = { label = 'Feuille de weed', weight = 20, stack = true, max = 500 },

@@ -79,10 +79,12 @@ local function PlaceStretcher(obj, ped, geo, state)
     local half = geo.long / 2.0
     local dist = (cfg.gap or 0.25) + half
     local cx, cy = me.x + fx * dist, me.y + fy * dist
-    local zc = GroundZ(cx, cy, me.z, me.z - 1.0)
-    local zn = GroundZ(cx - fx * half, cy - fy * half, me.z, zc)
-    local zf = GroundZ(cx + fx * half, cy + fy * half, me.z, zc)
-    local pitch = math.deg(math.atan(zf - zn, geo.long))
+    local feet = me.z - 1.0
+    local function Sane(z, def) if math.abs(z - feet) > 1.2 then return def end return z end   -- mesure aberrante (toit, véhicule…) ignorée
+    local zc = Sane(GroundZ(cx, cy, me.z, feet), feet)
+    local zn = Sane(GroundZ(cx - fx * half, cy - fy * half, me.z, zc), zc)
+    local zf = Sane(GroundZ(cx + fx * half, cy + fy * half, me.z, zc), zc)
+    local pitch = math.max(-20.0, math.min(20.0, math.deg(math.atan(zf - zn, geo.long))))
     SetEntityCoordsNoOffset(obj, cx, cy, zc - geo.bottom + (cfg.height or 0.0), false, false, false)
     SetEntityRotation(obj, pitch, 0.0, state.h + geo.extra, 2, true)
 end
@@ -148,6 +150,7 @@ end
 -- Boucle : brancard tenu, brancards chargés / posés, patient allongé
 -- ---------------------------------------------------------------------
 local place, holdingNet, holdAnim = {}, nil, false
+local startHeading = nil                -- cap imposé au brancard au moment où on le prend (sortie de véhicule)
 local leftNet, leftUntil = nil, 0       -- je viens de descendre de ce brancard : ne pas me rattacher
 local lying = false
 
@@ -173,10 +176,13 @@ CreateThread(function()
         local ent = mine and Ent(mine.net)
         if mine and ent then
             wait = 0
-            if holdingNet ~= mine.net then holdingNet, place = mine.net, {} end
+            if holdingNet ~= mine.net then
+                holdingNet, place = mine.net, {}
+                if startHeading then place.h = startHeading startHeading = nil end   -- pas de pivot au départ
+            end
             if NetworkHasControlOfEntity(ent) then
                 SetNetworkIdCanMigrate(mine.net, false)
-                if IsEntityAttached(ent) then DetachEntity(ent, true, false) end
+                if IsEntityAttached(ent) then DetachEntity(ent, false, false) end
                 FreezeEntityPosition(ent, true)
                 PlaceStretcher(ent, ped, Geometry(GetEntityModel(ent)), place)
             else
@@ -211,7 +217,13 @@ CreateThread(function()
                             local veh = Ent(s.veh)
                             if veh and not IsEntityAttachedToEntity(e, veh) then AttachToVehicle(e, veh) end
                         elseif IsEntityAttached(e) then
-                            DetachEntity(e, true, false)
+                            -- sorti du véhicule : détaché sans physique, figé, posé au sol là où il est
+                            local c = GetEntityCoords(e)
+                            DetachEntity(e, false, false)
+                            FreezeEntityPosition(e, true)
+                            local geo = Geometry(GetEntityModel(e))
+                            SetEntityCoordsNoOffset(e, c.x, c.y, GroundZ(c.x, c.y, c.z, c.z) - geo.bottom, false, false, false)
+                            SetEntityRotation(e, 0.0, 0.0, GetEntityHeading(e), 2, true)
                         end
                         if not s.holder then SetNetworkIdCanMigrate(s.net, true) end
                     end
@@ -353,7 +365,25 @@ function C.StretcherSelect(id, ctx)
     CreateThread(function()
         if act == 'st_lay' and ctx and ctx.sid then Lay(ctx.sid)
         elseif act == 'st_offp' and ctx and ctx.sid then C.Do('stretcherOff', { target = ctx.sid })
-        elseif act == 'st_unload' and ctx and ctx.entity then C.Do('stretcherUnload', { veh = VehToNet(ctx.entity) })
+        elseif act == 'st_unload' and ctx and ctx.entity then
+            -- on prend le contrôle réseau AVANT (sinon le brancard est lâché par l'ancien propriétaire et part en vrille)
+            local veh = ctx.entity
+            local loaded = InVeh(VehToNet(veh))
+            local e = loaded and Ent(loaded.net)
+            if e then Control(e, 2000) end
+            local r = C.Do('stretcherUnload', { veh = VehToNet(veh) })
+            if r and r.ok and e then
+                -- l'EMS se place derrière le véhicule, dos à lui : le brancard sort tout droit vers l'extérieur
+                local ped = PlayerPedId()
+                local vh = GetEntityHeading(veh)
+                local behind = GetOffsetFromEntityInWorldCoords(veh, 0.0, GetModelDimensions(GetEntityModel(veh)).y - 0.6, 0.0)
+                local me = GetEntityCoords(ped)
+                if #(vector3(behind.x, behind.y, me.z) - me) < 4.0 then SetEntityCoords(ped, behind.x, behind.y, me.z - 1.0, false, false, false, false) end
+                SetEntityHeading(ped, (vh + 180.0) % 360.0)
+                startHeading = (vh + 180.0 + ((ST.stretcher or {}).heading or 0.0)) % 360.0
+                DetachEntity(e, false, false)
+                FreezeEntityPosition(e, true)
+            end
         elseif act == 'st_load' then
             local veh = (ctx and ctx.kind == 'vehicle' and ctx.entity) or VehicleNear()
             if not veh then return C.Notify('Aucun véhicule à proximité.', 'error') end
@@ -374,22 +404,22 @@ function C.StretcherSelect(id, ctx)
     return true
 end
 
--- Cible ALT propre (le brancard) : appelée par elyzea_police/client/alt.lua
-exports('AltTarget', function(ent)
+-- Cible ALT propre (le brancard) : exports AltTarget / AltNearby dans client/medbag.lua (brancard + sac médical)
+function C.StretcherAltTarget(ent)
     if not C.OnDuty() or not C.Can('escort') then return nil end
     local s = OfEntity(ent)
     if not s then return nil end
     return s.patient and 'Brancard · patient allongé' or 'Brancard'
-end)
+end
 
-exports('AltNearby', function()
+function C.StretcherAltNearby()
     if not C.OnDuty() or not C.Can('escort') then return nil end
     local mine = Mine()
     if mine then local e = Ent(mine.net) if e then return e, 'Brancard (tenu)' end end
     local s, e = Nearest(2.5)
     if s then return e, s.patient and 'Brancard · patient allongé' or 'Brancard' end
     return nil
-end)
+end
 
 -- Réglage des positions en jeu (seulement pour toi, à recopier ensuite dans config.lua › Config.Stretcher)
 -- /brancard_reglage brancard <écart> <hauteur> <rotation>       ex. /brancard_reglage brancard 0.25 0 0
