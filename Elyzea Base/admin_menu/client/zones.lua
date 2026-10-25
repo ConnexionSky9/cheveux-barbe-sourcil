@@ -296,6 +296,17 @@ function ZoneDrawKey(id)
     if id == 'confirm' then
         local p = drawing.aim
         local tg = drawing.target
+        if tg and tg.sharkSpawns then
+            local sp, err = SharkSpawnAt(p or GetEntityCoords(PlayerPedId()), tg)
+            if not sp then
+                PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+                return true, Notify(err, 'error')
+            end
+            if #drawing.points >= Sharks.Cfg.maxSpawnsPerArea then return true, Notify(('%d points maximum par zone.'):format(Sharks.Cfg.maxSpawnsPerArea), 'error') end
+            drawing.points[#drawing.points + 1] = sp
+            PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+            return true
+        end
         if p and tg and tg.pvpSpawns then
             -- apparition d'équipe : au sol visé, tournée dans la direction de la caméra
             if #drawing.points >= 20 then return true, Notify('20 apparitions maximum par équipe.', 'error') end
@@ -319,6 +330,12 @@ function ZoneDrawKey(id)
         end
     elseif id == 'finish' then
         local tg = drawing.target
+        if tg and tg.sharkSpawns then
+            -- remplace les points d'apparition de la zone ; le serveur revérifie tout (zone, nombre, permission)
+            TriggerServerEvent('adminmenu:action', 'sharks_spawns_save', { id = tg.sharkSpawns, points = drawing.points })
+            drawing = nil
+            return true
+        end
         if tg and tg.pvpSpawns then
             if #drawing.points < 1 then return true, Notify('Pose au moins une apparition.', 'error') end
             -- remplace les apparitions de l'équipe ; pvp_arena revérifie tout (zone, nombre, permission)
@@ -327,6 +344,11 @@ function ZoneDrawKey(id)
             return true
         end
         if #drawing.points < 3 then return true, Notify('Pose au moins 3 coins.', 'error') end
+        if tg and tg.sharkZone then
+            TriggerServerEvent('adminmenu:action', 'sharks_zone_save', { id = tg.sharkZone ~= 0 and tg.sharkZone or nil, name = tg.name, points = drawing.points })
+            drawing = nil
+            return true
+        end
         if tg and tg.pvpZone then
             -- zone de combat d'une arène PvP : coins + sol (coin le plus bas − profondeur) et plafond (coin le plus haut + hauteur)
             local st = drawing.settings or {}
@@ -399,6 +421,55 @@ local function drawPvpSpawns(d, aim)
         ('%d apparition(s) posée(s) · 1 minimum, 20 maximum · mets-en au moins une par joueur'):format(#d.points))
 end
 
+-- Point d'apparition d'un requin : dans la zone, au-dessus d'une eau assez profonde, à C.depth m sous la surface
+function SharkSpawnAt(p, tg)
+    local C = Sharks.Cfg
+    local zp = (tg.zone and tg.zone.points) or {}
+    if #zp >= 3 and not Sharks.inPoly(zp, p.x, p.y) then return nil, 'Ce point est hors de la zone des requins : vise à l\'intérieur.' end
+    local okW, wz = GetWaterHeightNoWaves(p.x, p.y, p.z + 0.5)
+    if not okW then okW, wz = GetWaterHeight(p.x, p.y, p.z + 0.5) end
+    if not okW or wz < p.z - 1.5 then return nil, 'Pas d\'eau ici : vise le fond de l\'eau (ou mets-toi dans l\'eau).' end
+    -- p est le fond visé (ou ta position si tu nages) : on reste au moins 1 m au-dessus du fond
+    local ok, ground = GetGroundZFor_3dCoord(p.x, p.y, wz, false)
+    local bottom
+    if ok and ground < wz then bottom = ground
+    elseif p.z < wz - 0.5 then bottom = p.z           -- fond touché par la visée
+    else bottom = wz - 50.0 end                        -- en surface, fond introuvable : eau profonde
+    if wz - bottom < C.minWaterDepth then return nil, ('Eau trop peu profonde ici (%.1f m, %.1f m minimum).'):format(wz - bottom, C.minWaterDepth) end
+    local z = math.max(bottom + 1.0, wz - C.depth)
+    return { x = p.x, y = p.y, z = z, count = 1 }
+end
+
+local function drawSharkSpawns(d, aim)
+    local tg = d.target
+    local zp = (tg.zone and tg.zone.points) or {}
+    local okSpot = SharkSpawnAt(aim, tg) ~= nil
+    if #zp >= 3 then
+        local z0 = aim.z - 1.0
+        local okW, wz = GetWaterHeightNoWaves(aim.x, aim.y, aim.z + 0.5)
+        if okW then z0 = wz end
+        for i = 1, #zp do
+            local p, q = zp[i], zp[i % #zp + 1]
+            DrawLine(p.x, p.y, z0, q.x, q.y, z0, 239, 68, 68, 255)
+            drawWall(p, q, z0 - 3.0, z0 + 3.0, 239, 68, 68, 30)
+        end
+    end
+    for i, sp in ipairs(d.points) do
+        DrawMarker(28, sp.x, sp.y, sp.z, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 239, 68, 68, 170, false, false, 2, false, nil, nil, false)
+        DrawText3D(vector3(sp.x, sp.y, sp.z + 1.4), ('Requin n°%d (x%d)'):format(i, sp.count or 1), 0.32)
+    end
+    local cr, cg, cb = 34, 211, 238
+    if not okSpot then cr, cg, cb = 230, 40, 40 end
+    DrawMarker(1, aim.x, aim.y, aim.z, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 0.5, cr, cg, cb, 160, false, false, 2, false, nil, nil, false)
+    local rows = {
+        { keys = { EK('confirm') }, label = okSpot and 'Poser un point d\'apparition ici' or 'Impossible ici (hors zone, pas d\'eau ou trop peu profond)' },
+        { keys = { EK('cancel') }, label = #d.points > 0 and 'Retirer le dernier' or 'Annuler' },
+        { keys = { EK('finish') }, label = 'Enregistrer (remplace les points de la zone)' },
+    }
+    ShowKeysHud('zonedraw', ('Apparitions des requins · %s'):format(tg.name or 'zone'), rows,
+        ('%d point(s) · %d maximum · vise le fond de l\'eau ou place-toi dans l\'eau · le nombre de requins par point se règle dans le menu'):format(#d.points, Sharks.Cfg.maxSpawnsPerArea))
+end
+
 local function drawLoop()
     while drawing do
         Wait(0)
@@ -416,6 +487,7 @@ local function drawLoop()
         d.settings = st
         local tg = d.target
         if tg and tg.pvpSpawns then drawPvpSpawns(d, aim) goto continue end
+        if tg and tg.sharkSpawns then drawSharkSpawns(d, aim) goto continue end
         local hasH = not tg or tg.pvpZone ~= nil   -- zones de l'éditeur et arènes PvP (pas les zones de PNJ / d'agence)
         local hgt = hasH and (tonumber(st.height) or ZC.height) or 5.0
         local dep = hasH and (tonumber(st.depth) or ZC.depth) or 0.5
@@ -462,7 +534,7 @@ local function drawLoop()
                 end
             end
         end
-        ShowKeysHud('zonedraw', tg and (tg.pvpZone and ('Zone de combat : ' .. (tg.name or 'arène')) or tg.agency and ('Zone d\'alerte : ' .. (tg.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', rows, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
+        ShowKeysHud('zonedraw', tg and (tg.sharkZone and ('Zone des requins : ' .. (tg.name or 'nouvelle zone')) or tg.pvpZone and ('Zone de combat : ' .. (tg.name or 'arène')) or tg.agency and ('Zone d\'alerte : ' .. (tg.name or 'agence')) or 'Zone pour parler au PNJ') or 'Dessiner la zone', rows, ('%d coin(s) posé(s)%s'):format(#pts, #pts < 3 and ' · 3 minimum' or ''))
         ::continue::
     end
     if HudOwner == 'zonedraw' then HideKeysHud() end
@@ -472,7 +544,12 @@ function StartZoneDraw(id, settings, target)
     if drawing then return end
     if IsPlacing() then return Notify('Termine d\'abord le placement en cours.', 'error') end
     drawing = { id = id, settings = settings, points = {}, target = target }
-    Notify(target and target.pvpSpawns and ('Vise le sol et pose les apparitions de l\'équipe %s une par une, la caméra donne la direction (le noclip marche aussi).'):format(target.teamName or target.team)
+    if target and target.sharkSpawns and type(target.existing) == 'table' then
+        for _, sp in ipairs(target.existing) do drawing.points[#drawing.points + 1] = { x = sp.x, y = sp.y, z = sp.z, count = sp.count or 1 } end
+    end
+    Notify(target and target.sharkSpawns and 'Vise le fond de l\'eau (ou place-toi dans l\'eau) et pose les points où les requins apparaissent et réapparaissent.'
+        or target and target.sharkZone and 'Pose les coins de la zone des requins dans l\'ordre du tour (3 minimum). Les requins ne pourront pas en sortir et n\'attaqueront que les nageurs à l\'intérieur.'
+        or target and target.pvpSpawns and ('Vise le sol et pose les apparitions de l\'équipe %s une par une, la caméra donne la direction (le noclip marche aussi).'):format(target.teamName or target.team)
         or target and target.pvpZone and 'Pose les coins de la zone de combat dans l\'ordre du tour (3 minimum). ↑ ↓ règle le plafond, ← → le sol. Les joueurs ne pourront pas en sortir.'
         or target and target.agency and 'Pose les coins de la zone d\'alerte un par un (le noclip marche aussi, vise le sol jusqu\'à 200 m).'
         or target and 'Pose les coins de la zone dans laquelle on pourra parler au PNJ (le noclip marche aussi).'

@@ -183,13 +183,15 @@
         return nav + v(s);
     };
     // Pendant une modification (fiche produit, catégories), l'actualisation automatique ne reconstruit pas le formulaire
-    // (onglet Joueurs : seulement pendant la saisie dans un champ ; la fiche reçue est dans la signature pour s'afficher quand même)
+    // (onglet Joueurs : figé seulement pendant la saisie dans un champ)
     const typing = () => { const a = document.activeElement; return !!(a && a.matches && a.matches('#content input, #content select, #content textarea')); };
+    let sigN = 0, lastSig = '';
     STABLE_VIEWS.shop = () => {
         if (!D || !D.shop) return null;
         if (S.edit || (S.sub === 'categories' && S.cats)) return `${S.sub}|${S.ver}|${S.edit ? S.edit.key : ''}|${canEdit()}`;
-        if (S.sub === 'players' && typing()) return `${S.sub}|${S.ver}|${canEdit()}|${JSON.stringify(D.shop.lookup || null)}`;
-        return null;
+        if (S.sub === 'players' && typing() && lastSig) return lastSig;
+        lastSig = `free|${++sigN}`;
+        return lastSig;
     };
 
     /* ---------------- événements ---------------- */

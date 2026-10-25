@@ -1147,6 +1147,18 @@ RegisterNUICallback('editor', function(body, cb)
         local spawns = type(d.spawns) == 'table' and d.spawns or {}
         StartZoneDraw(nil, { color = 'blue', name = d.name }, { pvpSpawns = tostring(d.id or ''), team = d.team, teamName = d.teamName,
             name = d.name, zone = type(d.zone) == 'table' and d.zone or nil, others = spawns[d.team == 'A' and 'B' or 'A'] or {} })
+    elseif n == 'sharks_zone_draw' and HasPerm('sharks_manage') then
+        -- Requins : dessiner (ou redessiner, avec id) la zone ; le serveur revérifie la permission et la forme
+        CloseMenu()
+        StartZoneDraw(nil, { color = 'red', name = d.name }, { sharkZone = tonumber(d.id) or 0, name = tostring(d.name or '') })
+    elseif n == 'sharks_spawns_draw' and HasPerm('sharks_manage') and tonumber(d.id) then
+        -- Requins : poser les points d'apparition dans l'eau de la zone
+        CloseMenu()
+        StartZoneDraw(nil, { color = 'red', name = d.name }, { sharkSpawns = tonumber(d.id), name = tostring(d.name or ''),
+            zone = { points = type(d.points) == 'table' and d.points or {} }, existing = type(d.spawns) == 'table' and d.spawns or {} })
+    elseif n == 'sharks_tp' and HasPerm('sharks_manage') and tonumber(d.x) and tonumber(d.y) then
+        CloseMenu()
+        CreateThread(function() TeleportTo(vector3(d.x + 0.0, d.y + 0.0, (tonumber(d.z) or 0.0) + 0.0), false) end)
     elseif n == 'zone_draw' and canEdit('editor_zones') then
         CloseMenu()
         StartZoneDraw(tonumber(d.id), d.settings)

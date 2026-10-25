@@ -14,6 +14,7 @@ shared_scripts {
     'permissions_extra.lua',          -- permissions récentes, ajoutées si config.lua est plus ancien
     'barber_data.lua',
     'npc_area.lua',
+    'sharks_shared.lua',               -- requins : réglages + géométrie
 }
 
 client_scripts {
@@ -49,6 +50,7 @@ client_scripts {
     'client/dynasty.lua',
     'client/dealer.lua',
     'client/agences.lua',
+    'client/sharks.lua',
 }
 
 server_scripts {
@@ -94,6 +96,7 @@ server_scripts {
     'server/pvp.lua',
     'server/presse.lua',
     'server/guards.lua',
+    'server/sharks.lua',
 }
 
 ui_page 'html/index.html'
@@ -144,5 +147,6 @@ files {
     'html/animaux.js',
     'html/pvp.js',
     'html/presse.js',
+    'html/sharks.js',
     'html/logo.png',
 }
