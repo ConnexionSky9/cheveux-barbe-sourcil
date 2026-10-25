@@ -30,7 +30,8 @@ export function ProductCard({ p }: { p: Product }) {
   return (
     <article className="product-card">
       <Link to={`/produit/${p.slug}`} className="media" aria-label={p.name}>
-        <img src={p.imageUrl || '/images/logo-192.webp'} alt="" loading="lazy" decoding="async" width={400} height={250} />
+        <img src={p.imageUrl || '/images/logo-192.webp'} alt="" loading="lazy" decoding="async" width={400} height={250}
+          onError={(e) => { if (!e.currentTarget.src.endsWith('/images/logo-192.webp')) e.currentTarget.src = '/images/logo-192.webp'; }} />
       </Link>
       <div className="tags">
         {p.popular && <span className="badge">Populaire</span>}

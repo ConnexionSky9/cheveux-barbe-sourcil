@@ -106,6 +106,7 @@ p { margin: 0 0 1em; }
 .product-card .body { display: flex; flex-direction: column; gap: .55rem; padding: 1rem 1.1rem 1.1rem; flex: 1; }
 .product-card .title { font-family: var(--font-display); font-size: 1.12rem; margin: 0; }
 .product-card .tags { position: absolute; top: .7rem; left: .7rem; display: flex; gap: .4rem; flex-wrap: wrap; }
+.product-card .tags .badge { background-color: rgba(5, 6, 12, .78); backdrop-filter: blur(6px); }
 .product-card .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding-top: .4rem; }
 .price { font-family: var(--font-display); font-size: 1.35rem; color: var(--gold-hi); }
 .price small { font-family: var(--font-ui); font-size: .8rem; color: var(--muted); margin-left: .35em; }

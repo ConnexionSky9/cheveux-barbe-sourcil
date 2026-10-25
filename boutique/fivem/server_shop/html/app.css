@@ -1,0 +1,50 @@
+/* NUI : fenêtre centrée, adaptée de 1280×720 à 4K (tailles en vh/rem) */
+html { font-size: clamp(12px, 1.5vh, 26px); }
+html, body { background: transparent; overflow: hidden; height: 100%; }
+body { font-size: 1rem; user-select: none; }
+.hidden { display: none !important; }
+.shop {
+  position: fixed; inset: 0; margin: auto; width: min(76rem, 94vw); height: min(46rem, 90vh);
+  display: grid; grid-template-columns: 15rem 1fr; overflow: hidden;
+  background: radial-gradient(ellipse at top right, rgba(236, 204, 140, .08), transparent 55%), rgba(5, 6, 12, .94);
+  border: 1px solid var(--line-strong); border-radius: 18px; box-shadow: 0 30px 90px rgba(0, 0, 0, .7);
+  animation: shop-in .35s var(--ease);
+}
+@keyframes shop-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+.shop.closing { animation: shop-out .2s ease forwards; }
+@keyframes shop-out { to { opacity: 0; transform: translateY(10px) scale(.98); } }
+.side { display: flex; flex-direction: column; gap: 1.2rem; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(11, 13, 24, .7); }
+.brand { display: flex; align-items: center; gap: .7rem; }
+.brand img { width: 3.4rem; height: 3.4rem; border-radius: 50%; }
+.brand strong { display: block; font-family: var(--font-display); letter-spacing: .14em; text-transform: uppercase; }
+.brand small { color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-size: .72rem; }
+#nav { display: grid; gap: .25rem; overflow-y: auto; }
+.nav-item { display: flex; align-items: center; gap: .6rem; width: 100%; text-align: left; padding: .6rem .8rem; border-radius: 10px; border: 1px solid transparent; background: none; color: #d7d4cb; font: 600 1rem var(--font-ui); cursor: pointer; transition: background .2s, color .2s; }
+.nav-item:hover { background: rgba(236, 204, 140, .07); color: var(--gold-hi); }
+.nav-item.on { background: rgba(236, 204, 140, .12); border-color: var(--line-strong); color: var(--gold-hi); }
+.nav-item .n { margin-left: auto; color: var(--muted); font-size: .8rem; }
+.side-foot { margin-top: auto; display: grid; gap: .3rem; }
+.side-foot .btn { justify-content: flex-start; }
+.main { display: flex; flex-direction: column; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.4rem; border-bottom: 1px solid var(--line); }
+.bar h1 { font-size: 1.6rem; margin: 0; flex: 1; }
+.bar-right { display: flex; gap: .6rem; align-items: center; }
+.content { flex: 1; overflow-y: auto; padding: 1.4rem; scrollbar-width: thin; scrollbar-color: var(--gold-deep) transparent; }
+.product-grid { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.product-card { cursor: pointer; }
+.section-title { margin: 1.4rem 0 .8rem; font-size: 1.15rem; }
+.section-title:first-child { margin-top: 0; }
+.detail { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.6rem; }
+.detail .visual { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.detail .visual img { width: 100%; aspect-ratio: 16/10; object-fit: cover; }
+.detail .price { display: block; font-size: 1.9rem; margin: .8rem 0; }
+.row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.box { padding: 1rem 1.1rem; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface-2); margin-top: 1rem; }
+.url { font-family: ui-monospace, monospace; font-size: .85rem; word-break: break-all; padding: .6rem; background: rgba(0,0,0,.4); border-radius: 8px; border: 1px solid var(--line); user-select: text; }
+.code { font-family: var(--font-display); font-size: 2.6rem; letter-spacing: .3em; color: var(--gold-hi); text-align: center; padding: .6rem; user-select: text; }
+.order { padding: .9rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: .7rem; background: var(--surface-2); }
+.order header { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin-bottom: .4rem; }
+.order li { display: flex; justify-content: space-between; gap: .6rem; padding: .2rem 0; }
+.order ul { list-style: none; margin: 0; padding: 0; }
+.qty { width: 5rem; }
+.center { display: grid; place-items: center; min-height: 60%; text-align: center; }
