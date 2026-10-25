@@ -13,6 +13,7 @@ CreateThread(function()
     -- Catalogue modifié depuis l'admin menu (remplace les valeurs de config.lua)
     local okc, errc = pcall(Catalog.load)
     if not okc then print('^1[elyzea_shop] Catalogue : ' .. tostring(errc) .. '^0') end
+    pcall(Images.cleanup)
     if GetConvar('sv_tebexSecret', '') == '' then print('^3[elyzea_shop] sv_tebexSecret absent de server.cfg : les paiements Tebex ne seront pas livrés.^0') end
     ready = true
     print(('^2[elyzea_shop] prêt (framework : %s, base : %s)^0'):format(Shop.fw.name, Db.driver() or '?'))
@@ -67,9 +68,15 @@ local function publicCatalog()
     local products = {}
     for key, p in pairs(Config.Products) do
       if p.enabled ~= false then
+        -- paquet Tebex lu directement sur la boutique Tebex : prix réel (et image si le produit n'en a pas)
+        local pk = p.tebexPackageId and TebexAPI.package(p.tebexPackageId)
+        local price = p.displayPrice
+        if (price == nil or price == '') and pk then price = pk.priceText end
         products[#products + 1] = {
-            key = key, category = p.category, label = p.label, description = p.description, image = p.image,
-            perks = p.perks or {}, displayPrice = p.displayPrice, durationDays = p.durationDays,
+            key = key, category = p.category, label = p.label, description = p.description,
+            image = p.image or (pk and pk.image) or nil,
+            perks = p.perks or {}, displayPrice = price, durationDays = p.durationDays,
+            discount = pk and pk.discount and pk.discount > 0 and TebexAPI.formatPrice(pk.basePrice, pk.currency) or nil,
             tebex = p.tebexPackageId ~= nil,
             coinsPrice = (Config.Coins.enabled and tonumber(p.coinsPrice)) or nil,
             sort = p.sort or 0,
@@ -127,7 +134,16 @@ RegisterNetEvent('elyzea_shop:tebex', function(key)
     local p = type(key) == 'string' and Config.Products[key]
     if not p or not p.tebexPackageId or p.enabled == false then return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { error = 'Ce produit n\'est pas vendu sur Tebex.' }) end
     if not Shop.accountOf(src) then return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { error = Config.Locale.no_account }) end
-    TriggerClientEvent('elyzea_shop:result', src, 'tebex', { url = Tebex.packageUrl(p.tebexPackageId), key = key })
+    local fallback = Tebex.packageUrl(p.tebexPackageId)
+    if Config.Tebex.directCheckout == false or not TebexAPI.state.connected then
+        return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { url = fallback, key = key })
+    end
+    -- Lien de paiement personnel, rattaché au compte Cfx.re du joueur (connexion directe à Tebex)
+    TebexAPI.checkout(p.tebexPackageId, Shop.accountOf(src), function(url, err)
+        if not GetPlayerName(src) then return end
+        if not url then Db.log('warn', 'tebex_checkout', Shop.accountOf(src), tostring(p.tebexPackageId), tostring(err)) end
+        TriggerClientEvent('elyzea_shop:result', src, 'tebex', { url = url or fallback, key = key, direct = url ~= nil })
+    end)
 end)
 
 -- Achat en Elyzea Coins : prix lu dans config.lua, débit + création de la livraison dans la même transaction SQL

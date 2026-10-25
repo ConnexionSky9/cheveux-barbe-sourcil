@@ -29,7 +29,7 @@ def sq(sql, args=()):
         c.execute(sql, args)
         return c.fetchall() if c.description else c.rowcount
 
-for t in ['elyzea_shop_deliveries', 'elyzea_shop_entitlements', 'elyzea_shop_coins', 'elyzea_shop_coin_log', 'elyzea_shop_logs', 'elyzea_shop_catalog']:
+for t in ['elyzea_shop_deliveries', 'elyzea_shop_entitlements', 'elyzea_shop_coins', 'elyzea_shop_coin_log', 'elyzea_shop_logs', 'elyzea_shop_catalog', 'elyzea_shop_images']:
     sq(f'DROP TABLE IF EXISTS {t}')
 sq("""CREATE TABLE IF NOT EXISTS player_vehicles (id int NOT NULL AUTO_INCREMENT, license varchar(50), citizenid varchar(50), vehicle varchar(50), hash varchar(50), mods longtext,
       plate varchar(15) NOT NULL, garage varchar(50), fuel int DEFAULT 100, engine float DEFAULT 1000, body float DEFAULT 1000, state int DEFAULT 1, PRIMARY KEY(id), UNIQUE KEY plate(plate))""")
@@ -37,7 +37,18 @@ sq("""CREATE TABLE IF NOT EXISTS owned_vehicles (owner varchar(60) NOT NULL, pla
 
 L = lua54.LuaRuntime(unpack_returned_tuples=True)
 G = L.globals()
-W = {'now': 0, 'commands': [], 'client': [], 'items': [], 'money': [], 'keys': [], 'online': False, 'loaded': True, 'carry': True, 'admins': set(), 'invoker': 'admin_menu'}
+W = {'now': 0, 'commands': [], 'client': [], 'items': [], 'money': [], 'keys': [], 'online': False, 'loaded': True, 'carry': True, 'admins': set(), 'invoker': 'admin_menu', 'http': [], 'tebex': 'ok'}
+
+# Tebex simulé : réponses au format de l'API officielle (lu dans le plugin Tebex open source)
+TEBEX_INFO = {'account': {'id': 1, 'domain': 'https://elyzea-rp.tebex.io', 'name': 'Elyzea RP', 'currency': {'iso4217': 'EUR', 'symbol': '€'},
+              'online_mode': False, 'game_type': 'FiveM', 'log_events': False, 'public_token': 'tok-public-123'}, 'server': {'id': 9, 'name': 'Serveur 1'}}
+TEBEX_CATS = {'data': [
+    {'id': 10, 'name': 'VIP', 'packages': [
+        {'id': 111, 'name': 'Elyzea Sapphire', 'description': '<p>Grade <b>VIP</b> 30 jours</p>', 'image': 'https://dunb17ur4ymx4.cloudfront.net/packages/images/s.png',
+         'type': 'single', 'base_price': 9.99, 'sales_tax': 0, 'total_price': 9.99, 'currency': 'EUR', 'discount': 0},
+        {'id': 333, 'name': 'Véhicule premium', 'description': '', 'image': None, 'type': 'single', 'base_price': 20, 'total_price': 15, 'currency': 'EUR', 'discount': 5}]},
+    {'id': 11, 'name': 'Coins', 'packages': [
+        {'id': 222, 'name': '1000 coins', 'description': '', 'image': 'javascript:alert(1)', 'type': 'single', 'base_price': 4.5, 'total_price': 4.5, 'currency': 'EUR', 'discount': 0}]}]}
 
 def norm(v):
     if isinstance(v, (datetime.datetime, datetime.date)): return v.strftime('%Y-%m-%d %H:%M:%S')
@@ -87,6 +98,19 @@ class Py:
     def st(self, k): return W[k]
     def push(self, k, *v): W[k].append([to_py(x) for x in v])
     def ace(self, src, perm): return src in W['admins']
+    def http(self, url, method, body, headers, cb):
+        h = to_py(headers) or {}
+        W['http'].append({'url': url, 'method': method, 'body': body, 'headers': h})
+        mode = W['tebex']
+        if mode == 'down': return cb(0, '', {})
+        if mode == 'badkey' and h.get('X-Tebex-Secret'): return cb(403, json.dumps({'error_message': 'Invalid server secret'}), {})
+        if url == 'https://plugin.tebex.io/information': return cb(200, json.dumps(TEBEX_INFO), {})
+        if url == 'https://headless.tebex.io/api/accounts/tok-public-123/categories?includePackages=1': return cb(200, json.dumps(TEBEX_CATS), {})
+        if url == 'https://plugin.tebex.io/checkout':
+            b = json.loads(body)
+            if mode == 'nocheckout': return cb(422, json.dumps({'title': 'Unprocessable', 'detail': 'username_id invalid'}), {})
+            return cb(200, json.dumps({'url': f"https://pay.tebex.io/{b['package_id']}-{b['username_id']}", 'expires': '2026-12-01', 'ident': 'abc'}), {})
+        cb(404, '', {})
     def joaat(self, s):
         h = 0
         for ch in s.lower().encode():
@@ -129,6 +153,8 @@ function GetPlayerIdentifierByType(s, kind) if kind == 'fivem' and tonumber(s) =
 function IsPlayerAceAllowed(s, p) return py:ace(s, p) end
 function ExecuteCommand(c) py:cmd(c) end
 function TriggerClientEvent(n, t, ...) py:client(n, t, ...) end
+function TriggerLatentClientEvent(n, t, bps, ...) py:client(n, t, ...) end
+function PerformHttpRequest(url, cb, method, body, headers) py:http(url, method, body, headers, function(code, text, h) cb(code, text, h) end) end
 function print(...) if os.getenv('SIM_VERBOSE') then io.stderr:write(table.concat({ ... }, ' ') .. '\n') end end
 local handlers, cmds, ex = {}, {}, {}
 function AddEventHandler(n, fn) handlers[n] = handlers[n] or {} table.insert(handlers[n], fn) end
@@ -163,7 +189,7 @@ exports = setmetatable({}, {
 function __export(n) return ex[n] end
 ''')
 G.__ROOT = ROOT
-for f in ['config.lua', 'server/db.lua', 'server/framework.lua', 'server/rewards.lua', 'server/coins.lua', 'server/tebex.lua', 'server/main.lua', 'server/admin.lua']:
+for f in ['config.lua', 'server/db.lua', 'server/framework.lua', 'server/rewards.lua', 'server/coins.lua', 'server/tebex.lua', 'server/tebex_api.lua', 'server/images.lua', 'server/main.lua', 'server/admin.lua']:
     with open(os.path.join(ROOT, f), encoding='utf8') as fh: L.execute(fh.read())
 
 # Catalogue de test (les valeurs réelles se règlent dans config.lua)
@@ -190,7 +216,7 @@ def last_result(kind):
 print(f'[elyzea_shop · framework {FW} · compte fivem:{ACC}]')
 run(2000, 10)
 check(L.eval('Shop.fw and Shop.fw.name') == FW, f'framework détecté : {FW}')
-check(sq("SHOW TABLES LIKE 'elyzea_shop_%%'").__len__() == 6, 'tables créées depuis sql/install.sql')
+check(sq("SHOW TABLES LIKE 'elyzea_shop_%%'").__len__() == 7, 'tables créées depuis sql/install.sql')
 
 print('\n[1. Commandes Tebex : sécurité]')
 G.__cmd('elyzea_shop_deliver', SRC, L.table_from(['tbx-faux', ACC, 'sapphire'])); run(0, 6)
@@ -239,7 +265,7 @@ check(any(p['key'] == 'sapphire' and p['tebex'] for p in data['catalog']['produc
 W['now'] += 2000
 G.__event('elyzea_shop:tebex', SRC, 'sapphire'); run(0, 6)
 r = last_result('tebex')
-check(r.get('url') == 'https://elyzea.tebex.io/package/111', 'bouton Tebex : lien officiel du paquet (aucune livraison)')
+check(r.get('url') == f'https://pay.tebex.io/111-{ACC}' and r.get('direct'), 'bouton Tebex : lien de paiement Tebex personnel (aucune livraison)')
 check(len(deliveries()) == 3, 'cliquer « Acheter avec Tebex » n\'accorde rien')
 
 print('\n[5. Achat en Elyzea Coins]')
@@ -397,6 +423,85 @@ r = act('coins_give', {'target': str(SRC), 'amount': 5})
 L.execute('GetPlayerIdentifierByType = __restoreId')
 check(r[0] is False and 'Cfx.re' in r[1], 'joueur sans compte Cfx.re : message clair')
 W['online'] = False
+
+print('\n[14. Connexion directe à Tebex]')
+st = to_py(L.eval('TebexAPI.state'))
+check(st['connected'] is True and st['account']['name'] == 'Elyzea RP' and len(st['list']) == 3, f'connexion au démarrage : boutique « Elyzea RP », {len(st["list"])} paquets lus')
+hs = [x for x in W['http'] if 'plugin.tebex.io' in x['url']]
+check(all(x['headers'].get('X-Tebex-Secret') == 'secret-de-test' for x in hs), 'clé envoyée seulement à plugin.tebex.io (en-tête X-Tebex-Secret)')
+check(all('X-Tebex-Secret' not in x['headers'] for x in W['http'] if 'headless' in x['url']), 'jamais envoyée à l\'API publique (headless)')
+check(L.eval('Config.Tebex.storeUrl') == 'https://elyzea-rp.tebex.io', 'adresse de la boutique reprise de Tebex')
+pk = to_py(L.eval('TebexAPI.package(111)'))
+check(pk['priceText'] == '9,99 €' and pk['description'] == 'Grade VIP 30 jours', 'prix au format français, description sans HTML')
+check(to_py(L.eval('TebexAPI.package(222)')).get('image') is None, 'image Tebex non https (javascript:…) : ignorée')
+W['online'] = True; W['now'] += 5000
+L.execute("Config.Products.sapphire.displayPrice = nil; Config.Products.sapphire.image = nil; Config.Products.sapphire.enabled = true")
+G.__event('elyzea_shop:open', SRC); run(0, 8)
+cat = [c for c in W['client'] if c[0] == 'elyzea_shop:data'][-1][2][0]['catalog']['products']
+sap = next(p for p in cat if p['key'] == 'sapphire')
+check(sap['displayPrice'] == '9,99 €' and sap['image'].startswith('https://dunb17'), 'boutique en jeu : prix et image lus sur Tebex quand le produit n\'en a pas')
+veh = next(p for p in cat if p['key'] == 'vehicle_example')
+check(veh['displayPrice'] == '15,00 €' and veh['discount'] == '20,00 €', 'promotion Tebex : prix barré + prix réduit')
+W['client'].clear(); W['now'] += 5000
+G.__event('elyzea_shop:tebex', SRC, 'sapphire'); run(0, 8)
+r = last_result('tebex')
+check(r.get('url') == f'https://pay.tebex.io/111-{ACC}' and r.get('direct') is True, 'Acheter : lien de paiement personnel créé par Tebex pour le compte Cfx.re du joueur')
+co = [x for x in W['http'] if x['url'].endswith('/checkout')][-1]
+check(json.loads(co['body']) == {'package_id': 111, 'username_id': ACC}, 'demande /checkout : paquet + identifiant Cfx.re (rien venant du client)')
+W['tebex'] = 'nocheckout'; W['client'].clear(); W['now'] += 5000
+G.__event('elyzea_shop:tebex', SRC, 'sapphire'); run(0, 8)
+r = last_result('tebex')
+check(r.get('url') == 'https://elyzea-rp.tebex.io/package/111' and not r.get('direct'), 'Tebex refuse le lien personnel : page du paquet à la place')
+check(len(sq("SELECT id FROM elyzea_shop_logs WHERE action = 'tebex_checkout'")) == 1, 'refus journalisé')
+W['tebex'] = 'badkey'
+L.execute('TebexAPI.sync()'); run(0, 4)
+st = to_py(L.eval('TebexAPI.state'))
+check(st['connected'] is False and '403' in st['error'] and 'refusée' in st['error'], f'mauvaise clé : erreur claire ({st["error"]})')
+W['client'].clear(); W['now'] += 5000
+G.__event('elyzea_shop:tebex', SRC, 'sapphire'); run(0, 8)
+check(last_result('tebex').get('url', '').endswith('/package/111'), 'Tebex déconnecté : la boutique reste utilisable (page du paquet)')
+W['tebex'] = 'down'; L.execute('TebexAPI.sync()'); run(0, 4)
+check('injoignable' in to_py(L.eval('TebexAPI.state'))['error'], 'Tebex injoignable : message clair')
+W['tebex'] = 'ok'
+r = act('tebex_sync', {})
+run(0, 4)
+check(r[0] is True and to_py(L.eval('TebexAPI.state'))['connected'] is True, 'admin menu : « Synchroniser maintenant » reconnecte')
+check(act('tebex_sync', {}, False)[0] is False, 'synchroniser : réservé aux Fondateurs')
+ad = to_py(AD())['tebex']
+check(ad['connected'] and len(ad['packages']) == 3 and 'secret' not in json.dumps(ad).replace('secretSet', ''), 'données admin : paquets et état, jamais la clé')
+
+print('\n[15. Images collées dans l\'admin menu]')
+import base64
+png = 'data:image/png;base64,' + base64.b64encode(b'\x89PNG' + os.urandom(3000)).decode()
+r = act('image_save', {'data': png})
+img_id = r[2]['id'] if r[0] else None
+check(r[0] is True and img_id, f'image enregistrée en base (img:{img_id})')
+check(act('image_save', {'data': png}, False)[0] is False, 'sans droit Fondateur : refusée')
+bad = ['data:text/html;base64,PHNjcmlwdD4=', 'javascript:alert(1)', 'data:image/svg;base64,' + 'A' * 200, 'data:image/png;base64,' + '<' * 200,
+       'data:image/png;base64,' + 'A' * 1500000]
+check(all(act('image_save', {'data': b})[0] is False for b in bad), 'refusées : HTML, javascript, SVG, base64 invalide, plus de 1 Mo')
+prod = {'label': 'Pack image', 'category': 'vip', 'rewards': [{'type': 'perk', 'name': 'img'}], 'image': f'img:{img_id}', 'coinsPrice': 10}
+check(act('product_save', {'key': 'pack_img', 'isNew': True, 'product': prod})[0] is True, 'produit enregistré avec l\'image collée')
+check(act('product_save', {'key': 'pack_img2', 'isNew': True, 'product': dict(prod, image='img:999999')})[0] is False, 'image collée inexistante : refusée')
+W['client'].clear(); W['now'] += 5000
+G.__event('elyzea_shop:open', SRC); run(0, 8)
+cat = [c for c in W['client'] if c[0] == 'elyzea_shop:data'][-1][2][0]['catalog']['products']
+check(next(p for p in cat if p['key'] == 'pack_img')['image'] == f'img:{img_id}', 'catalogue : référence courte (pas l\'image entière à chaque ouverture)')
+W['client'].clear()
+G.__event('elyzea_shop:image', SRC, L.table_from([img_id, 999999])); run(0, 6)
+sent = [c for c in W['client'] if c[0] == 'elyzea_shop:imageData']
+check(len(sent) == 1 and sent[0][2][0] == img_id and sent[0][2][1] == png, 'image envoyée au joueur à la demande (inexistante ignorée)')
+W['client'].clear()
+G.__event('elyzea_shop:image', SRC, L.table_from([img_id] * 30)); run(0, 4)
+G.__event('elyzea_shop:image', SRC, L.table_from([img_id] * 30)); run(0, 4)
+G.__event('elyzea_shop:image', SRC, L.table_from([img_id] * 30)); run(0, 4)
+check(len([c for c in W['client'] if c[0] == 'elyzea_shop:imageData']) <= 60, 'demandes en rafale : limitées (60 images / 10 s)')
+sq("UPDATE elyzea_shop_images SET created_at = UTC_TIMESTAMP() - INTERVAL 2 DAY")
+r2 = act('image_save', {'data': png}); sq("UPDATE elyzea_shop_images SET created_at = UTC_TIMESTAMP() - INTERVAL 2 DAY WHERE id = %s", (r2[2]['id'],))
+L.execute('Images.cleanup()')
+ids = [x['id'] for x in sq('SELECT id FROM elyzea_shop_images')]
+check(img_id in ids and r2[2]['id'] not in ids, 'nettoyage : image utilisée gardée, image abandonnée supprimée')
+act('product_delete', {'key': 'pack_img'})
 
 print(f'\n{fails} échec(s)')
 sys.exit(1 if fails else 0)

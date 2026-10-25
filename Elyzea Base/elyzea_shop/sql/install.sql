@@ -88,3 +88,15 @@ CREATE TABLE IF NOT EXISTS `elyzea_shop_catalog` (
   `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Images des produits collées dans l'admin menu (Ctrl+V) : stockées ici, envoyées aux joueurs à la demande.
+-- Un produit les désigne par « img:<id> ».
+CREATE TABLE IF NOT EXISTS `elyzea_shop_images` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `mime`       VARCHAR(16)  NOT NULL,
+  `data`       MEDIUMTEXT   NOT NULL,                      -- image en data URL (base64)
+  `bytes`      INT UNSIGNED NOT NULL DEFAULT 0,
+  `created_by` VARCHAR(96)  NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

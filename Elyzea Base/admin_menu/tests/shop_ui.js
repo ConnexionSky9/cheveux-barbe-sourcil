@@ -29,7 +29,12 @@ const path = require('path');
         categories: [{ id: 'vip', label: 'VIP', icon: 'crown' }, { id: 'coins', label: 'Elyzea Coins', icon: 'coin' }],
         rewardTypes: ['group', 'perk', 'coins', 'vehicle', 'item', 'money', 'command'], commands: [],
         coins: { enabled: true, label: 'Elyzea Coins', short: 'EC', total: 4200 }, integrations: { vehicles: true, items: true, money: false },
-        tebex: { storeUrl: 'https://elyzea.tebex.io', secretSet: true }, stats: { pending: 1, failed: 2, tebex: 10, coins: 3 },
+        tebex: { storeUrl: 'https://elyzea.tebex.io', secretSet: true, connected: true, lastSync: 42, directCheckout: true,
+          account: { name: 'Elyzea RP', currency: 'EUR', domain: 'https://elyzea.tebex.io' },
+          packages: [
+            { id: 111, name: 'Elyzea Sapphire', category: 'VIP', price: 9.99, basePrice: 9.99, discount: 0, priceText: '9,99 €', image: 'https://dunb17ur4ymx4.cloudfront.net/packages/images/sapphire.png' },
+            { id: 222, name: 'Pack Été Élite', category: 'Événements', price: 4.5, basePrice: 6, discount: 1.5, priceText: '4,50 €', image: 'https://dunb17ur4ymx4.cloudfront.net/packages/images/ete.png', description: 'Pack spécial été' },
+          ] }, stats: { pending: 1, failed: 2, tebex: 10, coins: 3 },
         deliveries: [{ id: 7, transaction_id: 'tbx-7', product_key: 'sapphire', label: 'Elyzea Sapphire', action: 'grant', account: '123456789', source: 'tebex', status: 'failed', attempts: 10, last_error: 'Joueur introuvable', created_at: '2026-10-20 12:00:00' }],
         logs: [{ level: 'warn', action: 'admin_coins', account: '123456789', ref: 'x', details: '+10 par Test', created_at: '2026-10-20 12:00:00' }],
       }, extra),
@@ -42,12 +47,13 @@ const path = require('path');
   await page.evaluate(() => { tab = 'shop'; render(); });
   await page.waitForTimeout(150);
   let txt = await page.textContent('#content');
-  check('onglet Boutique affiché (général : stats, Tebex)', txt.includes('Livraisons échouées') && txt.includes('sv_tebexSecret') && txt.includes('elyzea_shop_deliver'));
+  check('onglet Boutique affiché (général : stats, connexion Tebex)', txt.includes('Livraisons échouées') && txt.includes('Connecté à Elyzea RP') && txt.includes('2 paquet(s)') && txt.includes('elyzea_shop_deliver'));
   await page.click('[data-ssub="products"]');
   txt = await page.textContent('#content');
   check('lecture seule : bandeau « seuls les Fondateurs »', txt.includes('seuls les Fondateurs'));
   check('lecture seule : aucun bouton de modification', !(await page.$('[data-sa="new"]')) && !(await page.$('[data-stoggle]')));
   await page.click('[data-sedit="sapphire"]');
+  check('lecture seule : pas de « Colle une image »', !(await page.textContent('#content')).includes('Colle une image'));
   check('lecture seule : fiche produit non modifiable', await page.$eval('[data-sp="label"]', (e) => e.disabled) && !(await page.$('[data-sa="save"]')));
   await page.screenshot({ path: out + '/boutique_lecture_seule.png' });
   await page.click('[data-sa="cancel"]');
@@ -138,6 +144,71 @@ const path = require('path');
   await page.waitForTimeout(100);
   check('relance d\'une livraison échouée', JSON.stringify(lastShop()).includes('delivery_retry'));
   await page.screenshot({ path: out + '/boutique_livraisons.png' });
+  // ---------- Tebex : paquets lus sur la boutique, création d'un produit depuis un paquet
+  await page.click('[data-ssub="tebex"]');
+  let tt = await page.textContent('#content');
+  check('onglet Tebex : paquets, prix, produit relié', tt.includes('Pack Été Élite') && tt.includes('4,50 €') && tt.includes('9,99 €') && !!(await page.$('[data-sedit="sapphire"][data-sjump]')));
+  check('lecture des paquets : bouton « Créer le produit » seulement pour un paquet non relié', !(await page.$('[data-simport="111"]')) && !!(await page.$('[data-simport="222"]')));
+  await page.click('[data-simport="222"]');
+  check('créer depuis Tebex : fiche pré-remplie (nom, clé, paquet, image Tebex)', (await page.inputValue('[data-sp="label"]')) === 'Pack Été Élite'
+    && (await page.inputValue('[data-skey]')) === 'pack_ete_elite' && (await page.inputValue('select[data-sp="tebexPackageId"]')) === '222'
+    && (await page.getAttribute('[data-simgzone] img', 'src')).includes('cloudfront'));
+  check('prix Tebex automatique indiqué', (await page.textContent('#content')).includes('prix Tebex automatique (4,50 €)'));
+  // ---------- Ctrl+V d'une capture d'écran
+  await page.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 1600; c.height = 900;
+    const g = c.getContext('2d'); g.fillStyle = '#d9b56a'; g.fillRect(0, 0, 1600, 900); g.fillStyle = '#123'; g.fillRect(200, 200, 600, 300);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+    const dt = new DataTransfer(); dt.items.add(new File([blob], 'capture.png', { type: 'image/png' }));
+    document.querySelector('[data-simgzone]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await page.waitForTimeout(600);
+  const up = posts.filter((p) => p.ep === 'shopImage').pop();
+  check('Ctrl+V d\'une capture : image réduite (1280 px) et envoyée au jeu en webp', up && /^data:image\/(webp|jpeg);base64,/.test(up.body.data) && up.body.data.length < 1400000 && !!up.body.token);
+  const dims = up && await page.evaluate((d) => new Promise((r) => { const i = new Image(); i.onload = () => r([i.naturalWidth, i.naturalHeight]); i.src = d; }), up.body.data);
+  check('taille réduite à 1280 × 720', dims && dims[0] === 1280 && dims[1] === 720);
+  check('aperçu immédiat + « Envoi au serveur »', (await page.textContent('#content')).includes('Envoi au serveur') && (await page.getAttribute('[data-simgzone] img', 'src')).startsWith('data:image/'));
+  await page.click('[data-sa="save"]');
+  check('« Enregistrer » attend la fin de l\'envoi de l\'image', !shopPosts().some((b) => b.name === 'product_save' && b.data.key === 'pack_ete_elite'));
+  await page.evaluate((tk) => window.postMessage({ action: 'shopImageSaved', token: tk, id: 9 }, '*'), up.body.token);
+  await page.waitForTimeout(150);
+  check('image enregistrée par le serveur : confirmation affichée', (await page.textContent('#content')).includes('Image enregistrée'));
+  await page.click('[data-sradd]');
+  await page.fill('[data-srf="0:name"]', 'phone');
+  await page.screenshot({ path: out + '/boutique_image_collee.png' });
+  await page.click('[data-sa="save"]');
+  await page.waitForTimeout(100);
+  const ps = lastShop();
+  check('produit enregistré avec l\'image collée (img:9) et le paquet Tebex', ps.name === 'product_save' && ps.data.product.image === 'img:9' && ps.data.product.tebexPackageId === 222);
+  // image refusée par le serveur
+  await page.click('[data-ssub="products"]');
+  await page.click('[data-sedit="sapphire"]');
+  await page.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+    const dt = new DataTransfer(); dt.items.add(new File([blob], 'x.png', { type: 'image/png' }));
+    document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await page.waitForTimeout(400);
+  const up2 = posts.filter((p) => p.ep === 'shopImage').pop();
+  await page.evaluate((tk) => window.postMessage({ action: 'shopImageSaved', token: tk, error: 'Seuls les Fondateurs peuvent modifier la boutique.' }, '*'), up2.body.token);
+  await page.waitForTimeout(150);
+  check('image refusée par le serveur : message affiché', (await page.textContent('#content')).includes('Seuls les Fondateurs'));
+  // aperçu d'une image déjà enregistrée (img:5)
+  await send(true, { products: [{ key: 'ete', label: 'Été', category: 'vip', enabled: true, image: 'img:5', rewards: [{ type: 'perk', name: 'ete' }], perks: [] }] });
+  await page.click('[data-sa="cancel"]');
+  await page.waitForTimeout(150);
+  check('image enregistrée demandée au jeu pour l\'aperçu', posts.some((p) => p.ep === 'shopImageGet' && p.body.ids[0] === 5));
+  await page.evaluate((d) => window.postMessage({ action: 'shopImageData', id: 5, data: d }, '*'), up.body.data);
+  await page.waitForTimeout(100);
+  check('aperçu affiché à réception', (await page.getAttribute('img[data-simg="5"]', 'src')).startsWith('data:image/'));
+  // texte collé dans un champ : collage normal
+  await page.click('[data-sedit="ete"]');
+  const n0 = posts.filter((p) => p.ep === 'shopImage').length;
+  await page.evaluate(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'bonjour'); document.querySelector('[data-sp="label"]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); });
+  await page.waitForTimeout(150);
+  check('texte collé : rien n\'est envoyé comme image', posts.filter((p) => p.ep === 'shopImage').length === n0);
+  await page.click('[data-sa="cancel"]');
   await send(true, { available: false, error: true });
   await page.waitForTimeout(200);
   check('elyzea_shop arrêtée : message clair', (await page.textContent('#content')).includes('ne répond pas'));

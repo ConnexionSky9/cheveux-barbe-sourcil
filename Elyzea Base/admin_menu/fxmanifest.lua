@@ -51,6 +51,7 @@ client_scripts {
     'client/dealer.lua',
     'client/agences.lua',
     'client/sharks.lua',
+    'client/shop.lua',
 }
 
 server_scripts {

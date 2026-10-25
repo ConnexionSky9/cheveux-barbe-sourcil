@@ -69,6 +69,16 @@ const data = {
   await page.click('[data-view="history"]');
   check(await page.locator('.item').count() === 4 && await page.locator('text=tbx-123').count() === 1, 'historique des achats et des coins (référence Tebex visible)');
   await page.screenshot({ path: OUT + 'elyzea_shop_historique.png' });
+  // image collée dans l'admin menu (img:<id>) : demandée une fois, affichée à réception
+  const withImg = JSON.parse(JSON.stringify(data)); withImg.catalog.products[0].image = 'img:7'; withImg.catalog.products[0].displayPrice = '9,99 €'; withImg.catalog.products[0].discount = '12,99 €';
+  await send({ action: 'data', data: withImg }); await page.click('.nav-item:has-text("Accueil")'); await page.waitForTimeout(150);
+  check(posts.filter((p) => p[0] === 'images' && JSON.parse(p[1]).ids[0] === 7).length === 1, 'image collée : demandée une seule fois au jeu');
+  const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await send({ action: 'image', id: 7, data: px }); await page.waitForTimeout(100);
+  check(await page.evaluate((d) => [...document.querySelectorAll('img[data-img="7"]')].every((i) => i.src === d) && document.querySelectorAll('img[data-img="7"]').length > 0, px), 'image collée affichée à réception');
+  check(await page.locator('s:has-text("12,99 €")').count() > 0 && await page.locator('text=9,99 €').count() > 0, 'prix Tebex et prix barré (promotion) affichés');
+  await send({ action: 'image', id: 7, data: 'javascript:alert(1)' }); await page.waitForTimeout(50);
+  check(await page.evaluate((d) => document.querySelector('img[data-img="7"]').src === d, px), 'donnée qui n\'est pas une image : ignorée');
   const evil = JSON.parse(JSON.stringify(data)); evil.catalog.products[0].label = '<img src=x onerror="window.__xss=1">';
   await send({ action: 'data', data: evil }); await page.click('.nav-item:has-text("Accueil")');
   check(await page.evaluate(() => !window.__xss), 'texte inséré comme texte (pas d\'injection HTML)');

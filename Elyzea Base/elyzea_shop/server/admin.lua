@@ -97,9 +97,11 @@ local function cleanProduct(d)
     for _, c in ipairs(Config.Categories) do if c.id == p.category then catOk = true end end
     if not catOk then return nil, 'Catégorie inconnue.' end
     p.description = str(d.description, 600) or ''
-    p.image = str(d.image, 200)
-    if p.image ~= '' and not (p.image:match('^assets/[%w_%-/]+%.%a+$') or p.image:match('^https://[%w%-%.]+/[^%s"\'<>]*$')) then
-        return nil, 'Image : chemin assets/… de la ressource ou adresse https://'
+    p.image = str(d.image, 400)
+    local imgId = tonumber(p.image:match('^img:(%d+)$'))
+    if imgId and not Images.get(imgId) then return nil, 'Image collée introuvable : recolle-la (Ctrl+V).' end
+    if p.image ~= '' and not (imgId or p.image:match('^assets/[%w_%-/]+%.%a+$') or p.image:match('^https://[%w%-%.]+/[^%s"\'<>]*$')) then
+        return nil, 'Image : colle une capture (Ctrl+V), un chemin assets/… de la ressource ou une adresse https://'
     end
     if p.image == '' then p.image = nil end
     p.perks = {}
@@ -190,7 +192,13 @@ exports('AdminData', function()
         coins = { enabled = Config.Coins.enabled, label = Config.Coins.label, short = Config.Coins.short,
             total = tonumber(Db.scalar('SELECT COALESCE(SUM(`balance`), 0) FROM `elyzea_shop_coins`')) or 0 },
         integrations = Config.Integrations,
-        tebex = { storeUrl = Config.Tebex.storeUrl, secretSet = GetConvar('sv_tebexSecret', '') ~= '' },
+        tebex = (function()
+            local st = TebexAPI.state
+            return { storeUrl = Config.Tebex.storeUrl, secretSet = GetConvar('sv_tebexSecret', '') ~= '',
+                connected = st.connected, syncing = st.syncing, error = st.error, account = st.account,
+                lastSync = st.lastSync > 0 and (os.time() - st.lastSync) or nil, packages = st.list,
+                directCheckout = Config.Tebex.directCheckout ~= false }
+        end)(),
         stats = { pending = tonumber(stats.pending) or 0, failed = tonumber(stats.failed) or 0, tebex = tonumber(stats.tebex) or 0, coins = tonumber(stats.coins) or 0 },
         deliveries = deliveries,
         logs = logs,
@@ -365,6 +373,21 @@ A.delivery_cancel = function(d, actor)
     if n == 0 then return false, 'Rien à annuler (déjà livrée ?).' end
     Db.log('info', 'admin_cancel', nil, tostring(id), actor)
     return true, 'Livraison annulée.'
+end
+
+-- Image collée dans l'admin menu (data URL) : enregistrée, renvoie son id (le produit l'utilise via « img:<id> »)
+A.image_save = function(d, actor)
+    local id, err = Images.save(d.data, actor)
+    if not id then return false, err end
+    Db.log('info', 'admin_image', nil, tostring(id), ('%d Ko par %s'):format(math.floor(#d.data * 3 / 4 / 1024), actor))
+    return true, 'Image ajoutée : clique sur « Enregistrer » pour l\'utiliser.', { id = id }
+end
+
+-- Relire tout de suite les paquets, prix et images sur Tebex
+A.tebex_sync = function(d, actor)
+    if GetConvar('sv_tebexSecret', '') == '' then return false, 'sv_tebexSecret absent de server.cfg.' end
+    TebexAPI.sync()
+    return true, 'Synchronisation avec Tebex lancée (quelques secondes).'
 end
 
 -- Actions qui ne modifient rien (consultation)

@@ -16,7 +16,7 @@
     const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
     const clone = (x) => JSON.parse(JSON.stringify(x));
     const date = (d) => { if (!d) return '—'; const x = new Date(String(d).replace(' ', 'T') + (/[zZ+]/.test(String(d)) ? '' : 'Z')); return isNaN(x) ? String(d) : x.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }); };
-    const SUBS = [['home', '📊 Général'], ['products', '🛍️ Produits'], ['categories', '🗂️ Catégories'], ['deliveries', '📦 Livraisons'], ['players', '👤 Joueurs et coins'], ['logs', '📜 Journal']];
+    const SUBS = [['home', '📊 Général'], ['products', '🛍️ Produits'], ['tebex', '💳 Tebex'], ['categories', '🗂️ Catégories'], ['deliveries', '📦 Livraisons'], ['players', '👤 Joueurs et coins'], ['logs', '📜 Journal']];
     const ST = { delivered: '🟢 livrée', pending: '🟡 en attente', failed: '🔴 échouée', cancelled: '⚪ annulée' };
     const RW = {
         group: { label: 'Grade (ACE group.nom)', fields: [['name', 'Nom (ex. vip_sapphire)', 'text']] },
@@ -32,6 +32,60 @@
     const ro = () => (canEdit() ? '' : '<div class="protect" style="margin-bottom:12px">🔒 <span>Lecture seule : seuls les <b>Fondateurs</b> peuvent modifier la boutique.</span></div>');
     const reRender = () => { S.ver++; render(); };
 
+    /* ---------------- Tebex et images ---------------- */
+    const TB = () => (D && D.shop && D.shop.tebex) || {};
+    const pkg = (id) => (TB().packages || []).find((x) => Number(x.id) === Number(id));
+    const IMGS = {}, imgAsked = {};
+    // Adresse affichable d'une image produit : collée (img:<id>), fichier de la ressource, ou https://
+    function imgSrc(image) {
+        const m = /^img:(\d+)$/.exec(image || '');
+        if (m) {
+            if (IMGS[m[1]]) return IMGS[m[1]];
+            if (!imgAsked[m[1]]) { imgAsked[m[1]] = true; post('shopImageGet', { ids: [Number(m[1])] }); }
+            return '';
+        }
+        if (/^assets\//.test(image || '')) return `https://cfx-nui-elyzea_shop/html/${image}`;
+        if (/^https:\/\//.test(image || '')) return image;
+        return '';
+    }
+    const thumb = (image, size = 44) => {
+        const src = imgSrc(image), m = /^img:(\d+)$/.exec(image || '');
+        return `<img ${m ? `data-simg="${m[1]}"` : ''} src="${esc(src)}" alt="" style="width:${size * 16 / 9}px;height:${size}px;object-fit:cover;border-radius:6px;background:rgba(255,255,255,.06);${src ? '' : 'visibility:hidden'}">`;
+    };
+    const ago = (sec) => (sec == null ? 'jamais' : sec < 60 ? `il y a ${sec} s` : `il y a ${Math.round(sec / 60)} min`);
+    const tebexLine = (t) => (!t.secretSet ? '🔴 <b>sv_tebexSecret</b> absent de server.cfg : pas de connexion à Tebex, paiements non livrés.'
+        : t.connected ? `🟢 Connecté à <b>${esc((t.account || {}).name || 'Tebex')}</b> (${esc(t.storeUrl || '')}) · ${(t.packages || []).length} paquet(s) · ${esc((t.account || {}).currency || '')} · synchronisé ${ago(t.lastSync)}`
+        : t.syncing ? '🟡 Connexion à Tebex en cours…'
+        : `🔴 Connexion à Tebex impossible : ${esc(t.error || 'erreur inconnue')}`);
+
+    // Image collée (Win+Maj+S puis Ctrl+V) : réduite à 1280 px, convertie en webp (≤ 1 Mo), puis envoyée
+    async function compress(file) {
+        const url = URL.createObjectURL(file);
+        try {
+            const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('image illisible')); i.src = url; });
+            const k = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            for (const q of [0.86, 0.72, 0.58, 0.44]) {
+                let d = c.toDataURL('image/webp', q);
+                if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/jpeg', q);
+                if (d.length <= 1350000) return d;
+            }
+            throw new Error('image trop lourde');
+        } finally { URL.revokeObjectURL(url); }
+    }
+    async function useImageFile(file) {
+        if (!S.edit || !canEdit()) return;
+        S.upload = { state: 'compress' }; reRender();
+        try {
+            const data = await compress(file);
+            const token = `u${Date.now()}${Math.floor(Math.random() * 1e6)}`;
+            S.upload = { state: 'send', token, data, kb: Math.round(data.length * 3 / 4 / 1024) }; reRender();
+            post('shopImage', { token, data });
+        } catch (e) { S.upload = { state: 'error', error: `Image refusée : ${e.message}` }; reRender(); }
+    }
+
     /* ---------------- Général ---------------- */
     function viewHome(s) {
         const vis = s.products.filter((p) => p.enabled).length;
@@ -46,8 +100,7 @@
             <div class="stat"><b>${s.coins.enabled ? fmt(s.coins.total) + ' ' + esc(s.coins.short) : 'désactivés'}</b><span>${esc(s.coins.label)} en circulation</span></div></div>
         ${canEdit() && s.coins.enabled ? `<div class="btn-row" style="margin:12px 0"><button class="btn primary" data-ssub="players">🎁 Donner des ${esc(s.coins.label)} (moi-même ou un joueur)</button></div>` : ''}
         <div class="section"><h2>Tebex</h2>
-            <p class="hint">${s.tebex.secretSet ? '🟢 <b>sv_tebexSecret</b> est présent dans server.cfg.' : '🔴 <b>sv_tebexSecret</b> absent : les paiements Tebex ne seront pas livrés.'}
-            Boutique Tebex : <b>${esc(s.tebex.storeUrl)}</b> (config.lua).</p>
+            <p class="hint">${tebexLine(s.tebex)}</p>
             <p class="hint">Commandes à mettre dans chaque paquet Tebex :<br>
             à l'achat <code>elyzea_shop_deliver {transaction} {id} CLE</code> · à l'expiration / au retrait <code>elyzea_shop_revoke {transaction} {id} CLE</code><br>
             (CLE = clé du produit, colonne « Clé » de l'onglet Produits).</p></div>`;
@@ -60,9 +113,10 @@
         return `${ro()}<div class="btn-row" style="margin-bottom:12px">${canEdit() ? '<button class="btn primary" data-sa="new">➕ Nouveau produit</button>' : ''}</div>
         <table class="loot wide"><tr><th>Produit</th><th>Clé</th><th>Catégorie</th><th>Tebex</th><th>Coins</th><th>Durée</th><th>Récompenses</th><th>État</th><th></th></tr>
         ${s.products.map((p) => `<tr>
-            <td><b>${esc(p.label)}</b>${p.displayPrice ? `<div class="hint" style="margin:0">${esc(p.displayPrice)}</div>` : ''}</td>
+            <td><div style="display:flex;gap:10px;align-items:center">${thumb(p.image || (pkg(p.tebexPackageId) || {}).image, 34)}<div><b>${esc(p.label)}</b>${p.displayPrice ? `<div class="hint" style="margin:0">${esc(p.displayPrice)}</div>` : ''}</div></div></td>
             <td><code>${esc(p.key)}</code></td><td>${esc(cat(p.category))}</td>
-            <td>${p.tebexPackageId ? `#${esc(p.tebexPackageId)}` : '<span class="muted">—</span>'}</td>
+            <td>${!p.tebexPackageId ? '<span class="muted">—</span>' : pkg(p.tebexPackageId) ? `#${esc(p.tebexPackageId)}<div class="hint" style="margin:0">${esc(pkg(p.tebexPackageId).priceText || '')}</div>`
+                : `#${esc(p.tebexPackageId)}${TB().connected ? '<div class="hint" style="margin:0;color:var(--danger)">⚠ introuvable sur Tebex</div>' : ''}`}</td>
             <td>${p.coinsPrice ? fmt(p.coinsPrice) : '<span class="muted">—</span>'}</td>
             <td>${p.durationDays ? `${p.durationDays} j` : 'permanent'}</td>
             <td>${(p.rewards || []).map((r) => esc(r.type)).join(', ') || '<span style="color:var(--danger)">aucune</span>'}</td>
@@ -72,8 +126,30 @@
         </table>`;
     }
 
+    function imageZone(p, pk) {
+        const up = S.upload || {};
+        const src = up.state === 'send' ? up.data : imgSrc(p.image || (pk && pk.image) || '');
+        const m = /^img:(\d+)$/.exec(p.image || '');
+        const status = up.state === 'compress' ? '⏳ Préparation de l\'image…'
+            : up.state === 'send' ? `⏳ Envoi au serveur (${up.kb} Ko)…`
+            : up.state === 'ok' ? '✅ Image enregistrée : clique sur « Enregistrer » pour l\'utiliser.'
+            : up.state === 'error' ? `<span style="color:var(--danger)">${esc(up.error)}</span>` : '';
+        return `<div style="margin-top:10px"><label>Image</label>
+            <div data-simgzone style="display:flex;gap:14px;align-items:center;padding:12px;border:2px dashed var(--line, rgba(255,255,255,.18));border-radius:10px">
+                <div style="width:192px;height:108px;flex:none;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center">
+                    ${src ? `<img ${m && up.state !== 'send' ? `data-simg="${m[1]}"` : ''} src="${esc(src)}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="muted">aucune image</span>'}</div>
+                <div style="flex:1;min-width:0">
+                    ${canEdit() ? '<b>📋 Colle une image : Win + Maj + S, puis Ctrl + V ici</b><p class="hint" style="margin:4px 0">L\'image est réduite et enregistrée sur le serveur (aucun hébergeur à configurer).</p>' : ''}
+                    <input class="input" data-sp="image" value="${esc(m ? '' : (p.image || ''))}" placeholder="${m ? `Image collée n°${m[1]}` : 'ou une adresse https://… / assets/products/nom.webp'}" ${dis()}>
+                    <div class="btn-row" style="margin-top:6px">
+                        ${canEdit() && pk && pk.image && p.image !== pk.image ? '<button class="btn" data-sa="img_tebex">🖼️ Image du paquet Tebex</button>' : ''}
+                        ${canEdit() && p.image ? '<button class="btn" data-sa="img_clear">✕ Retirer l\'image</button>' : ''}</div>
+                    ${status ? `<p class="hint" style="margin:6px 0 0">${status}</p>` : ''}</div></div></div>`;
+    }
+
     function viewEditor(s) {
         const e = S.edit, p = e.product;
+        const pk = pkg(p.tebexPackageId);
         const opt = (v, cur, l) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`;
         const f = (key, label, type = 'text', help = '') => `<div><label>${esc(label)}</label><input class="input" type="${type}" data-sp="${key}" value="${esc(p[key] ?? '')}" ${dis()}>${help ? `<p class="hint" style="margin:3px 0 0">${esc(help)}</p>` : ''}</div>`;
         const rewards = (p.rewards || []).map((r, i) => `<div class="card" style="padding:10px;margin-bottom:8px">
@@ -88,12 +164,17 @@
                 <div><label>Clé (utilisée dans la commande Tebex)</label><input class="input" data-skey value="${esc(e.key)}" ${e.isNew && canEdit() ? '' : 'disabled'}><p class="hint" style="margin:3px 0 0">minuscules, chiffres et _ · ne change plus après création</p></div>
                 ${f('label', 'Nom affiché')}
                 <div><label>Catégorie</label><select class="input" data-sp="category" ${dis()}>${s.categories.map((c) => opt(c.id, p.category, c.label)).join('')}</select></div>
-                ${f('image', 'Image', 'text', 'assets/products/nom.webp (dans elyzea_shop/html) ou https://…')}
-                ${f('displayPrice', 'Prix affiché (texte, ex. 9,99 €)', 'text', 'Vide : « Prix affiché sur Tebex ». Le prix payé est toujours celui de Tebex.')}
-                ${f('tebexPackageId', 'ID du paquet Tebex', 'number', 'Vide : non vendu en argent réel')}
+                ${f('displayPrice', 'Prix affiché (texte, ex. 9,99 €)', 'text', pk ? `Vide : prix Tebex automatique (${pk.priceText || '?'}). Le prix payé est toujours celui de Tebex.` : 'Vide : prix lu sur Tebex. Le prix payé est toujours celui de Tebex.')}
+                ${(TB().packages || []).length ? `<div><label>Paquet Tebex</label><select class="input" data-sp="tebexPackageId" ${dis()}>
+                    <option value="">— non vendu en argent réel —</option>
+                    ${p.tebexPackageId && !pk ? `<option value="${esc(p.tebexPackageId)}" selected>#${esc(p.tebexPackageId)} (introuvable sur Tebex)</option>` : ''}
+                    ${TB().packages.map((x) => opt(x.id, p.tebexPackageId, `#${x.id} · ${x.name} · ${x.priceText || ''}${x.category ? ` (${x.category})` : ''}`)).join('')}</select>
+                    <p class="hint" style="margin:3px 0 0">Liste lue directement sur ta boutique Tebex.</p></div>`
+                    : f('tebexPackageId', 'ID du paquet Tebex', 'number', 'Vide : non vendu en argent réel')}
                 ${f('coinsPrice', `Prix en ${s.coins.label}`, 'number', 'Vide : non achetable en coins')}
                 ${f('durationDays', 'Durée (jours)', 'number', 'Vide : permanent (grades / avantages)')}
                 ${f('sort', 'Ordre d\'affichage', 'number')}</div>
+            ${imageZone(p, pk)}
             <div style="margin-top:10px"><label>Description</label><textarea class="input" rows="3" data-sp="description" ${dis()}>${esc(p.description || '')}</textarea></div>
             <div style="margin-top:10px"><label>Avantages affichés (un par ligne)</label><textarea class="input" rows="4" data-sperks ${dis()}>${esc((p.perks || []).join('\n'))}</textarea></div>
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:12px">
@@ -175,11 +256,30 @@
             <p class="hint">Erreurs, avertissements et actions des Fondateurs. Journal complet : table elyzea_shop_logs.</p>`;
     }
 
+    function viewTebex(s) {
+        const t = s.tebex || {};
+        const linked = (id) => s.products.filter((p) => Number(p.tebexPackageId) === Number(id));
+        return `<div class="section"><h2>Connexion à Tebex</h2>
+            <p class="hint">${tebexLine(t)}</p>
+            <p class="hint">La boutique lit directement ta boutique Tebex (clé <b>sv_tebexSecret</b> de server.cfg) : nom, prix TTC et image de chaque paquet, mis à jour toutes les 10 minutes.
+                ${t.directCheckout ? 'Le bouton « Acheter » crée un <b>lien de paiement personnel</b> lié au compte Cfx.re du joueur.' : ''}</p>
+            ${canEdit() && t.secretSet ? '<div class="btn-row"><button class="btn primary" data-sa="tebex_sync">🔄 Synchroniser maintenant</button></div>' : ''}</div>
+        <div class="section"><h2>Paquets de ta boutique Tebex (${(t.packages || []).length})</h2>
+            ${(t.packages || []).length ? `<table class="loot wide"><tr><th></th><th>Paquet</th><th>Catégorie Tebex</th><th>Prix</th><th>Produit de la boutique</th><th></th></tr>
+            ${t.packages.map((x) => { const l = linked(x.id); return `<tr><td>${thumb(x.image, 34)}</td><td><b>${esc(x.name)}</b><div class="hint" style="margin:0">#${x.id}</div></td><td>${esc(x.category || '')}</td>
+                <td>${x.discount > 0 ? `<s class="muted">${esc(String(x.basePrice))}</s> ` : ''}${esc(x.priceText || '')}</td>
+                <td>${l.length ? l.map((p) => `<button class="btn" data-sedit="${esc(p.key)}" data-sjump="1">${esc(p.label)}</button>`).join(' ') : '<span class="muted">aucun</span>'}</td>
+                <td>${canEdit() && !l.length ? `<button class="btn primary" data-simport="${x.id}">➕ Créer le produit</button>` : ''}</td></tr>`; }).join('')}</table>`
+            : `<p class="hint">${t.connected ? 'Aucun paquet sur ta boutique Tebex.' : 'Les paquets s\'afficheront ici une fois la connexion établie.'}</p>`}
+            <p class="hint">« Créer le produit » remplit la fiche avec le nom, l'image et le paquet : il reste à choisir ce que le produit donne en jeu, puis à enregistrer.
+                N'oublie pas les commandes du paquet sur Tebex (onglet Général).</p></div>`;
+    }
+
     VIEWS.shop = () => {
         const s = D.shop;
         if (!s.available) return `<div class="protect">⚠️ <span>La ressource <b>${esc(s.resource || 'elyzea_shop')}</b> ne répond pas${s.error ? ' (redémarre-la après la mise à jour)' : ''}.</span></div>`;
         const nav = `<div class="btn-row" style="margin-bottom:14px">${SUBS.map(([k, l]) => `<button class="btn ${S.sub === k ? 'primary' : ''}" data-ssub="${k}">${l}</button>`).join('')}</div>`;
-        const v = { products: viewProducts, categories: viewCategories, deliveries: viewDeliveries, players: viewPlayers, logs: viewLogs }[S.sub] || viewHome;
+        const v = { products: viewProducts, tebex: viewTebex, categories: viewCategories, deliveries: viewDeliveries, players: viewPlayers, logs: viewLogs }[S.sub] || viewHome;
         return nav + v(s);
     };
     // Pendant une modification (fiche produit, catégories), l'actualisation automatique ne reconstruit pas le formulaire
@@ -215,7 +315,16 @@
         if (!t) return;
         const s = D.shop;
         if (t.dataset.ssub) { S.sub = t.dataset.ssub; S.edit = null; S.cats = null; return reRender(); }
-        if (t.dataset.sedit) { openEditor(t.dataset.sedit); return reRender(); }
+        if (t.dataset.sedit) { openEditor(t.dataset.sedit); S.upload = null; if (t.dataset.sjump) S.sub = 'products'; return reRender(); }
+        if (t.dataset.simport) {
+            const x = pkg(t.dataset.simport);
+            if (!x) return;
+            const key = String(x.name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || `paquet_${x.id}`;
+            S.sub = 'products'; S.upload = null;
+            S.edit = { key, isNew: true, product: { label: x.name, category: (s.categories[0] || {}).id, description: x.description || '', perks: [], enabled: false,
+                rewards: [], sort: 0, tebexPackageId: x.id, image: x.image || '' } };
+            return reRender();
+        }
         if (t.dataset.stoggle) return send('product_toggle', { key: t.dataset.stoggle });
         if (t.dataset.sgamt) { S.gift.amount = t.dataset.sgamt; return reRender(); }
         if (t.dataset.sdf) { S.delivFilter = t.dataset.sdf; return reRender(); }
@@ -228,9 +337,15 @@
         if (t.dataset.scdel !== undefined && t.dataset.scdel !== '') { S.cats.splice(Number(t.dataset.scdel), 1); return reRender(); }
         const a = t.dataset.sa;
         if (!a) return;
-        if (a === 'new') { S.edit = { key: '', isNew: true, product: { label: '', category: (s.categories[0] || {}).id, description: '', perks: [], enabled: false, rewards: [], sort: 0 } }; return reRender(); }
-        if (a === 'cancel') { S.edit = null; return reRender(); }
-        if (a === 'save') { const payload = productPayload(); S.edit = null; reRender(); return send('product_save', payload); }
+        if (a === 'tebex_sync') return send('tebex_sync', {});
+        if (a === 'img_tebex' && S.edit) { const x = pkg(S.edit.product.tebexPackageId); if (x) S.edit.product.image = x.image; S.upload = null; return reRender(); }
+        if (a === 'img_clear' && S.edit) { S.edit.product.image = ''; S.upload = null; return reRender(); }
+        if (a === 'new') { S.upload = null; S.edit = { key: '', isNew: true, product: { label: '', category: (s.categories[0] || {}).id, description: '', perks: [], enabled: false, rewards: [], sort: 0 } }; return reRender(); }
+        if (a === 'cancel') { S.edit = null; S.upload = null; return reRender(); }
+        if (a === 'save') {
+            if (S.upload && (S.upload.state === 'compress' || S.upload.state === 'send')) return; // attend la fin de l'envoi de l'image
+            const payload = productPayload(); S.edit = null; S.upload = null; reRender(); return send('product_save', payload);
+        }
         if (a === 'reset') { if (!window.confirm('Remettre ce produit aux valeurs de config.lua ?')) return; const key = S.edit.key; S.edit = null; reRender(); return send('product_reset', { key }); }
         if (a === 'delete') { if (!window.confirm('Supprimer définitivement ce produit ?')) return; const key = S.edit.key; S.edit = null; reRender(); return send('product_delete', { key }); }
         if (a === 'cat_add') { S.cats.push({ id: `categorie_${S.cats.length + 1}`, label: 'Nouvelle catégorie', icon: 'star', description: '', enabled: true }); return reRender(); }
@@ -268,10 +383,46 @@
         if (!on()) return;
         const t = ev.target;
         if (t.dataset.sp === 'category' && S.edit) S.edit.product.category = t.value;
+        else if (t.dataset.sp === 'tebexPackageId' && S.edit) { S.edit.product.tebexPackageId = t.value; reRender(); }
         else if (t.dataset.srt !== undefined && S.edit) { S.edit.product.rewards[Number(t.dataset.srt)] = { type: t.value }; reRender(); }
         else if (t.dataset.sc && S.cats) { const [i, k] = t.dataset.sc.split(':'); S.cats[Number(i)][k] = t.value; }
         else if (t.dataset.scen !== undefined && S.cats) S.cats[Number(t.dataset.scen)].enabled = t.checked;
         else if (t.hasAttribute('data-sgive')) S.giveKey = t.value;
         else if (t.dataset.sgift === 'target') { S.gift.target = t.value; reRender(); }
+    });
+
+    // Ctrl+V dans la fiche produit : une image du presse-papiers (capture Win+Maj+S) devient l'image du produit
+    document.addEventListener('paste', (ev) => {
+        if (!on() || !S.edit || !canEdit()) return;
+        const items = [...((ev.clipboardData && ev.clipboardData.items) || [])];
+        const it = items.find((x) => x.kind === 'file' && /^image\//.test(x.type));
+        if (!it) return;   // texte : collage normal dans le champ
+        ev.preventDefault();
+        const file = it.getAsFile();
+        if (file) useImageFile(file);
+    });
+    // Glisser-déposer un fichier image sur la zone (si le jeu le permet)
+    document.addEventListener('dragover', (ev) => { if (on() && S.edit && canEdit() && ev.target.closest && ev.target.closest('[data-simgzone]')) ev.preventDefault(); });
+    document.addEventListener('drop', (ev) => {
+        if (!on() || !S.edit || !canEdit() || !(ev.target.closest && ev.target.closest('[data-simgzone]'))) return;
+        ev.preventDefault();
+        const file = [...((ev.dataTransfer && ev.dataTransfer.files) || [])].find((f) => /^image\//.test(f.type));
+        if (file) useImageFile(file);
+    });
+
+    window.addEventListener('message', (ev) => {
+        const m = ev.data || {};
+        if (m.action === 'shopImageSaved') {
+            if (!S.upload || S.upload.token !== m.token) return;
+            if (m.id) {
+                IMGS[m.id] = S.upload.data;
+                if (S.edit) S.edit.product.image = `img:${m.id}`;
+                S.upload = { state: 'ok' };
+            } else S.upload = { state: 'error', error: m.error || 'Image refusée.' };
+            if (isOpen && tab === 'shop') reRender();
+        } else if (m.action === 'shopImageData' && m.id && typeof m.data === 'string' && m.data.startsWith('data:image/')) {
+            IMGS[m.id] = m.data;
+            document.querySelectorAll(`img[data-simg="${Number(m.id)}"]`).forEach((el) => { el.src = m.data; el.style.visibility = ''; });
+        }
     });
 })();

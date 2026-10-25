@@ -42,6 +42,11 @@ Config.Tebex = {
     storeUrl = 'https://elyzea.tebex.io',
     -- Page d'un paquet : {store} et {id} sont remplacés
     packageUrl = '{store}/package/{id}',
+    -- Connexion directe (clé sv_tebexSecret) : paquets, prix et images lus sur Tebex toutes les X minutes
+    syncMinutes = 10,
+    autoStoreUrl = true,          -- l'adresse de la boutique est celle donnée par Tebex (storeUrl ci-dessus sert de secours)
+    directCheckout = true,        -- « Acheter » crée un lien de paiement personnel lié au compte Cfx.re du joueur
+                                  -- (en cas d'erreur Tebex : page du paquet à la place)
 }
 
 -- ---------------------------------------------------------------------

@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'elyzea_shop'
 author 'Elyzea RP'
-description 'Boutique Elyzea RP 100 % en jeu : catalogue NUI, paiements Tebex (intégration officielle FiveM), livraison automatique, Elyzea Coins'
+description 'Boutique Elyzea RP 100 % en jeu : catalogue NUI, paiements Tebex (connexion directe + intégration officielle FiveM), livraison automatique, Elyzea Coins'
 version '1.0.0'
 
 shared_script 'config.lua'
@@ -15,6 +15,8 @@ server_scripts {
     'server/rewards.lua',
     'server/coins.lua',
     'server/tebex.lua',
+    'server/tebex_api.lua',
+    'server/images.lua',
     'server/main.lua',
     'server/admin.lua',
 }

@@ -30,6 +30,17 @@
   const fallback = (e) => { if (!e.target.src.endsWith('assets/logo.webp')) e.target.src = 'assets/logo.webp'; };
   const coinsOn = () => S.data && S.data.coins && S.data.coins.enabled;
 
+  // Images collées dans l'admin menu (« img:<id> ») : demandées une fois au serveur, gardées en mémoire
+  const IMG = {}, asked = {};
+  function imgSrc(image) {
+    const m = /^img:(\d+)$/.exec(image || '');
+    if (!m) return image || 'assets/logo.webp';
+    if (IMG[m[1]]) return IMG[m[1]];
+    if (!asked[m[1]]) { asked[m[1]] = true; post('images', { ids: [Number(m[1])] }); }
+    return 'assets/logo.webp';
+  }
+  const imgAttrs = (image) => { const m = /^img:(\d+)$/.exec(image || ''); return m ? { 'data-img': m[1] } : {}; };
+
   function toast(text, kind, ms) {
     const t = h('div', { class: `toast ${kind || ''}` }, text);
     $('toasts').append(t);
@@ -56,6 +67,7 @@
 
   function priceTags(p) {
     const out = [];
+    if (p.tebex && p.discount) out.push(h('s', { class: 'muted small' }, p.discount));
     if (p.tebex) out.push(h('span', { class: 'price' }, p.displayPrice || 'Voir sur Tebex'));
     if (p.coinsPrice && coinsOn()) out.push(h('span', { class: 'price coins' }, fmt(p.coinsPrice)));
     if (!out.length) out.push(h('span', { class: 'badge badge-muted' }, 'Bientôt disponible'));
@@ -64,7 +76,7 @@
 
   function card(p) {
     return h('article', { class: 'card', tabindex: 0, onclick: () => go('product', { product: p.key }), onkeydown: (e) => { if (e.key === 'Enter') go('product', { product: p.key }); } },
-      h('div', { class: 'media' }, h('img', { src: p.image || 'assets/logo.webp', alt: '', loading: 'lazy', onerror: fallback })),
+      h('div', { class: 'media' }, h('img', { src: imgSrc(p.image), alt: '', loading: 'lazy', onerror: fallback, ...imgAttrs(p.image) })),
       h('div', { class: 'tags' }, p.category === 'vip' || p.durationDays ? h('span', { class: `badge ${p.durationDays ? 'badge-blue' : ''}` }, duration(p.durationDays)) : null),
       h('div', { class: 'body' }, h('h3', { class: 'title' }, p.label), h('p', { class: 'muted small', style: 'margin:0' }, p.description || ''),
         h('div', { class: 'foot' }, priceTags(p))));
@@ -96,7 +108,7 @@
     title.textContent = p.label;
     const box = h('div', { class: 'buy-box' });
     if (p.tebex) {
-      box.append(h('div', { class: 'buy-line' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Paiement sécurisé Tebex'), h('span', { class: 'price' }, p.displayPrice || 'Prix affiché sur Tebex')),
+      box.append(h('div', { class: 'buy-line' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Paiement sécurisé Tebex'), p.discount ? h('s', { class: 'muted small', style: 'margin-right:.4rem' }, p.discount) : null, h('span', { class: 'price' }, p.displayPrice || 'Prix affiché sur Tebex')),
         h('button', { class: 'btn btn-gold', disabled: S.data.noAccount || S.busy, onclick: () => buyTebex(p) }, 'Acheter avec Tebex')));
     }
     if (p.coinsPrice && coinsOn()) {
@@ -106,7 +118,7 @@
     }
     if (!p.tebex && !(p.coinsPrice && coinsOn())) box.append(h('p', { class: 'muted', style: 'margin:0' }, 'Ce produit n\'est pas encore disponible à l\'achat.'));
     return [h('div', { class: 'detail' },
-      h('div', { class: 'visual' }, h('img', { src: p.image || 'assets/logo.webp', alt: '', onerror: fallback })),
+      h('div', { class: 'visual' }, h('img', { src: imgSrc(p.image), alt: '', onerror: fallback, ...imgAttrs(p.image) })),
       h('div', {},
         h('div', { class: 'row' }, h('span', { class: 'badge' }, (S.data.catalog.categories.find((c) => c.id === p.category) || {}).label || p.category),
           p.durationDays ? h('span', { class: 'badge badge-blue' }, `Durée : ${duration(p.durationDays)}`) : null),
@@ -192,6 +204,11 @@
       setTimeout(() => { shop.classList.add('hidden'); shop.classList.remove('closing'); }, 200);
     } else if (m.action === 'data') {
       S.data = m.data; render();
+    } else if (m.action === 'image') {
+      if (typeof m.data === 'string' && m.data.startsWith('data:image/')) {
+        IMG[m.id] = m.data;
+        document.querySelectorAll(`img[data-img="${Number(m.id)}"]`).forEach((el) => { el.src = m.data; });
+      }
     } else if (m.action === 'result') {
       S.busy = false;
       if (S.loadingToast) { S.loadingToast.remove(); S.loadingToast = null; }
@@ -202,6 +219,7 @@
         confirmBox(opened ? 'Paiement ouvert dans votre navigateur' : 'Ouvrez ce lien pour payer', [
           h('div', { class: 'url' }, d.url),
           h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', onclick: () => copy(d.url) }, 'Copier le lien'), h('button', { class: 'btn btn-sm', onclick: () => openUrl(d.url) || toast('Ouverture impossible : copiez le lien.', 'error') }, 'Ouvrir')),
+          d.direct ? h('p', { class: 'note', style: 'margin-top:.8rem' }, 'Lien de paiement personnel : votre achat est déjà relié à votre compte Cfx.re.') : null,
           h('p', { class: 'note warn', style: 'margin-top:.8rem' }, 'Rien n\'est livré tant que Tebex n\'a pas confirmé le paiement. Si vous abandonnez le paiement, aucun montant n\'est prélevé.'),
         ], null);
         render();

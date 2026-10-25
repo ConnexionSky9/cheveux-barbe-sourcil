@@ -12,13 +12,20 @@ CALLS, NOTES, LOGS, STATE = {}, {}, {}, 'started'
 AdminMenu = { Actions = {}, DataHooks = {},
   getRankName = function(s) return RANK[s] end, hasPerm = function(s, p) return p == 'shop_view' and RANK[s] ~= nil end,
   notify = function(s, m, t) NOTES[#NOTES + 1] = { s, m, t } end, addLog = function(s, a, d) LOGS[#LOGS + 1] = { s, a, d } end,
-  pname = function(s) return 'Staff' .. s end, getLicense = function(s) return 'license:' .. s end }
+  pname = function(s) return 'Staff' .. s end, getLicense = function(s) return 'license:' .. s end, onDuty = function() return true end }
 function GetResourceState() return STATE end
 function AddEventHandler() end
+NET, SENT = {}, {}
+function RegisterNetEvent(n, fn) NET[n] = fn end
+function TriggerClientEvent(n, src, ...) SENT[#SENT + 1] = { n, src, ... } end
 function print() end
 exports = { elyzea_shop = {
   AdminAction = function(self, src, name, data, actor, canEdit) CALLS[#CALLS + 1] = { src = src, name = name, actor = actor, canEdit = canEdit }
-    if name == 'account_lookup' then return true, nil, { account = '42' } end return true, 'ok' end,
+    if name == 'account_lookup' then return true, nil, { account = '42' } end
+    if name == 'image_save' then
+      if not canEdit then return false, 'Réservé aux Fondateurs.' end
+      SAVED = data.data return true, 'ok', { id = 77 } end
+    return true, 'ok' end,
   AdminData = function(self) return { available = true, products = {} } end } }
 ''')
 L.execute(open(os.path.join(ROOT, 'server/shop.lua'), encoding='utf8').read())
@@ -44,6 +51,29 @@ d = L.table_from({}); L.eval('AdminMenu.DataHooks[1]')(1, d)
 check(d['shop']['canEdit'] is True, 'données : Fondateur peut modifier')
 d = L.table_from({}); L.eval('AdminMenu.DataHooks[1]')(9, d)
 check(d['shop'] is None, 'sans permission shop_view : aucune donnée')
+# ---- image collée : reçue en morceaux
+def upload(src, token, data, size=16000, order=None):
+    parts = [data[i:i + size] for i in range(0, len(data), size)]
+    idx = order or list(range(1, len(parts) + 1))
+    for i in idx:
+        L.eval('function(...) source = select(1, ...) NET["adminmenu:shopImage"](select(2, ...)) end')(src, token, i, len(parts), parts[i - 1])
+def last_sent(): return L.eval('SENT[#SENT]')
+img = 'data:image/webp;base64,' + 'A' * 50000
+upload(1, 'tk1', img)
+r = last_sent()
+check(r[1] == 'adminmenu:shopImageSaved' and r[3] == 'tk1' and r[4] == 77 and L.eval('SAVED') == img, 'Fondateur : image reçue en 4 morceaux, réassemblée et enregistrée (img:77)')
+L.execute('SAVED = nil')
+upload(1, 'tk2', img, order=[3, 1, 2, 4])
+check(L.eval('SAVED') is None, 'morceaux reçus dans le désordre sans début : ignorés')
+upload(2, 'tk3', img)
+r = last_sent()
+check(L.eval('SAVED') is None and r[3] == 'tk3' and r[4] is None and 'Fondateurs' in r[5], 'grade Admin : image refusée dès le premier morceau')
+upload(1, 'tk4', 'data:image/webp;base64,' + 'A' * 1500000)
+r = last_sent()
+check(L.eval('SAVED') is None and 'trop lourde' in r[5], 'plus de 1 Mo : refusée')
+L.eval('function(...) source = 1 NET["adminmenu:shopImage"](...) end')('tk5', 1, 1, 'x' * 30000)
+check(L.eval('SAVED') is None, 'morceau trop gros : ignoré')
+
 L.execute("STATE = 'stopped'"); n = calls(); act(1, 'product_save')
 check(calls() == n, 'elyzea_shop arrêtée : rien n\'est appelé, message d\'erreur')
 print(f'\n{fails} échec(s)'); sys.exit(1 if fails else 0)

@@ -43,4 +43,43 @@ table.insert(AM.DataHooks, function(src, data)
     data.shop = d
 end)
 
-AddEventHandler('playerDropped', function() last[source] = nil end)
+-- Image collée dans la fiche produit : reçue en morceaux, assemblée, puis enregistrée par elyzea_shop.
+-- Réservé aux Fondateurs (vérifié au premier morceau ET à l'enregistrement).
+local uploads = {}
+local MAX_PARTS, MAX_CHARS = 100, 1400000
+RegisterNetEvent('adminmenu:shopImage', function(token, i, total, chunk)
+    local src = source
+    token, i, total = tostring(token or ''):sub(1, 40), tonumber(i), tonumber(total)
+    if not i or not total or total < 1 or total > MAX_PARTS or i < 1 or i > total or type(chunk) ~= 'string' or #chunk > 20000 then return end
+    local u = uploads[src]
+    if not u or u.token ~= token then
+        if i ~= 1 then return end
+        if not available() or not AM.hasPerm(src, 'shop_view') or not isFounder(src) or not AM.onDuty(src) then
+            AM.addLog(src, 'Boutique', 'Image refusée : réservée aux Fondateurs')
+            return TriggerClientEvent('adminmenu:shopImageSaved', src, token, nil, 'Seuls les Fondateurs peuvent modifier la boutique.')
+        end
+        u = { token = token, total = total, parts = {}, n = 0, size = 0, at = os.time() }
+        uploads[src] = u
+    end
+    if u.total ~= total or u.parts[i] then return end
+    u.parts[i], u.n, u.size = chunk, u.n + 1, u.size + #chunk
+    if u.size > MAX_CHARS then
+        uploads[src] = nil
+        return TriggerClientEvent('adminmenu:shopImageSaved', src, token, nil, 'Image trop lourde (1 Mo maximum).')
+    end
+    if u.n < u.total then return end
+    uploads[src] = nil
+    if not isFounder(src) then return TriggerClientEvent('adminmenu:shopImageSaved', src, token, nil, 'Seuls les Fondateurs peuvent modifier la boutique.') end
+    local data = table.concat(u.parts)
+    local actor = ('%s (%s)'):format(AM.pname(src) or ('#' .. src), AM.getLicense(src) or src)
+    local ok, success, msg, extra = pcall(function() return exports[RES]:AdminAction(src, 'image_save', { data = data }, actor, true) end)
+    if not ok or not success or type(extra) ~= 'table' then
+        local err = ok and (msg or 'Image refusée.') or 'elyzea_shop ne répond pas.'
+        AM.notify(src, err, 'error')
+        return TriggerClientEvent('adminmenu:shopImageSaved', src, token, nil, err)
+    end
+    AM.addLog(src, 'Boutique', ('Image ajoutée (#%d, %d Ko)'):format(extra.id, math.floor(#data * 3 / 4 / 1024)))
+    TriggerClientEvent('adminmenu:shopImageSaved', src, token, extra.id)
+end)
+
+AddEventHandler('playerDropped', function() last[source] = nil uploads[source] = nil end)

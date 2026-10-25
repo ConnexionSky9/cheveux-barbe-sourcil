@@ -88,6 +88,18 @@ Un clic sur « Acheter » **n'accorde rien**. Seule la commande que Tebex exécu
    - Désactivez la **quantité** sur ces paquets : une commande correspond à un produit.
 3. Reportez l'ID du paquet dans `config.lua` › `tebexPackageId`. C'est ce qui affiche le bouton « Acheter avec Tebex ».
 
+### Connexion directe à Tebex (automatique)
+
+Dès que `sv_tebexSecret` est dans server.cfg, la boutique se connecte **directement** à ta boutique Tebex (API officielle) :
+- elle lit le nom de la boutique, son adresse et sa devise, puis **tous tes paquets** avec leur **prix TTC**, leurs **promotions** et leur **image** ; mise à jour toutes les 10 minutes (`Config.Tebex.syncMinutes`) ou avec « Synchroniser maintenant » dans l'admin menu ;
+- dans la boutique en jeu, un produit relié à un paquet affiche **le prix Tebex** (et l'image Tebex s'il n'en a pas) : plus besoin de recopier les prix ;
+- le bouton « Acheter avec Tebex » crée un **lien de paiement personnel** (API Tebex `/checkout`) rattaché au **compte Cfx.re** du joueur. Si Tebex refuse ou ne répond pas, la page du paquet s'ouvre à la place (`Config.Tebex.directCheckout = false` pour toujours utiliser la page du paquet) ;
+- la clé reste sur le serveur : elle n'est envoyée qu'à `plugin.tebex.io`, jamais aux joueurs ni à l'admin menu.
+
+Dans l'admin menu (Boutique › **Tebex**) : état de la connexion, liste des paquets avec prix, produit relié, et bouton **« Créer le produit »** qui remplit la fiche (nom, image, paquet) ; il reste à choisir ce qu'il donne en jeu. Dans la fiche d'un produit, le paquet Tebex se choisit dans une liste.
+
+La livraison après paiement reste faite par les **commandes du paquet** (ci-dessus) : c'est ce qui garantit qu'un achat est livré même si le joueur est hors ligne.
+
 ### Variables Tebex : à vérifier avant d'ouvrir
 
 - `{id}` est documentée par Tebex comme l'**identifiant principal du joueur** pour le jeu. Pour FiveM, c'est l'identifiant **Cfx.re**, le même que `fivem:XXXX` en jeu. La ressource accepte `XXXX` et `fivem:XXXX`.
@@ -186,6 +198,13 @@ La boutique se gère aussi depuis l'admin menu (F10), dans **Autres › Boutique
 - **Joueurs et coins** : rechercher un joueur, ajuster ses coins (+ / −), lui donner un produit.
 - **Journal** : erreurs, avertissements et actions des Fondateurs.
 
+**Ajouter une image à un produit (copier-coller) :**
+1. Ouvre la fiche du produit (Boutique › Produits › Modifier).
+2. Fais une capture avec **Win + Maj + S** (ou copie une image), puis **Ctrl + V** dans la fiche.
+3. L'image est réduite (1280 px max, format webp), envoyée au serveur, puis affichée ; clique sur **Enregistrer**.
+
+Les images sont stockées en base (`elyzea_shop_images`, créée automatiquement) : aucun hébergeur à configurer, rien à redémarrer. Les joueurs les reçoivent une seule fois quand ils ouvrent la boutique. Une adresse `https://…` ou un fichier `assets/products/…` marchent toujours, et « Image du paquet Tebex » reprend l'image de Tebex. Les images qui ne servent plus sont supprimées au démarrage (au bout d'un jour).
+
 **Où sont enregistrées les modifications :**
 - dans la table `elyzea_shop_catalog` (créée automatiquement) ;
 - elles **remplacent** les produits et catégories de `config.lua`, qui ne servent plus que de valeurs de départ ;
@@ -235,7 +254,7 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
 
 ## 10. Tests réalisés (hors jeu)
 
-- `python3 tests/run_sim.py elyzea` (puis `esx`) : **74/74** et **72/72**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
+- `python3 tests/run_sim.py elyzea` (puis `esx`) : **101/101** et **99/99**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
   - sécurité des commandes ;
   - joueur hors ligne ;
   - doublons ;
@@ -247,15 +266,20 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
   - remboursement ;
   - expiration ;
   - administration ;
+  - connexion directe à Tebex simulée avec les formats de l'API officielle (lus dans le plugin Tebex open source) : prix, promotions, images, lien de paiement personnel, refus et panne de Tebex, mauvaise clé ;
+  - images collées : enregistrement, formats refusés (HTML, SVG, javascript, plus de 1 Mo), envoi aux joueurs, nettoyage ;
   - onglet admin menu : appels d'une autre ressource refusés, modification refusée sans droit Fondateur, création / masquage / suppression de produit, valeurs invalides refusées, catégories, rechargement après redémarrage, remboursement avec les anciennes récompenses.
-- `node tests/nui.e2e.cjs` : **21/21**. L'interface est testée dans Chromium : navigation, confirmations, ouverture de Tebex, refus du serveur, historique, texte jamais interprété comme du HTML, Échap, rendu en 1280×720.
-- `node ../admin_menu/tests/shop_ui.js ../admin_menu <dossier>` : **22/22**. L'onglet de l'admin menu est testé dans Chromium : lecture seule (aucun bouton de modification), Fondateur (création de produit, catégories, coins, relance), saisie conservée pendant l'actualisation automatique.
-- `python3 ../admin_menu/tests/run_shop_bridge_sim.py` : **9/9**. Le pont `admin_menu/server/shop.lua` est exécuté avec un admin menu simulé : un grade non Fondateur est bloqué sur les 9 actions de modification, la consultation reste permise. À confirmer en jeu avec un vrai compte non Fondateur.
+- `node tests/nui.e2e.cjs` : **25/25**. L'interface est testée dans Chromium : navigation, confirmations, ouverture de Tebex, refus du serveur, historique, image collée et prix Tebex barré, texte jamais interprété comme du HTML, Échap, rendu en 1280×720.
+- `node ../admin_menu/tests/shop_ui.js ../admin_menu <dossier>` : **37/37**. L'onglet de l'admin menu est testé dans Chromium : lecture seule (aucun bouton de modification), Fondateur (création de produit, catégories, coins, relance), saisie conservée pendant l'actualisation automatique, onglet Tebex, « Créer le produit », **Ctrl+V d'une capture** (réduite à 1280 × 720, envoyée, enregistrée), image refusée.
+- `python3 ../admin_menu/tests/run_shop_bridge_sim.py` : **14/14** (dont l'image reçue en morceaux : Fondateur seulement, 1 Mo maximum). Le pont `admin_menu/server/shop.lua` est exécuté avec un admin menu simulé : un grade non Fondateur est bloqué sur les 9 actions de modification, la consultation reste permise. À confirmer en jeu avec un vrai compte non Fondateur.
 - Ces tests ont trouvé et fait corriger deux défauts :
   - un paramètre SQL `nil` faisait décaler les valeurs ;
   - le bouton Historique était caché quand le contenu était long.
 
 ## 11. Limites connues
+
+- **Connexion Tebex et Ctrl+V non essayés en jeu** : Tebex (adresse bloquée depuis l'environnement de test) a été simulé avec les formats de son plugin officiel ; le collage d'image a été testé dans Chromium, pas dans le navigateur intégré de FiveM. Si Ctrl+V ne fait rien en jeu, colle une adresse `https://` ou utilise l'image du paquet Tebex.
+- Le lien de paiement personnel utilise l'identifiant Cfx.re du joueur : à confirmer avec un achat test (si Tebex le refuse, la page du paquet s'ouvre automatiquement).
 
 - **Paiement dans le navigateur, pas dans la NUI** : c'est une limite de Tebex, qui n'a pas de paiement intégré documenté pour FiveM. Le joueur doit se connecter à Tebex avec le **même compte Cfx.re** qu'en jeu.
 - **Délai** : l'intégration FiveM de Tebex récupère les commandes environ toutes les minutes.
