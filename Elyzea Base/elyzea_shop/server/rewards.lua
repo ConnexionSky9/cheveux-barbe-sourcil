@@ -170,12 +170,19 @@ function Shop.process(row)
         end
         local src = Shop.playerOf(row.account)
         local grantMeta = {}
+        local grantRewards
         if row.action == 'revoke' then
             local g = Db.single("SELECT `progress` FROM `elyzea_shop_deliveries` WHERE `transaction_id` = ? AND `product_key` = ? AND `action` = 'grant'", { row.transaction_id, row.product_key })
-            grantMeta = g and decode(g.progress).done or {}
+            local gp = g and decode(g.progress) or {}
+            grantMeta, grantRewards = gp.done or {}, gp.rewards
+        end
+        -- Liste des récompenses figée à la première exécution : une modification du produit depuis l'admin menu
+        -- ne change pas une livraison déjà commencée, et un retrait retire exactement ce qui a été donné.
+        if type(progress.rewards) ~= 'table' then
+            progress.rewards = (row.action == 'revoke' and type(grantRewards) == 'table') and grantRewards or (product.rewards or {})
         end
         local waiting = false
-        for i, rw in ipairs(product.rewards or {}) do
+        for i, rw in ipairs(progress.rewards) do
             local k = tostring(i)
             if not progress.done[k] then
                 progress.started = i

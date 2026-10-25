@@ -10,6 +10,9 @@ CreateThread(function()
     if not Shop.fw then print('^1[elyzea_shop] Aucun framework détecté (es_extended ou elyzea_core) : boutique désactivée.^0') return end
     local ok, err = pcall(Db.install)
     if not ok then print('^1[elyzea_shop] Base de données : ' .. tostring(err) .. '^0') return end
+    -- Catalogue modifié depuis l'admin menu (remplace les valeurs de config.lua)
+    local okc, errc = pcall(Catalog.load)
+    if not okc then print('^1[elyzea_shop] Catalogue : ' .. tostring(errc) .. '^0') end
     if GetConvar('sv_tebexSecret', '') == '' then print('^3[elyzea_shop] sv_tebexSecret absent de server.cfg : les paiements Tebex ne seront pas livrés.^0') end
     ready = true
     print(('^2[elyzea_shop] prêt (framework : %s, base : %s)^0'):format(Shop.fw.name, Db.driver() or '?'))
@@ -63,6 +66,7 @@ AddEventHandler('playerDropped', function() last[source] = nil end)
 local function publicCatalog()
     local products = {}
     for key, p in pairs(Config.Products) do
+      if p.enabled ~= false then
         products[#products + 1] = {
             key = key, category = p.category, label = p.label, description = p.description, image = p.image,
             perks = p.perks or {}, displayPrice = p.displayPrice, durationDays = p.durationDays,
@@ -70,10 +74,11 @@ local function publicCatalog()
             coinsPrice = (Config.Coins.enabled and tonumber(p.coinsPrice)) or nil,
             sort = p.sort or 0,
         }
+      end
     end
     table.sort(products, function(a, b) if a.sort ~= b.sort then return a.sort < b.sort end return a.label < b.label end)
     local cats = {}
-    for _, c in ipairs(Config.Categories) do if c.id ~= 'coins' or Config.Coins.enabled then cats[#cats + 1] = c end end
+    for _, c in ipairs(Config.Categories) do if c.enabled ~= false and (c.id ~= 'coins' or Config.Coins.enabled) then cats[#cats + 1] = c end end
     return { categories = cats, products = products }
 end
 
@@ -120,7 +125,7 @@ RegisterNetEvent('elyzea_shop:tebex', function(key)
     local src = source
     if not allow(src, 'tebex', 1500) then return end
     local p = type(key) == 'string' and Config.Products[key]
-    if not p or not p.tebexPackageId then return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { error = 'Ce produit n\'est pas vendu sur Tebex.' }) end
+    if not p or not p.tebexPackageId or p.enabled == false then return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { error = 'Ce produit n\'est pas vendu sur Tebex.' }) end
     if not Shop.accountOf(src) then return TriggerClientEvent('elyzea_shop:result', src, 'tebex', { error = Config.Locale.no_account }) end
     TriggerClientEvent('elyzea_shop:result', src, 'tebex', { url = Tebex.packageUrl(p.tebexPackageId), key = key })
 end)
@@ -134,7 +139,7 @@ RegisterNetEvent('elyzea_shop:buyCoins', function(key)
     if not ready or not Config.Coins.enabled then return reply({ error = 'Les Elyzea Coins sont désactivés.' }) end
     local p = type(key) == 'string' and Config.Products[key]
     local price = p and tonumber(p.coinsPrice)
-    if not p or not price or price <= 0 or price ~= math.floor(price) then return reply({ error = 'Ce produit ne s\'achète pas en coins.' }) end
+    if not p or p.enabled == false or not price or price <= 0 or price ~= math.floor(price) then return reply({ error = 'Ce produit ne s\'achète pas en coins.' }) end
     local account = Shop.accountOf(src)
     if not account then return reply({ error = Config.Locale.no_account }) end
     if not Shop.fw.isLoaded(src) then return reply({ error = 'Personnage non chargé.' }) end

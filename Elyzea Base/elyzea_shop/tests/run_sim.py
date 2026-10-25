@@ -29,7 +29,7 @@ def sq(sql, args=()):
         c.execute(sql, args)
         return c.fetchall() if c.description else c.rowcount
 
-for t in ['elyzea_shop_deliveries', 'elyzea_shop_entitlements', 'elyzea_shop_coins', 'elyzea_shop_coin_log', 'elyzea_shop_logs']:
+for t in ['elyzea_shop_deliveries', 'elyzea_shop_entitlements', 'elyzea_shop_coins', 'elyzea_shop_coin_log', 'elyzea_shop_logs', 'elyzea_shop_catalog']:
     sq(f'DROP TABLE IF EXISTS {t}')
 sq("""CREATE TABLE IF NOT EXISTS player_vehicles (id int NOT NULL AUTO_INCREMENT, license varchar(50), citizenid varchar(50), vehicle varchar(50), hash varchar(50), mods longtext,
       plate varchar(15) NOT NULL, garage varchar(50), fuel int DEFAULT 100, engine float DEFAULT 1000, body float DEFAULT 1000, state int DEFAULT 1, PRIMARY KEY(id), UNIQUE KEY plate(plate))""")
@@ -37,7 +37,7 @@ sq("""CREATE TABLE IF NOT EXISTS owned_vehicles (owner varchar(60) NOT NULL, pla
 
 L = lua54.LuaRuntime(unpack_returned_tuples=True)
 G = L.globals()
-W = {'now': 0, 'commands': [], 'client': [], 'items': [], 'money': [], 'keys': [], 'online': False, 'loaded': True, 'carry': True, 'admins': set()}
+W = {'now': 0, 'commands': [], 'client': [], 'items': [], 'money': [], 'keys': [], 'online': False, 'loaded': True, 'carry': True, 'admins': set(), 'invoker': 'admin_menu'}
 
 def norm(v):
     if isinstance(v, (datetime.datetime, datetime.date)): return v.strftime('%Y-%m-%d %H:%M:%S')
@@ -63,7 +63,7 @@ class Py:
         p = to_py(params) or []
         try:
             with DB.cursor() as c:
-                c.execute(sql.replace('?', '%s'), p)
+                c.execute(sql.replace('?', '%s'), p or None)
                 if kind == 'insert': cb(c.lastrowid)
                 elif kind == 'update': cb(c.rowcount)
                 else: cb(to_lua(c.fetchall() if c.description else []))
@@ -120,6 +120,7 @@ promise = { new = function() local p = { done = false } function p:resolve(v) se
 Citizen.Await = function(p) while not p.done do Wait(0) end if p.err then error(p.err) end return p.value end
 function GetConvar(k, d) if k == 'sv_tebexSecret' then return 'secret-de-test' end return d end
 function GetCurrentResourceName() return 'elyzea_shop' end
+function GetInvokingResource() return py:st('invoker') end
 function LoadResourceFile(_, f) local h = io.open(__ROOT .. '/' .. f, 'r') if not h then return nil end local s = h:read('a') h:close() return s end
 function GetGameTimer() return py:now() end
 function GetPlayers() return py:st('online') and { tostring(SRC) } or {} end
@@ -162,7 +163,7 @@ exports = setmetatable({}, {
 function __export(n) return ex[n] end
 ''')
 G.__ROOT = ROOT
-for f in ['config.lua', 'server/db.lua', 'server/framework.lua', 'server/rewards.lua', 'server/coins.lua', 'server/tebex.lua', 'server/main.lua']:
+for f in ['config.lua', 'server/db.lua', 'server/framework.lua', 'server/rewards.lua', 'server/coins.lua', 'server/tebex.lua', 'server/main.lua', 'server/admin.lua']:
     with open(os.path.join(ROOT, f), encoding='utf8') as fh: L.execute(fh.read())
 
 # Catalogue de test (les valeurs réelles se règlent dans config.lua)
@@ -189,7 +190,7 @@ def last_result(kind):
 print(f'[elyzea_shop · framework {FW} · compte fivem:{ACC}]')
 run(2000, 10)
 check(L.eval('Shop.fw and Shop.fw.name') == FW, f'framework détecté : {FW}')
-check(sq("SHOW TABLES LIKE 'elyzea_shop_%%'").__len__() == 5, 'tables créées depuis sql/install.sql')
+check(sq("SHOW TABLES LIKE 'elyzea_shop_%%'").__len__() == 6, 'tables créées depuis sql/install.sql')
 
 print('\n[1. Commandes Tebex : sécurité]')
 G.__cmd('elyzea_shop_deliver', SRC, L.table_from(['tbx-faux', ACC, 'sapphire'])); run(0, 6)
@@ -315,6 +316,67 @@ G.__cmd('shopadmin', 0, L.table_from(['give', f'fivem:{ACC}', 'royale'])); run(0
 W['commands'].clear()
 G.__event('playerDropped', SRC); run(0, 6)
 check(any(c.startswith('remove_principal') for c in W['commands']), 'grades retirés de la mémoire du serveur à la déconnexion')
+
+print('\n[12. Admin menu (onglet Boutique)]')
+AD, AA = L.eval('__export("AdminData")'), L.eval('__export("AdminAction")')
+def act(name, data, can=True):
+    r = AA(SRC, name, to_lua(data), 'Fondateur test', can)
+    return r if isinstance(r, tuple) else (r,)
+def pub():
+    W['now'] += 5000
+    G.__event('elyzea_shop:open', SRC); run(0, 8)
+    return [c for c in W['client'] if c[0] == 'elyzea_shop:data'][-1][2][0]['catalog']
+W['invoker'] = 'autre_ressource'
+check(AD() is None and act('product_toggle', {'key': 'royale'})[0] is False, 'exports appelés par une autre ressource : refusés')
+W['invoker'] = 'admin_menu'
+d = to_py(AD())
+check(d['available'] and any(p['key'] == 'sapphire' and p['fromConfig'] for p in d['products']) and d['tebex']['secretSet'] is True and 'secret' not in json.dumps(d['tebex']).replace('secretSet', ''), 'AdminData : produits, catégories, stats (clé Tebex jamais envoyée)')
+check(act('product_toggle', {'key': 'royale'}, False)[0] is False and act('categories_save', {'categories': [{'id': 'x', 'label': 'X'}]}, False)[0] is False, 'sans droit de modification (non-Fondateur) : refusé')
+check(act('account_lookup', {'account': f'fivem:{ACC}'}, False)[0] is True, 'consultation d\'un joueur permise sans droit de modification')
+new = {'label': 'Pack été', 'category': 'vehicles', 'description': 'Test', 'perks': ['Un', 'Deux'], 'coinsPrice': 50, 'tebexPackageId': 999,
+       'rewards': [{'type': 'item', 'name': 'phone', 'count': 2}, {'type': 'perk', 'name': 'ete'}]}
+r = act('product_save', {'key': 'pack_ete', 'isNew': True, 'product': new})
+check(r[0] is True, f'nouveau produit créé ({r[1]})')
+row = sq("SELECT data, updated_by FROM elyzea_shop_catalog WHERE `key` = 'pack_ete'")
+check(row and json.loads(row[0]['data'])['coinsPrice'] == 50 and row[0]['updated_by'] == 'Fondateur test', 'enregistré en base avec l\'auteur')
+check(any(p['key'] == 'pack_ete' and p['coinsPrice'] == 50 for p in pub()['products']), 'visible dans la boutique des joueurs')
+check(act('product_save', {'key': 'pack_ete', 'isNew': True, 'product': new})[0] is False, 'clé déjà utilisée : refusé')
+check(act('product_save', {'key': 'autre', 'isNew': True, 'product': dict(new, tebexPackageId=111)})[0] is False, 'paquet Tebex déjà utilisé par un autre produit : refusé')
+bad = [dict(new, rewards=[]), dict(new, category='inconnue'), dict(new, coinsPrice=-5), dict(new, image='javascript:alert(1)'),
+       dict(new, rewards=[{'type': 'command', 'name': 'say'}]), dict(new, rewards=[{'type': 'item', 'name': 'a b;', 'count': 1}])]
+check(all(act('product_save', {'key': 'pack_bad', 'isNew': True, 'product': b})[0] is False for b in bad), 'valeurs invalides (sans récompense, catégorie, prix, image, commande libre, nom) : refusées')
+check(act('product_toggle', {'key': 'pack_ete'})[0] is True and not any(p['key'] == 'pack_ete' for p in pub()['products']), 'produit masqué : retiré de la boutique')
+bal_before = bal(); W['now'] += 5000
+G.__event('elyzea_shop:buyCoins', SRC, 'pack_ete'); run(0, 8)
+check(bal() == bal_before, 'produit masqué : achat en coins refusé')
+act('product_toggle', {'key': 'pack_ete'})
+check(act('categories_save', {'categories': [c for c in to_py(AD())['categories'] if c['id'] != 'vehicles']})[0] is False, 'supprimer une catégorie qui contient des produits : refusé')
+cats = to_py(AD())['categories']; cats.append({'id': 'saison', 'label': 'Saison', 'icon': 'gift', 'enabled': False})
+check(act('categories_save', {'categories': cats})[0] is True and not any(c['id'] == 'saison' for c in pub()['categories']), 'catégorie ajoutée (masquée)')
+# Simule un redémarrage : config.lua seul, puis le catalogue en base
+L.execute("Config.Products.pack_ete = nil; Config.Products.sapphire.label = 'Ancien nom'; Config.Categories = { { id = 'vip', label = 'VIP' } }")
+act('product_save', {'key': 'royale', 'product': dict(new, label='Royale modifiée', tebexPackageId=None, category='vip')})
+L.execute("Config.Products.royale.label = 'perdu'; Catalog.load()")
+check(L.eval('Config.Products.pack_ete and Config.Products.pack_ete.label') == 'Pack été' and L.eval('Config.Products.royale.label') == 'Royale modifiée'
+      and L.eval('#Config.Categories') == len(cats), 'redémarrage : modifications rechargées depuis la base')
+check(act('product_reset', {'key': 'royale'})[0] is True and L.eval('Config.Products.royale.label') == 'Elyzea Royale', 'réinitialiser : retour aux valeurs de config.lua')
+tebex('deliver', 'tbx-500', ACC, 'sapphire')
+check(act('product_delete', {'key': 'sapphire'})[0] is False, 'supprimer un produit déjà acheté : refusé (à masquer)')
+sap = dict(to_py(AD())['products'][[p['key'] for p in to_py(AD())['products']].index('sapphire')])
+sap['rewards'] = [{'type': 'perk', 'name': 'nouveau'}]
+check(act('product_save', {'key': 'sapphire', 'product': sap})[0] is True, 'récompenses de Sapphire modifiées')
+W['commands'].clear(); tebex('revoke', 'tbx-500', ACC, 'sapphire')
+check(f'remove_principal identifier.fivem:{ACC} group.vip_sapphire' in W['commands'], 'remboursement d\'un achat ancien : retire ce qui avait été donné (pas la nouvelle liste)')
+check(act('product_delete', {'key': 'pack_ete'})[0] is True and L.eval('Config.Products.pack_ete') is None, 'produit jamais acheté : supprimé')
+L.execute("Config.Products.pack_ete = { label = 'x' }; Catalog.load()")
+check(L.eval('Config.Products.pack_ete') is None, 'suppression conservée après redémarrage')
+b0 = bal()
+r = act('coins_adjust', {'account': f'fivem:{ACC}', 'amount': 75, 'reason': 'geste'})
+check(r[0] is True and bal() == b0 + 75, f'coins ajoutés depuis l\'admin menu ({r[1]})')
+check(act('coins_adjust', {'account': f'fivem:{ACC}', 'amount': -999999})[0] is False and bal() == b0 + 75, 'retrait supérieur au solde : refusé')
+r = act('give', {'account': f'fivem:{ACC}', 'key': 'coins_1000'})
+check(r[0] is True and bal() == b0 + 1075, 'donner un produit à un joueur')
+check(len(sq("SELECT id FROM elyzea_shop_logs WHERE action LIKE 'admin%%'")) >= 8, 'chaque action admin journalisée')
 
 print(f'\n{fails} échec(s)')
 sys.exit(1 if fails else 0)

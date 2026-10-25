@@ -78,3 +78,13 @@ CREATE TABLE IF NOT EXISTS `elyzea_shop_logs` (
   PRIMARY KEY (`id`),
   KEY `ix_logs` (`level`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Catalogue modifié depuis l'admin menu (onglet Boutique, Fondateurs) : remplace les valeurs de config.lua.
+-- Une ligne par produit (clé) + une ligne « __categories » pour la liste des catégories.
+CREATE TABLE IF NOT EXISTS `elyzea_shop_catalog` (
+  `key`        VARCHAR(48)  NOT NULL,
+  `data`       LONGTEXT     NOT NULL,                      -- définition complète en JSON
+  `updated_by` VARCHAR(96)  NULL,
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -13,6 +13,7 @@ local EXTRA = {
     { key = 'tags_manage',   label = 'Tags : graffitis des quartiers (réglages, mots interdits, voir l\'auteur, supprimer un tag / ceux d\'un joueur / tous), /taginfo et /tagclean', cat = 'Illégal' },
     { key = 'drugs_manage',  label = 'Gestion des drogues : installations (placer, déplacer, supprimer), recettes, prix, culture, récolte, effets, pots des joueurs (elyzea_drogues)', cat = 'Illégal' },
     { key = 'drugs_effects', label = 'Drogues : effets seulement (durée de défonce, hallucinations, arrêter les effets d\'un joueur) (elyzea_drogues)', cat = 'Illégal' },
+    { key = 'shop_view',     label = 'Boutique : voir le catalogue, les livraisons et les coins (elyzea_shop). Modifier la boutique reste réservé aux Fondateurs', cat = 'Gestion' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

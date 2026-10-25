@@ -56,6 +56,11 @@ Config.Delivery = {
 -- Droits administrateur (ACE). Exemple dans server.cfg : add_ace group.admin elyzea_shop.admin allow
 Config.AdminAce = 'elyzea_shop.admin'
 
+-- Admin menu : ressource autorisée à modifier la boutique (onglet « Boutique », réservé aux Fondateurs).
+-- Les modifications faites dans l'admin menu sont enregistrées en base (elyzea_shop_catalog) et remplacent
+-- les produits / catégories de ce fichier, qui ne servent alors plus que de valeurs de départ.
+Config.AdminMenuResource = 'admin_menu'
+
 -- Commandes serveur prédéfinies utilisables comme récompense (type 'command'). Jamais de texte libre.
 -- Variables : {source} (id du joueur), {account} (identifiant Cfx.re numérique), {char} (personnage).
 Config.Commands = {

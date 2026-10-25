@@ -16,6 +16,7 @@ server_scripts {
     'server/coins.lua',
     'server/tebex.lua',
     'server/main.lua',
+    'server/admin.lua',
 }
 
 client_script 'client/main.lua'

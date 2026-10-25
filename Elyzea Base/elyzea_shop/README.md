@@ -157,6 +157,39 @@ Commande `/shopadmin`. Elle demande l'ACE `elyzea_shop.admin`, ou le groupe admi
 
 Le journal complet est dans la table `elyzea_shop_logs` : commandes Tebex reçues, erreurs, actions admin, achats en coins.
 
+### Onglet « Boutique » de l'admin menu (Fondateurs)
+
+La boutique se gère aussi depuis l'admin menu (F10), dans **Autres › Boutique**.
+
+**Qui voit quoi :**
+- l'onglet est visible avec la permission **`shop_view`** (à cocher dans l'éditeur de grades) ; le Fondateur l'a d'office ;
+- **seul le grade Fondateur** (`Config.OwnerRank` de l'admin menu) peut **modifier** quoi que ce soit ;
+- un autre grade avec `shop_view` voit tout en **lecture seule** ; il peut seulement rechercher un joueur (solde, grades actifs, livraisons) ;
+- ce contrôle est fait **côté serveur** à chaque action, deux fois :
+  - par l'admin menu (grade Fondateur) ;
+  - par elyzea_shop, qui n'accepte que les appels venant de la ressource `admin_menu` (`Config.AdminMenuResource`) et revalide chaque valeur.
+  Masquer les boutons dans l'interface n'est qu'un confort.
+
+**Ce que le Fondateur peut faire :**
+- **Produits** : créer, modifier, masquer / afficher, supprimer, remettre aux valeurs de `config.lua`.
+  - On règle : nom, catégorie, image, prix affiché, ID du paquet Tebex, prix en coins, durée, ordre, description, avantages affichés, récompenses.
+  - Un produit **déjà acheté** ne peut pas être supprimé (il faut le masquer) : il doit rester connu pour les livraisons et les remboursements.
+  - Un produit masqué disparaît de la boutique et ne s'achète plus en coins, mais les achats Tebex déjà payés restent livrés.
+  - Si vous changez les récompenses d'un produit, un achat déjà livré garde celles du moment de l'achat (un remboursement retire bien ce qui avait été donné).
+- **Catégories** : ajouter, renommer, réordonner, masquer. Une catégorie qui contient encore des produits ne peut pas être supprimée.
+- **Livraisons** : liste filtrable, relancer ou annuler une livraison en attente / échouée.
+- **Joueurs et coins** : ajuster les coins, donner un produit.
+- **Journal** : erreurs, avertissements et actions des Fondateurs.
+
+**Où sont enregistrées les modifications :**
+- dans la table `elyzea_shop_catalog` (créée automatiquement) ;
+- elles **remplacent** les produits et catégories de `config.lua`, qui ne servent plus que de valeurs de départ ;
+- pour revenir à `config.lua` : bouton « Valeurs de config.lua » sur le produit, ou vider la table.
+
+La clé Tebex n'est jamais envoyée à l'admin menu : l'onglet affiche seulement si `sv_tebexSecret` est présent.
+
+**Ordre de démarrage :** peu importe ; si `elyzea_shop` est arrêtée, l'onglet l'indique. Après une mise à jour, redémarrez **les deux** ressources.
+
 ## 8. Fiabilité des livraisons
 
 - **Idempotence** :
@@ -197,7 +230,7 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
 
 ## 10. Tests réalisés (hors jeu)
 
-- `python3 tests/run_sim.py elyzea` (puis `esx`) : **41/41** et **39/39**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
+- `python3 tests/run_sim.py elyzea` (puis `esx`) : **66/66** et **64/64**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
   - sécurité des commandes ;
   - joueur hors ligne ;
   - doublons ;
@@ -208,8 +241,11 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
   - livraison interrompue ;
   - remboursement ;
   - expiration ;
-  - administration.
+  - administration ;
+  - onglet admin menu : appels d'une autre ressource refusés, modification refusée sans droit Fondateur, création / masquage / suppression de produit, valeurs invalides refusées, catégories, rechargement après redémarrage, remboursement avec les anciennes récompenses.
 - `node tests/nui.e2e.cjs` : **21/21**. L'interface est testée dans Chromium : navigation, confirmations, ouverture de Tebex, refus du serveur, historique, texte jamais interprété comme du HTML, Échap, rendu en 1280×720.
+- `node ../admin_menu/tests/shop_ui.js ../admin_menu <dossier>` : **16/16**. L'onglet de l'admin menu est testé dans Chromium : lecture seule (aucun bouton de modification), Fondateur (création de produit, catégories, coins, relance), saisie conservée pendant l'actualisation automatique.
+- `python3 ../admin_menu/tests/run_shop_bridge_sim.py` : **9/9**. Le pont `admin_menu/server/shop.lua` est exécuté avec un admin menu simulé : un grade non Fondateur est bloqué sur les 8 actions de modification, la consultation reste permise. À confirmer en jeu avec un vrai compte non Fondateur.
 - Ces tests ont trouvé et fait corriger deux défauts :
   - un paramètre SQL `nil` faisait décaler les valeurs ;
   - le bouton Historique était caché quand le contenu était long.
