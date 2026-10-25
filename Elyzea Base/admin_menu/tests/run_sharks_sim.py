@@ -220,21 +220,21 @@ check(len(SH(G2)) == 0 and json.load(open(os.path.join(TMP, 'data/sharks.json'))
 L2.eval('__ev_onResourceStop')('admin_menu')
 
 # ------------------------------------------------------------------ CLIENT
-print('\n[8. Client : qui est attaqué]')
+print('\n[8. Client : les requins nagent, traquent et poursuivent]')
 def client():
     W = new_world()
     L = lua54.LuaRuntime(unpack_returned_tuples=True)
     G = L.globals()
     G.W = L.table_from(W)
     L.execute(PRELUDE)
-    L.execute(r'''
+    L.execute(r"""
     local W = W
     Config = {}
     function vector3(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return vector3(a.x - b.x, a.y - b.y, a.z - b.z) end, __add = function(a, b) return vector3(a.x + b.x, a.y + b.y, a.z + b.z) end, __len = function(a) return math.sqrt(a.x ^ 2 + a.y ^ 2 + a.z ^ 2) end }) end
     GlobalState = {}
-    PEDS = {}   -- [ped] = { x, y, z, player = id serveur, swim, vehicle, dead, health, shark = state, control }
-    ME = 1      -- mon ped
-    TASKS, EFFECTS = {}, 0
+    PEDS = {}   -- [ped] = { x, y, z, h, vx, vy, vz, player = id serveur, swim, vehicle, dead, health, shark = state, control }
+    ME = 1
+    TASKS = {}
     function AddStateBagChangeHandler(k, _, fn) _G['__bag_' .. k] = fn end
     function AddRelationshipGroup() end
     function SetRelationshipBetweenGroups() end
@@ -253,88 +253,135 @@ def client():
     function IsPedSwimming(p) return PEDS[p].swim == true end
     function IsPedSwimmingUnderWater() return false end
     function IsPedInAnyVehicle(p) return PEDS[p].vehicle == true end
-    function IsEntityInWater(p) return PEDS[p].swim == true or PEDS[p].vehicle == true end
+    function IsEntityInWater(p) return PEDS[p].swim == true or PEDS[p].vehicle == true or PEDS[p].wade == true end
+    function GetEntitySubmergedLevel(p) return PEDS[p].wade and 0.8 or (PEDS[p].swim and 1.0 or 0.0) end
     function GetEntityHealth(p) return PEDS[p].health end
     function SetEntityHealth(p, h) PEDS[p].health = h if h <= 100 then PEDS[p].dead = true end end
     function ApplyDamageToPed(p, d) SetEntityHealth(p, PEDS[p].health - d) end
-    function ShakeGameplayCam() EFFECTS = EFFECTS + 1 end
-    function PlaySoundFrontend() end
-    function StartScreenEffect() end
-    function StopScreenEffect() end
+    function GetEntityHeading(p) return PEDS[p].h or 0.0 end
+    function SetEntityHeading(p, h) PEDS[p].h = h end
+    function SetEntityVelocity(p, x, y, z) PEDS[p].moved = true if PEDS[p].ignoreVelocity then return end PEDS[p].vx, PEDS[p].vy, PEDS[p].vz = x, y, z end
+    function SetEntityCoordsNoOffset(p, x, y, z) PEDS[p].x, PEDS[p].y, PEDS[p].z = x, y, z PEDS[p].moved = true PEDS[p].stepped = true end
+    function GetHeadingFromVector_2d(x, y) return (math.deg(math.atan(-x, y)) + 360.0) % 360.0 end
+    function GetFrameTime() return 0.05 end
     function GetWaterHeightNoWaves(x, y, z) return true, 0.0 end
-    for _, n in ipairs({ 'SetBlockingOfNonTemporaryEvents', 'SetPedRelationshipGroupHash', 'SetPedFleeAttributes', 'SetPedCombatAttributes', 'SetPedKeepTask' }) do _G[n] = function() end end
+    for _, n in ipairs({ 'ShakeGameplayCam', 'PlaySoundFrontend', 'StartScreenEffect', 'StopScreenEffect', 'SetBlockingOfNonTemporaryEvents',
+        'SetPedRelationshipGroupHash', 'SetPedFleeAttributes', 'SetPedCombatAttributes', 'SetPedKeepTask', 'FreezeEntityPosition', 'SetEntityDynamic',
+        'ActivatePhysics', 'AddEventHandler' }) do _G[n] = function() end end
     function TaskCombatPed(p, t) TASKS[#TASKS + 1] = { 'combat', p, t } end
     function ClearPedTasks(p) TASKS[#TASKS + 1] = { 'clear', p } end
-    function ClearPedTasksImmediately(p) TASKS[#TASKS + 1] = { 'clearnow', p } end
-    function TaskGoStraightToCoord(p, x, y, z) TASKS[#TASKS + 1] = { 'go', p, x, y, z } end
-    function SetEntityCoords(p, x, y, z) PEDS[p].x, PEDS[p].y, PEDS[p].z = x, y, z TASKS[#TASKS + 1] = { 'tp', p } end
-    function AddEventHandler() end
+    function SetEntityCoords(p, x, y, z) PEDS[p].x, PEDS[p].y, PEDS[p].z = x, y, z PEDS[p].vx, PEDS[p].vy, PEDS[p].vz = 0, 0, 0 TASKS[#TASKS + 1] = { 'tp', p } end
     function GetCurrentResourceName() return 'admin_menu' end
-    function lastTask(p) for i = #TASKS, 1, -1 do if TASKS[i][2] == p then return TASKS[i] end end end
-    ''')
+    -- physique simplifiée : chaque ped avance selon sa vitesse (frottement de l'eau si plus rien ne le pousse)
+    function __physics(dt)
+        for _, x in pairs(PEDS) do
+            if x.vx then
+                x.x, x.y, x.z = x.x + x.vx * dt, x.y + x.vy * dt, x.z + x.vz * dt
+                x.vx, x.vy, x.vz = x.vx * 0.9, x.vy * 0.9, x.vz * 0.9
+            end
+        end
+    end
+    function dist(a, b) return math.sqrt((PEDS[a].x - PEDS[b].x) ^ 2 + (PEDS[a].y - PEDS[b].y) ^ 2) end
+    function combatOn(t) for _, x in ipairs(TASKS) do if x[1] == 'combat' and x[3] == t then return true end end return false end
+    """)
     for f in ['sharks_shared.lua', 'client/sharks.lua']:
         L.execute(open(os.path.join(ROOT, f), encoding='utf8').read())
     return L, G
 
 L, G = client()
-L.execute('''
+L.execute("""
 GlobalState.sharkAreas = { { id = 1, points = { {x=0,y=0,z=0},{x=100,y=0,z=0},{x=100,y=100,z=0},{x=0,y=100,z=0} }, homes = { {x=20,y=20,z=-3} } } }
 __bag_sharkAreas(nil, nil, GlobalState.sharkAreas)
-PEDS[50] = { x = 20, y = 20, z = -3, health = 200, control = true, shark = { a = 1, x = 20, y = 20, z = -3 } }
-PEDS[1] = { player = 1, x = 200, y = 200, z = 0, health = 200 }        -- moi, sur la plage
-PEDS[2] = { player = 2, x = 40, y = 40, z = 0, health = 200, vehicle = true }   -- en bateau dans la zone
-PEDS[3] = { player = 3, x = 150, y = 50, z = 0, health = 200, swim = true }     -- nage hors zone
-''')
-def tick(s=1):
-    for _ in range(int(s * 5)):
-        G.W.now = G.W.now + 200
-        for _ in range(2): G.__tick()
-def last(p):
-    t = G.lastTask(p)
-    return to_py(t) if t else None
-tick(2)
-check(last(50) and last(50)[0] == 'go', 'personne à attaquer : le requin patrouille dans sa zone')
-check(not any(to_py(t)[0] == 'combat' for t in L.eval('TASKS').values()), 'bateau dans la zone et nageur hors zone : jamais visés')
-L.execute('PEDS[4] = { player = 4, x = 60, y = 60, z = 0, health = 200, swim = true }')
+PEDS[50] = { x = 20, y = 20, z = -3, h = 0, health = 200, control = true, shark = { a = 1, x = 20, y = 20, z = -3 } }
+PEDS[1] = { player = 1, x = 300, y = 300, z = 0, health = 200 }                       -- moi, sur la plage
+PEDS[2] = { player = 2, x = 60, y = 40, z = 0, health = 200, vehicle = true }          -- en bateau dans la zone
+PEDS[3] = { player = 3, x = 150, y = 50, z = 0, health = 200, swim = true }            -- nage hors zone
+""")
+def tick(s=1.0):
+    for _ in range(int(s * 20)):          # 20 images par seconde
+        G.W.now = G.W.now + 50
+        G.__tick()
+        L.eval('__physics')(0.05)
+def pos(p): return (L.eval(f'PEDS[{p}].x'), L.eval(f'PEDS[{p}].y'), L.eval(f'PEDS[{p}].z'))
+def inside(p): x, y, _ = pos(p); return 0 <= x <= 100 and 0 <= y <= 100
+
+start = pos(50)
+path, stayed = 0.0, True
+prev = start
+for _ in range(60):
+    tick(1)
+    cur = pos(50)
+    path += ((cur[0] - prev[0]) ** 2 + (cur[1] - prev[1]) ** 2) ** 0.5
+    prev = cur
+    stayed = stayed and inside(50) and cur[2] <= -0.5
+check(path > 60, f'personne dans l\'eau : le requin nage et patrouille ({path:.0f} m parcourus en 60 s)')
+check(stayed, 'patrouille : toujours dans sa zone et sous la surface')
+check(not L.eval('combatOn(2)') and not L.eval('combatOn(3)'), 'joueur en bateau dans la zone, nageur hors zone : jamais chassés')
+
+L.execute('PEDS[4] = { player = 4, x = 85, y = 85, z = 0, health = 200, swim = true }')
 L.execute('GlobalState.sharkImmune = { ["4"] = true }')
-tick(2)
-check(not any(to_py(t)[0] == 'combat' for t in L.eval('TASKS').values()), 'nageur protégé dans la zone : pas visé')
-L.execute('GlobalState.sharkImmune = {}')
+d0 = L.eval('dist(50, 4)')
+tick(5)
+check(not L.eval('combatOn(4)'), 'nageur protégé dans la zone : pas chassé')
+L.execute('GlobalState.sharkImmune = {}; PEDS[50].x, PEDS[50].y = 35, 35')
+d0 = L.eval('dist(50, 4)')
+tick(3)
+d1 = L.eval('dist(50, 4)')
+check(d0 - d1 > 14, f'nageur dans la zone : le requin fonce sur lui ({d0:.0f} m → {d1:.0f} m en 3 s)')
+# la proie s'enfuit à la nage (3 m/s) : le requin la rattrape
+caught, chase_s = False, 0
+for i in range(600):
+    L.execute('PEDS[4].x = math.max(5, PEDS[4].x - 0.15); PEDS[4].y = math.max(5, PEDS[4].y - 0.05)')
+    tick(0.05)
+    chase_s += 0.05
+    if L.eval('dist(50, 4)') < 3.0: caught = True; break
+check(caught or L.eval('dist(50, 4)') < 3.0, f'la proie s\'enfuit à 3 m/s : le requin la poursuit et la rattrape (en {chase_s:.1f} s)')
 tick(1)
-check(last(50) == ['combat', 50, 4], 'nageur non protégé dans la zone : attaqué')
-L.execute('PEDS[4].swim = false; PEDS[4].vehicle = true')
+check(L.eval('combatOn(4)'), 'au contact : attaque (animation de morsure du jeu)')
+L.execute('PEDS[4].swim = false; PEDS[4].vehicle = true; TASKS = {}')
 tick(1)
-check(last(50)[0] in ('clear', 'go'), 'il monte dans un bateau : le requin le lâche')
-L.execute('PEDS[4].vehicle = false; PEDS[4].swim = true; PEDS[4].x = 130')
-tick(1)
-check(last(50)[0] != 'combat', 'il sort de la zone à la nage : le requin ne le suit pas')
-L.execute('PEDS[50].x = 115; PEDS[50].y = 50')
-tick(1)
-t = last(50)
-check(t[0] == 'go' and t[2] == 20 and t[3] == 20, 'requin sorti de la zone : retourne vers son point d\'apparition')
+check(any(to_py(t)[0] == 'clear' for t in L.eval('TASKS').values()), 'la proie monte dans un bateau : le requin la lâche')
+L.execute('PEDS[4].vehicle = false; PEDS[4].wade = true; PEDS[4].x, PEDS[4].y = 50, 50; TASKS = {}')
+tick(10)
+check(L.eval('combatOn(4)') or L.eval('dist(50, 4)') < 6, 'joueur immergé dans l\'eau (sans nager) : traqué aussi')
+L.execute('PEDS[4].wade = false; PEDS[4].swim = true; PEDS[4].x, PEDS[4].y = 160, 50; TASKS = {}')
+tick(6)
+check(inside(50) or (pos(50)[0] - 100) < 3, 'la proie sort de la zone : le requin ne la suit pas dehors')
+L.execute('PEDS[50].x, PEDS[50].y = 115, 50')
+tick(8)
+check(inside(50), 'requin sorti de la zone : il y revient à la nage')
 L.execute('PEDS[50].x = 200; TASKS = {}')
 tick(1)
-check(any(to_py(t) == ['tp', 50] for t in L.eval('TASKS').values()) and L.eval('PEDS[50].x') == 20, 'requin trop loin dehors (40 m) : remis à son point')
-L.execute('PEDS[50].control = false; PEDS[4].x = 60; TASKS = {}')
-tick(1)
-check(len(list(L.eval('TASKS').values())) == 0, 'requin simulé par un autre joueur : ce client ne lui donne pas d\'ordre')
+check(any(to_py(t) == ['tp', 50] for t in L.eval('TASKS').values()), 'requin trop loin dehors (40 m) : remis à son point')
+L.execute('PEDS[50].control = false; PEDS[4].x = 60')
+tick(0.5)
+L.execute('PEDS[50].moved = false')
+tick(2)
+check(not L.eval('PEDS[50].moved'), 'requin piloté par un autre joueur : ce client n\'y touche pas')
+L.execute('PEDS[50].control = true; PEDS[4] = nil')
+
+# GTA ignore la vitesse donnée au requin : le secours le déplace quand même
+L.execute('PEDS[60] = { x = 50, y = 50, z = -3, h = 0, health = 200, control = true, ignoreVelocity = true, shark = { a = 1, x = 50, y = 50, z = -3 } }')
+p0 = pos(60)
+tick(15)
+p1 = pos(60)
+check(L.eval('PEDS[60].stepped') is True and ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** 0.5 > 8 and inside(60), f'si le jeu ignore la vitesse du requin : déplacé pas à pas quand même ({((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** 0.5:.0f} m en 15 s)')
+L.execute('PEDS[60] = nil')
 
 print('\n[9. Client : morsures]')
-L.execute('PEDS[1].x, PEDS[1].y, PEDS[1].swim = 21, 21, true; PEDS[1].health = 200')
-tick(1)
+L.execute('PEDS[50].x, PEDS[50].y, PEDS[50].z = 40, 40, -3; PEDS[1].x, PEDS[1].y, PEDS[1].z, PEDS[1].swim = 41, 41, 0, true; PEDS[1].health = 200')
+tick(1.5)
 h1 = L.eval('PEDS[1].health')
-check(h1 < 200, f'je nage à côté d\'un requin dans la zone : mordu ({200 - h1} dégâts)')
-tick(1.3)
-check(L.eval('PEDS[1].health') <= h1 - 30 or h1 <= 140, 'morsures répétées toutes les 1,5 s')
-tick(6)
-check(L.eval('PEDS[1].dead') is True, 'mordu jusqu\'à la mort')
-L.execute('PEDS[1].dead = false; PEDS[1].health = 200; PEDS[1].swim = false; PEDS[1].vehicle = true')
+check(h1 < 200, f'je suis dans l\'eau à côté d\'un requin de la zone : mordu ({200 - h1} dégâts)')
+tick(8)
+check(L.eval('PEDS[1].dead') is True, 'poursuivi et mordu jusqu\'à la mort')
+L.execute('PEDS[1].dead = false; PEDS[1].health = 200; PEDS[1].swim = false; PEDS[1].vehicle = true; PEDS[50].x, PEDS[50].y = 41, 41')
 tick(3)
 check(L.eval('PEDS[1].health') == 200, 'dans un bateau à côté du requin : jamais mordu')
 L.execute('PEDS[1].vehicle = false; PEDS[1].swim = true; GlobalState.sharkImmune = { ["1"] = true }')
 tick(3)
 check(L.eval('PEDS[1].health') == 200, 'joueur protégé à côté du requin : jamais mordu')
-L.execute('PEDS[1].health = 150')   # touché quand même (IA du jeu)
+L.execute('PEDS[1].health = 150; PEDS[50].x, PEDS[50].y = PEDS[1].x, PEDS[1].y')
 tick(0.4)
 check(L.eval('PEDS[1].health') == 200, 'joueur protégé blessé par un requin : santé remise')
 L.execute('GlobalState.sharkImmune = {}; PEDS[50].shark = nil; PEDS[1].health = 200')

@@ -24,7 +24,11 @@ Sharks.Cfg = {
     maxZonePoints    = 50,
     depth            = 3.0,     -- un point d'apparition est placé à X m sous la surface
     minWaterDepth    = 2.5,     -- profondeur d'eau minimale pour poser un point
-    chaseDistance    = 80.0,    -- distance max à laquelle un requin repère un nageur
+    chaseDistance    = 80.0,    -- distance max à laquelle un requin repère un joueur dans l'eau
+    patrolSpeed      = 2.2,     -- vitesse de patrouille (m/s)
+    chaseSpeed       = 6.5,     -- vitesse de poursuite (m/s) : un joueur nage à environ 2 à 4 m/s
+    patrolTurn       = 70.0,    -- virage max en patrouille (degrés par seconde)
+    chaseTurn        = 240.0,   -- virage max en poursuite
     biteDistance     = 3.2,     -- distance d'une morsure
     biteDamage       = 30,      -- dégâts par morsure (santé GTA : 100 = mort, 200 = pleine)
     biteInterval     = 1500,    -- ms entre deux morsures d'un même requin

@@ -969,7 +969,8 @@ Requins agressifs dans des zones que tu dessines en jeu. Le Fondateur a la permi
 3. Dans le menu : nombre de requins par point (1 à 5), espèce (tigre ou marteau), délai de réapparition (10 s à 1 h, 120 s par défaut).
 
 **Comportement**
-- Les requins patrouillent dans la zone et attaquent **tout joueur qui nage dans la zone**, jusqu'à le tuer (morsures de 30 points toutes les 1,5 s, appliquées par le jeu du joueur mordu).
+- Les requins **nagent en permanence** : patrouille lente (2,2 m/s) dans la zone, puis **traque** dès qu'un joueur est dans l'eau de la zone (repéré jusqu'à 80 m) : il fonce sur lui (6,5 m/s, plus vite qu'un nageur), le poursuit et le mord jusqu'à le tuer (30 points toutes les 1,5 s, appliqués par le jeu du joueur mordu).
+- Le déplacement est piloté par le script à chaque image (les ordres de déplacement de GTA ne font pas nager les poissons). Si le jeu ignore la vitesse donnée à un requin, il est déplacé pas à pas automatiquement.
 - Jamais les joueurs **en bateau ou dans un véhicule** ; un nageur qui remonte dans un bateau ou sort de la zone est lâché.
 - Ils ne sortent pas de la zone : un requin dehors fait demi-tour vers son point ; s'il est à plus de 40 m dehors (ou dehors depuis 20 s), il est remis à son point.
 - Requin tué : le corps reste 20 s, puis il réapparaît **à son point d'apparition** après le délai de la zone.
@@ -980,4 +981,4 @@ Requins agressifs dans des zones que tu dessines en jeu. Le Fondateur a la permi
 
 **Réglages avancés** (facultatif, dans `config.lua`) : `Config.Sharks = { biteDamage = 40, biteInterval = 1200, activateDistance = 350.0 }`. Toutes les valeurs sont dans `sharks_shared.lua`.
 
-**Tests hors jeu** : `python3 tests/run_sharks_sim.py` (55/55 : serveur et client avec un FiveM simulé) et `node tests/sharks_ui.js . <dossier>` (13/13 : onglet dans Chromium). L'IA de nage de GTA (déplacement réel des requins, attaque native) n'est pas simulée : à vérifier en jeu.
+**Tests hors jeu** : `python3 tests/run_sharks_sim.py` (59/59 : serveur et client avec un FiveM simulé, dont une physique d'eau simplifiée pour vérifier la nage et la poursuite) et `node tests/sharks_ui.js . <dossier>` (13/13 : onglet dans Chromium). Le rendu réel dans GTA (animation de nage, collisions) n'est pas simulé : à vérifier en jeu. Vitesses réglables : `Config.Sharks = { chaseSpeed = 7.5, patrolSpeed = 2.0 }`.
