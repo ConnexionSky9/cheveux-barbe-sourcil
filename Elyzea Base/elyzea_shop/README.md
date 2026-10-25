@@ -178,7 +178,12 @@ La boutique se gère aussi depuis l'admin menu (F10), dans **Autres › Boutique
   - Si vous changez les récompenses d'un produit, un achat déjà livré garde celles du moment de l'achat (un remboursement retire bien ce qui avait été donné).
 - **Catégories** : ajouter, renommer, réordonner, masquer. Une catégorie qui contient encore des produits ne peut pas être supprimée.
 - **Livraisons** : liste filtrable, relancer ou annuler une livraison en attente / échouée.
-- **Joueurs et coins** : ajuster les coins, donner un produit.
+- **Donner des Elyzea Coins** (Joueurs et coins, ou bouton sur la page Général) : à **soi-même** (« Moi-même »), à un **joueur connecté** (liste), ou à un compte **hors ligne** (`fivem:XXXX`).
+  - Montant de 1 à 1 000 000 (boutons rapides 100 → 10 000, confirmation à partir de 10 000), raison facultative.
+  - Le joueur connecté reçoit une notification ; son historique de coins indique « Don admin : raison ».
+  - Chaque don est journalisé avec le nom et la licence du Fondateur (`elyzea_shop_logs`, action `admin_coins_give`).
+  - Un joueur connecté sans compte Cfx.re (FiveM non connecté) ne peut pas recevoir de coins : message clair.
+- **Joueurs et coins** : rechercher un joueur, ajuster ses coins (+ / −), lui donner un produit.
 - **Journal** : erreurs, avertissements et actions des Fondateurs.
 
 **Où sont enregistrées les modifications :**
@@ -230,7 +235,7 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
 
 ## 10. Tests réalisés (hors jeu)
 
-- `python3 tests/run_sim.py elyzea` (puis `esx`) : **66/66** et **64/64**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
+- `python3 tests/run_sim.py elyzea` (puis `esx`) : **74/74** et **72/72**. Le test exécute les vrais fichiers Lua sur une vraie base MariaDB, avec les commandes Tebex simulées comme Tebex les envoie. Il couvre :
   - sécurité des commandes ;
   - joueur hors ligne ;
   - doublons ;
@@ -244,8 +249,8 @@ Je n'ai pas pu lancer un vrai serveur FiveM ni faire un vrai paiement Tebex. Voi
   - administration ;
   - onglet admin menu : appels d'une autre ressource refusés, modification refusée sans droit Fondateur, création / masquage / suppression de produit, valeurs invalides refusées, catégories, rechargement après redémarrage, remboursement avec les anciennes récompenses.
 - `node tests/nui.e2e.cjs` : **21/21**. L'interface est testée dans Chromium : navigation, confirmations, ouverture de Tebex, refus du serveur, historique, texte jamais interprété comme du HTML, Échap, rendu en 1280×720.
-- `node ../admin_menu/tests/shop_ui.js ../admin_menu <dossier>` : **16/16**. L'onglet de l'admin menu est testé dans Chromium : lecture seule (aucun bouton de modification), Fondateur (création de produit, catégories, coins, relance), saisie conservée pendant l'actualisation automatique.
-- `python3 ../admin_menu/tests/run_shop_bridge_sim.py` : **9/9**. Le pont `admin_menu/server/shop.lua` est exécuté avec un admin menu simulé : un grade non Fondateur est bloqué sur les 8 actions de modification, la consultation reste permise. À confirmer en jeu avec un vrai compte non Fondateur.
+- `node ../admin_menu/tests/shop_ui.js ../admin_menu <dossier>` : **22/22**. L'onglet de l'admin menu est testé dans Chromium : lecture seule (aucun bouton de modification), Fondateur (création de produit, catégories, coins, relance), saisie conservée pendant l'actualisation automatique.
+- `python3 ../admin_menu/tests/run_shop_bridge_sim.py` : **9/9**. Le pont `admin_menu/server/shop.lua` est exécuté avec un admin menu simulé : un grade non Fondateur est bloqué sur les 9 actions de modification, la consultation reste permise. À confirmer en jeu avec un vrai compte non Fondateur.
 - Ces tests ont trouvé et fait corriger deux défauts :
   - un paramètre SQL `nil` faisait décaler les valeurs ;
   - le bouton Historique était caché quand le contenu était long.

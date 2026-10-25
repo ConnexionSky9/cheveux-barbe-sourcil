@@ -11,7 +11,7 @@
         show: () => has('shop_view') && !!(D && D.shop),
     });
 
-    const S = { sub: 'home', edit: null, cats: null, ver: 0, lookup: '', adjust: { amount: '', reason: '' }, giveKey: '', delivFilter: 'all' };
+    const S = { sub: 'home', edit: null, cats: null, ver: 0, lookup: '', adjust: { amount: '', reason: '' }, giveKey: '', delivFilter: 'all', gift: { target: 'me', fivem: '', amount: '', reason: '' } };
     const send = (name, data = {}) => action('shop', { name, data });
     const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
     const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -44,6 +44,7 @@
             <div class="stat"><b>${fmt(s.stats.pending)}</b><span>Livraisons en attente</span></div>
             <div class="stat"><b style="${s.stats.failed ? 'color:var(--danger)' : ''}">${fmt(s.stats.failed)}</b><span>Livraisons échouées</span></div>
             <div class="stat"><b>${s.coins.enabled ? fmt(s.coins.total) + ' ' + esc(s.coins.short) : 'désactivés'}</b><span>${esc(s.coins.label)} en circulation</span></div></div>
+        ${canEdit() && s.coins.enabled ? `<div class="btn-row" style="margin:12px 0"><button class="btn primary" data-ssub="players">🎁 Donner des ${esc(s.coins.label)} (moi-même ou un joueur)</button></div>` : ''}
         <div class="section"><h2>Tebex</h2>
             <p class="hint">${s.tebex.secretSet ? '🟢 <b>sv_tebexSecret</b> est présent dans server.cfg.' : '🔴 <b>sv_tebexSecret</b> absent : les paiements Tebex ne seront pas livrés.'}
             Boutique Tebex : <b>${esc(s.tebex.storeUrl)}</b> (config.lua).</p>
@@ -131,9 +132,25 @@
     }
 
     /* ---------------- Joueurs et coins ---------------- */
+    function viewGift(s) {
+        if (!canEdit() || !s.coins.enabled) return '';
+        const me = (D.me && D.me.id) || 0, g = S.gift;
+        const others = (D.players || []).filter((p) => p.id !== me).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const opt = (v, l) => `<option value="${esc(v)}" ${String(g.target) === String(v) ? 'selected' : ''}>${esc(l)}</option>`;
+        return `<div class="section"><h2>🎁 Donner des ${esc(s.coins.label)}</h2>
+            <div class="form-grid" style="grid-template-columns:minmax(220px,1.3fr) minmax(140px,.7fr) minmax(180px,1fr) auto;align-items:end">
+                <div><label>Joueur</label><select class="input" data-sgift="target">${opt('me', `⭐ Moi-même (ID ${me})`)}${others.map((p) => opt(p.id, `${p.name} (ID ${p.id})`)).join('')}${opt('fivem', '✏️ Autre compte : fivem:XXXX (même hors ligne)')}</select></div>
+                <div><label>Montant</label><input class="input" type="number" min="1" max="1000000" data-sgift="amount" value="${esc(g.amount)}" placeholder="ex. 1000"></div>
+                <div><label>Raison (journal)</label><input class="input" maxlength="48" data-sgift="reason" value="${esc(g.reason)}" placeholder="ex. event, compensation"></div>
+                <button class="btn primary" data-sa="gift">Donner</button></div>
+            ${g.target === 'fivem' ? `<div style="max-width:320px;margin-top:8px"><label>Compte</label><input class="input" data-sgift="fivem" value="${esc(g.fivem)}" placeholder="fivem:1234567"></div>` : ''}
+            <div class="btn-row" style="margin-top:8px">${[100, 500, 1000, 5000, 10000].map((n) => `<button class="btn" data-sgamt="${n}">${fmt(n)}</button>`).join('')}</div>
+            <p class="hint">Les coins arrivent tout de suite sur le compte Cfx.re du joueur (même hors ligne avec fivem:ID) ; il reçoit une notification s'il est connecté. Chaque don est journalisé avec ton nom.</p></div>`;
+    }
+
     function viewPlayers(s) {
         const L = s.lookup;
-        return `${ro()}<div class="section"><h2>Rechercher un joueur</h2>
+        return `${ro()}${viewGift(s)}<div class="section"><h2>Rechercher un joueur</h2>
             <div class="btn-row"><input class="input" style="max-width:320px" placeholder="ID serveur (connecté) ou fivem:XXXX" data-slook value="${esc(S.lookup)}">
             <button class="btn primary" data-sa="lookup">🔎 Afficher</button></div></div>
         ${L ? `<div class="section"><h2>Compte fivem:${esc(L.account)}</h2>
@@ -198,6 +215,7 @@
         if (t.dataset.ssub) { S.sub = t.dataset.ssub; S.edit = null; S.cats = null; return reRender(); }
         if (t.dataset.sedit) { openEditor(t.dataset.sedit); return reRender(); }
         if (t.dataset.stoggle) return send('product_toggle', { key: t.dataset.stoggle });
+        if (t.dataset.sgamt) { S.gift.amount = t.dataset.sgamt; return reRender(); }
         if (t.dataset.sdf) { S.delivFilter = t.dataset.sdf; return reRender(); }
         if (t.dataset.sretry) return send('delivery_retry', { id: Number(t.dataset.sretry) });
         if (t.dataset.scancel) { if (window.confirm('Annuler cette livraison ? Le joueur ne la recevra pas.')) send('delivery_cancel', { id: Number(t.dataset.scancel) }); return; }
@@ -216,6 +234,17 @@
         if (a === 'cat_add') { S.cats.push({ id: `categorie_${S.cats.length + 1}`, label: 'Nouvelle catégorie', icon: 'star', description: '', enabled: true }); return reRender(); }
         if (a === 'cat_reset') { S.cats = null; return reRender(); }
         if (a === 'cat_save') { const list = clone(S.cats); S.cats = null; reRender(); return send('categories_save', { categories: list }); }
+        if (a === 'gift') {
+            const g = S.gift, me = (D.me && D.me.id) || 0;
+            const target = g.target === 'me' ? String(me) : g.target === 'fivem' ? g.fivem.trim() : String(g.target);
+            const amount = Number(g.amount);
+            if (!target || !Number.isInteger(amount) || amount < 1) return;
+            const who = g.target === 'me' ? 'toi-même' : g.target === 'fivem' ? target : ((D.players || []).find((p) => String(p.id) === target) || {}).name || `ID ${target}`;
+            if (amount >= 10000 && !window.confirm(`Donner ${fmt(amount)} ${s.coins.short} à ${who} ?`)) return;
+            const reason = g.reason;
+            S.gift.amount = ''; S.gift.reason = ''; reRender();
+            return send('coins_give', { target, amount, reason });
+        }
         if (a === 'lookup') return send('account_lookup', { account: S.lookup.trim() });
         if (a === 'coins') { const acc = (s.lookup || {}).account; if (!acc) return; const d = { account: `fivem:${acc}`, amount: Number(S.adjust.amount), reason: S.adjust.reason }; S.adjust = { amount: '', reason: '' }; send('coins_adjust', d); return setTimeout(() => send('account_lookup', { account: `fivem:${acc}` }), 400); }
         if (a === 'give') { const acc = (s.lookup || {}).account; if (!acc || !S.giveKey) return; if (!window.confirm('Donner ce produit à ce joueur ?')) return; send('give', { account: `fivem:${acc}`, key: S.giveKey }); return setTimeout(() => send('account_lookup', { account: `fivem:${acc}` }), 400); }
@@ -231,6 +260,7 @@
         else if (t.dataset.sc && S.cats) { const [i, k] = t.dataset.sc.split(':'); S.cats[Number(i)][k] = t.value; }
         else if (t.hasAttribute('data-slook')) S.lookup = t.value;
         else if (t.dataset.sadj) S.adjust[t.dataset.sadj] = t.value;
+        else if (t.dataset.sgift && t.dataset.sgift !== 'target') S.gift[t.dataset.sgift] = t.value;
     });
     document.addEventListener('change', (ev) => {
         if (!on()) return;
@@ -240,5 +270,6 @@
         else if (t.dataset.sc && S.cats) { const [i, k] = t.dataset.sc.split(':'); S.cats[Number(i)][k] = t.value; }
         else if (t.dataset.scen !== undefined && S.cats) S.cats[Number(t.dataset.scen)].enabled = t.checked;
         else if (t.hasAttribute('data-sgive')) S.giveKey = t.value;
+        else if (t.dataset.sgift === 'target') { S.gift.target = t.value; reRender(); }
     });
 })();

@@ -19,7 +19,7 @@ const path = require('path');
   const send = (canEdit, extra = {}) => page.evaluate(([canEdit, extra]) => {
     window.postMessage({ action: 'data', data: {
       me: { id: 1, label: canEdit ? 'Fondateur' : 'Admin', color: '#d9b56a', level: canEdit ? 100 : 30, perms: { shop_view: true }, onDuty: true, duty: true },
-      players: [], keys: [], jobs: [], config: { editor: { minLevel: 0, quickProps: [], quickPeds: [], npcPresets: [] } },
+      players: [{ id: 1, name: 'Moi' }, { id: 5, name: 'Sam' }, { id: 8, name: 'Lou' }], keys: [], jobs: [], config: { editor: { minLevel: 0, quickProps: [], quickPeds: [], npcPresets: [] } },
       shop: Object.assign({
         available: true, canEdit,
         products: [
@@ -57,6 +57,7 @@ const path = require('path');
   await page.fill('[data-slook]', 'fivem:123456789');
   await page.click('[data-sa="lookup"]');
   await page.waitForTimeout(100);
+  check('lecture seule : pas de bloc de don de coins', !(await page.$('[data-sa="gift"]')));
   check('lecture seule : recherche d\'un joueur envoyée', JSON.stringify(lastShop()).includes('account_lookup'));
   // ---------- Fondateur
   await send(true, { lookup: { account: '123456789', coins: 500, vip: [{ name: 'vip_sapphire' }], coinHistory: [{ delta: 500, balance_after: 500, reason: 'Achat', created_at: '2026-10-20 12:00:00' }], deliveries: [] } });
@@ -67,6 +68,35 @@ const path = require('path');
   await page.fill('[data-sadj="reason"]', 'erreur');
   await page.click('[data-sa="coins"]');
   await page.waitForTimeout(100);
+  // Don de coins : moi-même, un autre joueur, un compte hors ligne
+  check('bloc « Donner des Elyzea Coins » (Fondateur)', !!(await page.$('[data-sa="gift"]')) && (await page.textContent('[data-sgift="target"]')).includes('Moi-même (ID 1)'));
+  await page.click('[data-sgamt="1000"]');
+  await page.fill('[data-sgift="reason"]', 'test');
+  await page.click('[data-sa="gift"]');
+  await page.waitForTimeout(100);
+  const lastGift = () => shopPosts().filter((b) => b.name === 'coins_give').pop();
+  let g = lastGift();
+  check('don à moi-même : ID 1, 1000, raison', g.name === 'coins_give' && g.data.target === '1' && g.data.amount === 1000 && g.data.reason === 'test');
+  await page.selectOption('[data-sgift="target"]', '5');
+  await page.fill('[data-sgift="amount"]', '250');
+  await page.click('[data-sa="gift"]');
+  await page.waitForTimeout(100);
+  g = lastGift();
+  check('don à un autre joueur (Sam, ID 5)', g.name === 'coins_give' && g.data.target === '5' && g.data.amount === 250);
+  await page.selectOption('[data-sgift="target"]', 'fivem');
+  await page.fill('[data-sgift="fivem"]', 'fivem:7654321');
+  await page.fill('[data-sgift="amount"]', '20000');
+  await page.screenshot({ path: out + '/boutique_don_coins.png' });
+  await page.click('[data-sa="gift"]');
+  await page.waitForTimeout(100);
+  g = lastGift();
+  check('don à un compte hors ligne (avec confirmation au-delà de 10 000)', g.name === 'coins_give' && g.data.target === 'fivem:7654321' && g.data.amount === 20000);
+  await page.waitForTimeout(500);
+  const nBefore = shopPosts().length;
+  await page.fill('[data-sgift="amount"]', '-5');
+  await page.click('[data-sa="gift"]');
+  await page.waitForTimeout(100);
+  check('montant invalide : rien n\'est envoyé', shopPosts().length === nBefore);
   check('ajustement de coins envoyé', shopPosts().some((b) => JSON.stringify(b).includes('coins_adjust') && JSON.stringify(b).includes('-50')));
   await page.click('[data-ssub="products"]');
   check('Fondateur : boutons de modification', !!(await page.$('[data-sa="new"]')) && !!(await page.$('[data-stoggle="sapphire"]')));

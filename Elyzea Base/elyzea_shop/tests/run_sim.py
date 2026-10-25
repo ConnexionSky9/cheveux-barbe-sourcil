@@ -378,5 +378,25 @@ r = act('give', {'account': f'fivem:{ACC}', 'key': 'coins_1000'})
 check(r[0] is True and bal() == b0 + 1075, 'donner un produit à un joueur')
 check(len(sq("SELECT id FROM elyzea_shop_logs WHERE action LIKE 'admin%%'")) >= 8, 'chaque action admin journalisée')
 
+print('\n[13. Admin menu : donner des Elyzea Coins]')
+W['online'] = True; W['client'].clear(); b0 = bal()
+r = act('coins_give', {'target': str(SRC), 'amount': 1500, 'reason': 'event'})
+check(r[0] is True and bal() == b0 + 1500, f'don au joueur connecté (ou à soi-même) par son ID serveur ({r[1]})')
+check(any(c[1] == SRC and c[0] in ('elyzea:client:notify', 'esx:showNotification', 'elyzea_shop:refresh') for c in W['client']) or FW == 'esx', 'joueur prévenu en jeu')
+log = sq("SELECT reason, actor FROM elyzea_shop_coin_log WHERE account = %s ORDER BY id DESC LIMIT 1", (ACC,))[0]
+check(log['reason'] == 'Don admin : event' and log['actor'] == 'Fondateur test', 'historique du joueur : « Don admin : event », auteur enregistré')
+W['online'] = False
+r = act('coins_give', {'target': f'fivem:{ACC}', 'amount': 10})
+check(r[0] is True and bal() == b0 + 1510 and 'hors ligne' in r[1], 'don à un compte hors ligne (fivem:ID)')
+check(act('coins_give', {'target': f'fivem:{ACC}', 'amount': 5}, False)[0] is False and bal() == b0 + 1510, 'sans droit Fondateur : refusé')
+check(all(act('coins_give', {'target': f'fivem:{ACC}', 'amount': a})[0] is False for a in [0, -50, 2.5, 'abc', 2000000]) and bal() == b0 + 1510, 'montants invalides (0, négatif, décimal, texte, > 1 000 000) : refusés')
+check(act('coins_give', {'target': '99', 'amount': 5})[0] is False, 'joueur introuvable : refusé')
+W['online'] = True
+L.execute('local f = GetPlayerIdentifierByType; GetPlayerIdentifierByType = function() return nil end; __restoreId = f')
+r = act('coins_give', {'target': str(SRC), 'amount': 5})
+L.execute('GetPlayerIdentifierByType = __restoreId')
+check(r[0] is False and 'Cfx.re' in r[1], 'joueur sans compte Cfx.re : message clair')
+W['online'] = False
+
 print(f'\n{fails} échec(s)')
 sys.exit(1 if fails else 0)

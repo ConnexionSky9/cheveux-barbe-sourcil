@@ -30,10 +30,10 @@ def check(c, label):
 act = lambda src, name: L.eval('AdminMenu.Actions.shop.fn')(src, L.table_from({'name': name, 'data': L.table_from({})}))
 calls = lambda: L.eval('#CALLS')
 check(L.eval('AdminMenu.Actions.shop.perm') == 'shop_view', 'action protégée par la permission shop_view')
-for name in ['product_save', 'product_toggle', 'product_delete', 'categories_save', 'coins_adjust', 'give', 'delivery_retry', 'delivery_cancel']:
+for name in ['product_save', 'product_toggle', 'product_delete', 'categories_save', 'coins_adjust', 'coins_give', 'give', 'delivery_retry', 'delivery_cancel']:
     act(2, name)
-check(calls() == 0, 'grade Admin (non Fondateur) : 8 actions de modification bloquées avant elyzea_shop')
-check('Fondateurs' in L.eval('NOTES[#NOTES][2]') and L.eval('#LOGS') == 8, 'refus notifié et journalisé')
+check(calls() == 0, 'grade Admin (non Fondateur) : 9 actions de modification bloquées avant elyzea_shop')
+check('Fondateurs' in L.eval('NOTES[#NOTES][2]') and L.eval('#LOGS') == 9, 'refus notifié et journalisé')
 act(2, 'account_lookup')
 check(calls() == 1 and L.eval('CALLS[1].canEdit') is False, 'Admin : consultation d\'un joueur permise (canEdit = faux transmis)')
 act(1, 'product_save')

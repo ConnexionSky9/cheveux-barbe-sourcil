@@ -307,6 +307,34 @@ A.coins_adjust = function(d, actor)
     return true, ('Nouveau solde : %d %s'):format(Coins.balance(acc), Config.Coins.short)
 end
 
+-- Don d'Elyzea Coins à soi-même ou à un autre joueur (id serveur d'un joueur connecté, ou fivem:ID même hors ligne)
+A.coins_give = function(d, actor)
+    if not Config.Coins.enabled then return false, 'Les Elyzea Coins sont désactivés (config.lua).' end
+    local target = tostring(d.target or '')
+    local acc = account(target)
+    if not acc then
+        local src = tonumber(target)
+        if src and GetPlayerName(src) then return false, ('%s n\'est pas connecté à un compte Cfx.re dans FiveM : impossible de lui donner des coins.'):format(GetPlayerName(src)) end
+        return false, 'Joueur introuvable : choisissez un joueur connecté ou saisissez fivem:XXXX.'
+    end
+    local amount = int(d.amount, 1, 1000000)
+    if not amount then return false, 'Montant : nombre entier de 1 à 1 000 000.' end
+    local reason = str(d.reason, 48) or ''
+    local ref = ('admin-give-%s-%d-%d'):format(acc, os.time(), math.random(1e6))
+    local ok, err = Coins.credit(acc, amount, 'Don admin' .. (reason ~= '' and (' : ' .. reason) or ''), ref, actor)
+    Db.log(ok and 'info' or 'warn', 'admin_coins_give', acc, ref, ('%s +%d par %s%s'):format(ok and 'ok' or tostring(err), amount, actor, reason ~= '' and (' (' .. reason .. ')') or ''))
+    if not ok then return false, err end
+    local src = Shop.playerOf and Shop.playerOf(acc)
+    if not src then
+        for _, s in ipairs(GetPlayers()) do if Shop.accountOf(tonumber(s)) == acc then src = tonumber(s) break end end
+    end
+    if src then
+        Shop.fw.notify(src, ('Vous avez reçu %d %s.'):format(amount, Config.Coins.label), 'success')
+        TriggerClientEvent('elyzea_shop:refresh', src)
+    end
+    return true, ('+%d %s → %s (nouveau solde : %d %s)'):format(amount, Config.Coins.short, src and (GetPlayerName(src) or ('fivem:' .. acc)) or ('fivem:' .. acc .. ', hors ligne'), Coins.balance(acc), Config.Coins.short)
+end
+
 A.give = function(d, actor)
     local acc, key = account(d.account), tostring(d.key or '')
     if not acc or not Config.Products[key] then return false, 'Joueur ou produit invalide.' end
