@@ -93,8 +93,19 @@ function PR.Settings(cfg, saved)
         fractureChance = num(ipick('fractureChance'), 0, 100, 35), fractureMajorDamage = num(ij.fractureMajorDamage, 1, 400, 40),
         internalChance = num(ipick('internalChance'), 0, 100, 25), internalMinDamage = num(ij.internalMinDamage, 1, 400, 30),
         fall = { majorHeight = num((ij.fall or {}).majorHeight, 3, 100, 12) },
-        drain = { [1] = num((ij.drain or {})[1], 0, 50, 0), [2] = num((ij.drain or {})[2], 0, 50, 3), [3] = num((ij.drain or {})[3], 0, 50, 6) },
+        drain = { [1] = num((ij.drain or {})[1], 0, 50, 1), [2] = num((ij.drain or {})[2], 0, 50, 3), [3] = num((ij.drain or {})[3], 0, 50, 6) },
         drainFloor = num(ij.drainFloor, 101, 200, 120),
+        floors = { [1] = num((ij.floors or {})[1], 101, 200, 170), [2] = num((ij.floors or {})[2], 101, 200, 140), [3] = num((ij.floors or {})[3], 101, 200, 110) },
+        hemorrhage = (function()
+            local h = type(ij.hemorrhage) == 'table' and ij.hemorrhage or {}
+            local r = type(h.rate) == 'table' and h.rate or {}
+            local o = { rate = { [1] = num(r[1], 0, 1000, 15), [2] = num(r[2], 0, 1000, 60), [3] = num(r[3], 0, 2000, 150) },
+                stopMinutes = num(h.stopMinutes, 0, 240, 8), worsenMinutes = num(h.worsenMinutes, 0, 240, 12),
+                lossLevel2 = num(h.lossLevel2, 50, 5000, 750), lossLevel3 = num(h.lossLevel3, 100, 6000, 1500),
+                recoverPerMin = num(h.recoverPerMin, 0, 500, 15), maxLoss = num(h.maxLoss, 500, 8000, 4000), tick = num(h.tick, 2, 120, 10) }
+            if o.lossLevel3 < o.lossLevel2 then o.lossLevel3 = o.lossLevel2 end
+            return o
+        end)(),
         healMinutes = math.floor(num(ipick('healMinutes'), 0, 1440, 0)),
     }
     if out.injuries.bleed.major < out.injuries.bleed.light then out.injuries.bleed.major = out.injuries.bleed.light end
@@ -330,6 +341,86 @@ function PR.XrayResult(injuries, zone)
     end
     if not best then return 'none', nil end
     return best.severity >= 2 and 'fracture' or 'immob', best
+end
+
+-- Radiographie INTÉGRALE (audit V9) : chaque zone du corps est examinée à partir des blessures RÉELLEMENT enregistrées.
+-- Ce qu'une radiographie montre : fractures / lésions osseuses (membres), projectile métallique (plaie par balle encore
+-- présente), signes indirects d'une lésion interne (tête, thorax, abdomen : imagerie complémentaire conseillée).
+-- Rien n'est tiré au hasard ; une zone sans donnée est déclarée normale. legacyLeg = ancienne « blessure à la jambe »
+-- sans côté connu (chute) : signalée sans inventer de côté.
+-- Renvoie findings = { { zone, zoneLabel, kind, severity, label, id } }, normal = { labels }, fractures = { blessures }
+function PR.XrayFull(set, injuries, legacyLeg)
+    local findings, normal, fractures, byZone = {}, {}, {}, {}
+    for _, inj in ipairs(injuries or {}) do
+        if inj.status ~= 'healed' then
+            local z = set.zoneById[inj.zone or '']
+            if z then
+                local f
+                if inj.type == 'fracture' and inj.status == 'active' then
+                    f = { kind = 'fracture', severity = inj.severity, id = inj.id,
+                        label = inj.severity >= 2 and 'fracture nécessitant un plâtre' or 'lésion osseuse nécessitant une immobilisation (attelle)' }
+                    fractures[#fractures + 1] = inj
+                elseif inj.type == 'hemorrhage' and inj.source == 'bullet' and inj.status ~= 'treated' then
+                    f = { kind = 'projectile', severity = inj.severity, id = inj.id, label = 'corps étranger métallique (projectile) dans les tissus' }
+                elseif inj.type == 'internal' then
+                    local lab = ({ head = 'signes de traumatisme crânien : scanner cérébral conseillé',
+                        torso = 'opacité thoracique (contusion) : scanner thoracique conseillé',
+                        abdomen = 'signes indirects de lésion abdominale : échographie ou scanner conseillés' })[z.region]
+                    if lab then f = { kind = 'internal', severity = inj.severity, id = inj.id, label = lab } end
+                end
+                if f then
+                    f.zone, f.zoneLabel = z.id, z.label
+                    findings[#findings + 1] = f
+                    byZone[z.id] = true
+                end
+            end
+        end
+    end
+    if legacyLeg then
+        local leg = byZone.jambe_g or byZone.jambe_d
+        if not leg then
+            findings[#findings + 1] = { zone = 'jambes', zoneLabel = 'Jambes', kind = 'fracture', severity = 1,
+                label = 'lésion d\'une jambe (côté à préciser par une radiographie de la jambe)' }
+            byZone.jambe_g, byZone.jambe_d = true, true
+        end
+    end
+    for _, z in ipairs(set.zones) do if not byZone[z.id] then normal[#normal + 1] = z.label end end
+    table.sort(findings, function(a, b) return (a.severity or 0) > (b.severity or 0) end)
+    return findings, normal, fractures
+end
+
+-- ---------------------------------------------------------------------
+-- Hémorragie (audit V9) : trois niveaux
+--   1 faible · 2 moyenne · 3 importante. Le niveau du PATIENT = max(niveau de la plaie qui saigne le plus,
+--   niveau atteint par la perte de sang totale). Une plaie de niveau 1 non soignée s'arrête seule (stopMinutes),
+--   une plaie de niveau 2 non soignée s'aggrave (worsenMinutes). Les soins (compression, pansement) l'arrêtent.
+-- ---------------------------------------------------------------------
+function PR.BleedLevel(set, injuries, loss)
+    local H = set.injuries.hemorrhage
+    local w = PR.WorstBleed(injuries)
+    local lv = w and w.severity or 0
+    loss = tonumber(loss) or 0
+    if lv > 0 then
+        if loss >= H.lossLevel3 then lv = 3 elseif loss >= H.lossLevel2 then lv = math.max(lv, 2) end
+    end
+    return lv
+end
+
+-- Évolution d'une plaie qui saigne pendant dtMin minutes (sans effet de bord).
+-- Renvoie { lost = ml perdus, severity = niveau après, stop = true si elle s'arrête seule }
+function PR.BleedStep(set, inj, dtMin, now)
+    local H = set.injuries.hemorrhage
+    if not inj or inj.type ~= 'hemorrhage' or inj.status ~= 'active' then return { lost = 0, severity = inj and inj.severity or 0 } end
+    local sev = math.max(1, math.min(3, tonumber(inj.severity) or 1))
+    local lost = (H.rate[sev] or 0) * dtMin
+    local since = now - (tonumber(inj.levelAt) or tonumber(inj.created) or now)
+    if sev == 1 and H.stopMinutes > 0 and since >= H.stopMinutes * 60 then
+        return { lost = lost, severity = 1, stop = true }
+    end
+    if sev == 2 and H.worsenMinutes > 0 and since >= H.worsenMinutes * 60 then
+        return { lost = lost, severity = 3, worsened = true }
+    end
+    return { lost = lost, severity = sev }
 end
 
 -- Scanner / échographie : constatations dans les régions examinées (blessures actives seulement)

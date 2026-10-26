@@ -144,8 +144,17 @@ local function demarrer(a, b, ja, jb, optA, optB)
     parJoueur[a], parJoueur[b] = id, id
     local base = { id = id, duree = duree, fondu = fondu, delaiAvantNoir = delaiNoir,
         distance = I.distanceCouple, touche = I.toucheAnnuler, preservatif = fournisseur ~= nil }
-    TriggerClientEvent('elyzea_famille:client:intimeDebut', a, base, 'demandeur', b, I.anim.demandeur)
-    TriggerClientEvent('elyzea_famille:client:intimeDebut', b, base, 'partenaire', a, I.anim.partenaire)
+    -- Position (audit V9) : personnage masculin allongé sur le dos, personnage féminin au-dessus, à califourchon.
+    -- Même sexe : la personne qui a proposé est allongée. Décidé ici, une seule fois, pour les deux clients.
+    local P = I.position or {}
+    local dessous = (tonumber(ja.gender) == 1 and tonumber(jb.gender) == 0) and b or a
+    local dessus = dessous == a and b or a
+    base.position = P.actif ~= false
+    local animDessous = base.position and P.dessous or I.anim.demandeur
+    local animDessus = base.position and P.dessus or I.anim.partenaire
+    TriggerClientEvent('elyzea_famille:client:intimeDebut', dessous, base, base.position and 'dessous' or 'demandeur', dessus, animDessous)
+    TriggerClientEvent('elyzea_famille:client:intimeDebut', dessus, base, base.position and 'dessus' or 'partenaire', dessous, animDessus,
+        base.position and { pos = P.attache.pos, rot = P.attache.rot } or nil)
     local total = delaiNoir + fondu + duree * 1000
     SetTimeout(total, function() terminer(id, 'terminee', 'fin') end)
 end

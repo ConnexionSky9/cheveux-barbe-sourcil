@@ -229,6 +229,7 @@ class Client:
         function GetOffsetFromEntityInWorldCoords(e, x, y, z) local p = py:pos(e) return vector3(p[1] + x, p[2] + y, p[3] + z) end
         function GetGroundZFor_3dCoord(x, y, z) return true, py:ground(x, y) end
         function FreezeEntityPosition(e, b) py:freeze(e, b) end
+        function SetEntityCollision(e, b) py:collide(e, b) end
         function __fire(fn, ...) local a = table.pack(...) CreateThread(function() fn(table.unpack(a, 1, a.n)) end) end
         function SetEntityCoords(e, x, y, z) py:setPos(e, x, y, z) end
         function SetEntityCoordsNoOffset(e, x, y, z) py:setPos(e, x, y, z) end
@@ -299,7 +300,7 @@ class Client:
         if x and (x.get('migrate') or x.get('owner') not in W['online']): x['owner'] = self.sid
     def migrate(self, n, b):
         e = ent_by_net(n)
-        if e: W['ents'][e]['migrate'] = bool(b)
+        if e and not W.get('lockOwner'): W['ents'][e]['migrate'] = bool(b)
     def anim(self, p): return W['anims'].get(p)
     def setAnim(self, p, a): W['anims'][p] = a
     def pos(self, e): return self.L.table_from(wpos(e))
@@ -311,6 +312,7 @@ class Client:
     def setHeading(self, e, h): W['ents'][e]['heading'] = h
     def setPitch(self, e, p): W['pitch'][e] = p
     def freeze(self, e, b): W['frozen'][e] = bool(b)
+    def collide(self, e, b): W.setdefault('col', {})[e] = bool(b)
     def ground(self, x, y): return ground(x, y)
     def key(self, k): return k in self.keys
     def keyOnce(self, k):
@@ -431,6 +433,42 @@ z = wpos(st[0])[2]
 check(abs(z - (29.0 + 0.4)) < 0.05 and abs(W['pitch'].get(st[0], 0.0)) <= 20.0, 'mesure du sol aberrante (toit) ignorée : le brancard reste au sol (z %.2f)' % z)
 W['roof'] = None
 run(1)
+check(abs(me['pos'][2] - 30.0) < 1e-6, 'audit : l\'EMS garde sa hauteur en sortant le brancard (avant : 1 m sous le sol → brancard projeté)')
+check(W.get('col', {}).get(st[0]) is False, 'audit : brancard sans collision pendant qu\'il est tenu (il ne peut pas être éjecté)')
+
+print('\n[5b. Audit : sortie avec état serveur en retard, et brancard contrôlé par un autre joueur]')
+here = list(W['ents'][101]['pos'])
+ems.select('st_load', {'kind': 'vehicle', 'entity': VEH}); run(4)
+check(W['ents'][st[0]]['att'] and W['ents'][st[0]]['att'][0] == VEH, 'rechargé dans le véhicule')
+stale = json.loads(json.dumps(W['globals']['emsStretchers']))
+ems.select('st_unload', {'kind': 'vehicle', 'entity': VEH}); run(1)
+fresh = W['globals']['emsStretchers']
+W['globals']['emsStretchers'] = stale                    # GlobalState en retard : « encore dans le véhicule »
+reattached = False
+for _ in range(3):
+    run(1)
+    if W['ents'][st[0]]['att'] and W['ents'][st[0]]['att'][0] == VEH: reattached = True
+check(not reattached, 'état en retard : le brancard n\'est PAS rattaché au véhicule (plus d\'aller-retour qui le projetait)')
+W['globals']['emsStretchers'] = fresh
+run(3)
+check(G()[0].get('holder') == EMS and W['ents'][st[0]]['att'] is None and W['frozen'].get(st[0]) is True, 'état reçu : l\'EMS le tient, détaché et figé')
+# un autre joueur (le patient) a le contrôle réseau du brancard chargé ; l'EMS ne peut pas le prendre tout de suite
+ems.select('st_load', {'kind': 'vehicle', 'entity': VEH}); run(4)
+W['ents'][st[0]]['owner'], W['ents'][st[0]]['migrate'] = PAT, False
+W['lockOwner'] = True                                     # le réseau ne cède pas le contrôle pendant la sortie
+W['col'][st[0]] = True; W['frozen'][st[0]] = False       # côté de ce joueur : jamais réglé (seul le créateur le faisait)
+ems.select('st_unload', {'kind': 'vehicle', 'entity': VEH}); run(25)   # l'EMS attend le contrôle 2 s, puis sort quand même
+p = wpos(st[0])
+check(W['ents'][st[0]]['att'] is None, 'autre propriétaire : il détache le brancard dès que le serveur le sort')
+check(W['frozen'].get(st[0]) is True and W['col'].get(st[0]) is False, 'autre propriétaire : figé et sans collision AVANT le détachement')
+check(abs(p[1] - (800.0 - 3.5 - 0.4 - 1.1)) < 0.05 and abs(p[2] - 29.4) < 0.05, 'autre propriétaire : posé au sol DERRIÈRE le véhicule, pas dans la carrosserie (%.2f, %.2f)' % (p[1], p[2]))
+W['lockOwner'] = False
+W['ents'][st[0]]['migrate'] = True
+run(4)
+check(G()[0].get('holder') == EMS and W['ents'][st[0]]['owner'] == EMS and W['ents'][st[0]]['att'] is None, 'l\'EMS récupère le contrôle et le tient')
+check(W['ents'][102]['att'] and W['ents'][102]['att'][0] == st[0], 'patient toujours allongé dessus après les deux sorties')
+W['ents'][101]['pos'] = here
+run(2)
 
 print('\n[6. Retirer le patient : il reste là où est le brancard]')
 for _ in range(10): walk(EMS, 0.0, 1.0); run(1)

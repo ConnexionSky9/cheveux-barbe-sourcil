@@ -237,7 +237,7 @@ local function Options(src, t)
                 o.choices = {}
                 for _, x in ipairs(set.blood.analyses or {}) do o.choices[#o.choices + 1] = { key = 'analysis', value = x.id, label = x.label } end
             elseif id == 'xray' then
-                o.choices = {}
+                o.choices = { { key = 'zone', value = 'corps', label = 'Corps entier (radiographie intégrale)' } }
                 for _, z in ipairs(set.zones) do if z.xray then o.choices[#o.choices + 1] = { key = 'zone', value = z.id, label = z.label } end end
             elseif id == 'cast' then
                 o.choices = {}
@@ -318,6 +318,11 @@ local function Prepare(src, t, act, c)
         ctx.analysis = an
         ctx.extra = { tubes = tubes, expect = an.tube, analysis = an.label }
         ctx.title = ('Prise de sang · %s'):format(an.label)
+    elseif act == 'xray' and c.zone == 'corps' then
+        -- radiographie intégrale (audit V9) : toutes les zones, résultat tiré des blessures enregistrées
+        ctx.zone, ctx.full = { id = 'corps', label = 'Corps entier', region = 'body' }, true
+        ctx.extra = { zone = 'corps', zoneLabel = 'Corps entier', region = 'body', full = true }
+        ctx.title = 'Radiographie intégrale'
     elseif act == 'xray' then
         local z = Zone(c.zone)
         if not z or not z.xray then return nil, 'Choisissez la zone à radiographier.' end
@@ -525,6 +530,21 @@ end
 EFFECT.xray = function(src, t, A)
     local set = P.ProcSettings()
     local z = A.ctx.zone
+    if A.ctx.full then
+        -- Aucune donnée inventée : seules les blessures enregistrées (et l'ancienne blessure à la jambe) apparaissent.
+        local legacy = P.HealthHas and P.HealthHas(t, 'leg') or false
+        local findings, normal, fractures = PR.XrayFull(set, P.InjuryList(t), legacy)
+        local now = os.time()
+        for _, inj in ipairs(fractures) do P.InjurySet(t, inj.id, { xray = now }) end   -- fractures vues : plâtre / attelle possibles
+        -- lésions internes : seulement des signes indirects (pas de diagnostic posé) → scanner / échographie conseillés
+        if #findings == 0 then
+            return { result = 'normal', zone = 'corps', report = set.reports.xray_full_none }
+        end
+        local parts = {}
+        for _, f in ipairs(findings) do parts[#parts + 1] = ('%s : %s.'):format(f.zoneLabel, f.label) end
+        return { result = 'anomalies', zone = 'corps', report = PR.Fill(set.reports.xray_full_found,
+            { count = #findings, list = table.concat(parts, ' '), normal = #normal > 0 and table.concat(normal, ', '):lower() or 'aucune' }) }
+    end
     -- ancienne « Blessure à la jambe » (chute, sans côté) : la jambe radiographiée la porte
     if z.region == 'leg' and P.HealthHas and P.HealthHas(t, 'leg') then
         local any = false

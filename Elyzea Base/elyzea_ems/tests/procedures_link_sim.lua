@@ -77,6 +77,11 @@ local function exec(kind, sql, a)
     local s = norm(sql)
     a = a or {}
     -- tables des actes médicaux (ems_injuries, ems_procedures, ems_vaccinations)
+    -- perte de sang (ems_blood, hémorragie à trois niveaux)
+    DB.ems_blood = DB.ems_blood or {}
+    if s:find('^SELECT loss, updated_at FROM ems_blood') then local b = DB.ems_blood[a[1]] return b and { loss = b.loss, updated_at = b.updated_at } or nil end
+    if s:find('^INSERT INTO ems_blood') then DB.ems_blood[a[1]] = { loss = a[2], updated_at = a[3] } return 1 end
+    if s:find('^UPDATE ems_blood SET loss = 0') then if DB.ems_blood[a[2]] then DB.ems_blood[a[2]] = { loss = 0, updated_at = a[1] } end return 1 end
     if s:find('^INSERT INTO ems_injuries') then
         local id = insert('ems_injuries', { 'citizenid', 'type', 'zone', 'severity', 'source', 'created_at' }, a)
         DB.ems_injuries[#DB.ems_injuries].status = 'active'
@@ -92,7 +97,7 @@ local function exec(kind, sql, a)
         for _, r in ipairs(DB.ems_injuries) do if r.id == a[2] then r.severity, r.status = a[1], 'active' end end return 1
     end
     if s:find('^UPDATE ems_injuries SET .* WHERE id = %?') then
-        local cols = {} for c in s:match('SET (.-) WHERE'):gmatch('(%w+) = %?') do cols[#cols + 1] = c end
+        local cols = {} for c in s:match('SET (.-) WHERE'):gmatch('([%w_]+) = %?') do cols[#cols + 1] = c end
         for _, r in ipairs(DB.ems_injuries) do if r.id == a[#cols + 1] then for i, c in ipairs(cols) do r[c] = a[i] end end end return 1
     end
     if s:find('^INSERT INTO ems_procedures') then seq.ems_procedures = seq.ems_procedures + 1 return seq.ems_procedures end
@@ -270,6 +275,112 @@ check('onglet Santé : soigner une blessure', h and h.ok ~= false and #injuries(
 P.InjuryHospital(1)
 check('hôpital : hémorragie soignée', #injuries(1, 'hemorrhage') == 0)
 check('hôpital : fracture gardée (radio + attelle / plâtre)', #injuries(1, 'fracture') == 1)
+
+-- =====================================================================
+-- Audit V9 : hémorragie à trois niveaux (joueur 3, hors service staff)
+-- =====================================================================
+local function notesFor(s, pat) local c = 0 for _, x in ipairs(notes) do if x.src == s and x.msg:find(pat, 1, true) then c = c + 1 end end return c end
+local function tick(sec, times) for _ = 1, times or 1 do NOW = NOW + sec P.BleedTick(sec) end end
+local H = set.injuries.hemorrhage
+local PR = ProcRules
+P.injuries[3].loss = 0
+-- niveau 1 : détecté tout de suite, message une seule fois
+local n0 = { faible = notesFor(3, 'hémorragie faible'), stop = notesFor(3, 's\'est arrêté'), moy = notesFor(3, 'hémorragie moyenne'), imp = notesFor(3, 'Hémorragie importante') }
+P.InjuryAdd(3, 'hemorrhage', 'bras_g', 1, 'blade')
+check('hémorragie faible : niveau 1 envoyé au joueur', lastBleed(3).bleed == 1 and lastBleed(3).floor == set.injuries.floors[1])
+check('hémorragie faible : un seul message au début', notesFor(3, 'hémorragie faible') == n0.faible + 1)
+P.InjuryAdd(3, 'hemorrhage', 'bras_g', 1, 'blade')   -- même coup répété : pas de doublon, pas de nouveau message
+check('même blessure répétée : pas de doublon ni de second message', #injuries(3, 'hemorrhage') == 1 and notesFor(3, 'hémorragie faible') == n0.faible + 1)
+tick(60, H.stopMinutes - 1)
+check(('perte de sang qui augmente (%d ml après %d min)'):format(math.floor(P.injuries[3].loss), H.stopMinutes - 1),
+    math.abs(P.injuries[3].loss - H.rate[1] * (H.stopMinutes - 1)) < 1)
+check('aucun message répété pendant le saignement', notesFor(3, 'hémorragie faible') == n0.faible + 1)
+tick(60, 1)
+local w = injuries(3, 'hemorrhage')[1]
+check('hémorragie faible non soignée : s\'arrête seule (caillot), pansement encore à poser', w and w.status == 'controlled' and lastBleed(3).bleed == 0)
+check('arrêt du saignement : message une fois', notesFor(3, 's\'est arrêté') == n0.stop + 1)
+local lossStop = P.injuries[3].loss
+tick(60, 2)
+check('plus rien ne saigne : la perte de sang diminue (récupération)', P.injuries[3].loss < lossStop)
+P.InjuryTreated(3, w.id, 'Test')
+-- niveau 2 qui s'aggrave en niveau 3
+P.injuries[3].loss = 0
+P.InjuryAdd(3, 'hemorrhage', 'jambe_d', 2, 'bullet')
+check('hémorragie moyenne : niveau 2 et message', lastBleed(3).bleed == 2 and notesFor(3, 'hémorragie moyenne') == n0.moy + 1)
+tick(60, H.worsenMinutes - 1)
+check('hémorragie moyenne : toujours niveau 2 avant le délai', injuries(3, 'hemorrhage')[1].severity == 2)
+tick(60, 1)
+check(('hémorragie moyenne non soignée %d min : devient importante (niveau 3)'):format(H.worsenMinutes), injuries(3, 'hemorrhage')[1].severity == 3 and lastBleed(3).bleed == 3)
+check('aggravation : message « importante » une seule fois', notesFor(3, 'Hémorragie importante') == n0.imp + 1)
+check('aggravation enregistrée en base (gravité + heure)', DB.ems_injuries[injuries(3, 'hemorrhage')[1].id].severity == 3 and DB.ems_injuries[injuries(3, 'hemorrhage')[1].id].level_at == NOW)
+local lossBefore = P.injuries[3].loss
+tick(10, 6)
+check('niveau 3 : perte la plus rapide', math.abs(P.injuries[3].loss - lossBefore - H.rate[3]) < 1)
+-- examen EMS : perte de sang visible
+local ex = P.InjuryExamView(3)
+check('examen EMS : ligne « Perte de sang » avec le niveau', ex[1].type == 'bloodloss' and ex[1].label:find('importante') ~= nil)
+-- seuil de perte : une plaie faible mais beaucoup de sang perdu = niveau relevé
+check('perte ≥ seuil : niveau relevé même pour une plaie faible', PR.BleedLevel(set, { { type = 'hemorrhage', status = 'active', severity = 1 } }, H.lossLevel2) == 2
+    and PR.BleedLevel(set, { { type = 'hemorrhage', status = 'active', severity = 1 } }, H.lossLevel3) == 3)
+check('aucune plaie active : niveau 0 (pas de faux positif)', PR.BleedLevel(set, {}, 3000) == 0)
+-- déconnexion : perte gardée ; reconnexion : rechargée
+local saved = math.floor(P.injuries[3].loss)
+source = 3
+for _, fn in ipairs(handlers['playerDropped']) do fn() end
+check('déconnexion : perte de sang enregistrée', DB.ems_blood.C3 and DB.ems_blood.C3.loss == saved)
+check('déconnexion : données du joueur libérées', P.injuries[3] == nil)
+local nb = #notes
+P.InjuryLoad(3)
+check('reconnexion : perte rechargée, saignement repris sans nouveau message', math.floor(P.injuries[3].loss) == saved and lastBleed(3).bleed == 3 and #notes == nb)
+-- compression (soin) : saignement arrêté
+for _, x in ipairs(injuries(3, 'hemorrhage')) do P.InjurySet(3, x.id, { status = 'controlled' }) end
+check('compression : saignement arrêté (niveau 0)', lastBleed(3).bleed == 0)
+-- hôpital : perte remise à zéro
+P.InjuryHospital(3)
+check('hôpital : perte de sang remise à zéro', P.injuries[3].loss == 0 and DB.ems_blood.C3.loss == 0)
+
+-- =====================================================================
+-- Audit V9 : radiographie intégrale (acte complet, joueur 2 EMS sur joueur 1)
+-- =====================================================================
+players[2].pos = vector3(1, 0, 0)
+Player = function() return { state = { set = function() end } } end
+P.down[1] = { t = NOW }                 -- patient inconscient : pas de demande de consentement
+local opts = P.Actions.procOptions.fn(2, { target = 1 })
+local xo
+for _, o in ipairs(opts.acts or {}) do if o.id == 'xray' then xo = o end end
+check('choix « Corps entier » proposé dans la radiographie', xo and xo.choices[1].value == 'corps')
+local function xrayFull()
+    local st = P.Actions.procStart.fn(2, { act = 'xray', target = 1, choice = { zone = 'corps' } })
+    if not st.ok then return st end
+    NOW = NOW + st.game.duration
+    return P.Actions.procResult.fn(2, { result = { id = st.game.id, ok = true, mistakes = 0, score = 1 } }), st
+end
+local r1, st1 = xrayFull()
+print('     compte rendu : ' .. tostring(r1.report))
+check('radio intégrale : mini-jeu en mode corps entier', st1 and st1.game.extra.full == true)
+check('radio intégrale : fracture de jambe trouvée (blessure enregistrée)', r1.ok and r1.report:find('Jambe') ~= nil and (r1.report:find('plâtre') or r1.report:find('immobilisation')) ~= nil)
+check('radio intégrale : zones normales listées', r1.report and r1.report:find('Zones sans anomalie') ~= nil and r1.report:find('tête') ~= nil)
+check('radio intégrale : la fracture est marquée radiographiée (plâtre/attelle possible)', injuries(1, 'fracture')[1].xray ~= nil)
+-- patient sans aucune blessure : résultat normal
+P.down[1] = nil
+for _, x in ipairs(injuries(1)) do P.InjurySet(1, x.id, { status = 'healed' }) end
+if P.HealthTreat then pcall(P.HealthTreat, 1, 'splint', 2) end
+P.HealthHas = (function(orig) return function(s, k) if s == 1 and k == 'leg' then return false end return orig(s, k) end end)(P.HealthHas)
+P.down[1] = { t = NOW }
+local r2 = xrayFull()
+check('radio intégrale sans blessure : « aucune anomalie » (rien d\'inventé)', r2.ok and r2.report == set.reports.xray_full_none)
+local same = true
+for _ = 1, 5 do local r = xrayFull() if not r.ok or r.report ~= r2.report then same = false end end
+check('radio intégrale : même résultat à chaque fois (aucun hasard)', same)
+-- balle encore présente + lésion interne : signalées sans diagnostic inventé
+P.InjuryAdd(1, 'hemorrhage', 'thorax', 2, 'bullet')
+P.InjuryAdd(1, 'internal', 'abdomen', 2, 'blunt')
+local r3 = xrayFull()
+print('     compte rendu : ' .. tostring(r3.report))
+check('radio intégrale : projectile signalé (plaie par balle)', r3.ok and r3.report:find('projectile') ~= nil)
+check('radio intégrale : lésion interne = signes indirects + examen conseillé (pas de diagnostic)', r3.report:find('conseillé') ~= nil)
+check('radio intégrale : la lésion interne reste à confirmer (pas marquée vue)', (function() for _, x in ipairs(injuries(1, 'internal')) do if x.seen then return false end end return true end)())
+P.down[1] = nil
 
 print(('\n%d/%d'):format(n - fails, n))
 return fails

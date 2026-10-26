@@ -224,13 +224,26 @@ Items.implant_contraceptif = { label = 'Implant contraceptif', weight = 10, stac
     description = 'Posé par un EMS en service (menu ALT sur le patient). Protège 30 jours.' }
 Items.test_grossesse = { label = 'Test de grossesse', weight = 20, stack = true, max = 10, image = 'test_grossesse.png', icon = '🧪', close = true,
     description = 'Résultat privé. Fiable à partir de 24 h après la conception (1 faux négatif sur 100).' }
--- Équipements bébé (ressource elyzea_bebe_modele) : jamais consommés
-Items.porte_bebe_ventral = { label = 'Porte-bébé ventral', weight = 900, stack = false, max = 1, image = 'porte_bebe_ventral.png', icon = '🤱', close = true,
-    description = 'Utiliser : équiper / retirer. Puis ALT sur le bébé › « Porte-bébé ventral ». Bébé contre la poitrine, mains libres.' }
-Items.porte_bebe_dorsal = { label = 'Porte-bébé dorsal', weight = 1100, stack = false, max = 1, image = 'porte_bebe_dorsal.png', icon = '🎒', close = true,
-    description = 'Utiliser : équiper / retirer. Puis ALT sur le bébé › « Porte-bébé dorsal ». Bébé dans le dos, mains libres.' }
-Items.poussette = { label = 'Poussette', weight = 7500, stack = false, max = 1, image = 'poussette.png', icon = '🛒', close = true,
-    description = 'Utiliser : sortir la poussette devant soi. ALT dessus : pousser, garer, installer le bébé, ranger.' }
+-- Puériculture (ressource elyzea_bebe_modele) — poids réels en grammes (audit : objets légers ≤ 1 kg)
+-- Équipements : jamais consommés
+Items.porte_bebe_ventral = { label = 'Porte-bébé ventral', weight = 750, stack = false, max = 1, image = 'porte_bebe_ventral.png', icon = '🤱', close = true,
+    description = 'Utiliser : équiper / retirer. Puis ALT sur le bébé › « Porte-bébé ventral ». Bébé contre la poitrine, mains libres. 750 g.' }
+Items.porte_bebe_dorsal = { label = 'Porte-bébé dorsal', weight = 950, stack = false, max = 1, image = 'porte_bebe_dorsal.png', icon = '🎒', close = true,
+    description = 'Utiliser : équiper / retirer. Puis ALT sur le bébé › « Porte-bébé dorsal ». Bébé dans le dos, mains libres. 950 g.' }
+-- Poussette pliée (modèle compact) : seul objet de puériculture au-delà de 1 kg, comme dans la réalité
+Items.poussette = { label = 'Poussette (pliée)', weight = 6000, stack = false, max = 1, image = 'poussette.png', icon = '🛒', close = true,
+    description = 'Utiliser : sortir la poussette devant soi. ALT dessus : pousser, garer, installer le bébé, ranger. Pliée : 6 kg.' }
+-- Soins du bébé (V8) : retirés par le serveur au début du soin (jamais automatiquement)
+Items.biberon = { label = 'Biberon de lait', weight = 280, stack = true, max = 10, image = 'biberon.png', icon = '🍼', close = true,
+    description = 'Nourrit et désaltère le bébé. Utiliser (ou ALT sur le bébé › Donner le biberon) : bébé porté ou tout près. Plein : 280 g.' }
+Items.couche = { label = 'Couche propre', weight = 30, stack = true, max = 30, image = 'couche.png', icon = '🧷', close = true,
+    description = 'Utiliser (ou ALT sur le bébé › Changer la couche) : bébé posé allongé, tout près. 30 g.' }
+Items.vetement_bebe_blanc = { label = 'Pyjama de bébé (blanc)', weight = 90, stack = true, max = 5, image = 'vetement_bebe_blanc.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
+Items.vetement_bebe_rose = { label = 'Pyjama de bébé (rose)', weight = 90, stack = true, max = 5, image = 'vetement_bebe_rose.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
+Items.vetement_bebe_bleu = { label = 'Pyjama de bébé (bleu)', weight = 90, stack = true, max = 5, image = 'vetement_bebe_bleu.png', icon = '👶', close = true,
+    description = 'Habille le bébé (bébé porté ou posé). L\'ancien pyjama revient dans l\'inventaire.' }
 
 -- Argent en billets : 1 000 $ = 1 g, une seule pile sans limite (pas de « inventaire plein »)
 Items.black_money = { label = 'Argent sale', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'black_money.png', icon = '💵',

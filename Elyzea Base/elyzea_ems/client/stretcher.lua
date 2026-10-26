@@ -152,6 +152,15 @@ end
 local place, holdingNet, holdAnim = {}, nil, false
 local startHeading = nil                -- cap imposé au brancard au moment où on le prend (sortie de véhicule)
 local leftNet, leftUntil = nil, 0       -- je viens de descendre de ce brancard : ne pas me rattacher
+-- Audit V9 (brancard qui s'envole à la sortie du véhicule) :
+local unloaded = {}                     -- [net] = heure limite : je viens de le sortir, l'état serveur peut arriver en retard → ne pas le rattacher
+local lastVeh = {}                      -- [net] = dernier véhicule où il était chargé (pour le poser DERRIÈRE, pas dans la carrosserie)
+
+-- Sans physique : figé et sans collision AVANT d'être détaché (sinon le moteur physique l'éjecte du véhicule)
+local function Calm(e)
+    FreezeEntityPosition(e, true)
+    SetEntityCollision(e, false, false)
+end
 local lying = false
 
 local function StopHold()
@@ -178,12 +187,14 @@ CreateThread(function()
             wait = 0
             if holdingNet ~= mine.net then
                 holdingNet, place = mine.net, {}
+                unloaded[mine.net] = nil
                 if startHeading then place.h = startHeading startHeading = nil end   -- pas de pivot au départ
             end
             if NetworkHasControlOfEntity(ent) then
                 SetNetworkIdCanMigrate(mine.net, false)
-                if IsEntityAttached(ent) then DetachEntity(ent, false, false) end
-                FreezeEntityPosition(ent, true)
+                -- tous les clients qui en prennent le contrôle (pas seulement celui qui l'a créé) : figé, sans collision
+                if not place.calm then Calm(ent) place.calm = true end
+                if IsEntityAttached(ent) then Calm(ent) DetachEntity(ent, false, false) end
                 PlaceStretcher(ent, ped, Geometry(GetEntityModel(ent)), place)
             else
                 NetworkRequestControlOfEntity(ent)
@@ -210,20 +221,31 @@ CreateThread(function()
         -- 2. Brancards que je contrôle sans les tenir : chargés (attachés au véhicule) ou posés (figés, cédés à qui en a besoin)
         do
             for _, s in ipairs(List()) do
+                if s.veh then local v = Ent(s.veh) if v then lastVeh[s.net] = v end end   -- connu de tous les clients (le contrôle peut changer)
                 if s.holder ~= me then
                     local e = Ent(s.net)
                     if e and NetworkHasControlOfEntity(e) then
-                        if s.veh then
+                        if s.veh and not (unloaded[s.net] and now < unloaded[s.net]) then
                             local veh = Ent(s.veh)
-                            if veh and not IsEntityAttachedToEntity(e, veh) then AttachToVehicle(e, veh) end
-                        elseif IsEntityAttached(e) then
-                            -- sorti du véhicule : détaché sans physique, figé, posé au sol là où il est
+                            if veh then
+                                if not IsEntityAttachedToEntity(e, veh) then Calm(e) AttachToVehicle(e, veh) end
+                            end
+                        elseif not s.veh and IsEntityAttached(e) then
+                            -- sorti du véhicule : figé et sans collision AVANT le détachement, puis posé au sol
+                            -- derrière le véhicule (jamais dans la carrosserie : c'est ce qui le projetait)
+                            Calm(e)
                             local c = GetEntityCoords(e)
+                            local h = GetEntityHeading(e)
+                            local veh = lastVeh[s.net]
                             DetachEntity(e, false, false)
-                            FreezeEntityPosition(e, true)
                             local geo = Geometry(GetEntityModel(e))
+                            if veh and DoesEntityExist(veh) then
+                                local back = GetModelDimensions(GetEntityModel(veh)).y - 0.4 - geo.long / 2.0
+                                c = GetOffsetFromEntityInWorldCoords(veh, 0.0, back, 0.0)
+                            end
                             SetEntityCoordsNoOffset(e, c.x, c.y, GroundZ(c.x, c.y, c.z, c.z) - geo.bottom, false, false, false)
-                            SetEntityRotation(e, 0.0, 0.0, GetEntityHeading(e), 2, true)
+                            SetEntityRotation(e, 0.0, 0.0, h, 2, true)
+                            lastVeh[s.net] = nil
                         end
                         if not s.holder then SetNetworkIdCanMigrate(s.net, true) end
                     end
@@ -373,16 +395,22 @@ function C.StretcherSelect(id, ctx)
             if e then Control(e, 2000) end
             local r = C.Do('stretcherUnload', { veh = VehToNet(veh) })
             if r and r.ok and e then
+                unloaded[loaded.net] = GetGameTimer() + 3000   -- l'état « dans le véhicule » peut encore arriver : ne pas le rattacher
                 -- l'EMS se place derrière le véhicule, dos à lui : le brancard sort tout droit vers l'extérieur
                 local ped = PlayerPedId()
                 local vh = GetEntityHeading(veh)
                 local behind = GetOffsetFromEntityInWorldCoords(veh, 0.0, GetModelDimensions(GetEntityModel(veh)).y - 0.6, 0.0)
                 local me = GetEntityCoords(ped)
-                if #(vector3(behind.x, behind.y, me.z) - me) < 4.0 then SetEntityCoords(ped, behind.x, behind.y, me.z - 1.0, false, false, false, false) end
+                -- même hauteur que maintenant (avant : 1 m plus bas → l'EMS passait sous le sol, remontait, et le brancard
+                -- placé devant lui à chaque image était projeté)
+                if #(vector3(behind.x, behind.y, me.z) - me) < 4.0 then SetEntityCoordsNoOffset(ped, behind.x, behind.y, me.z, false, false, false) end
                 SetEntityHeading(ped, (vh + 180.0) % 360.0)
                 startHeading = (vh + 180.0 + ((ST.stretcher or {}).heading or 0.0)) % 360.0
-                DetachEntity(e, false, false)
-                FreezeEntityPosition(e, true)
+                -- sans le contrôle réseau, c'est le propriétaire actuel qui le détache proprement (boucle, partie 2)
+                if NetworkHasControlOfEntity(e) then
+                    Calm(e)
+                    DetachEntity(e, false, false)
+                end
             end
         elseif act == 'st_load' then
             local veh = (ctx and ctx.kind == 'vehicle' and ctx.entity) or VehicleNear()

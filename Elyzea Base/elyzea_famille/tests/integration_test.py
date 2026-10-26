@@ -444,6 +444,15 @@ s = session_rows()
 check('6. session créée (active)', len(s) == 1 and s[0]['status'] == 'active', s)
 check('6. préservatif retiré une seule fois au demandeur', W.inv[2]['preservatif'] == 1)
 check('6. début envoyé aux deux joueurs', last_client('elyzea_famille:client:intimeDebut', 1) and last_client('elyzea_famille:client:intimeDebut', 2))
+# audit V9 : position — personnage masculin allongé (dessous), personnage féminin au-dessus (attaché, décalage envoyé)
+d1, d2 = last_client('elyzea_famille:client:intimeDebut', 1), last_client('elyzea_famille:client:intimeDebut', 2)
+roles = {W.players[1]['gender']: d1[1], W.players[2]['gender']: d2[1]}
+check('6. position : homme allongé sur le dos, femme au-dessus à califourchon', roles.get(0) == 'dessous' and roles.get(1) == 'dessus', roles)
+dessus = d1 if d1[1] == 'dessus' else d2
+dessous = d2 if dessus is d1 else d1
+check('6. personne du dessus : attache reçue, animation à genoux ; dessous : animation allongée sur le dos',
+      dessus[4] is not None and dessus[3]['dict'] == 'amb@medic@standing@kneel@base' and dessous[3]['dict'] == 'amb@world_human_sunbathe@male@back@base'
+      and dessous[2] == (2 if dessous is d1 else 1))
 advance(full_duration())
 s = session_rows()[0]
 att = q('SELECT * FROM rp_conception_attempts WHERE session_id = %s', (s['id'],))

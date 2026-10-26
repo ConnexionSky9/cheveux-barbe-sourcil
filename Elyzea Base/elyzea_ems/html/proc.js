@@ -70,12 +70,26 @@
     },
     // membre (bras / jambe) vu de dessus : rectangle arrondi orienté
     limb(g, cx, cy, len, wid, ang, kind) {
+      if (kind === 'body') return D.body(g, cx, cy, len, ang);
       g.save(); g.translate(cx, cy); g.rotate(ang);
       const grd = g.createLinearGradient(0, -wid / 2, 0, wid / 2); grd.addColorStop(0, SKIN); grd.addColorStop(1, SKIN_D);
       g.fillStyle = grd; D.rr(g, -len / 2, -wid / 2, len, wid, wid / 2); g.fill();
       g.fillStyle = 'rgba(0,0,0,.12)';
       if (kind === 'leg') { g.beginPath(); g.ellipse(0, 0, wid * 0.32, wid * 0.36, 0, 0, Math.PI * 2); g.fill(); }
       else { g.beginPath(); g.ellipse(-len * 0.05, 0, wid * 0.22, wid * 0.3, 0, 0, Math.PI * 2); g.fill(); }
+      g.restore();
+    },
+    // corps entier allongé (radiographie intégrale) : tête à gauche, vu de dessus, longueur len
+    body(g, cx, cy, len, ang = 0) {
+      const u = len / 460;
+      g.save(); g.translate(cx, cy); g.rotate(ang); g.scale(u, u);
+      const grd = g.createLinearGradient(0, -70, 0, 70); grd.addColorStop(0, SKIN); grd.addColorStop(1, SKIN_D);
+      g.fillStyle = grd;
+      D.rr(g, 10, -38, 210, 30, 15); g.fill(); D.rr(g, 10, 8, 210, 30, 15); g.fill();          // jambes
+      D.rr(g, -150, -62, 165, 22, 11); g.fill(); D.rr(g, -150, 40, 165, 22, 11); g.fill();      // bras le long du corps
+      g.beginPath(); g.ellipse(-80, 0, 95, 46, 0, 0, Math.PI * 2); g.fill();                    // tronc
+      g.beginPath(); g.arc(-200, 0, 30, 0, Math.PI * 2); g.fill();                              // tête
+      g.fillStyle = 'rgba(0,0,0,.12)'; g.beginPath(); g.arc(-40, 0, 4, 0, Math.PI * 2); g.fill();
       g.restore();
     },
     torso(g, cx, cy, s = 1) {
@@ -351,6 +365,9 @@
   };
 
   // Trouver une position cachée et la tenir (échographie, palpation)
+  // Image d'échographie (fœtus) préchargée une fois ; si elle manque, l'ancien dessin simplifié reste affiché
+  const ECHO_FOETUS = new Image();
+  ECHO_FOETUS.src = 'img/echo_foetus.webp';
   PH.find = (o) => {
     let tx = 0, ty = 0, prog = 0, clar = 0, ready = false;
     return {
@@ -379,7 +396,16 @@
           g.fillStyle = '#05070b'; g.fillRect(px, py, pw, ph);
           const noise = 1 - clar;
           for (let i = 0; i < 380; i++) { const v = Math.random(); g.fillStyle = `rgba(255,255,255,${(0.04 + v * 0.22) * (0.35 + noise)})`; g.fillRect(px + Math.random() * pw, py + Math.random() * ph, 2, 2); }
-          g.globalAlpha = clar; if (o.image === 'fetus') { g.fillStyle = 'rgba(230,230,230,.85)'; g.beginPath(); g.ellipse(px + pw / 2, py + 170, 46, 34, 0.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(px + pw / 2 + 36, py + 140, 22, 0, Math.PI * 2); g.fill(); }
+          g.globalAlpha = clar; if (o.image === 'fetus') {
+            // Image échographique d'un fœtus (html/img/echo_foetus.webp), dans le cône de la sonde : nette quand la sonde est bien placée
+            if (ECHO_FOETUS.complete && ECHO_FOETUS.naturalWidth) {
+              g.save(); g.filter = clar < 0.98 ? `blur(${((1 - clar) * 5).toFixed(1)}px)` : 'none';
+              g.drawImage(ECHO_FOETUS, px, py, pw, ph); g.restore();
+              g.globalAlpha = (1 - clar) * 0.6;
+              for (let i = 0; i < 260; i++) { const v = Math.random(); g.fillStyle = `rgba(255,255,255,${0.05 + v * 0.18})`; g.fillRect(px + Math.random() * pw, py + Math.random() * ph, 2, 2); }
+              g.globalAlpha = clar;
+            } else { g.fillStyle = 'rgba(230,230,230,.85)'; g.beginPath(); g.ellipse(px + pw / 2, py + 170, 46, 34, 0.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(px + pw / 2 + 36, py + 140, 22, 0, Math.PI * 2); g.fill(); }
+          }
           else { g.fillStyle = 'rgba(220,220,220,.7)'; g.beginPath(); g.ellipse(px + pw / 2, py + 170, 60, 38, 0.2, 0, Math.PI * 2); g.fill(); g.fillStyle = '#05070b'; g.beginPath(); g.ellipse(px + pw / 2, py + 170, 26, 15, 0.2, 0, Math.PI * 2); g.fill(); }
           g.restore();
           D.text(g, `Netteté ${Math.round(clar * 100)} %`, px + pw / 2, py + ph + 14, { s: 12, c: clar > 0.8 ? OK : '#cbd5e1' });
@@ -482,7 +508,7 @@
   });
 
   // ---------------------------------------------------------------- scènes
-  const limbKind = (x) => (x.region === 'leg' ? 'leg' : 'arm');
+  const limbKind = (x) => (x.full || x.region === 'body' ? 'body' : x.region === 'leg' ? 'leg' : 'arm');
   function woundScene(S, g, p, opts = {}) {
     const x = S.x;
     const kind = x.region === 'leg' || x.region === 'arm' ? limbKind(x) : null;
@@ -553,11 +579,11 @@
         g2.restore();
       } }));
     return [
-      PH.dial({ hint: `Installez le patient : placez le membre (${x.zoneLabel || ''}) au centre de la plaque, puis maintenez.`, target: 0.5, width: 0.12, hold: Math.max(1.5, S.cfg.duration * 0.12), from: 0.85,
+      PH.dial({ hint: x.full ? 'Installez le patient allongé au centre de la table, puis maintenez.' : `Installez le patient : placez le membre (${x.zoneLabel || ''}) au centre de la plaque, puis maintenez.`, target: 0.5, width: 0.12, hold: Math.max(1.5, S.cfg.duration * 0.12), from: 0.85,
         label: 'Position sur la plaque', scene: (S2, g2, v) => { g2.fillStyle = 'rgba(148,178,230,.1)'; g2.fillRect(230, 90, 300, 220); g2.strokeStyle = 'rgba(148,178,230,.5)'; g2.strokeRect(230, 90, 300, 220);
           D.limb(g2, 380 + (v - 0.5) * 420, 200, 300, kind === 'leg' ? 110 : 80, 0, kind); }, done: 'Patient installé' }),
       {
-        hint: `Centrez le cadre lumineux sur la zone douloureuse (${x.zoneLabel || ''}) et alignez-le sur l'axe du membre (A / D ou molette).`,
+        hint: x.full ? 'Centrez le cadre lumineux sur le patient et alignez-le sur l\'axe du corps (A / D ou molette).' : `Centrez le cadre lumineux sur la zone douloureuse (${x.zoneLabel || ''}) et alignez-le sur l'axe du membre (A / D ou molette).`,
         type: 'align', keys: 'Souris : position · <kbd>A</kbd>/<kbd>D</kbd> : rotation', cursor: 'none', get state() { return { x: tgt.x, y: tgt.y, a0, ang }; },
         update(S2, dt) {
           if (S2.key.KeyA || S2.key.KeyQ) ang -= dt * 0.8;
@@ -990,7 +1016,7 @@
       case 'proc:consent': return consentShow(m);
       case 'proc:report':
         report.innerHTML = `<b>${E(m.title || 'Compte rendu')}</b>${E(m.text)}`; showEl(report, true);
-        clearTimeout(reportT); reportT = setTimeout(() => showEl(report, false), 9000); return;
+        clearTimeout(reportT); reportT = setTimeout(() => showEl(report, false), Math.min(25000, 9000 + String(m.text || '').length * 40)); return;
       case 'closeAll': MG.stop(); showEl(pick, false); showEl(ask, false); showEl(consent, false); showEl(wait, false); return;
     }
   });

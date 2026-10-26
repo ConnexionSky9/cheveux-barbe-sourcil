@@ -97,13 +97,25 @@ Config.Procedures = {
         internalChance = 25, internalMinDamage = 30,
         -- chute : fracture d'une jambe (en plus de la boiterie). Au-delà de « majorHeight » m : fracture à plâtrer
         fall = { majorHeight = 12.0 },
-        -- saignement actif d'une personne consciente : perte de santé par minute (jamais en dessous du plancher)
-        drain = { [1] = 0, [2] = 3, [3] = 6 }, drainFloor = 120,
+        -- saignement actif d'une personne consciente : perte de santé par minute (jamais en dessous du plancher du niveau)
+        drain = { [1] = 1, [2] = 3, [3] = 6 }, drainFloor = 120,
+        floors = { [1] = 170, [2] = 140, [3] = 110 },          -- santé minimale atteinte par le saignement, par niveau (200 = pleine)
+        -- Hémorragie (audit V9) : perte de sang mesurée (ml), évolution du niveau, récupération
+        hemorrhage = {
+            rate = { [1] = 15, [2] = 60, [3] = 150 },          -- ml perdus par minute par plaie qui saigne, selon le niveau
+            stopMinutes = 8,                                   -- niveau 1 (faible) non soigné : s'arrête seul après X min (caillot)
+            worsenMinutes = 12,                                -- niveau 2 (moyen) non soigné : passe au niveau 3 après X min
+            lossLevel2 = 750,                                  -- perte totale (ml) à partir de laquelle l'hémorragie est au moins moyenne
+            lossLevel3 = 1500,                                 -- … au moins importante (patient critique)
+            recoverPerMin = 15,                                -- ml récupérés par minute quand plus rien ne saigne
+            maxLoss = 4000,                                    -- plafond de la perte enregistrée
+            tick = 10,                                         -- secondes entre deux calculs (serveur)
+        },
         healMinutes = 0,                -- [réglable] 0 = une blessure traitée est guérie ; sinon elle le devient après X min
     },
 
     -- Niveaux de gravité (affichage)
-    bleedLevels = { [1] = 'Hémorragie légère', [2] = 'Hémorragie importante', [3] = 'Hémorragie critique' },
+    bleedLevels = { [1] = 'Hémorragie faible', [2] = 'Hémorragie moyenne', [3] = 'Hémorragie importante' },
     fractureLevels = { [1] = 'Blessure nécessitant une immobilisation', [2] = 'Fracture nécessitant un plâtre' },
     internalLabels = { head = 'Traumatisme crânien', torso = 'Contusion thoracique', abdomen = 'Lésion abdominale' },
 
@@ -204,6 +216,8 @@ Config.Procedures = {
         xray_none     = 'Radiographie {zone} : aucune fracture identifiée.',
         xray_immob    = 'Radiographie {zone} : lésion nécessitant une immobilisation (attelle).',
         xray_fracture = 'Radiographie {zone} : fracture nécessitant une prise en charge par plâtre.',
+        xray_full_none  = 'Radiographie intégrale : aucune anomalie décelée (tête, thorax, abdomen, membres).',
+        xray_full_found = 'Radiographie intégrale : {count} anomalie(s). {list} Zones sans anomalie : {normal}.',
         imaging_none  = '{type} : aucune lésion enregistrée dans la zone examinée.',
         imaging_found = '{type} : {level} ({zone}).',
         echo_preg_no  = 'Échographie : pas de grossesse visible.',

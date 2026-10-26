@@ -260,3 +260,42 @@ Réglages : `Config.Wheelchair` (modèle `prop_wheelchair_01`, vitesses, assise)
 `/fauteuil_reglage <x> <y> <z> <rotation personne> <rotation fauteuil>`, ex. `/fauteuil_reglage 0 0.05 0.42 180 180`.
 
 Test hors jeu (brancard + fauteuil + MedicalBag, un serveur et deux clients simulés) : `python3 tests/run_stretcher_sim.py`.
+
+## Audit V9 (échographie, radiographie intégrale, hémorragie, brancard)
+
+### Échographie
+- Une vraie image d'échographie de fœtus (coupe de profil : crâne, visage, colonne, membres) s'affiche
+  dans le cône : `html/img/echo_foetus.webp`. Elle se floute tant que la sonde n'est pas bien placée.
+- Si l'image ne charge pas, l'ancien dessin reste affiché (rien ne casse).
+- Pour régénérer l'image : `python3 outils/generer_echo_foetus.py` (Pillow + numpy).
+
+### Radiographie intégrale
+- Nouveau choix **« Corps entier (radiographie intégrale) »** dans la radiographie (F6 › Actes et examens).
+- Le résultat vient **uniquement** des blessures enregistrées du patient, sans aucun hasard.
+  - Fractures : la fracture est alors marquée « radiographiée », donc attelle ou plâtre possibles.
+  - Projectile : balle encore présente.
+  - Lésion interne : seulement des signes indirects, avec un examen complémentaire conseillé. Aucun diagnostic n'est posé.
+  - Les zones normales sont listées.
+- Patient sans blessure : « aucune anomalie décelée ».
+
+### Hémorragie à trois niveaux (`config_procedures.lua › injuries.hemorrhage`)
+
+| Niveau | Perte par minute | Évolution sans soin |
+|---|---|---|
+| 1 · faible | 15 ml/min | s'arrête seule après 8 min (pansement encore à poser) |
+| 2 · moyenne | 60 ml/min | devient importante après 12 min |
+| 3 · importante | 150 ml/min | — |
+
+- La perte de sang totale relève le niveau : 750 ml → au moins moyenne ; 1 500 ml → importante.
+- Quand plus rien ne saigne, le patient récupère 15 ml par minute.
+- Calcul fait par le serveur seulement.
+- Le joueur est prévenu **une fois** à chaque changement de niveau. En jeu, un rappel espacé n'arrive qu'à partir du niveau 2.
+- La santé ne descend jamais sous un plancher qui dépend du niveau (`floors`).
+- L'examen EMS affiche « Perte de sang : environ X ml » et depuis combien de temps la plaie saigne.
+- La perte est gardée à la déconnexion (table `ems_blood`, créée toute seule) et remise à zéro à l'hôpital.
+
+### Brancard qui s'envolait à la sortie du véhicule (corrigé)
+1. L'EMS était téléporté 1 m sous le sol derrière l'ambulance. Il remontait, et le brancard placé devant lui à chaque image était projeté. Il garde maintenant sa hauteur.
+2. L'état serveur pouvait arriver après la réponse et rattacher le brancard au véhicule une fraction de seconde. Ce n'est plus le cas pendant 3 s.
+3. Un autre joueur pouvait avoir le contrôle réseau du brancard. Seul le créateur le figeait et coupait sa collision. Maintenant, tout client qui le contrôle le fige et coupe la collision **avant** de le détacher.
+4. Détaché par un autre joueur, le brancard était posé dans la carrosserie. Il est maintenant posé au sol, **derrière** le véhicule.

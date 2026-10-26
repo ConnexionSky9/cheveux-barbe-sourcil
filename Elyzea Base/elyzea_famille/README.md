@@ -143,3 +143,12 @@ Pas encore fait : symptômes, tenues de grossesse, accouchement (module suivant)
 - La distance est vérifiée par le serveur seulement avec OneSync (sinon `verifierDistance = false` : seule la vérification du client reste).
 - Ordonnance de pilule : prévue mais désactivée par défaut (`pilule.ordonnance = false`).
 - Les supérettes déjà posées ne reçoivent pas le rayon Santé toutes seules : un clic « Ajouter les produits de base » dans l'éditeur.
+
+## Moment intime : position (audit V9)
+- L'homme est allongé sur le dos. La femme est au-dessus, à califourchon, attachée à lui : elle suit, sans glisser ni flotter.
+- Couple de même sexe : celui qui a fait la demande est dessous.
+- Réglages : `Config.Intimite.position` (animations `dessous` / `dessus`, attache `pos` / `rot`).
+  `actif = false` remet l'ancienne étreinte.
+- L'animation est relancée si un autre script l'interrompt. En fin de moment, la personne du dessus est détachée et posée au sol à côté.
+- Si l'alignement n'est pas parfait sur ton serveur : `/intime_reglage x y z [rz]`, à utiliser par la personne du dessus pendant le moment.
+  Les valeurs s'affichent dans F8, à recopier dans `attache`.

@@ -344,22 +344,33 @@ AddEventHandler('gameEventTriggered', function(name, args)
     TriggerServerEvent('ems:server:injury', zone, group, math.max(dmg, IsEntityDead(ped) and 50 or 0))
 end)
 
--- Saignement (envoyé à ce joueur seul) : perte de santé lente, jamais en dessous du plancher
-local bleed = { bleed = 0, drain = 0, floor = 120 }
-RegisterNetEvent('ems:client:injuries', function(b) bleed = type(b) == 'table' and b or { bleed = 0, drain = 0, floor = 120 } end)
+-- Saignement (envoyé à ce joueur seul) : perte de santé lente, jamais en dessous du plancher du niveau
+-- Niveaux (audit V9) : 1 faible, 2 moyenne, 3 importante. Le serveur décide du niveau et prévient UNE fois
+-- à chaque changement ; ici : la perte de santé, un rappel espacé (niveau 2 et plus) et l'effet visuel.
+local bleed = { bleed = 0, drain = 0, floor = 120, loss = 0 }
+local bleedRemind = 0
+RegisterNetEvent('ems:client:injuries', function(b)
+    local before = bleed.bleed or 0
+    bleed = type(b) == 'table' and b or { bleed = 0, drain = 0, floor = 120, loss = 0 }
+    -- nouveau niveau plus grave : effet tout de suite, rappel repoussé (le serveur vient d'envoyer le message)
+    if (bleed.bleed or 0) > before then
+        bleedRemind = GetGameTimer() + 180000
+        if not C.IsDown() then AnimpostfxPlay('Dont_tazeme_bro', 1500, false) end
+    end
+end)
 CreateThread(function()
-    local warned = 0
     while true do
         Wait(15000)
-        if (bleed.drain or 0) > 0 and not C.IsDown() then
+        local lv = bleed.bleed or 0
+        if lv > 0 and (bleed.drain or 0) > 0 and not C.IsDown() then
             local ped = PlayerPedId()
             local hp = GetEntityHealth(ped)
             local floor = bleed.floor or 120
             if hp > floor then SetEntityHealth(ped, math.max(floor, hp - math.ceil(bleed.drain / 4))) end
-            if GetGameTimer() > warned then
-                warned = GetGameTimer() + 120000
-                C.Notify(bleed.bleed >= 3 and 'Vous saignez abondamment : appelez les secours (/ems).' or 'Vous saignez : une compression est nécessaire.', 'error')
-                AnimpostfxPlay('Dont_tazeme_bro', 1500, false)
+            if lv >= 2 and GetGameTimer() > bleedRemind then
+                bleedRemind = GetGameTimer() + (lv >= 3 and 120000 or 240000)
+                C.Notify(lv >= 3 and 'Hémorragie importante : appelez les secours (/ems).' or 'Hémorragie moyenne : une compression est nécessaire.', 'error')
+                AnimpostfxPlay('Dont_tazeme_bro', lv >= 3 and 2500 or 1500, false)
             end
         end
     end

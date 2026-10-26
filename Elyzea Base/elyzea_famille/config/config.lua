@@ -39,6 +39,18 @@ Config.Intimite = {
         partenaire = { dict = 'mp_ped_interaction', clip = 'kisses_guy_b' },
     },
     commande = 'intimite',       -- /intimite : proposer à la personne en face (si le menu ALT n'est pas disponible)
+    -- Audit V9 : position du moment intime (remplace l'étreinte debout ; actif = false pour revenir à l'étreinte).
+    -- Personnage masculin allongé sur le dos (animation native « allongé sur le dos », déjà utilisée par les EMS),
+    -- personnage féminin au-dessus, à genoux à califourchon (animation native « à genoux, buste droit »).
+    -- La personne du dessus est ATTACHÉE à celle du dessous : alignement exact, aucun glissement, aucun flottement.
+    -- attache.pos : décalage (m) dans le repère de la personne allongée (x = côté, y = avant, z = haut) ;
+    -- attache.rot : rotation (degrés). Réglage en jeu : /intime_reglage x y z rz (personne du dessus, valeurs à recopier ici).
+    position = {
+        actif = true,
+        dessous = { dict = 'amb@world_human_sunbathe@male@back@base', clip = 'base', flag = 1 },
+        dessus = { dict = 'amb@medic@standing@kneel@base', clip = 'base', flag = 1 },
+        attache = { pos = vector3(0.0, 0.0, 0.0), rot = vector3(0.0, 0.0, 180.0) },
+    },
 }
 
 -- ─────────────────────────── Contraception ───────────────────────────

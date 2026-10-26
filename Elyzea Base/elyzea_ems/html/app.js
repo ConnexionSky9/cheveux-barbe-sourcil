@@ -252,7 +252,7 @@ function examRender() {
       ${x.hunger != null ? `<div class="vital"><span>Faim</span><b>${x.hunger} %</b></div><div class="vital"><span>Soif</span><b>${x.thirst} %</b></div>` : ''}
     </div>
     <div class="kv"><span>Groupe sanguin</span><b>${esc(x.blood || 'non renseigné')}</b><span>Allergies</span><b>${esc(x.allergies || 'non renseignées')}</b></div>
-    ${(x.injuries || []).length ? `<div class="section-label" style="margin-top:.6rem">Blessures</div><div class="kv">${x.injuries.map((i) => `<span>${esc(i.zoneLabel)}</span><b>${esc(i.label)}<small class="faint"> · ${esc(INJ_ST[i.status] || i.status)}</small></b>`).join('')}</div>` : ''}
+    ${(x.injuries || []).length ? `<div class="section-label" style="margin-top:.6rem">Blessures</div><div class="kv">${x.injuries.map((i) => `<span>${esc(i.zoneLabel)}</span><b>${esc(i.label)}<small class="faint"> · ${esc(i.type === 'bloodloss' ? (i.status === 'active' ? 'saignement en cours' : 'à surveiller (récupération)') : (INJ_ST[i.status] || i.status))}</small></b>`).join('')}</div>` : ''}
     <div class="section-label" style="margin-top:.6rem">Diagnostic</div>
     ${(x.conditions || []).length ? `<div class="kv">${x.conditions.map((c) => `<span>${c.type === 'std' ? 'MST' : c.type === 'injury' ? 'Blessure' : 'Maladie'}</span><b>${esc(c.label)}${c.splinted ? ' · attelle posée' : ''}<small class="faint"> · ${c.cure === 'splint' ? 'attelle' : 'traitement'}</small></b>`).join('')}</div>`
       : '<p class="faint" style="font-size:.8rem">Aucune maladie ni blessure décelée.</p>'}
