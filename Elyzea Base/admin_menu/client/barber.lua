@@ -582,6 +582,11 @@ end)
 -- ---------------------------------------------------------
 -- La tête est enregistrée par le serveur lors du paiement et remise à chaque apparition
 local function saveMode() return 'internal' end
+local savedCid = nil                -- personnage à qui appartient SavedLook
+local function currentCid()
+    local ok, cid = pcall(function() return exports.elyzea_core:GetCitizenId() end)
+    return ok and cid and tostring(cid) or nil
+end
 
 local function saveAppearance(look)
     TriggerEvent('adminmenu:barber:saved', look, 'internal')
@@ -601,41 +606,54 @@ RegisterNetEvent('adminmenu:barber:result', function(ok, msg)
     saveAppearance(look)
     SendNUIMessage({ action = 'barber', event = 'paid', msg = msg })
     SetTimeout(900, function() closeBarber(false) end)
-    if saveMode() == 'internal' then SavedLook = look end
+    if saveMode() == 'internal' then SavedLook, savedCid = look, currentCid() end
     Notify(msg or 'Nouvelle tête enregistrée !', 'success')
 end)
 
 -- ---------------------------------------------------------
 --  Mode interne : la tête est remise à chaque spawn / chargement
 -- ---------------------------------------------------------
+-- Tête enregistrée du personnage ACTIF (audit multipersonnage) : jamais réappliquée à un autre personnage
 SavedLook = nil
 local reapplyToken = 0
 
 local function reapply(delays)
-    if saveMode() ~= 'internal' or not SavedLook then return end
+    if saveMode() ~= 'internal' then return end
     reapplyToken = reapplyToken + 1
     local token = reapplyToken
     for _, ms in ipairs(delays) do
         SetTimeout(ms, function()
-            if token == reapplyToken and not BarberOpen then applyLook(SavedLook) end
+            local cid = currentCid()
+            if token == reapplyToken and not BarberOpen and SavedLook and cid and cid == savedCid then applyLook(SavedLook) end
         end)
     end
 end
 
-RegisterNetEvent('adminmenu:barber:look', function(look)
-    SavedLook = look
+RegisterNetEvent('adminmenu:barber:look', function(look, cid)
+    if not cid or cid ~= currentCid() then return end      -- réponse pour un personnage qui n'est plus actif
+    SavedLook, savedCid = look or nil, cid
     reapply({ 0, 2500, 7000 })
 end)
 
 local function requestLook()
     if saveMode() ~= 'internal' then return end
-    SetTimeout(1500, function() TriggerServerEvent('adminmenu:barber:getLook') end)
+    TriggerServerEvent('adminmenu:barber:getLook')
 end
 
-RegisterNetEvent('elyzea:client:playerLoaded', requestLook)
+-- Nouveau personnage : la tête du précédent est oubliée, celle du nouveau est demandée
+local function onCharacter()
+    if savedCid ~= currentCid() then SavedLook, savedCid = nil, nil end
+    reapply({ 600, 2000 })
+    requestLook()
+end
+RegisterNetEvent('elyzea:client:playerLoaded', onCharacter)
 -- ely_creator vient de remettre l'apparence : on remet la coupe par-dessus
-AddEventHandler('ely_creator:loaded', function() reapply({ 600, 2000 }) end)
-AddEventHandler('ely_creator:created', function() reapply({ 600, 2000 }) end)
+AddEventHandler('ely_creator:loaded', onCharacter)
+AddEventHandler('ely_creator:created', onCharacter)
+RegisterNetEvent('elyzea:client:playerUnloaded', function()
+    SavedLook, savedCid = nil, nil
+    reapplyToken = reapplyToken + 1
+end)
 
 AddEventHandler('onClientResourceStart', function(res)
     if res == GetCurrentResourceName() and NetworkIsPlayerActive(PlayerId()) then requestLook() end

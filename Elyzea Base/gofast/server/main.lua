@@ -930,6 +930,15 @@ AddEventHandler('playerDropped', function()
     Security.Clear(src)
 end)
 
+-- Changement de personnage (audit multipersonnage) : la mission appartient au personnage qui part.
+-- Elle échoue comme une déconnexion : la récompense ne peut pas être versée au personnage suivant.
+AddEventHandler('elyzea:server:playerUnloaded', function(src)
+    src = tonumber(src)
+    if not src then return end
+    if ActiveMissions[src] then FailMission(src, 'fail_disconnect', 'Disconnect') end
+    StartingLocks[src] = nil
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     for _, mission in pairs(ActiveMissions) do

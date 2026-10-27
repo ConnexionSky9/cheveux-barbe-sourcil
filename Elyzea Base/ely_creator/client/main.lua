@@ -545,6 +545,9 @@ end)
 -- Sélection gérée par elyzea_multichar ? (ely_creator ne s'ouvre alors que sur demande)
 local EXTERNAL = Config.ExternalSelection and GetResourceState(Config.ExternalSelection) ~= 'missing'
 
+-- Retour à la sélection : plus aucune apparence du personnage qui part en mémoire
+RegisterNetEvent('elyzea:client:playerUnloaded', function() loadedSkin = nil end)
+
 if EXTERNAL then
     -- Déconnexion du personnage (/logout) : retour à l'écran Elyzea
     RegisterNetEvent('elyzea:client:playerUnloaded', function()
@@ -676,10 +679,10 @@ RegisterNetEvent('ely_creator:spawn', function(data)
     end
     exports.elyzea_core:SpawnPlayer(p)
     local ped = PlayerPedId()
-    if data.skin then
-        ApplySkin(ped, data.skin)
-        loadedSkin = data.skin
-    end
+    -- audit multipersonnage : l'apparence en mémoire est TOUJOURS celle du personnage chargé
+    -- (avant, sans apparence enregistrée, celle du personnage précédent restait et pouvait être réenregistrée)
+    loadedSkin = data.skin
+    if data.skin then ApplySkin(ped, data.skin) end
     SetEntityVisible(ped, true, false)
 
     fireLoadedEvents()

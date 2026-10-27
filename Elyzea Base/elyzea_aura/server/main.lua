@@ -557,6 +557,15 @@ AddEventHandler('playerDropped', function()
     Players[src] = nil
 end)
 
+-- Changement de personnage (audit multipersonnage) : le téléphone du personnage qui part (numéro, appel en cours)
+-- est libéré tout de suite ; celui du suivant est chargé à son arrivée (elyzea:server:playerLoaded)
+AddEventHandler('elyzea:server:playerUnloaded', function(src)
+    src = tonumber(src)
+    if not src then return end
+    if PlayerCall[src] then EndCall(PlayerCall[src], 'dropped') end
+    Players[src] = nil
+end)
+
 -- ---------------------------------------------------------
 --  Comptes Birdy / InstaPick
 -- ---------------------------------------------------------

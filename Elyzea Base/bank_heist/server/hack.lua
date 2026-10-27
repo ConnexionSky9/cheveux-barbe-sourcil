@@ -228,6 +228,7 @@ CreateThread(function()
     end
 end)
 AddEventHandler('playerDropped', function() local src = source if P.hacks[src] then finish(src, false, 'déconnexion') end end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src) src = tonumber(src) if src and P.hacks[src] then finish(src, false, 'déconnexion') end end)
 function P.CancelHackOf(bankId)
     for src, h in pairs(P.hacks) do
         if h.bank == bankId then P.hacks[src] = nil TriggerClientEvent('bh:client:hackEnd', src, false) end

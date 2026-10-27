@@ -46,7 +46,7 @@ function AddEventHandler(name, fn) events[name] = fn end
 function TriggerClientEvent(name, src, ...) client[#client + 1] = { name = name, args = { ... } } end
 function TriggerEvent() end
 function exports() end
-exports = setmetatable({}, { __call = function() end })
+exports = setmetatable({ elyzea_core = { GetCitizenId = function() return 'char1' end } }, { __call = function() end })
 local RES = { 'admin_menu', 'vm_female_hair' }
 function GetNumResources() return #RES end
 function GetResourceByFindIndex(i) return RES[i + 1] end
@@ -67,7 +67,7 @@ function LoadResourceFile(res, file)
     local s = f:read('a') f:close() return s
 end
 local saved
-Storage = { load = function() return {} end, saveLater = function(_, t) saved = t end }
+Storage = { load = function() return {} end, saveLater = function(_, t) saved = t end, save = function(_, t) saved = t end }
 Bridge = { GetCharId = function() return 'char1' end, GetMoney = function() return 1000 end, RemoveMoney = function() return true end, GetLabel = function() end }
 AdminMenu = { rateLimit = function() return true end, getLicense = function() return 'lic' end,
     EditorPeds = { check = function() return { id = 1, npc = { payment = 'cash', barber = { prices = { hair = 150 }, services = {}, payChoice = true } } } end } }

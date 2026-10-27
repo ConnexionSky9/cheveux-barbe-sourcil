@@ -95,7 +95,8 @@ function IsDuplicityVersion() return false end
 function GetCurrentResourceName() return 'admin_menu' end
 function NetworkIsPlayerActive() return true end
 function PlayerId() return 1 end
-exports = setmetatable({}, { __call = function() end })
+CID = 'char1'
+exports = setmetatable({ elyzea_core = { GetCitizenId = function() return CID end } }, { __call = function() end })
 function Notify() end
 function IsStaffMenuOpen() return false end
 
@@ -264,14 +265,14 @@ table.insert(cols, { name = 'autre_pack', count = 7, tex = 1 })
 table.insert(cols, { name = 'mp_f_vm_female_hair', count = 26, tex = 2, missing = { [14] = true } })
 reset(FEMALE_H, cols)
 ped.hair = 2
-events['adminmenu:barber:look'](look)
+events['adminmenu:barber:look'](look, 'char1')
 tick(5)
 check(ped.hair == 138 and ped.hairTex == 1, ('coupe retrouvée par son pack : n°138 au lieu de 131 (obtenu %d)'):format(ped.hair))
 
 print('\n[10] Pack de coupes absent : pas de plantage, coupe actuelle conservée')
 reset(FEMALE_H, femaleCols(false))
 ped.hair = 6
-events['adminmenu:barber:look'](look)
+events['adminmenu:barber:look'](look, 'char1')
 tick(5)
 check(ped.hair == 6 and not ped.bald, 'coupe n°6 conservée (pack absent)')
 open()
@@ -295,9 +296,44 @@ tick(6)
 check(ped.hair == 1, 'homme : annulation')
 
 print('\n[12] Tête enregistrée pour une femme non appliquée sur un homme')
-events['adminmenu:barber:look'](look)
+events['adminmenu:barber:look'](look, 'char1')
 tick(5)
 check(ped.hair == 1, 'modèle différent : rien n\'est changé')
+
+print('\n[13] Audit multipersonnage : la tête du personnage A n\'est jamais remise sur le personnage B')
+reset(MALE_H, { { name = '', count = 24, tex = 3 } })
+CID = 'A'
+ped.hair = 2
+events['adminmenu:barber:look']({ model = 'male', hair = 7, hairTex = 0 }, 'A')
+tick(200)
+check(ped.hair == 7, 'personnage A : sa coupe (n°7) est appliquée')
+events['elyzea:client:playerUnloaded']()
+CID = 'B'
+ped.hair = 3                                    -- apparence de B remise par ely_creator
+events['ely_creator:loaded']()
+tick(200)
+check(ped.hair == 3, ('personnage B : la coupe de A n\'est pas réappliquée (coupe %d)'):format(ped.hair))
+local asked = false
+for _, e in ipairs(SERVER) do if e.name == 'adminmenu:barber:getLook' then asked = true end end
+check(asked, 'personnage B : sa propre tête est demandée au serveur')
+events['adminmenu:barber:look']({ model = 'male', hair = 7, hairTex = 0 }, 'A')   -- réponse en retard pour A
+tick(200)
+check(ped.hair == 3, 'réponse en retard pour A : ignorée sur B')
+events['adminmenu:barber:look'](false, 'B')
+tick(200)
+check(ped.hair == 3, 'B sans tête enregistrée : son apparence reste intacte')
+events['adminmenu:barber:look']({ model = 'male', hair = 11, hairTex = 0 }, 'B')
+tick(200)
+check(ped.hair == 11, 'B : sa propre coupe (n°11) est appliquée')
+events['elyzea:client:playerUnloaded']()
+CID = 'A'
+ped.hair = 2
+events['ely_creator:loaded']()
+tick(200)
+check(ped.hair == 2, 'retour sur A : la coupe de B n\'est pas réappliquée')
+events['adminmenu:barber:look']({ model = 'male', hair = 7, hairTex = 0 }, 'A')
+tick(200)
+check(ped.hair == 7, 'retour sur A : sa coupe revient')
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

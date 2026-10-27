@@ -47,8 +47,8 @@ end
 local function charKey(src)
     local ok, cid = pcall(function() return core:GetCitizenId(src) end)
     if ok and cid then return tostring(cid) end
-    for _, id in ipairs(GetPlayerIdentifiers(src)) do if id:sub(1, 8) == 'license:' then return id end end
-    return tostring(src)
+    -- aucun personnage chargé : clé de session (jamais la licence, commune à tous les personnages du compte)
+    return 'session:' .. tostring(src)
 end
 
 -- Tenue de service en cours (state bag posé par le serveur d'un métier, ex. elyzea_presse) :

@@ -18,6 +18,20 @@ local baseDeco = {}                           -- tatouages (et dégradés) avant
 local adds, removes, preview = {}, {}, nil    -- adds[id] = true, removes[id] = true
 local outfit                                  -- vêtements retirés pendant le tatouage
 
+-- Tatouages enregistrés du personnage ACTIF (audit multipersonnage) : liste + citizenid à qui elle appartient.
+-- Jamais réutilisés pour un autre personnage.
+SavedTattoos = nil
+local savedCid = nil
+local function currentCid()
+    local ok, cid = pcall(function() return exports.elyzea_core:GetCitizenId() end)
+    return ok and cid and tostring(cid) or nil
+end
+local function mySaved()
+    local cid = currentCid()
+    if cid and savedCid == cid and type(SavedTattoos) == 'table' then return SavedTattoos end
+    return nil
+end
+
 -- ---------------------------------------------------------
 --  Catalogue (reçu une fois du serveur, gardé en mémoire)
 -- ---------------------------------------------------------
@@ -217,10 +231,19 @@ local function open(data)
     end
     if IsPedInAnyVehicle(p, false) or IsEntityDead(p) or TattooOpen then return end
     gender = m == MALE and 'male' or 'female'
+    -- Point de départ = tatouages ENREGISTRÉS de ce personnage (pas ce que porte le ped : il pouvait garder
+    -- ceux du personnage précédent, qui étaient alors enregistrés sur celui-ci au paiement)
+    local mine = mySaved()
+    if not mine then
+        TriggerServerEvent('adminmenu:tattoo:getSaved')
+        return Notify('Tes tatouages sont en cours de chargement, réessaie dans un instant.', 'error')
+    end
     shop = data
     adds, removes, preview = {}, {}, nil
     rebuildRemoved()
-    baseDeco = readDecorations(p)
+    baseDeco = {}
+    for _, d in ipairs(mine) do baseDeco[#baseDeco + 1] = { d[1], d[2] } end
+    apply()
 
     -- Tatouages déjà portés (reconnus dans le catalogue)
     local owned, byHash = {}, {}
@@ -347,16 +370,22 @@ end)
 -- ---------------------------------------------------------
 --  Enregistrement
 -- ---------------------------------------------------------
-local function saveMode() return 'internal' end
 
-RegisterNetEvent('adminmenu:tattoo:result', function(ok, msg)
+local syncPed
+RegisterNetEvent('adminmenu:tattoo:result', function(ok, msg, list, cid)
     if not TattooOpen then return end
     awaiting = false
     if not ok then return SendNUIMessage({ action = 'tattoo', event = 'payfail', msg = msg or 'Paiement refusé.' }) end
     preview = nil
     redress()
+    -- liste enregistrée par le serveur pour CE personnage = ce qui est porté (application immédiate)
+    if type(list) == 'table' and cid and cid == currentCid() then
+        SavedTattoos, savedCid = list, cid
+        baseDeco, adds, removes = {}, {}, {}
+        for _, d in ipairs(list) do baseDeco[#baseDeco + 1] = { d[1], d[2] } end
+        rebuildRemoved()
+    end
     apply()
-    SavedTattoos = finalList()
     TriggerEvent('adminmenu:tattoo:applied', finalList())
     SendNUIMessage({ action = 'tattoo', event = 'paid', msg = msg })
     SetTimeout(900, function() adds, removes = {}, {} close(false) end)
@@ -364,34 +393,54 @@ RegisterNetEvent('adminmenu:tattoo:result', function(ok, msg)
 end)
 
 -- ---------------------------------------------------------
---  Mode interne : tatouages remis à chaque spawn
+--  Tatouages remis à chaque chargement / spawn — EXACTEMENT ceux du personnage actif
+--  (audit multipersonnage : avant, les tatouages du personnage précédent restaient sur le ped
+--  et la liste en mémoire était réappliquée au personnage suivant)
 -- ---------------------------------------------------------
-SavedTattoos = nil
-local function reapply()
-    if saveMode() ~= 'internal' or type(SavedTattoos) ~= 'table' then return end
-    for _, ms in ipairs({ 500, 3000, 8000 }) do
-        SetTimeout(ms, function()
-            if TattooOpen then return end
-            local p = PlayerPedId()
-            local have = {}
-            for _, d in ipairs(readDecorations(p)) do have[d[2]] = true end
-            for _, d in ipairs(SavedTattoos) do
-                if not have[d[2]] then AddPedDecorationFromHashes(p, d[1], d[2]) end
-            end
-        end)
-    end
+local syncToken = 0
+syncPed = function()
+    if TattooOpen then return end
+    local p = PlayerPedId()
+    local m = GetEntityModel(p)
+    if m ~= MALE and m ~= FEMALE then return end            -- transformation staff : pas un personnage
+    ClearPedDecorations(p)
+    for _, d in ipairs(mySaved() or {}) do AddPedDecorationFromHashes(p, d[1], d[2]) end
 end
-RegisterNetEvent('adminmenu:tattoo:saved', function(list) SavedTattoos = list reapply() end)
-local function request()
-    if saveMode() ~= 'internal' then return end
-    SetTimeout(2000, function() TriggerServerEvent('adminmenu:tattoo:getSaved') end)
+local function syncLater(delays)
+    syncToken = syncToken + 1
+    local t = syncToken
+    for _, ms in ipairs(delays) do SetTimeout(ms, function() if t == syncToken then syncPed() end end) end
 end
-RegisterNetEvent('elyzea:client:playerLoaded', request)
-AddEventHandler('ely_creator:loaded', reapply)
-AddEventHandler('ely_creator:created', reapply)
+local function request() TriggerServerEvent('adminmenu:tattoo:getSaved') end
+
+RegisterNetEvent('adminmenu:tattoo:saved', function(list, cid)
+    if not cid or cid ~= currentCid() then return end      -- réponse pour un personnage qui n'est plus actif
+    SavedTattoos, savedCid = type(list) == 'table' and list or {}, cid
+    syncLater({ 0, 3000 })
+end)
+
+-- Nouveau personnage chargé : on enlève tout de suite ce qui reste du précédent, puis on demande sa liste
+local function onCharacter()
+    if savedCid ~= currentCid() then SavedTattoos, savedCid = nil, nil end
+    syncLater({ 0, 500, 3000, 8000 })
+    request()
+end
+RegisterNetEvent('elyzea:client:playerLoaded', onCharacter)
+AddEventHandler('ely_creator:loaded', onCharacter)
+AddEventHandler('ely_creator:created', onCharacter)
+
+-- Retour à la sélection : plus aucun tatouage en mémoire ni sur le ped
+RegisterNetEvent('elyzea:client:playerUnloaded', function()
+    SavedTattoos, savedCid = nil, nil
+    syncToken = syncToken + 1
+    ClearPedDecorations(PlayerPedId())
+end)
+
 AddEventHandler('onClientResourceStart', function(res)
     if res == GetCurrentResourceName() and NetworkIsPlayerActive(PlayerId()) then request() end
 end)
+
+exports('GetSavedTattoos', function() return mySaved() end)
 
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() and TattooOpen then close(true) end

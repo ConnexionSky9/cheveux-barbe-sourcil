@@ -85,7 +85,10 @@ local function fetchCharacters(src)
                 job = jobTxt,
                 cash = tonumber(money.cash) or 0, bank = tonumber(money.bank) or 0,
                 lastPlayed = last,
-                elySkin = decode(r.ely_skin)
+                elySkin = decode(r.ely_skin),
+                -- tatouages de CE personnage (admin_menu), pour l'aperçu
+                tattoos = GetResourceState('admin_menu') == 'started'
+                    and select(2, pcall(function() return exports.admin_menu:GetTattoosByCid(r.citizenid) end)) or nil
             }
         end
     end

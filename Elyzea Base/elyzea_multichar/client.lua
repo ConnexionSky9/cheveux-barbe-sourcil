@@ -108,6 +108,13 @@ local function showCharacter(slot)
         end
         if token ~= previewToken then return end
         local ped = PlayerPedId()
+        -- même modèle d'un personnage à l'autre = même ped : on retire les tatouages du personnage affiché avant
+        ClearPedDecorations(ped)
+        if type(c.tattoos) == 'table' then
+            for _, d in ipairs(c.tattoos) do
+                if type(d) == 'table' and tonumber(d[1]) and tonumber(d[2]) then AddPedDecorationFromHashes(ped, d[1], d[2]) end
+            end
+        end
         placePed(ped)
         Wait(0)
         aimCam()

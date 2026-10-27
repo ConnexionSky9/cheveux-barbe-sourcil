@@ -69,8 +69,11 @@ end
 -- ---------------------------------------------------------
 local Looks = Storage.load('barber_looks', {})
 
+-- Tête par PERSONNAGE : clé = citizenid (jamais la licence, commune à tous les personnages du compte)
 local function charKey(src)
-    return Bridge.GetCharId(src) or AM.getLicense(src)
+    local ok, cid = pcall(function() return exports.elyzea_core:GetCitizenId(src) end)
+    if ok and cid and tostring(cid) ~= '' then return tostring(cid) end
+    return nil
 end
 
 -- Valide une valeur de panier / de tête. Renvoie nil si invalide.
@@ -112,7 +115,8 @@ RegisterNetEvent('adminmenu:barber:getLook', function()
     local src = source
     if not AM.rateLimit(src, 'barber_look', 3, 5000) then return end
     local key = charKey(src)
-    TriggerClientEvent('adminmenu:barber:look', src, key and Looks[key] or nil)
+    if not key then return end
+    TriggerClientEvent('adminmenu:barber:look', src, Looks[key] or false, key)
 end)
 
 -- ---------------------------------------------------------
@@ -174,6 +178,7 @@ RegisterNetEvent('adminmenu:barber:pay', function(id, cart, look, method)
         lines = lines + 1
     end
     if lines == 0 then return result(src, false, 'Ton panier est vide.') end
+    if not charKey(src) then return result(src, false, 'Personnage non chargé : réessaie dans un instant.') end
 
     local kind, item = n.payment, n.paymentItem
     if bb.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
@@ -196,7 +201,7 @@ RegisterNetEvent('adminmenu:barber:pay', function(id, cart, look, method)
     local key = charKey(src)
     if clean and key then
         Looks[key] = clean
-        Storage.saveLater('barber_looks', Looks, 3000)
+        Storage.save('barber_looks', Looks)
     end
 
     result(src, true, total > 0 and ('Payé %s $. Nouvelle tête enregistrée !'):format(total) or 'Nouvelle tête enregistrée !', total)

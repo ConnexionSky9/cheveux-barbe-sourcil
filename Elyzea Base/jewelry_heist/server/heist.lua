@@ -173,6 +173,11 @@ AddEventHandler('playerDropped', function()
     local shopId = P.robbing[src]
     if shopId then P.CancelHeist(shopId, nil, 'braqueur déconnecté') end
 end)
+-- Changement de personnage (audit multipersonnage) : traité comme une déconnexion (le butin n'ira pas au suivant)
+AddEventHandler('elyzea:server:playerUnloaded', function(src)
+    local shopId = P.robbing[tonumber(src) or -1]
+    if shopId then P.CancelHeist(shopId, nil, 'braqueur déconnecté') end
+end)
 
 -- ---------------------------------------------------------------------
 -- Requêtes client

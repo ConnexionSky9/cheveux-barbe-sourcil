@@ -142,15 +142,39 @@ end
 -- ---------------------------------------------------------
 --  Têtes sauvegardées (mode interne) : liste de { collection, overlay } (hashs)
 -- ---------------------------------------------------------
+-- Tatouages par PERSONNAGE : clé = citizenid (jamais la licence, commune à tous les personnages du compte).
+-- Les anciennes entrées « license:… » éventuelles restent dans le fichier mais ne sont plus lues.
 local Saved = Storage.load('tattoo_looks', {})
-local function charKey(src) return Bridge.GetCharId(src) or AM.getLicense(src) end
+local core = exports.elyzea_core
+local function charKey(src)
+    local ok, cid = pcall(function() return core:GetCitizenId(src) end)
+    if ok and cid and tostring(cid) ~= '' then return tostring(cid) end
+    return nil   -- aucun personnage chargé (écran de sélection) : rien à lire ni à écrire
+end
+
+local function cleanList(list)
+    local clean, seen = {}, {}
+    for i, v in ipairs(type(list) == 'table' and list or {}) do
+        if i > 200 then break end
+        if type(v) == 'table' and tonumber(v[1]) and tonumber(v[2]) then
+            local c, o = math.floor(v[1]), math.floor(v[2])
+            if not seen[o] then seen[o] = true clean[#clean + 1] = { c, o } end
+        end
+    end
+    return clean
+end
 
 RegisterNetEvent('adminmenu:tattoo:getSaved', function()
     local src = source
-    if not AM.rateLimit(src, 'tattoo_saved', 3, 5000) then return end
+    if not AM.rateLimit(src, 'tattoo_saved', 6, 5000) then return end
     local k = charKey(src)
-    TriggerClientEvent('adminmenu:tattoo:saved', src, k and Saved[k] or nil)
+    if not k then return end
+    -- le citizenid accompagne la liste : le client ne l'applique qu'au personnage auquel elle appartient
+    TriggerClientEvent('adminmenu:tattoo:saved', src, Saved[k] or {}, k)
 end)
+
+-- Liste des tatouages d'un personnage (écran de sélection, autres ressources)
+exports('GetTattoosByCid', function(cid) return cid and Saved[tostring(cid)] or nil end)
 
 -- ---------------------------------------------------------
 --  Ouverture
@@ -184,7 +208,7 @@ end)
 --  Paiement : add = { id, … }, remove = { id, … }, final = liste complète de hashs
 -- ---------------------------------------------------------
 local Paying = {}
-local function result(src, ok, msg) TriggerClientEvent('adminmenu:tattoo:result', src, ok, msg) end
+local function result(src, ok, msg, list, cid) TriggerClientEvent('adminmenu:tattoo:result', src, ok, msg, list, cid) end
 
 RegisterNetEvent('adminmenu:tattoo:pay', function(id, cart, final, method)
     local src = source
@@ -209,6 +233,8 @@ RegisterNetEvent('adminmenu:tattoo:pay', function(id, cart, final, method)
         lines = lines + 1
     end
     if lines == 0 then return result(src, false, 'Ton panier est vide.') end
+    local key = charKey(src)
+    if not key then return result(src, false, 'Personnage non chargé : réessaie dans un instant.') end
 
     local kind, item = n.payment, n.paymentItem
     if tt.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
@@ -225,18 +251,36 @@ RegisterNetEvent('adminmenu:tattoo:pay', function(id, cart, final, method)
     end
     Paying[src] = nil
 
-    -- Sauvegarde interne : liste complète des tatouages après passage
-    if type(final) == 'table' then
-        local clean = {}
-        for i, v in ipairs(final) do
-            if i > 200 then break end
-            if type(v) == 'table' and tonumber(v[1]) and tonumber(v[2]) then clean[#clean + 1] = { math.floor(v[1]), math.floor(v[2]) } end
-        end
-        local k = charKey(src)
-        if k then Saved[k] = clean Storage.saveLater('tattoo_looks', Saved, 3000) end
+    -- Sauvegarde : calculée ICI à partir des tatouages enregistrés de CE personnage (pas de ce que porte le ped,
+    -- qui pouvait encore avoir les tatouages d'un autre personnage) : on retire ceux du panier « retrait »,
+    -- puis on ajoute ceux du panier « ajout ». Écrite tout de suite sur le disque (pas d'attente).
+    local clientFinal = {}
+    for _, v in ipairs(cleanList(final)) do clientFinal[v[2]] = true end
+    local list = cleanList(Saved[key])
+    local drop = {}
+    for _, tid in ipairs(type(cart.remove) == 'table' and cart.remove or {}) do
+        local e = ById[tonumber(tid)]
+        if e.m ~= '' then drop[GetHashKey(e.m)] = true end
+        if e.f ~= '' then drop[GetHashKey(e.f)] = true end
     end
+    local out, have = {}, {}
+    for _, v in ipairs(list) do if not drop[v[2]] then out[#out + 1] = v have[v[2]] = true end end
+    local female = (function()
+        local ok, p = pcall(function() return core:GetPlayer(src) end)
+        local g = ok and p and p.PlayerData and p.PlayerData.charinfo and tonumber(p.PlayerData.charinfo.gender)
+        return g == 1
+    end)()
+    for _, tid in ipairs(type(cart.add) == 'table' and cart.add or {}) do
+        local e = ById[tonumber(tid)]
+        local hm, hf = e.m ~= '' and GetHashKey(e.m) or nil, e.f ~= '' and GetHashKey(e.f) or nil
+        -- version homme ou femme : celle que le client a réellement posée, sinon le sexe du personnage
+        local h = (hm and clientFinal[hm] and hm) or (hf and clientFinal[hf] and hf) or (female and hf or hm) or hf
+        if h and not have[h] and #out < 200 then out[#out + 1] = { GetHashKey(e.collection), h } have[h] = true end
+    end
+    Saved[key] = out
+    Storage.save('tattoo_looks', Saved)
 
-    result(src, true, total > 0 and ('Payé %s $. Tatouages enregistrés !'):format(total) or 'Tatouages enregistrés !')
+    result(src, true, total > 0 and ('Payé %s $. Tatouages enregistrés !'):format(total) or 'Tatouages enregistrés !', out, key)
     TriggerEvent('adminmenu:tattoo:paid', src, total, r.id, cart)
 end)
 

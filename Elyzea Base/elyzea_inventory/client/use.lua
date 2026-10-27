@@ -94,6 +94,15 @@ RegisterNetEvent('elyzea_inv:weapon:holster', function()
     removeCurrent()
 end)
 
+-- Changement de personnage (audit multipersonnage) : l'arme sortie appartient au personnage qui part.
+-- Retirée du ped SANS renvoyer ses munitions (le serveur a déjà enregistré et vidé l'inventaire de ce personnage).
+RegisterNetEvent('elyzea_inv:unload', function()
+    current = nil
+    local ped = PlayerPedId()
+    RemoveAllPedWeapons(ped, true)
+    SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+end)
+
 RegisterNetEvent('elyzea_inv:weapon:disarm', function()
     removeCurrent()
     RemoveAllPedWeapons(PlayerPedId(), true)

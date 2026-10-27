@@ -91,6 +91,7 @@ CreateThread(function()
 end)
 
 AddEventHandler('playerDropped', function() P.collectors[source] = nil end)
+AddEventHandler('elyzea:server:playerUnloaded', function(src) P.collectors[tonumber(src) or -1] = nil end)
 
 -- Objets en plus (lingots…) tirés à l'ouverture
 P.Req.takeExtras = function(src, d)
