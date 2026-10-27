@@ -102,5 +102,5 @@ La licence reste utilisée volontairement pour des données du **compte** : staf
   8. `restart bank_heist`
   9. `restart elyzea_clothing`
 - **SQL :** aucune commande à exécuter.
-- **Retour arrière :** garde une copie de tes fichiers actuels avant d'installer. Pour revenir en arrière, remets cette copie, ou les fichiers du commit précédent de la branche (`0ed0ff6..84517f2` → état d'avant cet audit : commit `84517f2`). Aucune donnée n'a été convertie, donc rien d'autre à défaire.
+- **Retour arrière :** garde une copie de tes fichiers actuels avant d'installer. Pour revenir en arrière, remets cette copie, ou les fichiers du commit `84517f2` (état juste avant cet audit). Aucune donnée n'a été convertie, donc rien d'autre à défaire.
 - **Ne remplace jamais** ton dossier `admin_menu/data/` : il contient les tatouages et les têtes enregistrés.
