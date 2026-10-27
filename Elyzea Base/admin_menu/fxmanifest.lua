@@ -98,6 +98,7 @@ server_scripts {
     'server/presse.lua',
     'server/guards.lua',
     'server/sharks.lua',
+    'server/loisirs.lua',
 }
 
 ui_page 'html/index.html'
@@ -149,5 +150,6 @@ files {
     'html/pvp.js',
     'html/presse.js',
     'html/sharks.js',
+    'html/loisirs.js',
     'html/logo.png',
 }

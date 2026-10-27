@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Elyzea Loisirs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Lobby : créer, rejoindre, règles -->
+    <div id="lobby" class="glass center hidden" role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
+        <div class="glow-edge"></div>
+        <div class="head">
+            <div class="brand"><div class="brand-ico" id="lobbyIco">🎳</div><div><small id="lobbyGame">LOISIRS</small><h2 id="lobbyTitle">—</h2></div></div>
+            <button class="x" data-act="close" aria-label="Fermer">✕</button>
+        </div>
+        <div class="tabs pad"><button class="tab on" data-tab="party">Partie</button><button class="tab" data-tab="rules">Règles</button></div>
+        <div id="lobbyBody" class="pad"></div>
+    </div>
+
+    <!-- Tableau de score de ma partie (ou de la partie regardée) -->
+    <div id="hud" class="hidden"></div>
+
+    <!-- Contrôles du coup en cours -->
+    <div id="controls" class="hidden">
+        <div id="ctlHint" class="hint"></div>
+        <div id="ctlInfo" class="info"></div>
+        <div id="ctlPower" class="power hidden"><i></i><span class="mark"></span></div>
+        <div id="ctlKeys" class="keys"></div>
+    </div>
+
+    <!-- Messages de résultat -->
+    <div id="toasts"></div>
+
+    <!-- Classement final -->
+    <div id="results" class="glass center hidden">
+        <div class="glow-edge"></div>
+        <div class="head"><div class="brand"><div class="brand-ico">🏆</div><div><small id="resGame">FIN DE PARTIE</small><h2 id="resTitle">Classement</h2></div></div></div>
+        <div id="resBody" class="pad"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

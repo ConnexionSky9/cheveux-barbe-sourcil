@@ -15,6 +15,7 @@ local EXTRA = {
     { key = 'drugs_effects', label = 'Drogues : effets seulement (durée de défonce, hallucinations, arrêter les effets d\'un joueur) (elyzea_drogues)', cat = 'Illégal' },
     { key = 'shop_view',     label = 'Boutique : voir le catalogue, les livraisons et les coins (elyzea_shop). Modifier la boutique reste réservé aux Fondateurs', cat = 'Gestion' },
     { key = 'sharks_manage', label = 'Requins : zones dessinées, points d\'apparition, réapparition, joueurs protégés (onglet Requins)', cat = 'Gestion' },
+    { key = 'loisirs_manage', label = 'Loisirs : pistes de bowling, tables de billard, parcours de golf (poser, régler, supprimer), parties en cours (annuler) (elyzea_loisirs)', cat = 'Joueurs' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

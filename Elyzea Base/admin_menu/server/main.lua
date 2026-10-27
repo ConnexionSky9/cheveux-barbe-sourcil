@@ -277,6 +277,12 @@ do
         meta.pvp1 = true
         Storage.save('meta', meta)
     end
+    if not meta.loisirs1 then
+        -- Onglet Loisirs (elyzea_loisirs) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.loisirs_manage = true end
+        meta.loisirs1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.famille1 then
         -- Onglet Famille (elyzea_famille) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.famille_manage = true end
