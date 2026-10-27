@@ -64,7 +64,10 @@
             <p class="hint">Tiens-toi <b>sur la ligne de faute</b>, au milieu de la piste, <b>tourné vers les quilles</b>. Les quilles sont posées 18,3 m devant toi
                 (piste réglementaire). Le jeu de base n'a pas de bowling : choisis un intérieur (MLO) ou un sol plat de 22 m de long.</p>
             <div class="inline" style="max-width:560px"><input class="input" data-lk="new:bowling" maxlength="40" placeholder="Nom (ex. Piste 1)" value="${esc(val('new:bowling', ''))}">
-                <button class="btn primary" data-ladd="bowling">📍 Poser la piste ici</button></div></div>
+                <button class="btn primary" data-ladd="bowling">📍 Poser la piste ici</button>
+                <button class="btn" data-ladd="bowling_align" title="Regarde vers les quilles du décor : la piste est calée sur la quille de tête">🎯 Aligner sur les quilles du décor</button></div>
+            <p class="hint">Ton MLO a déjà des quilles ? Tiens-toi derrière la ligne de faute, regarde vers elles et clique <b>Aligner sur les quilles du décor</b> :
+                la piste est calée exactement dans l'axe, et les quilles du décor sont cachées pour laisser place aux vraies quilles qui tombent.</p></div>
         ${!list.length ? '<div class="empty">Aucune piste.</div>' : list.map((i) => `<div class="card">${instHead(i)}</div>`).join('')}`;
     }
 
@@ -157,10 +160,11 @@
         if (ds.lcourse) { L.course = Number(ds.lcourse); return render(); }
         if (ds.ladd) {
             if (ds.ladd === 'bowling') send('add_bowling', { name: take('new:bowling') || '' });
+            else if (ds.ladd === 'bowling_align') send('add_bowling', { name: take('new:bowling') || '', align: true });
             else if (ds.ladd === 'billiards') send('add_billiards', { name: take('new:billiards') || '', model: L.draft['new:model'] || 'prop_pooltable_02' });
             else if (ds.ladd === 'billiards_existing') send('add_billiards', { name: take('new:billiards') || '', existing: true });
             else if (ds.ladd === 'golf') { send('add_course', { name: take('new:golf') || '' }); L.course = null; }
-            return setTimeout(() => post('refresh'), ds.ladd === 'billiards_existing' ? 4500 : 500);
+            return setTimeout(() => post('refresh'), ds.ladd === 'billiards_existing' || ds.ladd === 'bowling_align' ? 4500 : 500);
         }
         if (ds.lren) { send('rename', { id: Number(ds.lren), name: take(`name:${ds.lren}`) || '' }); return later(); }
         if (ds.ltp) return send('tp', { id: Number(ds.ltp) });

@@ -56,6 +56,9 @@ const path = require('path');
         await page.click('[data-ladd="bowling"]'); await page.waitForTimeout(50);
         last = await page.evaluate(() => sent[sent.length - 1]);
         check(last.data.name === 'add_bowling' && last.data.data.name === 'Piste 2', `${w}×${h} : poser une piste ici`);
+        await page.click('[data-ladd="bowling_align"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.name === 'add_bowling' && last.data.data.align === true, `${w}×${h} : aligner la piste sur les quilles du décor`);
         // billard
         await page.click('[data-lsub="billiards"]');
         check(await page.inputValue('[data-lk="cl:2"]') === '2.3' && await page.inputValue('[data-lk="cw:2"]') === '', `${w}×${h} : billard, calibrage affiché`);

@@ -46,6 +46,15 @@ Tiens-toi **sur la ligne de faute**, au milieu de la piste, **tourné vers les q
 - Il faut un sol plat d'environ 23 m : un MLO de bowling, un hangar ou un parking.
 - Une piste par installation. Pose-en plusieurs côte à côte, à 1,9 m d'écart, pour une salle.
 
+**Ton MLO a déjà des quilles ?** Tiens-toi derrière la ligne de faute, regarde vers elles et clique **Aligner sur les quilles du décor**.
+La piste est calée exactement sur la quille de tête du décor (même axe, ligne de faute 18,29 m avant elle).
+Pendant le jeu, les quilles du décor au fond de la piste sont **cachées** pour laisser place aux vraies quilles qui tombent.
+
+- Cela marche si les quilles du MLO sont des objets séparés. Par défaut, le modèle cherché est `prop_bowling_pin` (`hideModels` dans `config.lua`).
+- Si ton MLO utilise un autre modèle : place-toi près des quilles, tape `/loisirs_objets`, puis ouvre la console F8.
+  Elle liste les objets proches avec leur numéro (hash) ; ajoute ce numéro dans `hideModels`.
+- Si les quilles sont dessinées dans le décor lui-même (pas des objets), elles ne peuvent pas être cachées.
+
 ### Billard
 
 Deux façons de poser une table :
@@ -94,10 +103,18 @@ Les touches ci-dessous sont en QWERTY ; en AZERTY, A/W/Q deviennent Q/Z/A.
 
 | Jeu | Touches |
 |---|---|
-| Bowling | A / D : position · Q / E : angle · W / S : effet · ESPACE maintenu puis relâché : puissance |
+| Bowling | A / D : pas de côté · Q / E : angle · W / S : effet · ESPACE maintenu puis relâché : puissance |
 | Billard | Souris ou A / D : viser · Q / E : réglage fin · ESPACE : puissance · C : vue de dessus |
 | Billard, blanche en main | W / S / A / D : déplacer la blanche · E : valider |
 | Golf | A / D : direction · molette : club · W / S : effet · ESPACE : swing · C : caméra · G : balle injouable (+1) |
+
+Au bowling :
+
+- **A / D** fait faire au personnage de **vrais pas de côté** (animation du jeu `move_strafe@reposition`) : il reste face à la piste. Maintenir la touche enchaîne les pas.
+- Une **flèche bleue** posée sur la piste montre la direction visée. Elle se courbe selon l'effet (W / S).
+- Après le lâcher, la **caméra suit la boule**, puis s'arrête devant les quilles pour les voir tomber, avant de rendre la main.
+  Les joueurs de la partie la voient aussi ; les simples spectateurs non.
+- Chaque quille touchée **bascule dans le sens où elle a été poussée** et se couche au sol.
 
 `/loisirs_quitter` quitte la partie en cours.
 
@@ -162,6 +179,7 @@ Toutes les animations et tous les modèles de la config ont été vérifiés dan
 
 - `mini@golf` ;
 - `weapons@projectile@` ;
+- `move_strafe@reposition` (`step_short_90_face_0`, `step_short_-90_face_0`) ;
 - `anim@heists@box_carry@` ;
 - `anim@amb@business@coc@coc_unpack_cut_left@` ;
 - `prop_bowling_*`, `prop_poolball_*`, `prop_pool_cue`, `prop_golf_*`.
@@ -189,7 +207,12 @@ Ils ne remplacent pas un essai en jeu.
 1. **Démarrage.** `ensure elyzea_loisirs`. La console ne doit afficher aucune erreur et la table `loisirs_installations` doit exister.
 2. **Bowling.**
    - Poser une piste dans le menu admin.
-   - Vérifier que 10 quilles apparaissent à 18 m, dans l'axe.
+   - Vérifier que 10 quilles apparaissent à 18 m, dans l'axe, posées sur le sol.
+   - Dans un MLO avec ses propres quilles : utiliser « Aligner sur les quilles du décor » et vérifier qu'il n'y a pas de quilles en double.
+   - A / D : le personnage fait des pas de côté en restant face à la piste, sans glisser. Note si un pas part du mauvais côté :
+     le client le corrige tout seul dès le premier pas.
+   - La flèche bleue est visible sur la piste et bouge avec Q / E et W / S.
+   - Après le lancer, la caméra suit la boule puis montre les quilles tomber.
    - Faire **E**, créer une partie, la démarrer seul.
    - Jouer 3 frames : boule en main, lancer animé, quilles qui tombent, score à jour.
    - Faire un strike ou un spare pour voir le message.
@@ -226,6 +249,9 @@ Ils ne remplacent pas un essai en jeu.
 ## Limites connues
 
 - **Pas de lieu prêt dans le jeu de base** pour le bowling ni pour le golf. Les pistes et les trous se posent à la main, et l'enveloppe du bowling (murs, salle) dépend de ton MLO.
+- **Bowling, chute des quilles** : le sens de bascule (vers l'avant de leur mouvement) n'a pas pu être vérifié en jeu.
+  Si les quilles tombent vers le lanceur au lieu du fond, il faut inverser le signe de `-88.0` dans `client/bowling.lua` (fonction `pinPose`).
+- **Bowling, pas de côté** : si l'animation du jeu ne déplace pas le personnage, le client le fait glisser pendant le pas (détecté au premier pas).
 - **Golf** :
   - le serveur simule le terrain comme un plan entre départ et drapeau, et le green comme plat ;
   - chez le joueur, la balle est recollée au vrai sol ;

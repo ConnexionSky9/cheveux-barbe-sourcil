@@ -159,12 +159,12 @@ RegisterNetEvent('elyzea_loisirs:server:scanResult', function(token, res)
     pendingScan[src] = nil
     p.cb(type(res) == 'table' and res or nil)
 end)
--- Demande au client du staff la table de billard du jeu la plus proche (objet de la carte)
-local function scanTable(src)
+-- Demande au client du staff un objet du décor : table de billard la plus proche, ou quille n°1 d'une piste du MLO
+local function scanTable(src, event)
     local pr = promise.new()
     local token = math.random(1, 1e9)
     pendingScan[src] = { token = token, cb = function(r) pr:resolve(r) end }
-    TriggerClientEvent('elyzea_loisirs:client:scanTable', src, token)
+    TriggerClientEvent(event or 'elyzea_loisirs:client:scanTable', src, token)
     SetTimeout(4000, function() if pendingScan[src] and pendingScan[src].token == token then pendingScan[src] = nil pr:resolve(nil) end end)
     return Citizen.Await(pr)
 end
@@ -179,6 +179,20 @@ ACTIONS.add_bowling = function(src, d)
     local p = here(src)
     if not p then return false, 'Position introuvable.' end
     local name = LU.trim(d.name, 40)
+    if d.align then
+        -- la quille n°1 du décor fixe l'axe et la distance : ligne de faute 18,29 m avant elle, dans l'axe staff → quille
+        local q = scanTable(src, 'elyzea_loisirs:client:scanPins')
+        if not q or not tonumber(q.x) or not tonumber(q.y) then return false, 'Aucune quille du décor trouvée devant toi (8 à 30 m). Regarde vers les quilles, ou vérifie hideModels.' end
+        local dx, dy = q.x - p.x, q.y - p.y
+        local dist = math.sqrt(dx * dx + dy * dy)
+        if dist < 8.0 or dist > 30.0 then return false, 'Quille trop près ou trop loin.' end
+        local h = math.deg(math.atan(-dx, dy)) % 360
+        local L = Config.Bowling.laneLength
+        local fx, fy = q.x - dx / dist * L, q.y - dy / dist * L
+        LS.SaveInstallation({ kind = 'bowling', name = name ~= '' and name or 'Piste de bowling',
+            data = { x = LU.round(fx, 3), y = LU.round(fy, 3), z = p.z, h = LU.round(h, 2) } })
+        return true, ('Piste alignée sur les quilles du décor (ligne de faute à %.1f m devant la quille de tête).'):format(L)
+    end
     LS.SaveInstallation({ kind = 'bowling', name = name ~= '' and name or 'Piste de bowling', data = { x = p.x, y = p.y, z = p.z, h = p.h } })
     return true, 'Piste posée : la ligne de faute est à tes pieds, la piste part devant toi.'
 end

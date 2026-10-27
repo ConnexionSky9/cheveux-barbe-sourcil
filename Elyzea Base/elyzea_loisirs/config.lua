@@ -74,6 +74,20 @@ Config.Bowling = {
         cheerF = { dict = 'anim@mp_player_intcelebrationfemale@thumbs_up', clip = 'thumbs_up', flag = 48, duration = 2.5 },
     },
     ballHand = { bone = 57005, pos = vector3(0.12, 0.0, -0.06), rot = vector3(0.0, 0.0, 0.0) }, -- SKEL_R_Hand
+    -- déplacement gauche / droite avant le lancer : vrais pas de côté du jeu (le joueur reste face à la piste)
+    sideStep = { dict = 'move_strafe@reposition', left = 'step_short_90_face_0', right = 'step_short_-90_face_0',
+        length = 0.30,            -- longueur d'un pas si l'animation ne déplace pas le personnage d'elle-même
+        speed = 1.0 },
+    -- flèche de visée posée sur la piste (courbée selon l'effet)
+    aimArrow = { enabled = true, start = 0.35, length = 3.0, width = 0.045, headLength = 0.22, headWidth = 0.16,
+        color = { 0, 229, 255, 170 } },
+    -- caméra qui suit la boule puis s'arrête devant les quilles (lanceur et joueurs de la partie)
+    followCam = { enabled = true, back = 2.4, height = 0.85, stopBefore = 3.6, deckHeight = 1.05, hold = 1.6, fov = 50.0 },
+    fallTime = 0.45,              -- durée de la chute d'une quille (s)
+    -- quilles du décor (MLO) cachées au fond de la piste pour ne pas doubler les nôtres, et utilisées
+    -- par « Aligner sur les quilles du décor » du menu admin. Noms de modèles ou hash (voir /loisirs_objets).
+    hideModels = { 'prop_bowling_pin' },
+    hideRadius = 1.1,             -- autour du plateau des quilles (m)
 }
 
 -- ---------------------------------------------------------------- billard (8-ball américain)

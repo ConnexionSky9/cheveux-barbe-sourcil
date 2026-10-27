@@ -146,7 +146,28 @@ local function newClient(sid)
     env.FreezeEntityPosition = function(e, f) if peds[e] then peds[e].frozen = f end end
     env.IsModelInCdimage = function() return true end
     env.HasModelLoaded = function() return true end
-    env.GetModelDimensions = function() return vec(-1.2, -0.65, 0), vec(1.2, 0.65, 0.9) end
+    -- tailles réalistes : quille 38 cm (origine à la base), boule de 21,8 cm (origine au centre)
+    env.GetModelDimensions = function(m)
+        if m == joaat('prop_bowling_pin') then return vec(-0.06, -0.06, 0), vec(0.06, 0.06, 0.38) end
+        if m == joaat('prop_bowling_ball') then return vec(-0.109, -0.109, -0.109), vec(0.109, 0.109, 0.109) end
+        return vec(-1.2, -0.65, 0), vec(1.2, 0.65, 0.9) end
+    env.GetGamePool = function() local t = {} for id in pairs(c.objects) do t[#t + 1] = id end return t end
+    env.SetEntityVisible = function(e, v) if c.objects[e] then c.objects[e].visible = v end end
+    c.pitch, c.lieZ, c.yaw = {}, {}, {}
+    env.SetEntityRotation = function(e, p, _, y)
+        local o = c.objects[e]
+        if not o or o.model ~= joaat('prop_bowling_pin') then return end
+        c.pitch[e] = math.min(c.pitch[e] or 0, p)
+        if p <= -87 then c.lieZ[e] = o.pos.z c.yaw[e] = y end
+    end
+    c.polys, c.polyFrame = {}, -1
+    env.DrawPoly = function(...) if c.polyFrame ~= FRAME then c.polys, c.polyFrame = {}, FRAME end c.polys[#c.polys + 1] = { ... } end
+    env.GetAnimDuration = function() return 0.5 end
+    env.IsEntityPlayingAnim = function() return true end
+    c.camSets, c.camOn = 0, false
+    env.CreateCamWithParams = function() return 77 end
+    env.SetCamCoord = function(_, x, y, z) c.camSets = c.camSets + 1 c.camPos = vec(x, y, z) end
+    env.RenderScriptCams = function(on) c.camOn = on end
     env.CreateObjectNoOffset = function(h, x, y, z) c.nextObj = c.nextObj + 1 c.objects[c.nextObj] = { model = h, pos = vec(x, y, z) } return c.nextObj end
     env.DoesEntityExist = function(e) return peds[e] ~= nil or c.objects[e] ~= nil end
     env.DeleteEntity = function(e) c.objects[e] = nil end
@@ -155,10 +176,18 @@ local function newClient(sid)
     env.GetGroundZFor_3dCoord = function(x, y, z) return false, 0 end
     env.IsPedInAnyVehicle = function() return false end
     env.IsEntityDead = function() return false end
-    env.GetEntityModel = function() return joaat('mp_m_freemode_01') end
+    env.GetEntityModel = function(e) if c.objects[e] then return c.objects[e].model end return joaat('mp_m_freemode_01') end
     env.DoesAnimDictExist = function() return true end
     env.HasAnimDictLoaded = function() return true end
-    env.TaskPlayAnim = function(p, d, cl) c.anims[#c.anims + 1] = d .. '/' .. cl end
+    env.TaskPlayAnim = function(p, d, cl)
+        c.anims[#c.anims + 1] = d .. '/' .. cl
+        -- déplacement porté par l'animation (pas de côté), si le test en simule un
+        if c.rootMotion and peds[p] and not peds[p].frozen and cl:find('step_short', 1, true) then
+            local dx = c.rootMotion(cl)
+            local h = math.rad(peds[p].h)
+            peds[p].pos = vec(peds[p].pos.x + math.cos(h) * dx, peds[p].pos.y + math.sin(h) * dx, peds[p].pos.z)
+        end
+    end
     env.GetDisabledControlNormal = function() return 0.0 end
     env.GetClosestObjectOfType = function() return 0 end
     local function pressed(k) return c.keys[k] == true end
@@ -336,6 +365,108 @@ end
 run(3000)
 check(sg.state == 'FINISHED', ('parcours de golf joué au clavier jusqu\'au bout (%d coups)'):format(swings))
 check(table.concat(A.anims, ' '):find('mini@golf/', 1, true), 'animations du mini-jeu de golf jouées')
+
+P('\n[Bowling réaliste : pas de côté, flèche, chute des quilles, caméra, quilles du décor]')
+run(25000)
+local d1 = SV.LS.inst[1].data
+peds[1].pos = vec(d1.x, d1.y - 1.6, d1.z + 1.0) peds[2].pos = vec(d1.x + 3.0, d1.y - 2.0, d1.z + 1.0)
+run(3000)   -- de retour près de la piste : quilles recréées
+-- quilles du décor (MLO) : une au fond de la piste (doublon, cachée), une sur la piste voisine (gardée)
+A.objects[9001] = { model = joaat('prop_bowling_pin'), pos = vec(d1.x + 0.1, d1.y + 18.4, d1.z) }
+A.objects[9002] = { model = joaat('prop_bowling_pin'), pos = vec(d1.x + 5.0, d1.y + 18.4, d1.z) }
+run(2500)
+check(A.objects[9001].visible == false and A.objects[9002].visible == nil, 'quille du décor au fond de la piste cachée, celle de la piste voisine gardée')
+local ours = 0 for id, o in pairs(A.objects) do if id < 9000 and o.model == joaat('prop_bowling_pin') and o.visible == nil then ours = ours + 1 end end
+check(ours == 10, 'nos 10 quilles restent visibles')
+local pinZ = 0 for id, o in pairs(A.objects) do if id < 9000 and o.model == joaat('prop_bowling_pin') then pinZ = o.pos.z end end
+check(math.abs(pinZ - d1.z) < 0.01, ('quilles posées debout sur le sol de la piste (base à %+.3f m)'):format(pinZ - d1.z))
+
+peds[2].pos = vec(d1.x + 3.0, d1.y - 2.0, d1.z + 1.0)   -- Bruno regarde depuis la piste voisine, sans jouer
+peds[1].pos = vec(d1.x, d1.y - 1.6, d1.z + 1.0) peds[1].h = d1.h
+r = A.nuiCall('create', { inst = 1, name = 'Solo', max = 1 })
+A.nuiCall('start')
+run(2500)
+local so = SV.LS.Sessions.all[r.session.id]
+check(so and so.state == 'IN_PROGRESS', 'partie solo lancée')
+run(800)
+check(peds[1].frozen, 'en position de lancer, face à la piste')
+local function arrowTip(c)
+    local best
+    for _, p in ipairs(c.polys) do
+        for i = 0, 2 do local x, y = p[1 + i * 3], p[2 + i * 3] if not best or y > best.y then best = { x = x, y = y } end end
+    end
+    return best
+end
+local tip0 = arrowTip(A)
+local Ar = SV.Config.Bowling.aimArrow
+check(#A.polys >= 10 and tip0 and math.abs(tip0.y - (d1.y + Ar.start + Ar.length)) < 0.05 and math.abs(tip0.x - d1.x) < 0.05,
+    ('flèche de visée dessinée sur la piste (%d triangles, pointe à %.2f m de la ligne de faute)'):format(#A.polys, tip0 and tip0.y - d1.y or -1))
+-- l'animation du jeu déplace le perso de 28 cm, mais du côté opposé au nom du clip : le client doit s'en rendre compte
+A.rootMotion = function(clip) return clip == SV.Config.Bowling.sideStep.left and 0.28 or -0.28 end
+local stepsBefore = 0 for _, a in ipairs(A.anims) do if a:find('step_short', 1, true) then stepsBefore = stepsBefore + 1 end end
+A.press(35) run(1200) A.release(35) run(700)
+local steps = 0 for _, a in ipairs(A.anims) do if a:find('step_short', 1, true) then steps = steps + 1 end end
+local x1 = peds[1].pos.x - d1.x
+check(steps - stepsBefore >= 2, ('D maintenu : %d vrais pas de côté joués (move_strafe@reposition)'):format(steps - stepsBefore))
+check(A.env.CL ~= nil and peds[1].h == d1.h and peds[1].frozen and math.abs(peds[1].pos.y - (d1.y - 1.3)) < 0.01, 'après chaque pas : toujours face à la piste, sur sa ligne')
+A.press(35) run(3000) A.release(35) run(700)
+local x2 = peds[1].pos.x - d1.x
+check(x2 > x1 and math.abs(x2 - SV.Config.Bowling.maxStartX) < 0.01, ('pas à droite jusqu\'au bord autorisé (%.2f m puis %.2f m, limite %.2f m)'):format(x1, x2, SV.Config.Bowling.maxStartX))
+A.press(34) run(1100) A.release(34) run(700)
+local x3 = peds[1].pos.x - d1.x
+check(x3 < x2 - 0.2, ('A : retour vers la gauche (%.2f m)'):format(x3))
+local tip1 = arrowTip(A)
+check(tip1 and math.abs((tip1.x - d1.x) - x3) < 0.05, 'la flèche suit la position du joueur')
+A.press(51) run(600) A.release(51) A.press(32) run(600) A.release(32) run(100)
+local tip2 = arrowTip(A)
+check(tip2 and tip2.x > tip1.x + 0.05, ('angle + effet : la pointe de la flèche se décale (%+.2f m)'):format(tip2 and tip2.x - tip1.x or 0))
+-- lancer
+local camBefore = A.camSets
+A.pitch, A.lieZ, A.yaw, Bc.pitch, Bc.lieZ, Bc.yaw = {}, {}, {}, {}, {}, {}
+A.press(22) run(800) A.release(22)
+local sawCam, sawCamB = false, false
+for _ = 1, 60 do run(200) if A.camOn then sawCam = true end if Bc.camOn then sawCamB = true end end
+local downN = so.data.players[1].rolls[1]
+check(sawCam and A.camSets - camBefore > 30 and not A.camOn, ('caméra qui suit la boule puis rend la main (%d positions)'):format(A.camSets - camBefore))
+check(not sawCamB, 'pas de caméra imposée à Bruno (il ne joue pas cette partie)')
+local function fallen(c)
+    local n, fwd, z = 0, 0, 0
+    for e, pmin in pairs(c.pitch) do
+        if pmin <= -87 then
+            n = n + 1
+            if math.cos(math.rad(c.yaw[e] - d1.h)) > 0 then fwd = fwd + 1 end
+            z = math.max(z, math.abs(c.lieZ[e] - d1.z - 0.06))
+        end
+    end
+    return n, fwd, z
+end
+local fa, fwdA, zA = fallen(A)
+local fb = fallen(Bc)
+check(fa == downN and fb == downN, ('quilles renversées à l\'écran : %d chez Alice, %d chez Bruno, %d selon le serveur'):format(fa, fb, downN))
+check(fa == 0 or fwdA / fa >= 0.6, ('elles tombent dans le sens du choc (%d sur %d vers le fond)'):format(fwdA, fa))
+check(zA < 0.005, 'quille couchée posée sur le sol (ni enterrée, ni en l\'air)')
+local qs = SV.LS.Sessions.all[r.session.id]
+if qs then run(1000) SV.export_AdminAction(1, 'cancel_session', { session = qs.id }) run(2000) end
+
+-- alignement de la piste sur les quilles du décor (menu admin)
+peds[1].pos = vec(200, 0, 31) peds[1].h = 0.0
+A.objects[9100] = { model = joaat('prop_bowling_pin'), pos = vec(200.5, 20.0, 30.0) }
+local alignOk, alignMsg
+run(1000)
+spawn(function() alignOk, alignMsg = SV.export_AdminAction(1, 'add_bowling', { name = 'Alignée', align = true }) end)
+run(1500)
+local al
+for _, i in pairs(SV.LS.inst) do if i.name == 'Alignée' then al = i end end
+local px, py = 0, 0
+if al then px, py = SV.LU.toWorld(al.data.x, al.data.y, al.data.h, 0.0, SV.Config.Bowling.laneLength) end
+check(alignOk and al and math.abs(px - 200.5) < 0.01 and math.abs(py - 20.0) < 0.01, ('piste alignée : quille n°1 exactement sur celle du décor (%s)'):format(tostring(alignMsg)))
+A.objects[9100] = nil
+peds[1].pos = vec(300, 0, 31)
+run(1000)
+spawn(function() alignOk, alignMsg = SV.export_AdminAction(1, 'add_bowling', { name = 'Rien', align = true }) end)
+run(1500)
+check(alignOk == false, 'sans quille du décor devant : refus clair')
+
 check(#errors == 0, ('aucune erreur Lua côté client ou serveur (%d)'):format(#errors))
 
 P(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
