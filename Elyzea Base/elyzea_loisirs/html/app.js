@@ -189,6 +189,52 @@ function controlsRender(m) {
     $('#ctlKeys').innerHTML = (m.keys || []).filter(Boolean).map((k) => `<span>${esc(k)}</span>`).join('');
     c.classList.remove('hidden');
 }
+/* ------------------------------------------------ pole dance */
+let POLE = null;
+function poleRender(m) {
+    const box = $('#pole');
+    if (!m.show) { POLE = null; box.classList.add('hidden'); return; }
+    POLE = m;
+    $('#poleName').textContent = m.name || 'Barre';
+    box.classList.toggle('dim', !m.cursor);
+    const item = (cmd, i, ico, label, desc, key, on) => `<button class="pd ${on ? 'on' : ''}" data-pd="${cmd}" ${i != null ? `data-i="${i}"` : ''} ${m.entering ? 'disabled' : ''}>
+        <span class="ico">${esc(ico || '💃')}</span><span><b>${esc(label)}</b>${desc ? `<small>${esc(desc)}</small>` : ''}</span><kbd>${key}</kbd></button>`;
+    const list = (m.dances || []).map((d) => item('dance', d.i, d.icon, d.label, d.desc, d.i, m.mode === 'pole' && m.current === d.i && !m.entering)).join('')
+        + (m.private ? item('private', null, m.private.icon, m.private.label, m.private.desc, 4, m.mode === 'private') : '');
+    const c = m.calib;
+    const ax = (k, label, step, unit) => `<div class="ax"><span>${label}</span><button class="mini" data-pd="nudge" data-axis="${k}" data-d="${-step}">−</button>
+        <span class="v">${Number(c[k] || 0).toFixed(unit === '°' ? 0 : 2)}${unit}</span><button class="mini" data-pd="nudge" data-axis="${k}" data-d="${step}">+</button></div>`;
+    $('#poleBody').innerHTML = `<p class="pd-status">${m.entering ? '⏳ Tu montes sur la barre…' : (m.auto ? '🔁 Enchaînement automatique' : 'Choisis ta danse')}</p>
+        <div class="pd-list">${list}</div>
+        <div class="pd-row"><button class="btn ${m.auto ? 'on' : ''}" data-pd="auto" ${m.entering ? 'disabled' : ''}>🔁 Auto <kbd>5</kbd></button>
+            <button class="btn ${m.cam ? 'on' : ''}" data-pd="cam">🎥 Caméra</button></div>
+        <div class="pd-row"><button class="btn" data-pd="cursor">🖱️ ${m.cursor ? 'Cacher' : 'Afficher'} <kbd>H</kbd></button>
+            <button class="btn danger" data-pd="stop">⬇️ Descendre</button></div>
+        ${c ? `<div class="pd-cal"><h3>🎯 RÉGLAGE DE LA BARRE (STAFF)</h3>
+            ${ax('ox', 'Gauche / droite', 0.01, ' m')}${ax('oy', 'Avant / arrière', 0.01, ' m')}${ax('oz', 'Hauteur', 0.01, ' m')}${ax('h', 'Orientation', 5, '°')}
+            <div class="pd-row"><button class="btn primary" data-pd="calibSave">💾 Enregistrer</button><button class="btn" data-pd="calibQuit">Fermer</button></div>
+            <p class="pd-help">Curseur caché : flèches = gauche/droite et avant/arrière, Page préc. / suiv. = hauteur, MAJ = pas de 5 cm, ENTRÉE = enregistrer.</p></div>` : ''}
+        <p class="pd-help">${m.cursor ? 'H ou Échap : cacher le curseur et tourner la caméra librement.' : 'H : réafficher le curseur. 1 à 5 : danses. RETOUR ou E : descendre.'}</p>`;
+    box.classList.remove('hidden');
+}
+document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pd]');
+    if (!b || !POLE || b.disabled) return;
+    const d = { cmd: b.dataset.pd };
+    if (b.dataset.i) d.i = Number(b.dataset.i);
+    if (b.dataset.axis) { d.axis = b.dataset.axis; d.d = Number(b.dataset.d); }
+    post('pole', d);
+});
+document.addEventListener('keydown', (e) => {
+    if (!POLE || !POLE.cursor || L.lobby) return;
+    const k = e.key;
+    if (k >= '1' && k <= '3') post('pole', { cmd: 'dance', i: Number(k) });
+    else if (k === '4') post('pole', { cmd: 'private' });
+    else if (k === '5') post('pole', { cmd: 'auto' });
+    else if (k === 'h' || k === 'H' || k === 'Escape') post('pole', { cmd: 'cursor' });
+    else if (k === 'Backspace') post('pole', { cmd: 'stop' });
+});
+
 function toast(text, kind) {
     const t = document.createElement('div');
     t.className = `toast ${kind || ''}`;
@@ -231,6 +277,7 @@ window.addEventListener('message', (e) => {
             hudRender();
             return;
         case 'controls': controlsRender(m); return;
+        case 'pole': poleRender(m); return;
         case 'toast': toast(m.text, m.kind); return;
         default:
     }

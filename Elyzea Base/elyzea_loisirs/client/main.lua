@@ -356,7 +356,12 @@ RegisterNetEvent('elyzea_loisirs:client:scanPole', function(token)
     local pos = GetEntityCoords(PlayerPedId())
     local o = GetClosestObjectOfType(pos.x, pos.y, pos.z, 4.0, GetHashKey(Config.Pole.model), false, false, false)
     local found
-    if o and o ~= 0 then local c = GetEntityCoords(o) found = { x = c.x, y = c.y, z = c.z } end
+    if o and o ~= 0 then
+        -- pied de la barre (bas du modèle), pas son origine
+        local c = GetEntityCoords(o)
+        local mn = GetModelDimensions(GetEntityModel(o))
+        found = { x = c.x, y = c.y, z = c.z + math.min(0.0, mn and mn.z or 0.0) }
+    end
     TriggerServerEvent('elyzea_loisirs:server:scanResult', token, found)
 end)
 

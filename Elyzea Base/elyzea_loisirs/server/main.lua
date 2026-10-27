@@ -262,6 +262,14 @@ ACTIONS.pole_calib = function(src, d)
     LS.SaveInstallation(inst)
     return true, 'Réglage de la barre enregistré.'
 end
+-- Réglage en direct : le staff danse sur la barre et la cale aux flèches ; ENTRÉE enregistre (jeton valable 15 min)
+ACTIONS.pole_calib_live = function(src, d)
+    local inst = LS.inst[tonumber(d.id) or -1]
+    if not inst or inst.kind ~= 'pole' then return false, 'Barre introuvable.' end
+    local token = LS.Pole.NewCalib(src, inst.id)
+    TriggerClientEvent('elyzea_loisirs:client:poleCalibrate', src, inst.id, token)
+    return true, 'Réglage en direct : va à la barre, appuie sur E, puis flèches / Page préc. / Page suiv. (MAJ = pas de 5 cm), ENTRÉE pour enregistrer.'
+end
 ACTIONS.pole_stop = function(src, d)
     if not LS.Pole or not LS.Pole.OnDelete then return false, 'Indisponible.' end
     LS.Pole.OnDelete(tonumber(d.id) or -1)

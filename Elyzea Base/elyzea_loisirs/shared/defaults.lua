@@ -16,17 +16,18 @@ Config.Pole = Config.Pole or {
     exit  = { dict = 'mini@strip_club@pole_dance@pole_exit',  clip = 'pd_exit' },
     -- touches 1, 2, 3 (contrôles 157, 158, 160)
     dances = {
-        { key = 157, label = 'Routine 1', dict = 'mini@strip_club@pole_dance@pole_dance1', clip = 'pd_dance_01' },
-        { key = 158, label = 'Routine 2', dict = 'mini@strip_club@pole_dance@pole_dance2', clip = 'pd_dance_02' },
-        { key = 160, label = 'Routine 3', dict = 'mini@strip_club@pole_dance@pole_dance3', clip = 'pd_dance_03' },
+        { key = 157, label = 'Routine 1', icon = '🌀', desc = 'Tours autour de la barre', dict = 'mini@strip_club@pole_dance@pole_dance1', clip = 'pd_dance_01' },
+        { key = 158, label = 'Routine 2', icon = '⬆️', desc = 'Montées et descentes', dict = 'mini@strip_club@pole_dance@pole_dance2', clip = 'pd_dance_02' },
+        { key = 160, label = 'Routine 3', icon = '✨', desc = 'Figures', dict = 'mini@strip_club@pole_dance@pole_dance3', clip = 'pd_dance_03' },
     },
     -- touche 4 (164) : danse sensuelle debout devant la barre (danse privée du club), 3 parties enchaînées
-    private = { key = 164, label = 'Danse sensuelle', distance = 0.9, parts = {
+    private = { key = 164, label = 'Danse sensuelle', icon = '💋', desc = 'Debout, devant la barre', distance = 0.9, parts = {
         { dict = 'mini@strip_club@private_dance@part1', clip = 'priv_dance_p1' },
         { dict = 'mini@strip_club@private_dance@part2', clip = 'priv_dance_p2' },
         { dict = 'mini@strip_club@private_dance@part3', clip = 'priv_dance_p3' },
     } },
     autoKey = 165,                -- touche 5 : enchaînement automatique des routines
+    cursorKey = 74,               -- H : afficher / cacher le curseur de l'interface (caméra libre quand il est caché)
     stopKeys = { 177, 38 },       -- RETOUR ARRIÈRE ou E : descendre de la barre
     -- pourboires : les spectateurs proches jettent des billets à la danseuse (argent liquide)
     tips = { enabled = true, amount = 100, cooldown = 3, maxDistance = 5.0,

@@ -128,18 +128,29 @@ Au bowling :
   Les joueurs de la partie la voient aussi ; les simples spectateurs non.
 - Chaque quille touchée **bascule dans le sens où elle a été poussée** et se couche au sol.
 
-À la barre de pole dance, appuie sur **E** : le personnage monte sur la barre (`pd_enter`), puis danse.
+À la barre de pole dance, appuie sur **E** : le personnage monte sur la barre (`pd_enter`) et un **petit panneau** s'ouvre à droite, avec le curseur :
 
-| Touche | Action |
-|---|---|
-| 1 / 2 / 3 | Routines sur la barre (`pd_dance_01`, `02`, `03` du club du jeu : tours, montées, descentes) |
-| 4 | Danse sensuelle debout devant la barre (danse privée du club, 3 parties enchaînées) |
-| 5 | Enchaînement automatique des 3 routines |
-| RETOUR ARRIÈRE ou E | Descendre de la barre (`pd_exit`) |
+- une carte par danse : Routine 1, 2, 3 (`pd_dance_01/02/03` du club du jeu) et Danse sensuelle (debout devant la barre) ; la danse en cours est surlignée ;
+- **🔁 Auto** : enchaîne les 3 routines ;
+- **🎥 Caméra** : vue « spectacle » qui tourne doucement autour de la barre ;
+- **🖱️ Cacher (H ou Échap)** : cache le curseur pour tourner la caméra librement ; **H** le réaffiche ;
+- **⬇️ Descendre** (ou RETOUR / E, curseur caché) : descente de la barre (`pd_exit`).
 
-- Les spectateurs proches (5 m) voient **[E] Lancer 100 $ à …** : billets qui volent vers la danseuse, argent liquide transféré par le serveur (montant et délai dans `Config.Pole.tips`).
-- Une seule personne par barre. La danse s'arrête si elle s'éloigne, tombe, se déconnecte ou si le staff supprime la barre.
-- Les animations de la barre passent par une **scène synchronisée** du réseau : tous les joueurs autour voient la même danse, au même endroit.
+Les touches 1 à 5 marchent aussi, curseur affiché ou non.
+
+**Danseuse bien collée à la barre** :
+
+- la danse se cale sur l'**objet barre lui-même** (son axe et son pied réel), pas sur un point approximatif ;
+- la collision entre la barre et la danseuse est coupée pendant la danse, pour que la barre ne la repousse pas ;
+- si la scène réseau ne démarre pas, une animation de secours est jouée au même point exact.
+
+Si une barre demande quand même un ajustement (MLO particulier), le staff utilise **🎯 Caler en jeu** dans le menu admin :
+
+1. Va à la barre et appuie sur E : un bloc **Réglage de la barre** apparaît dans le panneau.
+2. Ajuste avec les boutons + / −, ou curseur caché avec les flèches (gauche / droite, avant / arrière) et Page préc. / suiv. (hauteur). MAJ donne un pas de 5 cm.
+3. La danse se déplace en direct. **ENTRÉE** ou **Enregistrer** sauve le réglage pour tout le monde.
+
+L'enregistrement n'est accepté qu'avec le jeton donné par le menu admin (valable 15 min).
 
 `/loisirs_quitter` quitte la partie en cours.
 
@@ -270,7 +281,8 @@ Ils ne remplacent pas un essai en jeu.
 7. **Pole dance.**
    - Poser une barre, faire E : montée sur la barre, puis routine 1.
    - Vérifier que la danseuse tient la barre (sinon, calage dans le menu).
-   - Tester 1 / 2 / 3 / 4 / 5 et RETOUR.
+   - Tester le panneau : chaque danse, Auto, Caméra, Cacher (H), Descendre ; puis les touches 1 à 5 curseur caché.
+   - Staff : « Caler en jeu », ajuster, ENTRÉE, puis vérifier avec un autre joueur.
    - Avec un 2e joueur : il voit la même danse, et E lui fait lancer des billets (argent retiré chez lui, ajouté chez la danseuse).
 8. **Admin.**
    - Annuler une partie depuis l'onglet.
@@ -284,7 +296,7 @@ Ils ne remplacent pas un essai en jeu.
   Si les quilles tombent vers le lanceur au lieu du fond, il faut inverser le signe de `-88.0` dans `client/bowling.lua` (fonction `pinPose`).
 - **Bowling, pas de côté** : si l'animation du jeu ne déplace pas le personnage, le client le fait glisser pendant le pas (détecté au premier pas).
 - **Pole dance** :
-  - le point d'origine exact des animations de barre du jeu n'a pas pu être vérifié en jeu. Si la danseuse flotte ou ne tient pas la barre, règle le calage dans le menu (ou `sceneOffset` dans `config.lua` pour toutes les barres) ;
+  - le point d'origine des animations de barre du jeu n'a pas pu être vérifié en jeu ; il est pris au pied de la barre, comme le font les scripts connus qui utilisent ces animations. Si une barre demande un ajustement, utilise « Caler en jeu » (ou `sceneOffset` dans `config.lua` pour toutes les barres) ;
   - les animations sont celles du club du jeu, conçues pour un personnage féminin ; sur un personnage masculin elles marchent mais peuvent sembler moins naturelles ;
   - pas de lap dance assise à deux joueurs (la danse sensuelle se fait debout devant la barre).
 - **Golf** :

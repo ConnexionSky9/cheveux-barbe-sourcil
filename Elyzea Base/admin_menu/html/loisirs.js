@@ -145,7 +145,8 @@
                     ${numIn(`poy:${i.id}`, 'Avant / arrière (m)', d.oy, -1, 1, 0.01)}
                     ${numIn(`poh:${i.id}`, 'Orientation (°)', d.h, 0, 360, 1)}
                     <button class="btn" data-lpole="${i.id}">💾 Enregistrer</button>
-                    <button class="btn" data-lpolehere="${i.id}" title="La danse se tourne dans la direction où tu regardes">🧭 Tourner vers mon regard</button></div>`)}</div>`;
+                    <button class="btn" data-lpolehere="${i.id}" title="La danse se tourne dans la direction où tu regardes">🧭 Tourner vers mon regard</button></div>
+                <div class="btn-row" style="margin-top:8px"><button class="btn primary" data-lpolelive="${i.id}" title="Tu danses sur la barre et tu la cales en direct (flèches, Page préc./suiv.), ENTRÉE enregistre">🎯 Caler en jeu (le plus simple)</button></div>`)}</div>`;
         }).join('')}`;
     }
 
@@ -181,7 +182,7 @@
     const take = (key) => { const v = L.draft[key]; delete L.draft[key]; return v; };
     document.addEventListener('click', async (ev) => {
         if (!on()) return;
-        const t = ev.target.closest('[data-lsub],[data-ladd],[data-lren],[data-ltp],[data-ldel],[data-lcancel],[data-lcalib],[data-lcourse],[data-lgolf],[data-lholedel],[data-lhz],[data-lhzdel],[data-lpole],[data-lpolehere],[data-lpolestop]');
+        const t = ev.target.closest('[data-lsub],[data-ladd],[data-lren],[data-ltp],[data-ldel],[data-lcancel],[data-lcalib],[data-lcourse],[data-lgolf],[data-lholedel],[data-lhz],[data-lhzdel],[data-lpole],[data-lpolehere],[data-lpolestop],[data-lpolelive]');
         if (!t) return;
         const ds = t.dataset;
         if (ds.lsub) { L.sub = ds.lsub; return render(); }
@@ -212,6 +213,7 @@
             return later();
         }
         if (ds.lpolehere) { send('pole_calib', { id: Number(ds.lpolehere), here: true }); return later(); }
+        if (ds.lpolelive) { send('pole_calib_live', { id: Number(ds.lpolelive) }); return; }
         if (ds.lpolestop) { send('pole_stop', { id: Number(ds.lpolestop) }); return later(); }
         if (ds.lcalib) {
             const id = ds.lcalib;

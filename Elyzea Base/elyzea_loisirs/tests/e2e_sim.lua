@@ -180,6 +180,11 @@ local function newClient(sid)
     end
     env.NetworkStartSynchronisedScene = function(sc) c.sceneLive[sc] = true c.lastScene = c.scenes[sc] end
     env.NetworkStopSynchronisedScene = function(sc) c.sceneLive[sc] = nil end
+    env.NetworkGetLocalSceneFromNetworkId = function(sc) return sc end
+    env.IsSynchronizedSceneRunning = function(sc) return c.sceneLive[sc] == true and not c.scenesBroken end
+    env.TaskPlayAnimAdvanced = function(p, d, cl, x, y, z) c.anims[#c.anims + 1] = d .. '/' .. cl c.advanced = { clip = cl, x = x, y = y, z = z } end
+    c.noColl = 0
+    env.SetEntityNoCollisionEntity = function(a, b) if peds[a] and c.objects[b] then c.noColl = c.noColl + 1 end end
     env.CreateObjectNoOffset = function(h, x, y, z) c.nextObj = c.nextObj + 1 c.objects[c.nextObj] = { model = h, pos = vec(x, y, z) } return c.nextObj end
     env.DoesEntityExist = function(e) return peds[e] ~= nil or c.objects[e] ~= nil end
     env.DeleteEntity = function(e) c.objects[e] = nil end
@@ -503,16 +508,21 @@ run(1200)
 sc = A.lastScene
 check(sc and sc.clip == 'pd_dance_01' and sc.loop and sc.mover == 1000.0, 'puis routine 1 en boucle (pd_dance_01)')
 check(Bc.textui and Bc.textui:find('Lancer', 1, true) and Bc.textui:find('Joueur1', 1, true), 'Bruno voit [E] Lancer 100 $ à Alice')
-A.tap(160) run(200)
-check(A.lastScene.clip == 'pd_dance_03', 'touche 3 : routine 3')
+local pui = A.lastUI('pole')
+check(A.focus == true and pui and pui.show and #pui.dances == 3 and pui.private and pui.current == 1, 'interface de danse ouverte avec le curseur (3 routines + danse sensuelle)')
+check(A.noColl > 10, 'la barre ne repousse pas la danseuse (collision coupée)')
+A.nuiCall('pole', { cmd = 'dance', i = 3 }) run(200)
+check(A.lastScene.clip == 'pd_dance_03' and A.lastUI('pole').current == 3, 'interface : clic sur Routine 3')
+A.nuiCall('pole', { cmd = 'cursor' }) run(100)
+check(A.focus == false and A.lastUI('pole').cursor == false, 'H : curseur caché, caméra libre')
 A.tap(158) run(200)
-check(A.lastScene.clip == 'pd_dance_02', 'touche 2 : routine 2')
+check(A.lastScene.clip == 'pd_dance_02', 'curseur caché : touche 2 → routine 2')
 A.tap(165)
 local seenClips, seenN = {}, 0
 for _ = 1, 10 do run(200) local cl = A.lastScene.clip if not seenClips[cl] then seenClips[cl] = true seenN = seenN + 1 end end
 check(seenN == 3, ('touche 5 : enchaînement automatique des 3 routines (%d vues)'):format(seenN))
 local animsBefore = #A.anims
-A.tap(164) run(300)
+A.nuiCall('pole', { cmd = 'private' }) run(300)
 local lastAnim = A.anims[#A.anims] or ''
 check(#A.anims > animsBefore and lastAnim:find('priv_dance_p1', 1, true) and not next(A.sceneLive), 'touche 4 : danse sensuelle devant la barre (priv_dance_p1)')
 local dx, dy = peds[1].pos.x - 700, peds[1].pos.y
@@ -520,8 +530,8 @@ check(math.abs(math.sqrt(dx * dx + dy * dy) - SV.Config.Pole.private.distance) <
 run(700)
 local seenP2 = false for i = animsBefore + 1, #A.anims do if A.anims[i]:find('priv_dance_p2', 1, true) then seenP2 = true end end
 check(seenP2, 'les parties de la danse sensuelle s\'enchaînent')
-A.tap(157) run(200)
-check(A.lastScene.clip == 'pd_dance_01', 'touche 1 : retour à la barre')
+A.nuiCall('pole', { cmd = 'dance', i = 1 }) run(200)
+check(A.lastScene.clip == 'pd_dance_01', 'interface : retour à la barre (routine 1)')
 -- pourboire
 Bc.tap(38) run(300)
 check(#Bc.notes > 0 and Bc.notes[#Bc.notes].kind == 'success', 'Bruno lance un pourboire')
@@ -536,10 +546,35 @@ local rc = SV.LS.Pole.Claim(2, pole.id)
 check(rc == nil, 'barre occupée : refusée à un 2e joueur')
 -- sortie normale
 run(3000)
-A.tap(177) run(200)
-check(A.lastScene.clip == 'pd_exit', 'RETOUR : descente de la barre (pd_exit)')
+A.nuiCall('pole', { cmd = 'stop' }) run(200)
+check(A.lastScene.clip == 'pd_exit' and A.focus == false and A.lastUI('pole').show == false, 'Descendre : descente de la barre (pd_exit), interface fermée')
 run(1000)
 check(SV.LS.Pole.dancers[pole.id] == nil and not A.env.CL.Busy(), 'barre libérée, joueuse libre')
+-- scène réseau qui ne démarre pas : animation de secours calée au même point
+A.scenesBroken = true
+A.tap(38) run(1500)
+check(A.advanced and A.advanced.clip and math.abs(A.advanced.x - 700) < 0.01, ('scène réseau absente : animation de secours calée sur la barre (%s)'):format(A.advanced and A.advanced.clip or '-'))
+A.scenesBroken = false
+A.nuiCall('pole', { cmd = 'stop' }) run(1500)
+-- réglage en direct par le staff (jeton donné par l'action admin)
+local okL = SV.export_AdminAction(1, 'pole_calib_live', { id = pole.id })
+run(300)
+A.tap(38) run(1500)
+local cal = A.lastUI('pole').calib
+check(okL and cal and cal.ox == 0, 'Caler en jeu : bloc de réglage dans l\'interface')
+local zBefore = A.lastScene.z
+A.nuiCall('pole', { cmd = 'nudge', axis = 'oz', d = 0.05 }) A.nuiCall('pole', { cmd = 'nudge', axis = 'ox', d = 0.03 }) run(400)
+check(math.abs(A.lastScene.z - zBefore - 0.05) < 0.001 and A.lastUI('pole').calib.ox == 0.03, 'réglage en direct : la danse se déplace aussitôt (+5 cm en hauteur)')
+A.nuiCall('pole', { cmd = 'calibSave' }) run(800)
+local pd2
+for _, i in pairs(SV.LS.inst) do if i.id == pole.id then pd2 = i.data end end
+check(pd2 and pd2.oz == 0.05 and pd2.ox == 0.03, 'ENTRÉE : réglage enregistré pour tout le monde')
+check(A.notes[#A.notes] and A.notes[#A.notes].kind == 'success', 'confirmation du réglage')
+-- un joueur sans jeton ne peut rien enregistrer
+SV.source = 2
+for _, fn in ipairs(svEvents['elyzea_loisirs:server:poleCalibSave'] or {}) do fn('faux', pole.id, { oz = 1.2 }) end
+check(pd2.oz == 0.05, 'réglage sans jeton du staff : refusé')
+A.nuiCall('pole', { cmd = 'stop' }) run(1500)
 -- éloignement : le serveur arrête la danse
 A.tap(38) run(1500)
 check(SV.LS.Pole.dancers[pole.id] ~= nil, 'Alice danse de nouveau')

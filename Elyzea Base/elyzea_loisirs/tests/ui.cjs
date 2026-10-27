@@ -55,6 +55,31 @@ const path = require('path');
         // aucun débordement horizontal
         const over = await page.evaluate(() => [...document.querySelectorAll('#hud, #controls, #results')].some((e) => e.getBoundingClientRect().right > window.innerWidth + 1));
         check(!over, `${w}×${h} : rien ne dépasse de l'écran`);
+        // pole dance : panneau de choix de la danse
+        const pole = { action: 'pole', show: true, name: 'Scène <b>VIP</b>', cursor: true, cam: true, mode: 'pole', current: 2, auto: false,
+            dances: [{ i: 1, label: 'Routine 1', icon: '🌀', desc: 'Tours autour de la barre' }, { i: 2, label: 'Routine 2', icon: '⬆️', desc: 'Montées et descentes' }, { i: 3, label: 'Routine 3', icon: '✨', desc: 'Figures' }],
+            private: { label: 'Danse sensuelle', icon: '💋', desc: 'Debout, devant la barre' }, calib: { ox: 0.02, oy: -0.05, oz: 0.1, h: 90 } };
+        await page.evaluate(() => { window.__posts = []; const f = window.fetch; window.fetch = (u, o) => { window.__posts.push([u, o && o.body]); return f(u, o); }; });
+        await send(pole);
+        await page.waitForTimeout(150);
+        const pt = await page.textContent('#pole');
+        check(await page.isVisible('#pole') && pt.includes('Routine 3') && pt.includes('Danse sensuelle') && pt.includes('RÉGLAGE') && (await page.innerHTML('#poleName')) === 'Scène &lt;b&gt;VIP&lt;/b&gt;', `${w}×${h} : panneau pole dance (danses, réglage staff, nom échappé)`);
+        check(await page.getAttribute('.pd.on', 'data-i') === '2', `${w}×${h} : danse en cours surlignée`);
+        await page.screenshot({ path: `${out}/loisirs_pole_${w}.png` });
+        await page.click('[data-pd="dance"][data-i="3"]');
+        await page.click('[data-pd="nudge"][data-axis="oz"][data-d="0.01"]');
+        await page.keyboard.press('5');
+        await page.click('[data-pd="stop"]');
+        await page.waitForTimeout(100);
+        const posts = (await page.evaluate(() => window.__posts)).filter(([u]) => u.endsWith('/pole')).map(([, b]) => JSON.parse(b));
+        check(posts.length === 4 && posts[0].cmd === 'dance' && posts[0].i === 3 && posts[1].axis === 'oz' && posts[1].d === 0.01 && posts[2].cmd === 'auto' && posts[3].cmd === 'stop',
+            `${w}×${h} : clics et touches envoyés au jeu (danse 3, réglage, auto, descendre)`);
+        await send({ ...pole, cursor: false, calib: null });
+        await page.waitForTimeout(80);
+        check(await page.evaluate(() => document.querySelector('#pole').classList.contains('dim')) && !(await page.textContent('#pole')).includes('RÉGLAGE'), `${w}×${h} : curseur caché → panneau estompé, sans bloc staff`);
+        await send({ action: 'pole', show: false });
+        await page.waitForTimeout(50);
+        check(!(await page.isVisible('#pole')), `${w}×${h} : panneau fermé en descendant de la barre`);
         check(errors.length === 0, `${w}×${h} : aucune erreur JavaScript (${errors.join(' | ')})`);
         await page.close();
     }

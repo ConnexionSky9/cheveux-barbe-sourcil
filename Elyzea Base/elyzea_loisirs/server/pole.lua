@@ -86,6 +86,33 @@ function P.Tip(src, id)
     return true, amount
 end
 
+-- ---------------------------------------------------------------- réglage en direct (staff)
+-- Le jeton est donné par l'action admin (permission vérifiée par admin_menu) : sans lui, rien n'est enregistré.
+P.calib = {}
+function P.NewCalib(src, id)
+    local token = ('%d-%d'):format(math.random(100000, 999999), GetGameTimer())
+    P.calib[src] = { token = token, id = id, exp = os.time() + 900 }
+    return token
+end
+RegisterNetEvent('elyzea_loisirs:server:poleCalibSave', function(token, id, v)
+    local src = source
+    local c = P.calib[src]
+    if not c or c.token ~= token or c.id ~= tonumber(id) or os.time() > c.exp then
+        return TriggerClientEvent('elyzea_loisirs:client:poleCalibSaved', src, false, 'Réglage refusé (relance « Caler en jeu » depuis le menu admin).')
+    end
+    if not LS.Rate(src, 'calib', 5, 5000) then return end
+    local inst = poleOf(id)
+    if not inst or type(v) ~= 'table' then return end
+    local d = inst.data
+    d.ox = LU.num(v.ox, -1.0, 1.0) or d.ox
+    d.oy = LU.num(v.oy, -1.0, 1.0) or d.oy
+    d.oz = LU.num(v.oz, -1.5, 1.5) or d.oz
+    d.h = LU.num(v.h, 0, 360) or d.h
+    LS.SaveInstallation(inst)
+    print(('[elyzea_loisirs] barre #%d calée par %s : x %.3f y %.3f z %.3f cap %.1f'):format(inst.id, LS.Name(src), d.ox or 0, d.oy or 0, d.oz or 0, d.h or 0))
+    TriggerClientEvent('elyzea_loisirs:client:poleCalibSaved', src, true, 'Réglage de la barre enregistré pour tout le monde.')
+end)
+
 -- surveillance : la danse s'arrête si la danseuse part, tombe ou n'est plus chargée
 CreateThread(function()
     while true do
@@ -102,7 +129,7 @@ CreateThread(function()
     end
 end)
 
-AddEventHandler('playerDropped', function() local src = source P.Release(src) P.lastTip[src] = nil end)
+AddEventHandler('playerDropped', function() local src = source P.Release(src) P.lastTip[src] = nil P.calib[src] = nil end)
 AddEventHandler('elyzea:server:playerUnloaded', function(src) P.Release(src) end)
 
 local function wrap(fn) return function(src, ...) local ok, a, b = pcall(fn, src, ...) if not ok then print('^1[elyzea_loisirs] ' .. tostring(a) .. '^0') return { error = 'Erreur serveur.' } end return a, b end end
