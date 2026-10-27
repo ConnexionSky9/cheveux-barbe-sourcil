@@ -6,7 +6,7 @@
 (() => {
     TABS.push({
         id: 'loisirs', group: 5, label: 'Loisirs', ico: '🎳',
-        sub: 'Pistes de bowling, tables de billard et parcours de golf : poser à ta position, régler, supprimer. Parties en cours (annuler).',
+        sub: 'Pistes de bowling, tables de billard, parcours de golf et barres de pole dance : poser à ta position, régler, supprimer. Parties en cours (annuler).',
         show: () => has('loisirs_manage') && !!(D && D.loisirs),
         count: () => ((D && D.loisirs && D.loisirs.sessions) || []).filter((s) => s.state === 'IN_PROGRESS').length,
     });
@@ -15,7 +15,7 @@
     const send = (name, data = {}) => action('loisirs', { name, data });
     const arr = (x) => (Array.isArray(x) ? x : Object.values(x || {}));
     const later = () => setTimeout(() => post('refresh'), 500);
-    const SUBS = [['sessions', '🎮 Parties en cours'], ['bowling', '🎳 Bowling'], ['billiards', '🎱 Billard'], ['golf', '⛳ Golf']];
+    const SUBS = [['sessions', '🎮 Parties en cours'], ['bowling', '🎳 Bowling'], ['billiards', '🎱 Billard'], ['golf', '⛳ Golf'], ['pole', '💃 Pole dance']];
     const STATE = { WAITING: '🟦 Salon (attente)', STARTING: '🟨 Démarrage', IN_PROGRESS: '🟩 En cours', FINISHED: '🏁 Terminée', CANCELLED: '⛔ Annulée' };
     const GAME = { bowling: '🎳 Bowling', billiards: '🎱 Billard', golf: '⛳ Golf' };
     const HAZ = { water: '💧 Eau (+1, drop)', bunker: '🏖️ Bunker', ob: '🚫 Hors limites (+1, rejouer)', lost: '🌲 Balle perdue (+1, rejouer)' };
@@ -48,6 +48,7 @@
             <div class="stat"><b>${instOf('bowling').length}</b><span>Piste(s) de bowling</span></div>
             <div class="stat"><b>${instOf('billiards').length}</b><span>Table(s) de billard</span></div>
             <div class="stat"><b>${instOf('golf').length}</b><span>Parcours de golf</span></div>
+            <div class="stat"><b>${instOf('pole').length}</b><span>Barre(s) de pole dance · ${instOf('pole').filter((i) => i.dancer).length} danseuse(s)</span></div>
             <div class="stat"><b>${list.length}</b><span>Partie(s) ouvertes</span></div></div>
         ${!list.length ? '<div class="empty">Aucune partie en cours. Les joueurs en créent en appuyant sur E près d\'une piste, d\'une table ou d\'un départ de golf.</div>'
         : `<table class="loot wide"><tr><th>Partie</th><th>Jeu</th><th>Lieu</th><th>État</th><th>Joueurs</th><th>Hôte</th><th></th></tr>
@@ -121,6 +122,33 @@
                 ${numIn(`hzr:${k}`, 'Rayon (m)', 10, 2, 150)}
                 <button class="btn" data-lhz="${n}">📍 Ajouter la zone autour de moi</button></div></div>`;
     }
+    /* -------------------------------------------------- pole dance */
+    function viewPole() {
+        const list = instOf('pole');
+        return `<div class="section"><h2>Nouvelle barre</h2>
+            <p class="hint"><b>Barre neuve</b> (prop_strip_pole_01) : posée <b>à tes pieds</b>, écarte-toi ensuite. <b>Barre du décor</b> : approche-toi à moins de 4 m
+                d'une barre déjà sur la carte (Vanilla Unicorn, MLO). Dans les deux cas, <b>regarde vers le public</b> en cliquant : la danse sensuelle se fait de ce côté.
+                En jeu : E près de la barre pour danser (1 / 2 / 3 routines, 4 danse sensuelle, 5 enchaînement auto, RETOUR pour descendre) ; les spectateurs font E pour lancer des billets.</p>
+            <div class="inline" style="max-width:640px"><input class="input" data-lk="new:pole" maxlength="40" placeholder="Scène principale" value="${esc(val('new:pole', ''))}">
+                <button class="btn primary" data-ladd="pole">📍 Poser une barre à mes pieds</button>
+                <button class="btn" data-ladd="pole_existing">🎯 Barre du décor la plus proche</button></div></div>
+        ${!list.length ? '<div class="empty">Aucune barre.</div>' : list.map((i) => {
+            const d = i.data;
+            const dancer = i.dancer ? `<span class="zbadge">💃 ${esc(i.dancer.name)} danse</span>` : '<span class="zbadge">libre</span>';
+            return `<div class="card">${instHead(i, `
+                <p class="hint" style="margin-top:8px">${d.spawn === false ? 'Barre du décor' : 'Barre posée par le menu'} · danse tournée vers ${Math.round(d.h || 0)}° · ${dancer}
+                    ${i.dancer ? `<button class="btn danger" data-lpolestop="${i.id}" style="margin-left:8px">⏹ Arrêter la danse</button>` : ''}</p>
+                <p class="hint">Calage de la danse : à corriger seulement si la danseuse ne tient pas la barre (vides = 0). Essaie par pas de 0,05 m.</p>
+                <div class="form-grid" style="grid-template-columns:repeat(4,150px) auto auto;align-items:end">
+                    ${numIn(`poz:${i.id}`, 'Hauteur (m)', d.oz, -1.5, 1.5, 0.01)}
+                    ${numIn(`pox:${i.id}`, 'Gauche / droite (m)', d.ox, -1, 1, 0.01)}
+                    ${numIn(`poy:${i.id}`, 'Avant / arrière (m)', d.oy, -1, 1, 0.01)}
+                    ${numIn(`poh:${i.id}`, 'Orientation (°)', d.h, 0, 360, 1)}
+                    <button class="btn" data-lpole="${i.id}">💾 Enregistrer</button>
+                    <button class="btn" data-lpolehere="${i.id}" title="La danse se tourne dans la direction où tu regardes">🧭 Tourner vers mon regard</button></div>`)}</div>`;
+        }).join('')}`;
+    }
+
     function viewGolf() {
         const list = instOf('golf');
         if (L.course && !list.some((i) => i.id === L.course)) L.course = null;
@@ -144,7 +172,7 @@
         const d = D.loisirs;
         if (!d.available) return `<div class="protect">⚠️ <span>La ressource <b>${esc(d.resource || 'elyzea_loisirs')}</b> ne répond pas${d.error ? ' (redémarre-la après la mise à jour)' : ' : vérifie « ensure elyzea_loisirs » dans server.cfg'}.</span></div>`;
         const nav = `<div class="btn-row" style="margin-bottom:14px">${SUBS.map(([k, l]) => `<button class="btn ${L.sub === k ? 'primary' : ''}" data-lsub="${k}">${l}</button>`).join('')}</div>`;
-        const body = L.sub === 'bowling' ? viewBowling() : L.sub === 'billiards' ? viewBilliards() : L.sub === 'golf' ? viewGolf() : viewSessions(d);
+        const body = L.sub === 'bowling' ? viewBowling() : L.sub === 'billiards' ? viewBilliards() : L.sub === 'golf' ? viewGolf() : L.sub === 'pole' ? viewPole() : viewSessions(d);
         return nav + (d.ready === false ? '<div class="protect">⏳ <span>Chargement des installations…</span></div>' : '') + body;
     };
 
@@ -153,7 +181,7 @@
     const take = (key) => { const v = L.draft[key]; delete L.draft[key]; return v; };
     document.addEventListener('click', async (ev) => {
         if (!on()) return;
-        const t = ev.target.closest('[data-lsub],[data-ladd],[data-lren],[data-ltp],[data-ldel],[data-lcancel],[data-lcalib],[data-lcourse],[data-lgolf],[data-lholedel],[data-lhz],[data-lhzdel]');
+        const t = ev.target.closest('[data-lsub],[data-ladd],[data-lren],[data-ltp],[data-ldel],[data-lcancel],[data-lcalib],[data-lcourse],[data-lgolf],[data-lholedel],[data-lhz],[data-lhzdel],[data-lpole],[data-lpolehere],[data-lpolestop]');
         if (!t) return;
         const ds = t.dataset;
         if (ds.lsub) { L.sub = ds.lsub; return render(); }
@@ -164,7 +192,9 @@
             else if (ds.ladd === 'billiards') send('add_billiards', { name: take('new:billiards') || '', model: L.draft['new:model'] || 'prop_pooltable_02' });
             else if (ds.ladd === 'billiards_existing') send('add_billiards', { name: take('new:billiards') || '', existing: true });
             else if (ds.ladd === 'golf') { send('add_course', { name: take('new:golf') || '' }); L.course = null; }
-            return setTimeout(() => post('refresh'), ds.ladd === 'billiards_existing' || ds.ladd === 'bowling_align' ? 4500 : 500);
+            else if (ds.ladd === 'pole') send('add_pole', { name: take('new:pole') || '' });
+            else if (ds.ladd === 'pole_existing') send('add_pole', { name: take('new:pole') || '', existing: true });
+            return setTimeout(() => post('refresh'), ds.ladd === 'billiards_existing' || ds.ladd === 'bowling_align' || ds.ladd === 'pole_existing' ? 4500 : 500);
         }
         if (ds.lren) { send('rename', { id: Number(ds.lren), name: take(`name:${ds.lren}`) || '' }); return later(); }
         if (ds.ltp) return send('tp', { id: Number(ds.ltp) });
@@ -176,6 +206,13 @@
             if (await confirmBox('Annuler cette partie ?', 'Les joueurs sont sortis de la partie. Les droits d\'entrée sont rendus si elle n\'avait pas commencé.')) { send('cancel_session', { session: Number(ds.lcancel) }); later(); }
             return;
         }
+        if (ds.lpole) {
+            const id = ds.lpole;
+            send('pole_calib', { id: Number(id), oz: take(`poz:${id}`), ox: take(`pox:${id}`), oy: take(`poy:${id}`), h: take(`poh:${id}`) });
+            return later();
+        }
+        if (ds.lpolehere) { send('pole_calib', { id: Number(ds.lpolehere), here: true }); return later(); }
+        if (ds.lpolestop) { send('pole_stop', { id: Number(ds.lpolestop) }); return later(); }
         if (ds.lcalib) {
             const id = ds.lcalib;
             send('billiards_calib', { id: Number(id), length: take(`cl:${id}`), width: take(`cw:${id}`), height: take(`ch:${id}`) });

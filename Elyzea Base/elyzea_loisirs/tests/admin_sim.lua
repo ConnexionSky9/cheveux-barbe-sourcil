@@ -94,7 +94,7 @@ local function boot()
     threads, timers = {}, {}
     events, handlers, cbs = {}, {}, {}
     for _, f in ipairs({ 'config.lua', 'shared/utils.lua', 'shared/bowling.lua', 'shared/billiards.lua', 'shared/golf.lua',
-        'server/main.lua', 'server/sessions.lua', 'server/bowling.lua', 'server/billiards.lua', 'server/golf.lua' }) do
+        'server/main.lua', 'server/sessions.lua', 'server/bowling.lua', 'server/billiards.lua', 'server/golf.lua', 'server/pole.lua' }) do
         local h = assert(io.open(root .. '/' .. f, 'r'))
         local src = h:read('a') h:close()
         assert(load(src, '@' .. f))()
@@ -183,6 +183,23 @@ menu(1, 'hole_hazard', { id = gid, hole = 1, type = 'lave', radius = 8 })
 check(#h.hazards == 1 and h.hazards[1].type == 'bunker', 'zone bunker ajoutée, type inconnu refusé')
 menu(1, 'hazard_del', { id = gid, hole = 1, index = 1 })
 check(#h.hazards == 0, 'zone supprimée')
+
+-- barre de pole dance
+players[1].pos = vector3(2000, 0, 31) players[1].h = 45.0
+menu(1, 'add_pole', { name = 'Scène' })
+local pid = 5
+check(LS.inst[pid] and LS.inst[pid].kind == 'pole' and LS.inst[pid].data.h == 45.0 and LS.inst[pid].data.spawn, 'barre de pole dance posée aux pieds du staff')
+menu(1, 'pole_calib', { id = pid, oz = '0.05', ox = '-0.1', oy = '', h = '400' })
+local pd = LS.inst[pid].data
+check(pd.oz == 0.05 and pd.ox == -0.1 and pd.oy == nil and pd.h == 45.0, 'calage de la barre : valeurs bornées (orientation 400° refusée)')
+players[1].h = 180.0
+menu(1, 'pole_calib', { id = pid, here = true })
+check(LS.inst[pid].data.h == 180.0, 'tourner la danse vers le regard du staff')
+players[1].pos = vector3(2000, 0.5, 31)
+check(LS.Pole.Claim(1, pid) == true and menuData(1).loisirs.installations[4].dancer ~= nil, 'onglet : la danseuse apparaît')
+menu(1, 'pole_stop', { id = pid })
+check(LS.Pole.dancers[pid] == nil and lastTo(1, 'elyzea_loisirs:client:poleStop') ~= nil, 'arrêter la danse depuis le menu')
+menu(1, 'delete', { id = pid })
 
 local d = menuData(1).loisirs
 check(d and d.available and #d.installations == 3, 'onglet : 3 installations envoyées')

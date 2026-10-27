@@ -16,6 +16,7 @@ const path = require('path');
             { id: 3, kind: 'golf', name: 'Golf LS', data: { holes: [
                 { tee: { x: 0, y: 0, z: 50, h: 0 }, flag: { x: 0, y: 160, z: 50 }, par: 3, greenR: 14, fairwayW: 40, hazards: [{ type: 'water', x: 3, y: 80, r: 12 }] },
                 { tee: { x: 0, y: 200, z: 50, h: 0 }, par: 4, greenR: 14, fairwayW: 40, hazards: {} }] } },
+            { id: 4, kind: 'pole', name: 'Scène <i>VIP</i>', data: { x: 5, y: 6, z: 30, h: 90, spawn: true, oz: 0.05 }, dancer: { sid: 2, name: 'Chloé' } },
         ],
         sessions: [{ id: 7, game: 'bowling', name: 'Soirée', state: 'IN_PROGRESS', inst: 1, players: 3, host: 'Alice' }] };
     for (const [w, h] of [[1920, 1080], [1280, 720]]) {
@@ -97,6 +98,27 @@ const path = require('path');
         await page.click('[data-lhzdel="1"]'); await page.waitForTimeout(50);
         last = await page.evaluate(() => sent[sent.length - 1]);
         check(last.data.name === 'hazard_del' && last.data.data.index === 1, `${w}×${h} : supprimer une zone`);
+        // pole dance
+        await page.click('[data-lsub="pole"]');
+        const pt = await txt();
+        check(pt.includes('Chloé danse') && (await page.innerHTML('#content')).includes('Scène &lt;i&gt;VIP&lt;/i&gt;') && await page.inputValue('[data-lk="poz:4"]') === '0.05', `${w}×${h} : page Pole dance (danseuse, nom échappé, calage)`);
+        await page.screenshot({ path: `${out}/admin_loisirs_pole_${w}.png`, fullPage: true });
+        await page.click('[data-ladd="pole"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.name === 'add_pole' && !last.data.data.existing, `${w}×${h} : poser une barre à mes pieds`);
+        await page.click('[data-ladd="pole_existing"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.name === 'add_pole' && last.data.data.existing === true, `${w}×${h} : reprendre une barre du décor`);
+        await page.fill('[data-lk="poy:4"]', '-0.1');
+        await page.click('[data-lpole="4"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.name === 'pole_calib' && last.data.data.oy === '-0.1' && last.data.data.id === 4, `${w}×${h} : calage de la barre envoyé`);
+        await page.click('[data-lpolehere="4"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.data.here === true, `${w}×${h} : tourner la danse vers mon regard`);
+        await page.click('[data-lpolestop="4"]'); await page.waitForTimeout(50);
+        last = await page.evaluate(() => sent[sent.length - 1]);
+        check(last.data.name === 'pole_stop', `${w}×${h} : arrêter la danse`);
         // ressource arrêtée
         await page.evaluate(() => { D.loisirs = { available: false, resource: 'elyzea_loisirs' }; render(); });
         check((await txt()).includes('ne répond pas'), `${w}×${h} : ressource arrêtée, avertissement`);

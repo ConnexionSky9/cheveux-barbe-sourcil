@@ -5,6 +5,7 @@ Loisirs multijoueurs pour la base Elyzea :
 - **Bowling** : 10 frames, règles officielles, 1 à 6 joueurs.
 - **Billard** : 8-ball, 2 joueurs.
 - **Golf** : stroke play, 1 à 4 joueurs, 1 à 18 trous.
+- **Pole dance** : barres posées en jeu, danse sur la barre avec les animations du club de strip-tease du jeu, pourboires des spectateurs.
 
 Le **serveur** calcule chaque coup (physique et règles). Les joueurs proches rejouent exactement la même trajectoire, avec la même graine aléatoire. Un client ne peut donc ni inventer un score ni déplacer une boule.
 
@@ -91,6 +92,17 @@ Pour chaque installation : renommer, **Y aller**, supprimer. Supprimer annule et
 
 La page **Parties en cours** liste toutes les parties et permet de les annuler.
 
+### Pole dance
+
+Onglet **Loisirs › 💃 Pole dance** :
+
+- **Poser une barre à mes pieds** : barre neuve (`prop_strip_pole_01`), posée là où tu te tiens. Écarte-toi ensuite.
+- **Barre du décor la plus proche** : reprend une barre déjà sur la carte (Vanilla Unicorn, MLO) à moins de 4 m.
+- Dans les deux cas, **regarde vers le public** quand tu cliques : la danse sensuelle se fait de ce côté.
+  Tu peux changer ce côté plus tard avec **Tourner vers mon regard**.
+- **Calage** : si la danseuse ne tient pas exactement la barre, corrige la hauteur, la gauche / droite, l'avant / arrière (par pas de 0,05 m).
+- **Arrêter la danse** : fait descendre la personne qui danse.
+
 ## Jouer
 
 Approche-toi d'une piste, d'une table ou du départ du trou 1, puis appuie sur **E**.
@@ -115,6 +127,19 @@ Au bowling :
 - Après le lâcher, la **caméra suit la boule**, puis s'arrête devant les quilles pour les voir tomber, avant de rendre la main.
   Les joueurs de la partie la voient aussi ; les simples spectateurs non.
 - Chaque quille touchée **bascule dans le sens où elle a été poussée** et se couche au sol.
+
+À la barre de pole dance, appuie sur **E** : le personnage monte sur la barre (`pd_enter`), puis danse.
+
+| Touche | Action |
+|---|---|
+| 1 / 2 / 3 | Routines sur la barre (`pd_dance_01`, `02`, `03` du club du jeu : tours, montées, descentes) |
+| 4 | Danse sensuelle debout devant la barre (danse privée du club, 3 parties enchaînées) |
+| 5 | Enchaînement automatique des 3 routines |
+| RETOUR ARRIÈRE ou E | Descendre de la barre (`pd_exit`) |
+
+- Les spectateurs proches (5 m) voient **[E] Lancer 100 $ à …** : billets qui volent vers la danseuse, argent liquide transféré par le serveur (montant et délai dans `Config.Pole.tips`).
+- Une seule personne par barre. La danse s'arrête si elle s'éloigne, tombe, se déconnecte ou si le staff supprime la barre.
+- Les animations de la barre passent par une **scène synchronisée** du réseau : tous les joueurs autour voient la même danse, au même endroit.
 
 `/loisirs_quitter` quitte la partie en cours.
 
@@ -179,6 +204,7 @@ Toutes les animations et tous les modèles de la config ont été vérifiés dan
 
 - `mini@golf` ;
 - `weapons@projectile@` ;
+- `mini@strip_club@pole_dance@pole_enter`, `pole_dance1/2/3`, `pole_exit`, `mini@strip_club@private_dance@part1/2/3`, `mini@strip_club@leaning@toss` ; modèles `prop_strip_pole_01`, `prop_anim_cash_note` ;
 - `move_strafe@reposition` (`step_short_90_face_0`, `step_short_-90_face_0`) ;
 - `anim@heists@box_carry@` ;
 - `anim@amb@business@coc@coc_unpack_cut_left@` ;
@@ -241,7 +267,12 @@ Ils ne remplacent pas un essai en jeu.
    - S'éloigner de plus de 30 m pendant une partie : retrait après le délai.
    - Se déconnecter : la partie continue pour les autres.
    - Ne pas jouer : tour perdu.
-7. **Admin.**
+7. **Pole dance.**
+   - Poser une barre, faire E : montée sur la barre, puis routine 1.
+   - Vérifier que la danseuse tient la barre (sinon, calage dans le menu).
+   - Tester 1 / 2 / 3 / 4 / 5 et RETOUR.
+   - Avec un 2e joueur : il voit la même danse, et E lui fait lancer des billets (argent retiré chez lui, ajouté chez la danseuse).
+8. **Admin.**
    - Annuler une partie depuis l'onglet.
    - Supprimer une installation pendant une partie : elle est annulée et remboursée.
    - Vérifier qu'un grade sans `loisirs_manage` ne voit pas l'onglet.
@@ -252,6 +283,10 @@ Ils ne remplacent pas un essai en jeu.
 - **Bowling, chute des quilles** : le sens de bascule (vers l'avant de leur mouvement) n'a pas pu être vérifié en jeu.
   Si les quilles tombent vers le lanceur au lieu du fond, il faut inverser le signe de `-88.0` dans `client/bowling.lua` (fonction `pinPose`).
 - **Bowling, pas de côté** : si l'animation du jeu ne déplace pas le personnage, le client le fait glisser pendant le pas (détecté au premier pas).
+- **Pole dance** :
+  - le point d'origine exact des animations de barre du jeu n'a pas pu être vérifié en jeu. Si la danseuse flotte ou ne tient pas la barre, règle le calage dans le menu (ou `sceneOffset` dans `config.lua` pour toutes les barres) ;
+  - les animations sont celles du club du jeu, conçues pour un personnage féminin ; sur un personnage masculin elles marchent mais peuvent sembler moins naturelles ;
+  - pas de lap dance assise à deux joueurs (la danse sensuelle se fait debout devant la barre).
 - **Golf** :
   - le serveur simule le terrain comme un plan entre départ et drapeau, et le green comme plat ;
   - chez le joueur, la balle est recollée au vrai sol ;

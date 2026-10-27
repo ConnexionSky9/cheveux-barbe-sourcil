@@ -119,6 +119,12 @@ CreateThread(function()
     end
 end)
 
+-- un module (barre de pole dance) occupe le joueur : pas d'invite ni de lobby
+function CL.Busy()
+    for _, M in pairs(CL.Games) do if M.Busy and M.Busy() then return true end end
+    return false
+end
+
 -- ---------------------------------------------------------------- invite [E] et ouverture du lobby
 local prompt
 local function showPrompt(t) if prompt ~= t then prompt = t pcall(function() exports.elyzea_core:ShowTextUI(t) end) end end
@@ -143,13 +149,23 @@ CreateThread(function()
                 if ip then
                     local d = #(pos - ip)
                     if d < 12.0 then sleep = 0 end
-                    if d < Config.InteractDistance and (not bd or d < bd) then best, bd = i, d end
+                    local M = CL.Games[i.kind]
+                    local reach = M and M.InteractDistance and M.InteractDistance(i) or Config.InteractDistance
+                    if d < reach and (not bd or d < bd) then best, bd = i, d end
                 end
             end
         end
         -- pendant mon tour, le module de jeu affiche ses propres consignes
-        local playing = CL.Playing and CL.Playing()
-        if best and not playing then
+        local playing = (CL.Playing and CL.Playing()) or CL.Busy()
+        local BM = best and CL.Games[best.kind]
+        if best and not playing and BM and BM.Prompt then
+            -- installation sans partie (barre de pole dance) : action directe
+            local t = BM.Prompt(best)
+            if t then
+                showPrompt(t)
+                if IsControlJustPressed(0, K.interact) then hidePrompt() BM.Interact(best) end
+            else hidePrompt() end
+        elseif best and not playing and Config.Games[best.kind] then
             local g = Config.Games[best.kind]
             showPrompt(('[E] %s %s · %s'):format(g.icon, g.label, best.name))
             if IsControlJustPressed(0, K.interact) then hidePrompt() CL.OpenLobby(best.id) end
@@ -333,6 +349,14 @@ RegisterNetEvent('elyzea_loisirs:client:scanTable', function(token)
             break
         end
     end
+    TriggerServerEvent('elyzea_loisirs:server:scanResult', token, found)
+end)
+
+RegisterNetEvent('elyzea_loisirs:client:scanPole', function(token)
+    local pos = GetEntityCoords(PlayerPedId())
+    local o = GetClosestObjectOfType(pos.x, pos.y, pos.z, 4.0, GetHashKey(Config.Pole.model), false, false, false)
+    local found
+    if o and o ~= 0 then local c = GetEntityCoords(o) found = { x = c.x, y = c.y, z = c.z } end
     TriggerServerEvent('elyzea_loisirs:server:scanResult', token, found)
 end)
 

@@ -92,7 +92,7 @@ function LS.PushInstallations(target)
     TriggerLatentClientEvent('elyzea_loisirs:client:installations', target or -1, 100000, LS.PublicInstallations())
 end
 
-local function validKind(k) return k == 'bowling' or k == 'billiards' or k == 'golf' end
+local function validKind(k) return k == 'bowling' or k == 'billiards' or k == 'golf' or k == 'pole' end
 
 function LS.SaveInstallation(inst)
     local data = json.encode(inst.data)
@@ -109,6 +109,7 @@ end
 function LS.DeleteInstallation(id)
     if not LS.inst[id] then return false end
     if LS.Sessions and LS.Sessions.CancelForInstallation then LS.Sessions.CancelForInstallation(id, 'Installation retirée par le staff.') end
+    if LS.Pole and LS.Pole.OnDelete then LS.Pole.OnDelete(id) end
     MySQL.update.await('DELETE FROM `loisirs_installations` WHERE `id` = ?', { id })
     LS.inst[id] = nil
     LS.PushInstallations()
@@ -227,6 +228,45 @@ ACTIONS.billiards_calib = function(src, d)
     LS.SaveInstallation(inst)
     return true, 'Dimensions de la table enregistrées.'
 end
+-- Barre de pole dance : neuve (posée à tes pieds) ou barre du décor la plus proche (club de strip-tease…)
+ACTIONS.add_pole = function(src, d)
+    local p = here(src)
+    if not p then return false, 'Position introuvable.' end
+    local name = LU.trim(d.name, 40)
+    local data
+    if d.existing then
+        local t = scanTable(src, 'elyzea_loisirs:client:scanPole')
+        if not t or not tonumber(t.x) then return false, ('Aucune barre du décor (%s) à moins de 4 m.'):format(Config.Pole.model) end
+        local pos = LS.Pos(src)
+        if not pos or #(pos - vector3(t.x, t.y, t.z)) > 6.0 then return false, 'Barre trop loin.' end
+        data = { x = LU.round(t.x, 3), y = LU.round(t.y, 3), z = LU.round(tonumber(t.z) or p.z, 3), h = p.h, spawn = false }
+    else
+        data = { x = p.x, y = p.y, z = p.z, h = p.h, spawn = true }
+    end
+    LS.SaveInstallation({ kind = 'pole', name = name ~= '' and name or 'Barre de pole dance', data = data })
+    return true, data.spawn and 'Barre posée à tes pieds : écarte-toi pour la voir. La danse se fait face à la direction où tu regardais.'
+        or 'Barre du décor enregistrée : la danse se fait face à la direction où tu regardes.'
+end
+ACTIONS.pole_calib = function(src, d)
+    local inst = LS.inst[tonumber(d.id) or -1]
+    if not inst or inst.kind ~= 'pole' then return false, 'Barre introuvable.' end
+    local c = inst.data
+    if d.here then
+        local p = here(src)
+        if p then c.h = p.h end
+    end
+    local h = LU.num(d.h, 0, 360) if h then c.h = h end
+    local z = LU.num(d.oz, -1.5, 1.5) if z then c.oz = z end
+    local ox = LU.num(d.ox, -1.0, 1.0) if ox then c.ox = ox end
+    local oy = LU.num(d.oy, -1.0, 1.0) if oy then c.oy = oy end
+    LS.SaveInstallation(inst)
+    return true, 'Réglage de la barre enregistré.'
+end
+ACTIONS.pole_stop = function(src, d)
+    if not LS.Pole or not LS.Pole.OnDelete then return false, 'Indisponible.' end
+    LS.Pole.OnDelete(tonumber(d.id) or -1)
+    return true, 'Danse arrêtée.'
+end
 ACTIONS.add_course = function(src, d)
     local name = LU.trim(d.name, 40)
     LS.SaveInstallation({ kind = 'golf', name = name ~= '' and name or 'Parcours de golf', data = { holes = {} } })
@@ -342,6 +382,7 @@ exports('AdminData', function()
     for _, i in pairs(LS.inst) do
         local item = { id = i.id, kind = i.kind, name = i.name, data = i.data }
         item.session = LS.Sessions and LS.Sessions.ActiveFor(i.id) or nil
+        if i.kind == 'pole' and LS.Pole then item.dancer = LS.Pole.DancerOf(i.id) end
         list[#list + 1] = item
     end
     table.sort(list, function(a, b) return a.id < b.id end)

@@ -104,6 +104,7 @@ function S.Create(src, instId, opts)
     if not gc or not gc.enabled or not G then return nil, 'Cette activité est fermée.' end
     if S.byInst[inst.id] then return nil, 'Une partie existe déjà ici : rejoins-la ou attends la fin.' end
     if S.byPlayer[src] then return nil, 'Tu es déjà dans une partie.' end
+    if LS.Pole and LS.Pole.IsDancing(src) then return nil, 'Arrête d\'abord de danser.' end
     if not nearInstallation(src, inst) then return nil, 'Approche-toi de l\'équipement.' end
     if LS.Down(src) then return nil, 'Impossible dans ton état.' end
     local okInst, why = G.Validate(inst)
@@ -133,6 +134,7 @@ function S.Join(src, sid, password)
     if not s then return nil, 'Partie introuvable.' end
     if S.byPlayer[src] then return nil, S.byPlayer[src] == s.id and 'Tu es déjà inscrit.' or 'Tu es déjà dans une autre partie.' end
     if s.state ~= 'WAITING' then return nil, 'La partie a déjà commencé.' end
+    if LS.Pole and LS.Pole.IsDancing(src) then return nil, 'Arrête d\'abord de danser.' end
     if #s.order >= s.max then return nil, 'La partie est complète.' end
     if s.private and not s.invited[src] then return nil, 'Partie privée : il faut une invitation de l\'hôte.' end
     if s.password and not s.invited[src] and tostring(password or '') ~= s.password then return nil, 'Mot de passe incorrect.' end

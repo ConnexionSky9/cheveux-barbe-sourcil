@@ -112,7 +112,7 @@ SV.MySQL = {
 }
 SV.Ely = { callback = { register = function(n, fn) svCbs[n] = fn end } }
 loadInto(SV, SHARED)
-loadInto(SV, { 'server/main.lua', 'server/sessions.lua', 'server/bowling.lua', 'server/billiards.lua', 'server/golf.lua' })
+loadInto(SV, { 'server/main.lua', 'server/sessions.lua', 'server/bowling.lua', 'server/billiards.lua', 'server/golf.lua', 'server/pole.lua' })
 SV.Config.Sessions.startDelay = 1
 
 -- ---------------------------------------------------------------- clients
@@ -168,6 +168,18 @@ local function newClient(sid)
     env.CreateCamWithParams = function() return 77 end
     env.SetCamCoord = function(_, x, y, z) c.camSets = c.camSets + 1 c.camPos = vec(x, y, z) end
     env.RenderScriptCams = function(on) c.camOn = on end
+    -- scènes synchronisées (pole dance)
+    c.scenes, c.sceneSeq, c.sceneLive = {}, 500, {}
+    env.NetworkCreateSynchronisedScene = function(x, y, z, rx, ry, rz, order, hold, loop, stop, start, speed)
+        c.sceneSeq = c.sceneSeq + 1
+        c.scenes[c.sceneSeq] = { x = x, y = y, z = z, rz = rz, loop = loop, speed = speed }
+        return c.sceneSeq
+    end
+    env.NetworkAddPedToSynchronisedScene = function(ped, sc, dict, clip, bi, bo, flags, rag, mover)
+        local e = c.scenes[sc] e.ped, e.dict, e.clip, e.mover = ped, dict, clip, mover
+    end
+    env.NetworkStartSynchronisedScene = function(sc) c.sceneLive[sc] = true c.lastScene = c.scenes[sc] end
+    env.NetworkStopSynchronisedScene = function(sc) c.sceneLive[sc] = nil end
     env.CreateObjectNoOffset = function(h, x, y, z) c.nextObj = c.nextObj + 1 c.objects[c.nextObj] = { model = h, pos = vec(x, y, z) } return c.nextObj end
     env.DoesEntityExist = function(e) return peds[e] ~= nil or c.objects[e] ~= nil end
     env.DeleteEntity = function(e) c.objects[e] = nil end
@@ -197,7 +209,7 @@ local function newClient(sid)
     env.IsControlJustPressed, env.IsDisabledControlJustPressed = function(_, k) return just(k) end, function(_, k) return just(k) end
     env.IsDisabledControlJustReleased = function(_, k) return released(k) end
     loadInto(env, SHARED)
-    loadInto(env, { 'client/main.lua', 'client/anim.lua', 'client/bowling.lua', 'client/billiards.lua', 'client/golf.lua' })
+    loadInto(env, { 'client/main.lua', 'client/anim.lua', 'client/bowling.lua', 'client/billiards.lua', 'client/golf.lua', 'client/pole.lua' })
     function c.press(k) c.keys[k] = true c.frameKeys[k] = FRAME end
     function c.release(k) c.keys[k] = nil c.frameKeys['r' .. k] = FRAME end
     function c.tap(k) c.press(k) run(50) c.release(k) end
@@ -466,6 +478,83 @@ run(1000)
 spawn(function() alignOk, alignMsg = SV.export_AdminAction(1, 'add_bowling', { name = 'Rien', align = true }) end)
 run(1500)
 check(alignOk == false, 'sans quille du décor devant : refus clair')
+
+
+P('\n[Pole dance : barre, danse, routines, pourboires, sécurité]')
+run(2000)
+peds[1].pos = vec(700, 0, 31) peds[1].h = 90.0
+local okP, msgP = SV.export_AdminAction(1, 'add_pole', { name = 'Scène A' })
+run(1500)
+local pole
+for _, i in pairs(SV.LS.inst) do if i.kind == 'pole' then pole = i end end
+check(okP and pole and pole.data.spawn and math.abs(pole.data.x - 700) < 0.01 and pole.data.h == 90.0, 'admin : barre posée aux pieds du staff, tournée comme lui')
+peds[1].pos = vec(700, -1.2, 31) peds[2].pos = vec(703, 0, 31)
+run(2500)
+local function poleObjs(c) local n = 0 for _, o in pairs(c.objects) do if o.model == joaat(SV.Config.Pole.model) then n = n + 1 end end return n end
+check(poleObjs(A) == 1 and poleObjs(Bc) == 1, 'barre visible chez les deux joueurs (prop_strip_pole_01)')
+check(A.textui and A.textui:find('Danser à la barre', 1, true), 'invite [E] Danser à la barre')
+A.tap(38) run(300)
+local dp = SV.LS.Pole.dancers[pole.id]
+check(dp and dp.sid == 1, 'E : le serveur attribue la barre à Alice')
+local sc = A.lastScene
+check(sc and sc.clip == 'pd_enter' and math.abs(sc.x - 700) < 0.01 and math.abs(sc.y - 0) < 0.01 and sc.rz == 90.0 and not sc.loop,
+    'montée sur la barre : scène synchronisée calée sur le pied de la barre (pd_enter)')
+run(1200)
+sc = A.lastScene
+check(sc and sc.clip == 'pd_dance_01' and sc.loop and sc.mover == 1000.0, 'puis routine 1 en boucle (pd_dance_01)')
+check(Bc.textui and Bc.textui:find('Lancer', 1, true) and Bc.textui:find('Joueur1', 1, true), 'Bruno voit [E] Lancer 100 $ à Alice')
+A.tap(160) run(200)
+check(A.lastScene.clip == 'pd_dance_03', 'touche 3 : routine 3')
+A.tap(158) run(200)
+check(A.lastScene.clip == 'pd_dance_02', 'touche 2 : routine 2')
+A.tap(165)
+local seenClips, seenN = {}, 0
+for _ = 1, 10 do run(200) local cl = A.lastScene.clip if not seenClips[cl] then seenClips[cl] = true seenN = seenN + 1 end end
+check(seenN == 3, ('touche 5 : enchaînement automatique des 3 routines (%d vues)'):format(seenN))
+local animsBefore = #A.anims
+A.tap(164) run(300)
+local lastAnim = A.anims[#A.anims] or ''
+check(#A.anims > animsBefore and lastAnim:find('priv_dance_p1', 1, true) and not next(A.sceneLive), 'touche 4 : danse sensuelle devant la barre (priv_dance_p1)')
+local dx, dy = peds[1].pos.x - 700, peds[1].pos.y
+check(math.abs(math.sqrt(dx * dx + dy * dy) - SV.Config.Pole.private.distance) < 0.05, 'placée juste devant la barre')
+run(700)
+local seenP2 = false for i = animsBefore + 1, #A.anims do if A.anims[i]:find('priv_dance_p2', 1, true) then seenP2 = true end end
+check(seenP2, 'les parties de la danse sensuelle s\'enchaînent')
+A.tap(157) run(200)
+check(A.lastScene.clip == 'pd_dance_01', 'touche 1 : retour à la barre')
+-- pourboire
+Bc.tap(38) run(300)
+check(#Bc.notes > 0 and Bc.notes[#Bc.notes].kind == 'success', 'Bruno lance un pourboire')
+local tossed = false for _, a in ipairs(Bc.anims) do if a:find('toss', 1, true) then tossed = true end end
+check(tossed, 'Bruno joue l\'animation du lancer de billets')
+local notes = 0 for _, o in pairs(A.objects) do if o.model == joaat('prop_anim_cash_note') then notes = notes + 1 end end
+check(notes > 0, ('billets qui volent vers Alice (%d)'):format(notes))
+Bc.tap(38) run(300)
+check(Bc.notes[#Bc.notes].kind == 'error', 'pourboire trop rapproché refusé')
+-- Bruno ne peut pas prendre la barre occupée
+local rc = SV.LS.Pole.Claim(2, pole.id)
+check(rc == nil, 'barre occupée : refusée à un 2e joueur')
+-- sortie normale
+run(3000)
+A.tap(177) run(200)
+check(A.lastScene.clip == 'pd_exit', 'RETOUR : descente de la barre (pd_exit)')
+run(1000)
+check(SV.LS.Pole.dancers[pole.id] == nil and not A.env.CL.Busy(), 'barre libérée, joueuse libre')
+-- éloignement : le serveur arrête la danse
+A.tap(38) run(1500)
+check(SV.LS.Pole.dancers[pole.id] ~= nil, 'Alice danse de nouveau')
+peds[1].pos = vec(720, 0, 31)
+run(4500)
+check(SV.LS.Pole.dancers[pole.id] == nil and not A.env.CL.Busy(), 'trop loin de la barre : danse arrêtée par le serveur')
+-- trop loin pour commencer, dans une partie, suppression de la barre
+local r1, e1 = SV.LS.Pole.Claim(1, pole.id)
+check(r1 == nil and e1:find('Approche', 1, true), 'trop loin pour commencer : refusé')
+peds[1].pos = vec(700, -1.2, 31)
+run(1500)
+A.tap(38) run(1500)
+SV.export_AdminAction(1, 'delete', { id = pole.id })
+run(3000)
+check(SV.LS.Pole.dancers[pole.id] == nil and not A.env.CL.Busy() and poleObjs(A) == 0, 'barre supprimée par le staff : danse arrêtée, barre retirée')
 
 check(#errors == 0, ('aucune erreur Lua côté client ou serveur (%d)'):format(#errors))
 
