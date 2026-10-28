@@ -23,9 +23,36 @@ local function basis(inst)
     if longX then return { L = R, W = F } end
     return { L = F, W = { x = -R.x, y = -R.y } }
 end
+-- Hauteur du tapis (absolue) : réglage du staff s'il existe, sinon mesurée par un rayon sur la table,
+-- sinon pied de la table + hauteur de config.lua. Les boules sont ainsi posées pile sur le tapis.
+local function measureSurface(T, inst)
+    local d = inst.data
+    if d.calib and d.calib.height then return T.base + d.calib.height, true end
+    -- rayon vertical un peu à côté du centre (le centre peut tomber sur un motif du tapis)
+    local x, y = d.x + T.basis.L.x * 0.25, d.y + T.basis.L.y * 0.25
+    local top, bottom = T.base + 1.8, T.base + 0.2
+    local h = StartExpensiveSynchronousShapeTestLosProbe(x, y, top, x, y, bottom, 17, PlayerPedId(), 0)
+    local _, hit, pos = GetShapeTestResult(h)
+    if hit == 1 or hit == true then
+        if pos and pos.z > T.base + 0.45 and pos.z < T.base + 1.3 then return pos.z, true end
+    end
+    return T.base + T.dims.H, false
+end
+local function surfaceZ(T, inst)
+    if T.surfOk then return T.surf end
+    local now = GetGameTimer()
+    if T.surf and now < (T.nextProbe or 0) then return T.surf end
+    -- le décor et la table peuvent mettre un moment à charger : nouvel essai toutes les 0,25 s pendant 10 s
+    T.firstProbe = T.firstProbe or now
+    T.nextProbe = now + 250
+    local z, ok = measureSurface(T, inst)
+    T.surf = z
+    if ok or now - T.firstProbe > 10000 then T.surfOk = true end
+    return z
+end
 local function W(T, inst, x, y)
     local d = inst.data
-    return d.x + T.basis.L.x * x + T.basis.W.x * y, d.y + T.basis.L.y * x + T.basis.W.y * y, d.z + T.dims.H
+    return d.x + T.basis.L.x * x + T.basis.W.x * y, d.y + T.basis.L.y * x + T.basis.W.y * y, surfaceZ(T, inst)
 end
 local function toTable(T, inst, wx, wy)
     local dx, dy = wx - inst.data.x, wy - inst.data.y
@@ -38,16 +65,37 @@ local function angleWorld(T, a)   -- angle table → cap GTA (degrés)
 end
 
 local function ballModel(n) return n == 0 and C.models.cueBall or C.models.balls[n] end
-local function placeBall(T, inst, n, x, y)
+
+-- rotation de roulement : quaternion cumulé par boule (la boule tourne autour de l'axe perpendiculaire à sa course)
+local function qmul(a, b)
+    return { a[4] * b[1] + a[1] * b[4] + a[2] * b[3] - a[3] * b[2], a[4] * b[2] - a[1] * b[3] + a[2] * b[4] + a[3] * b[1],
+        a[4] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[4], a[4] * b[4] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3] }
+end
+local function roll(T, n, wdx, wdy)
+    local dist = math.sqrt(wdx * wdx + wdy * wdy)
+    if dist < 1e-5 then return end
+    local ang = dist / C.ballRadius
+    local ax, ay = -wdy / dist, wdx / dist        -- axe horizontal perpendiculaire au déplacement
+    local sh = math.sin(ang / 2)
+    T.q[n] = qmul({ ax * sh, ay * sh, 0.0, math.cos(ang / 2) }, T.q[n] or { 0.0, 0.0, 0.0, 1.0 })
+end
+local function placeBall(T, inst, n, x, y, z)
     local wx, wy, wz = W(T, inst, x, y)
-    local z = wz + C.ballRadius + C.ballZOffset
+    z = (z or wz) + C.ballRadius + C.ballZOffset
     local o = T.balls[n]
     if not (o and DoesEntityExist(o)) then
         o = CL.Object(ballModel(n), wx, wy, z, false)
         T.balls[n] = o
+        T.q[n] = nil
     else
+        local p = T.pos[n]
+        if p then
+            local px, py = W(T, inst, p.x, p.y)
+            roll(T, n, wx - px, wy - py)
+        end
         SetEntityCoordsNoOffset(o, wx, wy, z, false, false, false)
     end
+    if o and T.q[n] then local q = T.q[n] SetEntityQuaternion(o, q[1], q[2], q[3], q[4]) end
     T.pos[n] = { x = x, y = y }
 end
 local function setBalls(T, inst, list)
@@ -60,17 +108,44 @@ local function rackList(dims)
     for n, b in pairs(Billiards.Rack(dims)) do out[#out + 1] = { n, b.x, b.y } end
     return out
 end
+-- liste des boules d'un état de partie ; blanche « en main » : posée à sa place de départ (comme le serveur)
+local function stateBalls(T, data)
+    local list, has, map = {}, false, {}
+    for _, b in ipairs(data.balls or {}) do list[#list + 1] = b if b[1] == 0 then has = true end map[b[1]] = { x = b[2], y = b[3] } end
+    if not has and data.ballInHand then
+        local x, y = Billiards.FreeSpot(T.dims, map, Billiards.HeadX(T.dims) - 0.10, 0.0, data.ballInHand == 'kitchen')
+        list[#list + 1] = { 0, x, y }
+    end
+    return list
+end
 
 function M.Spawn(inst)
     local d = inst.data
-    local T = { balls = {}, pos = {}, dims = Billiards.Dims(d.model, d.calib) }
+    local T = { balls = {}, pos = {}, q = {}, dims = Billiards.Dims(d.model, d.calib) }
+    local model = GetHashKey(d.model or C.defaultModel)
     if d.spawn then
+        -- table neuve : pieds posés au sol (quelle que soit l'origine du modèle)
         T.obj = CL.Object(d.model or C.defaultModel, d.x, d.y, d.z, true)
-        if T.obj then SetEntityHeading(T.obj, d.h) end
+        if T.obj then
+            local mn = GetModelDimensions(model)
+            SetEntityCoordsNoOffset(T.obj, d.x, d.y, d.z - math.min(0.0, mn and mn.z or 0.0), false, false, false)
+            SetEntityHeading(T.obj, d.h)
+        end
+        T.base = d.z
+    else
+        -- table du décor : d.z est l'origine du modèle → pied = origine + bas du modèle
+        local mn = IsModelInCdimage(model) and GetModelDimensions(model) or nil
+        T.base = d.z + math.min(0.0, mn and mn.z or 0.0)
     end
     T.basis = basis(inst)
     tables[inst.id] = T
     setBalls(T, inst, rackList(T.dims))
+    -- dès que la hauteur réelle du tapis est connue, les boules y sont reposées
+    CreateThread(function()
+        while tables[inst.id] == T and not T.surfOk do surfaceZ(T, inst) Wait(250) end
+        if tables[inst.id] ~= T then return end
+        for n, p in pairs(T.pos) do if T.balls[n] then placeBall(T, inst, n, p.x, p.y) end end
+    end)
 end
 function M.Despawn(inst)
     local T = tables[inst.id]
@@ -95,10 +170,25 @@ end
 function M.OnState(pub, inst)
     local T = inst and tables[inst.id]
     if not T then return end
-    if pub.state == 'IN_PROGRESS' and pub.data then setBalls(T, inst, pub.data.balls)
+    if pub.state == 'IN_PROGRESS' and pub.data then setBalls(T, inst, stateBalls(T, pub.data))
     elseif pub.state == 'WAITING' then setBalls(T, inst, rackList(T.dims)) end
 end
 function M.OnEnd(_, inst) local T = tables[inst.id] if T then setBalls(T, inst, rackList(T.dims)) end end
+
+-- équipement vu par les autres joueurs pendant le tour de quelqu'un (la queue)
+function M.Equipment(s, replaying)
+    if replaying then return nil end
+    return { model = C.models.cue, hand = C.cueHand }
+end
+
+-- blanche en main d'un autre joueur : on la voit bouger en direct
+RegisterNetEvent('elyzea_loisirs:client:billiardsCue', function(sid, x, y)
+    local s = CL.sessions[sid]
+    local inst = s and CL.inst[s.inst]
+    local T = inst and tables[inst.id]
+    if not T or s.turn == CL.Me() then return end
+    placeBall(T, inst, 0, tonumber(x) or 0.0, tonumber(y) or 0.0)
+end)
 
 -- ---------------------------------------------------------------- mon tour
 -- Le joueur se place hors de la table, dans l'axe du tir, derrière la blanche
@@ -125,6 +215,7 @@ function M.Turn(s, inst, alive)
         local kitchen = data.ballInHand == 'kitchen'
         cx, cy = Billiards.FreeSpot(dims, balls, Billiards.HeadX(dims) - 0.10, 0.0, kitchen)
         local last = GetGameTimer()
+        local sentAt, sentX, sentY
         while alive() do
             local now = GetGameTimer() local dt = (now - last) / 1000 last = now
             CL.Anim.LockControls()
@@ -137,6 +228,11 @@ function M.Turn(s, inst, alive)
             cy = LU.clamp(cy, -dims.W / 2 + C.ballRadius, dims.W / 2 - C.ballRadius)
             local valid = Billiards.ValidPlacement(dims, balls, cx, cy, kitchen)
             placeBall(T, inst, 0, cx, cy)
+            -- les autres joueurs voient la blanche bouger
+            if (not sentAt or now - sentAt > 120) and (sentX ~= cx or sentY ~= cy) then
+                sentAt, sentX, sentY = now, cx, cy
+                TriggerServerEvent('elyzea_loisirs:server:billiardsCue', cx, cy)
+            end
             local wx, wy, wz = W(T, inst, cx, cy)
             DrawMarker(28, wx, wy, wz + C.ballRadius, 0, 0, 0, 0, 0, 0, 0.07, 0.07, 0.07, valid and 43 or 255, valid and 255 or 59, valid and 154 or 92, 120, false, false, 2, false, nil, nil, false)
             local top = vector3(inst.data.x, inst.data.y, wz + 2.4)
@@ -158,7 +254,7 @@ function M.Turn(s, inst, alive)
         local sx, sy = standPoint(T, cx, cy, a)
         local wx, wy, wz = W(T, inst, sx, sy)
         local hdg = angleWorld(T, a)
-        SetEntityCoordsNoOffset(ped, wx, wy, inst.data.z + 1.0, false, false, false)
+        SetEntityCoordsNoOffset(ped, wx, wy, (CL.Ground(wx, wy, T.base) or T.base) + 1.0, false, false, false)
         SetEntityHeading(ped, hdg)
     end
     stance()
@@ -231,6 +327,7 @@ function M.Turn(s, inst, alive)
 end
 
 -- ---------------------------------------------------------------- rejeu (tous les clients proches)
+local SOUND_SCALE = { cue = 6.0, ball = 3.0, rail = 2.5, pocket = 2.0 }
 function M.PlayShot(shot, inst, s)
     local T = tables[inst.id]
     local rep = shot.report or {}
@@ -247,27 +344,39 @@ function M.PlayShot(shot, inst, s)
     end
     for _, p in ipairs(shot.pocketed or {}) do pocketAt[p[1]] = p[2] end
     for n, tr in pairs(tracks) do placeBall(T, inst, n, tr[1][2], tr[1][3]) end
+    -- sons des chocs, entendus autour de la table
+    local cx, cy, cz = inst.data.x, inst.data.y, surfaceZ(T, inst)
+    local sounds = CL.HitPlayer(shot.hits, function() return vector3(cx, cy, cz) end, SOUND_SCALE)
+    local idx = {}
     local start = GetGameTimer()
     while true do
         local t = (GetGameTimer() - start) / 1000
+        sounds(t)
         for n, tr in pairs(tracks) do
-            if pocketAt[n] and t >= pocketAt[n] then
-                if T.balls[n] then CL.Delete(T.balls[n]) T.balls[n] = nil end
-            elseif T.balls[n] then
-                local x, y = tr[#tr][2], tr[#tr][3]
-                for i = 2, #tr do
-                    if t <= tr[i][1] then
-                        local a, b = tr[i - 1], tr[i]
-                        local k = (t - a[1]) / math.max(1e-6, b[1] - a[1])
-                        x, y = a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k
-                        break
-                    end
+            if T.balls[n] then
+                -- position à l'instant t (recherche à partir du dernier segment utilisé : fluide même avec beaucoup d'images)
+                local i = idx[n] or 2
+                while tr[i] and tr[i][1] < t do i = i + 1 end
+                idx[n] = i
+                local x, y
+                if not tr[i] then x, y = tr[#tr][2], tr[#tr][3]
+                else
+                    local a, b = tr[i - 1] or tr[i], tr[i]
+                    local k = (t - a[1]) / math.max(1e-6, b[1] - a[1])
+                    k = LU.clamp(k, 0, 1)
+                    x, y = a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k
                 end
-                local wx, wy, wz = W(T, inst, x, y)
-                SetEntityCoordsNoOffset(T.balls[n], wx, wy, wz + C.ballRadius + C.ballZOffset, false, false, false)
+                if pocketAt[n] and t >= pocketAt[n] then
+                    -- la boule tombe dans la poche puis disparaît
+                    local k = LU.clamp((t - pocketAt[n]) / 0.22, 0, 1)
+                    if k >= 1 then CL.Delete(T.balls[n]) T.balls[n] = nil T.pos[n] = nil
+                    else placeBall(T, inst, n, x, y, cz - 0.12 * k) end
+                else
+                    placeBall(T, inst, n, x, y)
+                end
             end
         end
-        if t > (shot.duration or 0) + 0.1 then break end
+        if t > (shot.duration or 0) + 0.3 then break end
         Wait(0)
     end
     local text, kind

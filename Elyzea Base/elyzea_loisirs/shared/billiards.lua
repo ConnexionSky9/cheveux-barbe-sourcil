@@ -93,8 +93,13 @@ function Billiards.Simulate(d, balls, angle, power, seed)
     B[0].vx, B[0].vy = math.cos(angle) * speed, math.sin(angle) * speed
     local pockets = Billiards.Pockets(d)
     local hx, hy = d.L / 2 - r, d.W / 2 - r
-    local out = { frames = {}, final = {}, pocketed = {}, offTable = {}, firstHit = nil, railAfterHit = false, railBalls = {} }
+    local out = { frames = {}, final = {}, pocketed = {}, offTable = {}, firstHit = nil, railAfterHit = false, railBalls = {}, hits = {} }
     local t, dt, nextSample = 0.0, C.dt, 0.0
+    -- chocs (pour les sons chez les joueurs) : { instant, type, force }
+    local function hit(kind, sp)
+        if sp >= 0.04 and #out.hits < 160 then out.hits[#out.hits + 1] = { LU.round(t, 3), kind, LU.round(math.min(sp, 9.9), 2) } end
+    end
+    hit('cue', speed)
     local last = {}
 
     local function sample(force)
@@ -119,6 +124,7 @@ function Billiards.Simulate(d, balls, angle, power, seed)
         return false
     end
     local function rail(n, b, normalSpeed)
+        hit('rail', normalSpeed)
         if out.firstHit ~= nil then out.railAfterHit = true end
         if n ~= 0 then out.railBalls[n] = true end
         if normalSpeed > C.jumpSpeed then   -- choc violent : la boule saute hors de la table
@@ -141,6 +147,7 @@ function Billiards.Simulate(d, balls, angle, power, seed)
                 -- poches
                 for _, p in ipairs(pockets) do
                     if b.on and LU.dist2(b.x, b.y, p.x, p.y) < p.r then
+                        hit('pocket', math.max(0.3, LU.len(b.vx, b.vy)))
                         b.on, b.vx, b.vy = false, 0.0, 0.0
                         out.pocketed[#out.pocketed + 1] = { n, LU.round(t, 3) }
                     end
@@ -167,6 +174,7 @@ function Billiards.Simulate(d, balls, angle, power, seed)
                             local nx, ny = dx / dist, dy / dist
                             local rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
                             if rel > 0 then
+                                hit('ball', rel)
                                 local j = (1 + C.ballRestitution) * rel / 2
                                 a.vx, a.vy = a.vx - j * nx, a.vy - j * ny
                                 b.vx, b.vy = b.vx + j * nx, b.vy + j * ny

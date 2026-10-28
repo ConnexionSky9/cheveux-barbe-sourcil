@@ -157,11 +157,15 @@ function Bowling.Simulate(standing, throw, seed)
         if standing[n] then pins[n] = { x = sp[1], y = sp[2], vx = 0.0, vy = 0.0, ox = sp[1], oy = sp[2], hit = false, down = false } end
     end
 
-    local out = { ball = {}, pins = {}, fall = {}, down = {}, gutter = false }
+    local out = { ball = {}, pins = {}, fall = {}, down = {}, gutter = false, hits = {} }
     local t, nextSample, dt = 0.0, 0.0, B.dt
     local rb, rp = B.ballRadius, B.pinRadius
     local mb, mp = B.ballMass, B.pinMass
     local inGutter = false
+    -- chocs (pour les sons chez les joueurs) : { instant, type, force }
+    local function hit(kind, sp)
+        if sp >= 0.15 and #out.hits < 90 then out.hits[#out.hits + 1] = { LU.round(t, 3), kind, LU.round(math.min(sp, 9.9), 2) } end
+    end
 
     local function sample()
         out.ball[#out.ball + 1] = { LU.round(t, 3), LU.round(bx, 3), LU.round(by, 3) }
@@ -194,6 +198,7 @@ function Bowling.Simulate(standing, throw, seed)
             if math.abs(bx) > half and by < B.laneLength - 0.2 then
                 -- gouttière : la boule tombe et file tout droit jusqu'au fond, sans toucher de quille
                 inGutter, out.gutter = true, true
+                hit('gutter', LU.len(vx, vy))
                 bx = (bx > 0 and 1 or -1) * (half + B.gutterWidth / 2)
                 vx = 0.0
             end
@@ -212,6 +217,7 @@ function Bowling.Simulate(standing, throw, seed)
                 p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
                 if p.y > B.laneLength - 0.2 and p.y < deckEnd and math.abs(p.x) > wall then
                     p.x = (p.x > 0 and 1 or -1) * wall
+                    hit('kick', math.abs(p.vx))
                     p.vx = -p.vx * B.kickback
                 end
             end
@@ -221,6 +227,7 @@ function Bowling.Simulate(standing, throw, seed)
             for _, p in pairs(pins) do
                 local nx, ny, j, pen = collide(bx, by, vx, vy, mb, p.x, p.y, p.vx, p.vy, mp, rb, rp, B.ballPinRestitution)
                 if nx then
+                    hit('pin', j / mp)
                     vx, vy = vx - j / mb * nx, vy - j / mb * ny
                     p.vx, p.vy = p.vx + j / mp * nx, p.vy + j / mp * ny
                     p.x, p.y = p.x + nx * pen, p.y + ny * pen
@@ -236,6 +243,7 @@ function Bowling.Simulate(standing, throw, seed)
                     local ra, rb3 = a.hit and B.pinTipRadius or rp, b.hit and B.pinTipRadius or rp
                     local nx, ny, j, pen = collide(a.x, a.y, a.vx, a.vy, mp, b.x, b.y, b.vx, b.vy, mp, ra, rb3, B.pinPinRestitution)
                     if nx then
+                        hit('pinpin', j / mp)
                         a.vx, a.vy = a.vx - j / mp * nx, a.vy - j / mp * ny
                         b.vx, b.vy = b.vx + j / mp * nx, b.vy + j / mp * ny
                         a.x, a.y = a.x - nx * pen / 2, a.y - ny * pen / 2

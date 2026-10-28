@@ -93,7 +93,7 @@ function G.Play(s, src, payload)
     local info = record(s, src, down)
     local shot = {
         kind = 'bowling', shooter = src, throw = th, down = res.down, standingBefore = standingBefore, pins = down,
-        ball = res.ball, pinPaths = res.pins, fall = res.fall, gutter = res.gutter, duration = res.duration,
+        ball = res.ball, pinPaths = res.pins, fall = res.fall, gutter = res.gutter, duration = res.duration, hits = res.hits,
         strike = strike, spare = spare, firstOfFrame = firstOfFrame,
     }
     return true, nil, shot, res.duration + 1.8

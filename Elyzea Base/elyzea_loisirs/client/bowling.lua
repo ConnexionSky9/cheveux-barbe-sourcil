@@ -326,21 +326,30 @@ end
 
 function M.PlayShot(shot, inst, s)
     local L = lanes[inst.id]
-    local shooterPed = CL.PedOf(shot.shooter)
     if shot.timeout then
         if shot.shooter == CL.Me() then CL.Notify('Temps écoulé : lancer compté 0.', 'error') end
         return
     end
     if not L then return end   -- trop loin pour voir : l'état final sera appliqué
     setStanding(inst, shot.standingBefore)
-    -- les autres joueurs voient aussi la boule partir de la main du lanceur
-    if shooterPed and shot.shooter ~= CL.Me() then CL.Anim.Hold(shooterPed, B.models.ball, B.ballHand) Wait(600) CL.Anim.Drop(shooterPed) end
+    -- (la boule dans la main du lanceur est montrée aux autres par M.Equipment ; elle quitte sa main au début du rejeu)
     local x0 = shot.ball[1] and shot.ball[1][2] or 0.0
     local wx, wy = W(inst, x0, 0.0)
     L.ball = CL.Object(B.models.ball, wx, wy, L.floor + B.ballRadius, false)
     if L.ball then L.mine[L.ball] = true end
     local ballLift = L.ball and dims(L.ball).below or B.ballRadius
     if ballLift < 0.05 then ballLift = B.ballRadius end
+    -- sons : roulement de la boule jusqu'aux quilles, puis chocs (boule / quilles / gouttière)
+    local tPins = shot.duration
+    for _, p in ipairs(shot.ball or {}) do if p[3] >= B.laneLength - 0.3 then tPins = p[1] break end end
+    local sx, sy = W(inst, x0, 0.0)
+    CL.Sfx('roll', vector3(sx, sy, L.floor), 1.0, LU.round(math.max(0.5, tPins), 2))
+    local dx, dy = W(inst, 0.0, B.laneLength + 0.4)
+    local deck = vector3(dx, dy, L.deck + 0.3)
+    local sounds = CL.HitPlayer(shot.hits, function(h)
+        if h[2] == 'gutter' then local bx, by = sampleAt(shot.ball, h[1]) local gx, gy = W(inst, bx or 0, by or 0) return vector3(gx, gy, L.floor) end
+        return deck
+    end, { pin = 4.0, pinpin = 3.0, kick = 3.0, gutter = 6.0 })
     local cam = watching(shot, s)
     local FC = B.followCam
     local yaws = {}
@@ -350,6 +359,7 @@ function M.PlayShot(shot, inst, s)
     while true do
         local t = (GetGameTimer() - start) / 1000
         if t > total then break end
+        sounds(t)
         local bx, by = sampleAt(shot.ball, t)
         if bx and L.ball then
             local px, py = W(inst, bx, by)
@@ -395,8 +405,23 @@ function M.PlayShot(shot, inst, s)
         CL.Anim.Play(PlayerPedId(), female and B.anims.cheerF or B.anims.cheer, 4.0, math.floor(B.anims.cheer.duration * 1000))
     end
     Wait(900)
-    -- balayage : les quilles tombées disparaissent (l'état final du serveur remet le jeu suivant)
-    for _, n in ipairs(shot.down or {}) do if L.pins[n] then L.mine[L.pins[n]] = nil CL.Delete(L.pins[n]) L.pins[n] = nil end end
+    -- balayage : les quilles tombées s'enfoncent sous le plateau (comme le râteau d'une vraie piste), puis disparaissent
+    local swept = {}
+    for _, n in ipairs(shot.down or {}) do if L.pins[n] and DoesEntityExist(L.pins[n]) then swept[#swept + 1] = { n = n, o = L.pins[n], p = GetEntityCoords(L.pins[n]) } end end
+    local t0 = GetGameTimer()
+    while #swept > 0 do
+        local k = (GetGameTimer() - t0) / 450
+        if k >= 1 then break end
+        for _, w in ipairs(swept) do if DoesEntityExist(w.o) then SetEntityCoordsNoOffset(w.o, w.p.x, w.p.y, w.p.z - 0.4 * k, false, false, false) end end
+        Wait(0)
+    end
+    for _, w in ipairs(swept) do if L.pins[w.n] == w.o then L.mine[w.o] = nil CL.Delete(w.o) L.pins[w.n] = nil end end
+end
+
+-- équipement vu par les autres joueurs : la boule dans la main de celui qui va lancer
+function M.Equipment(s, replaying)
+    if replaying then return nil end
+    return { model = B.models.ball, hand = B.ballHand }
 end
 
 -- ---------------------------------------------------------------- aide au réglage

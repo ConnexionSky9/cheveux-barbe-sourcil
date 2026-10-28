@@ -93,6 +93,9 @@ function Golf.Simulate(hole, ball, swing, seed)
     local startX, startY = x, y
     local cup = hole.flag
 
+    out.hits = {}
+    -- chocs (pour les sons chez les joueurs) : { instant, type, force }
+    local function hit(kind, sp) if #out.hits < 40 then out.hits[#out.hits + 1] = { LU.round(t, 2), kind, LU.round(math.min(sp, 99), 1) } end end
     local function sample() out.path[#out.path + 1] = { LU.round(t, 2), LU.round(x, 2), LU.round(y, 2), LU.round(z, 2) } end
     local function finish(kind) out.outcome = kind end
 
@@ -114,9 +117,10 @@ function Golf.Simulate(hole, ball, swing, seed)
                 z = gz
                 if not out.carry then out.carry = LU.dist2(x, y, startX, startY) end
                 local here = Golf.Lie(hole, x, y)
-                if here == 'water' then out.entry = { x = x, y = y } finish('water') break end
+                if here == 'water' then out.entry = { x = x, y = y } hit('water', -vz) finish('water') break end
                 if here == 'ob' or here == 'lost' then finish(here) break end
                 local L = G.lies[here] or G.lies.rough
+                hit(here == 'bunker' and 'sand' or 'land', -vz)
                 vz = -vz * L.bounce
                 vx, vy = vx * (G.landingKeep + L.bounce), vy * (G.landingKeep + L.bounce)
                 if vz < 1.2 then flying, vz = false, 0.0 end
@@ -132,6 +136,7 @@ function Golf.Simulate(hole, ball, swing, seed)
             -- trou : la balle passe sur la coupe assez lentement
             if here == 'green' and LU.dist2(x, y, cup.x, cup.y) <= G.cupRadius and sp <= G.captureSpeed then
                 x, y, z = cup.x, cup.y, cup.z - 0.08
+                hit('cup', sp)
                 finish('holed')
                 break
             end

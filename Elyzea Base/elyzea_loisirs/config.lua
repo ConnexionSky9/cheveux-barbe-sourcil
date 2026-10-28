@@ -234,6 +234,11 @@ Config.Pole = {
         note = 'prop_anim_cash_note', notes = 4 },
 }
 
+-- ---------------------------------------------------------------- sons des jeux (chocs, roulement, frappe)
+-- Sons générés par l'interface du jeu (pas de fichier à télécharger) : volume selon la distance,
+-- gauche / droite selon la caméra. Tous les joueurs proches les entendent pendant le rejeu des coups.
+Config.Sounds = { enabled = true, volume = 0.8, range = 30.0 }
+
 Config.Keys = {
     interact = 38,      -- E
     power = 22,         -- ESPACE (maintenir puis relâcher)

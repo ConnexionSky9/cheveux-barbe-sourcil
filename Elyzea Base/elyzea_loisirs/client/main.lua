@@ -285,6 +285,76 @@ RegisterNetEvent('elyzea_loisirs:client:shot', function(sid, shot, after)
     end)
 end)
 
+function CL.IsReplaying(sid) return playing[sid] ~= nil end
+
+-- ---------------------------------------------------------------- sons (générés par l'interface)
+-- kind : type de son · pos : endroit du choc · power : force (0 … 1 environ)
+function CL.Sfx(kind, pos, power, extra)
+    local S = Config.Sounds
+    if not S or not S.enabled or not pos then return end
+    local cam = GetFinalRenderedCamCoord()
+    if not cam then return end
+    local dx, dy, dz = pos.x - cam.x, pos.y - cam.y, pos.z - cam.z
+    local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+    local range = S.range or 30.0
+    if d > range then return end
+    local vol = (S.volume or 0.8) * (1 - d / range) ^ 1.6 * LU.clamp(power or 1.0, 0.05, 1.0)
+    if vol < 0.01 then return end
+    -- gauche / droite selon l'orientation de la caméra
+    local rot = GetFinalRenderedCamRot(2)
+    local h = math.rad(rot and rot.z or 0.0)
+    local rx, ry = math.cos(h), math.sin(h)
+    local l2 = math.sqrt(dx * dx + dy * dy)
+    local pan = l2 > 0.05 and LU.clamp((dx * rx + dy * ry) / l2, -1, 1) * 0.8 or 0.0
+    SendNUIMessage({ action = 'sfx', kind = kind, vol = LU.round(vol, 3), pan = LU.round(pan, 2), extra = extra })
+end
+-- Joue les chocs d'un coup au bon moment pendant le rejeu : renvoie une fonction à appeler chaque image avec le temps écoulé
+function CL.HitPlayer(hits, posFn, scale)
+    local i = 1
+    hits = hits or {}
+    return function(t)
+        while hits[i] and hits[i][1] <= t do
+            local h = hits[i]
+            CL.Sfx(h[2], posFn(h), (h[3] or 1) / (scale and scale[h[2]] or 3.0))
+            i = i + 1
+        end
+    end
+end
+
+-- ---------------------------------------------------------------- équipement du joueur dont c'est le tour, vu par les autres
+-- (boule de bowling, queue de billard, club de golf) : objet local attaché à sa main chez chaque joueur proche
+local shown = {}   -- [sid] = { ped, model }
+CreateThread(function()
+    while true do
+        local sleep = 1000
+        local me = CL.Me()
+        for sid, s in pairs(CL.sessions) do
+            local M = CL.Games[s.game]
+            local want
+            if s.state == 'IN_PROGRESS' and s.turn and s.turn ~= me and M and M.Equipment then
+                sleep = 300
+                local ped = CL.PedOf(s.turn)
+                local eq = ped and M.Equipment(s, playing[sid] ~= nil)
+                if eq then want = { ped = ped, model = GetHashKey(eq.model), eq = eq } end
+            end
+            local cur = shown[sid]
+            if cur and (not want or cur.ped ~= want.ped or cur.model ~= want.model) then
+                if DoesEntityExist(cur.ped) then CL.Anim.Drop(cur.ped) end
+                shown[sid] = nil
+                cur = nil
+            end
+            if want and not cur then
+                CL.Anim.Hold(want.ped, want.eq.model, want.eq.hand)
+                shown[sid] = { ped = want.ped, model = want.model }
+            end
+        end
+        for sid, cur in pairs(shown) do
+            if not CL.sessions[sid] then if DoesEntityExist(cur.ped) then CL.Anim.Drop(cur.ped) end shown[sid] = nil end
+        end
+        Wait(sleep)
+    end
+end)
+
 RegisterNetEvent('elyzea_loisirs:client:sessionEnd', function(sid)
     local s = CL.sessions[sid]
     CL.sessions[sid] = nil

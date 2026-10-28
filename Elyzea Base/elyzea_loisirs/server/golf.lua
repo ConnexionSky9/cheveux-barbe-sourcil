@@ -177,7 +177,7 @@ function G.Play(s, src, payload)
         p.done = true
         note = (note and note .. ' ' or '') .. ('Maximum de %d coups atteint : balle relevée.'):format(Golf.MaxStrokes(h))
     end
-    local shot = { kind = 'golf', shooter = src, club = sw.club, swing = sw, path = res.path, outcome = res.outcome, ball = p.ball,
+    local shot = { kind = 'golf', shooter = src, club = sw.club, swing = sw, path = res.path, hits = res.hits, outcome = res.outcome, ball = p.ball,
         carry = LU.round(res.carry, 1), distance = LU.round(res.distance, 1), duration = res.duration, note = note, holed = holed,
         strokes = p.strokes[s.data.hole], par = h.par or GC.defaultPar }
     advance(s)

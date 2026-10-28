@@ -54,7 +54,7 @@ local function base(env)
     env.GetHashKey, env.joaat = joaat, joaat
     env.vector3, env.vec3 = vec, vec
     env.json = { encode = ser, decode = function(s) return s end }
-    env.print = function() end
+    env.print = function(...) local m = table.concat((function(...) local t = {} for i = 1, select('#', ...) do t[i] = tostring((select(i, ...))) end return t end)(...), ' ') if m:find('^1', 1, true) then errors[#errors + 1] = m P('  ERREUR ' .. m) end end
     env.GetCurrentResourceName = function() return 'elyzea_loisirs' end
     return setmetatable(env, { __index = function(_, k)
         if _G[k] ~= nil then return _G[k] end
@@ -163,6 +163,8 @@ local function newClient(sid)
     c.polys, c.polyFrame = {}, -1
     env.DrawPoly = function(...) if c.polyFrame ~= FRAME then c.polys, c.polyFrame = {}, FRAME end c.polys[#c.polys + 1] = { ... } end
     env.GetAnimDuration = function() return 0.5 end
+    env.GetFinalRenderedCamCoord = function() if c.camOn and c.camPos then return c.camPos end return peds[sid] and peds[sid].pos or vec(0, 0, 0) end
+    env.GetFinalRenderedCamRot = function() return vec(0, 0, peds[sid] and peds[sid].h or 0) end
     env.IsEntityPlayingAnim = function() return true end
     c.camSets, c.camOn = 0, false
     env.CreateCamWithParams = function() return 77 end
@@ -189,7 +191,9 @@ local function newClient(sid)
     env.DoesEntityExist = function(e) return peds[e] ~= nil or c.objects[e] ~= nil end
     env.DeleteEntity = function(e) c.objects[e] = nil end
     env.IsEntityAttached = function(e) return c.objects[e] and c.objects[e].att ~= nil end
-    env.AttachEntityToEntity = function(e, p) if c.objects[e] then c.objects[e].att = p end end
+    c.attHist, c.quat = {}, 0
+    env.AttachEntityToEntity = function(e, p) if c.objects[e] then c.objects[e].att = p c.attHist[#c.attHist + 1] = { model = c.objects[e].model, ped = p } end end
+    env.SetEntityQuaternion = function(e) if c.objects[e] then c.quat = c.quat + 1 end end
     env.GetGroundZFor_3dCoord = function(x, y, z) return false, 0 end
     env.IsPedInAnyVehicle = function() return false end
     env.IsEntityDead = function() return false end
@@ -219,6 +223,8 @@ local function newClient(sid)
     function c.release(k) c.keys[k] = nil c.frameKeys['r' .. k] = FRAME end
     function c.tap(k) c.press(k) run(50) c.release(k) end
     function c.lastUI(action) for i = #c.ui, 1, -1 do if c.ui[i].action == action then return c.ui[i] end end end
+    function c.sfx(kind) local n = 0 for _, m in ipairs(c.ui) do if m.action == 'sfx' and m.kind == kind and m.vol > 0 then n = n + 1 end end return n end
+    function c.held(model, ped) for _, h in ipairs(c.attHist) do if h.model == joaat(model) and h.ped == ped then return true end end return false end
     function c.count(model) local n = 0 for _, o in pairs(c.objects) do if o.model == joaat(model) then n = n + 1 end end return n end
     function c.nuiCall(name, data) local res c.nui[name](data or {}, function(r) res = r end) return res end
     clients[sid] = c
@@ -295,6 +301,8 @@ local resB = (function() for i = #Bc.ui, 1, -1 do local m = Bc.ui[i] if m.action
 check(resA and resB and resA.results.ranking[1].score == resB.results.ranking[1].score, 'classement final identique chez les deux joueurs')
 check(A.count('prop_bowling_ball') == 0 and Bc.count('prop_bowling_ball') == 0, 'aucune boule oubliée après les rejeux')
 check(not peds[1].frozen and not peds[2].frozen, 'joueurs libres de bouger après la partie')
+check(Bc.sfx('roll') > 0 and Bc.sfx('pin') > 0 and A.sfx('pin') > 0, ('sons du bowling entendus par les deux joueurs (roulement %d, chocs de quilles %d)'):format(Bc.sfx('roll'), Bc.sfx('pin')))
+check(Bc.held('prop_bowling_ball', 1) and A.held('prop_bowling_ball', 2), 'chacun voit la boule dans la main de l\'autre quand c\'est son tour')
 run(25000)
 check(A.count('prop_bowling_pin') == 10, 'piste remise en place (10 quilles) pour la partie suivante')
 
@@ -307,6 +315,23 @@ A.nuiCall('start')
 run(2500)
 local sb = SV.LS.Sessions.all[r.session.id]
 check(sb.state == 'IN_PROGRESS' and A.count('prop_poolball_cue') == 1 and A.count('prop_poolball_8') == 1, 'billard lancé, boules posées sur la table')
+local function posOf(c, model) for _, o in pairs(c.objects) do if o.model == joaat(model) then return o.pos end end end
+local same = Bc.count('prop_poolball_cue') == 1
+for k = 1, 15 do
+    local pa, pb = posOf(A, 'prop_poolball_' .. k), posOf(Bc, 'prop_poolball_' .. k)
+    if not (pa and pb and math.abs(pa.x - pb.x) < 1e-6 and math.abs(pa.y - pb.y) < 1e-6 and math.abs(pa.z - pb.z) < 1e-6) then same = false end
+end
+check(same, 'début de partie : blanche à sa place et 15 boules en triangle, au même endroit chez les deux joueurs')
+-- la casse : le joueur qui a la blanche en main la déplace, l'autre la voit bouger
+local breaker = sb.data.seat[sb.data.game.turn]
+local Cb, Co = breaker == 1 and A or Bc, breaker == 1 and Bc or A
+run(500)
+local c0 = posOf(Co, 'prop_poolball_cue')
+Cb.press(33) run(700) Cb.release(33) run(400)
+local cm, co = posOf(Cb, 'prop_poolball_cue'), posOf(Co, 'prop_poolball_cue')
+check(cm and co and math.abs(cm.x - co.x) < 1e-3 and math.abs(cm.y - co.y) < 1e-3 and (math.abs(co.x - c0.x) + math.abs(co.y - c0.y)) > 0.05,
+    'blanche en main : l\'adversaire la voit bouger en direct')
+check(Co.held('prop_pool_cue', breaker), 'l\'adversaire voit la queue dans les mains du joueur')
 guard = 0
 local shots = 0
 while sb.state == 'IN_PROGRESS' and shots < 30 and guard < 120 do
@@ -351,6 +376,9 @@ local held = 0
 for _, c in ipairs({ A, Bc }) do for _, o in pairs(c.objects) do if o.att then held = held + 1 end end end
 check(held == 0, 'aucune queue restée en main')
 check(table.concat(A.anims, ' '):find('coke_cut_v1_coccutter', 1, true), 'pose penchée sur la table jouée')
+check(Bc.sfx('cue') > 0 and Bc.sfx('ball') > 0 and Bc.sfx('rail') > 0 and A.sfx('ball') > 0,
+    ('bruit des chocs entendu autour de la table (queue %d, boules %d, bandes %d, poches %d)'):format(Bc.sfx('cue'), Bc.sfx('ball'), Bc.sfx('rail'), Bc.sfx('pocket')))
+check(A.quat > 100 and Bc.quat > 100, 'les boules roulent (rotation) pendant le rejeu')
 
 P('\n[Golf joué au clavier]')
 run(25000)
@@ -382,6 +410,8 @@ end
 run(3000)
 check(sg.state == 'FINISHED', ('parcours de golf joué au clavier jusqu\'au bout (%d coups)'):format(swings))
 check(table.concat(A.anims, ' '):find('mini@golf/', 1, true), 'animations du mini-jeu de golf jouées')
+check(Bc.sfx('swing') + Bc.sfx('putt') > 0 and A.sfx('swing') + A.sfx('putt') > 0 and (A.sfx('land') + A.sfx('cup')) > 0, ('sons du golf (frappes %d, rebonds %d, trou %d)'):format(A.sfx('swing') + A.sfx('putt'), A.sfx('land'), A.sfx('cup')))
+check(Bc.held('prop_golf_iron_01', 1) and A.held('prop_golf_iron_01', 2), 'chacun voit le club dans les mains de l\'autre')
 
 P('\n[Bowling réaliste : pas de côté, flèche, chute des quilles, caméra, quilles du décor]')
 run(25000)

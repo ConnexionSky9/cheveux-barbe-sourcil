@@ -50,7 +50,7 @@ end
 function S.Broadcast(s, shot)
     local pub = S.Public(s)
     for _, src in ipairs(audience(s)) do
-        TriggerLatentClientEvent('elyzea_loisirs:client:shot', src, 200000, s.id, shot, pub)
+        TriggerLatentClientEvent('elyzea_loisirs:client:shot', src, 1000000, s.id, shot, pub)
     end
 end
 

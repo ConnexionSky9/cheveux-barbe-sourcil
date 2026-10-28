@@ -189,6 +189,80 @@ function controlsRender(m) {
     $('#ctlKeys').innerHTML = (m.keys || []).filter(Boolean).map((k) => `<span>${esc(k)}</span>`).join('');
     c.classList.remove('hidden');
 }
+/* ------------------------------------------------ sons des jeux (synthétisés, aucun fichier)
+   Chocs de billes, bandes, poches, roulement et fracas du bowling, frappe et rebonds du golf.
+   Le volume et la position gauche / droite sont calculés par le client selon la distance. */
+const SFX = { ctx: null, noise: null, count: 0 };
+function audio() {
+    if (!SFX.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        SFX.ctx = new AC();
+        const len = SFX.ctx.sampleRate;           // 1 s de bruit blanc réutilisé
+        const buf = SFX.ctx.createBuffer(1, len, SFX.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        SFX.noise = buf;
+    }
+    if (SFX.ctx.state === 'suspended') SFX.ctx.resume();
+    return SFX.ctx;
+}
+// sortie commune : volume + panoramique
+function out(ctx, vol, pan) {
+    const g = ctx.createGain(); g.gain.value = Math.max(0, Math.min(1, vol));
+    let node = g;
+    if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan || 0)); g.connect(p); p.connect(ctx.destination); }
+    else g.connect(ctx.destination);
+    return node;
+}
+// petit « toc » : bruit filtré + ton bref, enveloppe rapide
+function knock(ctx, dest, at, { freq = 2500, q = 2, tone = 0, toneDecay = 0.04, decay = 0.03, gain = 1, type = 'bandpass' }) {
+    const n = ctx.createBufferSource(); n.buffer = SFX.noise;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const e = ctx.createGain(); e.gain.setValueAtTime(gain, at); e.gain.exponentialRampToValueAtTime(0.0008, at + decay);
+    n.connect(f); f.connect(e); e.connect(dest); n.start(at, Math.random() * 0.5); n.stop(at + decay + 0.02);
+    if (tone) {
+        const o = ctx.createOscillator(); o.frequency.value = tone;
+        const eg = ctx.createGain(); eg.gain.setValueAtTime(gain * 0.5, at); eg.gain.exponentialRampToValueAtTime(0.0008, at + toneDecay);
+        o.connect(eg); eg.connect(dest); o.start(at); o.stop(at + toneDecay + 0.02);
+    }
+}
+function rumble(ctx, dest, at, dur, freq) {
+    const n = ctx.createBufferSource(); n.buffer = SFX.noise; n.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq || 160;
+    const e = ctx.createGain();
+    e.gain.setValueAtTime(0.0001, at); e.gain.linearRampToValueAtTime(0.9, at + 0.25);
+    e.gain.setValueAtTime(0.9, at + Math.max(0.3, dur - 0.4)); e.gain.linearRampToValueAtTime(0.0001, at + dur);
+    n.connect(f); f.connect(e); e.connect(dest); n.start(at); n.stop(at + dur + 0.05);
+}
+function sfx(kind, vol, pan, extra) {
+    const ctx = audio();
+    if (!ctx || !(vol > 0)) return;
+    if (SFX.count > 40) return;                     // garde-fou : pas d'avalanche de sons
+    SFX.count++; setTimeout(() => { SFX.count--; }, 300);
+    const dest = out(ctx, vol, pan);
+    const t = ctx.currentTime + 0.005;
+    const r = (a, b) => a + Math.random() * (b - a);
+    switch (kind) {
+        case 'ball':   knock(ctx, dest, t, { freq: r(2600, 3400), q: 3, tone: r(2100, 2600), decay: 0.035, toneDecay: 0.05, gain: 1 }); break;          // clac bille / bille
+        case 'cue':    knock(ctx, dest, t, { freq: 1800, q: 1.5, tone: 1300, decay: 0.03, toneDecay: 0.03, gain: 0.9 }); break;                         // procédé contre la blanche
+        case 'rail':   knock(ctx, dest, t, { freq: 320, q: 1, type: 'lowpass', decay: 0.09, gain: 1 }); break;                                           // bande en caoutchouc
+        case 'pocket': [0, 0.07, 0.16].forEach((d, i) => knock(ctx, dest, t + d, { freq: 500 - i * 80, q: 2, decay: 0.08, gain: 0.9 - i * 0.2 })); break;  // chute dans la poche
+        case 'roll':   rumble(ctx, dest, t, Math.min(8, Math.max(0.5, Number(extra) || 2)), 140); break;                                                 // boule de bowling qui roule
+        case 'pin':    knock(ctx, dest, t, { freq: r(900, 1300), q: 2.5, tone: r(700, 950), decay: 0.07, toneDecay: 0.09, gain: 1 }); break;          // boule contre quille
+        case 'pinpin': knock(ctx, dest, t, { freq: r(1100, 1600), q: 3, tone: r(900, 1200), decay: 0.05, toneDecay: 0.06, gain: 0.8 }); break;        // quille contre quille
+        case 'kick':   knock(ctx, dest, t, { freq: 400, q: 1, type: 'lowpass', decay: 0.07, gain: 0.7 }); break;
+        case 'gutter': rumble(ctx, dest, t, 1.2, 260); break;
+        case 'swing':  knock(ctx, dest, t, { freq: 4200, q: 4, tone: r(3600, 4200), decay: 0.02, toneDecay: 0.12, gain: 1 }); break;          // frappe du club
+        case 'putt':   knock(ctx, dest, t, { freq: 2200, q: 2, tone: 1700, decay: 0.02, toneDecay: 0.05, gain: 0.6 }); break;
+        case 'land':   knock(ctx, dest, t, { freq: 250, q: 1, type: 'lowpass', decay: 0.07, gain: 0.8 }); break;                                       // balle qui retombe sur l'herbe
+        case 'sand':   knock(ctx, dest, t, { freq: 3000, q: 0.6, type: 'highpass', decay: 0.18, gain: 0.5 }); break;
+        case 'water':  knock(ctx, dest, t, { freq: 900, q: 0.7, decay: 0.35, gain: 0.8 }); break;
+        case 'cup':    [0, 0.05, 0.12, 0.2].forEach((d, i) => knock(ctx, dest, t + d, { freq: 2600, q: 5, tone: 2300 - i * 120, decay: 0.03, toneDecay: 0.05, gain: 0.8 - i * 0.15 })); break;
+        default: break;
+    }
+}
+
 /* ------------------------------------------------ pole dance */
 let POLE = null;
 function poleRender(m) {
@@ -278,6 +352,7 @@ window.addEventListener('message', (e) => {
             return;
         case 'controls': controlsRender(m); return;
         case 'pole': poleRender(m); return;
+        case 'sfx': sfx(m.kind, m.vol, m.pan, m.extra); return;
         case 'toast': toast(m.text, m.kind); return;
         default:
     }

@@ -73,7 +73,7 @@ function G.Play(s, src, payload)
     local rep = Billiards.Apply(d, g, res)
     local shot = {
         kind = 'billiards', shooter = src, angle = angle, power = power, start = start, frames = res.frames,
-        pocketed = res.pocketed, offTable = res.offTable, duration = res.duration, report = {
+        pocketed = res.pocketed, offTable = res.offTable, duration = res.duration, hits = res.hits, report = {
             foul = rep.foul, reason = rep.reason, keep = rep.keep, assigned = rep.assigned, win = rep.win, lose = rep.lose,
             rerack = rep.rerack, text = rep.text,
         },
@@ -112,3 +112,29 @@ function G.Results(s)
     table.sort(ranking, function(a, b) return a.winner and not b.winner end)
     return { ranking = ranking, winner = g.winner and s.data.seat[g.winner] or nil, shots = g.shots }
 end
+
+-- ---------------------------------------------------------------- blanche en main : position montrée en direct aux autres
+-- Le joueur qui a la blanche en main envoie sa position (5 à 10 fois / s) ; le serveur vérifie et relaie.
+-- Seule la position finale envoyée avec le coup compte pour le jeu (revalidée dans G.Play).
+local cueRate = {}
+RegisterNetEvent('elyzea_loisirs:server:billiardsCue', function(x, y)
+    local src = source
+    local S = LS.Sessions
+    local sid = S and S.byPlayer[src]
+    local s = sid and S.all[sid]
+    if not s or s.game ~= 'billiards' or s.state ~= 'IN_PROGRESS' or s.turn ~= src then return end
+    local g = s.data.game
+    if not g or not g.ballInHand then return end
+    local now = GetGameTimer()
+    if cueRate[src] and now - cueRate[src] < 80 then return end
+    cueRate[src] = now
+    local d = s.data.dims
+    x, y = tonumber(x), tonumber(y)
+    if not x or not y or x ~= x or y ~= y then return end
+    x = LU.clamp(x, -d.L / 2 + C.ballRadius, d.L / 2 - C.ballRadius)
+    y = LU.clamp(y, -d.W / 2 + C.ballRadius, d.W / 2 - C.ballRadius)
+    for _, t in ipairs(S.Audience(s)) do
+        if t ~= src then TriggerClientEvent('elyzea_loisirs:client:billiardsCue', t, s.id, LU.round(x, 4), LU.round(y, 4)) end
+    end
+end)
+AddEventHandler('playerDropped', function() cueRate[source] = nil end)

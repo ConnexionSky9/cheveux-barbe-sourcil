@@ -189,5 +189,30 @@ check(downhill.outcome == 'rest' and downhill.duration < Config.Golf.maxTime, 'e
 local onG = Golf.Simulate(hill, { x = 0, y = 296, lie = 'green' }, { club = 'putter', power = 0.06, dir = 0, spin = 0 }, 3)
 check(onG.outcome == 'rest' and onG.distance < 3, 'le green est plat : un putt doux ne redescend pas la pente du trou')
 
+print('[Chocs pour les sons]')
+do
+    local function kinds(h) local k = {} for _, e in ipairs(h or {}) do k[e[2]] = (k[e[2]] or 0) + 1 end return k end
+    local bd = Billiards.Dims('prop_pooltable_02')
+    local rack = Billiards.Rack(bd)
+    local bb = {} for n, b in pairs(rack) do bb[n] = { x = b.x, y = b.y } end
+    bb[0] = { x = Billiards.HeadX(bd) - 0.10, y = 0.0 }
+    local brk = Billiards.Simulate(bd, bb, 0.0, 1.0, 7)
+    local k = kinds(brk.hits)
+    check(k.cue == 1 and (k.ball or 0) >= 5 and (k.rail or 0) >= 4, ('casse : coup de queue, %d chocs de boules, %d chocs de bande'):format(k.ball or 0, k.rail or 0))
+    local sorted = true for i = 2, #brk.hits do if brk.hits[i][1] < brk.hits[i - 1][1] then sorted = false end end
+    check(sorted and #brk.hits <= 160, 'chocs dans l\'ordre du temps et en nombre limité')
+    local full = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
+    local st = Bowling.Simulate(full, { x = -0.40, angle = 1.25, power = 0.85, hook = 0.5 }, 2)
+    local kb = kinds(st.hits)
+    check((kb.pin or 0) >= 1 and (kb.pinpin or 0) >= 3, ('bowling : %d choc(s) boule-quille, %d quille-quille'):format(kb.pin or 0, kb.pinpin or 0))
+    local gt = Bowling.Simulate(full, { x = 0.42, angle = -3.0, power = 0.5, hook = 1.0 }, 5)
+    check(not gt.gutter or kinds(gt.hits).gutter == 1, 'gouttière : un seul son de gouttière')
+    local hole = { tee = { x = 0, y = 0, z = 50, h = 0 }, flag = { x = 0, y = 140, z = 50 }, par = 3, greenR = 14, fairwayW = 40, hazards = {} }
+    local putt = Golf.Simulate(hole, { x = 0, y = 137, z = 50, lie = 'green' }, Golf.CleanSwing({ type = 'swing', club = 'putter', power = 0.25, dir = 0, spin = 0 }), 1)
+    check(putt.outcome == 'holed' and putt.hits[#putt.hits][2] == 'cup', 'golf : putt rentré → son de la balle dans le trou')
+    local drive = Golf.Simulate(hole, { x = 0, y = 0, z = 50, lie = 'tee' }, Golf.CleanSwing({ type = 'swing', club = 'iron9', power = 0.9, dir = 0, spin = 0 }), 4)
+    check(kinds(drive.hits).land and kinds(drive.hits).land >= 1, 'golf : rebonds de la balle à l\'atterrissage')
+end
+
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

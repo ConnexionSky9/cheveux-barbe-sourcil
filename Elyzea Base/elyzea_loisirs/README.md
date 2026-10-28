@@ -154,6 +154,50 @@ L'enregistrement n'est accepté qu'avec le jeton donné par le menu admin (valab
 
 `/loisirs_quitter` quitte la partie en cours.
 
+## Ce que voient et entendent les joueurs
+
+**Pour tout le monde autour (joueurs et spectateurs à moins de 40 m)** : chaque coup est calculé par le serveur, puis rejoué à l'identique chez chacun. On voit les boules, les quilles et les balles bouger, au même moment.
+
+**Billard**
+
+- Avant la partie, la table est prête : 15 boules en triangle sur le point de pied, blanche derrière la ligne de tête.
+- Au lancement, la blanche est posée tout de suite à sa place de départ, chez tout le monde. Quand le joueur la déplace (blanche en main), les autres la voient bouger en direct.
+- Les boules sont posées sur le tapis réel de la table : la hauteur est mesurée par un rayon, même sur une table du décor ou d'un MLO. Le réglage « hauteur du tapis » du menu admin reste prioritaire.
+- Les boules roulent vraiment (elles tournent sur elles-mêmes) et tombent dans les poches.
+- Le joueur qui tire tient la queue, et les autres la voient aussi.
+- Sons :
+  - coup de queue ;
+  - clac des boules (plus fort si le choc est fort) ;
+  - choc sur les bandes ;
+  - chute dans la poche.
+
+**Bowling**
+
+- Les 10 quilles sont toujours en place sur la piste. La boule est dans la main du joueur dont c'est le tour, et tout le monde la voit.
+- Sons :
+  - roulement de la boule jusqu'aux quilles ;
+  - fracas boule / quilles et quilles / quilles ;
+  - gouttière.
+- Les quilles tombées s'enfoncent sous le plateau (comme le râteau d'une vraie piste) avant le lancer suivant.
+
+**Golf**
+
+- Les drapeaux et les tees sont posés sur le vrai sol, et chaque joueur a sa balle.
+- Le joueur dont c'est le tour a son club en main, vu par les autres.
+- La caméra suit la balle par derrière, dans le sens de sa course.
+- Sons :
+  - frappe (club ou putter) ;
+  - rebonds ;
+  - sable ;
+  - eau ;
+  - balle dans le trou.
+
+**Les sons**
+
+- Ils sont générés par l'interface du jeu : il n'y a aucun fichier à télécharger.
+- Le volume dépend de la distance (30 m par défaut), et le son vient de gauche ou de droite selon la caméra.
+- Réglage : `Config.Sounds` dans `config.lua` (`enabled`, `volume`, `range`).
+
 ## Règles appliquées
 
 **Bowling**
@@ -306,7 +350,7 @@ Ils ne remplacent pas un essai en jeu.
 - **Billard** :
   - pas d'effet latéral (english) ;
   - pas d'annonce de poche (« bille 8 dans le coin ») ;
-  - la blanche en main n'est visible que par celui qui la place, jusqu'à validation ;
   - la pose penchée sur la table est une animation existante détournée : il n'existe aucune animation de billard dans GTA ;
-  - la hauteur du tapis peut demander un calibrage selon la table.
+  - la hauteur du tapis est mesurée automatiquement ; un calibrage manuel reste possible si une table a un tapis inhabituel ;
+  - les sons sont des sons de synthèse (pas des enregistrements) : réalistes sans être identiques à un vrai billard.
 - **Golf, position du joueur** : le décalage du joueur à côté de la balle peut demander un ajustement (`stanceOffset` et `stanceHeight` dans `config.lua`) selon le rendu en jeu.

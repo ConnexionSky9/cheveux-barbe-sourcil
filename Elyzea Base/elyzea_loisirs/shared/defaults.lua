@@ -34,3 +34,8 @@ Config.Pole = Config.Pole or {
         anim = { dict = 'mini@strip_club@leaning@toss', clip = 'toss', flag = 48, duration = 2.0 },
         note = 'prop_anim_cash_note', notes = 4 },
 }
+
+-- ---------------------------------------------------------------- sons des jeux (chocs, roulement, frappe)
+-- Sons générés par l'interface du jeu (pas de fichier à télécharger) : volume selon la distance,
+-- gauche / droite selon la caméra. Tous les joueurs proches les entendent pendant le rejeu des coups.
+Config.Sounds = Config.Sounds or { enabled = true, volume = 0.8, range = 30.0 }

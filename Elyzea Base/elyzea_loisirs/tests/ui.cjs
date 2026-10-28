@@ -80,6 +80,12 @@ const path = require('path');
         await send({ action: 'pole', show: false });
         await page.waitForTimeout(50);
         check(!(await page.isVisible('#pole')), `${w}×${h} : panneau fermé en descendant de la barre`);
+        // sons : chaque type de choc se joue sans erreur (synthèse dans le navigateur)
+        const kinds = ['ball', 'cue', 'rail', 'pocket', 'roll', 'pin', 'pinpin', 'kick', 'gutter', 'swing', 'putt', 'land', 'sand', 'water', 'cup'];
+        for (const k of kinds) await send({ action: 'sfx', kind: k, vol: 0.5, pan: 0.3, extra: 1.5 });
+        await page.waitForTimeout(300);
+        const audioOk = await page.evaluate(() => !!(window.SFX ? SFX.ctx : (typeof SFX !== 'undefined' && SFX.ctx)));
+        check(audioOk, `${w}×${h} : sons des jeux générés (${kinds.length} types : billes, bandes, poches, quilles, golf…)`);
         check(errors.length === 0, `${w}×${h} : aucune erreur JavaScript (${errors.join(' | ')})`);
         await page.close();
     }

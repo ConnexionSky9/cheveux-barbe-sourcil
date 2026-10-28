@@ -22,12 +22,22 @@ function M.InteractPoint(inst)
     return h and h.tee and vector3(h.tee.x, h.tee.y, h.tee.z + 1.0) or nil
 end
 
+-- objet posé sur le vrai sol de la carte (pied du modèle au niveau du sol)
+local function onGround(model, p)
+    local z = CL.Ground(p.x, p.y, p.z) or p.z
+    local o = CL.Object(model, p.x, p.y, z, false)
+    if o then
+        local mn = GetModelDimensions(GetEntityModel(o))
+        SetEntityCoordsNoOffset(o, p.x, p.y, z - math.min(0.0, mn and mn.z or 0.0), false, false, false)
+    end
+    return o
+end
 function M.Spawn(inst)
     local C = { flags = {}, balls = {}, tees = {} }
     courses[inst.id] = C
     for _, h in ipairs(inst.data.holes or {}) do
-        if h.flag then C.flags[#C.flags + 1] = CL.Object(GC.models.flag, h.flag.x, h.flag.y, h.flag.z, false) end
-        if h.tee then C.tees[#C.tees + 1] = CL.Object(GC.models.tee, h.tee.x, h.tee.y, h.tee.z, false) end
+        if h.flag then C.flags[#C.flags + 1] = onGround(GC.models.flag, h.flag) end
+        if h.tee then C.tees[#C.tees + 1] = onGround(GC.models.tee, h.tee) end
     end
 end
 function M.Despawn(inst)
@@ -87,6 +97,11 @@ function M.OnEnd(s, inst)
     local C = courses[inst.id]
     if C then for sid, o in pairs(C.balls) do CL.Delete(o) C.balls[sid] = nil end end
     if s and CL.my == nil then clearBlips() end
+end
+
+-- équipement vu par les autres joueurs : le club dans les mains de celui qui joue (gardé pendant son coup)
+function M.Equipment(s)
+    return { model = 'prop_golf_iron_01', hand = GC.clubHand }
 end
 
 -- ---------------------------------------------------------------- mon tour
@@ -195,7 +210,9 @@ function M.Turn(s, inst, alive)
 end
 
 -- ---------------------------------------------------------------- rejeu (tous les clients proches)
+local camDir
 function M.PlayShot(shot, inst, s)
+    camDir = nil
     local C = courses[inst.id]
     if shot.timeout then
         if shot.shooter == CL.Me() then CL.Notify('Temps écoulé : 1 coup compté.', 'error') end
@@ -206,21 +223,32 @@ function M.PlayShot(shot, inst, s)
         CL.SendUI({ action = 'toast', text = 'Balle injouable : +1 coup, balle replacée', kind = 'info' })
         return
     end
-    local shooterPed = CL.PedOf(shot.shooter)
-    if shooterPed and shot.shooter ~= CL.Me() then
-        local club = Golf.Club(shot.club)
-        if club then CL.Anim.Hold(shooterPed, club.model, GC.clubHand) end
-    end
     local path = shot.path or {}
     local o = C.balls[shot.shooter]
     if not (o and DoesEntityExist(o)) and path[1] then
         o = CL.Object(GC.models.ball, path[1][2], path[1][3], path[1][4], false)
         C.balls[shot.shooter] = o
     end
+    -- sons : frappe du club, puis rebonds / sable / eau / balle dans le trou, à l'endroit de la balle
+    local function at(tt)
+        local x, y, z = path[1][2], path[1][3], path[1][4]
+        for i = 2, #path do
+            if tt <= path[i][1] then
+                local a, b = path[i - 1], path[i]
+                local k = (tt - a[1]) / math.max(1e-6, b[1] - a[1])
+                return vector3(a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k)
+            end
+        end
+        return vector3(path[#path][2], path[#path][3], path[#path][4])
+    end
+    if path[1] then CL.Sfx(shot.club == 'putter' and 'putt' or 'swing', vector3(path[1][2], path[1][3], path[1][4]), 1.0) end
+    local sounds = CL.HitPlayer(shot.hits, function(h) return at(h[1]) end, { land = 12.0, sand = 10.0, water = 10.0, cup = 2.0 })
     local start = GetGameTimer()
     local camOn = shot.shooter == CL.Me()
+    local lx, ly = nil, nil
     while o and #path > 0 do
         local t = (GetGameTimer() - start) / 1000
+        sounds(t)
         if t > path[#path][1] then break end
         local x, y, z = path[1][2], path[1][3], path[1][4]
         for i = 2, #path do
@@ -235,11 +263,21 @@ function M.PlayShot(shot, inst, s)
         local gz = CL.Ground(x, y, z)
         if gz and z < gz + GC.ballRadius then z = gz + GC.ballRadius end
         SetEntityCoordsNoOffset(o, x, y, z, false, false, false)
-        if camOn and t > 0.3 then CL.Cam.Set(vector3(x, y - 0.0, z + 6.0) - vector3(0, 0, 0), vector3(x, y, z), 60.0) end
+        -- caméra de suivi : derrière la balle, dans le sens de sa course, un peu au-dessus
+        if camOn and t > 0.3 then
+            if lx then
+                local dx, dy = x - lx, y - ly
+                local l = math.sqrt(dx * dx + dy * dy)
+                if l > 0.02 then camDir = { dx / l, dy / l } end
+            end
+            local cd = camDir or { 0.0, 1.0 }
+            CL.Cam.Set(vector3(x - cd[1] * 7.0, y - cd[2] * 7.0, z + 3.0), vector3(x + cd[1] * 4.0, y + cd[2] * 4.0, z), 55.0)
+        end
+        lx, ly = x, y
         Wait(0)
     end
-    if camOn then Wait(600) CL.Cam.Stop() end
-    if shooterPed and shot.shooter ~= CL.Me() then CL.Anim.Drop(shooterPed) end
+    sounds(math.huge)
+    if camOn then Wait(900) CL.Cam.Stop() end
     local LIE = { green = 'sur le green', fairway = 'sur le fairway', rough = 'dans le rough', bunker = 'dans le bunker', tee = 'au départ' }
     local text
     if shot.holed then
