@@ -127,28 +127,87 @@ CreateThread(function()
 end)
 
 -- ---------------------------------------------------------------- écran d'origine des télés du jeu (render target)
-local rts = {}         -- [hash du modèle] = { name, id } ou false si le modèle n'a pas d'écran utilisable
+local rts = {}         -- [hash du modèle] = { name, id, linked }
+TVC.RTs = rts
 local function rtFor(model)
     if rts[model] ~= nil then return rts[model] end
     local info = TVC.flat[model]
     local names = { info and info.rt or 'tvscreen' }
-    for _, n in ipairs(C.RenderTargets) do if n ~= names[1] then names[#names + 1] = n end end
+    for _, n in ipairs(C.RenderTargets or {}) do if n ~= names[1] then names[#names + 1] = n end end
     for _, name in ipairs(names) do
         if not IsNamedRendertargetRegistered(name) then RegisterNamedRendertarget(name, false) end
         if not IsNamedRendertargetLinked(model) then LinkNamedRendertarget(model) end
-        if IsNamedRendertargetLinked(model) then
-            local id = GetNamedRendertargetRenderId(name)
-            if id and id ~= 0 and id ~= -1 then
-                rts[model] = { name = name, id = id }
-                TVC.Dbg('écran du modèle', info and info.model, '→', name, id)
-                return rts[model]
-            end
+        local id = IsNamedRendertargetRegistered(name) and GetNamedRendertargetRenderId(name) or -1
+        -- on ne refuse pas l'écran si le jeu ne confirme pas le lien : beaucoup de télés marchent quand même
+        if id and id ~= -1 and id ~= 0 then
+            rts[model] = { name = name, id = id, linked = IsNamedRendertargetLinked(model) == true }
+            TVC.Dbg('écran du modèle', info and info.model, '→', name, 'id', id, 'lié', rts[model].linked)
+            return rts[model]
         end
     end
     rts[model] = false
-    TVC.Dbg('aucun écran utilisable pour', info and info.model)
     return false
 end
+
+-- ---------------------------------------------------------------- image posée sur la face avant de la télé
+-- Calculée d'après la taille du modèle : écran 16:9 en haut de la télé (les pieds / socles sont en bas),
+-- sur la grande face tournée vers la caméra, 1 cm devant.
+local geom = {}
+local function screenGeom(ent)
+    local m = TVC.s32(GetEntityModel(ent))
+    local g = geom[m]
+    if g then return g end
+    local mn, mx = GetModelDimensions(GetEntityModel(ent))
+    if not mn then return nil end
+    local info = TVC.flat[m] or {}
+    local sx, sy, sz = mx.x - mn.x, mx.y - mn.y, mx.z - mn.z
+    local longX = sx >= sy
+    local W = longX and sx or sy
+    local margin = (C.Flat.margin or 0.035) * W
+    local w, h, cz
+    local o = info.screen
+    if o and o.w and o.h then
+        w, h, cz = o.w, o.h, o.z or (mn.z + mx.z) / 2
+    else
+        w = W - 2 * margin
+        h = w * 9 / 16
+        if h > sz - 2 * margin then h = sz - 2 * margin w = h * 16 / 9 end
+        cz = mx.z - margin - h / 2
+    end
+    local cl = (o and o.x) or 0.0
+    g = { longX = longX, mn = mn, mx = mx, w = w, h = h, cz = cz, cl = cl,
+        cx = (mn.x + mx.x) / 2, cy = (mn.y + mx.y) / 2 }
+    geom[m] = g
+    return g
+end
+local function drawOverlay(ent, tex)
+    local g = screenGeom(ent)
+    if not g then return end
+    local cam = GetFinalRenderedCamCoord()
+    local lc = GetOffsetFromEntityGivenWorldCoords(ent, cam.x, cam.y, cam.z)
+    -- face tournée vers la caméra (normale n), centre de l'écran sur cette face
+    local nx, ny, fx, fy
+    if g.longX then
+        nx, ny = 0.0, (lc.y >= g.cy) and 1.0 or -1.0
+        fx, fy = g.cx + g.cl, (ny > 0 and g.mx.y or g.mn.y) + ny * 0.01
+    else
+        nx, ny = (lc.x >= g.cx) and 1.0 or -1.0, 0.0
+        fx, fy = (nx > 0 and g.mx.x or g.mn.x) + nx * 0.01, g.cy + g.cl
+    end
+    local lx, ly = ny, -nx          -- la gauche de l'image, vue de face
+    local hw, hh = g.w / 2, g.h / 2
+    local function at(sx, sz)
+        return GetOffsetFromEntityInWorldCoords(ent, fx + lx * sx, fy + ly * sx, g.cz + sz)
+    end
+    local tl, tr, bl, br = at(hw, hh), at(-hw, hh), at(hw, -hh), at(-hw, -hh)
+    local function tri(a, b, c, ua, va, ub, vb, uc, vc)
+        DrawTexturedPoly(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, 255, 255, 255, 255, TXD_NAME, tex, ua, va, 1.0, ub, vb, 1.0, uc, vc, 1.0)
+    end
+    tri(tl, tr, br, 0, 0, 1, 0, 1, 1) tri(tl, br, bl, 0, 0, 1, 1, 0, 1)
+    tri(tl, br, tr, 0, 0, 1, 1, 1, 0) tri(tl, bl, br, 0, 0, 0, 1, 1, 1)
+end
+TVC.DrawFlatOverlay = drawOverlay
+
 local usedRT = {}
 local function releaseUnused(now)
     for name, used in pairs(usedRT) do
@@ -206,12 +265,16 @@ CreateThread(function()
                 end
             end
         end
-        -- télés du jeu : la plus proche en lecture de chaque écran d'origine
+        -- télés du jeu : image sur la face avant (chaque télé la sienne) et / ou sur l'écran d'origine du modèle
+        local mode = C.Flat.display or 'both'
         local byRT, now = {}, {}
         for _, e in ipairs(active) do
             if e.ent and DoesEntityExist(e.ent) and e.d and IsDuiAvailable(e.d.dui) then
-                local rt = rtFor(TVC.s32(GetEntityModel(e.ent)))
-                if rt and not byRT[rt.name] then byRT[rt.name] = { rt = rt, e = e } end
+                if mode ~= 'rendertarget' then sleep = 0 drawOverlay(e.ent, e.d.tex) end
+                if mode ~= 'overlay' then
+                    local rt = rtFor(TVC.s32(GetEntityModel(e.ent)))
+                    if rt and not byRT[rt.name] then byRT[rt.name] = { rt = rt, e = e } end
+                end
             end
         end
         for name, x in pairs(byRT) do
@@ -228,6 +291,27 @@ CreateThread(function()
         Wait(sleep)
     end
 end)
+
+-- /tv_debug : état de l'affichage de la télé la plus proche (à copier depuis la console F8 si l'image ne s'affiche pas)
+RegisterCommand('tv_debug', function()
+    local me = GetEntityCoords(PlayerPedId())
+    local best, bd
+    for _, o in ipairs(TVC.nearFlat or {}) do
+        if DoesEntityExist(o) then local d = #(GetEntityCoords(o) - me) if not bd or d < bd then best, bd = o, d end end
+    end
+    if not best then print('[elyzea_tv] aucune télé à écran plat à moins de 30 m') return end
+    local m = TVC.s32(GetEntityModel(best))
+    local info = TVC.flat[m] or {}
+    local rt = rtFor(m)
+    local key = TVC.FlatKey(best)
+    local g = screenGeom(best)
+    print(('[elyzea_tv] télé %s à %.1f m · clé %s'):format(info.model or '?', bd, key))
+    print(('  affichage %s · écran d\'origine : %s'):format(C.Flat.display or 'both', rt and ('%s id %s lié %s'):format(rt.name, tostring(rt.id), tostring(rt.linked)) or 'indisponible'))
+    if g then print(('  image sur la face avant : %.2f × %.2f m'):format(g.w, g.h)) end
+    local st = TVC.states[key]
+    local d = duis[key]
+    print(('  vidéo : %s · page : %s'):format(st and st.id or 'aucune', d and (IsDuiAvailable(d.dui) and ('prête (' .. d.tex .. ')') or 'en chargement') or 'fermée'))
+end, false)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end

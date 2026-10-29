@@ -73,7 +73,9 @@ La page liste aussi les **télés du jeu allumées**. Tu peux les éteindre une 
 ## Comment ça marche
 
 - **Vidéo** : chaque écran allumé et proche ouvre chez le joueur une petite page avec le lecteur YouTube officiel (`html/player.html`). Son image sert de texture.
-- **Télés du jeu** : l'image est dessinée sur **l'écran d'origine du modèle** (le même système que les émissions de télé du jeu).
+- **Télés du jeu** : l'image est posée **sur la face avant de la télé** (un écran 16:9 calculé d'après la taille du modèle, en haut, dans le cadre).
+  Elle est aussi envoyée sur **l'écran d'origine du modèle** (le même système que les émissions de télé du jeu).
+  Réglage `Config.Flat.display` : `'both'` (par défaut), `'overlay'` ou `'rendertarget'`. Pour un modèle dont l'image déborde du cadre, mets un réglage fin `screen = { x, z, w, h }` dans `Config.FlatTVs`.
 - **Écrans du staff** : l'image est un rectangle dessiné dans le monde, à la position et à la taille choisies. Le dos de l'écran est noir.
 - **Synchronisation** :
   - le serveur garde, pour chaque écran, la vidéo, l'heure de départ, la pause et le volume ;
@@ -119,15 +121,13 @@ Ces tests ne remplacent pas un essai en jeu : la vraie lecture YouTube et l'affi
 
 ## Limites connues
 
-- **Une image par écran d'origine** : les télés du jeu partagent l'écran d'origine de leur modèle (`tvscreen`).
-  - Si deux télés du même type sont allumées tout près, chacune montre la vidéo de **la plus proche de toi**.
-  - Le son de chacune reste à sa place.
-  - Les écrans posés par le staff n'ont pas cette limite.
+- **Cadre de l'image** : sur la face avant, la taille de l'écran est calculée d'après la taille du modèle. Selon le modèle, l'image peut déborder un peu sur le cadre ou laisser une marge (réglable par modèle).
+  - Avec `display = 'rendertarget'` seul, deux télés du même modèle tout près montrent la même vidéo (celle de la plus proche) : c'est une limite du jeu.
+  - En mode `'both'` (par défaut), chaque télé montre la sienne.
 - **Vidéos refusées** :
   - certaines vidéos interdisent leur diffusion hors de YouTube (le choix du propriétaire) ; l'écran affiche alors un message ;
   - les vidéos réservées aux adultes ou bloquées dans un pays ne passent pas non plus.
 - **Publicités** : le lecteur intégré peut afficher les publicités prévues par YouTube.
 - **Son à travers les murs** : il suit la distance, pas les murs (il ne s'arrête pas quand on sort d'une pièce si on reste assez près).
 - **Pas de test en jeu** : le nom de l'écran d'origine de chaque modèle n'a pas pu être vérifié en jeu.
-  - Si un modèle n'affiche pas l'image, d'autres noms sont essayés automatiquement (`Config.RenderTargets`).
-  - `Config.Debug = true` affiche dans la console F8 le nom retenu pour chaque modèle.
+  - Si l'image ne s'affiche pas, tape **`/tv_debug`** près de la télé : la console F8 indique le modèle, l'écran d'origine, la vidéo et l'état de la page.

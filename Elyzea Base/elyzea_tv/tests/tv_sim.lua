@@ -132,6 +132,8 @@ local function newClient(sid)
     env.AddEventHandler = env.RegisterNetEvent
     env.TriggerServerEvent = function(n, ...) local a = table.pack(...) spawn(function() SV.source = sid for _, fn in ipairs(svEvents[n] or {}) do fn(table.unpack(a, 1, a.n)) end end) end
     env.RegisterNUICallback = function(n, fn) c.nui[n] = fn end
+    c.cmd = {}
+    env.RegisterCommand = function(n, fn) c.cmd[n] = fn end
     env.SendNUIMessage = function(m) c.ui[#c.ui + 1] = m end
     env.SetNuiFocus = function(a) c.focus = a end
     env.exports = setmetatable({ elyzea_core = {
@@ -166,14 +168,20 @@ local function newClient(sid)
     env.IsNamedRendertargetRegistered = function(n) return c.rtReg[n] == true end
     env.RegisterNamedRendertarget = function(n) c.rtReg[n] = true return true end
     env.LinkNamedRendertarget = function(m) c.rtLinked[signed(m)] = true end
-    env.IsNamedRendertargetLinked = function(m) return c.rtLinked[signed(m)] == true end
+    -- comme chez le joueur qui a signalé le problème : le jeu ne confirme jamais le lien télé ↔ écran d'origine
+    env.IsNamedRendertargetLinked = function(m) if c.neverLinked then return false end return c.rtLinked[signed(m)] == true end
+    -- télés : 1,2 m de large, 10 cm d'épaisseur, 80 cm de haut, posées sans rotation
+    env.GetModelDimensions = function() return vec(-0.6, -0.05, -0.4), vec(0.6, 0.05, 0.4) end
+    env.GetOffsetFromEntityInWorldCoords = function(e, x, y, z) local p = world[e].pos return vec(p.x + x, p.y + y, p.z + z) end
+    env.GetOffsetFromEntityGivenWorldCoords = function(e, x, y, z) local p = world[e].pos return vec(x - p.x, y - p.y, z - p.z) end
     env.GetNamedRendertargetRenderId = function(n) return c.rtReg[n] and 42 or -1 end
     env.ReleaseNamedRendertarget = function(n) c.rtReg[n] = nil c.released = (c.released or 0) + 1 end
     env.SetTextRenderId = function(id) c.renderId = id end
     env.GetDefaultScriptRendertargetRenderId = function() return 1 end
     env.DrawSprite = function(dict, tex) if c.renderId == 42 then c.sprites[#c.sprites + 1] = { dict = dict, tex = tex, t = GT } end end
     c.texAt = {}
-    env.DrawTexturedPoly = function(...) local a = { ... } c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT end
+    env.DrawTexturedPoly = function(...) local a = { ... } c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT
+        if tostring(a[15]):match('^v%d+$') then c.vidPoly = a end end
     -- touches
     env.IsControlJustPressed = function(_, k) return c.frameKeys[k] ~= nil and GT - c.frameKeys[k] <= 16 end
     env.IsDisabledControlJustPressed = env.IsControlJustPressed
@@ -192,6 +200,7 @@ end
 addPed(1, 100.0, 198.5, 30.0)        -- Alice, devant la télé n°9001
 addPed(2, 101.0, 197.0, 30.0)        -- Bruno, à côté
 local A, B = newClient(1), newClient(2)
+A.neverLinked = true
 run(4000)
 
 P('[Liens YouTube]')
@@ -233,7 +242,20 @@ local va, vb = A.lastMsg('volume'), B.lastMsg('volume')
 check(va and vb and va.v > vb.v and va.v > 0, ('son plus fort pour Alice (1,5 m) que pour Bruno (3 m) : %.2f / %.2f'):format(va and va.v or 0, vb and vb.v or 0))
 run(800)
 local spr = A.sprites[#A.sprites]
-check(spr and spr.dict == 'elyzea_tv' and spr.tex == 'v1' and A.rtLinked[signed(joaat('prop_tv_flat_01'))], 'image dessinée sur l\'écran d\'origine de la télé (tvscreen)')
+check(spr and spr.dict == 'elyzea_tv' and spr.tex == 'v1', 'image dessinée sur l\'écran d\'origine de la télé, même si le jeu ne confirme pas le lien')
+local vp = A.vidPoly
+local ys, xmin, xmax, zmin, zmax = {}, math.huge, -math.huge, math.huge, -math.huge
+if vp then for i = 0, 2 do local x, y, z = vp[1 + i * 3], vp[2 + i * 3], vp[3 + i * 3] ys[#ys + 1] = y xmin, xmax = math.min(xmin, x), math.max(xmax, x) zmin, zmax = math.min(zmin, z), math.max(zmax, z) end end
+check(vp and vp[15] == 'v1' and math.abs(ys[1] - 199.94) < 0.001 and xmin >= 99.4 and xmax <= 100.6 and zmax <= 31.6 and zmax > 31.5,
+    'image aussi posée sur la face avant de la télé, côté joueur, dans le cadre (16:9, en haut)')
+local lines = {}
+local oldPrint = A.env.print
+A.env.print = function(...) local t = {} for i = 1, select('#', ...) do t[i] = tostring((select(i, ...))) end lines[#lines + 1] = table.concat(t, ' ') end
+A.cmd.tv_debug()
+A.env.print = oldPrint
+local dbgOut = table.concat(lines, '\n')
+check(dbgOut:find('prop_tv_flat_01', 1, true) and dbgOut:find('tvscreen', 1, true) and dbgOut:find('dQw4w9WgXcQ', 1, true) and dbgOut:find('prête', 1, true),
+    '/tv_debug : modèle, écran d\'origine, vidéo et page affichés dans F8')
 -- Bruno s'éloigne : le son baisse puis se coupe, l'image s'arrête au-delà de la portée
 peds[2].pos = vec(110.0, 200.0, 31.0) run(600)
 local v2 = B.lastMsg('volume')
@@ -299,6 +321,8 @@ run(1200)
 check(rr.ok and A.liveDuis() == 2, 'deux télés allumées : deux pages vidéo chez Alice')
 local nearTex = A.sprites[#A.sprites].tex
 check(nearTex == 'v1', 'l\'écran d\'origine montre la télé la plus proche d\'Alice')
+local own = 0 for tex, at in pairs(A.texAt) do if tex:match('^v%d+$') and GT - at < 200 then own = own + 1 end end
+check(own == 2, 'face avant : chaque télé affiche sa propre vidéo (2 images différentes)')
 check(B.focus == false, 'télécommande fermée : souris rendue au joueur')
 
 P('\n[Écran géant posé par le staff]')

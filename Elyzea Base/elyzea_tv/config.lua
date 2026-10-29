@@ -6,7 +6,7 @@ Config.Debug = false
 
 -- ---------------------------------------------------------------- télés à écran plat du jeu (ALT › Télécommande)
 -- Seuls ces modèles sont des télés utilisables (écrans plats). Les vieilles télés cathodiques ne le sont pas.
--- rt = nom de l'écran du modèle dans le jeu (« render target ») ; si le nom ne marche pas, les autres noms
+-- rt = nom de l'écran d'origine du modèle (« render target ») ; si ce nom ne donne rien, les autres noms
 -- de RenderTargets sont essayés automatiquement au chargement.
 Config.FlatTVs = {
     { model = 'prop_tv_flat_01',          rt = 'tvscreen' },
@@ -30,7 +30,15 @@ Config.Flat = {
     soundRange = 14.0,          -- le son s'entend jusqu'à X m (de plus en plus faible)
     renderRange = 25.0,         -- l'image est diffusée quand on est à moins de X m
     everyone = true,            -- true : tout le monde peut utiliser une télé ; false : seulement le staff (tv_manage)
+    -- Affichage de l'image sur la télé :
+    --   'both'         : écran d'origine du modèle + image posée sur la face avant de la télé (par défaut, marche toujours)
+    --   'overlay'      : seulement l'image posée sur la face avant
+    --   'rendertarget' : seulement l'écran d'origine du modèle (comme les émissions du jeu)
+    display = 'both',
+    margin = 0.035,             -- bord de la télé (cadre) laissé autour de l'image, en part de la largeur
 }
+-- Réglage fin par modèle (facultatif) : screen = { x = décalage gauche/droite, z = hauteur du centre, w = largeur, h = hauteur } en mètres,
+-- dans le repère du modèle. Sans réglage, l'écran est calculé d'après la taille du modèle (16:9, en haut de la télé).
 
 -- ---------------------------------------------------------------- écrans posés par le staff (menu admin › Écrans / TV)
 Config.Custom = {
