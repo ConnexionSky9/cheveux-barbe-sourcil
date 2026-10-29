@@ -46,7 +46,11 @@ Points à savoir :
 ## Poser un écran (staff, menu admin › Serveur et monde › Écrans / TV)
 
 1. Choisis une taille, par exemple **Géant 16 × 9 m**, ou tape largeur et hauteur.
-2. Clique **Placer en jeu**. Le menu se ferme et l'écran **suit ton regard** : il se colle au mur ou à la façade que tu vises, tourné vers toi.
+2. Clique **Placer en jeu**. Le menu se ferme et l'écran **suit ton regard** :
+   - si tu vises un mur ou une façade, il se colle dessus, tourné vers toi ;
+   - si tu vises le sol ou un toit, il se pose **debout** dessus, tourné vers toi.
+
+   Pendant le placement, la face avant affiche une **mire de bandes de couleur** : c'est le côté où sera l'image. Le dos est noir.
 3. Règle-le avec les touches :
 
    | Touche | Effet |
@@ -54,6 +58,7 @@ Points à savoir :
    | Clic gauche | Fige l'endroit |
    | Molette | Taille (le format est gardé) |
    | Q / E | Tourner |
+   | R | Retourner l'écran (l'image passe de l'autre côté) |
    | Page préc. / suiv. | Hauteur |
    | Flèches | Déplacer |
    | MAJ | Réglage précis |
@@ -66,7 +71,7 @@ Dans la fiche de chaque écran :
 - lancer une vidéo, pause, éteindre ;
 - nom, largeur / hauteur exactes, portée du son (5 à 300 m), volume ;
 - accès « tout le monde » ou « staff seulement » ;
-- **Placer / modifier en jeu**, aller à la télécommande, supprimer.
+- **Placer / modifier en jeu**, **↻ Retourner** (si l'image est du mauvais côté), aller à la télécommande, supprimer.
 
 La page liste aussi les **télés du jeu allumées**. Tu peux les éteindre une par une, ou **tout éteindre**.
 

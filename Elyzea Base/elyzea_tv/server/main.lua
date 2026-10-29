@@ -257,6 +257,14 @@ ACTIONS.screen_size = function(src, d)
     saveScreen(s)
     return true, ('Taille : %.2f × %.2f m.'):format(w, h)
 end
+-- l'image passe de l'autre côté de l'écran (écran posé à l'envers)
+ACTIONS.screen_flip = function(src, d)
+    local s = TV.screens[tonumber(d.id) or -1]
+    if not s then return false, 'Écran introuvable.' end
+    s.data.h = round(((s.data.h or 0) + 180) % 360, 2)
+    saveScreen(s)
+    return true, 'Écran retourné : l\'image est maintenant de l\'autre côté.'
+end
 ACTIONS.screen_set = function(src, d)
     local s = TV.screens[tonumber(d.id) or -1]
     if not s then return false, 'Écran introuvable.' end

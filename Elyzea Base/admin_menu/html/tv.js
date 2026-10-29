@@ -39,6 +39,7 @@
             </div>
             <div class="btn-row" style="margin-top:8px"><button class="btn" data-tsave="${s.id}">💾 Enregistrer</button>
                 <button class="btn" data-tedit="${s.id}" title="Déplacer, tourner, agrandir en jeu">🎯 Placer / modifier en jeu</button>
+                <button class="btn" data-tflip="${s.id}" title="L'image passe de l'autre côté de l'écran">↻ Retourner</button>
                 <button class="btn" data-ttp="${s.id}">🚀 Aller à la télécommande</button>
                 <button class="btn danger" data-tdel="${s.id}">🗑 Supprimer</button></div></div>`;
     }
@@ -53,7 +54,8 @@
             <div class="stat"><b>${flats.length}</b><span>Télé(s) du jeu allumée(s)</span></div></div>
         <div class="section"><h2>Nouvel écran</h2>
             <p class="hint">Choisis une taille, puis clique <b>Placer en jeu</b> : l'écran suit ton regard et se colle au mur / à la façade visé(e), tourné vers toi.
-                Clic gauche fige l'endroit, <b>molette</b> = taille, <b>Q / E</b> = tourner, <b>Page préc. / suiv.</b> = hauteur, <b>flèches</b> = déplacer, <b>MAJ</b> = précis,
+                Visé au sol, l'écran se pose debout dessus. La face avant montre une <b>mire de couleurs</b> : c'est le côté de l'image.
+                Clic gauche fige l'endroit, <b>molette</b> = taille, <b>Q / E</b> = tourner, <b>R</b> = retourner, <b>Page préc. / suiv.</b> = hauteur, <b>flèches</b> = déplacer, <b>MAJ</b> = précis,
                 <b>ENTRÉE</b> enregistre. <b>Là où tu te tiens en validant devient la télécommande</b> (E) de l'écran.</p>
             <div class="form-grid" style="grid-template-columns:1fr 130px 130px auto;max-width:900px;align-items:end">
                 <div><label>Nom</label><input class="input" data-tk="new:name" maxlength="40" placeholder="Écran géant du parc" value="${esc(val('new:name', ''))}"></div>
@@ -73,7 +75,7 @@
     const on = () => isOpen && tab === 'tv' && D && D.tv && D.tv.available;
     document.addEventListener('click', async (ev) => {
         if (!on()) return;
-        const b = ev.target.closest('[data-tnew],[data-tsize],[data-tplay],[data-tctl],[data-tsave],[data-tedit],[data-ttp],[data-tdel],[data-tflat],[data-tall]');
+        const b = ev.target.closest('[data-tnew],[data-tsize],[data-tplay],[data-tctl],[data-tsave],[data-tedit],[data-ttp],[data-tdel],[data-tflat],[data-tall],[data-tflip]');
         if (!b) return;
         const ds = b.dataset;
         if (ds.tsize) { T.draft['new:w'] = ds.tsize; T.draft['new:h'] = ds.h; return render(); }
@@ -97,6 +99,7 @@
         }
         if (ds.tedit) { send('screen_edit', { id: Number(ds.tedit) }); return post('close'); }
         if (ds.ttp) return send('tp', { id: Number(ds.ttp) });
+        if (ds.tflip) { send('screen_flip', { id: Number(ds.tflip) }); return later(); }
         if (ds.tdel) { if (await confirmBox('Supprimer cet écran ?', 'Il disparaît pour tout le monde.')) { send('screen_delete', { id: Number(ds.tdel) }); later(); } return; }
         if (ds.tflat) { send('control', { key: ds.tflat, action: 'stop' }); return later(); }
         if (ds.tall !== undefined) { if (await confirmBox('Tout éteindre ?', 'Toutes les vidéos s\'arrêtent, écrans et télés.')) { send('stop_all'); later(); } }

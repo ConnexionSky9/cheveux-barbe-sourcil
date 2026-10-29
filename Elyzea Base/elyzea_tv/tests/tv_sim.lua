@@ -190,10 +190,16 @@ local function newClient(sid)
         if tostring(a[15]):match('^v%d+$') then c.vidPoly = a end
     end }
     -- touches
-    env.IsControlJustPressed = function(_, k) return c.frameKeys[k] ~= nil and GT - c.frameKeys[k] <= 16 end
+    -- « vient d'être appuyée » : vrai sur une seule image (la première où le jeu la regarde), comme dans GTA
+    c.jpAt = {}
+    env.IsControlJustPressed = function(_, k)
+        if c.frameKeys[k] == nil or GT - c.frameKeys[k] > 16 then return false end
+        if c.jpAt[k] == nil then c.jpAt[k] = GT end
+        return c.jpAt[k] == GT
+    end
     env.IsDisabledControlJustPressed = env.IsControlJustPressed
     env.IsDisabledControlPressed = function(_, k) return c.keys[k] == true end
-    function c.tap(k) c.frameKeys[k] = GT c.keys[k] = true run(32) c.keys[k] = nil end
+    function c.tap(k) c.frameKeys[k] = GT c.jpAt[k] = nil c.keys[k] = true run(32) c.keys[k] = nil end
     function c.hold(k, ms) c.keys[k] = true run(ms) c.keys[k] = nil end
     function c.last(action) for i = #c.ui, 1, -1 do if c.ui[i].action == action then return c.ui[i] end end end
     function c.nuiCall(name, data) local res c.nui[name](data or {}, function(r) res = r end) run(100) return res end
@@ -411,6 +417,32 @@ check(next(SV.TV.states) == nil and A.liveDuis() == 0, 'tout éteindre : plus au
 SV.export_AdminAction(1, 'screen_delete', { id = 1 }) run(500)
 check(not A.env.TVC.screens[1], 'écran supprimé chez tout le monde')
 A.nuiCall('remote', { cmd = 'close' })
+
+P('\n[Écran posé en visant le sol (cas signalé : écran de dos, à moitié sous terre)]')
+peds[1].pos = vec(500.0, 500.0, 31.0) peds[1].h = 0.0
+-- le sol de la plage n'est pas tout à fait plat : sa normale penche un peu
+A.env.GetShapeTestResult = function() return 1, true, vec(500.0, 520.0, 30.0), vec(0.04, 0.03, 0.998) end
+run(3500)
+SV.export_AdminAction(1, 'screen_new', { name = 'Plage', w = 8, h = 4.5 })
+run(300)
+check(A.texAt.mire and GT - A.texAt.mire < 50, 'pendant le placement, la face avant montre la mire (on voit le côté de l\'image)')
+A.tap(24) run(100)
+A.tap(191) run(800)
+local sc2
+for _, x in pairs(SV.TV.screens) do if x.name == 'Plage' then sc2 = x end end
+local fxv, fyv = sc2 and -math.sin(math.rad(sc2.data.h)) or 0, sc2 and math.cos(math.rad(sc2.data.h)) or 0
+local toCamX, toCamY = sc2 and (500 - sc2.data.x) or 0, sc2 and (500 - sc2.data.y) or 0
+check(sc2 and (fxv * toCamX + fyv * toCamY) > 0 and math.abs(sc2.data.h - 180) < 1, ('écran tourné vers le staff (cap %.1f°), même sur un sol penché'):format(sc2 and sc2.data.h or -1))
+check(sc2 and math.abs(sc2.data.z - (30.0 + 4.5 / 2 + 0.05)) < 0.01, ('écran debout, posé sur le sol (bas à %.2f m du sol)'):format(sc2 and (sc2.data.z - sc2.data.hgt / 2 - 30.0) or -1))
+-- retourner depuis le menu admin
+local hBefore = sc2.data.h
+check(SV.export_AdminAction(1, 'screen_flip', { id = sc2.id }) and math.abs(((SV.TV.screens[sc2.id].data.h - hBefore) % 360) - 180) < 0.01, 'bouton « Retourner » : l\'image passe de l\'autre côté')
+-- R dans l'éditeur
+SV.export_AdminAction(1, 'screen_edit', { id = sc2.id }) run(300)
+A.tap(45) run(100)
+A.tap(191) run(800)
+check(math.abs(SV.TV.screens[sc2.id].data.h - hBefore) < 0.01 or math.abs(SV.TV.screens[sc2.id].data.h - hBefore - 360) < 0.01, 'touche R dans l\'éditeur : écran retourné à nouveau')
+SV.export_AdminAction(1, 'screen_delete', { id = sc2.id }) run(300)
 
 check(#errors == 0, ('aucune erreur Lua (%d)'):format(#errors))
 P(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))

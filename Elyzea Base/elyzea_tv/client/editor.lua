@@ -36,16 +36,30 @@ RegisterNetEvent('elyzea_tv:client:editor', function(token, id, data, name)
             DisableControlAction(0, 16, true) DisableControlAction(0, 17, true) DisableControlAction(0, 37, true)
             DisableControlAction(0, 44, true) DisableControlAction(0, 51, true) DisableControlAction(0, 10, true) DisableControlAction(0, 11, true)
             DisableControlAction(0, 172, true) DisableControlAction(0, 173, true) DisableControlAction(0, 174, true) DisableControlAction(0, 175, true)
-            DisableControlAction(0, 191, true) DisableControlAction(0, 177, true) DisableControlAction(0, 200, true)
+            DisableControlAction(0, 191, true) DisableControlAction(0, 177, true) DisableControlAction(0, 200, true) DisableControlAction(0, 45, true)
             local fine = IsDisabledControlPressed(0, 21)            -- MAJ : pas fin
             local changed = false
             -- clic gauche (ou suivi du regard pour un nouvel écran) : coller l'écran à l'endroit visé, tourné vers moi
             if follow or IsDisabledControlJustPressed(0, 24) then
                 local hit, normal, from = camRay(120.0)
                 if hit then
-                    local n = normal and #(normal) > 0.1 and normal or (from - hit)
-                    local hdg = math.deg(math.atan(-n.x, n.y))
-                    d.x, d.y, d.z, d.h = hit.x + (n.x or 0) * 0.03, hit.y + (n.y or 0) * 0.03, hit.z, hdg
+                    -- direction vers laquelle l'écran regarde : la face du mur visé, à plat (horizontale)
+                    local nx, ny = normal and normal.x or 0.0, normal and normal.y or 0.0
+                    local nl = math.sqrt(nx * nx + ny * ny)
+                    if nl < 0.5 then
+                        -- sol, toit, terrain : l'écran se met debout, posé dessus, tourné vers moi
+                        nx, ny = from.x - hit.x, from.y - hit.y
+                        nl = math.max(0.001, math.sqrt(nx * nx + ny * ny))
+                        nx, ny = nx / nl, ny / nl
+                        d.ground = hit.z
+                        d.z = hit.z + d.hgt / 2 + 0.05
+                    else
+                        -- mur : l'écran est collé dessus, centré sur le point visé
+                        nx, ny = nx / nl, ny / nl
+                        d.ground = nil
+                        d.z = hit.z
+                    end
+                    d.x, d.y, d.h = hit.x + nx * 0.03, hit.y + ny * 0.03, math.deg(math.atan(-nx, ny))
                     changed = true
                 end
                 if IsDisabledControlJustPressed(0, 24) then follow = false end
@@ -56,20 +70,23 @@ RegisterNetEvent('elyzea_tv:client:editor', function(token, id, data, name)
                 if IsDisabledControlJustPressed(0, 15) then d.w = math.min(X.maxW, d.w * (1 + k)) d.hgt = d.w / ratio changed = true end
                 if IsDisabledControlJustPressed(0, 14) then d.w = math.max(X.minW, d.w / (1 + k)) d.hgt = d.w / ratio changed = true end
                 d.hgt = math.max(X.minH, math.min(X.maxH, d.hgt))
+                if d.ground then d.z = d.ground + d.hgt / 2 + 0.05 end   -- posé au sol : il grandit vers le haut
+                -- R : retourner l'écran (l'image passe de l'autre côté)
+                if IsDisabledControlJustPressed(0, 45) then d.h = (d.h + 180.0) % 360 changed = true end
                 local step = fine and 0.01 or 0.05
                 local fx, fy = -math.sin(math.rad(d.h)), math.cos(math.rad(d.h))
                 local rx, ry = math.cos(math.rad(d.h)), math.sin(math.rad(d.h))
                 if IsDisabledControlPressed(0, 44) then d.h = d.h + (fine and 0.2 or 1.0) changed = true end
                 if IsDisabledControlPressed(0, 51) then d.h = d.h - (fine and 0.2 or 1.0) changed = true end
-                if IsDisabledControlPressed(0, 10) then d.z = d.z + step changed = true end
-                if IsDisabledControlPressed(0, 11) then d.z = d.z - step changed = true end
+                if IsDisabledControlPressed(0, 10) then d.z = d.z + step if d.ground then d.ground = d.ground + step end changed = true end
+                if IsDisabledControlPressed(0, 11) then d.z = d.z - step if d.ground then d.ground = d.ground - step end changed = true end
                 if IsDisabledControlPressed(0, 172) then d.x, d.y = d.x + fx * step, d.y + fy * step changed = true end
                 if IsDisabledControlPressed(0, 173) then d.x, d.y = d.x - fx * step, d.y - fy * step changed = true end
                 if IsDisabledControlPressed(0, 174) then d.x, d.y = d.x + rx * step, d.y + ry * step changed = true end
                 if IsDisabledControlPressed(0, 175) then d.x, d.y = d.x - rx * step, d.y - ry * step changed = true end
-                -- aperçu : l'écran (vidéo en cours s'il y en a une, sinon éteint) + un cadre
+                -- aperçu : la face avant montre la vidéo en cours, sinon la mire de couleurs (on voit de quel côté est l'image)
                 local e = id and TVC.Duis['s' .. id]
-                TVC.DrawScreen(d, e and IsDuiAvailable(e.dui) and e.tex or nil, 230)
+                TVC.DrawScreen(d, e and IsDuiAvailable(e.dui) and e.tex or 'mire', 230)
                 local h = math.rad(d.h)
                 local rxx, ryy = math.cos(h) * d.w / 2, math.sin(h) * d.w / 2
                 local a, b = vector3(d.x + rxx, d.y + ryy, d.z + d.hgt / 2), vector3(d.x - rxx, d.y - ryy, d.z + d.hgt / 2)
