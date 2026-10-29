@@ -283,6 +283,12 @@ do
         meta.tv1 = true
         Storage.save('meta', meta)
     end
+    if not meta.club1 then
+        -- Onglet Boîtes de nuit (elyzea_club) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.club_manage = true end
+        meta.club1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.loisirs1 then
         -- Onglet Loisirs (elyzea_loisirs) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.loisirs_manage = true end

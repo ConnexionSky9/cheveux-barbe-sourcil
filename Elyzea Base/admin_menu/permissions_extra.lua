@@ -17,6 +17,7 @@ local EXTRA = {
     { key = 'sharks_manage', label = 'Requins : zones dessinées, points d\'apparition, réapparition, joueurs protégés (onglet Requins)', cat = 'Gestion' },
     { key = 'tv_manage', label = 'Écrans / TV : poser des écrans (taille libre, écran géant), lancer / couper des vidéos YouTube, télés du jeu (elyzea_tv)', cat = 'Gestion' },
     { key = 'loisirs_manage', label = 'Loisirs : pistes de bowling, tables de billard, parcours de golf (poser, régler, supprimer), parties en cours (annuler) (elyzea_loisirs)', cat = 'Joueurs' },
+    { key = 'club_manage',   label = 'Boîtes de nuit : créer les boîtes (métier, compte), placer leurs points, nommer le patron, activer, supprimer, retirer une enceinte, couper la musique (elyzea_club)', cat = 'Métiers' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

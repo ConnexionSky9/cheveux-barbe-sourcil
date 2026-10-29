@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- YouTube exige une page d'origine identifiable pour lire une vidéo intégrée (sinon erreur 153) -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Boîte de nuit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Menu rapide F6 (employés) -->
+  <aside id="f6" class="hidden" aria-label="Menu boîte de nuit"></aside>
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- Annonce d'une boîte (toute la ville) -->
+  <div id="announce" class="hidden" role="status" aria-live="polite"></div>
+
+  <!-- Bar : servir (employé), commande reçue (client), carte -->
+  <div id="bar" class="modal-wrap hidden"><div class="modal wide" role="dialog" aria-modal="true" aria-label="Servir au bar"></div></div>
+  <div id="barOffer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+  <div id="card" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true" aria-label="Carte du bar"></div></div>
+
+  <!-- Entrée -->
+  <div id="entry" class="modal-wrap hidden"><div class="modal small" role="dialog" aria-modal="true" aria-label="Entrée"></div></div>
+
+  <!-- Platine DJ -->
+  <div id="dj" class="modal-wrap hidden"><div class="modal wide" role="dialog" aria-modal="true" aria-label="Platine DJ">
+    <div class="modal-head"><div><div class="eyebrow">Musique</div><h2>Platine DJ</h2></div><button class="icon-btn" id="djClose" aria-label="Fermer">✕</button></div>
+    <div id="djBody"></div></div></div>
+
+  <!-- Proposition de recrutement -->
+  <div id="offer" class="modal-wrap hidden"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <!-- Administration des boîtes (staff) -->
+  <div id="admin" class="modal-wrap hidden"><div class="modal admin" role="dialog" aria-modal="true" aria-label="Boîtes de nuit"></div></div>
+
+  <!-- Tablette -->
+  <div id="tablet" class="hidden">
+    <div class="tab-frame">
+      <nav class="tab-nav" id="tabNav" aria-label="Sections de la tablette"></nav>
+      <main class="tab-main">
+        <header class="tab-head">
+          <div><div class="eyebrow" id="tabEyebrow">Boîte de nuit</div><h1 id="tabTitle">Tableau de bord</h1></div>
+          <div class="tab-head-right"><span class="pill" id="tabDuty">Hors service</span><span class="clock" id="tabClock">--:--</span>
+            <button class="icon-btn" id="tabClose" aria-label="Fermer la tablette" title="Fermer (Échap)">✕</button></div>
+        </header>
+        <section class="tab-body" id="tabBody" tabindex="-1"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Confirmation -->
+  <div id="confirm" class="modal-wrap hidden top"><div class="modal small" role="alertdialog" aria-modal="true"></div></div>
+
+  <script src="app.js"></script>
+  <script src="club.js"></script>
+  <script src="music.js"></script>
+  <script src="tablet.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
