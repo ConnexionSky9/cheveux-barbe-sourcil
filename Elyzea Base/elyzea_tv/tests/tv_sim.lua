@@ -186,7 +186,7 @@ local function newClient(sid)
         if h ~= 0x29280002282F1928 then return end
         local a = { ... }
         for _, i in ipairs({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20, 21, 22, 23, 24 }) do if math.type(a[i]) ~= 'float' then c.badFloat = c.badFloat + 1 end end
-        c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT
+        c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT if c.capture then c.capture[#c.capture + 1] = a end
         if tostring(a[15]):match('^v%d+$') then c.vidPoly = a end
     end }
     -- touches
@@ -443,6 +443,26 @@ A.tap(45) run(100)
 A.tap(191) run(800)
 check(math.abs(SV.TV.screens[sc2.id].data.h - hBefore) < 0.01 or math.abs(SV.TV.screens[sc2.id].data.h - hBefore - 360) < 0.01, 'touche R dans l\'éditeur : écran retourné à nouveau')
 SV.export_AdminAction(1, 'screen_delete', { id = sc2.id }) run(300)
+
+P('\n[Image visible des deux côtés (cas signalé : image « à l\'intérieur », invisible)]')
+do
+    -- écran vers le nord (cap 0) : avant = +Y, droite = +X
+    A.capture = {}
+    A.env.TVC.DrawScreen({ x = 0.0, y = 0.0, z = 10.0, h = 0.0, w = 4.0, hgt = 2.25 }, 'vid', 255)
+    local cap = A.capture A.capture = nil
+    local front, back = {}, {}
+    for _, a in ipairs(cap) do
+        check(a[15] == 'vid', 'chaque face montre la vidéo (pas de dos noir)') 
+        local y = a[2]
+        if y > 0 then front[#front + 1] = a else back[#back + 1] = a end
+    end
+    check(#front == 4 and #back == 4, ('deux faces de 4 triangles (avant %d, arrière %d)'):format(#front, #back))
+    -- coin u=0,v=0 (haut gauche de l'image) : vu de devant (depuis +Y) la gauche est à +X ; vu de derrière (depuis -Y) à -X
+    local function tlX(list) for _, a in ipairs(list) do if a[16] == 0 and a[17] == 0 then return a[1] end end end
+    check(tlX(front) and tlX(front) > 0, 'vue de devant : image à l\'endroit')
+    check(tlX(back) and tlX(back) < 0, 'vue de derrière : image à l\'endroit (pas en miroir)')
+    check(math.abs(front[1][2] - back[1][2]) <= 0.021, 'les deux faces sont collées (2 cm)')
+end
 
 check(#errors == 0, ('aucune erreur Lua (%d)'):format(#errors))
 P(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))

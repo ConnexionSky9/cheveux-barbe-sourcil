@@ -50,7 +50,7 @@ Points à savoir :
    - si tu vises un mur ou une façade, il se colle dessus, tourné vers toi ;
    - si tu vises le sol ou un toit, il se pose **debout** dessus, tourné vers toi.
 
-   Pendant le placement, la face avant affiche une **mire de bandes de couleur** : c'est le côté où sera l'image. Le dos est noir.
+   Pendant le placement, l'écran affiche une **mire de bandes de couleur**. L'image est visible **des deux côtés** de l'écran (à l'endroit des deux côtés) : impossible de la mettre « à l'intérieur ».
 3. Règle-le avec les touches :
 
    | Touche | Effet |
@@ -58,7 +58,7 @@ Points à savoir :
    | Clic gauche | Fige l'endroit |
    | Molette | Taille (le format est gardé) |
    | Q / E | Tourner |
-   | R | Retourner l'écran (l'image passe de l'autre côté) |
+   | R | Retourner l'écran (demi-tour) |
    | Page préc. / suiv. | Hauteur |
    | Flèches | Déplacer |
    | MAJ | Réglage précis |
@@ -71,7 +71,7 @@ Dans la fiche de chaque écran :
 - lancer une vidéo, pause, éteindre ;
 - nom, largeur / hauteur exactes, portée du son (5 à 300 m), volume ;
 - accès « tout le monde » ou « staff seulement » ;
-- **Placer / modifier en jeu**, **↻ Retourner** (si l'image est du mauvais côté), aller à la télécommande, supprimer.
+- **Placer / modifier en jeu**, **↻ Retourner** (demi-tour), aller à la télécommande, supprimer.
 
 La page liste aussi les **télés du jeu allumées**. Tu peux les éteindre une par une, ou **tout éteindre**.
 
@@ -81,7 +81,7 @@ La page liste aussi les **télés du jeu allumées**. Tu peux les éteindre une 
 - **Télés du jeu** : l'image est posée **sur la face avant de la télé** (un écran 16:9 calculé d'après la taille du modèle, en haut, dans le cadre).
   Elle est aussi envoyée sur **l'écran d'origine du modèle** (le même système que les émissions de télé du jeu).
   Réglage `Config.Flat.display` : `'both'` (par défaut), `'overlay'` ou `'rendertarget'`. Pour un modèle dont l'image déborde du cadre, mets un réglage fin `screen = { x, z, w, h }` dans `Config.FlatTVs`.
-- **Écrans du staff** : l'image est un rectangle dessiné dans le monde, à la position et à la taille choisies. Le dos de l'écran est noir.
+- **Écrans du staff** : l'image est un rectangle dessiné dans le monde, à la position et à la taille choisies. Elle est sur les deux faces : on la voit de devant comme de derrière.
 - **Synchronisation** :
   - le serveur garde, pour chaque écran, la vidéo, l'heure de départ, la pause et le volume ;
   - chaque joueur calcule la position de la vidéo avec l'heure commune ;

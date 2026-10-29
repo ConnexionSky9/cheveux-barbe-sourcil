@@ -249,24 +249,29 @@ end
 local function corners(d, back)
     local h = math.rad(d.h or 0.0)
     local rx, ry = math.cos(h), math.sin(h)            -- « droite » du repère de l'écran
-    local fx, fy = -math.sin(h), math.cos(h)           -- l'écran regarde vers l'avant (vers le public)
+    local fx, fy = -math.sin(h), math.cos(h)           -- avant de l'écran
     local hw, hh = d.w / 2, d.hgt / 2
-    local o = back and -0.02 or 0.0                    -- dos de l'écran : un peu en retrait
+    -- deux faces à 2 cm l'une de l'autre, chacune avec l'image : on la voit de face comme de dos
+    local o = back and -0.01 or 0.01
     local cx, cy, cz = d.x + fx * o, d.y + fy * o, d.z
-    -- vu de face, la gauche de l'image est du côté +droite du repère
-    return vector3(cx + rx * hw, cy + ry * hw, cz + hh), vector3(cx - rx * hw, cy - ry * hw, cz + hh),
-        vector3(cx + rx * hw, cy + ry * hw, cz - hh), vector3(cx - rx * hw, cy - ry * hw, cz - hh)
+    -- vue de devant, la gauche de l'image est du côté +droite ; vue de derrière, c'est l'inverse (image non inversée)
+    local s = back and -1 or 1
+    return vector3(cx + s * rx * hw, cy + s * ry * hw, cz + hh), vector3(cx - s * rx * hw, cy - s * ry * hw, cz + hh),
+        vector3(cx + s * rx * hw, cy + s * ry * hw, cz - hh), vector3(cx - s * rx * hw, cy - s * ry * hw, cz - hh)
 end
 local function tri(a, b, c, tex, ua, va, ub, vb, uc, vc, alpha) poly(a, b, c, alpha, tex, ua, va, ub, vb, uc, vc) end
--- dessine un écran : face (image) + dos (écran éteint) ; les deux sens de tracé pour être vu quel que soit le côté
-function TVC.DrawScreen(d, tex, alpha)
-    local tl, tr, bl, br = corners(d, false)
-    tex = tex or 'idle'
+local function face(tl, tr, bl, br, tex, alpha)
+    -- les deux sens de tracé : visible quel que soit le sens d'affichage du jeu
     tri(tl, tr, br, tex, 0, 0, 1, 0, 1, 1, alpha) tri(tl, br, bl, tex, 0, 0, 1, 1, 0, 1, alpha)
     tri(tl, br, tr, tex, 0, 0, 1, 1, 1, 0, alpha) tri(tl, bl, br, tex, 0, 0, 0, 1, 1, 1, alpha)
+end
+-- dessine un écran : l'image sur ses DEUX faces (plus de dos noir : impossible de la mettre « du mauvais côté »)
+function TVC.DrawScreen(d, tex, alpha)
+    tex = tex or 'idle'
     local btl, btr, bbl, bbr = corners(d, true)
-    tri(btl, bbr, btr, 'idle', 0, 0, 1, 1, 1, 0, alpha) tri(btl, bbl, bbr, 'idle', 0, 0, 0, 1, 1, 1, alpha)
-    tri(btl, btr, bbr, 'idle', 0, 0, 1, 0, 1, 1, alpha) tri(btl, bbr, bbl, 'idle', 0, 0, 1, 1, 0, 1, alpha)
+    face(btl, btr, bbl, bbr, tex, alpha)
+    local tl, tr, bl, br = corners(d, false)
+    face(tl, tr, bl, br, tex, alpha)
 end
 
 -- ---------------------------------------------------------------- dessin, chaque image
