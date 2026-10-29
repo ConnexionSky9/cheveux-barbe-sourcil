@@ -99,6 +99,7 @@ server_scripts {
     'server/guards.lua',
     'server/sharks.lua',
     'server/loisirs.lua',
+    'server/tv.lua',
 }
 
 ui_page 'html/index.html'
@@ -151,5 +152,6 @@ files {
     'html/presse.js',
     'html/sharks.js',
     'html/loisirs.js',
+    'html/tv.js',
     'html/logo.png',
 }

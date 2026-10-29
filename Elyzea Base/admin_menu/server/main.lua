@@ -277,6 +277,12 @@ do
         meta.pvp1 = true
         Storage.save('meta', meta)
     end
+    if not meta.tv1 then
+        -- Onglet Écrans / TV (elyzea_tv) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.tv_manage = true end
+        meta.tv1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.loisirs1 then
         -- Onglet Loisirs (elyzea_loisirs) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.loisirs_manage = true end

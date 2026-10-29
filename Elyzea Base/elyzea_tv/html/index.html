@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Elyzea TV</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Télécommande -->
+    <div id="remote" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="rName">
+        <div class="head"><div class="ico">📺</div><div><small>TÉLÉCOMMANDE</small><h2 id="rName">Télévision</h2></div>
+            <button class="x" data-r="close" aria-label="Fermer">✕</button></div>
+        <label for="rUrl">Lien YouTube</label>
+        <div class="row"><input id="rUrl" class="in" maxlength="300" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" spellcheck="false">
+            <button class="btn primary" data-r="play">▶ Lire</button></div>
+        <p id="rErr" class="err hidden"></p>
+        <div id="rNow" class="now"></div>
+        <div class="row ctrl">
+            <button class="btn" data-r="seek" data-by="-10" title="Reculer de 10 s">⏪ 10 s</button>
+            <button class="btn" id="rPause" data-r="pause">⏸ Pause</button>
+            <button class="btn" data-r="seek" data-by="10" title="Avancer de 10 s">10 s ⏩</button>
+        </div>
+        <label for="rVol">Volume <b id="rVolV">60</b> %</label>
+        <input id="rVol" type="range" min="0" max="100" step="5" value="60">
+        <div class="row"><button class="btn danger" data-r="stop">⏻ Éteindre</button></div>
+        <p class="hint">Le son s'entend autour de l'écran et baisse avec la distance. Tout le monde voit la même vidéo au même moment.</p>
+    </div>
+
+    <!-- Placement d'un écran (staff) -->
+    <div id="editor" class="bar hidden">
+        <b id="eName">Écran</b> <span id="eSize"></span>
+        <div class="keys"><span>Clic gauche : coller où je vise</span><span>Molette : taille</span><span>Q / E : tourner</span>
+            <span>Page préc. / suiv. : hauteur</span><span>Flèches : déplacer</span><span>MAJ : précis</span><span>ENTRÉE : enregistrer</span><span>RETOUR : annuler</span></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

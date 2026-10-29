@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- YouTube exige une page d'origine identifiable : sans cela, l'intégration est refusée (erreur 153) -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Elyzea TV</title>
+<style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #p, #p iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6%;
+        color: #cfd8e3; font: 600 44px/1.3 'Segoe UI', Arial, sans-serif; background: radial-gradient(circle at 50% 40%, #182035, #05070d); }
+    #msg small { display: block; font-size: 28px; color: #7d8aa0; margin-top: 18px; font-weight: 500; }
+    .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="p"></div>
+<div id="msg"><div>📺<small>En attente d'une vidéo…</small></div></div>
+<script>
+/* Page affichée sur un écran du jeu (DUI). Le jeu envoie :
+   { type: 'load', id, at, paused }  · { type: 'sync', at, paused }  · { type: 'volume', v (0 … 1) }  · { type: 'stop' }
+   « at » = position attendue (s) selon l'heure commune : tous les joueurs voient la même image au même moment. */
+const S = { api: false, player: null, ready: false, want: null, vol: 0, cur: null };
+const msg = document.getElementById('msg');
+const ERR = { 2: 'Lien de vidéo invalide.', 5: 'Vidéo illisible ici.', 100: 'Vidéo introuvable ou privée.',
+    101: 'Le propriétaire de cette vidéo interdit sa diffusion hors de YouTube.', 150: 'Le propriétaire de cette vidéo interdit sa diffusion hors de YouTube.',
+    153: 'YouTube a refusé la lecture (configuration du lecteur).' };
+function show(text, sub) { msg.innerHTML = `<div>${text}${sub ? `<small>${sub}</small>` : ''}</div>`; msg.classList.remove('hidden'); }
+function hide() { msg.classList.add('hidden'); }
+
+function applyVolume() {
+    if (!S.ready) return;
+    const v = Math.round(Math.max(0, Math.min(1, S.vol)) * 100);
+    if (v <= 0) S.player.mute(); else { S.player.unMute(); S.player.setVolume(v); }
+}
+function align(at, paused) {
+    if (!S.ready) return;
+    const cur = S.player.getCurrentTime ? S.player.getCurrentTime() : 0;
+    if (typeof at === 'number' && Math.abs(cur - at) > 2.5) S.player.seekTo(Math.max(0, at), true);
+    const st = S.player.getPlayerState ? S.player.getPlayerState() : -1;
+    if (paused && st !== 2) S.player.pauseVideo();
+    if (!paused && st !== 1 && st !== 3) S.player.playVideo();
+}
+function load(m) {
+    S.want = m;
+    if (!S.api) return;               // chargé dès que l'API YouTube est prête
+    const start = Math.max(0, Math.floor(m.at || 0));
+    hide();
+    if (!S.player) {
+        S.cur = m.id;
+        S.player = new YT.Player('p', {
+            width: '100%', height: '100%', videoId: m.id,
+            playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3, rel: 0, playsinline: 1, start, origin: location.origin },
+            events: {
+                onReady: () => {
+                    S.ready = true; applyVolume();
+                    // une autre vidéo a pu être demandée pendant le démarrage du lecteur
+                    if (S.want && S.want.id !== S.cur) { S.cur = S.want.id; S.player.loadVideoById({ videoId: S.want.id, startSeconds: Math.max(0, Math.floor(S.want.at || 0)) }); }
+                    if (S.want) align(S.want.at, S.want.paused);
+                },
+                onError: (e) => show('⚠️ ' + (ERR[e.data] || 'Lecture impossible.'), 'Essaie une autre vidéo.'),
+                onStateChange: (e) => { if (e.data === 0) show('⏹', 'Vidéo terminée'); else if (e.data === 1) hide(); },
+            },
+        });
+    } else if (S.ready) {
+        S.cur = m.id;
+        S.player.loadVideoById({ videoId: m.id, startSeconds: start });
+        if (m.paused) setTimeout(() => S.player.pauseVideo(), 600);
+        applyVolume();
+    }
+}
+window.onYouTubeIframeAPIReady = () => { S.api = true; if (S.want) load(S.want); };
+
+window.addEventListener('message', (ev) => {
+    let m = ev.data;
+    if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { return; } }
+    if (!m || typeof m !== 'object') return;
+    switch (m.type) {
+        case 'load': if (typeof m.id === 'string' && /^[\w-]{11}$/.test(m.id)) load(m); break;
+        case 'sync': if (S.want) { S.want.at = m.at; S.want.paused = m.paused; } align(m.at, m.paused); break;
+        case 'volume': S.vol = Number(m.v) || 0; applyVolume(); break;
+        case 'stop': if (S.ready) S.player.stopVideo(); S.want = null; show('📺', 'En attente d\'une vidéo…'); break;
+        default: break;
+    }
+});
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
