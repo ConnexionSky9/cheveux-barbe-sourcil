@@ -179,9 +179,16 @@ local function newClient(sid)
     env.SetTextRenderId = function(id) c.renderId = id end
     env.GetDefaultScriptRendertargetRenderId = function() return 1 end
     env.DrawSprite = function(dict, tex) if c.renderId == 42 then c.sprites[#c.sprites + 1] = { dict = dict, tex = tex, t = GT } end end
-    c.texAt = {}
-    env.DrawTexturedPoly = function(...) local a = { ... } c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT
-        if tostring(a[15]):match('^v%d+$') then c.vidPoly = a end end
+    c.texAt, c.badFloat = {}, 0
+    -- comme sur un serveur où le nom « DrawTexturedPoly » n'existe pas : seul l'appel par identifiant marche
+    env.DrawTexturedPoly = function() error('attempt to call a nil value (global \'DrawTexturedPoly\')') end
+    env.Citizen = { InvokeNative = function(h, ...)
+        if h ~= 0x29280002282F1928 then return end
+        local a = { ... }
+        for _, i in ipairs({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20, 21, 22, 23, 24 }) do if math.type(a[i]) ~= 'float' then c.badFloat = c.badFloat + 1 end end
+        c.polys = c.polys + 1 c.lastPoly = a c.texAt[a[15]] = GT
+        if tostring(a[15]):match('^v%d+$') then c.vidPoly = a end
+    end }
     -- touches
     env.IsControlJustPressed = function(_, k) return c.frameKeys[k] ~= nil and GT - c.frameKeys[k] <= 16 end
     env.IsDisabledControlJustPressed = env.IsControlJustPressed
@@ -254,6 +261,20 @@ A.env.print = function(...) local t = {} for i = 1, select('#', ...) do t[i] = t
 A.cmd.tv_debug()
 A.env.print = oldPrint
 local dbgOut = table.concat(lines, '\n')
+check(A.badFloat == 0, 'dessin par identifiant : toutes les coordonnées et UV envoyées en décimaux')
+-- une erreur d'affichage ne coupe plus rien : la face avant plante une fois, l'écran d'origine continue
+local orig = A.env.GetOffsetFromEntityGivenWorldCoords
+A.env.GetOffsetFromEntityGivenWorldCoords = function() error('panne simulée') end
+local nSpr = #A.sprites
+run(300)
+A.env.GetOffsetFromEntityGivenWorldCoords = orig
+-- l'erreur simulée a été signalée une seule fois dans F8 : on la retire du décompte des vraies erreurs
+local simulated = 0
+for i = #errors, 1, -1 do if errors[i]:find('panne simulée', 1, true) then table.remove(errors, i) simulated = simulated + 1 end end
+check(simulated == 1, 'erreur d\'affichage signalée une seule fois dans F8 (pas de spam)')
+run(300)
+check(#A.sprites > nSpr and A.env.TVC.drawErrors['face avant'] and A.vidPoly and GT - A.texAt.v1 < 50, 'une panne de la face avant n\'arrête ni l\'écran d\'origine ni l\'affichage suivant')
+A.env.TVC.drawErrors = {}
 check(dbgOut:find('prop_tv_flat_01', 1, true) and dbgOut:find('tvscreen', 1, true) and dbgOut:find('dQw4w9WgXcQ', 1, true) and dbgOut:find('prête', 1, true),
     '/tv_debug : modèle, écran d\'origine, vidéo et page affichés dans F8')
 -- Bruno s'éloigne : le son baisse puis se coupe, l'image s'arrête au-delà de la portée
@@ -323,6 +344,10 @@ local nearTex = A.sprites[#A.sprites].tex
 check(nearTex == 'v1', 'l\'écran d\'origine montre la télé la plus proche d\'Alice')
 local own = 0 for tex, at in pairs(A.texAt) do if tex:match('^v%d+$') and GT - at < 200 then own = own + 1 end end
 check(own == 2, 'face avant : chaque télé affiche sa propre vidéo (2 images différentes)')
+A.cmd.tv_test() run(300)
+check(A.texAt.mire and GT - A.texAt.mire < 50 and A.sprites[#A.sprites].tex == 'mire', '/tv_test : mire de couleurs sur la télé (face avant et écran d\'origine)')
+run(10500)
+check(not A.env.TVC.test and GT - A.texAt.mire > 300, '/tv_test : la mire s\'arrête après 10 s')
 check(B.focus == false, 'télécommande fermée : souris rendue au joueur')
 
 P('\n[Écran géant posé par le staff]')

@@ -130,4 +130,6 @@ Ces tests ne remplacent pas un essai en jeu : la vraie lecture YouTube et l'affi
 - **Publicités** : le lecteur intégré peut afficher les publicités prévues par YouTube.
 - **Son à travers les murs** : il suit la distance, pas les murs (il ne s'arrête pas quand on sort d'une pièce si on reste assez près).
 - **Pas de test en jeu** : le nom de l'écran d'origine de chaque modèle n'a pas pu être vérifié en jeu.
-  - Si l'image ne s'affiche pas, tape **`/tv_debug`** près de la télé : la console F8 indique le modèle, l'écran d'origine, la vidéo et l'état de la page.
+  - Si l'image ne s'affiche pas, deux commandes près de la télé :
+    - **`/tv_test`** : mire de bandes de couleur pendant 10 s, sans YouTube. Si tu la vois, l'affichage marche, et le problème vient de la vidéo.
+    - **`/tv_debug`** : la console F8 indique le modèle, l'écran d'origine, la vidéo, l'état de la page et les éventuelles erreurs d'affichage.

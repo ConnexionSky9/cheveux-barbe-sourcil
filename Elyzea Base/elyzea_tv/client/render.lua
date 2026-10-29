@@ -17,6 +17,34 @@ do
     local t = CreateRuntimeTexture(txd, 'idle', 4, 4)
     for x = 0, 3 do for y = 0, 3 do SetRuntimeTexturePixel(t, x, y, ic[1], ic[2], ic[3], 255) end end
     CommitRuntimeTexture(t)
+    -- mire de test (/tv_test) : 8 bandes de couleur
+    local bars = { { 255, 255, 255 }, { 255, 255, 0 }, { 0, 255, 255 }, { 0, 255, 0 }, { 255, 0, 255 }, { 255, 0, 0 }, { 0, 0, 255 }, { 20, 20, 20 } }
+    local m = CreateRuntimeTexture(txd, 'mire', 64, 36)
+    for x = 0, 63 do
+        local c = bars[math.floor(x / 8) + 1]
+        for y = 0, 35 do SetRuntimeTexturePixel(m, x, y, c[1], c[2], c[3], 255) end
+    end
+    CommitRuntimeTexture(m)
+end
+
+-- Dessin d'un triangle texturé dans le monde (DRAW_TEXTURED_POLY, ancien nom _DRAW_SPRITE_POLY).
+-- Appelé par son identifiant : le nom de la fonction change selon la version de FiveM, l'identifiant jamais.
+-- Les nombres sont forcés en décimaux (sinon 1 serait lu comme un minuscule nombre à virgule).
+local POLY = 0x29280002282F1928
+local function poly(a, b, c, alpha, tex, ua, va, ub, vb, uc, vc)
+    Citizen.InvokeNative(POLY, a.x + 0.0, a.y + 0.0, a.z + 0.0, b.x + 0.0, b.y + 0.0, b.z + 0.0, c.x + 0.0, c.y + 0.0, c.z + 0.0,
+        255, 255, 255, math.floor(alpha or 255), TXD_NAME, tex, ua + 0.0, va + 0.0, 1.0, ub + 0.0, vb + 0.0, 1.0, uc + 0.0, vc + 0.0, 1.0)
+end
+TVC.Poly = poly
+-- erreurs d'affichage : montrées une fois dans F8 (et dans /tv_debug), sans jamais arrêter l'affichage
+TVC.drawErrors = {}
+local function guard(what, fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok then
+        if not TVC.drawErrors[what] then print(('^1[elyzea_tv] affichage (%s) : %s^0'):format(what, tostring(err))) end
+        TVC.drawErrors[what] = tostring(err)
+    end
+    return ok
 end
 
 local duis = {}       -- [clé] = { dui, tex, at, vid, vol, lastSync }
@@ -200,9 +228,7 @@ local function drawOverlay(ent, tex)
         return GetOffsetFromEntityInWorldCoords(ent, fx + lx * sx, fy + ly * sx, g.cz + sz)
     end
     local tl, tr, bl, br = at(hw, hh), at(-hw, hh), at(hw, -hh), at(-hw, -hh)
-    local function tri(a, b, c, ua, va, ub, vb, uc, vc)
-        DrawTexturedPoly(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, 255, 255, 255, 255, TXD_NAME, tex, ua, va, 1.0, ub, vb, 1.0, uc, vc, 1.0)
-    end
+    local function tri(a, b, c, ua, va, ub, vb, uc, vc) poly(a, b, c, 255, tex, ua, va, ub, vb, uc, vc) end
     tri(tl, tr, br, 0, 0, 1, 0, 1, 1) tri(tl, br, bl, 0, 0, 1, 1, 0, 1)
     tri(tl, br, tr, 0, 0, 1, 1, 1, 0) tri(tl, bl, br, 0, 0, 0, 1, 1, 1)
 end
@@ -231,9 +257,7 @@ local function corners(d, back)
     return vector3(cx + rx * hw, cy + ry * hw, cz + hh), vector3(cx - rx * hw, cy - ry * hw, cz + hh),
         vector3(cx + rx * hw, cy + ry * hw, cz - hh), vector3(cx - rx * hw, cy - ry * hw, cz - hh)
 end
-local function tri(a, b, c, tex, ua, va, ub, vb, uc, vc, alpha)
-    DrawTexturedPoly(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, 255, 255, 255, alpha or 255, TXD_NAME, tex, ua, va, 1.0, ub, vb, 1.0, uc, vc, 1.0)
-end
+local function tri(a, b, c, tex, ua, va, ub, vb, uc, vc, alpha) poly(a, b, c, alpha, tex, ua, va, ub, vb, uc, vc) end
 -- dessine un écran : face (image) + dos (écran éteint) ; les deux sens de tracé pour être vu quel que soit le côté
 function TVC.DrawScreen(d, tex, alpha)
     local tl, tr, bl, br = corners(d, false)
@@ -246,51 +270,88 @@ function TVC.DrawScreen(d, tex, alpha)
 end
 
 -- ---------------------------------------------------------------- dessin, chaque image
-CreateThread(function()
-    while true do
-        local sleep = 500
-        local cam = GetFinalRenderedCamCoord()
-        local playing = {}
-        for _, e in ipairs(active) do playing[e.key] = e end
-        -- écrans du staff : allumés (vidéo) ou éteints (couleur unie), à portée de vue
-        for id, s in pairs(TVC.screens) do
-            local d = s.data
-            if not (TVC.editing and TVC.editing.id == id) then
-                local dist = #(cam - vector3(d.x, d.y, d.z))
-                if dist < math.max(150.0, (d.range or 45) * 3) then
-                    sleep = 0
-                    local e = playing['s' .. id]
-                    local tex = (e and e.d and IsDuiAvailable(e.d.dui)) and e.d.tex or nil
-                    TVC.DrawScreen(d, tex)
-                end
-            end
-        end
-        -- télés du jeu : image sur la face avant (chaque télé la sienne) et / ou sur l'écran d'origine du modèle
-        local mode = C.Flat.display or 'both'
-        local byRT, now = {}, {}
-        for _, e in ipairs(active) do
-            if e.ent and DoesEntityExist(e.ent) and e.d and IsDuiAvailable(e.d.dui) then
-                if mode ~= 'rendertarget' then sleep = 0 drawOverlay(e.ent, e.d.tex) end
-                if mode ~= 'overlay' then
+local function drawRT(x)
+    SetTextRenderId(x.rt.id)
+    SetScriptGfxDrawOrder(4)
+    SetScriptGfxDrawBehindPausemenu(true)
+    DrawSprite(TXD_NAME, x.e.d.tex, 0.5, 0.5, 1.0, 1.0, 0.0, 255, 255, 255, 255)
+    SetTextRenderId(GetDefaultScriptRendertargetRenderId())
+end
+local function frame()
+    local sleep = 500
+    local cam = GetFinalRenderedCamCoord()
+    local playing = {}
+    for _, e in ipairs(active) do playing[e.key] = e end
+    -- 1. télés du jeu : d'abord l'écran d'origine du modèle (une image par modèle : la télé la plus proche)
+    local mode = C.Flat.display or 'both'
+    local flats, byRT, now = {}, {}, {}
+    for _, e in ipairs(active) do
+        if e.ent and DoesEntityExist(e.ent) and e.d and IsDuiAvailable(e.d.dui) then
+            flats[#flats + 1] = e
+            if mode ~= 'overlay' then
+                guard('écran d\'origine', function()
                     local rt = rtFor(TVC.s32(GetEntityModel(e.ent)))
                     if rt and not byRT[rt.name] then byRT[rt.name] = { rt = rt, e = e } end
-                end
+                end)
             end
         end
-        for name, x in pairs(byRT) do
-            sleep = 0
-            now[name] = true
-            usedRT[name] = true
-            SetTextRenderId(x.rt.id)
-            SetScriptGfxDrawOrder(4)
-            SetScriptGfxDrawBehindPausemenu(true)
-            DrawSprite(TXD_NAME, x.e.d.tex, 0.5, 0.5, 1.0, 1.0, 0.0, 255, 255, 255, 255)
-            SetTextRenderId(GetDefaultScriptRendertargetRenderId())
+    end
+    for name, x in pairs(byRT) do
+        sleep = 0
+        now[name] = true
+        usedRT[name] = true
+        if not guard('écran d\'origine', drawRT, x) then SetTextRenderId(GetDefaultScriptRendertargetRenderId()) end
+    end
+    guard('libération', releaseUnused, now)
+    -- 2. puis l'image posée sur la face avant de chaque télé
+    if mode ~= 'rendertarget' then
+        for _, e in ipairs(flats) do sleep = 0 guard('face avant', drawOverlay, e.ent, e.d.tex) end
+    end
+    -- mire de test (/tv_test) sur la télé la plus proche
+    if TVC.test and GetGameTimer() < TVC.test.untilAt and DoesEntityExist(TVC.test.ent) then
+        sleep = 0
+        local rt = rtFor(TVC.s32(GetEntityModel(TVC.test.ent)))
+        if rt then guard('mire (écran d\'origine)', drawRT, { rt = rt, e = { d = { tex = 'mire' } } }) usedRT[rt.name] = true now[rt.name] = true end
+        guard('mire (face avant)', drawOverlay, TVC.test.ent, 'mire')
+    elseif TVC.test then TVC.test = nil end
+    -- 3. écrans du staff : allumés (vidéo) ou éteints (couleur unie), à portée de vue
+    for id, s in pairs(TVC.screens) do
+        local d = s.data
+        if not (TVC.editing and TVC.editing.id == id) then
+            local dist = #(cam - vector3(d.x, d.y, d.z))
+            if dist < math.max(150.0, (d.range or 45) * 3) then
+                sleep = 0
+                local e = playing['s' .. id]
+                local tex = (e and e.d and IsDuiAvailable(e.d.dui)) and e.d.tex or nil
+                guard('écran du staff', TVC.DrawScreen, d, tex)
+            end
         end
-        releaseUnused(now)
+    end
+    return sleep
+end
+CreateThread(function()
+    while true do
+        local ok, sleep = pcall(frame)
+        if not ok then
+            if not TVC.drawErrors.boucle then print('^1[elyzea_tv] affichage : ' .. tostring(sleep) .. '^0') end
+            TVC.drawErrors.boucle = tostring(sleep)
+            sleep = 250
+        end
         Wait(sleep)
     end
 end)
+
+-- /tv_test : mire de couleurs 10 s sur la télé la plus proche, sans YouTube (vérifie l'affichage seul)
+RegisterCommand('tv_test', function()
+    local me = GetEntityCoords(PlayerPedId())
+    local best, bd
+    for _, o in ipairs(TVC.nearFlat or {}) do
+        if DoesEntityExist(o) then local d = #(GetEntityCoords(o) - me) if not bd or d < bd then best, bd = o, d end end
+    end
+    if not best then return TVC.Notify('Aucune télé à écran plat à moins de 30 m.', 'error') end
+    TVC.test = { ent = best, untilAt = GetGameTimer() + 10000 }
+    TVC.Notify('Mire de test sur la télé pendant 10 s (bandes de couleur).', 'inform')
+end, false)
 
 -- /tv_debug : état de l'affichage de la télé la plus proche (à copier depuis la console F8 si l'image ne s'affiche pas)
 RegisterCommand('tv_debug', function()
@@ -310,6 +371,8 @@ RegisterCommand('tv_debug', function()
     if g then print(('  image sur la face avant : %.2f × %.2f m'):format(g.w, g.h)) end
     local st = TVC.states[key]
     local d = duis[key]
+    for what, err in pairs(TVC.drawErrors) do print(('  ^1erreur (%s) : %s^0'):format(what, err)) end
+    if not next(TVC.drawErrors) then print('  aucune erreur d\'affichage') end
     print(('  vidéo : %s · page : %s'):format(st and st.id or 'aucune', d and (IsDuiAvailable(d.dui) and ('prête (' .. d.tex .. ')') or 'en chargement') or 'fermée'))
 end, false)
 
