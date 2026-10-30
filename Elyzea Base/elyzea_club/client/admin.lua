@@ -1,7 +1,7 @@
 -- =====================================================================
 --  ELYZEA BOÎTE DE NUIT - client : panneau d'administration (staff)
 --  Ouvert par admin_menu › Boîtes de nuit ou /clubadmin. Chaque action
---  est revérifiée par le serveur (permission « club_manage »).
+--  est revérifiée par le serveur (permissions « Boîtes de nuit » du menu admin).
 -- =====================================================================
 local C = CLC
 local isOpen = false

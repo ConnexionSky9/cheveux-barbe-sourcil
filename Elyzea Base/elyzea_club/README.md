@@ -11,7 +11,7 @@ Chaque boîte de nuit a **son propre métier**, avec :
 On peut en créer autant que l'on veut (Galaxy, Bahama Mamas, Tequi-la-la…).
 
 > **État : écrit et vérifié hors jeu uniquement.**
-> Une simulation serveur (2 boîtes, 7 joueurs imités, 120 vérifications) et des tests de l'interface dans un navigateur (31 vérifications) passent.
+> Une simulation serveur (2 boîtes, 7 joueurs imités, 138 vérifications) et des tests de l'interface dans un navigateur (34 vérifications) passent.
 > **Rien n'a été testé sur un vrai serveur FiveM.** Suivez la liste « Tests à faire en jeu ».
 
 ## Ressources réutilisées
@@ -21,7 +21,7 @@ On peut en créer autant que l'on veut (Galaxy, Bahama Mamas, Tequi-la-la…).
 | Métier, grades, argent, comptes de société | `elyzea_core` (même socle que les concessions, Dynasty 8, mécano) |
 | Boissons | objets **déjà déclarés** dans `elyzea_inventory` : `nc_mojito`, `nc_whiskycoca`, `nc_vodkaenergy`, `nc_shot`, `nc_coupe`, bouteilles `nc_champagne` / `nc_whisky` / `nc_vodka` / `nc_rhum`, `nc_soda`, `nc_energy` |
 | Coffre | `elyzea_inventory` (coffre `club:<id>`, accès revérifié à chaque ouverture) |
-| Staff | `admin_menu` : permission `club_manage`, onglet **Boîtes de nuit** (ou `/clubadmin`) ; **Mes outils › Métier staff** (permission `staff_job`) : une entrée 🪩 par boîte |
+| Staff | `admin_menu` : permissions « Boîtes de nuit » de l'éditeur de grades (voir plus bas), onglet **Boîtes de nuit** (ou `/clubadmin`) ; **Mes outils › Métier staff** (permission `staff_job`) : une entrée 🪩 par boîte |
 | Téléphone de service | `elyzea_jobphone` : unité « Boîte de nuit », numéros en 917 |
 | Liens YouTube | même lecture des liens que `elyzea_tv` (YouTube seulement) |
 
@@ -41,6 +41,25 @@ On peut en créer autant que l'on veut (Galaxy, Bahama Mamas, Tequi-la-la…).
    ensure elyzea_club
    ```
 4. Redémarrer. Les tables `cl_*` sont créées toutes seules (`sql/install.sql` pour une installation manuelle).
+
+## Permissions staff (menu admin)
+
+Les droits du staff sur les boîtes se règlent **rang par rang** dans l'éditeur de grades du menu admin (catégorie **Métiers**) :
+
+| Case | Permet |
+|---|---|
+| Boîtes de nuit : **TOUT** (`club_manage`) | toutes les cases ci-dessous |
+| Voir les boîtes (`club_view`) | ouvrir le panneau en lecture, « Aller » aux points et enceintes |
+| Créer / modifier (`club_edit`) | nouvelle boîte, réglages (nom, métier, compte, icône) |
+| Placer les points (`club_points`) | entrée, intérieur, bar, coffre, bureau |
+| Nommer le patron (`club_boss`) | donner le plus haut grade à un joueur |
+| Activer / désactiver (`club_toggle`) | suspendre ou rouvrir une boîte |
+| Supprimer (`club_delete`) | supprimer une boîte |
+| Enceintes et musique (`club_music`) | retirer une enceinte, couper la musique |
+
+- Une seule case suffit pour voir l'onglet et ouvrir le panneau.
+- Les boutons non autorisés sont **masqués**, et le serveur **refuse** l'action quand même si elle est demandée (le message nomme la case manquante).
+- Le Fondateur a tout. Les rangs qui avaient déjà « Boîtes de nuit » (`club_manage`, dont le SuperAdmin) gardent tout : rien à refaire.
 
 ## Créer une boîte (staff)
 
@@ -168,8 +187,8 @@ Depuis `elyzea_club/` :
 
 ```
 pip install lupa
-python3 tests/run_tests.py          # serveur : 2 boîtes, bar, entrée, listes, enceintes, permissions, playlist (120 vérifications)
-node tests/ui.cjs <dossier>         # interface : F6, bar, commande, carte, entrée, annonce, platine, tablette, staff (31 vérifications)
+python3 tests/run_tests.py          # serveur : 2 boîtes, bar, entrée, listes, enceintes, permissions, playlist (138 vérifications)
+node tests/ui.cjs <dossier>         # interface : F6, bar, commande, carte, entrée, annonce, platine, tablette, staff (34 vérifications)
 ```
 
 ## Tests à faire en jeu (aucun n'a été fait)

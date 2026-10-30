@@ -172,6 +172,19 @@ const MUSIC = {
   await page.click('[data-ad="new"]');
   check(!!(await page.$('[data-af="name"]')), 'formulaire de nouvelle boîte');
 
+  // Rang staff avec seulement « voir » et « points » (cases du menu admin) : le reste est masqué
+  const SHOP = { id: 1, name: 'Galaxy Club', address: 'Vinewood', job: 'club_galaxy', society: 'club_galaxy', matPrefix: 'BN-', enabled: true, options: {},
+    points: { door: { x: 1, y: 2, z: 3 } }, employees: 4, balance: 25300, publicOpen: true, fee: 50, speakers: [{ id: 7, label: 'Grande enceinte', x: 1, y: 2, z: 3 }], tracks: 12, music: { title: 'Gala' } };
+  await send({ action: 'admin', show: false });
+  await send({ action: 'admin', show: true, data: { shops: [SHOP], grades: {}, can: { view: true, points: true } } });
+  await page.waitForTimeout(100);
+  const has = async (sel) => !!(await page.$(sel));
+  check(await has('[data-pt="bar"]') && await has('[data-ptdel="door"]') && await has('[data-tp="door"]'), 'case « points » : placer, retirer, aller');
+  check(!(await has('[data-ad="enable"]')) && !(await has('[data-ad="edit"]')) && !(await has('[data-ad="boss"]')) && !(await has('[data-ad="delete"]'))
+    && !(await has('[data-ad="musicStop"]')) && !(await has('[data-spdel="7"]')) && !(await has('[data-ad="new"]')), 'sans les autres cases : activer, modifier, patron, supprimer, musique, nouvelle boîte masqués');
+  check(/Tes droits \(menu admin\) : points/.test(await page.textContent('#admin')), 'le panneau affiche les droits du rang');
+  await shot('admin_droits_limites');
+
   const scroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   check(scroll, 'pas de défilement horizontal');
   check(errors.length === 0, `aucune erreur JavaScript${errors.length ? ' : ' + errors.join(' | ') : ''}`);

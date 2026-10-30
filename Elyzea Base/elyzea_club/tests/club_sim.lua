@@ -172,7 +172,12 @@ local inventory = {
 }
 local staff = { [1] = false }
 local adminMenu = {
-    HasPermission = function(_, src, perm) return perm == 'club_manage' and staff[src] == true end,
+    -- staff[src] = true : « club_manage » (tout) ; staff[src] = { club_points = true, … } : cases détaillées
+    HasPermission = function(_, src, perm)
+        local st = staff[src]
+        if st == true then return perm == 'club_manage' end
+        return type(st) == 'table' and st[perm] == true
+    end,
     AddLog = function() end,
 }
 
@@ -497,6 +502,38 @@ do
     check(Club.employees.STAFF == nil and X.AdminInfo(1, B.id) == nil, 'retour au métier d\'origine : retiré de la boîte')
     ok = X.AdminSetGrade(1, 1, gA[1].id)
     check(ok and X.AdminRemove(1, 1) and players[1].job.name == 'unemployed', 'rentrer puis sortir à nouveau')
+end
+
+-- ---------------------------------------------------------------------
+P('\n[Permissions staff détaillées du menu admin]')
+do
+    check((adm(7, 'data').error or ''):find('staff'), 'aucune case : panneau refusé')
+    staff[7] = { club_view = true }
+    local d7 = adm(7, 'data')
+    check(d7.shops and d7.can and d7.can.view and not d7.can.edit and not d7.can.points and not d7.can.all, '« voir » seul : panneau en lecture, droits envoyés à l\'écran')
+    check((adm(7, 'shopEnable', { id = A.id, enabled = false }).error or ''):find('Activer'), 'lecture seule : désactiver refusé (permission nommée dans le message)')
+    check(A.enabled == true, 'la boîte n\'a pas été désactivée')
+    check((adm(7, 'point', { id = A.id, key = 'stash' }).error or ''):find('points'), 'lecture seule : placer un point refusé')
+    check((adm(7, 'shopDelete', { id = A.id, confirm = A.name }).error or ''):find('Supprimer') and not A.deleted, 'lecture seule : suppression refusée')
+    check((adm(7, 'setBoss', { id = A.id, target = 7 }).error or ''):find('patron'), 'lecture seule : nommer le patron refusé')
+    check((adm(7, 'shopSave', { name = 'Pirate' }).error or ''):find('Créer'), 'lecture seule : créer une boîte refusé')
+    check((adm(7, 'musicStop', { id = A.id }).error or ''):find('musique'), 'lecture seule : couper la musique refusé')
+    check(adm(7, 'teleport', { id = A.id, key = 'door' }).ok, 'lecture seule : « Aller » au point autorisé')
+    staff[7] = { club_points = true }
+    check(adm(7, 'data').can.view == true, 'une seule case (points) suffit pour ouvrir le panneau')
+    players[7].pos = vector3(10, 10, 10)
+    local r = adm(7, 'point', { id = A.id, key = 'stash' })
+    check(r.ok and A.points.stash and math.floor(A.points.stash.x) == 10, 'case « points » : placer le coffre autorisé')
+    check((adm(7, 'shopEnable', { id = A.id, enabled = false }).error or ''):find('Activer') and A.enabled, 'case « points » seule : activer / désactiver toujours refusé')
+    staff[7] = { club_toggle = true, club_music = true }
+    check(adm(7, 'shopEnable', { id = A.id, enabled = false }).ok and not A.enabled, 'case « activer » : désactiver autorisé')
+    check(adm(7, 'shopEnable', { id = A.id, enabled = true }).ok and A.enabled, 'et réactiver')
+    check(adm(7, 'musicStop', { id = A.id }).ok, 'case « musique » : couper la musique autorisé')
+    staff[7] = true
+    local all = adm(7, 'data').can
+    check(all.all and all.edit and all.points and all.boss and all.toggle and all.delete and all.music, '« Boîtes de nuit : TOUT » (club_manage) : toutes les cases')
+    staff[7] = nil
+    check((adm(7, 'data').error or ''):find('staff'), 'cases retirées : de nouveau refusé')
 end
 
 -- ---------------------------------------------------------------------

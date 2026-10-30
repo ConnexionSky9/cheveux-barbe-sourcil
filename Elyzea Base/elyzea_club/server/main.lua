@@ -553,19 +553,52 @@ Ely.callback.register('club:pub', function(src, action, data)
     return Run('public', a, action, src, type(data) == 'table' and data or {})
 end)
 
--- Staff : permission réelle d'admin_menu (« club_manage »)
-function P.IsStaff(src)
-    if GetResourceState('admin_menu') ~= 'started' then return false end
-    local ok, res = pcall(function() return exports.admin_menu:HasPermission(src, 'club_manage') end)
+-- Staff : permissions réelles d'admin_menu (éditeur de grades du menu admin).
+--   « club_manage » = tout. Sinon, case par case :
+P.StaffPerms = {
+    { key = 'view',   perm = 'club_view',   label = 'Voir les boîtes' },
+    { key = 'edit',   perm = 'club_edit',   label = 'Créer / modifier une boîte' },
+    { key = 'points', perm = 'club_points', label = 'Placer les points' },
+    { key = 'boss',   perm = 'club_boss',   label = 'Nommer le patron' },
+    { key = 'toggle', perm = 'club_toggle', label = 'Activer / désactiver' },
+    { key = 'delete', perm = 'club_delete', label = 'Supprimer une boîte' },
+    { key = 'music',  perm = 'club_music',  label = 'Enceintes et musique' },
+}
+local function HasAdminPerm(src, perm)
+    local ok, res = pcall(function() return exports.admin_menu:HasPermission(src, perm) end)
     return ok and res == true
 end
+-- Ce que le staff peut faire : table { view, edit, points… } ou nil s'il n'a aucune case
+function P.StaffCan(src)
+    if GetResourceState('admin_menu') ~= 'started' then return nil end
+    local can, any = {}, false
+    local all = HasAdminPerm(src, 'club_manage')
+    for _, p in ipairs(P.StaffPerms) do
+        can[p.key] = all or HasAdminPerm(src, p.perm)
+        any = any or can[p.key]
+    end
+    if not any then return nil end
+    can.view = true   -- toute case donne accès au panneau (lecture)
+    can.all = all
+    return can
+end
+function P.IsStaff(src) return P.StaffCan(src) ~= nil end
+local STAFF_LABEL = {}
+for _, p in ipairs(P.StaffPerms) do STAFF_LABEL[p.key] = p.label end
+
 Ely.callback.register('club:admin', function(src, action, data)
     if not P.ready then return { error = 'La boîte démarre, réessayez dans un instant.' } end
-    if not P.IsStaff(src) then return { error = 'Réservé au staff (permission « Boîtes de nuit »).' } end
+    local can = P.StaffCan(src)
+    if not can then return { error = 'Réservé au staff (permissions « Boîtes de nuit » du menu admin).' } end
     if not Allowed(src, 20) then return { error = 'Trop de demandes, patientez une seconde.' } end
     local a = P.Admin[tostring(action)]
     if not a then return { error = 'Action inconnue.' } end
-    return Run('staff', a, action, src, type(data) == 'table' and data or {})
+    if a.staff and not can[a.staff] then
+        return { error = ('Ton rang staff n\'a pas la permission « Boîtes de nuit : %s » (menu admin › grades).'):format(STAFF_LABEL[a.staff] or a.staff) }
+    end
+    local res = Run('staff', a, action, src, type(data) == 'table' and data or {})
+    if action == 'data' and type(res) == 'table' and not res.error then res.can = can end
+    return res
 end)
 
 -- ---------------------------------------------------------------------

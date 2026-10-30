@@ -17,7 +17,14 @@ local EXTRA = {
     { key = 'sharks_manage', label = 'Requins : zones dessinées, points d\'apparition, réapparition, joueurs protégés (onglet Requins)', cat = 'Gestion' },
     { key = 'tv_manage', label = 'Écrans / TV : poser des écrans (taille libre, écran géant), lancer / couper des vidéos YouTube, télés du jeu (elyzea_tv)', cat = 'Gestion' },
     { key = 'loisirs_manage', label = 'Loisirs : pistes de bowling, tables de billard, parcours de golf (poser, régler, supprimer), parties en cours (annuler) (elyzea_loisirs)', cat = 'Joueurs' },
-    { key = 'club_manage',   label = 'Boîtes de nuit : créer les boîtes (métier, compte), placer leurs points, nommer le patron, activer, supprimer, retirer une enceinte, couper la musique (elyzea_club)', cat = 'Métiers' },
+    { key = 'club_manage',   label = 'Boîtes de nuit : TOUT (toutes les cases « Boîtes de nuit » ci-dessous) (elyzea_club)', cat = 'Métiers' },
+    { key = 'club_view',     label = 'Boîtes de nuit : voir les boîtes (panneau staff en lecture, aller aux points)', cat = 'Métiers' },
+    { key = 'club_edit',     label = 'Boîtes de nuit : créer une boîte, modifier ses réglages (nom, métier, compte, icône)', cat = 'Métiers' },
+    { key = 'club_points',   label = 'Boîtes de nuit : placer / retirer les points (entrée, intérieur, bar, coffre, bureau)', cat = 'Métiers' },
+    { key = 'club_boss',     label = 'Boîtes de nuit : nommer le patron d\'une boîte', cat = 'Métiers' },
+    { key = 'club_toggle',   label = 'Boîtes de nuit : activer / désactiver une boîte', cat = 'Métiers' },
+    { key = 'club_delete',   label = 'Boîtes de nuit : supprimer une boîte', cat = 'Métiers' },
+    { key = 'club_music',    label = 'Boîtes de nuit : retirer une enceinte, couper la musique', cat = 'Métiers' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

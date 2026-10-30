@@ -1,6 +1,7 @@
 -- =====================================================================
 --  ELYZEA BOÎTE DE NUIT - serveur : administration (staff)
---  Accès : admin_menu, permission « club_manage » (vérifiée à chaque requête).
+--  Accès : permissions staff d'admin_menu, vérifiées à chaque requête :
+--  « club_manage » = tout ; sinon une case par action (champ staff = …, voir P.StaffPerms dans main.lua).
 --  · Créer plusieurs boîtes (chacune : métier, compte de société, grades, matricules).
 --  · Points : entrée, intérieur (facultatif), bar, coffre, bureau (tablette).
 --  · Nommer le patron, ouvrir / fermer, supprimer (désactivation : finances et
@@ -62,7 +63,7 @@ local function ValidJob(job, exceptId)
     return job
 end
 
-P.Admin.shopSave = { fn = function(src, d)
+P.Admin.shopSave = { staff = 'edit', fn = function(src, d)
     local id = tonumber(d.id)
     local D = id and P.shops[id]
     if id and (not D or D.deleted) then return { error = 'Boîte introuvable.' } end
@@ -109,7 +110,7 @@ P.Admin.shopSave = { fn = function(src, d)
     return { ok = true, id = D.id, message = tonumber(d.id) and 'Boîte enregistrée.' or 'Boîte créée (fermée tant que vous ne l\'activez pas). Placez ses points puis nommez le patron.' }
 end }
 
-P.Admin.shopEnable = { fn = function(src, d)
+P.Admin.shopEnable = { staff = 'toggle', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D or D.deleted then return { error = 'Boîte introuvable.' } end
     local on = d.enabled == true
@@ -125,7 +126,7 @@ P.Admin.shopEnable = { fn = function(src, d)
     return { ok = true, message = on and 'Boîte activée : le patron peut l\'ouvrir au public.' or 'Boîte désactivée par le staff : entrée, bar et musique suspendus (rien n\'est supprimé).' }
 end }
 
-P.Admin.shopDelete = { fn = function(src, d)
+P.Admin.shopDelete = { staff = 'delete', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D or D.deleted then return { error = 'Boîte introuvable.' } end
     if d.confirm ~= D.name then return { error = 'Confirmation incorrecte : tapez exactement le nom de la boîte.' } end
@@ -146,7 +147,7 @@ P.Admin.shopDelete = { fn = function(src, d)
     return { ok = true, message = ('« %s » supprimée : %d employé(s) retiré(s). Les ventes et les finances sont conservées.'):format(D.name, n) }
 end }
 
-P.Admin.setBoss = { fn = function(src, d)
+P.Admin.setBoss = { staff = 'boss', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D or D.deleted then return { error = 'Boîte introuvable.' } end
     local t = tonumber(d.target)
@@ -170,7 +171,7 @@ end }
 -- Points
 -- ---------------------------------------------------------------------
 local KEYS = { door = 'Entrée', inside = 'Intérieur (après l\'entrée)', bar = 'Bar', stash = 'Coffre', manage = 'Bureau (tablette)' }
-P.Admin.point = { fn = function(src, d)
+P.Admin.point = { staff = 'points', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D or D.deleted then return { error = 'Boîte introuvable.' } end
     local key = tostring(d.key or '')
@@ -203,7 +204,7 @@ P.Admin.teleport = { fn = function(src, d)
     return { ok = true, message = 'Téléporté.' }
 end }
 
-P.Admin.speakerRemove = { fn = function(src, d)
+P.Admin.speakerRemove = { staff = 'music', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     local id = tonumber(d.speaker) or -1
     local s = D and (P.speakers[D.id] or {})[id]
@@ -217,7 +218,7 @@ P.Admin.speakerRemove = { fn = function(src, d)
     return { ok = true, message = 'Enceinte retirée.' }
 end }
 
-P.Admin.musicStop = { fn = function(src, d)
+P.Admin.musicStop = { staff = 'music', fn = function(src, d)
     local D = P.shops[tonumber(d.id) or 0]
     if not D then return { error = 'Boîte introuvable.' } end
     P.MusicStop(D.id)

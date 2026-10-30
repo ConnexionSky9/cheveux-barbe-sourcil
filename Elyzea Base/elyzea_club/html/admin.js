@@ -1,5 +1,5 @@
 /* =====================================================================
-   ELYZEA BOÎTE DE NUIT - administration des boîtes (staff, « club_manage »)
+   ELYZEA BOÎTE DE NUIT - administration des boîtes (staff : permissions « Boîtes de nuit » du menu admin)
    Créer plusieurs boîtes, placer leurs points, nommer le patron, activer,
    supprimer, retirer une enceinte, couper la musique.
    ===================================================================== */
@@ -8,6 +8,15 @@
   const wrap = $('#admin');
   const el = () => $('#admin .modal');
   const empty = (t) => `<div class="empty">${esc(t)}</div>`;
+  // Permissions staff du menu admin (le serveur revérifie chaque action) : un bouton non autorisé n'est pas affiché
+  const can = (k) => !A.data || !A.data.can || A.data.can[k] === true;
+  const RIGHTS = [['edit', 'créer / modifier'], ['points', 'points'], ['boss', 'patron'], ['toggle', 'activer'], ['delete', 'supprimer'], ['music', 'enceintes / musique']];
+  const rightsLine = () => {
+    const c = A.data && A.data.can;
+    if (!c || c.all) return '';
+    const yes = RIGHTS.filter(([k]) => c[k]).map(([, l]) => l);
+    return `<p class="faint mono-note" style="font-size:.75rem;margin:.4rem 0 0">Tes droits (menu admin) : ${yes.length ? esc(yes.join(' · ')) : 'lecture seule'}</p>`;
+  };
   const POINTS = [
     ['door', '🚪 Entrée', 'Obligatoire. Les clients y appuient sur E pour entrer (prix, bracelet, VIP, liste noire).'],
     ['inside', '🪩 Intérieur', 'Facultatif. Si placé, payer l\'entrée téléporte ici, et E ici ressort à l\'entrée.'],
@@ -48,21 +57,21 @@
           <div class="chips">${s.enabled ? '<span class="pill on">Activée</span>' : '<span class="pill off">Désactivée</span>'}${s.publicOpen ? '<span class="pill on">Ouverte au public</span>' : '<span class="pill off">Fermée au public</span>'}</div></div>
         <div class="stats"><div class="stat green"><b>${money(s.balance)}</b><span>Compte</span></div><div class="stat blue"><b>${s.employees}</b><span>Employé(s)</span></div>
           <div class="stat violet"><b>${s.speakers.length}</b><span>Enceinte(s) · ${s.tracks} titre(s)</span></div><div class="stat orange"><b>${s.fee > 0 ? money(s.fee) : 'Gratuite'}</b><span>Entrée</span></div></div>
-        <div class="actions-row"><button class="btn ${s.enabled ? 'danger' : 'primary'}" data-ad="enable">${s.enabled ? 'Désactiver' : 'Activer'}</button>
-          <button class="btn" data-ad="edit">Modifier</button><button class="btn" data-ad="boss">👑 Nommer le patron</button>
-          ${s.music ? `<button class="btn" data-ad="musicStop">⏹ Couper la musique</button>` : ''}<button class="btn danger" data-ad="delete">Supprimer</button></div>
+        <div class="actions-row">${can('toggle') ? `<button class="btn ${s.enabled ? 'danger' : 'primary'}" data-ad="enable">${s.enabled ? 'Désactiver' : 'Activer'}</button>` : ''}
+          ${can('edit') ? '<button class="btn" data-ad="edit">Modifier</button>' : ''}${can('boss') ? '<button class="btn" data-ad="boss">👑 Nommer le patron</button>' : ''}
+          ${s.music && can('music') ? `<button class="btn" data-ad="musicStop">⏹ Couper la musique</button>` : ''}${can('delete') ? '<button class="btn danger" data-ad="delete">Supprimer</button>' : ''}</div>
         <div class="card"><h2>Points</h2><p class="faint" style="font-size:.8rem;margin-bottom:.5rem">Placez-vous à l'endroit voulu (fermez ce panneau, marchez, rouvrez-le avec /clubadmin), puis « Placer ici ».</p>
           ${POINTS.map(([k, label, hint]) => { const pt = (s.points || {})[k]; return `<div class="list-row"><div class="main"><b>${label}</b><small>${pt ? `${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}, ${pt.z.toFixed(1)}` : hint}</small></div>
-            ${pt ? '<span class="pill on">Placé</span>' : '<span class="pill off">Non placé</span>'}<button class="btn small primary" data-pt="${k}">Placer ici</button>
-            ${pt ? `<button class="btn small" data-tp="${k}">Aller</button><button class="btn small danger" data-ptdel="${k}">Retirer</button>` : ''}</div>`; }).join('')}</div>
+            ${pt ? '<span class="pill on">Placé</span>' : '<span class="pill off">Non placé</span>'}${can('points') ? `<button class="btn small primary" data-pt="${k}">Placer ici</button>` : ''}
+            ${pt ? `<button class="btn small" data-tp="${k}">Aller</button>${can('points') ? `<button class="btn small danger" data-ptdel="${k}">Retirer</button>` : ''}` : ''}</div>`; }).join('')}</div>
         <div class="card"><h2>Enceintes posées par la boîte</h2>${s.speakers.map((sp) => `<div class="list-row"><span class="ico">🔊</span><div class="main"><b>${esc(sp.label)}</b><small class="mono">#${sp.id} · ${sp.x.toFixed(1)}, ${sp.y.toFixed(1)}, ${sp.z.toFixed(1)}</small></div>
-            <button class="btn small" data-tpsp="${sp.id}">Aller</button><button class="btn small danger" data-spdel="${sp.id}">Retirer</button></div>`).join('') || empty('Aucune enceinte. Le patron (ou un grade autorisé) les pose depuis le F6 ou la tablette.')}
+            <button class="btn small" data-tpsp="${sp.id}">Aller</button>${can('music') ? `<button class="btn small danger" data-spdel="${sp.id}">Retirer</button>` : ''}</div>`).join('') || empty('Aucune enceinte. Le patron (ou un grade autorisé) les pose depuis le F6 ou la tablette.')}
           ${s.music ? `<p class="faint" style="margin-top:.5rem">En cours : ${esc(s.music.title || '')}${s.music.paused ? ' (pause)' : ''}</p>` : ''}</div>`;
     }
     el().innerHTML = `<div class="modal-head"><div><div class="eyebrow">Staff</div><h2>Boîtes de nuit</h2></div><button class="icon-btn" data-ad="close" aria-label="Fermer">✕</button></div>
       <div class="adm-split"><div class="adm-list">${d.shops.map((x) => `<button class="pick ${x.id === A.sel ? 'on' : ''}" data-sel="${x.id}"><b>${esc(x.name)}</b>
           <small>${x.enabled ? 'Activée' : 'Désactivée'} · ${x.employees} employé(s)</small></button>`).join('') || '<p class="faint">Aucune boîte.</p>'}
-        <button class="btn primary block" data-ad="new" style="margin-top:.6rem">+ Nouvelle boîte</button></div>
+        ${can('edit') ? '<button class="btn primary block" data-ad="new" style="margin-top:.6rem">+ Nouvelle boîte</button>' : ''}${rightsLine()}</div>
       <div class="adm-main">${main}</div></div>`;
   }
 
