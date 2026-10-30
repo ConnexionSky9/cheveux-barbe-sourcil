@@ -61,6 +61,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_drogues', prefix = 'drg:', target = true },   -- postes, récolte, pots et plantes, acheteurs (objets et PNJ)
     { res = 'elyzea_bebe_modele', prefix = 'bebe:', target = true }, -- bébé (porter, poser, prises) et poussette (installer, pousser, garer)
     { res = 'elyzea_tv', prefix = 'tv:', target = true },          -- télés à écran plat : télécommande YouTube, pause, volume, éteindre
+    { res = 'elyzea_clothing', prefix = 'clo:' },                  -- pousser une personne (chapeau et lunettes peuvent tomber)
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre

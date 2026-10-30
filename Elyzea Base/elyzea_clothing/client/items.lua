@@ -13,6 +13,10 @@ RegisterNetEvent('elyzea_clothing:notify', function(msg, kind) ClothingNotify(ms
 function ClothingItemsMode() return Config.Items.enabled and GetResourceState(INV) == 'started' end
 
 -- Ce que le personnage porte dans un rayon (avec son pack s'il en vient un)
+function ClothingWorn(cat)   -- aussi utilisé par client/knockoff.lua
+    local c = Cat[cat]
+    return (ElyCloth.readReal or ElyCloth.read)(PlayerPedId(), c.type, c.index)
+end
 local function worn(cat)
     local c = Cat[cat]
     return (ElyCloth.readReal or ElyCloth.read)(PlayerPedId(), c.type, c.index)   -- jamais le ventre de grossesse

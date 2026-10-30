@@ -25,6 +25,7 @@ local core = {
 exports = setmetatable({ elyzea_core = core }, { __call = function() end, __index = function() return setmetatable({}, { __index = function() return function() end end }) end })
 MySQL = { scalar = { await = function() return nil end }, update = function() end, query = { await = function() return {} end }, insert = function() end }
 function GetPlayerPed(s) return players[s] and s or 0 end
+function GetHashKey(n) local h = 0 for i = 1, #n do h = (h * 31 + n:byte(i)) % 4294967296 end return h end
 function GetEntityCoords(ped) return players[ped].pos end
 function Player(s) return { state = {} } end
 function GetGameTimer() return os.clock() * 1000 end
@@ -94,5 +95,26 @@ local s1 = last(1, 'elyzea_inv:sync')
 local found = false
 for _, it in ipairs(s1 and s1.args[1].items or {}) do if it.name == 'vet_pantalon' then found = true end end
 check(okA == true and found, 'vêtement acheté : ajouté et envoyé à l\'écran tout de suite')
+print('\n[Objets tombés au sol (chapeau, lunettes) : ramasser, voler, casser]')
+sent = {}
+local id = API.CreateDrop({ x = 0.5, y = 0, z = -0.95 }, { { name = 'vet_lunettes', count = 1, metadata = { cat = 'glasses', drawable = 5, texture = 0, label = 'Aviateur' } } }, 'prop_cs_sol_glasses')
+local dr = last(-1, 'elyzea_inv:drops')
+local seen
+for _, d in ipairs(dr and dr.args[1] or {}) do if d.id == id then seen = d end end
+check(id and seen and seen.prop == GetHashKey('prop_cs_sol_glasses'), 'tas créé au sol, envoyé à tous avec le modèle « lunettes »')
+check(#API.GetNearbyDropItems(2, 'vet_lunettes') == 1 and #API.GetNearbyDropItems(3, 'vet_lunettes') == 0, 'visible à côté (joueur 2), pas à 50 m (joueur 3)')
+local near = API.GetNearbyDropItems(2, 'vet_lunettes')[1]
+check(API.SetDropItemMetadata(near.drop, near.index, { cat = 'glasses', drawable = 5, texture = 0, broken = true, label = 'Lunettes cassées' }), 'lunettes marquées cassées au sol')
+-- le joueur 2 (pas le propriétaire) les ramasse : vol
+act(2, 'pickup', { drop = id, index = 1 })
+local got
+for _, it in pairs(Inv[2].slots) do if it.name == 'vet_lunettes' then got = it end end
+check(got and got.metadata.broken == true and got.metadata.label == 'Lunettes cassées', 'un autre joueur ramasse les lunettes (cassées, comme au sol)')
+local after = last(-1, 'elyzea_inv:drops')
+local still = false
+for _, d in ipairs(after and after.args[1] or {}) do if d.id == id then still = true end end
+check(not still, 'le tas disparaît une fois ramassé')
+check(API.CreateDrop({ x = 0, y = 0, z = 0 }, { { name = 'objet_inexistant', count = 1 } }) == nil, 'objet inconnu : aucun tas créé')
+
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

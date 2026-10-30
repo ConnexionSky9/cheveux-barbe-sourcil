@@ -178,6 +178,10 @@ for _, c in ipairs(clothes) do
         },
     }
 end
+-- Lunettes : peuvent être cassées (elles ne se portent plus ensuite) ; elles tombent aussi quand on est poussé / frappé
+Items.vet_lunettes.buttons[#Items.vet_lunettes.buttons + 1] = { label = 'Casser', export = 'elyzea_clothing.BreakSlot' }
+Items.vet_chapeau.description = 'Vêtement : glissez-le sur le personnage ou clic droit > Porter. Peut tomber si on vous pousse ou vous frappe.'
+Items.vet_lunettes.description = 'Vêtement : clic droit > Porter, ou Casser. Peuvent tomber si on vous pousse ou vous frappe.'
 Items.vet_sac.bonus = 10000 -- +10 KG de capacité quand il est porté
 Items.vet_sac.description = 'Sac : +10 KG de capacité une fois porté.'
 

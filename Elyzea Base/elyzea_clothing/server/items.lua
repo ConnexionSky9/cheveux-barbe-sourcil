@@ -139,6 +139,7 @@ RegisterNetEvent('elyzea_clothing:equip', function(slot, current)
     local cat = item and CAT_OF_ITEM[item.name]
     local md = item and item.metadata or {}
     if not cat or md.cat ~= cat then return notify(src, 'Ce vêtement est vide ou abîmé.') end
+    if md.broken then return notify(src, 'Ces lunettes sont cassées : impossible de les porter.') end
     local sex = Items.sexOf(src)
     if not sex then return notify(src, 'Personnage non compatible.') end
     if md.sex and md.sex ~= sex then return notify(src, md.sex == 'male' and 'Ce vêtement est pour homme.' or 'Ce vêtement est pour femme.') end

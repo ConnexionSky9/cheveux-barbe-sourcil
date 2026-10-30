@@ -20,6 +20,7 @@ client_scripts {
     'client/items.lua',
     'client/shop.lua',
     'client/outfits.lua',
+    'client/knockoff.lua',   -- pousser, coups : chapeau et lunettes qui tombent ; écraser des lunettes
 }
 
 server_scripts {
@@ -29,6 +30,7 @@ server_scripts {
     'server/hidden.lua',   -- vêtements cachés par le staff (table elyzea_clothing_hidden)
     'server/shop.lua',
     'server/outfits.lua',
+    'server/knockoff.lua',
 }
 
 ui_page 'html/index.html'

@@ -100,6 +100,29 @@ Dans le panneau **Ma tenue** (F3 ou `/tenue`), onglet **Mes tenues** :
 - Tests hors jeu de la partie serveur : `python3 tests/run_outfits_sim.py`, `python3 tests/run_hidden_sim.py`, `python3 tests/run_cart_sim.py` (paquet Python `lupa`).
 - Test de l'interface (Chromium + Playwright) : `node tests/ui_cart.cjs <dossier des captures>`.
 
+## Chapeau et lunettes qui tombent
+
+Quand on **pousse** quelqu'un (ALT sur la personne › **Pousser**) ou qu'on le **frappe** (poing ou arme de mêlée), son chapeau et ses lunettes peuvent tomber.
+
+- Ils tombent en **vrais objets** `vet_chapeau` / `vet_lunettes` : même modèle, même coloris, même nom personnalisé.
+  - Ils sont posés au sol à côté de la personne, avec un modèle 3D de chapeau ou de lunettes.
+  - Ils disparaissent de sa tête.
+- **Tout le monde peut les ramasser** : inventaire › « Au sol ». Le propriétaire les récupère, ou quelqu'un d'autre les vole.
+- **Casser les lunettes** :
+  - au sol : **G** à côté ;
+  - dans l'inventaire : clic droit › **Casser**.
+
+  Elles deviennent « **Lunettes cassées** » : on peut les garder ou les jeter, mais plus les porter (ni avec une tenue enregistrée).
+- **Chance** de chute réglable dans `Config.KnockOff` : poussée 70 % chapeau / 60 % lunettes ; coup 35 % / 30 %.
+- **Rien ne tombe** :
+  - dans un véhicule ;
+  - avec une tenue de service ;
+  - dans l'arène PvP ;
+  - deux fois de suite en moins de 4 s.
+- **Contrôles du serveur** :
+  - une poussée doit être réelle (distance et délai vérifiés) ;
+  - un coup ne compte que si le frappeur est à moins de 4 m.
+
 ## Boutiques
 
 Les PNJ vendeurs (admin_menu) appellent `exports.elyzea_clothing:OpenFor(src, shop)` :
@@ -135,6 +158,12 @@ Permission admin_menu **`clothing_manage`** (ou la permission ACE `elyzea.clothi
 
 Le studio `elyzea_clothing_photos` crée ces images tout seul (`/elyzea_photos`), y compris pour les packs.
 Sans image, la boutique affiche l'icône du rayon.
+
+## Tests hors jeu
+
+```
+python3 tests/run_knockoff_sim.py   # chapeau et lunettes qui tombent, vol, lunettes cassées (20 vérifications)
+```
 
 ## Fichiers
 

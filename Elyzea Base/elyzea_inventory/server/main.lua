@@ -218,7 +218,7 @@ local sync = Sync
 
 local function broadcastDrops(target)
     local list = {}
-    for id, d in pairs(Drops) do list[#list + 1] = { id = id, coords = d.coords } end
+    for id, d in pairs(Drops) do list[#list + 1] = { id = id, coords = d.coords, prop = d.prop } end
     TriggerClientEvent('elyzea_inv:drops', target or -1, list)
 end
 
@@ -1173,6 +1173,59 @@ function API.CanCarryItems(inv, list)
             else sim.slots[p.slot].count = sim.slots[p.slot].count + p.add end
         end
     end
+    return true
+end
+
+-- ───────── Objets au sol posés par une autre ressource ─────────
+-- CreateDrop(coords, { { name, count, metadata }, … }, prop?) → id du tas, ou nil
+--   prop : modèle affiché au sol (nom ou hash) ; modèle inconnu du jeu → sac par défaut (côté joueur)
+function API.CreateDrop(coords, items, prop)
+    if type(coords) ~= 'table' and type(coords) ~= 'vector3' then return nil end
+    local x, y, z = tonumber(coords.x), tonumber(coords.y), tonumber(coords.z)
+    if not x or not y or not z or type(items) ~= 'table' then return nil end
+    local list = {}
+    for _, e in ipairs(items) do
+        local name = ResolveItemName(e.name or e[1])
+        local count = math.floor(tonumber(e.count or e[2]) or 1)
+        if name and count > 0 and #list < Config.DropMaxItems then
+            list[#list + 1] = { name = name, count = count, metadata = type(e.metadata or e[3]) == 'table' and Shared.Copy(e.metadata or e[3]) or nil }
+        end
+    end
+    if #list == 0 then return nil end
+    DropSeq = DropSeq + 1
+    if type(prop) == 'string' then prop = GetHashKey(prop) end
+    Drops[DropSeq] = { id = DropSeq, coords = vector3(x, y, z), items = list, created = os.time(), prop = tonumber(prop) }
+    broadcastDrops()
+    refreshOpen()
+    return DropSeq
+end
+
+-- Objets au sol à portée d'un joueur (option : seulement cet objet)
+-- → { { drop, index, name, count, metadata }, … }
+function API.GetNearbyDropItems(src, name)
+    local c = playerCoords(tonumber(src) or -1)
+    local out = {}
+    if not c then return out end
+    name = name and ResolveItemName(name) or nil
+    for id, d in pairs(Drops) do
+        if #(c - d.coords) <= Config.DropDistance + 1.0 then
+            for i, it in ipairs(d.items) do
+                if not name or it.name == name then
+                    out[#out + 1] = { drop = id, index = i, name = it.name, count = it.count, metadata = Shared.Copy(it.metadata) }
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Change les métadonnées d'un objet au sol (ex. lunettes cassées) ; renvoie true si fait
+function API.SetDropItemMetadata(dropId, index, metadata)
+    local d = Drops[tonumber(dropId) or -1]
+    local it = d and d.items[tonumber(index) or -1]
+    if not it or type(metadata) ~= 'table' then return false end
+    it.metadata = Shared.Copy(metadata)
+    refreshOpen()
     return true
 end
 

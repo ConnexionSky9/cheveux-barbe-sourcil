@@ -132,7 +132,7 @@ local function ownedIndex(src, sex)
         if ok and type(slots) == 'table' then
             for _, it in ipairs(slots) do
                 local md = it.metadata or {}
-                if md.cat == cat and (not md.sex or md.sex == sex) then
+                if md.cat == cat and (not md.sex or md.sex == sex) and not md.broken then   -- lunettes cassées : jamais portées
                     list[#list + 1] = { slot = it.slot, name = it.name, metadata = md, piece = Items.cleanPiece(md) }
                 end
             end

@@ -1,8 +1,9 @@
 -- Objets au sol : props locaux, la liste vient du serveur.
 local props, drops = {}, {}
 
-local function spawn(id, coords)
-    local model = Config.DropProp
+local function spawn(id, coords, prop)
+    -- Modèle propre au tas (lunettes, chapeau…) s'il existe dans le jeu, sinon le sac par défaut
+    local model = (prop and IsModelInCdimage(prop)) and prop or Config.DropProp
     RequestModel(model)
     local t = GetGameTimer() + 3000
     while not HasModelLoaded(model) and GetGameTimer() < t do Wait(0) end
@@ -16,14 +17,14 @@ local function spawn(id, coords)
 end
 
 RegisterNetEvent('elyzea_inv:drops', function(list)
-    local keep = {}
-    for _, d in ipairs(list or {}) do keep[d.id] = d.coords end
+    local keep, models = {}, {}
+    for _, d in ipairs(list or {}) do keep[d.id] = d.coords models[d.id] = d.prop end
     for id, obj in pairs(props) do
         if not keep[id] then DeleteEntity(obj) props[id] = nil end
     end
     drops = keep
     for id, coords in pairs(keep) do
-        if not props[id] then CreateThread(function() spawn(id, coords) end) end
+        if not props[id] then CreateThread(function() spawn(id, coords, models[id]) end) end
     end
 end)
 
