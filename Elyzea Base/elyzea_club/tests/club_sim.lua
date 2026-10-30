@@ -459,6 +459,47 @@ adm(1, 'shopEnable', { id = A.id, enabled = true })
 check(req(2, 'speakerRemove', { id = sp.id }).ok and Club.SpeakerCount(A.id) == 0, 'le patron retire son enceinte')
 
 -- ---------------------------------------------------------------------
+P('\n[admin_menu › Métier staff : exports Admin*]')
+do
+    local X = exportsTbl
+    local gA, gB = X.AdminGrades(A.id), X.AdminGrades(B.id)
+    check(#gA == 5 and #gB == 5 and gA[1].level == 1 and gA[5].direction == true and gA[1].direction == false, 'AdminGrades : les 5 grades de chaque boîte, Patron = direction')
+    local sameShop = true
+    for _, g in ipairs(gA) do if Club.grades[g.id].shop_id ~= A.id then sameShop = false end end
+    check(sameShop and gA[1].id ~= gB[1].id, 'les grades de A ne sont que ceux de A')
+    check(#X.AdminGrades(9999) == 0, 'boîte inconnue : aucun grade')
+    check(X.AdminInfo(1, A.id) == nil, 'le staff n\'est pas encore dans la boîte A')
+    local ok, msg = X.AdminSetGrade(1, 1, gA[3].id)
+    check(ok and players[1].job.name == A.job and players[1].job.grade.level == 3, 'le staff entre dans A au grade DJ : ' .. tostring(msg))
+    local info = X.AdminInfo(1, A.id)
+    check(info and info.gradeId == gA[3].id and info.grade == 'DJ' and info.matricule ~= nil, 'AdminInfo : grade et matricule')
+    check(X.AdminInfo(1, B.id) == nil, 'AdminInfo de B : le staff n\'y est pas')
+    ok = X.AdminDuty(1, true)
+    check(ok and Club.OnDuty(1) and players[1].job.onduty == true, 'prise de service')
+    check(X.AdminInfo(1, A.id).duty == true, 'AdminInfo : en service')
+    check(Club.Can(1, 'music') and not Club.Can(1, 'direction'), 'le staff DJ a les permissions du grade DJ de A (musique oui, direction non)')
+    ok = X.AdminSetGrade(1, 1, gA[5].id)
+    check(ok and players[1].job.grade.level == 5 and Club.employees.STAFF.grade_id == gA[5].id, 'changer de grade (Patron)')
+    ok, msg = X.AdminSetGrade(1, 1, gB[1].id)
+    check(ok and players[1].job.name == B.job and Club.employees.STAFF.shop_id == B.id and not Club.OnDuty(1) and msg:find('retiré'), 'passer dans la boîte B : retiré de A (et du service) : ' .. tostring(msg))
+    check(X.AdminInfo(1, A.id) == nil and X.AdminInfo(1, B.id) ~= nil, 'il n\'apparaît plus que dans B')
+    ok = X.AdminSetGrade(1, 5, gB[2].id)
+    check(ok and players[5].job.name == B.job and lastNote(5):find('Videur'), 'recruter un joueur dans B (Videur), il est prévenu')
+    ok = X.AdminRemove(1, 5)
+    check(ok and players[5].job.name == 'unemployed' and Club.employees.CLI == nil, 'retirer le joueur du métier')
+    check(not X.AdminRemove(1, 5), 'retirer quelqu\'un qui n\'est dans aucune boîte : refusé')
+    check(not X.AdminSetGrade(1, 5, 999999), 'grade inconnu : refusé')
+    check(not X.AdminDuty(5, true), 'service impossible hors de la boîte')
+    -- retour au métier d'origine fait par admin_menu (SetJob) : la fiche est fermée
+    local old = { name = players[1].job.name }
+    players[1].job.name = 'police'
+    env.TriggerEvent('elyzea:server:onJobUpdate', 1, { name = 'police', grade = { level = 0 } }, old)
+    check(Club.employees.STAFF == nil and X.AdminInfo(1, B.id) == nil, 'retour au métier d\'origine : retiré de la boîte')
+    ok = X.AdminSetGrade(1, 1, gA[1].id)
+    check(ok and X.AdminRemove(1, 1) and players[1].job.name == 'unemployed', 'rentrer puis sortir à nouveau')
+end
+
+-- ---------------------------------------------------------------------
 P('\n[Tablette, finances, suppression]')
 local dash = req(2, 'dashboard')
 check(dash.shop and dash.shop.name == 'Galaxy Club' and dash.publicOpen == true, 'tableau de bord')

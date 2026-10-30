@@ -1,6 +1,6 @@
 -- =========================================================
 --  MES OUTILS › MÉTIER STAFF - SERVEUR (permission « staff_job »)
---  Pont vers les ressources métier « elyzea_police » et « elyzea_ems » :
+--  Pont vers les ressources métier (police, EMS, mécano, Dynasty 8, presse, boîtes de nuit) :
 --   - le staff entre lui-même dans le métier au grade voulu ;
 --   - il recrute un joueur connecté ou change son grade (direction comprise) ;
 --   - il retire un joueur du métier ;
@@ -19,9 +19,37 @@ local JOBS = {
 }
 local ORDER = { 'police', 'ems', 'meca', 'd8', 'presse' }
 
+-- Boîtes de nuit (elyzea_club) : une entrée par boîte, clé « club_<id> ».
+-- AdminGrades et AdminInfo reçoivent en plus l'id de la boîte.
+local CLUB_RES = 'elyzea_club'
+local function clubJobs()
+    local out = {}
+    if GetResourceState(CLUB_RES) ~= 'started' then return out end
+    local ok, list = pcall(function() return exports[CLUB_RES]:GetClubs() end)
+    if not ok or type(list) ~= 'table' then return out end
+    table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    for _, c in ipairs(list) do
+        out[#out + 1] = { key = 'club_' .. tostring(c.id), res = CLUB_RES, job = c.job, shop = c.id,
+            label = '🪩 ' .. tostring(c.name) .. (c.enabled == false and ' (désactivée)' or '') }
+    end
+    return out
+end
+-- Tous les métiers, dans l'ordre d'affichage : { key, J }
+local function allJobs()
+    local out = {}
+    for _, k in ipairs(ORDER) do out[#out + 1] = { key = k, J = JOBS[k] } end
+    for _, J in ipairs(clubJobs()) do out[#out + 1] = { key = J.key, J = J } end
+    return out
+end
+local function jobByKey(key)
+    if JOBS[key] then return JOBS[key] end
+    for _, J in ipairs(clubJobs()) do if J.key == key then return J end end
+end
+
 local function available(J) return J ~= nil and GetResourceState(J.res) == 'started' end
 local function call(J, fn, ...)
     local args = { ... }
+    if J.shop and (fn == 'AdminGrades' or fn == 'AdminInfo') then args[#args + 1] = J.shop end
     local ok, a, b = pcall(function() return exports[J.res][fn](exports[J.res], table.unpack(args)) end)
     if not ok then print(('^1[AdminMenu] %s:%s : %s^7'):format(J.res, fn, tostring(a))) return nil end
     return a, b
@@ -69,9 +97,9 @@ function A.join(J, src, d)
     if not p then return AM.notify(src, 'Personnage non chargé.', 'error') end
     local j = p.PlayerData.job or {}
     local isStaffJob = false
-    for _, k in ipairs(ORDER) do
-        -- Métier d'une agence (elyzea_agences : plusieurs polices, EMS…) : déjà un métier staff
-        if JOBS[k].job == j.name or (available(JOBS[k]) and call(JOBS[k], 'AdminInfo', src)) then isStaffJob = true end
+    for _, e in ipairs(allJobs()) do
+        -- Métier d'une agence (elyzea_agences : plusieurs polices, EMS…) ou d'une boîte : déjà un métier staff
+        if e.J.job == j.name or (available(e.J) and call(e.J, 'AdminInfo', src)) then isStaffJob = true end
     end
     if not prevJob(src) and not isStaffJob then
         core:SetMetadata(src, KEY, { name = j.name or 'unemployed', grade = j.grade and j.grade.level or 0, label = j.label })
@@ -118,9 +146,10 @@ end
 
 AM.Actions.staffjob = { perm = 'staff_job', fn = function(src, d)
     local data = type(d.data) == 'table' and d.data or {}
-    local J = JOBS[tostring(data.job or 'police')]
     local fn = A[tostring(d.name or '')]
     if not fn then return end
+    local J = jobByKey(tostring(data.job or 'police'))
+    if not J and fn ~= A.back then return AM.notify(src, 'Métier introuvable (boîte supprimée ?).', 'error') end
     if fn ~= A.back and not available(J) then
         return AM.notify(src, ('La ressource « %s » n\'est pas démarrée.'):format(J and J.res or '?'), 'error')
     end
@@ -131,9 +160,18 @@ table.insert(AM.DataHooks, function(src, data)
     if not AM.hasPerm(src, 'staff_job') then return end
     local prev = prevJob(src)
     local jobs = {}
-    for _, key in ipairs(ORDER) do
-        local J = JOBS[key]
-        if not available(J) then
+    local list = allJobs()
+    local clubState = GetResourceState(CLUB_RES)
+    if clubState ~= 'missing' and clubState ~= 'unknown' and not list[#list].J.shop then
+        -- Ressource des boîtes arrêtée, ou aucune boîte créée : une entrée qui l'explique
+        list[#list + 1] = { key = 'club', J = { res = CLUB_RES, label = '🪩 Boîtes de nuit' }, none = clubState == 'started' }
+    end
+    for _, e in ipairs(list) do
+        local key, J = e.key, e.J
+        if e.none then
+            jobs[#jobs + 1] = { key = key, label = J.label, resource = J.res, available = false,
+                note = 'Aucune boîte de nuit créée. Crée-la dans l\'onglet « Boîtes de nuit » (ou /clubadmin).' }
+        elseif not available(J) then
             jobs[#jobs + 1] = { key = key, label = J.label, resource = J.res, available = false }
         else
             local members = {}

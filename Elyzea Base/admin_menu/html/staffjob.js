@@ -6,7 +6,7 @@
 (() => {
     TABS.push({
         id: 'staffjob', group: 2, label: 'Métier staff', ico: '👮',
-        sub: 'Police / EMS : prends un grade, recrute un joueur, nomme la direction.',
+        sub: 'Police, EMS, mécano, Dynasty 8, presse, boîtes de nuit : prends un grade, recrute, nomme la direction.',
         show: () => has('staff_job') && !!(D && D.staffJob),
     });
 
@@ -18,8 +18,8 @@
         if (!all.some((j) => j.key === SJ.job)) SJ.job = (all[0] || {}).key || 'police';
         const d = all.find((j) => j.key === SJ.job) || { available: false, resource: '?' };
         const L = esc(d.label || 'Métier');
-        const switcher = `<div class="chips" style="margin-bottom:10px">${all.map((j) => `<button class="btn ${j.key === SJ.job ? 'on' : ''}" data-sjjob="${j.key}">${esc(j.label)}${j.available ? '' : ' (arrêté)'}</button>`).join('')}</div>`;
-        if (!d.available) return `<div class="section"><h2>Métier staff</h2>${switcher}<p class="hint">La ressource « ${esc(d.resource)} » n'est pas démarrée.</p></div>`;
+        const switcher = `<div class="chips" style="margin-bottom:10px">${all.map((j) => `<button class="btn ${j.key === SJ.job ? 'on' : ''}" data-sjjob="${j.key}">${esc(j.label)}${j.available ? '' : (j.note ? '' : ' (arrêté)')}</button>`).join('')}</div>`;
+        if (!d.available) return `<div class="section"><h2>Métier staff</h2>${switcher}<p class="hint">${d.note ? esc(d.note) : `La ressource « ${esc(d.resource)} » n'est pas démarrée.`}</p></div>`;
         d.prev = D.staffJob.prev;
         const grades = [...(d.grades || [])].sort((a, b) => b.level - a.level);
         const gName = (g) => `${g.direction ? '👑 ' : ''}${esc(g.name)}`;

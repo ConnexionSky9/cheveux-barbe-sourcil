@@ -11,7 +11,7 @@ Chaque boîte de nuit a **son propre métier**, avec :
 On peut en créer autant que l'on veut (Galaxy, Bahama Mamas, Tequi-la-la…).
 
 > **État : écrit et vérifié hors jeu uniquement.**
-> Une simulation serveur (2 boîtes, 7 joueurs imités, 100 vérifications) et des tests de l'interface dans un navigateur (31 vérifications) passent.
+> Une simulation serveur (2 boîtes, 7 joueurs imités, 120 vérifications) et des tests de l'interface dans un navigateur (31 vérifications) passent.
 > **Rien n'a été testé sur un vrai serveur FiveM.** Suivez la liste « Tests à faire en jeu ».
 
 ## Ressources réutilisées
@@ -21,7 +21,7 @@ On peut en créer autant que l'on veut (Galaxy, Bahama Mamas, Tequi-la-la…).
 | Métier, grades, argent, comptes de société | `elyzea_core` (même socle que les concessions, Dynasty 8, mécano) |
 | Boissons | objets **déjà déclarés** dans `elyzea_inventory` : `nc_mojito`, `nc_whiskycoca`, `nc_vodkaenergy`, `nc_shot`, `nc_coupe`, bouteilles `nc_champagne` / `nc_whisky` / `nc_vodka` / `nc_rhum`, `nc_soda`, `nc_energy` |
 | Coffre | `elyzea_inventory` (coffre `club:<id>`, accès revérifié à chaque ouverture) |
-| Staff | `admin_menu` : permission `club_manage`, onglet **Boîtes de nuit** (ou `/clubadmin`) |
+| Staff | `admin_menu` : permission `club_manage`, onglet **Boîtes de nuit** (ou `/clubadmin`) ; **Mes outils › Métier staff** (permission `staff_job`) : une entrée 🪩 par boîte |
 | Téléphone de service | `elyzea_jobphone` : unité « Boîte de nuit », numéros en 917 |
 | Liens YouTube | même lecture des liens que `elyzea_tv` (YouTube seulement) |
 
@@ -67,6 +67,17 @@ Le staff peut aussi :
 - **supprimer** une boîte : les employés sont retirés du métier, les ventes et les finances sont gardées ;
 - retirer une enceinte ;
 - couper la musique.
+
+## Métier staff (admin_menu)
+
+Menu admin › Mes outils › **Métier staff** : chaque boîte a son bouton (🪩 Galaxy, 🪩 Bahama Mamas…).
+
+- **Cliquer un grade** : le staff entre dans cette boîte à ce grade et passe en service. Son vrai métier est gardé.
+- **Prendre / quitter le service**.
+- **Recruter / changer le grade** d'un joueur connecté, ou le **retirer** de la boîte.
+- **Revenir à mon métier d'origine** : le staff est retiré de la boîte.
+- Une personne ne peut être que dans **une** boîte : la mettre dans une autre boîte la retire de la première (c'est indiqué dans le message).
+- Tout est inscrit dans l'historique du personnel de la boîte (« Staff (menu admin) »).
 
 ## Ce que fait le patron
 
@@ -157,7 +168,7 @@ Depuis `elyzea_club/` :
 
 ```
 pip install lupa
-python3 tests/run_tests.py          # serveur : 2 boîtes, bar, entrée, listes, enceintes, permissions, playlist (100 vérifications)
+python3 tests/run_tests.py          # serveur : 2 boîtes, bar, entrée, listes, enceintes, permissions, playlist (120 vérifications)
 node tests/ui.cjs <dossier>         # interface : F6, bar, commande, carte, entrée, annonce, platine, tablette, staff (31 vérifications)
 ```
 
@@ -186,7 +197,8 @@ node tests/ui.cjs <dossier>         # interface : F6, bar, commande, carte, entr
    - le patron de l'autre boîte ne peut ni retirer ni piloter les enceintes de la première.
 7. **Vidéo refusée** : une vidéo interdite d'intégration est sautée.
 8. **Annonce** : le bandeau apparaît chez tous les joueurs.
-9. **Finances** : commission versée au serveur, paie des heures de service, transactions (bar, entrées, stock).
+9. **Métier staff** : entrer dans une boîte au grade DJ, prendre le service, mettre de la musique ; passer dans une autre boîte ; revenir à son métier d'origine.
+10. **Finances** : commission versée au serveur, paie des heures de service, transactions (bar, entrées, stock).
 
 ## Limites connues
 
@@ -205,4 +217,3 @@ node tests/ui.cjs <dossier>         # interface : F6, bar, commande, carte, entr
 - **Entrée** :
   - le bracelet est gardé en mémoire : un redémarrage du serveur l'efface, les clients repaient ;
   - sans point Intérieur, l'entrée vend seulement un bracelet. Rien n'empêche physiquement d'entrer : c'est au videur de contrôler.
-- **Personnel** : admin_menu › Métier staff ne gère pas ces boîtes (plusieurs métiers). Utilisez « Nommer le patron » dans le panneau staff.
