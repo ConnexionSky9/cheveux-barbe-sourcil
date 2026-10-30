@@ -1,19 +1,15 @@
 -- =====================================================================
 --  ELYZEA CLOTHING · CHAPEAU ET LUNETTES QUI TOMBENT (client)
---  · ALT sur une personne › Pousser (menu ALT d'elyzea_police, préfixe « clo: »)
---  · coup de poing / arme de mêlée reçu d'un joueur : la personne frappée le signale
---  · G à côté de lunettes tombées : les écraser
---  Tout est décidé par le serveur (server/knockoff.lua) : chance, distance, objets créés.
+--  · le jeu fait tomber le chapeau / les lunettes (coup reçu, chute) : ils deviennent de vrais objets au sol
+--  · G à côté de lunettes tombées : les écraser ; clic droit › Casser dans l'inventaire
+--  Les objets sont créés par le serveur (server/knockoff.lua).
 -- =====================================================================
 local K = Config.KnockOff or {}
-local GROUP_MELEE = `GROUP_MELEE`
-local UNARMED = `WEAPON_UNARMED`
 -- Hash comparé en 32 bits non signés (serveur et client peuvent l'écrire signé ou non)
 local function u32(h) return h and (math.floor(tonumber(h) or 0) & 0xFFFFFFFF) or nil end
 local GLASSES_PROP = K.props and K.props.glasses and u32(GetHashKey(K.props.glasses)) or nil
 
 local function enabled() return K.enabled ~= false and ClothingItemsMode() end
-local function wornNow() return { hats = ClothingWorn('hats'), glasses = ClothingWorn('glasses') } end
 
 local function loadDict(d)
     if not DoesAnimDictExist(d) then return false end
@@ -24,62 +20,58 @@ local function loadDict(d)
 end
 
 -- ---------------------------------------------------------------------
--- Menu ALT (elyzea_police) : « Pousser » sur une personne
+-- Chute « normale » du jeu : quand on prend un coup (ou qu'on tombe), GTA fait tomber
+-- le chapeau et les lunettes. On le repère ici et le serveur pose le VRAI objet au sol.
+-- Seulement juste après un coup reçu ou une chute : un vêtement retiré autrement
+-- (inventaire, tenue, boutique, autre script) n'est jamais compté comme tombé.
 -- ---------------------------------------------------------------------
-exports('AltOptions', function(ctx)
-    local out = {}
-    if K.enabled == false or type(ctx) ~= 'table' or ctx.kind ~= 'player' or not ctx.sid then return out end
-    local busy = ctx.inVehicle and 'La personne est dans un véhicule' or (IsPedInAnyVehicle(PlayerPedId(), false) and 'Tu es dans un véhicule') or nil
-    out[1] = { id = 'push', label = 'Pousser', icon = 'push', disabled = busy ~= nil,
-        desc = busy or 'Son chapeau et ses lunettes peuvent tomber' }
-    return out
-end)
+local CATS = { 'hats', 'glasses' }
+local seen = {}             -- [rayon] = dernière pièce portée
+local ignoreUntil = 0       -- changement de tenue fait par la boutique / l'inventaire
+local lastHit, lastRagdoll = 0, 0
+local WINDOW = K.window or 2500
 
-exports('AltSelect', function(id, ctx)
-    if id ~= 'push' or type(ctx) ~= 'table' or not ctx.sid then return true end
-    TriggerServerEvent('elyzea_clothing:push', ctx.sid)
-    return true
-end)
+local function ignore(ms) ignoreUntil = math.max(ignoreUntil, GetGameTimer() + (ms or 3000)) end
+-- Nos propres changements de tenue (porter, ranger, tenue enregistrée, boutique)
+AddEventHandler('elyzea_clothing:apply', function() ignore() end)
+AddEventHandler('elyzea_clothing:outfitApply', function() ignore(5000) end)
+AddEventHandler('elyzea_clothing:result', function() ignore() end)
+exports('IgnoreFall', function(ms) ignore(ms) end)   -- pour un autre script qui retire le chapeau / les lunettes
 
--- Le pousseur : petit geste de poussée
-RegisterNetEvent('elyzea_clothing:pushDone', function()
-    local ped = PlayerPedId()
-    if loadDict('reaction@shove') then
-        TaskPlayAnim(ped, 'reaction@shove', 'shove_var_a', 8.0, -8.0, 900, 48, 0, false, false, false)
-    end
-end)
-
--- La personne poussée : elle part en arrière, puis envoie ce qu'elle porte
-RegisterNetEvent('elyzea_clothing:pushed', function(by)
-    local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, false) or IsEntityDead(ped) then return end
-    local byPed = GetPlayerPed(GetPlayerFromServerId(by))
-    local dir = GetEntityForwardVector(ped) * -1.0
-    if byPed and byPed ~= 0 and DoesEntityExist(byPed) then
-        local v = GetEntityCoords(ped) - GetEntityCoords(byPed)
-        local n = math.sqrt(v.x * v.x + v.y * v.y)
-        if n > 0.01 then dir = vector3(v.x / n, v.y / n, 0.0) end
-    end
-    SetPedToRagdoll(ped, 1200, 1800, 0, false, false, false)
-    ApplyForceToEntity(ped, 1, dir.x * 4.0, dir.y * 4.0, 0.8, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
-    if enabled() then TriggerServerEvent('elyzea_clothing:knock', 'push', by, wornNow()) end
-end)
-
--- ---------------------------------------------------------------------
--- Coups reçus d'un joueur (poing ou arme de mêlée)
--- ---------------------------------------------------------------------
-local lastSent = 0
 AddEventHandler('gameEventTriggered', function(name, args)
-    if name ~= 'CEventNetworkEntityDamage' or not enabled() then return end
-    local me = PlayerPedId()
-    local victim, attacker, weapon = args[1], args[2], args[7]
-    if victim ~= me or not attacker or attacker == me or not DoesEntityExist(attacker) or not IsPedAPlayer(attacker) then return end
-    if LocalPlayer.state.pvpArena then return end   -- arène PvP : rien ne tombe
-    if weapon ~= UNARMED and GetWeapontypeGroup(weapon) ~= GROUP_MELEE then return end
-    if IsPedInAnyVehicle(me, false) or GetGameTimer() - lastSent < 1000 then return end
-    lastSent = GetGameTimer()
-    local by = GetPlayerServerId(NetworkGetPlayerIndexFromPed(attacker))
-    if by and by > 0 then TriggerServerEvent('elyzea_clothing:knock', 'hit', by, wornNow()) end
+    if name == 'CEventNetworkEntityDamage' and args[1] == PlayerPedId() then lastHit = GetGameTimer() end
+end)
+
+CreateThread(function()
+    while true do
+        Wait(200)
+        local ped = PlayerPedId()
+        local now = GetGameTimer()
+        if IsPedRagdoll(ped) or IsPedFalling(ped) then lastRagdoll = now end
+        local busy = not enabled() or ClothingShopOpen() or now < ignoreUntil or LocalPlayer.state.pvpArena
+        local knocked = now - lastHit < WINDOW or now - lastRagdoll < WINDOW
+        for _, cat in ipairs(CATS) do
+            local p = ClothingWorn(cat)
+            if p and p.drawable and p.drawable >= 0 then
+                seen[cat] = p
+            elseif seen[cat] then
+                if knocked and not busy then
+                    TriggerServerEvent('elyzea_clothing:propFell', cat, seen[cat])
+                end
+                seen[cat] = nil
+            end
+        end
+    end
+end)
+
+-- Le serveur a posé l'objet au sol : on garde la tenue sans le chapeau / les lunettes
+RegisterNetEvent('elyzea_clothing:fell', function(cats)
+    ignore()
+    SaveClothingAppearance()
+    TriggerEvent('elyzea_clothing:wardrobeRefresh')
+    local hat, gl = false, false
+    for _, c in ipairs(cats or {}) do if c == 'hats' then hat = true elseif c == 'glasses' then gl = true end end
+    ClothingNotify(hat and gl and 'Ton chapeau et tes lunettes sont tombés par terre.' or hat and 'Ton chapeau est tombé par terre.' or 'Tes lunettes sont tombées par terre.', 'inform')
 end)
 
 -- ---------------------------------------------------------------------

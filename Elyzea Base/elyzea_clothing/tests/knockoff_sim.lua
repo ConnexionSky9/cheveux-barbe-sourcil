@@ -1,4 +1,4 @@
--- Simulation : chapeau et lunettes qui tombent (pousser / coup), ramassables, lunettes cassables
+-- Simulation : chapeau et lunettes qui tombent (coup reçu, comme de base), ramassables, lunettes cassables
 -- (lancée par run_knockoff_sim.py, après les imitations de hidden_sim.lua)
 local fails = 0
 local function check(c, l) if c then print('  ok   ' .. l) else fails = fails + 1 print('  ÉCHEC ' .. l) end end
@@ -46,10 +46,9 @@ local function step(ms) NOW = NOW + (ms or 10000) end
 local HAT, GL = { drawable = 12, texture = 1 }, { drawable = 5, texture = 0 }
 POS[1], POS[2], POS[3] = vector3(0, 0, 0), vector3(1, 0, 0), vector3(30, 0, 0)
 
-print('[Pousser]')
-FIRE('elyzea_clothing:push', 2, 1)
-check(sent('elyzea_clothing:pushed', 1) == 1, 'le joueur 2 pousse le joueur 1 (à 1 m) : il part en arrière')
-FIRE('elyzea_clothing:knock', 1, 'push', 2, { hats = HAT, glasses = GL })
+print('[Chute (coup reçu) : le vrai objet au sol]')
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+FIRE('elyzea_clothing:propFell', 1, 'glasses', GL)
 check(#DROPS == 2, 'chapeau ET lunettes tombés : 2 objets au sol')
 local names = {}
 for _, d in ipairs(DROPS) do names[d.items[1].name] = d end
@@ -57,45 +56,26 @@ check(names.vet_chapeau and names.vet_lunettes, 'ce sont les vrais objets vet_ch
 check(names.vet_chapeau.items[1].metadata.drawable == 12 and names.vet_chapeau.items[1].metadata.texture == 1, 'même modèle et même coloris que le chapeau porté')
 check(names.vet_lunettes.prop == 'prop_cs_sol_glasses' and names.vet_chapeau.prop == 'prop_proxy_hat_01', 'modèles 3D au sol : lunettes et chapeau')
 check(math.abs(names.vet_chapeau.coords.z - (-0.95)) < 0.01, 'posés au sol, à côté de la personne')
-check(sent('elyzea_clothing:apply', 1) == 2, 'ils disparaissent de la tête de la personne')
+check(sent('elyzea_clothing:fell', 1) == 2, 'la personne est prévenue (tenue sauvegardée sans eux)')
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+check(#DROPS == 2, 'deux chutes du même accessoire de suite : une seule compte')
 step()
-FIRE('elyzea_clothing:knock', 1, 'push', 2, { hats = HAT, glasses = GL })
-check(#DROPS == 2, 'poussée « inventée » sans vraie poussée récente : rien ne tombe')
-step(1000)
-FIRE('elyzea_clothing:push', 3, 1)
-check(sent('elyzea_clothing:pushed', 1) == 1, 'trop loin (30 m) : impossible de pousser')
-
-print('[Coups de poing]')
-DROPS = {}
-step()
-ROLL = 99
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { hats = HAT, glasses = GL })
-check(#DROPS == 0, 'coup sans chance (99 > 35 %) : rien ne tombe')
-step()
-ROLL = 10
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { hats = HAT, glasses = { drawable = -1, texture = 0 } })
-check(#DROPS == 1 and DROPS[1].items[1].name == 'vet_chapeau', 'coup réussi, pas de lunettes portées : seul le chapeau tombe')
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { hats = HAT, glasses = GL })
-check(#DROPS == 1, 'deux coups de suite : pas de deuxième chute tout de suite')
-step()
-FIRE('elyzea_clothing:knock', 1, 'hit', 3, { hats = HAT, glasses = GL })
-check(#DROPS == 1, 'coup « à distance » (frappeur à 30 m) : refusé')
-step()
+FIRE('elyzea_clothing:propFell', 1, 'hats', { drawable = -1, texture = 0 })
+check(#DROPS == 2, 'rien porté : rien ne tombe')
+FIRE('elyzea_clothing:propFell', 1, 'tops', { drawable = 3, texture = 0 })
+check(#DROPS == 2, 'un haut ne « tombe » pas (seulement chapeau et lunettes)')
 Player(1).state.elyUniform = 'police'
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { hats = HAT, glasses = GL })
-check(#DROPS == 1, 'tenue de service : rien ne tombe (pas d\'objet créé)')
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+check(#DROPS == 2, 'tenue de service : aucun objet créé')
 Player(1).state.elyUniform = nil
 step()
-VEH[1] = 55
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { hats = HAT, glasses = GL })
-check(#DROPS == 1, 'dans un véhicule : rien ne tombe')
-VEH[1] = nil
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+check(#DROPS == 3, 'plus tard, nouvelle chute : de nouveau un objet')
 
 print('[Casser les lunettes]')
 DROPS = {}
 step()
-ROLL = 1
-FIRE('elyzea_clothing:knock', 1, 'hit', 2, { glasses = GL })
+FIRE('elyzea_clothing:propFell', 1, 'glasses', GL)
 POS[3] = vector3(0.5, 0, 0)
 FIRE('elyzea_clothing:breakGround', 3)
 local md = DROPS[1].items[1].metadata

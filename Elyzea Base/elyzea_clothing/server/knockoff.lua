@@ -1,20 +1,17 @@
 -- =====================================================================
 --  ELYZEA CLOTHING · CHAPEAU ET LUNETTES QUI TOMBENT (serveur)
---  Pousser (ALT) ou frapper au corps à corps : le chapeau et les lunettes portés
---  peuvent tomber au sol en vrais objets d'inventaire (vet_chapeau / vet_lunettes).
+--  Quand le jeu fait tomber le chapeau ou les lunettes (coup reçu, chute), ils deviennent
+--  de vrais objets d'inventaire au sol (vet_chapeau / vet_lunettes, même modèle et coloris).
 --  N'importe qui peut les ramasser (inventaire › « Au sol ») ; les lunettes peuvent être écrasées.
 -- =====================================================================
 local K = Config.KnockOff or {}
 local INV = 'elyzea_inventory'
-local CATS = { 'hats', 'glasses' }
 local GLASSES = Config.Items.names.glasses
 local inv = function() return exports[INV] end
 local function notify(src, msg, kind) TriggerClientEvent('elyzea_clothing:notify', src, msg, kind or 'error') end
 
-local lastKnock, lastPush, lastHit = {}, {}, {}
 local function now() return GetGameTimer() end
 local function coords(src) local ped = GetPlayerPed(src) return ped ~= 0 and GetEntityCoords(ped) or nil end
-local function inVehicle(src) local ped = GetPlayerPed(src) return ped ~= 0 and GetVehiclePedIsIn(ped, false) ~= 0 end
 local function on() return K.enabled ~= false and Items.enabled() end
 
 -- Lunettes cassées : mêmes objet et modèle, marquées « cassées » (impossibles à porter)
@@ -27,76 +24,34 @@ function Items.breakMeta(md)
     return md
 end
 
--- Fait tomber ce qui doit tomber. reason = 'push' | 'hit'. worn = { hats = pièce, glasses = pièce } lu sur le personnage.
-local function knock(src, reason, worn)
-    if not on() or not GetPlayerName(src) or Items.inUniform(src) or inVehicle(src) then return 0 end
-    if lastKnock[src] and now() - lastKnock[src] < (K.victimCooldown or 4000) then return 0 end
+-- Le jeu a fait tomber le chapeau / les lunettes de ce joueur (coup reçu, chute) :
+-- on pose le VRAI objet au sol, à ses pieds. piece = ce qu'il portait (lu sur son personnage).
+local lastFell = {}
+local FALLS = { hats = true, glasses = true }
+RegisterNetEvent('elyzea_clothing:propFell', function(cat, piece)
+    local src = source
+    if not on() or not FALLS[cat] or not GetPlayerName(src) or Items.inUniform(src) then return end
+    lastFell[src] = lastFell[src] or {}
+    if lastFell[src][cat] and now() - lastFell[src][cat] < (K.cooldown or 3000) then return end
     local sex = Items.sexOf(src)
     local c = coords(src)
-    if not sex or not c then return 0 end
-    local chances = (reason == 'push' and K.push) or K.hit or {}
-    worn = type(worn) == 'table' and worn or {}
+    local p = Items.cleanPiece(piece)
+    if not sex or not c or Items.isNaked(sex, cat, p.drawable) then return end
+    lastFell[src][cat] = now()
     local names = Items.wornNames(src)
-    local fell = 0
-    for i, cat in ipairs(CATS) do
-        local p = Items.cleanPiece(worn[cat])
-        if not Items.isNaked(sex, cat, p.drawable) and math.random(100) <= (tonumber(chances[cat]) or 0) then
-            local w = names[cat]
-            local wp = w and (w.piece or (w.d and { drawable = w.d, texture = w.t }))
-            local custom = wp and Items.same(Items.cleanPiece(wp), p) and w.label or nil
-            local md = Items.metadata(sex, cat, p, custom)
-            -- Un peu devant / à côté de la personne, au sol
-            local a = math.rad(math.random(0, 359))
-            local r = 0.5 + i * 0.25
-            local id = inv():CreateDrop({ x = c.x + math.cos(a) * r, y = c.y + math.sin(a) * r, z = c.z - 0.95 },
-                { { name = Config.Items.names[cat], count = 1, metadata = md } }, (K.props or {})[cat])
-            if id then
-                fell = fell + 1
-                names[cat] = nil
-                local n = Config.Naked[sex][cat] or { -1, 0 }
-                TriggerClientEvent('elyzea_clothing:apply', src, cat, { drawable = n[1], texture = n[2] }, nil, true)
-            end
-        end
-    end
-    if fell > 0 then
-        lastKnock[src] = now()
-        Items.saveWornNames(src, names)
-        notify(src, fell > 1 and 'Ton chapeau et tes lunettes sont tombés par terre.' or 'Un accessoire est tombé par terre.', 'inform')
-    end
-    return fell
-end
-Items.knock = knock
-
--- Pousser (menu ALT) : vérifié ici, puis la personne poussée tombe et renvoie ce qu'elle porte
-RegisterNetEvent('elyzea_clothing:push', function(target)
-    local src = source
-    target = tonumber(target)
-    if K.enabled == false or not target or target == src or not GetPlayerName(target) then return end
-    if lastPush[src] and now() - lastPush[src] < (K.pushCooldown or 6000) then return notify(src, 'Doucement…') end
-    local a, b = coords(src), coords(target)
-    if not a or not b or #(a - b) > (K.pushDistance or 1.8) + 0.6 then return notify(src, 'Trop loin pour pousser.') end
-    if inVehicle(src) or inVehicle(target) then return end
-    lastPush[src] = now()
-    TriggerClientEvent('elyzea_clothing:pushed', target, src)
-    TriggerClientEvent('elyzea_clothing:pushDone', src, target)
-end)
-
--- La personne poussée / frappée envoie ce qu'elle porte (comme pour retirer un vêtement soi-même)
-RegisterNetEvent('elyzea_clothing:knock', function(reason, by, worn)
-    local src = source
-    reason = reason == 'push' and 'push' or 'hit'
-    by = tonumber(by)
-    if not by or by == src or not GetPlayerName(by) then return end
-    if reason == 'push' then
-        -- une poussée récente de ce joueur est obligatoire
-        if not lastPush[by] or now() - lastPush[by] > 4000 then return end
-    else
-        if lastHit[src] and now() - lastHit[src] < 800 then return end
-        lastHit[src] = now()
-        local a, b = coords(src), coords(by)
-        if not a or not b or #(a - b) > 4.0 then return end   -- corps à corps seulement
-    end
-    knock(src, reason, worn)
+    local w = names[cat]
+    local wp = w and (w.piece or (w.d and { drawable = w.d, texture = w.t }))
+    local custom = wp and Items.same(Items.cleanPiece(wp), p) and w.label or nil
+    local md = Items.metadata(sex, cat, p, custom)
+    -- Un peu à côté de la personne, au sol (les deux objets ne se superposent pas)
+    local a = math.rad(math.random(0, 359))
+    local r = cat == 'hats' and 0.7 or 0.45
+    local id = inv():CreateDrop({ x = c.x + math.cos(a) * r, y = c.y + math.sin(a) * r, z = c.z - 0.95 },
+        { { name = Config.Items.names[cat], count = 1, metadata = md } }, (K.props or {})[cat])
+    if not id then return end
+    names[cat] = nil
+    Items.saveWornNames(src, names)
+    TriggerClientEvent('elyzea_clothing:fell', src, { cat })
 end)
 
 -- Écraser des lunettes tombées au sol (G à côté)
@@ -129,7 +84,4 @@ RegisterNetEvent('elyzea_clothing:breakSlot', function(slot)
     notify(src, 'Lunettes cassées.', 'success')
 end)
 
-AddEventHandler('playerDropped', function()
-    local src = source
-    lastKnock[src], lastPush[src], lastHit[src] = nil, nil, nil
-end)
+AddEventHandler('playerDropped', function() lastFell[source] = nil end)

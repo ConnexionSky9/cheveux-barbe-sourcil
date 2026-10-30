@@ -51,22 +51,20 @@ Config.Items = {
 }
 
 -- =====================================================================
---  CHAPEAU ET LUNETTES QUI TOMBENT (pousser, coup de poing, arme de mêlée)
---  Ils tombent au sol en VRAIS objets (vet_chapeau / vet_lunettes, même modèle et coloris) :
---  le propriétaire ou n'importe qui peut les ramasser (inventaire › « Au sol »).
---  Lunettes au sol : G à côté pour les écraser (elles deviennent « Lunettes cassées », impossibles à porter).
+--  CHAPEAU ET LUNETTES QUI TOMBENT
+--  Comme de base dans GTA : un coup reçu (ou une chute) peut faire tomber le chapeau et les lunettes.
+--  Ici, ce qui tombe devient le VRAI objet (vet_chapeau / vet_lunettes, même modèle et coloris) :
+--  le propriétaire ou n'importe qui peut le ramasser (inventaire › « Au sol »).
+--  Lunettes au sol : G à côté pour les écraser (« Lunettes cassées », impossibles à porter).
 --  Ne marche qu'avec les vêtements en objets (Config.Items.enabled) ; jamais sur une tenue de service.
 -- =====================================================================
 Config.KnockOff = {
     enabled = true,
-    push = { hats = 70, glasses = 60 },   -- % de chance de tomber quand on est poussé (ALT › Pousser)
-    hit  = { hats = 35, glasses = 30 },   -- % de chance par coup de poing / arme de mêlée reçu d'un joueur
-    victimCooldown = 4000,                -- ms : pas deux chutes de suite pour la même personne
-    pushDistance = 1.8,                   -- m : distance max pour pousser
-    pushCooldown = 6000,                  -- ms entre deux poussées du même joueur
+    window = 2500,      -- ms : la chute compte seulement si elle suit un coup reçu ou une chute (ragdoll)
+    cooldown = 3000,    -- ms : pas deux chutes du même accessoire de suite
     -- Modèle affiché au sol (s'il n'existe pas dans le jeu : le sac de l'inventaire)
     props = { hats = 'prop_proxy_hat_01', glasses = 'prop_cs_sol_glasses' },
-    breakKey = 47,                        -- G : écraser des lunettes tombées au sol
+    breakKey = 47,      -- G : écraser des lunettes tombées au sol
     breakDistance = 1.6,
 }
 

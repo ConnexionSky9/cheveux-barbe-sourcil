@@ -102,26 +102,24 @@ Dans le panneau **Ma tenue** (F3 ou `/tenue`), onglet **Mes tenues** :
 
 ## Chapeau et lunettes qui tombent
 
-Quand on **pousse** quelqu'un (ALT sur la personne › **Pousser**) ou qu'on le **frappe** (poing ou arme de mêlée), son chapeau et ses lunettes peuvent tomber.
+Comme de base dans GTA, un **coup reçu** (ou une chute) peut faire tomber le chapeau et les lunettes. Ici, ce qui tombe devient le **vrai objet**.
 
-- Ils tombent en **vrais objets** `vet_chapeau` / `vet_lunettes` : même modèle, même coloris, même nom personnalisé.
-  - Ils sont posés au sol à côté de la personne, avec un modèle 3D de chapeau ou de lunettes.
-  - Ils disparaissent de sa tête.
+- Les objets `vet_chapeau` / `vet_lunettes` sont posés au sol à côté de la personne :
+  - même modèle, même coloris, même nom personnalisé ;
+  - un modèle 3D de chapeau ou de lunettes est affiché au sol.
 - **Tout le monde peut les ramasser** : inventaire › « Au sol ». Le propriétaire les récupère, ou quelqu'un d'autre les vole.
 - **Casser les lunettes** :
   - au sol : **G** à côté ;
   - dans l'inventaire : clic droit › **Casser**.
 
   Elles deviennent « **Lunettes cassées** » : on peut les garder ou les jeter, mais plus les porter (ni avec une tenue enregistrée).
-- **Chance** de chute réglable dans `Config.KnockOff` : poussée 70 % chapeau / 60 % lunettes ; coup 35 % / 30 %.
-- **Rien ne tombe** :
-  - dans un véhicule ;
+- **Une chute compte seulement** si le chapeau ou les lunettes disparaissent juste après un coup reçu ou une chute (2,5 s).
+  - Ranger un vêtement, mettre une tenue ou passer à la boutique ne compte jamais.
+  - Un autre script qui retire le chapeau peut appeler `exports.elyzea_clothing:IgnoreFall(3000)` juste avant, pour ne pas être compté.
+- **Rien n'est créé** :
   - avec une tenue de service ;
   - dans l'arène PvP ;
-  - deux fois de suite en moins de 4 s.
-- **Contrôles du serveur** :
-  - une poussée doit être réelle (distance et délai vérifiés) ;
-  - un coup ne compte que si le frappeur est à moins de 4 m.
+  - deux fois de suite pour le même accessoire en moins de 3 s.
 
 ## Boutiques
 
@@ -162,7 +160,8 @@ Sans image, la boutique affiche l'icône du rayon.
 ## Tests hors jeu
 
 ```
-python3 tests/run_knockoff_sim.py   # chapeau et lunettes qui tombent, vol, lunettes cassées (20 vérifications)
+python3 tests/run_knockoff_sim.py          # serveur : objets au sol, vol, lunettes cassées
+python3 tests/run_knockoff_client_sim.py   # client : chute repérée seulement après un coup ou une chute
 ```
 
 ## Fichiers
