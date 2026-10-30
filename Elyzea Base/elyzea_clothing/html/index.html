@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Elyzea · Boutique de vêtements</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,7 +18,7 @@
 
   <section class="shop" aria-label="Boutique">
     <div class="screen">
-      <div class="top"><img src="logo.png" alt=""><div><h1 id="shopName">Boutique</h1><p>Boutique de vêtements</p></div><button class="x" id="close" aria-label="Quitter la boutique">✕</button></div>
+      <div class="top"><img src="logo.png" alt=""><div><h1 id="shopName">Boutique</h1><p>Boutique de vêtements · essayage en direct</p></div><button class="x" id="close" aria-label="Quitter la boutique">✕</button></div>
       <div class="main">
         <nav class="rail" id="rail" aria-label="Rayons"></nav>
         <div class="content">
@@ -34,13 +34,13 @@
 
   <section class="cart" aria-label="Panier">
     <div class="screen">
-      <div class="ctop"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><h2>Panier</h2><span class="n" id="cartN">0</span></div>
+      <div class="ctop"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><div class="ctit"><h2>Panier</h2><small id="cartSum"></small></div><span class="n" id="cartN">0</span><button class="mini" id="cartClear" hidden>Vider</button></div>
       <div class="citems" id="cartItems"></div>
       <div class="cfoot" id="cartFoot"></div>
     </div>
   </section>
 
-  <div class="hint">Survole un modèle : il apparaît sur toi · Flèches pour défiler · Entrée pour l'ajouter · A / E pour pivoter</div>
+  <div class="hint">Survole un modèle : il apparaît sur toi · Flèches pour défiler · Entrée pour l'ajouter · A / E ou glisser pour pivoter</div>
   <div class="tools" id="tools"></div>
   <div id="modal"></div>
 </div>

@@ -3,6 +3,28 @@
 Essayage en direct, panier, paiement liquide/banque, vêtements en objets d'inventaire,
 panneau « Ma tenue » (F3) et **packs de vêtements détectés automatiquement**.
 
+## Le panier
+
+- **Plusieurs articles par rayon** : plusieurs hauts, plusieurs pantalons… (30 articles au plus, `Config.MaxCart`).
+  Le même modèle dans un autre coloris compte comme un autre article.
+- **Classé par rayon** : une rubrique par rayon (Hauts, Pantalons, Chaussures…), avec le nombre d'articles et le sous-total.
+  En haut : le nombre d'articles et de rayons, et le bouton **Vider**.
+- **« Sur toi »** : dans un rayon qui a plusieurs articles, une seule pièce est montrée sur le personnage.
+  « Essayer » en choisit une autre. Cliquer sur un article le remet sur le personnage et ouvre son rayon.
+- **Porter tout de suite** : une pièce par rayon est portée en sortant (celle marquée « Sur toi »).
+  Le reste du panier et les vêtements que tu portais vont dans l'inventaire.
+  Sans cette option, tout va dans l'inventaire.
+- **Vérifié par le serveur avant de payer** :
+  - le prix de chaque article ;
+  - les rayons vendus dans cette boutique ;
+  - les vêtements cachés ;
+  - un même article payé une seule fois ;
+  - la place dans l'inventaire pour **tout** ce qui y arrive (articles et anciens vêtements) ;
+  - l'argent.
+
+  Si un de ces points échoue, rien n'est débité.
+- Sans les vêtements en objets (`Config.Items.enabled = false`), un seul article par rayon : tout ce qui est acheté est porté.
+
 ## Ajouter un pack de vêtements (2 étapes)
 
 1. Dépose le dossier du pack dans `resources/[vetements]/`
@@ -75,7 +97,8 @@ Dans le panneau **Ma tenue** (F3 ou `/tenue`), onglet **Mes tenues** :
 - Réglages : `Config.Outfits` dans `config.lua` (activation, `max` tenues, `maxCategories`, longueur des noms, catégories par défaut).
 - Base de données : tables `elyzea_outfits` et `elyzea_outfit_categories`, créées au démarrage (ou à la main : `sql/outfits.sql`).
   Le wipe d'un personnage (admin_menu) les vide aussi.
-- Tests hors jeu de la partie serveur : `python3 tests/run_outfits_sim.py` (paquet Python `lupa`).
+- Tests hors jeu de la partie serveur : `python3 tests/run_outfits_sim.py`, `python3 tests/run_hidden_sim.py`, `python3 tests/run_cart_sim.py` (paquet Python `lupa`).
+- Test de l'interface (Chromium + Playwright) : `node tests/ui_cart.cjs <dossier des captures>`.
 
 ## Boutiques
 
@@ -120,7 +143,7 @@ Sans image, la boutique affiche l'icône du rayon.
 | `config.lua` | Réglages (paiement, packs, objets, images, F3…) |
 | `shared/data.lua` | Rayons (noms, prix, caméra) |
 | `server/packs.lua` | Détection automatique des packs |
-| `server/shop.lua` | Ouverture, contrôle du panier, paiement |
+| `server/shop.lua` | Ouverture, contrôle du panier (plusieurs articles par rayon), paiement |
 | `server/hidden.lua` | Vêtements cachés par le staff (base, permission, envoi aux joueurs) |
 | `server/items.lua` | Vêtements en objets, noms personnalisés |
 | `server/outfits.lua` | Tenues enregistrées (base de données, porter via l'inventaire) |
@@ -129,7 +152,7 @@ Sans image, la boutique affiche l'icône du rayon.
 | `client/items.lua` | Porter/ranger depuis l'inventaire, « Ma tenue » |
 | `client/outfits.lua` | Onglet « Mes tenues » |
 | `sql/outfits.sql` | Tables des tenues (création manuelle facultative) |
-| `tests/` | Simulation serveur des tenues |
+| `tests/` | Simulations serveur (tenues, vêtements cachés, panier) et test de l'interface |
 | `html/` | Interface |
 
 Utilise `@elyzea_core/lib/clothing.lua` (lecture/pose des vêtements par collection), aussi utilisé par `ely_creator`.

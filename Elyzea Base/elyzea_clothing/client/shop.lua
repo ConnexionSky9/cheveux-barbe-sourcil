@@ -312,7 +312,7 @@ RegisterNUICallback('pay', function(d, cb)
     for _, it in ipairs(type(d.cart) == 'table' and d.cart or {}) do
         local c = Cat[it.cat]
         if c then
-            local p = { cat = it.cat, drawable = math.floor(tonumber(it.drawable) or -1), texture = math.floor(tonumber(it.texture) or 0) }
+            local p = { cat = it.cat, drawable = math.floor(tonumber(it.drawable) or -1), texture = math.floor(tonumber(it.texture) or 0), wear = it.wear == true }
             local col, li = ElyCloth.info(ped, c.type, c.index, p.drawable)
             if col and col ~= '' then p.col, p.li = col, li end   -- un vêtement de pack garde son pack
             cart[#cart + 1] = p

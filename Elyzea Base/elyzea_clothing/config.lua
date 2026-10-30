@@ -8,6 +8,7 @@ Config = {}
 Config.Currency = '$'
 Config.Payments = { 'cash', 'bank' }   -- moyens de paiement proposés : 'cash' (liquide), 'bank' (banque)
 Config.MaxDistance = 15.0               -- distance max entre le joueur et le vendeur pour payer
+Config.MaxCart = 30                     -- articles au maximum dans un panier (plusieurs par rayon possibles)
 
 -- La tenue achetée / portée est gardée dans l'apparence du personnage (ely_creator) : reste après reconnexion
 Config.SaveOutfit = true

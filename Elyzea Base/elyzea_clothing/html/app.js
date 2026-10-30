@@ -48,7 +48,11 @@ let S = null;               // boutique ouverte
 let cat = null;             // rayon affiché
 let sel = null;             // { d, t, n } modèle choisi
 let filter = 'all';         // 'all' | 'gta' | id de pack | 'hidden' (staff)
-const cart = new Map();     // rayon -> { cat, drawable, texture, price }
+const cart = new Map();     // clé (rayon|modèle|coloris) -> { key, cat, drawable, texture, price, wear }
+const MAX_CART = 30;        // même limite que le serveur (Config.MaxCart)
+const keyOf = (c, d, t) => `${c}|${d}|${t}`;
+const inCat = (id) => [...cart.values()].filter((x) => x.cat === id);
+const wornOf = (id) => inCat(id).find((x) => x.wear) || null;
 let wearNow = false, method = 'cash', shown = 60, query = '', camView = 'full', hands = false, busy = false;
 const PAY = { cash: 'Liquide', bank: 'Banque' };
 const money = (n) => `${Math.round(n || 0).toLocaleString('fr-FR')} ${S ? S.currency : '$'}`;
@@ -177,7 +181,7 @@ function cardTexture(d, t) {
 function list(c) {
   const black = new Set(c.blacklist || []);
   const out = [];
-  if (c.type === 'prop' && (filter === 'all' || filter === 'gta')) out.push(-1);
+  if (c.type === 'prop' && !S.itemsMode && (filter === 'all' || filter === 'gta')) out.push(-1);
   const hid = hidSet(c);
   if (filter === 'hidden') {
     if (!S.manage) return out;
@@ -242,7 +246,7 @@ const countIn = (c, f) => (allCounts().per[c.id] || {})[f] || 0;
 function renderRail() {
   const cats = filter === 'all' ? S.categories : S.categories.filter((c) => countIn(c, filter) > 0);
   $('#rail').innerHTML = cats.map((c) => `<button class="${cat && c.id === cat.id ? 'on' : ''}" data-cat="${c.id}" title="${esc(c.label)}">
-    ${svg(c.icon)}<span>${esc(c.label)}</span>${filter !== 'all' ? `<em class="cnt">${countIn(c, filter)}</em>` : ''}${cart.has(c.id) ? '<i class="dot"></i>' : ''}</button>`).join('');
+    ${svg(c.icon)}<span>${esc(c.label)}</span>${filter !== 'all' ? `<em class="cnt">${countIn(c, filter)}</em>` : ''}${inCat(c.id).length ? `<i class="dot">${inCat(c.id).length}</i>` : ''}</button>`).join('');
 }
 // Barre « Collection » : Tout / GTA / un bouton par pack, valable pour toute la boutique
 function renderFilters() {
@@ -276,10 +280,10 @@ function renderGrid(keepScroll) {
   models.forEach((d) => { const k = (rangeOf(cat, d) || { pack: 'gta' }).pack; if (!sample.has(k)) sample.set(k, d); });
   const from = sample.size ? Math.min(...[...sample.values()].map((d) => priceOf(cat, d))) : 0;
   $('#catSub').textContent = `${models.length} modèle${models.length > 1 ? 's' : ''}${sample.size ? ` · à partir de ${money(from)}` : ''}`;
-  const inCart = cart.get(cat.id);
+  const byD = new Map(inCat(cat.id).map((x) => [x.drawable, x]));
   g.innerHTML = all.slice(0, shown).map((d) => {
     const i = info(cat, d);
-    const worn = d === cat.current.drawable, isSel = sel && sel.d === d, isCart = inCart && inCart.drawable === d;
+    const worn = d === cat.current.drawable, isSel = sel && sel.d === d, inCart = byD.get(d), isCart = !!inCart;
     const t = isSel ? sel.t : isCart ? inCart.texture : worn ? cat.current.texture : 0;
     return `<button class="card ${isSel ? 'sel' : ''} ${d < 0 ? 'none' : ''} ${isHidden(cat, d) ? 'hidden-item' : ''}" data-d="${d}" aria-label="${esc(label(cat, d))}">
       ${photo(cat, d, t)}${svg(d < 0 ? 'none' : cat.icon, 'ico')}
@@ -296,9 +300,10 @@ function renderDetail() {
   const el = $('#detail');
   if (!sel) { el.innerHTML = '<p style="color:var(--muted)">Choisis un modèle pour l\'essayer.</p>'; return; }
   const p = priceOf(cat, sel.d), i = info(cat, sel.d);
-  const inCart = cart.get(cat.id);
-  const same = inCart && inCart.drawable === sel.d && inCart.texture === sel.t;
+  const n = inCat(cat.id).length;
+  const same = cart.has(keyOf(cat.id, sel.d, sel.t));
   const worn = sel.d === cat.current.drawable && sel.t === cat.current.texture;
+  const full = cart.size >= MAX_CART && S.itemsMode;
   const hidden = isHidden(cat, sel.d);
   const forSale = sel.d < 0 || (i.sold && !hidden);
   const sws = Array.from({ length: sel.n }, (_, k) => `<button class="${k === sel.t ? 'on' : ''}" data-t="${k}" aria-label="Coloris ${k + 1}">${photo(cat, sel.d, k, 'thumb', true)}<span class="n">${k + 1}</span></button>`).join('');
@@ -306,7 +311,9 @@ function renderDetail() {
       <span>${sel.d < 0 ? 'Retire l\'accessoire porté' : `${sel.n} coloris disponible${sel.n > 1 ? 's' : ''}`}</span></div>
       <div class="price ${p ? '' : 'free'}">${p ? money(p) : 'Gratuit'}</div></div>
     ${sel.d >= 0 && sel.n > 1 ? `<div class="tex"><label>Coloris</label><button class="arrow" data-tstep="-1" aria-label="Coloris précédent">‹</button><div class="sw">${sws}</div><button class="arrow" data-tstep="1" aria-label="Coloris suivant">›</button></div>` : '<div style="height:12px"></div>'}
-    <button class="btn primary wide" id="add" ${same || (worn && !inCart) || !forSale ? 'disabled' : ''}>${hidden ? 'Caché : pas en vente' : !forSale ? 'Pas vendu ici' : same ? '✓ Dans le panier' : worn && !inCart ? 'Tu le portes déjà' : inCart ? 'Remplacer dans le panier' : 'Ajouter au panier'}</button>
+    <button class="btn primary wide" id="add" ${same || (worn && !n) || !forSale || full ? 'disabled' : ''}>${hidden ? 'Caché : pas en vente' : !forSale ? 'Pas vendu ici'
+      : same ? '✓ Dans le panier' : worn && !n ? 'Tu le portes déjà' : full ? `Panier plein (${MAX_CART} articles)` : n && !S.itemsMode ? 'Remplacer dans le panier'
+      : n ? `Ajouter au panier <small>· ${n} ${n > 1 ? esc(cat.label.toLowerCase()) : esc(cat.single.toLowerCase())} déjà</small>` : 'Ajouter au panier'}</button>
     ${S.manage && sel.d >= 0 ? `<button class="btn ghost wide staffhide" id="hideBtn" title="Staff · toutes les boutiques, tous les coloris de ce modèle">${hidden ? '👁 Remettre en vente pour tout le monde' : '🙈 Cacher pour tout le monde'}</button>` : ''}`;
   hydrate(el);
   const on = el.querySelector('.sw .on');
@@ -314,19 +321,31 @@ function renderDetail() {
 }
 function renderCart() {
   const items = [...cart.values()];
+  const groups = S.categories.map((c) => ({ c, list: inCat(c.id) })).filter((g) => g.list.length);
   $('#cartN').textContent = items.length;
-  $('#cartItems').innerHTML = items.length ? items.map((it) => {
-    const c = catById(it.cat), i = info(c, it.drawable);
-    return `<div class="ci"><span class="th">${svg(it.drawable < 0 ? 'none' : c.icon)}${photo(c, it.drawable, it.texture, 'thumb')}</span>
-      <span class="tx" data-goto="${it.cat}"><b>${esc(label(c, it.drawable))}</b><span>${esc(c.label)}${it.drawable >= 0 ? ` · coloris ${it.texture + 1}` : ''}${i.pack ? ` · ${esc(i.pack.label)}` : ''}</span></span>
-      <span class="p">${it.price ? money(it.price) : 'Gratuit'}</span><button class="rm" data-rm="${it.cat}" aria-label="Retirer du panier">✕</button></div>`;
-  }).join('') : `<div class="cempty">Ton panier est vide.<br>Survole les vêtements à gauche pour les voir sur toi, puis « Ajouter au panier ».${S.itemsMode ? '<br><br>Chaque vêtement acheté arrive dans ton inventaire : tu le portes quand tu veux.' : ''}</div>`;
+  $('#cartClear').hidden = !items.length;
+  $('#cartSum').textContent = items.length ? `${items.length} article${items.length > 1 ? 's' : ''} · ${groups.length} rayon${groups.length > 1 ? 's' : ''}` : '';
+  $('#cartItems').innerHTML = items.length ? groups.map(({ c, list }) => {
+    const sub = list.reduce((a, b) => a + b.price, 0);
+    return `<div class="cgroup"><div class="ghead">${svg(c.icon)}<b>${esc(c.label)}</b><i>${list.length}</i><span>${money(sub)}</span></div>
+      ${list.map((it) => {
+        const i = info(c, it.drawable);
+        const multi = S.itemsMode && list.length > 1;
+        return `<div class="ci ${it.wear && multi ? 'worn' : ''}"><span class="th">${svg(it.drawable < 0 ? 'none' : c.icon)}${photo(c, it.drawable, it.texture, 'thumb')}</span>
+          <span class="tx" data-goto="${esc(it.key)}" title="Voir sur moi"><b>${esc(label(c, it.drawable))}</b><span>${it.drawable >= 0 ? `Coloris ${it.texture + 1}` : ''}${i.pack ? ` · ${esc(i.pack.label)}` : ''}</span></span>
+          ${multi ? `<button class="wearbtn ${it.wear ? 'on' : ''}" data-wear="${esc(it.key)}" title="${it.wear ? 'C\'est la pièce que tu vois sur toi' : 'Voir cette pièce sur moi'}">${it.wear ? 'Sur toi' : 'Essayer'}</button>` : ''}
+          <span class="p">${it.price ? money(it.price) : 'Gratuit'}</span><button class="rm" data-rm="${esc(it.key)}" aria-label="Retirer du panier">✕</button></div>`;
+      }).join('')}</div>`;
+  }).join('') : `<div class="cempty"><b>Ton panier est vide</b>Survole un vêtement pour le voir sur toi, puis « Ajouter au panier ».${S.itemsMode ? '<br>Tu peux prendre <b>plusieurs hauts, plusieurs pantalons…</b> : chaque vêtement arrive dans ton inventaire.' : ''}</div>`;
   hydrate($('#cartItems'));
   const total = items.reduce((a, b) => a + b.price, 0);
   const pays = S.payments.filter((k) => PAY[k]);
   if (!pays.includes(method)) method = pays[0];
   const short = (S.money[method] || 0) < total;
-  const wearOpt = S.itemsMode ? `<label class="wear"><input type="checkbox" id="wearNow" ${wearNow ? 'checked' : ''}><span>Porter tout de suite<small>${wearNow ? 'Tes vêtements actuels iront dans ton inventaire.' : 'Les vêtements achetés iront dans ton inventaire.'}</small></span></label>` : '';
+  const several = groups.some((g) => g.list.length > 1);
+  const wearOpt = S.itemsMode ? `<label class="wear"><input type="checkbox" id="wearNow" ${wearNow ? 'checked' : ''}><span>Porter tout de suite<small>${wearNow
+    ? (several ? 'Une pièce par rayon : celle marquée « Sur toi ». Le reste et tes vêtements actuels vont dans ton inventaire.' : 'Tes vêtements actuels iront dans ton inventaire.')
+    : 'Tout ce que tu achètes va dans ton inventaire.'}</small></span></label>` : '';
   $('#cartFoot').innerHTML = `<div class="total"><span>Total</span><b>${money(total)}</b></div>${wearOpt}
     <div class="pay">${pays.map((k) => `<button class="${k === method ? 'on' : ''} ${(S.money[k] || 0) < total ? 'short' : ''}" data-pay="${k}"><small>${PAY[k]}</small><b>${money(S.money[k])}</b></button>`).join('')}</div>
     ${items.length && short ? `<p class="warn">Solde ${PAY[method].toLowerCase()} insuffisant : il manque ${money(total - (S.money[method] || 0))}.</p>` : ''}
@@ -353,8 +372,8 @@ function setView(v) { camView = v; post('view', { view: v }); renderTools(); }
 async function chooseCat(id) {
   cat = catById(id);
   query = ''; $('#search').value = ''; shown = 60;
-  const inCart = cart.get(id);
-  const d = inCart ? inCart.drawable : cat.current.drawable, t = inCart ? inCart.texture : cat.current.texture;
+  const w = wornOf(id);
+  const d = w ? w.drawable : cat.current.drawable, t = w ? w.texture : cat.current.texture;
   sel = { d, t, n: 1 };
   renderRail(); renderFilters(); renderGrid();
   const r = await post('textures', { cat: id, drawable: d }) || {};
@@ -367,24 +386,53 @@ async function tryOn(d, t = 0) {
   sel = { d, t: r.texture ?? t, n: r.textures || 1 };
   renderGrid(true); renderDetail();
 }
+function refreshAll() { renderRail(); renderGrid(true); renderDetail(); renderCart(); }
+// Ce que montre le personnage pour un rayon : la pièce « Sur toi » du panier, sinon ce qu'il portait
+function showCat(id) {
+  const c = catById(id), w = wornOf(id);
+  post('try', { cat: id, drawable: w ? w.drawable : c.current.drawable, texture: w ? w.texture : c.current.texture });
+  if (cat.id === id) sel = { d: w ? w.drawable : c.current.drawable, t: w ? w.texture : c.current.texture, n: sel ? sel.n : 1 };
+}
 function addToCart() {
   if (!sel) return;
   if (sel.d >= 0 && (!info(cat, sel.d).sold || isHidden(cat, sel.d))) return;
-  cart.set(cat.id, { cat: cat.id, drawable: sel.d, texture: sel.t, price: priceOf(cat, sel.d) });
-  toast(`${label(cat, sel.d)} ajouté au panier.`, 'ok');
-  renderRail(); renderGrid(true); renderDetail(); renderCart();
+  const k = keyOf(cat.id, sel.d, sel.t);
+  if (cart.has(k)) return;
+  if (!S.itemsMode) inCat(cat.id).forEach((x) => cart.delete(x.key));   // sans inventaire : un seul article par rayon
+  if (cart.size >= MAX_CART) return toast(`Panier plein : ${MAX_CART} articles au maximum.`, 'err');
+  inCat(cat.id).forEach((x) => { x.wear = false; });
+  cart.set(k, { key: k, cat: cat.id, drawable: sel.d, texture: sel.t, price: priceOf(cat, sel.d), wear: true });
+  const n = inCat(cat.id).length;
+  toast(n > 1 ? `${label(cat, sel.d)} ajouté · ${n} ${cat.label.toLowerCase()} dans le panier.` : `${label(cat, sel.d)} ajouté au panier.`, 'ok');
+  refreshAll();
 }
-function removeFromCart(id) {
-  const c = catById(id);
-  cart.delete(id);
-  post('try', { cat: id, drawable: c.current.drawable, texture: c.current.texture });   // on remet ce qu'il portait
-  if (cat.id === id) sel = { d: c.current.drawable, t: c.current.texture, n: sel ? sel.n : 1 };
-  renderRail(); renderGrid(true); renderDetail(); renderCart();
+function removeFromCart(k) {
+  const it = cart.get(k);
+  if (!it) return;
+  cart.delete(k);
+  if (it.wear) { const rest = inCat(it.cat); if (rest.length) rest[rest.length - 1].wear = true; }
+  showCat(it.cat);
+  refreshAll();
+}
+// Choisir la pièce d'un rayon que l'on voit sur soi (et que l'on porte en sortant si « Porter tout de suite »)
+function setWear(k) {
+  const it = cart.get(k);
+  if (!it) return;
+  inCat(it.cat).forEach((x) => { x.wear = x.key === k; });
+  showCat(it.cat);
+  refreshAll();
+}
+function clearCart() {
+  const cats = [...new Set([...cart.values()].map((x) => x.cat))];
+  cart.clear();
+  cats.forEach(showCat);
+  refreshAll();
+  toast('Panier vidé : ta tenue d\'avant est remise.', 'ok');
 }
 function pay() {
   if (busy || !cart.size) return;
   busy = true; renderCart();
-  post('pay', { method, wearNow, cart: [...cart.values()].map((x) => ({ cat: x.cat, drawable: x.drawable, texture: x.texture })) });
+  post('pay', { method, wearNow, cart: [...cart.values()].map((x) => ({ cat: x.cat, drawable: x.drawable, texture: x.texture, wear: x.wear })) });
 }
 function askClose() {
   if (!cart.size) return doClose();
@@ -457,7 +505,14 @@ $('#detail').addEventListener('click', (e) => {
 });
 $('#cartItems').addEventListener('click', (e) => {
   const r = e.target.closest('[data-rm]'); if (r) return removeFromCart(r.dataset.rm);
-  const g = e.target.closest('[data-goto]'); if (g) chooseCat(g.dataset.goto);
+  const w = e.target.closest('[data-wear]'); if (w) return setWear(w.dataset.wear);
+  const g = e.target.closest('[data-goto]');
+  if (g) { const it = cart.get(g.dataset.goto); if (it) { setWear(it.key); if (cat.id !== it.cat) chooseCat(it.cat); } }
+});
+$('#cartClear').addEventListener('click', () => {
+  $('#modal').innerHTML = `<div class="modal"><div class="mbox" role="dialog" aria-labelledby="mt"><h3 id="mt">Vider le panier ?</h3>
+    <p>Les ${cart.size} article${cart.size > 1 ? 's' : ''} sont retirés et tu retrouves ta tenue d'avant.</p>
+    <div class="row"><button class="btn ghost" data-m="stay">Garder</button><button class="btn primary" data-m="clear">Vider</button></div></div></div>`;
 });
 $('#cartFoot').addEventListener('change', (e) => { if (e.target.id === 'wearNow') { wearNow = e.target.checked; renderCart(); } });
 $('#cartFoot').addEventListener('click', (e) => {
@@ -473,7 +528,9 @@ $('#search').addEventListener('input', (e) => { query = e.target.value.replace(/
 $('#close').addEventListener('click', askClose);
 $('#modal').addEventListener('click', (e) => {
   const m = e.target.closest('[data-m]'); if (!m) return;
-  if (m.dataset.m === 'leave') doClose(); else $('#modal').innerHTML = '';
+  if (m.dataset.m === 'leave') doClose();
+  else if (m.dataset.m === 'clear') { $('#modal').innerHTML = ''; clearCart(); }
+  else $('#modal').innerHTML = '';
 });
 
 // Glisser sur la zone centrale pour tourner le personnage
@@ -672,11 +729,15 @@ window.addEventListener('message', (e) => {
       totals = null;
       // un article caché ne reste pas dans le panier d'un joueur
       let removed = 0;
-      for (const [id, it] of [...cart.entries()]) {
-        const c = catById(id);
-        if (c && !S.manage && isHidden(c, it.drawable)) { cart.delete(id); removed += 1; post('try', { cat: id, drawable: c.current.drawable, texture: c.current.texture }); }
+      for (const it of [...cart.values()]) {
+        const c = catById(it.cat);
+        if (c && !S.manage && isHidden(c, it.drawable)) {
+          cart.delete(it.key); removed += 1;
+          if (it.wear) { const rest = inCat(it.cat); if (rest.length) rest[rest.length - 1].wear = true; }
+          showCat(it.cat);
+        }
       }
-      if (removed) toast('Un article de ton panier n\'est plus en vente.', 'err');
+      if (removed) toast(removed > 1 ? `${removed} articles de ton panier ne sont plus en vente.` : 'Un article de ton panier n\'est plus en vente.', 'err');
       if (filter === 'hidden' && !allCounts().sum.hidden) filter = 'all';
       renderFilters(); renderRail(); renderGrid(true); renderDetail(); renderCart();
       break;
