@@ -135,6 +135,7 @@ local function serialize(it, slot, extra)
         buttons = def.buttons and #def.buttons or 0,
         weapon = def.kind == 'weapon' or nil,
         firearm = (def.kind == 'weapon' and def.ammoname and not def.throwable) and true or nil,
+        category = def.category or 'other',
     }
     if extra then for k, v in pairs(extra) do out[k] = v end end
     return out

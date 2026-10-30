@@ -1,5 +1,25 @@
 # Migration ox_inventory → elyzea_inventory
 
+## Onglets, recherche, poids
+
+- **Onglets** au-dessus de la grille, chacun avec son nombre d'objets :
+  - **Tout** ;
+  - **Armes** : armes, munitions, accessoires d'armes ;
+  - **Nourriture** : nourriture et boissons ;
+  - **Papiers** : carte d'identité, PPA, permis, carte de presse…
+- Un onglet masque les autres cases : la grille se resserre, mais chaque objet garde sa place.
+  - Les raccourcis 1 à 5 restent toujours affichés ; ceux qui ne sont pas de la catégorie sont seulement atténués.
+  - On peut toujours glisser, déposer, utiliser, équiper depuis un onglet.
+- **Recherche** par nom, sans tenir compte des accents ni des majuscules.
+- **Raccourcis** :
+  - `Alt + 1` à `Alt + 4` : onglets ;
+  - `Ctrl + F` : recherche ;
+  - `Échap` dans la recherche : la vide (un second `Échap` ferme l'inventaire).
+- Chaque case a un liseré de couleur selon sa catégorie : rouge pour les armes, vert pour la nourriture, jaune pour les papiers.
+- **Catégories et poids** sont définis dans `shared/catalog.lua` :
+  - catégorie automatique (type d'objet, effet faim / soif, nom des papiers), ou forcée avec `category = 'food'` dans la définition d'un objet ;
+  - `WeightFix` : poids revus pour rester cohérents avec la capacité (18 KG, 28 KG avec un sac). Aucun objet ne dépasse la capacité maximale.
+
 Ce guide permet de retirer complètement ox_inventory du serveur. Après la migration :
 
 - **elyzea_inventory** est l'inventaire principal (objets, emplacements, poids, sauvegarde, objets au sol, objets utilisables) ;

@@ -5,7 +5,7 @@
   <title>ELYZEA FA — Inventaire</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=Orbitron:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -45,12 +45,24 @@
           <h2>Inventaire</h2>
           <span class="muted" id="slot-count">0 / 30</span>
         </div>
+        <nav class="tabs" id="tabs" role="tablist" aria-label="Catégories">
+          <button type="button" role="tab" data-cat="all" class="on" aria-selected="true"><span class="ti">◈</span>Tout<i data-n="all">0</i></button>
+          <button type="button" role="tab" data-cat="weapons" aria-selected="false"><span class="ti">⌖</span>Armes<i data-n="weapons">0</i></button>
+          <button type="button" role="tab" data-cat="food" aria-selected="false"><span class="ti">◍</span>Nourriture<i data-n="food">0</i></button>
+          <button type="button" role="tab" data-cat="papers" aria-selected="false"><span class="ti">▤</span>Papiers<i data-n="papers">0</i></button>
+        </nav>
+        <div class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="search" type="text" placeholder="Rechercher un objet…" autocomplete="off" spellcheck="false" aria-label="Rechercher un objet">
+          <button type="button" id="search-clear" aria-label="Effacer la recherche" hidden>✕</button>
+        </div>
         <div class="hotbar-head">
           <h3>Raccourcis rapides</h3>
           <span class="muted">Touches 1 à 5</span>
         </div>
         <div class="hotbar" id="hotbar"></div>
         <div class="grid" id="grid"></div>
+        <p class="grid-empty" id="grid-empty" hidden></p>
       </section>
 
       <section class="stage">
@@ -102,6 +114,7 @@
           <p><kbd>Clic droit</kbd> menu (porter, renommer, utiliser, jeter)</p>
           <p><kbd>1</kbd>…<kbd>5</kbd> utiliser un raccourci rapide</p>
           <p><kbd>R</kbd> recharger l'arme en main</p>
+          <p><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>4</kbd> onglets · <kbd>Ctrl</kbd>+<kbd>F</kbd> rechercher</p>
         </div>
       </section>
     </main>

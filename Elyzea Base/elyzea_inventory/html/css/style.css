@@ -634,3 +634,89 @@ kbd {
 .rename-actions button { padding: 7px 11px; border-radius: 7px; border: 1px solid var(--line-hi); background: none; color: inherit; font: 600 12px var(--f-text); cursor: pointer; }
 .rename-actions button.primary { background: var(--neon); border-color: var(--neon); color: #0b0f19; }
 .rename-actions button:hover { filter: brightness(1.15); }
+
+/* =========================================================
+   CATÉGORIES, RECHERCHE ET FINITIONS FUTURISTES
+   ========================================================= */
+:root {
+  --c-weapons: #ff5470;
+  --c-food: #5cf2a0;
+  --c-papers: #ffd166;
+  --cut: polygon(0 12px, 12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+/* Panneaux : verre sombre, coins coupés, liseré néon, lignes de balayage */
+.panel {
+  position: relative;
+  border-radius: 0;
+  clip-path: var(--cut);
+  background:
+    linear-gradient(rgba(92, 242, 230, 0.025) 1px, transparent 1px) 0 0 / 100% 4px,
+    linear-gradient(160deg, rgba(20, 26, 46, 0.92), rgba(9, 12, 22, 0.94));
+  border: 1px solid rgba(92, 242, 230, 0.14);
+}
+.panel::before {
+  content: ""; position: absolute; left: 12px; right: 0; top: 0; height: 1px;
+  background: linear-gradient(90deg, var(--neon), var(--violet) 60%, transparent);
+  opacity: 0.8; pointer-events: none;
+}
+.panel-head h2 { font: 700 14px var(--f-display); letter-spacing: 0.22em; text-transform: uppercase; }
+.brand h1 { font-family: 'Orbitron', var(--f-display); letter-spacing: 0.28em; }
+.weight { border-radius: 0; clip-path: var(--cut); background: linear-gradient(160deg, rgba(20, 26, 46, 0.95), rgba(9, 12, 22, 0.96)); border-color: rgba(92, 242, 230, 0.18); }
+.inv-panel { overflow: hidden; }
+.inv-panel > .panel-head, .tabs, .search, .hotbar-head, .hotbar { flex-shrink: 0; }
+
+/* Onglets */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 0 0 10px; }
+.tabs button {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 2px 6px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025); cursor: pointer;
+  font: 600 10.5px var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% 100%, 0 100%);
+  transition: color 0.14s, background 0.14s, border-color 0.14s;
+}
+.tabs button .ti { font-size: 15px; line-height: 1; }
+.tabs button i { position: absolute; top: 3px; right: 5px; font: 700 9.5px var(--f-display); font-style: normal; opacity: 0.7; }
+.tabs button:hover { color: var(--txt); border-color: rgba(92, 242, 230, 0.3); }
+.tabs button.on { color: #fff; border-color: var(--neon); background: linear-gradient(180deg, rgba(92, 242, 230, 0.18), rgba(92, 242, 230, 0.04)); text-shadow: 0 0 10px rgba(92, 242, 230, 0.8); }
+.tabs button.on::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: -1px; height: 2px; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+.tabs button[data-cat="weapons"] .ti { color: var(--c-weapons); }
+.tabs button[data-cat="food"] .ti { color: var(--c-food); }
+.tabs button[data-cat="papers"] .ti { color: var(--c-papers); }
+
+/* Recherche */
+.search { position: relative; margin: 0 0 12px; }
+.search svg { position: absolute; left: 10px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); stroke: var(--muted); fill: none; stroke-width: 2; pointer-events: none; }
+.search input {
+  width: 100%; height: 32px; padding: 0 30px 0 32px; border: 1px solid var(--line); background: rgba(3, 6, 14, 0.6);
+  color: var(--txt); font: 500 12.5px var(--f-text); outline: none; user-select: text; transition: border-color 0.14s, box-shadow 0.14s;
+}
+.search input:focus { border-color: var(--neon); box-shadow: 0 0 0 1px rgba(92, 242, 230, 0.25), 0 0 16px -6px rgba(92, 242, 230, 0.7); }
+.search input::placeholder { color: rgba(126, 135, 156, 0.8); }
+.search button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.search button:hover { color: var(--danger); }
+
+/* Filtre : les cases qui ne correspondent pas sont masquées (la grille se resserre) */
+.slot.fx-hide { display: none; }
+.slot.dim { opacity: 0.25; }
+.grid.filtered .slot:not(.has) { display: none; }
+.grid-empty { margin: 6px 0 0; padding: 22px 10px; text-align: center; color: var(--muted); font-size: 12px; border: 1px dashed var(--line); }
+
+/* Cases : coins coupés, repère de couleur par catégorie */
+.slot { border-radius: 0; clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); }
+.slot.has { background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)); }
+.slot.has:hover { background: linear-gradient(160deg, rgba(92, 242, 230, 0.12), rgba(92, 242, 230, 0.03)); box-shadow: inset 0 0 14px -6px rgba(92, 242, 230, 0.8); }
+.slot[data-cat="weapons"], .slot[data-cat="food"], .slot[data-cat="papers"] { --cat: transparent; }
+.slot[data-cat="weapons"] { --cat: var(--c-weapons); }
+.slot[data-cat="food"] { --cat: var(--c-food); }
+.slot[data-cat="papers"] { --cat: var(--c-papers); }
+.slot.has[data-cat="weapons"]::before, .slot.has[data-cat="food"]::before, .slot.has[data-cat="papers"]::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--cat); box-shadow: 0 0 8px var(--cat); opacity: 0.85; pointer-events: none;
+}
+.ghost { border-radius: 0; clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); }
+.ebox { border-radius: 0; clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%); }
+.tooltip, .ctx-menu, .toast, .rename-card { border-radius: 0; clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%); }
+.hud-hotbar { border-radius: 0; clip-path: var(--cut); }
+.qty-row button, .qty-row input { border-radius: 0; }
+/* Raccourcis : le numéro de touche dépasse sous la case, pas de coin coupé ici */
+.hotbar .slot, .hud-hotbar .slot { clip-path: none; border-radius: 6px; }

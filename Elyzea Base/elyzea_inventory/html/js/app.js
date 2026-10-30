@@ -29,6 +29,13 @@
   const wPrev = $('#w-preview');
 
   const state = { open: false, data: null, equipSlots: [], slotEls: [], equipEls: {}, built: false, lastCap: null };
+  // Onglet et recherche : seulement l'affichage (les cases gardent leur numéro, rien n'est déplacé)
+  const view = { cat: 'all', q: '' };
+  const tabsEl = $('#tabs');
+  const searchEl = $('#search');
+  const emptyEl = $('#grid-empty');
+  const CAT_LABEL = { weapons: 'arme ni munition', food: 'nourriture', papers: 'papier' };
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   const fmt = n => (Math.round(n * 10) / 10).toFixed(1);
   const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
@@ -117,7 +124,7 @@
     }));
   }
 
-  const sigOf = it => (it ? `${it.name}|${it.count}|${it.label}|${it.imageUrl || it.image || ''}` : '');
+  const sigOf = it => (it ? `${it.name}|${it.count}|${it.label}|${it.imageUrl || it.image || ''}|${it.category || ''}` : '');
 
   function setSlot(el, it) {
     el._item = it || null;
@@ -125,9 +132,48 @@
     if (el._sig === sig) return;
     el._sig = sig;
     el.classList.toggle('has', !!it);
+    el.dataset.cat = it ? (it.category || 'other') : '';
     el.innerHTML = it ? itemHTML(it) : '';
     if (it) { bindImg(el); el.firstChild.classList.add('pop'); }
   }
+
+  // ───────── Onglets et recherche ─────────
+  // Un objet correspond-il à l'onglet et à la recherche ?
+  const matches = it => it && (view.cat === 'all' || it.category === view.cat) && (!view.q || norm(it.label).includes(view.q) || norm(it.name).includes(view.q));
+  function applyFilter() {
+    const d = state.data;
+    if (!d) return;
+    const items = d.items || [];
+    const n = { all: items.length, weapons: 0, food: 0, papers: 0 };
+    items.forEach(it => { if (n[it.category] !== undefined) n[it.category] += 1; });
+    tabsEl.querySelectorAll('[data-n]').forEach(i => { i.textContent = n[i.dataset.n]; });
+    const active = view.cat !== 'all' || !!view.q;
+    const hot = d.hotbar || 5;
+    let shownCount = 0;
+    state.slotEls.forEach((el, i) => {
+      const ok = matches(el._item);
+      if (ok) shownCount += 1;
+      if (i < hot) { el.classList.toggle('dim', active && !!el._item && !ok); return; }   // raccourcis toujours visibles
+      el.classList.toggle('fx-hide', active && !ok);
+    });
+    gridEl.classList.toggle('filtered', active);
+    emptyEl.hidden = !active || shownCount > 0;
+    if (active && !shownCount) emptyEl.textContent = view.q ? `Aucun objet ne correspond à « ${searchEl.value.trim()} ».` : `Tu n'as aucun${view.cat === 'food' ? 'e' : ''} ${CAT_LABEL[view.cat] || 'objet'} sur toi.`;
+  }
+  function setCat(cat) {
+    view.cat = cat;
+    tabsEl.querySelectorAll('[data-cat]').forEach(b => { const on = b.dataset.cat === cat; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+    gridEl.scrollTop = 0;
+    applyFilter();
+  }
+  tabsEl.addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) setCat(b.dataset.cat); });
+  let searchT = 0;
+  searchEl.addEventListener('input', () => {
+    $('#search-clear').hidden = !searchEl.value;
+    clearTimeout(searchT);
+    searchT = setTimeout(() => { view.q = norm(searchEl.value.trim()); applyFilter(); }, 90);
+  });
+  $('#search-clear').addEventListener('click', () => { searchEl.value = ''; $('#search-clear').hidden = true; view.q = ''; applyFilter(); searchEl.focus(); });
 
   function setEquip(el, it) {
     el._item = it || null;
@@ -242,6 +288,7 @@
     renderGround(d.ground);
     renderContainer(d.container);
     renderWeight(d);
+    applyFilter();
   }
 
   // ───────── Mini barre de raccourcis (inventaire fermé) ─────────
@@ -674,6 +721,13 @@
   document.addEventListener('keydown', e => {
     if (renameOpen()) { if (e.key === 'Escape') { e.preventDefault(); closeRename(); } return; }
     if (document.activeElement === qtyEl && e.key !== 'Escape') return;
+    if (document.activeElement === searchEl) {
+      if (e.key === 'Escape' && searchEl.value) { e.preventDefault(); $('#search-clear').click(); searchEl.blur(); return; }
+      if (e.key !== 'Escape' && e.key !== 'Tab') return;
+    }
+    // Ctrl + F : rechercher · Alt + 1 à 4 : onglets
+    if (state.open && e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); searchEl.focus(); return; }
+    if (state.open && e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); setCat(['all', 'weapons', 'food', 'papers'][+e.key - 1]); return; }
     if (state.open && (e.key === 'Escape' || e.key === 'F2' || e.key === 'Tab')) {
       e.preventDefault();
       close(false);
@@ -701,21 +755,29 @@
   const Mock = (() => {
     const BASE = 18000;
     const D = {
-      phone: { label: 'Téléphone', icon: '📱', weight: 200 },
-      burger: { label: 'Burger', icon: '🍔', weight: 500, stack: true, max: 20 },
-      water: { label: "Bouteille d'eau", icon: '💧', weight: 500, stack: true, max: 20 },
-      WEAPON_PISTOL: { label: 'Pistolet', icon: '🔫', weight: 1100, weapon: true, firearm: true },
-      brick: { label: 'Parpaing', icon: '🧱', weight: 4000, stack: true, max: 5, description: 'Lourd : pour tester la limite.' },
+      phone: { label: 'Téléphone', icon: '📱', weight: 200, category: 'other' },
+      burger: { label: 'Burger', icon: '🍔', weight: 220, stack: true, max: 20, category: 'food', description: 'Rassasie un peu.' },
+      water: { label: "Bouteille d'eau", icon: '💧', weight: 500, stack: true, max: 20, category: 'food' },
+      sandwich: { label: 'Sandwich', icon: '🥪', weight: 200, stack: true, max: 20, category: 'food' },
+      WEAPON_PISTOL: { label: 'Pistolet', icon: '🔫', weight: 1130, weapon: true, firearm: true, category: 'weapons' },
+      WEAPON_KNIFE: { label: 'Couteau', icon: '🔪', weight: 300, weapon: true, category: 'weapons' },
+      'ammo-9': { label: 'Munitions 9 mm', icon: '🔸', weight: 7, stack: true, max: 1000, category: 'weapons' },
+      carte_identite: { label: "Carte d'identité", icon: '🪪', weight: 10, category: 'papers', image: 'carte_identite.png' },
+      permis: { label: 'Permis de conduire', icon: '🪪', weight: 10, category: 'papers', image: 'permis.png' },
+      ppa: { label: 'PPA · Civil', icon: '🪪', weight: 10, category: 'papers', image: 'ppa.png' },
+      bandage: { label: 'Bandage', icon: '🩹', weight: 100, stack: true, max: 20, category: 'other' },
+      brick: { label: 'Parpaing', icon: '🧱', weight: 4000, stack: true, max: 5, description: 'Lourd : pour tester la limite.', category: 'other' },
     };
     const CL = { vet_haut: ['Haut', 'tops'], vet_tshirt: ['T-shirt', 'undershirts'], vet_pantalon: ['Pantalon', 'pants'], vet_chaussures: ['Chaussures', 'shoes'], vet_sac: ['Sac', 'bags'], vet_chapeau: ['Chapeau', 'hats'], vet_montre: ['Montre', 'watches'] };
-    for (const k in CL) D[k] = { label: CL[k][0], icon: '👕', weight: 10, image: `${k}.png`, equip: CL[k][1], buttons: 2, bonus: k === 'vet_sac' ? 10 : undefined };
+    for (const k in CL) D[k] = { label: CL[k][0], icon: '👕', weight: 10, image: `${k}.png`, equip: CL[k][1], buttons: 2, bonus: k === 'vet_sac' ? 10 : undefined, category: 'other' };
     const SLOTS = [['hats','Chapeau','👒','left'],['glasses','Lunettes','👓','left'],['ears','Boucles','💎','left'],['masks','Masque','😷','left'],['chains','Collier','📿','left'],['tops','Haut','🧥','left'],['undershirts','T-shirt','👕','left'],['vests','Gilet','🦺','left'],['arms','Gants','🧤','right'],['decals','Logo','🏷️','right'],['watches','Montre','⌚','right'],['bracelets','Bracelet','💍','right'],['pants','Pantalon','👖','right'],['shoes','Chaussures','👟','right'],['bags','Sac','🎒','right']]
       .map(([name, label, icon, side]) => ({ name, label, icon, side }));
     const itemOf = {}; for (const k in CL) itemOf[CL[k][1]] = k;
 
     const inv = { slots: {}, worn: { tops: 263, pants: 24, shoes: 10, bags: 45 }, bag: true };
     let ground = [{ name: 'water', count: 2 }];
-    [['phone', 1], ['burger', 5], ['water', 2], ['brick', 4], ['WEAPON_PISTOL', 1, 'Le Silencieux'], ['vet_haut', 1, 'Veste de mariage'], ['vet_chapeau', 1], ['vet_montre', 1]]
+    [['phone', 1], ['burger', 5], ['water', 2], ['WEAPON_PISTOL', 1, 'Le Silencieux'], ['ammo-9', 120], ['carte_identite', 1], ['brick', 2], ['vet_haut', 1, 'Veste de mariage'],
+      ['vet_chapeau', 1], ['permis', 1], ['ppa', 1], ['sandwich', 3], ['WEAPON_KNIFE', 1], ['bandage', 6], ['vet_montre', 1]]
       .forEach((e, i) => { if (e) inv.slots[i + 1] = { name: e[0], count: e[1], label: e[2] }; });
 
     const ser = (it, slot) => { const d = D[it.name]; return Object.assign({ plain: true, max: d.max || 1 }, d, { slot, name: it.name, count: it.count, label: it.label || d.label, weight: d.weight / 1000 }); };

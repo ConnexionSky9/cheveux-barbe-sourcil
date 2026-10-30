@@ -16,6 +16,7 @@ shared_scripts {
     'shared/items.lua',
     'shared/utils.lua',
     'shared/import.lua',
+    'shared/catalog.lua',   -- catégories de l'inventaire (Tout, Armes, Nourriture, Papiers) et poids revus
 }
 
 client_scripts {
