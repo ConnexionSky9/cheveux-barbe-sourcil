@@ -107,10 +107,12 @@ Comme de base dans GTA, un **coup reçu** (ou une chute) peut faire tomber le ch
 - Les objets `vet_chapeau` / `vet_lunettes` sont posés au sol à côté de la personne :
   - même modèle, même coloris, même nom personnalisé ;
   - un modèle 3D de chapeau ou de lunettes est affiché au sol.
-- **Tout le monde peut les ramasser** : inventaire › « Au sol ». Le propriétaire les récupère, ou quelqu'un d'autre les vole.
-- **Casser les lunettes** :
-  - au sol : **G** à côté ;
-  - dans l'inventaire : clic droit › **Casser**.
+- **ALT sur l'objet au sol** (« Chapeau tombé au sol », « Lunettes tombées au sol ») :
+  - **Ramasser** : tout le monde peut, le propriétaire ou un voleur. L'objet va dans l'inventaire de celui qui ramasse.
+  - **Casser les lunettes** (lunettes seulement).
+
+  L'inventaire › « Au sol » marche aussi pour ramasser.
+- **Casser des lunettes de son inventaire** : clic droit › **Casser**.
 
   Elles deviennent « **Lunettes cassées** » : on peut les garder ou les jeter, mais plus les porter (ni avec une tenue enregistrée).
 - **Une chute compte seulement** si le chapeau ou les lunettes disparaissent juste après un coup reçu ou une chute (2,5 s).

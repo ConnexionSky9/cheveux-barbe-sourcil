@@ -54,13 +54,40 @@ RegisterNetEvent('elyzea_clothing:propFell', function(cat, piece)
     TriggerClientEvent('elyzea_clothing:fell', src, { cat })
 end)
 
--- Écraser des lunettes tombées au sol (G à côté)
-RegisterNetEvent('elyzea_clothing:breakGround', function()
+-- Objets vêtements d'un tas au sol, à portée du joueur (dropId nil = tous les tas proches)
+local CLOTHES = {}
+for _, n in pairs(Config.Items.names) do CLOTHES[n] = true end
+local function groundClothes(src, dropId, name)
+    local ok, list = pcall(function() return inv():GetNearbyDropItems(src, name) end)
+    local out = {}
+    for _, e in ipairs(ok and type(list) == 'table' and list or {}) do
+        if CLOTHES[e.name] and (not dropId or e.drop == dropId) then out[#out + 1] = e end
+    end
+    return out
+end
+
+-- ALT sur le chapeau / les lunettes au sol › Ramasser (n'importe qui : le propriétaire ou un voleur)
+RegisterNetEvent('elyzea_clothing:groundTake', function(dropId)
+    local src = source
+    dropId = tonumber(dropId)
+    if not on() or not dropId then return end
+    local taken = 0
+    for _ = 1, 5 do
+        local e = groundClothes(src, dropId)[1]
+        if not e then break end
+        local ok = inv():PickupDropItem(src, e.drop, e.index)
+        if not ok then break end
+        taken = taken + 1
+    end
+    if taken == 0 then return notify(src, 'Plus rien à ramasser ici (ou trop loin).') end
+    notify(src, taken > 1 and 'Ramassés : ils sont dans ton inventaire.' or 'Ramassé : c\'est dans ton inventaire.', 'success')
+end)
+
+-- ALT sur des lunettes au sol › Casser
+RegisterNetEvent('elyzea_clothing:breakGround', function(dropId)
     local src = source
     if not on() then return end
-    local ok, list = pcall(function() return inv():GetNearbyDropItems(src, GLASSES) end)
-    if not ok or type(list) ~= 'table' then return end
-    for _, e in ipairs(list) do
+    for _, e in ipairs(groundClothes(src, tonumber(dropId), GLASSES)) do
         if not (e.metadata and e.metadata.broken) then
             if inv():SetDropItemMetadata(e.drop, e.index, Items.breakMeta(e.metadata)) then
                 TriggerClientEvent('elyzea_clothing:brokeGlasses', src)
@@ -68,7 +95,7 @@ RegisterNetEvent('elyzea_clothing:breakGround', function()
             end
         end
     end
-    notify(src, 'Pas de lunettes intactes à tes pieds.')
+    notify(src, 'Pas de lunettes intactes ici.')
 end)
 
 -- Casser des lunettes de son inventaire (clic droit › Casser)

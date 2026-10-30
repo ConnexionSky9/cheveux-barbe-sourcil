@@ -55,7 +55,7 @@ Config.Items = {
 --  Comme de base dans GTA : un coup reçu (ou une chute) peut faire tomber le chapeau et les lunettes.
 --  Ici, ce qui tombe devient le VRAI objet (vet_chapeau / vet_lunettes, même modèle et coloris) :
 --  le propriétaire ou n'importe qui peut le ramasser (inventaire › « Au sol »).
---  Lunettes au sol : G à côté pour les écraser (« Lunettes cassées », impossibles à porter).
+--  ALT sur l'objet au sol : Ramasser (tout le monde) ou Casser les lunettes (« Lunettes cassées », impossibles à porter).
 --  Ne marche qu'avec les vêtements en objets (Config.Items.enabled) ; jamais sur une tenue de service.
 -- =====================================================================
 Config.KnockOff = {
@@ -64,8 +64,7 @@ Config.KnockOff = {
     cooldown = 3000,    -- ms : pas deux chutes du même accessoire de suite
     -- Modèle affiché au sol (s'il n'existe pas dans le jeu : le sac de l'inventaire)
     props = { hats = 'prop_proxy_hat_01', glasses = 'prop_cs_sol_glasses' },
-    breakKey = 47,      -- G : écraser des lunettes tombées au sol
-    breakDistance = 1.6,
+    altDistance = 2.0,  -- m : ALT sur le chapeau / les lunettes au sol (Ramasser, Casser les lunettes)
 }
 
 -- Panneau « Ma tenue » : voir ce qu'on porte, ranger une pièce, la renommer

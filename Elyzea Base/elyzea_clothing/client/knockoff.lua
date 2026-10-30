@@ -1,13 +1,13 @@
 -- =====================================================================
 --  ELYZEA CLOTHING · CHAPEAU ET LUNETTES QUI TOMBENT (client)
 --  · le jeu fait tomber le chapeau / les lunettes (coup reçu, chute) : ils deviennent de vrais objets au sol
---  · G à côté de lunettes tombées : les écraser ; clic droit › Casser dans l'inventaire
+--  · ALT sur le chapeau / les lunettes au sol : Ramasser (tout le monde), Casser les lunettes
+--  · clic droit › Casser sur des lunettes de l'inventaire
 --  Les objets sont créés par le serveur (server/knockoff.lua).
 -- =====================================================================
 local K = Config.KnockOff or {}
 -- Hash comparé en 32 bits non signés (serveur et client peuvent l'écrire signé ou non)
 local function u32(h) return h and (math.floor(tonumber(h) or 0) & 0xFFFFFFFF) or nil end
-local GLASSES_PROP = K.props and K.props.glasses and u32(GetHashKey(K.props.glasses)) or nil
 
 local function enabled() return K.enabled ~= false and ClothingItemsMode() end
 
@@ -75,47 +75,71 @@ RegisterNetEvent('elyzea_clothing:fell', function(cats)
 end)
 
 -- ---------------------------------------------------------------------
--- Lunettes tombées au sol : G pour les écraser
--- (les tas au sol viennent d'elyzea_inventory ; on repère ceux qui ont le modèle « lunettes »)
+-- ALT sur le chapeau / les lunettes au sol (menu ALT d'elyzea_police, préfixe « clo: ») :
+-- Ramasser (tout le monde : le propriétaire ou un voleur) · Casser les lunettes
+-- Les objets au sol sont ceux d'elyzea_inventory : on reconnaît les nôtres à leur modèle 3D.
 -- ---------------------------------------------------------------------
-local glassesDrops = {}
-RegisterNetEvent('elyzea_inv:drops', function(list)
-    glassesDrops = {}
-    if not GLASSES_PROP then return end
-    for _, d in ipairs(list or {}) do
-        if d.prop and u32(d.prop) == GLASSES_PROP then glassesDrops[#glassesDrops + 1] = d.coords end
-    end
+local INV = 'elyzea_inventory'
+local MODEL_CAT = {}
+for cat, m in pairs(K.props or {}) do MODEL_CAT[u32(GetHashKey(m))] = cat end
+local TITLE = { hats = 'Chapeau tombé au sol', glasses = 'Lunettes tombées au sol' }
+
+-- Objet au sol à nous : rayon (hats / glasses) et n° du tas, sinon nil
+local function fallen(ent)
+    if not ent or ent == 0 or not DoesEntityExist(ent) or GetResourceState(INV) ~= 'started' then return nil end
+    local ok, id, prop = pcall(function() return exports[INV]:DropOfEntity(ent) end)
+    local cat = ok and id and prop and MODEL_CAT[u32(prop)]
+    if not cat then return nil end
+    return cat, id
+end
+
+exports('AltTarget', function(ent)
+    local cat = fallen(ent)
+    return cat and TITLE[cat] or nil
 end)
 
-local breaking = false
-CreateThread(function()
-    while true do
-        local sleep = 700
-        if #glassesDrops > 0 and enabled() and not breaking then
-            local ped = PlayerPedId()
-            local pos = GetEntityCoords(ped)
-            for _, c in ipairs(glassesDrops) do
-                local d = #(pos - c)
-                if d < 6.0 then sleep = 0 end
-                if d < (K.breakDistance or 1.6) and not IsPedInAnyVehicle(ped, false) then
-                    BeginTextCommandDisplayHelp('STRING')
-                    AddTextComponentSubstringPlayerName('~INPUT_DETONATE~ Écraser les lunettes · ramasser : inventaire, « Au sol »')
-                    EndTextCommandDisplayHelp(0, false, false, -1)
-                    if IsControlJustPressed(0, K.breakKey or 47) then
-                        breaking = true
-                        if loadDict('pickup_object') then
-                            TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 900, 0, 0, false, false, false)
-                        end
-                        Wait(700)
-                        TriggerServerEvent('elyzea_clothing:breakGround')
-                        SetTimeout(800, function() breaking = false end)
-                    end
-                    break
-                end
-            end
+exports('AltNearby', function()
+    if GetResourceState(INV) ~= 'started' then return nil end
+    local ok, list = pcall(function() return exports[INV]:DropEntities() end)
+    if not ok or type(list) ~= 'table' then return nil end
+    local me = GetEntityCoords(PlayerPedId())
+    local best, bd, bcat
+    for _, e in ipairs(list) do
+        local cat = e.prop and MODEL_CAT[u32(e.prop)]
+        if cat and DoesEntityExist(e.entity) then
+            local d = #(GetEntityCoords(e.entity) - me)
+            if d < (K.altDistance or 2.0) and (not bd or d < bd) then best, bd, bcat = e.entity, d, cat end
         end
-        Wait(sleep)
     end
+    if not best then return nil end
+    return best, TITLE[bcat]
+end)
+
+exports('AltOptions', function(ctx)
+    local cat = fallen(ctx and ctx.entity)
+    if not cat or not enabled() then return {} end
+    local out = { { id = 'take', label = 'Ramasser', icon = 'bag', desc = 'Va dans ton inventaire' } }
+    if cat == 'glasses' then
+        out[#out + 1] = { id = 'break', label = 'Casser les lunettes', icon = 'break', desc = 'Elles ne pourront plus être portées' }
+    end
+    return out
+end)
+
+local busyAct = false
+exports('AltSelect', function(id, ctx)
+    local cat, dropId = fallen(ctx and ctx.entity)
+    if not cat or busyAct then return true end
+    busyAct = true
+    CreateThread(function()
+        local ped = PlayerPedId()
+        if loadDict('pickup_object') then TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 900, 0, 0, false, false, false) end
+        Wait(600)
+        if id == 'take' then TriggerServerEvent('elyzea_clothing:groundTake', dropId)
+        elseif id == 'break' then TriggerServerEvent('elyzea_clothing:breakGround', dropId) end
+        Wait(400)
+        busyAct = false
+    end)
+    return true
 end)
 
 -- Bruit de verre brisé (lunettes au sol ou dans l'inventaire)

@@ -1219,6 +1219,23 @@ function API.GetNearbyDropItems(src, name)
     return out
 end
 
+-- Ramasser un objet d'un tas précis (menu ALT d'une autre ressource) : mêmes contrôles qu'« Au sol »
+-- (distance, poids, place). Renvoie true, ou false + raison (message déjà affiché au joueur).
+function API.PickupDropItem(src, dropId, index)
+    src = tonumber(src)
+    local inv = src and Inv[src]
+    if not inv or InArena(src) then return false, 'no_inventory' end
+    local ok, err = Actions.pickup(src, inv, { drop = dropId, index = index })
+    if ok then
+        inv.dirty = true
+        sync(src)
+        refreshOpen(src)
+    else
+        sync(src, { type = 'error', text = Msg[err] or err or Msg.too_far })
+    end
+    return ok, err
+end
+
 -- Change les métadonnées d'un objet au sol (ex. lunettes cassées) ; renvoie true si fait
 function API.SetDropItemMetadata(dropId, index, metadata)
     local d = Drops[tonumber(dropId) or -1]

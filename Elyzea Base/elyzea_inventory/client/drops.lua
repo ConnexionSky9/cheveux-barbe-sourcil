@@ -1,5 +1,5 @@
 -- Objets au sol : props locaux, la liste vient du serveur.
-local props, drops = {}, {}
+local props, drops, wanted = {}, {}, {}   -- wanted = modèle demandé par le serveur (même si le sac le remplace)
 
 local function spawn(id, coords, prop)
     -- Modèle propre au tas (lunettes, chapeau…) s'il existe dans le jeu, sinon le sac par défaut
@@ -23,6 +23,7 @@ RegisterNetEvent('elyzea_inv:drops', function(list)
         if not keep[id] then DeleteEntity(obj) props[id] = nil end
     end
     drops = keep
+    wanted = models
     for id, coords in pairs(keep) do
         if not props[id] then CreateThread(function() spawn(id, coords, models[id]) end) end
     end
@@ -46,6 +47,21 @@ CreateThread(function()
         end
         Wait(sleep)
     end
+end)
+
+-- Pour le menu ALT d'autres ressources (ex. chapeau / lunettes tombés : elyzea_clothing)
+-- DropOfEntity(entité) → id du tas, modèle demandé (nil si ce n'est pas un tas)
+exports('DropOfEntity', function(ent)
+    for id, obj in pairs(props) do if obj == ent then return id, wanted[id] end end
+    return nil
+end)
+-- DropEntities() → { { id, entity, prop }, … }
+exports('DropEntities', function()
+    local out = {}
+    for id, obj in pairs(props) do
+        if DoesEntityExist(obj) then out[#out + 1] = { id = id, entity = obj, prop = wanted[id] } end
+    end
+    return out
 end)
 
 AddEventHandler('onResourceStop', function(res)

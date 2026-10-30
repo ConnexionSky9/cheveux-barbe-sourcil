@@ -19,7 +19,7 @@ local realRandom = math.random
 math.random = function(a, b) if b then return realRandom(a, b) end return ROLL end
 
 -- Inventaire imité : tas au sol + inventaire du joueur 1 (lunettes en case 3)
-DROPS, SLOTS = {}, {}
+DROPS, SLOTS, TAKEN = {}, {}, {}
 local inv = {
     Items = function(_, name) return { name = name } end,
     CreateDrop = function(_, c, items, prop) DROPS[#DROPS + 1] = { coords = c, items = items, prop = prop } return #DROPS end,
@@ -28,12 +28,19 @@ local inv = {
         for id, d in ipairs(DROPS) do
             local p = POS[src] or vector3(0, 0, 0)
             if math.sqrt((d.coords.x - p.x) ^ 2 + (d.coords.y - p.y) ^ 2) < 3.5 then
-                for i, it in ipairs(d.items) do if it.name == name then out[#out + 1] = { drop = id, index = i, name = it.name, metadata = it.metadata } end end
+                for i, it in ipairs(d.items) do if not name or it.name == name then out[#out + 1] = { drop = id, index = i, name = it.name, metadata = it.metadata } end end
             end
         end
         return out
     end,
     SetDropItemMetadata = function(_, id, i, md) DROPS[id].items[i].metadata = md return true end,
+    PickupDropItem = function(_, src, id, i)
+        local d = DROPS[id]
+        local it = d and table.remove(d.items, i)
+        if not it then return false end
+        TAKEN[#TAKEN + 1] = { src = src, item = it }
+        return true
+    end,
     GetSlot = function(_, src, slot) return SLOTS[slot] end,
     SetMetadata = function(_, src, slot, md) SLOTS[slot].metadata = md return true end,
     RemoveItem = function() return true end, AddItem = function() return true end, CanCarryItem = function() return true end,
@@ -72,16 +79,37 @@ step()
 FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
 check(#DROPS == 3, 'plus tard, nouvelle chute : de nouveau un objet')
 
+print('[ALT › Ramasser (tout le monde)]')
+DROPS = {}
+step()
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+POS[3] = vector3(0.5, 0, 0)
+FIRE('elyzea_clothing:groundTake', 3, 1)
+check(#TAKEN == 1 and TAKEN[1].src == 3 and TAKEN[1].item.name == 'vet_chapeau' and TAKEN[1].item.metadata.drawable == 12,
+    'un autre joueur ramasse le chapeau (vol) : le même chapeau va dans SON inventaire')
+FIRE('elyzea_clothing:groundTake', 3, 1)
+check(#TAKEN == 1, 'déjà ramassé : rien de plus')
+step()
+FIRE('elyzea_clothing:propFell', 1, 'hats', HAT)
+POS[4] = vector3(40, 0, 0)
+FIRE('elyzea_clothing:groundTake', 4, 2)
+check(#TAKEN == 1, 'trop loin : impossible de ramasser')
+FIRE('elyzea_clothing:groundTake', 1, 2)
+check(#TAKEN == 2 and TAKEN[2].src == 1, 'le propriétaire ramasse son chapeau')
+
 print('[Casser les lunettes]')
 DROPS = {}
 step()
 FIRE('elyzea_clothing:propFell', 1, 'glasses', GL)
 POS[3] = vector3(0.5, 0, 0)
-FIRE('elyzea_clothing:breakGround', 3)
+FIRE('elyzea_clothing:breakGround', 3, 1)
 local md = DROPS[1].items[1].metadata
-check(md.broken == true and md.label == 'Lunettes cassées', 'un autre joueur écrase les lunettes au sol : « Lunettes cassées »')
+check(md.broken == true and md.label == 'Lunettes cassées', 'ALT › Casser : un autre joueur écrase les lunettes au sol (« Lunettes cassées »)')
+FIRE('elyzea_clothing:groundTake', 3, 1)
+check(TAKEN[#TAKEN].item.metadata.broken == true, 'les lunettes cassées se ramassent quand même (cassées)')
+DROPS[1] = { coords = { x = 0.5, y = 0, z = -0.95 }, items = { { name = 'vet_lunettes', count = 1, metadata = md } } }
 local before = sent('elyzea_clothing:brokeGlasses')
-FIRE('elyzea_clothing:breakGround', 3)
+FIRE('elyzea_clothing:breakGround', 3, 1)
 check(sent('elyzea_clothing:brokeGlasses') == before, 'déjà cassées : rien de plus')
 SLOTS[3] = { slot = 3, name = 'vet_lunettes', metadata = md }
 FIRE('elyzea_clothing:equip', 1, 3, {})

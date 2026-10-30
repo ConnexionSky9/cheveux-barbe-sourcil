@@ -115,6 +115,14 @@ local still = false
 for _, d in ipairs(after and after.args[1] or {}) do if d.id == id then still = true end end
 check(not still, 'le tas disparaît une fois ramassé')
 check(API.CreateDrop({ x = 0, y = 0, z = 0 }, { { name = 'objet_inexistant', count = 1 } }) == nil, 'objet inconnu : aucun tas créé')
+local hatId = API.CreateDrop({ x = 0.6, y = 0, z = -0.95 }, { { name = 'vet_chapeau', count = 1, metadata = { cat = 'hats', drawable = 12, texture = 1 } } }, 'prop_proxy_hat_01')
+local okFar = API.PickupDropItem(3, hatId, 1)
+check(not okFar, 'ALT › Ramasser à 50 m : refusé')
+local okNear = API.PickupDropItem(1, hatId, 1)
+local hat
+for _, it in pairs(Inv[1].slots) do if it.name == 'vet_chapeau' then hat = it end end
+check(okNear and hat and hat.metadata.drawable == 12, 'ALT › Ramasser à côté : le chapeau (même modèle) va dans l\'inventaire')
+check(not API.PickupDropItem(1, hatId, 1), 'déjà ramassé : rien')
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

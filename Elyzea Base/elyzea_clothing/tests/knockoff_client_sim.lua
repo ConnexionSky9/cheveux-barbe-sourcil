@@ -12,14 +12,28 @@ RAG = false
 function IsPedRagdoll() return RAG end
 function IsPedFalling() return false end
 function IsPedInAnyVehicle() return false end
-function GetEntityCoords() return vector3(0, 0, 0) end
-vector3 = function(x, y, z) return { x = x, y = y, z = z } end
-function GetHashKey(s) return #s end
+local V = {}
+V.__sub = function(a, b) return setmetatable({ x = a.x - b.x, y = a.y - b.y, z = a.z - b.z }, V) end
+V.__len = function(a) return math.sqrt(a.x ^ 2 + a.y ^ 2 + a.z ^ 2) end
+vector3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, V) end
+function GetEntityCoords(e) return ENTPOS and ENTPOS[e] or vector3(0, 0, 0) end
+function GetHashKey(s) local h = 0 for i = 1, #s do h = (h * 31 + s:byte(i)) % 4294967296 end return h end
 function AddEventHandler(n, fn) handlers[n] = handlers[n] or {} table.insert(handlers[n], fn) end
 function RegisterNetEvent(n, fn) if fn then AddEventHandler(n, fn) end end
 function TriggerEvent(n, ...) for _, f in ipairs(handlers[n] or {}) do f(...) end end
 function TriggerServerEvent(n, ...) sentSrv[#sentSrv + 1] = { n = n, args = { ... } } end
-function exports() end
+EXP = {}
+INVD = { { id = 7, entity = 70, prop = GetHashKey('prop_cs_sol_glasses') }, { id = 8, entity = 80, prop = GetHashKey('prop_proxy_hat_01') }, { id = 9, entity = 90, prop = GetHashKey('prop_cs_heist_bag_02') } }
+ENTPOS = { [70] = vector3(1, 0, 0), [80] = vector3(1.5, 0, 0), [90] = vector3(0.5, 0, 0) }
+local invExp = {
+    DropOfEntity = function(_, ent) for _, d in ipairs(INVD) do if d.entity == ent then return d.id, d.prop end end end,
+    DropEntities = function() return INVD end,
+}
+exports = setmetatable({}, { __call = function(_, n, fn) EXP[n] = fn end, __index = function(_, k) if k == 'elyzea_inventory' then return invExp end end })
+function GetResourceState() return 'started' end
+function DoesEntityExist(e) return ENTPOS[e] ~= nil end
+function GetEntityModel(e) return 0 end
+function DoesAnimDictExist() return false end
 LocalPlayer = { state = {} }
 function BeginTextCommandDisplayHelp() end function AddTextComponentSubstringPlayerName() end function EndTextCommandDisplayHelp() end
 function IsControlJustPressed() return false end
@@ -87,6 +101,24 @@ return function(load)
     WORN.hats = { drawable = -1, texture = 0 }
     tick(400)
     check(fell() == 3, 'arène PvP : rien n\'est signalé')
+    print('[ALT sur le chapeau / les lunettes au sol]')
+    local ent, title = EXP.AltNearby()
+    check(ent == 70 and title == 'Lunettes tombées au sol', 'ALT près des objets : les lunettes (la plus proche des nôtres) sont proposées')
+    check(EXP.AltTarget(80) == 'Chapeau tombé au sol', 'viser le chapeau au sol : « Chapeau tombé au sol »')
+    check(EXP.AltTarget(90) == nil, 'un sac d\'objets ordinaire : pas concerné')
+    local o = EXP.AltOptions({ kind = 'ext', entity = 70 })
+    check(#o == 2 and o[1].id == 'take' and o[2].id == 'break', 'lunettes : Ramasser et Casser les lunettes')
+    o = EXP.AltOptions({ kind = 'ext', entity = 80 })
+    check(#o == 1 and o[1].id == 'take', 'chapeau : Ramasser seulement')
+    local n = #sentSrv
+    EXP.AltSelect('take', { kind = 'ext', entity = 80 })
+    tick(1200)
+    local last = sentSrv[#sentSrv]
+    check(#sentSrv > n and last.n == 'elyzea_clothing:groundTake' and last.args[1] == 8, 'Ramasser : le serveur reçoit le bon tas (n° 8)')
+    EXP.AltSelect('break', { kind = 'ext', entity = 70 })
+    tick(1200)
+    last = sentSrv[#sentSrv]
+    check(last.n == 'elyzea_clothing:breakGround' and last.args[1] == 7, 'Casser : le serveur reçoit le bon tas (n° 7)')
     print(('Résultat : %d échec(s)'):format(fails))
     return fails
 end
