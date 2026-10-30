@@ -64,6 +64,35 @@ const check = (ok, l) => { if (ok) { passes++; console.log('  ok   ' + l); } els
   await p.click('#tabs [data-cat="all"]'); await p.waitForTimeout(80);
   check(await n('food') === '2', 'compteur Nourriture mis à jour (2)');
 
+  console.log('\n[Argent liquide]');
+  check(await p.isVisible('#wallet') && /1 840 \$/.test(await p.textContent('#cash')) && /26 350 \$/.test(await p.textContent('#bank')), 'portefeuille : liquide 1 840 $ et banque 26 350 $');
+  await p.click('#cash-give'); await p.waitForTimeout(60);
+  check(await p.isVisible('#cash-form'), '« Donner » ouvre le montant');
+  await p.fill('#cash-amount', '5000'); await p.click('#cash-form button[type="submit"]'); await p.waitForTimeout(120);
+  check(/1 840/.test(await p.textContent('#cash')) && /que 1 840/.test(await p.textContent('#toasts')), 'plus que ce qu\'on a : refusé, rien n\'est envoyé');
+  check(await p.isVisible('#cash-form'), 'le champ reste ouvert pour corriger');
+  await p.fill('#cash-amount', '340'); await p.click('#cash-form button[type="submit"]'); await p.waitForTimeout(150);
+  check(/^1 500 \$$/.test(await p.textContent('#cash')) && !(await p.isVisible('#cash-form')), 'donner 340 $ : il reste 1 500 $');
+  await p.evaluate(() => window.InvMock.setCash(2000)); await p.waitForTimeout(80);
+  check(/^2 000 \$$/.test(await p.textContent('#cash')), 'argent reçu (admin, paie) : le montant se met à jour inventaire ouvert');
+  await p.evaluate(() => window.InvMock.setCash(0)); await p.waitForTimeout(80);
+  check(await p.isDisabled('#cash-give'), 'sans liquide : « Donner » grisé');
+  await p.evaluate(() => window.InvMock.setCash(1840)); await p.waitForTimeout(50);
+  await p.click('#cash-give'); await p.fill('#cash-amount', '250'); await p.waitForTimeout(300); await shot('5_portefeuille'); await p.click('#cash-cancel');
+
+  console.log('\n[Achat reçu inventaire fermé]');
+  await p.click('#tabs [data-cat="papers"]'); await p.fill('#search', 'permis'); await p.waitForTimeout(80);
+  await p.click('#close'); await p.waitForTimeout(120);
+  check(await p.$eval('#app', (e) => e.classList.contains('hidden')), 'inventaire fermé (laissé sur « Papiers » avec une recherche)');
+  await p.evaluate(() => { window.InvMock.receive('vet_pantalon', 1); window.InvMock.receive('vet_tshirt', 1); }); await p.waitForTimeout(80);
+  await p.evaluate(() => window.InvMock.open()); await p.waitForTimeout(150);
+  check(await p.$eval('#tabs [data-cat="all"]', (e) => e.classList.contains('on')) && await p.inputValue('#search') === '', 'réouverture : onglet « Tout », recherche vide');
+  const fresh = await p.$$eval('#grid .slot.fresh, #hotbar .slot.fresh', (l) => l.map((x) => x.querySelector('.name').textContent));
+  check(fresh.length === 2 && fresh.includes('Pantalon') && fresh.includes('T-shirt'), 'les 2 vêtements achetés sont visibles et marqués « NOUVEAU » : ' + fresh.join(', '));
+  await p.waitForTimeout(700); await shot('6_achat_nouveau');
+  await p.waitForTimeout(4200);
+  check(await p.$$eval('.slot.fresh', (l) => l.length) === 0, 'la marque « NOUVEAU » s\'efface après 4 s');
+
   console.log('\n[Performance]');
   const perf = await p.evaluate(async () => {
     const tabs = [...document.querySelectorAll('#tabs [data-cat]')];

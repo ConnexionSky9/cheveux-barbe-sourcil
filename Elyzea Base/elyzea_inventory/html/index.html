@@ -45,6 +45,22 @@
           <h2>Inventaire</h2>
           <span class="muted" id="slot-count">0 / 30</span>
         </div>
+        <div class="wallet" id="wallet" hidden>
+          <div class="wcard cash">
+            <span class="wi" aria-hidden="true">💵</span>
+            <span class="wl">Argent liquide<b id="cash">0 $</b></span>
+            <button type="button" id="cash-give" class="wbtn" title="Donner à la personne la plus proche (3 m)">Donner</button>
+          </div>
+          <div class="wcard bank">
+            <span class="wi" aria-hidden="true">🏦</span>
+            <span class="wl">Banque<b id="bank">0 $</b></span>
+          </div>
+          <form class="wgive" id="cash-form" hidden novalidate>
+            <input id="cash-amount" type="number" min="1" step="1" inputmode="numeric" placeholder="Montant à donner" aria-label="Montant à donner">
+            <button type="submit" class="wbtn ok">Donner</button>
+            <button type="button" class="wbtn" id="cash-cancel">Annuler</button>
+          </form>
+        </div>
         <nav class="tabs" id="tabs" role="tablist" aria-label="Catégories">
           <button type="button" role="tab" data-cat="all" class="on" aria-selected="true"><span class="ti">◈</span>Tout<i data-n="all">0</i></button>
           <button type="button" role="tab" data-cat="weapons" aria-selected="false"><span class="ti">⌖</span>Armes<i data-n="weapons">0</i></button>

@@ -198,7 +198,10 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
     print(('[elyzea_clothing] %s [%d] : %d article(s), %d %s chez « %s »'):format(GetPlayerName(src), src, #list, total - refund, Config.Currency, s.shop.name))
 
     local parts = { ('Achat réglé : %d %s.'):format(total - refund, Config.Currency) }
-    if #wear > 0 and wearNow then parts[#parts + 1] = ('%d %s sur toi.'):format(#wear, #wear > 1 and 'pièces portées' or 'pièce portée') end
+    if #wear > 0 and wearNow then
+        parts[#parts + 1] = ('%d %s sur toi%s.'):format(#wear, #wear > 1 and 'pièces portées' or 'pièce portée',
+            useItems and ' (F3 pour ' .. (#wear > 1 and 'les' or 'la') .. ' ranger dans l\'inventaire)' or '')
+    end
     if bought > 0 then parts[#parts + 1] = ('%d %s dans ton inventaire.'):format(bought, bought > 1 and 'vêtements' or 'vêtement') end
     if given > 0 then parts[#parts + 1] = 'Tes anciens vêtements y sont aussi.' end
     if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(refund, Config.Currency) end

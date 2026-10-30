@@ -284,6 +284,16 @@ RegisterNUICallback('give', function(data, cb)
     TriggerServerEvent('elyzea_inv:action', 'give', { from = tonumber(data.from), count = tonumber(data.count), target = target })
 end)
 
+-- Donner de l'argent liquide au joueur le plus proche (portefeuille de l'inventaire)
+RegisterNUICallback('giveCash', function(data, cb)
+    cb('ok')
+    local amount = math.floor(tonumber(data and data.amount) or 0)
+    if amount < 1 then return end
+    local target = closestPlayer(3.0)
+    if not target then return nui('sync', { payload = withWorn(state), toast = { type = 'error', text = 'Personne à proximité (3 m).' } }) end
+    TriggerServerEvent('elyzea_inv:action', 'giveCash', { amount = amount, target = target })
+end)
+
 -- Objet utilisé côté client (export d'une autre ressource, ex. permis)
 RegisterNetEvent('elyzea_inv:clientExport', function(path, label, slot)
     local res, fn = tostring(path or ''):match('^([^.]+)%.(.+)$')

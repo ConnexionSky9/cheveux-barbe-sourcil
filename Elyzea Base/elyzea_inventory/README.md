@@ -30,6 +30,15 @@ Lisez la section 0 avant toute chose : certaines ressources ne peuvent pas fonct
 
 ---
 
+## Argent liquide et objets reçus
+
+- **Portefeuille** en haut de l'inventaire : argent liquide et banque du personnage (comptes d'`elyzea_core`).
+  - L'argent n'est pas un objet : il ne pèse rien et n'occupe pas de case.
+  - Le montant se met à jour tout de suite quand il change, inventaire ouvert (achat, paie, menu admin).
+  - **Donner** : envoie le montant choisi à la personne la plus proche (3 m). Le serveur vérifie la distance et le solde.
+- **Objets reçus** (achat, don, menu admin) pendant que l'inventaire est fermé : marqués « NOUVEAU » à l'ouverture suivante.
+- L'inventaire s'ouvre **toujours sur « Tout », sans recherche** : un objet reçu n'est jamais caché par un onglet ou une recherche restés d'avant.
+
 ## 0. Avant de commencer : ce qui peut bloquer la suppression
 
 | Situation sur votre serveur | Conséquence | Que faire |

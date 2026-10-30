@@ -178,6 +178,13 @@ local function containerPayload(src)
     return { kind = c.kind, id = c.id, label = c.label, size = c.size, weight = weightOf(c) / 1000, capacity = capOf(c) / 1000, items = items }
 end
 
+-- Argent du personnage (comptes d'elyzea_core) : affiché dans l'inventaire, jamais modifié par la NUI
+local function moneyOf(src)
+    local ok, cash, bank = pcall(function() return core:GetMoney(src, 'cash'), core:GetMoney(src, 'bank') end)
+    if not ok then return nil end
+    return { cash = math.floor(tonumber(cash) or 0), bank = math.floor(tonumber(bank) or 0) }
+end
+
 local function buildPayload(src)
     local inv = Inv[src]
     local items = {}
@@ -197,6 +204,7 @@ local function buildPayload(src)
         baseCapacity = Config.BaseCapacity / 1000, bag = inv.bag == true,
         ground = ground,
         container = containerPayload(src),
+        money = moneyOf(src),
     }
 end
 
@@ -890,6 +898,32 @@ function Actions.give(src, inv, d)
     return true
 end
 
+-- Donner de l'argent liquide au joueur le plus proche (bouton « Donner » du portefeuille)
+function Actions.giveCash(src, inv, d)
+    local target = tonumber(d.target)
+    local amount = int(d.amount, 1, 100000000)
+    if not amount then return false, 'invalid_amount' end
+    if not target or target == src or not Inv[target] then return false, 'nobody_near' end
+    local a, b = playerCoords(src), playerCoords(target)
+    if not a or not b or #(a - b) > 3.0 then return false, 'nobody_near' end
+    if (tonumber(core:GetMoney(src, 'cash')) or 0) < amount then return false, 'no_money' end
+    if not core:RemoveMoney(src, 'cash', amount, 'donne-a-' .. target) then return false, 'no_money' end
+    if not core:AddMoney(target, 'cash', amount, 'recu-de-' .. src) then
+        core:AddMoney(src, 'cash', amount, 'donne-annule')
+        return false, 'no_money'
+    end
+    sync(target, { type = 'success', text = ('+%d $ en liquide'):format(amount) })
+    if not Open[target] then pcall(function() core:Notify(target, ('On vous a donné %d $ en liquide.'):format(amount), 'success') end) end
+    TriggerEvent('elyzea_inventory:cashGiven', src, target, amount)
+    return true, nil, nil, { type = 'success', text = ('%d $ donnés.'):format(amount) }
+end
+
+-- Argent liquide ou banque modifié ailleurs (achat, paie, admin) : l'inventaire ouvert se met à jour
+AddEventHandler('elyzea:server:onMoneyChange', function(src, kind)
+    src = tonumber(src)
+    if src and Open[src] and Inv[src] and (kind == 'cash' or kind == 'bank') then sync(src) end
+end)
+
 RegisterNetEvent('elyzea_inv:action', function(action, data)
     local src = source
     local inv = Inv[src]
@@ -897,9 +931,9 @@ RegisterNetEvent('elyzea_inv:action', function(action, data)
     local handler = Actions[action]
     if not handler or InArena(src) then return end
     if limited(src) then return sync(src, { type = 'error', text = Msg.rate_limited }) end
-    local ok, err, touchesGround = handler(src, inv, data)
+    local ok, err, touchesGround, okToast = handler(src, inv, data)
     if ok then inv.dirty = true end
-    sync(src, (not ok and err) and { type = 'error', text = Msg[err] or err } or nil)
+    sync(src, (not ok and err) and { type = 'error', text = Msg[err] or err } or (ok and okToast) or nil)
     if ok and touchesGround then refreshOpen(src) end
 end)
 

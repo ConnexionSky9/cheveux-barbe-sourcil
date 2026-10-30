@@ -35,6 +35,29 @@
   const searchEl = $('#search');
   const emptyEl = $('#grid-empty');
   const CAT_LABEL = { weapons: 'arme ni munition', food: 'nourriture', papers: 'papier' };
+  const walletEl = $('#wallet');
+  const cashForm = $('#cash-form');
+  const cashAmount = $('#cash-amount');
+  const money = n => `${Math.floor(Number(n) || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} $`;
+  // Objets reçus depuis la dernière ouverture : mis en évidence à la prochaine ouverture
+  let fresh = new Set();
+  const sig = it => `${it.name}|${it.count}`;
+  function noteFresh(prev, next) {
+    if (!prev || !next) return;
+    const before = {};
+    (prev.items || []).forEach(it => { before[it.slot] = it; });
+    (next.items || []).forEach(it => {
+      const b = before[it.slot];
+      if (!b || b.name !== it.name || it.count > b.count) fresh.add(it.slot);
+    });
+  }
+  function renderWallet(m) {
+    walletEl.hidden = !m;
+    if (!m) return;
+    $('#cash').textContent = money(m.cash);
+    $('#bank').textContent = money(m.bank);
+    $('#cash-give').disabled = !(m.cash > 0);
+  }
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   const fmt = n => (Math.round(n * 10) / 10).toFixed(1);
@@ -288,6 +311,7 @@
     renderGround(d.ground);
     renderContainer(d.container);
     renderWeight(d);
+    renderWallet(d.money);
     applyFilter();
   }
 
@@ -698,13 +722,42 @@
   function open(data) {
     if (data.equipSlots) state.equipSlots = data.equipSlots;
     buildEquip(state.equipSlots);
+    noteFresh(state.data, data.payload);
     state.data = data.payload;
     state.lastCap = null;
     state.open = true;
+    // Toujours rouvrir sur « Tout », sans recherche : un objet reçu ne doit jamais être caché par un ancien filtre
+    view.q = ''; searchEl.value = ''; $('#search-clear').hidden = true;
+    cashForm.hidden = true;
+    setCat('all');
     app.classList.remove('hidden');
     app.setAttribute('aria-hidden', 'false');
     render();
+    if (fresh.size) {
+      const slots = [...fresh];
+      fresh = new Set();
+      slots.forEach(n => { const el = state.slotEls[n - 1]; if (el && el._item) el.classList.add('fresh'); });
+      const first = state.slotEls[Math.min(...slots) - 1];
+      if (first && first._item && first.scrollIntoView) first.scrollIntoView({ block: 'nearest' });
+      setTimeout(() => state.slotEls.forEach(el => el.classList.remove('fresh')), 4000);
+    }
   }
+
+  // Portefeuille : donner de l'argent liquide
+  $('#cash-give').addEventListener('click', () => {
+    cashForm.hidden = !cashForm.hidden;
+    if (!cashForm.hidden) { cashAmount.value = ''; cashAmount.focus(); }
+  });
+  $('#cash-cancel').addEventListener('click', () => { cashForm.hidden = true; });
+  cashForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const n = Math.floor(Number(cashAmount.value) || 0);
+    const max = (state.data && state.data.money && state.data.money.cash) || 0;
+    if (n < 1) { cashAmount.focus(); return; }
+    if (n > max) { toast('error', `Tu n'as que ${money(max)} en liquide.`); return; }
+    cashForm.hidden = true;
+    post('giveCash', { amount: n });
+  });
 
   function close(fromGame) {
     if (!state.open) return;
@@ -742,6 +795,7 @@
     else if (msg.action === 'close') close(true);
     else if (msg.action === 'hotbar' && msg.data) showHud(msg.data.index, msg.data.payload);
     else if (msg.action === 'sync' && msg.data) {
+      if (!state.open) noteFresh(state.data, msg.data.payload);
       state.data = msg.data.payload;
       if (state.open) render();
       const t = msg.data.toast;
@@ -784,6 +838,7 @@
     const weight = () => Object.values(inv.slots).reduce((s, it) => s + D[it.name].weight * it.count, 0);
     const cap = () => BASE + (inv.bag ? 10000 : 0);
     const empty = () => { for (let i = 1; i <= 100; i++) if (!inv.slots[i]) return i; return null; };
+    const wallet = { cash: 1840, bank: 26350 };
     const HEAVY = "Poids maximum atteint : vous n'avez pas assez de place dans votre inventaire.";
 
     function payload() {
@@ -791,7 +846,7 @@
       for (const cat in inv.worn) { const n = itemOf[cat]; equipment[cat] = { slot: cat, name: n, count: 1, label: `${D[n].label} n°${inv.worn[cat]}`, image: `${n}.png`, icon: '👕', weight: 0.01, equip: cat }; }
       return { slots: 100, hotbar: 5, items: Object.entries(inv.slots).map(([s, it]) => ser(it, +s)), equipment,
         weight: weight() / 1000, capacity: cap() / 1000, baseCapacity: 18, bag: inv.bag,
-        ground: ground.length ? { id: 1, items: ground.map((it, i) => ser(it, i + 1)) } : null };
+        ground: ground.length ? { id: 1, items: ground.map((it, i) => ser(it, i + 1)) } : null, money: Object.assign({}, wallet) };
     }
     function give(name, count, to) {
       if (weight() + D[name].weight * count > cap()) return HEAVY;
@@ -842,15 +897,20 @@
       let err;
       if (name === 'action') err = ops[body.type] && ops[body.type](body);
       else if (name === 'equipClothing' || name === 'unequipClothing') err = ops[name](body);
+      else if (name === 'giveCash') { if (body.amount > wallet.cash) err = "Vous n'avez pas assez d'argent."; else wallet.cash -= body.amount; }
       else if (name === 'button') err = body.index === 1 ? ops.equipClothing({ slot: body.slot }) : null;
       else return;
       setTimeout(() => window.postMessage({ action: 'sync', data: { payload: payload(), toast: err ? { type: 'error', text: err } : null } }, '*'), 30);
     }
-    return { handle, open: () => open({ payload: payload(), equipSlots: SLOTS }) };
+    // Tests : simule un achat reçu pendant que l'inventaire est fermé
+    function receive(name, count) { give(name, count); window.postMessage({ action: 'sync', data: { payload: payload() } }, '*'); }
+    function setCash(n) { wallet.cash = n; window.postMessage({ action: 'sync', data: { payload: payload() } }, '*'); }
+    return { handle, receive, setCash, open: () => open({ payload: payload(), equipSlots: SLOTS }) };
   })();
 
   if (!IS_FIVEM) {
- document.body.classList.add('is-preview');
+    window.InvMock = Mock;
+    document.body.classList.add('is-preview');
     document.body.style.background = 'radial-gradient(ellipse at 50% 55%, #2a3550 0%, #121826 60%, #0a0d16 100%)';
     Mock.open();
   }

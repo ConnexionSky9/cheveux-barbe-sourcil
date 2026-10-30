@@ -720,3 +720,28 @@ kbd {
 .qty-row button, .qty-row input { border-radius: 0; }
 /* Raccourcis : le numéro de touche dépasse sous la case, pas de coin coupé ici */
 .hotbar .slot, .hud-hotbar .slot { clip-path: none; border-radius: 6px; }
+
+/* Portefeuille (argent du personnage) */
+.wallet { display: grid; grid-template-columns: 1.35fr 1fr; gap: 6px; margin: 0 0 10px; }
+.wallet[hidden] { display: none; }
+.wcard { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.035); }
+.wcard.cash { border-color: rgba(92, 242, 160, 0.28); background: linear-gradient(180deg, rgba(92, 242, 160, 0.1), rgba(92, 242, 160, 0.02)); }
+.wcard .wi { font-size: 17px; line-height: 1; }
+.wcard .wl { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.wcard .wl b { font: 700 15px var(--f-display); letter-spacing: 0.02em; text-transform: none; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wcard.cash .wl b { color: var(--ok); text-shadow: 0 0 10px rgba(92, 242, 160, 0.45); }
+.wbtn { flex: none; height: 26px; padding: 0 10px; border: 1px solid rgba(92, 242, 230, 0.35); border-radius: 7px; background: rgba(92, 242, 230, 0.08); color: var(--txt); font: 600 11px var(--f-display); letter-spacing: 0.04em; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.wbtn:hover:not(:disabled) { border-color: var(--neon); background: rgba(92, 242, 230, 0.18); }
+.wbtn:disabled { opacity: 0.35; cursor: default; }
+.wbtn.ok { border-color: rgba(92, 242, 160, 0.5); background: rgba(92, 242, 160, 0.14); }
+.wgive { grid-column: 1 / -1; display: flex; gap: 6px; }
+.wgive[hidden] { display: none; }
+.wgive input { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: rgba(0, 0, 0, 0.35); color: var(--txt); font: 600 13px var(--f-display); outline: none; }
+.wgive input:focus { border-color: var(--neon); }
+.wgive .wbtn { height: 30px; }
+
+/* Objet reçu depuis la dernière ouverture */
+.slot.fresh { border-color: var(--ok); box-shadow: inset 0 0 0 1px rgba(92, 242, 160, 0.6), inset 0 0 18px -4px rgba(92, 242, 160, 0.9); animation: fresh-pulse 1s var(--ease) 3; }
+.slot.has.fresh::before { content: "NOUVEAU"; position: absolute; top: 3px; left: 5px; right: auto; bottom: auto; height: auto; z-index: 3; padding: 0 4px; border-radius: 3px;
+  background: var(--ok); box-shadow: none; opacity: 1; color: #04130b; font: 700 8px/13px var(--f-display); letter-spacing: 0.06em; pointer-events: none; }
+@keyframes fresh-pulse { 50% { box-shadow: inset 0 0 0 1px rgba(92, 242, 160, 1), inset 0 0 26px -2px rgba(92, 242, 160, 1); } }

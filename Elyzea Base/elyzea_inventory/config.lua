@@ -68,6 +68,8 @@ Config.Messages = {
     container_heavy = 'Ce coffre est plein.',
     target_heavy = 'Cette personne ne peut pas porter plus.',
     no_money     = 'Vous n\'avez pas assez d\'argent.',
+    invalid_amount = 'Montant invalide.',
+    nobody_near  = 'Personne à proximité (3 m).',
     no_ammo      = 'Vous n\'avez pas de munitions pour cette arme.',
     no_weapon    = 'Équipez d\'abord une arme compatible.',
 }

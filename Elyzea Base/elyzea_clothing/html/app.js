@@ -344,7 +344,8 @@ function renderCart() {
   const short = (S.money[method] || 0) < total;
   const several = groups.some((g) => g.list.length > 1);
   const wearOpt = S.itemsMode ? `<label class="wear"><input type="checkbox" id="wearNow" ${wearNow ? 'checked' : ''}><span>Porter tout de suite<small>${wearNow
-    ? (several ? 'Une pièce par rayon : celle marquée « Sur toi ». Le reste et tes vêtements actuels vont dans ton inventaire.' : 'Tes vêtements actuels iront dans ton inventaire.')
+    ? (several ? 'Une pièce par rayon, celle marquée « Sur toi », est portée (pas dans l\'inventaire : F3 pour la ranger). Le reste et tes vêtements actuels vont dans ton inventaire.'
+      : 'Les pièces achetées sont portées (pas dans l\'inventaire : F3 pour les ranger). Tes vêtements actuels vont dans ton inventaire.')
     : 'Tout ce que tu achètes va dans ton inventaire.'}</small></span></label>` : '';
   $('#cartFoot').innerHTML = `<div class="total"><span>Total</span><b>${money(total)}</b></div>${wearOpt}
     <div class="pay">${pays.map((k) => `<button class="${k === method ? 'on' : ''} ${(S.money[k] || 0) < total ? 'short' : ''}" data-pay="${k}"><small>${PAY[k]}</small><b>${money(S.money[k])}</b></button>`).join('')}</div>
