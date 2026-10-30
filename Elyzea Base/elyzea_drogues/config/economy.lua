@@ -18,6 +18,7 @@ Config.Prices = {
     xtc_pink = { price = 70, max = 10 }, xtc_blue = { price = 85, max = 10 }, xtc_yellow = { price = 60, max = 10 }, xtcbaggy = { price = 70, max = 10 },
     oxy = { price = 90, max = 10 }, opi_syringe = { price = 150, max = 5 }, ketamine = { price = 140, max = 5 },
     shroom_bag = { price = 110, max = 5 }, dried_mushroom = { price = 45, max = 10 },
+    shroom_cake_s = { price = 60, max = 10 }, shroom_cake_m = { price = 160, max = 5 }, shroom_cake_l = { price = 320, max = 3 },
     -- produits intermédiaires : 0 (non achetés) par défaut, activables dans le menu
     weed_bud = { price = 0, max = 10 }, coca_paste = { price = 0, max = 5 }, meth_crystal = { price = 0, max = 5 },
 }
@@ -31,4 +32,5 @@ Config.Shop = {
     { item = 'baking_soda', price = 20 }, { item = 'drg_solvent', price = 50 }, { item = 'drg_reagent', price = 120 }, { item = 'drg_acid', price = 60 },
     { item = 'drg_safrole', price = 90 }, { item = 'drg_dye_pink', price = 30 }, { item = 'drg_dye_blue', price = 30 }, { item = 'drg_dye_yellow', price = 30 },
     { item = 'drg_opium_raw', price = 110 }, { item = 'drg_syringe_empty', price = 15 }, { item = 'drg_keta_liquid', price = 130 },
+    { item = 'cake_mix', price = 25 },
 }

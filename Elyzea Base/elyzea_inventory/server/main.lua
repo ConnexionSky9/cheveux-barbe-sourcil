@@ -135,6 +135,7 @@ local function serialize(it, slot, extra)
         buttons = def.buttons and #def.buttons or 0,
         weapon = def.kind == 'weapon' or nil,
         firearm = (def.kind == 'weapon' and def.ammoname and not def.throwable) and true or nil,
+        rename = def.rename == true or nil,
         category = def.category or 'other',
     }
     if extra then for k, v in pairs(extra) do out[k] = v end end
@@ -866,7 +867,8 @@ function Actions.renameWeapon(src, inv, d)
     local slot = int(d.slot, 1, inv.size)
     local item = slot and inv.slots[slot]
     local def = item and Items[item.name]
-    if not def or def.kind ~= 'weapon' or not def.ammoname or def.throwable then return false, 'Seules les armes à feu peuvent être renommées.' end
+    local firearm = def and def.kind == 'weapon' and def.ammoname and not def.throwable
+    if not def or not (firearm or def.rename == true) then return false, 'Cet objet ne peut pas être renommé.' end
     local name = tostring(d.name or ''):gsub('[%c<>]', ''):gsub('^%s+', ''):gsub('%s+$', ''):gsub('%s+', ' ')
     if #name > 30 then name = name:sub(1, 30) end
     item.metadata = type(item.metadata) == 'table' and item.metadata or {}
@@ -876,7 +878,7 @@ function Actions.renameWeapon(src, inv, d)
     else
         if #name < 2 then return false, 'Nom trop court (2 caractères minimum).' end
         item.metadata.label, item.metadata.custom = name, true
-        sync(src, { type = 'success', text = ('Arme renommée : %s.'):format(name) })
+        sync(src, { type = 'success', text = (firearm and 'Arme renommée : %s.' or 'Renommé : %s.'):format(name) })
     end
     return true
 end

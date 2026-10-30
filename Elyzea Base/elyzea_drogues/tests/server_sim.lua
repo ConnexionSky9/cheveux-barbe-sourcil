@@ -202,9 +202,42 @@ PLAYERS[2].state.pvpArena = true
 check(USABLE.meth(2) == false, 'pendant une arène PvP : refusé')
 PLAYERS[2].state.pvpArena = nil
 
+print('[Gâteaux aux champignons (four)]')
+ok = AA(1, 'site_save', { type = 'shroom_oven', model = 'prop_cooker_03', x = 0, y = 2, z = 0 })
+local oven
+for id, st in pairs(DS.sites) do if st.type == 'shroom_oven' then oven = id end end
+check(ok and oven, 'four placé par le staff (modèle prop_cooker_03)')
+P(7, 0, 1, 0) P(8, 0, 1, 0) P(9, 0, 1, 0)
+PLAYERS[7].inv.dried_mushroom, PLAYERS[7].inv.cake_mix = 10, 6
+r = CALL('craftStart', 7, oven, 'shroom_cake_s', 1) NOW = NOW + 8
+f = CALL('craftFinish', 7, r.token)
+check(f.ok and PLAYERS[7].inv.shroom_cake_s == 1 and PLAYERS[7].inv.dried_mushroom == 9 and PLAYERS[7].inv.cake_mix == 5, 'petit gâteau : 1 champignon séché + 1 préparation')
+r = CALL('craftStart', 7, oven, 'shroom_cake_m', 1) NOW = NOW + 12
+f = CALL('craftFinish', 7, r.token)
+check(f.ok and PLAYERS[7].inv.shroom_cake_m == 1 and PLAYERS[7].inv.dried_mushroom == 6 and PLAYERS[7].inv.cake_mix == 3, 'gâteau moyen : 3 champignons + 2 préparations')
+r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1) NOW = NOW + 18
+f = CALL('craftFinish', 7, r.token)
+check(f.ok and PLAYERS[7].inv.shroom_cake_l == 1 and PLAYERS[7].inv.dried_mushroom == 0 and PLAYERS[7].inv.cake_mix == 0, 'gros gâteau : 6 champignons + 3 préparations')
+r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1)
+check(r.error and r.error:find('manque'), 'plus d\'ingrédients : refusé')
+check((CALL('craftStart', 7, grind, 'shroom_cake_s', 1).error) ~= nil, 'gâteau sur un autre poste que le four : refusé')
+-- manger : la taille change la durée et la force
+local base = DS.S.drugs.mushrooms
+check(USABLE.shroom_cake_s(7) == true, 'petit gâteau mangé')
+local t1 = last('elyzea_drogues:take', 7)
+check(t1.args[1] == 'mushrooms' and t1.args[2] == math.floor(base.duration * 0.7 + 0.5) and math.abs(t1.args[6] - base.intensity * 0.7) < 0.01,
+    ('petit : effet des champignons %d s, force %d %%'):format(t1.args[2], math.floor(t1.args[6])))
+PLAYERS[8].inv.shroom_cake_m = 1 PLAYERS[9].inv.shroom_cake_l = 1
+USABLE.shroom_cake_m(8) USABLE.shroom_cake_l(9)
+local t2, t3 = last('elyzea_drogues:take', 8), last('elyzea_drogues:take', 9)
+check(t2.args[2] > t1.args[2] and t2.args[6] > t1.args[6], ('moyen : plus long et plus fort (%d s, %d %%)'):format(t2.args[2], math.floor(t2.args[6])))
+check(t3.args[2] > t2.args[2] and t3.args[6] > t2.args[6], ('gros : encore plus long et plus fort (%d s, %d %%)'):format(t3.args[2], math.floor(t3.args[6])))
+check(EMS[#EMS][2] == 'psilocybin', 'prise enregistrée pour le laboratoire EMS (psilocybine)')
+check(USABLE.shroom_cake_m(7) == false, 'délai des champignons respecté entre deux gâteaux')
+
 print('[Menu admin]')
 local d = AD(1)
-check(d.available and d.full and #d.sites == 5 and #d.recipes > 40 and d.labels.joint_ww, 'données du menu : installations, recettes, libellés')
+check(d.available and d.full and #d.sites == 6 and #d.recipes > 40 and d.labels.joint_ww, 'données du menu : installations, recettes, libellés')
 check(AD(2).denied, 'joueur sans permission : rien')
 check(AD(5).available and not AD(5).full, 'permission « effets » : accès limité')
 local rec = DrugRules.copy(DS.S.recipes)

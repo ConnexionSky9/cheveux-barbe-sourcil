@@ -16,6 +16,27 @@ Quantités, prix et durées inchangés ; un mini-jeu raté ne fait rien perdre. 
 La récolte (champs placés par le staff, pots) garde la barre de progression avec des animations adaptées.
 Tout est détaillé dans **`docs/IMMERSIF.md`** (commandes `/drogues_verif` et `/drogues_assise`).
 
+## Gâteaux aux champignons hallucinogènes
+
+**Le four** : poste « Four (gâteaux aux champignons) ».
+- Le staff le place depuis admin_menu › Gestion des drogues › Installations.
+- Modèle : cuisinière `prop_cooker_03`, ou barbecue `prop_bbq_5`.
+- On l'utilise avec ALT dessus › la recette, puis un mini-jeu de cuisson : garder la chaleur dans la zone verte.
+
+**Les recettes** :
+
+| Gâteau | Ingrédients | Effet des champignons |
+|---|---|---|
+| 🧁 Petit gâteau | 1 champignon séché + 1 préparation pour gâteau | durée ×0,7, force ×0,7 |
+| 🍰 Gâteau moyen | 3 champignons séchés + 2 préparations | durée ×1,4, force ×1,1 |
+| 🎂 Gros gâteau | 6 champignons séchés + 3 préparations | durée ×2,2, force ×1,6 |
+
+- **Préparation pour gâteau** (`cake_mix`) : vendue 25 $ par les fournisseurs de matériel.
+- **Manger le gâteau** (Utiliser) donne l'effet des champignons hallucinogènes. La force augmente le nombre de créatures, leur fréquence et la déformation de l'image.
+- **Renommer** : clic droit › Renommer, par exemple « Gâteau d'anniversaire ». Le nom reste sur le gâteau, même donné ou vendu.
+- **Délai** : le même que pour les champignons, entre deux prises. La prise est enregistrée pour le labo EMS (psilocybine).
+- **Prix de revente** aux acheteurs : 60 / 160 / 320 $. Tout se règle dans le menu (recettes, prix, durée de la drogue).
+
 ## Installation
 1. Copier `elyzea_drogues` dans le dossier des ressources (à côté des autres ressources Elyzea).
 2. Remplacer aussi les fichiers modifiés de `admin_menu`, `elyzea_police` et `elyzea_inventory/shared/items.lua`

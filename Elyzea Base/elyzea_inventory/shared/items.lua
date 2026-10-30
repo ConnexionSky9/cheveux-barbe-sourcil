@@ -377,6 +377,17 @@ do
     Items.shroom_bag    = D('Sachet de champignons', 30, '🍄', 'Champignons séchés, plus forts. Utiliser pour en manger.', true)
     Items.magic_mushroom.close, Items.magic_mushroom.description = true, 'Champignon hallucinogène frais : à trier, ou à manger.'
     Items.dried_mushroom.close, Items.dried_mushroom.description = true, 'Champignons séchés : à ensacher, ou à manger.'
+    -- Gâteaux aux champignons (four : elyzea_drogues) : plus le gâteau est gros, plus l'effet est long et fort.
+    -- rename = true : clic droit › Renommer (nom gardé dans l'objet)
+    Items.cake_mix      = D('Préparation pour gâteau', 400, '📦', 'Farine, sucre et œufs en poudre. Au four avec des champignons séchés.')
+    local function cake(label, weight, icon, desc)
+        local c = D(label, weight, icon, desc, true)
+        c.max, c.rename, c.category = 10, true, 'food'
+        return c
+    end
+    Items.shroom_cake_s = cake('Petit gâteau aux champignons', 120, '🧁', 'Petit effet hallucinogène, assez court. Utiliser pour le manger. Clic droit › Renommer.')
+    Items.shroom_cake_m = cake('Gâteau moyen aux champignons', 300, '🍰', 'Effet hallucinogène franc. Utiliser pour le manger. Clic droit › Renommer.')
+    Items.shroom_cake_l = cake('Gros gâteau aux champignons', 650, '🎂', 'Effet hallucinogène très fort et très long. Utiliser pour le manger. Clic droit › Renommer.')
     Items.weed_pouch.close, Items.cocaine.close, Items.ketamine.close = true, true, true
 end
 -- ───────── Presse (ressource elyzea_presse : métier de journaliste) ─────────

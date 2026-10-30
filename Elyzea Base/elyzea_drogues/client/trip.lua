@@ -121,8 +121,11 @@ function FX.TripStart()
             -- apparitions (pas dans un véhicule ni pendant les 10 dernières secondes)
             local alive = 0
             for _, c in ipairs(creatures) do if c.ped then alive = alive + 1 end end
-            if now >= nextSpawn and alive < setting('maxCreatures') and e.endT - now > 10000 and not IsPedInAnyVehicle(me, false) then
-                nextSpawn = now + setting('spawnEvery') * 1000
+            -- Force de la prise (ex. gros gâteau) : plus de créatures, qui arrivent plus vite
+            local int = e.int or 1.0
+            local maxC = math.max(1, math.floor(setting('maxCreatures') * int + 0.5))
+            if now >= nextSpawn and alive < maxC and e.endT - now > 10000 and not IsPedInAnyVehicle(me, false) then
+                nextSpawn = now + math.floor(setting('spawnEvery') * 1000 / int)
                 spawnOne()
             end
             for i = #creatures, 1, -1 do

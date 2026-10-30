@@ -59,7 +59,9 @@ local function apply(src, id, item, test)
     end
     local color = DrugRules.SmokeColor(S(), prod)
     if color then lastSmoke[src] = { untilT = now + 15, color = color, lastPuff = 0 } end
-    TriggerClientEvent('elyzea_drogues:take', src, id, untilT - now, test == true, item, color, set.intensity)
+    -- Force du produit (ex. gros gâteau aux champignons) : intensité × power
+    local intensity = (tonumber(set.intensity) or 100) * (prod and tonumber(prod.power) or 1.0)
+    TriggerClientEvent('elyzea_drogues:take', src, id, untilT - now, test == true, item, color, intensity)
 end
 DS.ApplyDrug = apply
 

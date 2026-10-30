@@ -630,7 +630,7 @@
   // Renommer une arme à feu (fenêtre dans l'inventaire)
   const renameBox = document.createElement('div');
   renameBox.className = 'rename-box';
-  renameBox.innerHTML = `<div class="rename-card"><h3>Renommer l'arme</h3><p class="rename-sub"></p>
+  renameBox.innerHTML = `<div class="rename-card"><h3 class="rename-title">Renommer l'arme</h3><p class="rename-sub"></p>
     <input type="text" maxlength="30" placeholder="Nouveau nom (2 à 30 caractères)">
     <div class="rename-actions"><button type="button" data-rn="reset">Nom d'origine</button><span></span><button type="button" data-rn="no">Annuler</button><button type="button" data-rn="ok" class="primary">Valider</button></div></div>`;
   document.body.appendChild(renameBox);
@@ -640,6 +640,7 @@
   function closeRename() { renameBox.classList.remove('show'); renameSlot = null; }
   function renameWeapon(slot, it) {
     renameSlot = slot;
+    renameBox.querySelector('.rename-title').textContent = it.weapon ? 'Renommer l\'arme' : 'Renommer';
     renameBox.querySelector('.rename-sub').textContent = `${it.label}${it.metadata && it.metadata.serial ? ` · N° ${it.metadata.serial}` : ''}`;
     renameInput.value = it.metadata && it.metadata.custom ? it.label : '';
     renameBox.classList.add('show');
@@ -681,7 +682,7 @@
         const label = it.wear === 'back' ? (on ? 'Retirer du dos' : 'Mettre dans le dos') : (on ? 'Retirer de la ceinture' : 'Mettre à la ceinture');
         opts.push([label, () => post('wear', { slot: src.slot })]);
       }
-      if (it.weapon && it.firearm) opts.push(['Renommer', () => renameWeapon(src.slot, it)]);
+      if ((it.weapon && it.firearm) || it.rename) opts.push(['Renommer', () => renameWeapon(src.slot, it)]);
       if (state.data.container && !isShop()) opts.push(['Ranger dans le coffre', () => action('store', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Donner', () => post('give', { from: src.slot, count: dragCount(it) })]);
       opts.push(['Jeter', () => action('drop', { from: src.slot, count: dragCount(it) })]);

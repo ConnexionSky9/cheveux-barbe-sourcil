@@ -140,6 +140,7 @@ Config.Decor = {
     shroom_sort = { props = { P(M.plate, 'top', 0.3, 0.0, 0), P(M.weedbucket, 'ground', 1.0, 0.0, 0, 0.35) } },
     shroom_dry  = { props = { P(M.tray, 'ground', 0.0, -1.0, 0, 0.45) } },
     shroom_pack = { props = { P(M.cokescale, 'top', 0.0, 0.1, 0), P(M.smallbag, 'top', 0.5, 0.2, 0) } },
+    shroom_oven = { props = { P(M.plate, 'top', 0.4, 0.0, 0) } },
 }
 -- Équipements des laboratoires (elyzea_labs) → décor équivalent
 Config.LabDecor = {
@@ -243,6 +244,9 @@ S.shroom_dry  = { game = 'hang', skin = 'mush', per = 3, min = 3, cap = 9, plusO
     title = 'Faire sécher', hint = 'Suspends chaque champignon, puis règle la ventilation.' }
 S.shroom_bag  = { game = 'scale', skin = 'mush', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = 10, pose = 'stand', anim = AN.table_pack, extra = { grams = 2.0 },
     title = 'Peser et ensacher', hint = 'Maintiens le clic sur le bocal et vise le poids exact.' }
+-- Gâteaux aux champignons (petit / moyen / gros : même profil, plus d'objectifs pour un gros gâteau)
+S.shroom_cake = { game = 'heat', skin = 'stove', per = 6, min = 6, cap = 30, maxMistakes = 3, secPer = 2.5, pose = 'stand', anim = AN.stove,
+    title = 'Cuire le gâteau', hint = 'Maintiens le clic pour chauffer le four, relâche pour refroidir : garde la cuisson dans la zone verte.' }
 
 -- ---------------------------------------------------------------- récolte (champs placés avec l'admin_menu, pots)
 -- Pas de mini-jeu : barre de progression avec une animation adaptée à la plante et un objet tenu.

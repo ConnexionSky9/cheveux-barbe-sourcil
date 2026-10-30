@@ -124,5 +124,20 @@ for _, it in pairs(Inv[1].slots) do if it.name == 'vet_chapeau' then hat = it en
 check(okNear and hat and hat.metadata.drawable == 12, 'ALT › Ramasser à côté : le chapeau (même modèle) va dans l\'inventaire')
 check(not API.PickupDropItem(1, hatId, 1), 'déjà ramassé : rien')
 
+print('\n[Renommer un gâteau]')
+local okC, slotC = API.AddItem(1, 'shroom_cake_l', 1)
+act(1, 'renameWeapon', { slot = slotC, name = '  Gâteau d\'anniversaire de Tom  ' })
+local cakeIt = Inv[1].slots[slotC]
+check(okC and cakeIt.metadata and cakeIt.metadata.label == 'Gâteau d\'anniversaire de Tom', 'gros gâteau renommé (nom gardé dans l\'objet)')
+local ser = last(1, 'elyzea_inv:sync').args[1]
+local shown
+for _, it in ipairs(ser.items) do if it.slot == slotC then shown = it end end
+check(shown and shown.label == 'Gâteau d\'anniversaire de Tom' and shown.rename == true, 'l\'inventaire affiche le nouveau nom et propose « Renommer »')
+act(1, 'renameWeapon', { slot = slotC, name = '' })
+check(Inv[1].slots[slotC].metadata.label == nil, 'nom d\'origine rendu')
+local okB, slotB = API.AddItem(1, 'cake_mix', 1)
+act(1, 'renameWeapon', { slot = slotB, name = 'Farine' })
+check(not (Inv[1].slots[slotB].metadata and Inv[1].slots[slotB].metadata.label), 'un objet non renommable (préparation) : refusé')
+
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

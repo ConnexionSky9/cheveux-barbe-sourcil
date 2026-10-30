@@ -1,6 +1,6 @@
 -- =====================================================================
 --  CONSOMMATION : objet → effet (Config.Drugs), animation, force, fumée
---  use : animation de prise (client/consume.lua) · mult : durée × X
+--  use : animation de prise (client/consume.lua) · mult : durée × X · power : force × X (facultatif)
 --  smoke = 'variety:<id>' : fumée de la couleur de la variété · smoke = { r, g, b } : couleur fixe
 -- =====================================================================
 Config.Products = {}
@@ -29,6 +29,10 @@ P.ketamine      = { drug = 'ketamine',  use = 'snort',   mult = 1.0 }
 P.magic_mushroom= { drug = 'mushrooms', use = 'eat',     mult = 0.8 }
 P.dried_mushroom= { drug = 'mushrooms', use = 'eat',     mult = 1.0 }
 P.shroom_bag    = { drug = 'mushrooms', use = 'eat',     mult = 1.4 }
+-- Gâteaux : mult = durée × X · power = force × X (plus de créatures, plus vite, image plus déformée)
+P.shroom_cake_s = { drug = 'mushrooms', use = 'eat',     mult = 0.7, power = 0.7 }
+P.shroom_cake_m = { drug = 'mushrooms', use = 'eat',     mult = 1.4, power = 1.1 }
+P.shroom_cake_l = { drug = 'mushrooms', use = 'eat',     mult = 2.2, power = 1.6 }
 
 -- Animations de prise (props filtrés par IsModelInCdimage : un modèle absent est ignoré)
 --   puffs : secondes où la fumée sort (joint / pipe)
