@@ -705,7 +705,7 @@ let ITEMS = null, itemsMode = '', itemsAsked = 0;
 let itemSearch = '', itemCat = 'all', selItem = null, itemLimit = 300;
 const give = { target: 'me', id: '', count: 1 };
 const ITEM_CATS = [
-    { id: 'all', label: 'Tout' }, { id: 'server', label: '⭐ Elyzea' },
+    { id: 'all', label: 'Tout' }, { id: 'money', label: '💵 Argent' }, { id: 'server', label: '⭐ Elyzea' },
     { id: 'weapon', label: '🔫 Armes' }, { id: 'ammo', label: '🎯 Munitions' }, { id: 'other', label: '📦 Objets' },
 ];
 const isWeapon = (n) => /^weapon_/i.test(n);
@@ -726,6 +726,7 @@ function filteredItems() {
     const srv = itemCat === 'server' ? serverItems() : null;
     return (ITEMS || []).filter((it) => {
         if (q && !it.label.toLowerCase().includes(q) && !it.name.toLowerCase().includes(q)) return false;
+        if (itemCat === 'money') return itemKind(it) === 'money';
         if (itemCat === 'weapon') return itemKind(it) === 'weapon';
         if (itemCat === 'ammo') return itemKind(it) === 'ammo';
         if (itemCat === 'other') return itemKind(it) === 'other';
@@ -772,11 +773,12 @@ VIEWS.items = () => {
                     <button class="btn" data-act="item_by_code">Choisir</button></div></div>` : `
             <div class="give-head">${itemIcon(it, 'big')}<div><h2>${esc(it.label)}</h2>
                 <div class="muted">${esc(it.name)}${it.weight ? ` · ${it.weight >= 1000 ? (it.weight / 1000) + ' kg' : it.weight + ' g'}` : ''}</div></div></div>
-            <div class="section"><h2>Quantité</h2>
-                <div class="inline" style="max-width:420px">
-                    <input class="input" type="number" min="1" max="10000" data-give="count" value="${esc(give.count)}">
-                    ${[1, 5, 10, 50, 100].map((n) => `<button class="btn ${Number(give.count) === n ? 'on' : ''}" data-gcount="${n}">${n}</button>`).join('')}
+            <div class="section"><h2>${it.kind === 'money' ? 'Montant ($)' : 'Quantité'}</h2>
+                <div class="inline" style="max-width:520px">
+                    <input class="input" type="number" min="1" max="${it.kind === 'money' ? 10000000 : 10000}" data-give="count" value="${esc(give.count)}">
+                    ${(it.kind === 'money' ? [100, 1000, 10000, 100000] : [1, 5, 10, 50, 100]).map((n) => `<button class="btn ${Number(give.count) === n ? 'on' : ''}" data-gcount="${n}">${n.toLocaleString('fr-FR')}</button>`).join('')}
                 </div>
+                ${it.kind === 'money' ? `<p class="hint">Ajouté sur le compte ${it.name === '__cash' ? '« liquide »' : '« banque »'} du personnage (l'argent n'est pas un objet d'inventaire).</p>` : ''}
             </div>
             <div class="section"><h2>À qui ?</h2>
                 <div class="grid" style="grid-template-columns:1fr 1fr;max-width:520px;margin-bottom:10px">
@@ -790,7 +792,7 @@ VIEWS.items = () => {
                         ${others.map((p) => `<option value="${p.id}" ${String(give.id) === String(p.id) ? 'selected' : ''}>[${p.id}] ${esc(p.name)}</option>`).join('')}
                     </select></div></div>` : ''}
             </div>
-            <button class="btn primary big" data-act="give_item">🎁 Donner ${esc(give.count)} × ${esc(it.label)}</button>`}
+            <button class="btn primary big" data-act="give_item">${it.kind === 'money' ? `💵 Donner ${Number(give.count || 0).toLocaleString('fr-FR')} $ (${it.name === '__cash' ? 'liquide' : 'banque'})` : `🎁 Donner ${esc(give.count)} × ${esc(it.label)}`}</button>`}
         </div>
     </div>`;
 };
@@ -3550,7 +3552,8 @@ async function handleAct(act) {
             if (!count || count < 1) return toast('Indique une quantité.', 'error');
             const target = give.target === 'me' ? D.me.id : Number(give.id);
             if (!target) return toast("Indique l'ID du joueur.", 'error');
-            if (count >= 100 && !(await confirmBox('Grosse quantité', `Donner ${count} × ${selItem.label} ?`))) return;
+            if (selItem.kind === 'money') { if (count >= 100000 && !(await confirmBox('Grosse somme', `Donner ${count.toLocaleString('fr-FR')} $ ?`))) return; }
+            else if (count >= 100 && !(await confirmBox('Grosse quantité', `Donner ${count} × ${selItem.label} ?`))) return;
             return action('give_item', { target, item: selItem.name, count });
         }
         case 'give_to_player':

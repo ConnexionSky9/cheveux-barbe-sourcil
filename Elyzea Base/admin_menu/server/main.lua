@@ -1013,16 +1013,41 @@ function AM_itemsRateOk(src)
     itemsReload[src] = t
     return true
 end
+-- L'argent liquide et la banque ne sont pas des objets (ce sont des comptes du personnage,
+-- elyzea_core) : on les ajoute en tête de la liste pour pouvoir les donner comme un objet.
+local MONEY = {
+    __cash = { account = 'cash', label = 'Argent liquide' },
+    __bank = { account = 'bank', label = 'Argent en banque' },
+}
+local MONEY_MAX = 10000000
 Actions.get_items = { perm = 'give_item', noRefresh = true, fn = function(src, d)
     local force = d.force == true and AM_itemsRateOk(src)
-    TriggerLatentClientEvent('adminmenu:items', src, 200000, Bridge.GetAllItems(force), Bridge.Mode())
+    local list = {
+        { name = '__cash', label = MONEY.__cash.label, weight = 0, kind = 'money', image = 'nui://elyzea_inventory/html/img/money.png' },
+        { name = '__bank', label = MONEY.__bank.label, weight = 0, kind = 'money', image = 'nui://elyzea_inventory/html/img/card_bank.png' },
+    }
+    for _, it in ipairs(Bridge.GetAllItems(force)) do list[#list + 1] = it end
+    TriggerLatentClientEvent('adminmenu:items', src, 200000, list, Bridge.Mode())
 end }
 
 Actions.give_item = { perm = 'give_item', noRefresh = true, fn = function(src, d)
     local t = getTarget(src, d, true) if not t then return end
     local name = tostring(d.item or ''):gsub('[^%w_%-]', '')
-    local count = math.floor(math.min(math.max(tonumber(d.count) or 1, 1), 10000))
     if name == '' then return notify(src, 'Choisis un objet.', 'error') end
+    -- Argent : ajouté sur le compte du personnage (liquide ou banque), pas dans l'inventaire
+    local m = MONEY[name]
+    if m then
+        local amount = math.floor(math.min(math.max(tonumber(d.count) or 0, 1), MONEY_MAX))
+        local ok, done = pcall(function() return exports.elyzea_core:AddMoney(t, m.account, amount, 'admin') end)
+        if not ok or not done then return notify(src, 'Impossible de donner cet argent (personnage non chargé ?).', 'error') end
+        local digits = (tostring(amount):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''))
+        local txt = ('%s $ %s'):format(digits, m.account == 'cash' and 'en liquide' or 'en banque')
+        notify(src, ('%s donnés à %s.'):format(txt, t == src and 'toi' or pname(t)), 'success')
+        if t ~= src then notify(t, ('Le staff t\'a donné %s.'):format(txt), 'info') end
+        addLog(src, 'Don d\'argent', ('%d $ (%s) → %s [%d]'):format(amount, m.account, pname(t), t))
+        return
+    end
+    local count = math.floor(math.min(math.max(tonumber(d.count) or 1, 1), 10000))
     local exists, it = Bridge.ItemExists(name)
     if not exists and Bridge.Mode() ~= 'none' then
         return notify(src, ('L\'objet « %s » n\'existe pas dans ton inventaire.'):format(name), 'error')
