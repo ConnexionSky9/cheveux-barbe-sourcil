@@ -103,18 +103,33 @@ RegisterNUICallback('processed', function(data, cb)
     if p then pending[data.id] = nil p:resolve(data.data or '') end
 end)
 
+-- Ressource de capture : screenshot-basic, ou screencapture (qui fournit « screenshot-basic »)
+local function captureResource()
+    for _, r in ipairs({ 'screenshot-basic', 'screencapture' }) do
+        if GetResourceState(r) == 'started' then return r end
+    end
+end
+
+local failures = 0
 local function capture()
     local shot = promise.new()
-    exports['screenshot-basic']:requestScreenshot({ encoding = 'png' }, function(uri) shot:resolve(uri) end)
+    local ok = pcall(function()
+        exports['screenshot-basic']:requestScreenshot({ encoding = 'png' }, function(uri) if shot.state == 0 then shot:resolve(uri) end end)
+    end)
+    if not ok then return nil, 'export' end
+    -- Sans réponse en 10 s, on abandonne cette image au lieu de rester bloqué sur « capture »
+    SetTimeout(PhotoConfig.CaptureTimeout or 10000, function() if shot.state == 0 then shot:resolve(false) end end)
     local uri = Citizen.Await(shot)
-    if type(uri) ~= 'string' or uri == '' then return nil end
+    if uri == false then return nil, 'timeout' end
+    if type(uri) ~= 'string' or uri == '' then return nil, 'empty' end
     nextId = nextId + 1
     local id, p = nextId, promise.new()
     pending[id] = p
     SendNUIMessage({ action = 'process', id = id, data = uri, size = PhotoConfig.Size, quality = PhotoConfig.Quality })
     SetTimeout(5000, function() if pending[id] then pending[id] = nil p:resolve('') end end)
     local b64 = Citizen.Await(p)
-    return b64 ~= '' and b64 or nil
+    if b64 == '' then return nil, 'process' end   -- conversion webp / fond vert ratée (html/index.html)
+    return b64
 end
 
 local missingReply
@@ -133,6 +148,10 @@ RegisterNetEvent('elyzea_photos:start', function(cats, allTextures, overwrite)
     local ped = PlayerPedId()
     local sex = sexOf(ped)
     if not sex then return notify('Utilise un personnage freemode (homme ou femme).') end
+    if not captureResource() then
+        return notify('~r~Aucun outil de capture démarré.~s~ Installe screencapture (version compilée) ou screenshot-basic, puis « ensure » avant ce studio.')
+    end
+    failures = 0
 
     running, stopAsked = true, false
     local saved, origin, heading = snapshot(ped), GetEntityCoords(ped), GetEntityHeading(ped)
@@ -185,10 +204,21 @@ RegisterNetEvent('elyzea_photos:start', function(cats, allTextures, overwrite)
                 wear(ped, c, d, t)
                 frame(ped, view)
                 Wait(PhotoConfig.Delay)
-                local b64 = capture()
+                local b64, why = capture()
                 if b64 then
+                    failures = 0
                     TriggerLatentServerEvent('elyzea_photos:save', 100000, path, b64)
                     done = done + 1
+                else
+                    failures = failures + 1
+                    print(('[elyzea_clothing_photos] image ratée (%s) : %s'):format(why or '?', path))
+                    -- 3 échecs de suite : l'outil de capture ne marche pas, inutile de continuer
+                    if failures >= 3 then
+                        stopAsked = true
+                        notify((why == 'timeout' or why == 'export')
+                            and '~r~La capture ne répond pas.~s~ screencapture doit être la version COMPILÉE (dossiers game/dist et game/nui/dist). Séance arrêtée.'
+                            or '~r~Captures vides.~s~ Laisse le jeu au premier plan et augmente PhotoConfig.Delay. Séance arrêtée.')
+                    end
                 end
                 if done % 25 == 0 and done > 0 then
                     BeginTextCommandPrint('STRING')

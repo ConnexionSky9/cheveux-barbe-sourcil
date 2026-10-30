@@ -8,10 +8,15 @@ vêtements addons), directement au format attendu par la boutique :
 Fond transparent, 256 × 256 px.
 
 INSTALLATION
-1. screenshot-basic doit être installé (ressource officielle citizenfx/screenshot-basic).
+1. Un outil de capture, AU CHOIX :
+   - screencapture (recommandé) : le dossier « screencapture » fourni, déjà COMPILÉ.
+     Attention : le zip du code source de screencapture ne marche pas tel quel (pas de
+     game/dist ni game/nui/dist) : le studio reste bloqué sur la capture.
+   - ou screenshot-basic (ressource officielle citizenfx/screenshot-basic).
+   N'installez pas les deux en même temps.
 2. Copiez elyzea_clothing_photos dans resources/.
 3. server.cfg, APRÈS elyzea_clothing :
-       ensure screenshot-basic
+       ensure screencapture            (ou : ensure screenshot-basic)
        ensure elyzea_clothing_photos
 4. Permission (remplacez par votre identifiant) :
        add_ace identifier.license:VOTRE_LICENCE elyzea.photos allow
@@ -41,6 +46,14 @@ RÉGLAGES (config.lua)
 - PhotoConfig.Views   : cadrage de chaque rayon (os visé, distance, angle).
 - PhotoConfig.Isolate : rayons retirés pendant la photo d'un autre (ex. la veste pour le t-shirt).
 - PhotoConfig.Delay   : augmentez-le si des photos sortent vides (vêtements addons lourds).
+- PhotoConfig.CaptureTimeout : une capture sans réponse est abandonnée (10 s par défaut).
+  Après 3 échecs de suite, la séance s'arrête avec un message (plus de blocage infini).
+
+EN CAS DE PROBLÈME
+- « La capture ne répond pas » : l'outil de capture n'est pas compilé ou pas démarré.
+  Vérifiez dans la console F8 : ensure screencapture, et que screencapture/game/dist/client.js existe.
+- « Aucun outil de capture démarré » : ensure screencapture (ou screenshot-basic) AVANT ce studio.
+- Les images ratées sont listées dans la console F8 : [elyzea_clothing_photos] image ratée (…).
 
 LIMITES
 - Les hauts sont photographiés avec les bras actuels du personnage : certains hauts

@@ -1,0 +1,12 @@
+screencapture (itschip/screencapture, licence MIT : voir LICENSE) — VERSION COMPILÉE, prête à l'emploi.
+
+Le zip du code source ne contient pas les fichiers que FiveM charge (game/dist/client.js,
+game/dist/server.js, game/nui/dist/). Sans eux, aucune capture ne répond : le studio photo
+reste bloqué. Ce dossier contient ces fichiers, compilés depuis le code source fourni (version 0.17.2).
+
+Installation :
+1. Copiez ce dossier « screencapture » dans resources/ (le nom du dossier doit rester screencapture).
+2. Retirez screenshot-basic s'il est installé (screencapture le remplace : « provide 'screenshot-basic' »).
+3. server.cfg, AVANT le studio photo :
+       ensure screencapture
+       ensure elyzea_clothing_photos

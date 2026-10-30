@@ -3,6 +3,7 @@ PhotoConfig = {}
 PhotoConfig.Size = 256           -- images carrées de 256 × 256 px (.webp transparent)
 PhotoConfig.Quality = 0.88       -- qualité webp (0 à 1)
 PhotoConfig.Delay = 220          -- ms d'attente après chaque changement (laisse le jeu charger le vêtement)
+PhotoConfig.CaptureTimeout = 10000   -- ms : une capture sans réponse est abandonnée (3 de suite = séance arrêtée)
 PhotoConfig.Studio = vector4(-1266.0, -2960.0, 300.0, 330.0)   -- point isolé en hauteur (x, y, z, cap)
 PhotoConfig.Ace = 'elyzea.photos'
 
