@@ -1,0 +1,4 @@
+data/**/*.json
+data/**/*.txt
+exports/*
+!exports/.gitkeep

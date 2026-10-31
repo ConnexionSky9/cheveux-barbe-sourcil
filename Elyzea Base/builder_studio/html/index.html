@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Builder Studio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" class="hidden">
+    <!-- Barre de titre et menus -->
+    <header id="topbar">
+        <div class="brand"><span class="logo">◆</span> Builder <b>Studio</b></div>
+        <nav id="menubar">
+            <div class="menu" data-menu="fichier">Fichier
+                <div class="dropdown">
+                    <a data-cmd="home">Gestionnaire de projets…</a>
+                    <a data-cmd="newProject">Nouveau projet…</a>
+                    <hr>
+                    <a data-cmd="save" data-perm="build">Enregistrer <kbd>Ctrl+S</kbd></a>
+                    <a data-cmd="snapshot" data-perm="build">Créer un point de restauration…</a>
+                    <a data-cmd="versions">Points de restauration…</a>
+                    <hr>
+                    <a data-cmd="publish" data-perm="edit">Publier / retirer du jeu</a>
+                    <a data-cmd="export" data-perm="export">Exporter en ressource FiveM…</a>
+                    <hr>
+                    <a data-cmd="closeProject">Fermer le projet</a>
+                    <a data-cmd="quit">Quitter le studio <kbd>Échap</kbd></a>
+                </div>
+            </div>
+            <div class="menu" data-menu="edition">Édition
+                <div class="dropdown">
+                    <a data-cmd="undo">Annuler <kbd>Ctrl+Z</kbd></a>
+                    <a data-cmd="redo">Rétablir <kbd>Ctrl+Y</kbd></a>
+                    <hr>
+                    <a data-cmd="copy">Copier <kbd>Ctrl+C</kbd></a>
+                    <a data-cmd="paste">Coller <kbd>Ctrl+V</kbd></a>
+                    <a data-cmd="duplicate">Dupliquer <kbd>Ctrl+D</kbd></a>
+                    <a data-cmd="delete">Supprimer <kbd>Suppr</kbd></a>
+                    <hr>
+                    <a data-cmd="group">Grouper <kbd>Ctrl+G</kbd></a>
+                    <a data-cmd="ungroup">Dégrouper <kbd>Ctrl+Maj+G</kbd></a>
+                    <a data-cmd="lock">Verrouiller / déverrouiller <kbd>L</kbd></a>
+                    <a data-cmd="hide">Masquer / afficher <kbd>H</kbd></a>
+                </div>
+            </div>
+            <div class="menu" data-menu="selection">Sélection
+                <div class="dropdown">
+                    <a data-cmd="selectAll">Tout sélectionner <kbd>Ctrl+A</kbd></a>
+                    <a data-cmd="deselect">Désélectionner</a>
+                    <hr>
+                    <a data-cmd="alignXmin">Aligner X (min)</a><a data-cmd="alignXcenter">Aligner X (centre)</a><a data-cmd="alignXmax">Aligner X (max)</a>
+                    <a data-cmd="alignYmin">Aligner Y (min)</a><a data-cmd="alignYcenter">Aligner Y (centre)</a><a data-cmd="alignYmax">Aligner Y (max)</a>
+                    <a data-cmd="alignZmin">Aligner Z (min)</a><a data-cmd="alignZmax">Aligner Z (max)</a>
+                    <hr>
+                    <a data-cmd="distX">Répartir sur X</a><a data-cmd="distY">Répartir sur Y</a><a data-cmd="distZ">Répartir sur Z</a>
+                    <hr>
+                    <a data-cmd="ground">Poser au sol <kbd>Fin</kbd></a>
+                    <a data-cmd="focus">Centrer la caméra <kbd>F</kbd></a>
+                </div>
+            </div>
+            <div class="menu" data-menu="affichage">Affichage
+                <div class="dropdown">
+                    <a data-cmd="toggleGrid">Grille visible</a>
+                    <a data-cmd="toggleSnap">Magnétisme <kbd>X</kbd></a>
+                    <a data-cmd="toggleBottom">Panneau du bas</a>
+                    <a data-cmd="test">Tester à pied ici</a>
+                </div>
+            </div>
+            <div class="menu" data-menu="aide">Aide
+                <div class="dropdown">
+                    <a data-cmd="help">Raccourcis et limites du moteur</a>
+                    <a data-cmd="kits">État des kits de construction</a>
+                </div>
+            </div>
+        </nav>
+        <div id="modes">
+            <button data-mode="construction" class="active">Construction</button>
+            <button data-mode="decoration">Décoration</button>
+            <button data-mode="interieur">Intérieur</button>
+            <button data-mode="terrain">Terrain & îles</button>
+            <button data-mode="urbanisme">Urbanisme</button>
+        </div>
+        <div id="projectInfo"><span id="projName">Aucun projet</span><span id="saveState"></span></div>
+        <button id="btnClose" title="Quitter (Échap)">✕</button>
+    </header>
+
+    <!-- Barre d'outils -->
+    <div id="toolbar">
+        <div class="group">
+            <button class="tool" data-gizmo="move" title="Déplacer (2)">✥ Déplacer</button>
+            <button class="tool" data-gizmo="rotate" title="Rotation (3)">⟳ Rotation</button>
+            <button class="tool" data-gizmo="scale" title="Échelle / dimensions (4)">⤢ Échelle</button>
+            <button class="tool" id="btnSpace" title="Repère (T)">Monde</button>
+        </div>
+        <div class="group">
+            <label class="chk"><input type="checkbox" id="snap" checked> Magnétisme</label>
+            <label>Grille <input type="number" id="grid" step="0.05" min="0.05" value="0.5"> m</label>
+            <label>Angle <input type="number" id="angle" step="1" min="1" value="15"> °</label>
+            <label class="chk"><input type="checkbox" id="showGrid" checked> Grille</label>
+        </div>
+        <div class="group">
+            <button data-cmd="undo" title="Annuler (Ctrl+Z)">↶</button>
+            <button data-cmd="redo" title="Rétablir (Ctrl+Y)">↷</button>
+            <button data-cmd="duplicate" title="Dupliquer (Ctrl+D)">⧉</button>
+            <button data-cmd="delete" title="Supprimer (Suppr)">🗑</button>
+            <button data-cmd="group" title="Grouper (Ctrl+G)">▣</button>
+            <button data-cmd="lock" title="Verrouiller (L)">🔒</button>
+            <button data-cmd="ground" title="Poser au sol (Fin)">⤓</button>
+            <button data-cmd="focus" title="Centrer (F)">◎</button>
+        </div>
+        <div class="group right">
+            <span id="toolHint"></span>
+            <button data-cmd="test" title="Quitter la caméra et marcher ici">🚶 Tester</button>
+        </div>
+    </div>
+
+    <!-- Panneau gauche : scène / projets -->
+    <aside id="left" class="panel">
+        <div class="tabs"><button data-tab="scene" class="active">Scène</button><button data-tab="projets">Projets</button></div>
+        <div class="tabpage" data-page="scene">
+            <input type="search" id="outlinerFilter" placeholder="Filtrer les éléments…">
+            <div id="outliner" class="tree"></div>
+            <div class="hint">Glisse un élément sur un groupe pour le ranger. Alt+clic dans la vue : sélectionner un enfant.</div>
+        </div>
+        <div class="tabpage hidden" data-page="projets">
+            <button class="primary wide" data-cmd="newProject" data-perm="build">+ Nouveau projet</button>
+            <div id="projectList"></div>
+        </div>
+    </aside>
+
+    <!-- Vue 3D (le jeu, derrière) -->
+    <main id="viewport">
+        <div id="dragInfo" class="hidden"></div>
+        <div id="emptyHint" class="hidden">Ouvre ou crée un projet pour commencer (Fichier › Gestionnaire de projets).</div>
+    </main>
+
+    <!-- Panneau droit -->
+    <aside id="right" class="panel">
+        <div class="tabs"><button data-tab="props" class="active">Propriétés</button><button data-tab="materiaux">Matériaux</button><button data-tab="historique">Historique</button></div>
+        <div class="tabpage" data-page="props"><div id="inspector"></div></div>
+        <div class="tabpage hidden" data-page="materiaux"><div id="materials"></div></div>
+        <div class="tabpage hidden" data-page="historique"><div id="historyPanel"></div></div>
+    </aside>
+
+    <!-- Panneau bas : palettes selon le mode -->
+    <section id="bottom" class="panel">
+        <div id="palette"></div>
+    </section>
+
+    <footer id="statusbar">
+        <span id="stCam">—</span><span id="stSel">0 sélectionné</span><span id="stEnt">0 entités</span><span id="stFps"></span><span id="stUndo"></span>
+        <span class="grow"></span><span id="stHelp">ZQSD/flèches : caméra · A/E : bas/haut · clic droit maintenu : regarder · molette : zoom · Maj : rapide</span>
+    </footer>
+
+    <div id="toasts"></div>
+    <div id="modal" class="hidden"><div class="modalBox"><div class="modalHead"><span id="modalTitle"></span><button id="modalClose">✕</button></div><div id="modalBody"></div></div></div>
+</div>
+<script src="app.js"></script>
+<script src="panels.js"></script>
+</body>
+</html>

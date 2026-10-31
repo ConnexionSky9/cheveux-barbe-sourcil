@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- Builder Studio : page affichée hors écran (DUI) dont l'image devient une texture du jeu.
+     Le script envoie { src } : une image importée (data URL PNG) ou un lien https. -->
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  img { display: block; width: 100%; height: 100%; object-fit: fill; }
+</style>
+</head>
+<body>
+<img id="i" alt="">
+<script>
+  window.addEventListener('message', (e) => {
+    const d = e.data;
+    let v = d;
+    if (typeof d === 'string') { try { v = JSON.parse(d); } catch (err) { v = null; } }
+    if (v && typeof v.src === 'string') document.getElementById('i').src = v.src;
+  });
+</script>
+</body>
+</html>

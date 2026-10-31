@@ -295,6 +295,12 @@ do
         meta.resto1 = true
         Storage.save('meta', meta)
     end
+    if not meta.builder1 then
+        -- Onglet Builder Studio (builder_studio) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.builder_manage = true end
+        meta.builder1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.loisirs1 then
         -- Onglet Loisirs (elyzea_loisirs) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.loisirs_manage = true end

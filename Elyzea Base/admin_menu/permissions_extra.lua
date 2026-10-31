@@ -33,6 +33,13 @@ local EXTRA = {
     { key = 'resto_toggle',  label = 'Restaurants : activer / désactiver un restaurant', cat = 'Métiers' },
     { key = 'resto_delete',  label = 'Restaurants : supprimer un restaurant', cat = 'Métiers' },
     { key = 'resto_orders',  label = 'Restaurants : voir les commandes en cours, annuler et rembourser', cat = 'Métiers' },
+    { key = 'builder_manage', label = 'Builder Studio : TOUT (construire, modifier, supprimer, importer, exporter, projets des autres) (builder_studio)', cat = 'Gestion' },
+    { key = 'builder_access', label = 'Builder Studio : ouvrir le studio et voir les projets', cat = 'Gestion' },
+    { key = 'builder_build',  label = 'Builder Studio : créer des projets et des éléments', cat = 'Gestion' },
+    { key = 'builder_edit',   label = 'Builder Studio : modifier (déplacer, matériaux, paramètres, restaurer)', cat = 'Gestion' },
+    { key = 'builder_delete', label = 'Builder Studio : supprimer des éléments et des projets', cat = 'Gestion' },
+    { key = 'builder_import', label = 'Builder Studio : importer des objets et des textures (image du PC ou lien)', cat = 'Gestion' },
+    { key = 'builder_export', label = 'Builder Studio : exporter un projet en ressource FiveM', cat = 'Gestion' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 
