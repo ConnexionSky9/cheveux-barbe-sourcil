@@ -114,7 +114,7 @@ const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
 function texture(mat, N) {
     const base = hex(mat.color);
     const buf = Buffer.alloc(N * N * 4);
-    const n1 = fbm(N, mat.id.length * 31 + 7), n2 = fbm(N, mat.id.length * 17 + 3, 2);
+    const n1 = fbm(N, mat.id.length * 31 + 7), n2 = fbm(N, mat.id.length * 17 + 3, 2), brushN = periodicNoise(N, 64, 5);
     const put = (x, y, rgb, a = 255) => { const i = (y * N + x) * 4; buf[i] = clamp(rgb[0]); buf[i + 1] = clamp(rgb[1]); buf[i + 2] = clamp(rgb[2]); buf[i + 3] = a; };
     const shade = (k) => base.map((c) => c * k);
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
@@ -143,7 +143,7 @@ function texture(mat, N) {
                 break;
             }
             case 'metal': case 'acier': case 'aluminium': {
-                const brush = periodicNoise(N, 64, 5)(x * 0.05, y) * 0.15;
+                const brush = brushN(x * 0.05, y) * 0.15;
                 c = shade(0.85 + brush + n * 0.08); break;
             }
             case 'verre_clair': c = base; a = 70; break;
