@@ -511,8 +511,8 @@ local function Record(uid, src, t, act, zone, result, report, items, score, sens
     local g = P.Grade(src)
     local names = {}
     for _, it in ipairs(items or {}) do names[#names + 1] = ('%s ×%d'):format(it.item, it.count or 1) end
-    MySQL.insert.await([[INSERT INTO `ems_procedures` (`uid`, `act`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `ems_grade`, `zone`, `result`, `report`, `items`, `score`, `sensitive`, `created_at`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { uid, act, P.Cid(t), P.Name(t), P.Cid(src), P.Name(src), g and g.name or nil, zone,
+    MySQL.insert.await([[INSERT INTO `ems_procedures` (`job`, `uid`, `act`, `patient_cid`, `patient_name`, `ems_cid`, `ems_name`, `ems_grade`, `zone`, `result`, `report`, `items`, `score`, `sensitive`, `created_at`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { P.MyJob(src) or P.MainJob(), uid, act, P.Cid(t), P.Name(t), P.Cid(src), P.Name(src), g and g.name or nil, zone,
         result, report, #names > 0 and table.concat(names, ', ') or nil, score and math.floor(score * 100 + 0.5) or nil, sensitive and 1 or 0, os.time() })
 end
 
@@ -799,7 +799,7 @@ function P.ProcHistory(cid, src)
     local set = P.ProcSettings()
     local out = {}
     for _, r in ipairs(MySQL.query.await([[SELECT `uid`, `act`, `zone`, `result`, `report`, `items`, `score`, `sensitive`, `ems_name`, `ems_grade`, `created_at` AS t
-        FROM `ems_procedures` WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 60]], { cid }) or {}) do
+        FROM `ems_procedures` WHERE `patient_cid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 60]], { cid, P.MyJob(src) or P.MainJob() }) or {}) do
         local a = set.acts[r.act]
         local z = set.zoneById[r.zone or '']
         local hidden = tonumber(r.sensitive) == 1 and not sens

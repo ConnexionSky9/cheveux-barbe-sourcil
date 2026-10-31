@@ -21,6 +21,7 @@ local HR = HealthRules
 -- Recherche par nom ET prénom, dans n'importe quel ordre (« durand elodie » = « Élodie Durand »)
 P.Actions.patients = { perm = 'records_view', fn = function(src, d)
     if not P.AtRecords(src) then return { error = NOT_AT } end
+    local job = P.MyJob(src)   -- dossiers de SON agence seulement
     local tokens = HR.SearchTokens(d.q)
     local total = 0
     for _, t in ipairs(tokens) do total = total + #t end
@@ -45,11 +46,11 @@ P.Actions.patients = { perm = 'records_view', fn = function(src, d)
     end
     local wt, at = like('`patient_name`')
     for _, r in ipairs(MySQL.query.await(([[SELECT `patient_cid` AS cid, MAX(`patient_name`) AS name, MAX(UNIX_TIMESTAMP(`created_at`)) AS t
-        FROM `ems_treatments` WHERE %s GROUP BY `patient_cid` ORDER BY t DESC LIMIT 40]]):format(wt), at) or {}) do
+        FROM `ems_treatments` WHERE `job` = ? AND %s GROUP BY `patient_cid` ORDER BY t DESC LIMIT 40]]):format(wt), { job, table.unpack(at) }) or {}) do
         if not seen[r.cid] and HR.NameMatches(r.name, tokens) then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name, last = r.t } end
     end
     local wp, ap = like('`name`')
-    for _, r in ipairs(MySQL.query.await(('SELECT `citizenid` AS cid, `name` FROM `ems_patients` WHERE %s LIMIT 40'):format(wp), ap) or {}) do
+    for _, r in ipairs(MySQL.query.await(('SELECT `citizenid` AS cid, `name` FROM `ems_patients` WHERE `job` = ? AND %s LIMIT 40'):format(wp), { job, table.unpack(ap) }) or {}) do
         if not seen[r.cid] and HR.NameMatches(r.name, tokens) then seen[r.cid] = true out[#out + 1] = { cid = r.cid, name = r.name } end
     end
     -- Tous les habitants (fiches du core), même sans passage à l'EMS
@@ -68,7 +69,8 @@ P.Actions.patient = { perm = 'records_view', fn = function(src, d)
     if not P.AtRecords(src) then return { error = NOT_AT } end
     local cid = tostring(d.cid or ''):sub(1, 50)
     if cid == '' then return { error = 'Patient introuvable.' } end
-    local file = MySQL.single.await('SELECT `name`, `blood`, `allergies`, `notes`, `updated_by`, UNIX_TIMESTAMP(`updated_at`) AS u FROM `ems_patients` WHERE `citizenid` = ?', { cid }) or {}
+    local job = P.MyJob(src)   -- le dossier et l'historique de SON agence (l'état de santé physique reste celui du personnage)
+    local file = MySQL.single.await('SELECT `name`, `blood`, `allergies`, `notes`, `updated_by`, UNIX_TIMESTAMP(`updated_at`) AS u FROM `ems_patients` WHERE `citizenid` = ? AND `job` = ?', { cid, job }) or {}
     local s = core:GetSourceByCitizenId(cid)
     local name = s and P.Name(s) or file.name
     if not name then name = MySQL.scalar.await('SELECT `patient_name` FROM `ems_treatments` WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 1', { cid }) end
@@ -79,7 +81,7 @@ P.Actions.patient = { perm = 'records_view', fn = function(src, d)
     end
     if not name then return { error = 'Aucun dossier pour cette personne.' } end
     local treatments = MySQL.query.await([[SELECT `service`, `ems_name`, `call_id`, `invoice_uid`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments`
-        WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 80]], { cid }) or {}
+        WHERE `patient_cid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 80]], { cid, job }) or {}
     for _, t in ipairs(treatments) do t.label = SERVICE_LABEL[t.service] or t.service end
     P.Log(src, 'Consultation de dossier', name)
     local procs, vacc = {}, {}
@@ -91,18 +93,18 @@ P.Actions.patient = { perm = 'records_view', fn = function(src, d)
         blood = file.blood, allergies = file.allergies, notes = file.notes, updatedBy = file.updated_by, updated = file.u,
         treatments = treatments,
         invoices = (P.Can(src, 'billing_manage') or P.Can(src, 'finance')) and (MySQL.query.await([[SELECT `uid`, `kind`, `amount`, `status`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `ems_invoices` WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 30]], { cid }) or {}) or nil,
+            FROM `ems_invoices` WHERE `patient_cid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 30]], { cid, job }) or {}) or nil,
         ppa = MySQL.query.await([[SELECT `uid`, `type`, `price`, `payment_status`, `delivery_status`, `number`, `ems_name`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `ems_ppa` WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 20]], { cid }) or {},
+            FROM `ems_ppa` WHERE `citizenid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 20]], { cid, job }) or {},
         reports = MySQL.query.await([[SELECT `id`, `title`, `outcome`, `status`, `author_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_reports`
-            WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 30]], { cid }) or {},
+            WHERE `patient_cid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 30]], { cid, job }) or {},
         calls = MySQL.query.await([[SELECT `id`, `reason`, `status`, `assigned_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_calls`
-            WHERE `patient_cid` = ? ORDER BY `id` DESC LIMIT 20]], { cid }) or {},
+            WHERE `patient_cid` = ? AND FIND_IN_SET(?, `job`) ORDER BY `id` DESC LIMIT 20]], { cid, job }) or {},
         conditions = P.HealthHistory and P.HealthHistory(cid) or {},
-        appointments = P.ApptHistory and P.ApptHistory(cid) or {},
+        appointments = P.ApptHistory and P.ApptHistory(cid, job) or {},
         labs = (function()
             local okl, rows = pcall(MySQL.query.await, [[SELECT `id`, `status`, `sampled_by_name`, `sampled_at` AS t FROM `ems_lab_samples`
-                WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 20]], { cid })
+                WHERE `citizenid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 20]], { cid, job })
             return okl and rows or {}
         end)(),
         canWrite = P.Can(src, 'records_write'),
@@ -116,9 +118,9 @@ P.Actions.patientSave = { perm = 'records_write', fn = function(src, d)
     if cid == '' or name == '' then return { error = 'Patient introuvable.' } end
     local blood = tostring(d.blood or '')
     if blood ~= '' and not BLOOD[blood] then return { error = 'Groupe sanguin invalide.' } end
-    MySQL.query.await([[INSERT INTO `ems_patients` (`citizenid`, `name`, `blood`, `allergies`, `notes`, `updated_by`) VALUES (?, ?, ?, ?, ?, ?)
+    MySQL.query.await([[INSERT INTO `ems_patients` (`job`, `citizenid`, `name`, `blood`, `allergies`, `notes`, `updated_by`) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `blood` = VALUES(`blood`), `allergies` = VALUES(`allergies`), `notes` = VALUES(`notes`), `updated_by` = VALUES(`updated_by`)]],
-        { cid, name, blood ~= '' and blood or nil, P.Clean(d.allergies, 255), P.Clean(d.notes, 4000), P.Name(src) })
+        { P.MyJob(src), cid, name, blood ~= '' and blood or nil, P.Clean(d.allergies, 255), P.Clean(d.notes, 4000), P.Name(src) })
     return { ok = true, message = 'Dossier médical enregistré.' }
 end }
 
@@ -129,8 +131,8 @@ local function ReportHistory(id, actor, action)
     MySQL.insert('INSERT INTO `ems_report_history` (`report_id`, `actor_name`, `action`) VALUES (?, ?, ?)', { id, actor, action })
 end
 
-P.Actions.reportsList = { perm = 'records_view', fn = function(_, d)
-    local where, args = {}, {}
+P.Actions.reportsList = { perm = 'records_view', fn = function(src, d)
+    local where, args = { '`job` = ?' }, { P.MyJob(src) }
     local st = tostring(d.status or 'active')
     if st == 'active' then where[#where + 1] = "`status` <> 'archived'"
     elseif st == 'open' or st == 'done' or st == 'archived' then where[#where + 1] = '`status` = ?' args[#args + 1] = st end
@@ -156,7 +158,7 @@ P.Actions.reportDraft = { perm = 'reports_write', fn = function(src, d)
     end
     if callId then
         local c = MySQL.single.await([[SELECT `id`, `reason`, `street`, `patient_cid`, `patient_name`, UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS c
-            FROM `ems_calls` WHERE `id` = ?]], { callId })
+            FROM `ems_calls` WHERE `id` = ? AND FIND_IN_SET(?, `job`)]], { callId, P.MyJob(src) })
         if c then
             draft.callId = c.id
             draft.title = ('%s · %s'):format(c.reason, c.street or '')
@@ -176,8 +178,8 @@ P.Actions.reportDraft = { perm = 'reports_write', fn = function(src, d)
         if draft.callId then
             rows = MySQL.query.await('SELECT `service`, `ems_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments` WHERE `call_id` = ? ORDER BY `id`', { draft.callId })
         else
-            rows = MySQL.query.await([[SELECT `service`, `ems_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments` WHERE `patient_cid` = ?
-                AND `created_at` >= DATE_SUB(NOW(), INTERVAL 3 HOUR) ORDER BY `id`]], { cid })
+            rows = MySQL.query.await([[SELECT `service`, `ems_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments` WHERE `patient_cid` = ? AND `job` = ?
+                AND `created_at` >= DATE_SUB(NOW(), INTERVAL 3 HOUR) ORDER BY `id`]], { cid, P.MyJob(src) })
         end
         for _, r in ipairs(rows or {}) do
             draft.treatments[#draft.treatments + 1] = ('%s (%s)'):format(SERVICE_LABEL[r.service] or r.service, r.ems_name or '?')
@@ -199,7 +201,7 @@ end }
 
 P.Actions.reportGet = { perm = 'records_view', fn = function(src, d)
     local r = MySQL.single.await([[SELECT *, UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`updated_at`) AS u, UNIX_TIMESTAMP(`started_at`) AS s,
-        UNIX_TIMESTAMP(`ended_at`) AS e FROM `ems_reports` WHERE `id` = ?]], { tonumber(d.id) or 0 })
+        UNIX_TIMESTAMP(`ended_at`) AS e FROM `ems_reports` WHERE `id` = ? AND `job` = ?]], { tonumber(d.id) or 0, P.MyJob(src) })
     if not r then return { error = 'Compte rendu introuvable.' } end
     local okC, crew = pcall(json.decode, r.crew or '[]')
     local okT, tr = pcall(json.decode, r.treatments or '[]')
@@ -242,7 +244,7 @@ P.Actions.reportSave = { perm = 'reports_write', fn = function(src, d)
     local patientName = d.patientName and P.Clean(d.patientName, 100) or nil
     local id = tonumber(d.id)
     if id then
-        local r = MySQL.single.await('SELECT `author_cid`, `status` FROM `ems_reports` WHERE `id` = ?', { id })
+        local r = MySQL.single.await('SELECT `author_cid`, `status` FROM `ems_reports` WHERE `id` = ? AND `job` = ?', { id, P.MyJob(src) })
         if not r then return { error = 'Compte rendu introuvable.' } end
         if r.status == 'archived' then return { error = 'Compte rendu archivé.' } end
         if r.author_cid ~= P.Cid(src) and not P.Can(src, 'reports_manage') then return { error = 'Vous ne pouvez modifier que vos comptes rendus.' } end
@@ -253,9 +255,9 @@ P.Actions.reportSave = { perm = 'reports_write', fn = function(src, d)
         return { ok = true, id = id, message = 'Compte rendu enregistré.' }
     end
     local e = P.Employee(src)
-    id = MySQL.insert.await([[INSERT INTO `ems_reports` (`patient_cid`, `patient_name`, `call_id`, `title`, `crew`, `started_at`, `ended_at`, `treatments`, `transport`, `outcome`,
-        `notes`, `status`, `author_cid`, `author_name`, `author_matricule`) VALUES (?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?, ?, ?)]],
-        { patientCid, patientName, tonumber(d.callId), title, crew, started, ended, tr, d.transport == true and 1 or 0, outcome, notes, status,
+    id = MySQL.insert.await([[INSERT INTO `ems_reports` (`job`, `patient_cid`, `patient_name`, `call_id`, `title`, `crew`, `started_at`, `ended_at`, `treatments`, `transport`, `outcome`,
+        `notes`, `status`, `author_cid`, `author_name`, `author_matricule`) VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?, ?, ?)]],
+        { P.MyJob(src), patientCid, patientName, tonumber(d.callId), title, crew, started, ended, tr, d.transport == true and 1 or 0, outcome, notes, status,
           P.Cid(src), P.Name(src), e and e.matricule })
     if not id then return { error = 'Enregistrement impossible.' } end
     ReportHistory(id, P.Name(src), 'Créé')
@@ -265,7 +267,9 @@ end }
 P.Actions.reportArchive = { perm = 'reports_manage', fn = function(src, d)
     local id = tonumber(d.id) or 0
     local on = d.archive == true
-    MySQL.update.await('UPDATE `ems_reports` SET `status` = ? WHERE `id` = ?', { on and 'archived' or 'done', id })
+    if (MySQL.update.await('UPDATE `ems_reports` SET `status` = ? WHERE `id` = ? AND `job` = ?', { on and 'archived' or 'done', id, P.MyJob(src) }) or 0) == 0 then
+        return { error = 'Compte rendu introuvable.' }
+    end
     ReportHistory(id, P.Name(src), on and 'Archivé' or 'Désarchivé')
     return { ok = true, message = on and 'Compte rendu archivé.' or 'Compte rendu désarchivé.' }
 end }
@@ -273,22 +277,24 @@ end }
 -- ---------------------------------------------------------------------
 -- Statistiques
 -- ---------------------------------------------------------------------
-P.Actions.stats = { perm = 'stats_view', fn = function(_, d)
+-- Chiffres de SON agence seulement
+P.Actions.stats = { perm = 'stats_view', fn = function(src, d)
     local days = P.Int(d.days, 1, 90, 7)
+    local job = P.MyJob(src)
     local s = MySQL.single.await([[SELECT
-        (SELECT COUNT(*) FROM `ems_calls` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS calls,
-        (SELECT COUNT(*) FROM `ems_calls` WHERE `status` = 'done' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS done,
-        (SELECT COUNT(*) FROM `ems_calls` WHERE `status` = 'cancelled' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS cancelled,
-        (SELECT AVG(TIMESTAMPDIFF(SECOND, `created_at`, `closed_at`)) FROM `ems_calls` WHERE `status` = 'done' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS avgTime,
-        (SELECT COUNT(*) FROM `ems_reports` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS reports,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `ems_invoices` WHERE `status` = 'paid' AND `kind` = 'medical' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS billed,
-        (SELECT COUNT(*) FROM `ems_ppa` WHERE `delivery_status` = 'delivered' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS ppa]],
-        { days, days, days, days, days, days, days }) or {}
-    local acts = MySQL.query.await([[SELECT `service`, COUNT(*) AS n FROM `ems_treatments` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY `service`]], { days }) or {}
+        (SELECT COUNT(*) FROM `ems_calls` WHERE FIND_IN_SET(?, `job`) AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS calls,
+        (SELECT COUNT(*) FROM `ems_calls` WHERE FIND_IN_SET(?, `job`) AND `status` = 'done' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS done,
+        (SELECT COUNT(*) FROM `ems_calls` WHERE FIND_IN_SET(?, `job`) AND `status` = 'cancelled' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS cancelled,
+        (SELECT AVG(TIMESTAMPDIFF(SECOND, `created_at`, `closed_at`)) FROM `ems_calls` WHERE FIND_IN_SET(?, `job`) AND `status` = 'done' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS avgTime,
+        (SELECT COUNT(*) FROM `ems_reports` WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS reports,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `ems_invoices` WHERE `job` = ? AND `status` = 'paid' AND `kind` = 'medical' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS billed,
+        (SELECT COUNT(*) FROM `ems_ppa` WHERE `job` = ? AND `delivery_status` = 'delivered' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS ppa]],
+        { job, days, job, days, job, days, job, days, job, days, job, days, job, days }) or {}
+    local acts = MySQL.query.await([[SELECT `service`, COUNT(*) AS n FROM `ems_treatments` WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY `service`]], { job, days }) or {}
     for _, a in ipairs(acts) do a.label = SERVICE_LABEL[a.service] or a.service end
     local top = MySQL.query.await([[SELECT `name`, SUM(`seconds`) AS secs FROM `ems_sessions` WHERE `started_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        GROUP BY `citizenid`, `name` ORDER BY secs DESC LIMIT 10]], { days }) or {}
-    local topActs = MySQL.query.await([[SELECT `ems_name` AS name, COUNT(*) AS n FROM `ems_treatments` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        GROUP BY `ems_cid`, `ems_name` ORDER BY n DESC LIMIT 10]], { days }) or {}
+        AND `citizenid` IN (SELECT `citizenid` FROM `ems_employees` WHERE `job` = ?) GROUP BY `citizenid`, `name` ORDER BY secs DESC LIMIT 10]], { days, job }) or {}
+    local topActs = MySQL.query.await([[SELECT `ems_name` AS name, COUNT(*) AS n FROM `ems_treatments` WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        GROUP BY `ems_cid`, `ems_name` ORDER BY n DESC LIMIT 10]], { job, days }) or {}
     return { days = days, totals = s, acts = acts, topTime = top, topActs = topActs }
 end }

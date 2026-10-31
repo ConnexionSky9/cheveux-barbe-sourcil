@@ -192,6 +192,13 @@ MySQL = {
 local notes = {}
 Ems = { Actions = {}, Tables = {}, TableOrder = {}, Settings = {}, ready = true, down = {}, duty = { [2] = true } }
 local P = Ems
+-- Agences (server/agencies.lua) : une seule agence « ambulance » dans ces simulations
+P.agencies, P.agencyList = { ambulance = { job = 'ambulance' } }, { { job = 'ambulance' } }
+function P.MainJob() return 'ambulance' end
+function P.MyJob() return 'ambulance' end
+function P.RouteJobs() return { ambulance = true } end
+function P.JobSetting(job, key, d) local v = P.Settings[key .. '@' .. (job or 'ambulance')] if v == nil then v = P.Settings[key] end if v == nil then return d end return v end
+function P.SetJobSetting(job, key, v) P.Settings[key .. '@' .. (job or 'ambulance')] = v end
 function P.GetSetting(k, d) local v = P.Settings[k] if v == nil then return d end return v end
 function P.SetSetting(k, v) P.Settings[k] = v end
 function P.Cid(s) return players[s] and not players[s].offline and players[s].cid or nil end

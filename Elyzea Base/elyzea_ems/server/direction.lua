@@ -156,8 +156,8 @@ P.Actions.employee = { perm = 'employees_view', fn = function(src, d)
     v.canAct = e.citizenid ~= P.Cid(src) and v.level < mine
     v.history = P.Can(src, 'history_view') and (MySQL.query.await([[SELECT `actor_name`, `action`, `old_grade`, `new_grade`, `reason`, UNIX_TIMESTAMP(`created_at`) AS t
         FROM `ems_admin_log` WHERE `target_cid` = ? ORDER BY `id` DESC LIMIT 30]], { e.citizenid }) or {}) or nil
-    v.reports = MySQL.scalar.await('SELECT COUNT(*) FROM `ems_reports` WHERE `author_cid` = ?', { e.citizenid }) or 0
-    v.treatments = MySQL.scalar.await('SELECT COUNT(*) FROM `ems_treatments` WHERE `ems_cid` = ?', { e.citizenid }) or 0
+    v.reports = MySQL.scalar.await('SELECT COUNT(*) FROM `ems_reports` WHERE `author_cid` = ? AND `job` = ?', { e.citizenid, e.job }) or 0
+    v.treatments = MySQL.scalar.await('SELECT COUNT(*) FROM `ems_treatments` WHERE `ems_cid` = ? AND `job` = ?', { e.citizenid, e.job }) or 0
     v.sessions = MySQL.query.await([[SELECT `grade_name`, `seconds`, `amount`, `end_reason`, UNIX_TIMESTAMP(`started_at`) AS s, UNIX_TIMESTAMP(`ended_at`) AS e
         FROM `ems_sessions` WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 20]], { e.citizenid }) or {}
     return { employee = v }

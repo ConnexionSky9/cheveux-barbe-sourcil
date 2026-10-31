@@ -45,20 +45,21 @@ local function Target(src, id, dist)
 end
 
 -- Acte enregistré (une seule fois par acte, jamais par le client)
+-- L'acte appartient à l'agence de l'EMS qui le fait (c'est elle qui le facture et le voit au dossier)
 function P.AddTreatment(target, service, emsSrc)
     local cid = P.Cid(target)
     if not cid then return end
     local call = P.CallOfPatient and P.CallOfPatient(cid)
-    MySQL.insert.await([[INSERT INTO `ems_treatments` (`patient_cid`, `patient_name`, `service`, `ems_cid`, `ems_name`, `call_id`) VALUES (?, ?, ?, ?, ?, ?)]],
-        { cid, P.Name(target), service, P.Cid(emsSrc), P.Name(emsSrc), call and call.id or nil })
+    MySQL.insert.await([[INSERT INTO `ems_treatments` (`job`, `patient_cid`, `patient_name`, `service`, `ems_cid`, `ems_name`, `call_id`) VALUES (?, ?, ?, ?, ?, ?, ?)]],
+        { P.MyJob(emsSrc) or P.MainJob(), cid, P.Name(target), service, P.Cid(emsSrc), P.Name(emsSrc), call and call.id or nil })
     if call and P.CallAdvance then P.CallAdvance(call, service == 'transport' and 'transport' or 'care', emsSrc) end
 end
 
 -- Acte déjà noté récemment (évite un doublon : examen répété, transport aller-retour)
-local function Recent(target, service, minutes)
+local function Recent(target, service, minutes, job)
     local cid = P.Cid(target)
-    return cid and (tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM `ems_treatments` WHERE `patient_cid` = ? AND `service` = ? AND `invoice_uid` IS NULL
-        AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? MINUTE)]], { cid, service, minutes })) or 0) > 0
+    return cid and (tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM `ems_treatments` WHERE `patient_cid` = ? AND `service` = ? AND `job` = ? AND `invoice_uid` IS NULL
+        AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? MINUTE)]], { cid, service, job or P.MainJob(), minutes })) or 0) > 0
 end
 
 local function HealthOf(t)
@@ -82,8 +83,8 @@ P.Actions.examine = { perm = 'medical', duty = true, fn = function(src, d)
     local p = P.GetPlayer(t)
     local md = p and p.PlayerData.metadata or {}
     local cid = P.Cid(t)
-    local file = cid and MySQL.single.await('SELECT `blood`, `allergies` FROM `ems_patients` WHERE `citizenid` = ?', { cid }) or nil
-    if not Recent(t, 'consult', 30) then P.AddTreatment(t, 'consult', src) end
+    local file = cid and MySQL.single.await('SELECT `blood`, `allergies` FROM `ems_patients` WHERE `citizenid` = ? AND `job` = ?', { cid, P.MyJob(src) }) or nil
+    if not Recent(t, 'consult', 30, P.MyJob(src)) then P.AddTreatment(t, 'consult', src) end
     local state = 'Conscient'
     if down then state = down.stabilized and 'Inconscient · stabilisé' or 'Inconscient · état critique'
     elseif hp < 25 then state = 'Conscient · blessures graves'
@@ -212,7 +213,7 @@ P.Actions.putIn = { perm = 'vehicle', duty = true, fn = function(src, d)
     if P.escortedBy[t] then StopEscort(P.escortedBy[t]) end
     if P.StretcherFree then P.StretcherFree(t) end        -- descend du brancard avant de s'asseoir
     TriggerClientEvent('ems:client:putIn', t, tonumber(d.net), P.down[t] ~= nil)
-    if not Recent(t, 'transport', 30) then P.AddTreatment(t, 'transport', src) end
+    if not Recent(t, 'transport', 30, P.MyJob(src)) then P.AddTreatment(t, 'transport', src) end
     return { ok = true, message = ('%s installé(e) dans le véhicule.'):format(P.Name(t)) }
 end }
 

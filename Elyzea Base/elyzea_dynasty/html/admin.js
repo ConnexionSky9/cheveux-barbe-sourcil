@@ -80,6 +80,7 @@
     return `<div class="adm-section"><h3>${isNew ? 'Nouveau bien' : 'Informations et tarifs'}</h3><div class="form-grid">
         <label class="field"><span>Nom</span><input class="input" data-af="name" maxlength="80" value="${esc(p.name || '')}" placeholder="ex : Appartement Eclipse 12"></label>
         <label class="field"><span>Adresse</span><input class="input" data-af="address" maxlength="120" value="${esc(p.address || '')}"></label>
+        ${(A.data.agencies || []).length > 1 ? `<label class="field"><span>Agence qui gère le bien</span><select class="input" data-af="job">${A.data.agencies.map((a) => `<option value="${esc(a.job)}" ${(p.job || A.data.agencies[0].job) === a.job ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></label>` : ''}
         <label class="field"><span>Catégorie</span><select class="input" data-af="category">${Object.entries(cats()).map(([k, l]) => `<option value="${k}" ${p.category === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         ${isNew ? `<label class="field"><span>Intérieur (habitation)</span><select class="input" data-af="interiorId"><option value="">— Aucun (garage seul) —</option>${homes.filter((i) => i.enabled).map((i) => `<option value="${i.id}">${esc(i.label)} · ${esc(cats()[i.kind] || i.kind)}</option>`).join('')}</select></label>`
           : `<label class="field"><span>Intérieur</span><span style="display:flex;gap:.4rem;align-items:center"><b style="flex:1">${p.interiorId ? esc(intLabel(p.interiorId)) : '—'}</b>${p.category !== 'garage' ? '<button class="btn small" data-aint="1">Changer d\'intérieur</button>' : ''}</span></label>`}
@@ -153,7 +154,7 @@
     const n = (k) => { const v = g(k); return v === '' || v === undefined ? undefined : Number(v); };
     return { name: g('name'), address: g('address'), category: g('category'), interiorId: g('interiorId'), salePrice: n('salePrice'), rentPrice: n('rentPrice'),
       extendPrice: g('extendPrice') === '' ? '' : n('extendPrice'), rentMin: n('rentMin'), rentMax: n('rentMax'), stashSlots: n('stashSlots'), stashWeight: n('stashWeight'),
-      decoLimit: n('decoLimit'), notes: g('notes'), forSale: g('forSale'), forRent: g('forRent') };
+      decoLimit: n('decoLimit'), notes: g('notes'), forSale: g('forSale'), forRent: g('forRent'), job: g('job') || undefined };
   }
 
   /* ------------------------------------------------------------------ */

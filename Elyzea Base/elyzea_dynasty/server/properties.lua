@@ -35,6 +35,7 @@ local function RowToProp(r)
         stashSlots = tonumber(r.stash_slots) or Config.Stash.slots, stashWeight = tonumber(r.stash_weight) or Config.Stash.weight,
         decoLimit = tonumber(r.deco_limit) or Config.Deco.defaultLimit, contractId = tonumber(r.contract_id),
         reservedBy = r.reserved_by, notes = r.notes,
+        job = r.job or P.MainJob(),   -- agence qui gère le bien (seuls ses employés le voient et le vendent)
     }
 end
 
@@ -76,10 +77,16 @@ end
 function P.SaveProp(pr)
     MySQL.update.await([[UPDATE `d8_properties` SET `name` = ?, `address` = ?, `category` = ?, `interior_id` = ?, `status` = ?, `enabled` = ?, `sale_price` = ?,
         `rent_price` = ?, `extend_price` = ?, `rent_min_days` = ?, `rent_max_days` = ?, `for_sale` = ?, `for_rent` = ?, `code` = ?, `points` = ?, `garage` = ?,
-        `stash_slots` = ?, `stash_weight` = ?, `deco_limit` = ?, `contract_id` = ?, `reserved_by` = ?, `notes` = ? WHERE `id` = ?]], {
+        `stash_slots` = ?, `stash_weight` = ?, `deco_limit` = ?, `contract_id` = ?, `reserved_by` = ?, `notes` = ?, `job` = ? WHERE `id` = ?]], {
         pr.name, pr.address, pr.category, pr.interiorId, pr.status, pr.enabled and 1 or 0, pr.salePrice, pr.rentPrice, pr.extendPrice, pr.rentMin, pr.rentMax,
         pr.forSale and 1 or 0, pr.forRent and 1 or 0, pr.code, json.encode(pr.points or {}), pr.garage and json.encode(pr.garage) or nil,
-        pr.stashSlots, pr.stashWeight, pr.decoLimit, pr.contractId, pr.reservedBy, pr.notes, pr.id })
+        pr.stashSlots, pr.stashWeight, pr.decoLimit, pr.contractId, pr.reservedBy, pr.notes, pr.job or P.MainJob(), pr.id })
+end
+-- Bien de l'agence de cet employé (nil sinon : un autre Dynasty 8 ne peut ni le voir ni le vendre)
+function P.MyProp(src, pid)
+    local pr = P.props[tonumber(pid) or 0]
+    if not pr or pr.job ~= P.MyJob(src) then return nil end
+    return pr
 end
 
 function P.PropLog(pid, action, details, actor)
@@ -187,6 +194,7 @@ local function AdminProp(pr)
     v.interiorId, v.enabled, v.salePrice, v.rentPrice, v.extendPrice = pr.interiorId, pr.enabled, pr.salePrice, pr.rentPrice, pr.extendPrice
     v.rentMin, v.rentMax, v.forSale, v.forRent, v.points, v.garage = pr.rentMin, pr.rentMax, pr.forSale, pr.forRent, pr.points, pr.garage
     v.stashSlots, v.stashWeight, v.decoLimit, v.contractId, v.notes, v.status = pr.stashSlots, pr.stashWeight, pr.decoLimit, pr.contractId, pr.notes, pr.status
+    v.job = pr.job
     v.stored = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `d8_vehicles` WHERE `property_id` = ?', { pr.id })) or 0
     v.capacity = P.GarageCapacity(pr)
     local c = pr.contractId and P.Contract and P.Contract(pr.id)
@@ -201,7 +209,8 @@ P.Admin.data = { fn = function(src)
     local inside = P.inside and P.inside[src]
     return { list = list, interiors = InteriorList(), categories = CATS, sizes = Config.GarageSizes, statuses = Config.PropertyStatuses,
         inside = inside and { pid = inside.pid, area = inside.area } or nil, decoCatalog = P.DecoCatalog and P.DecoCatalog() or {}, decoBase = #Config.Deco.catalog,
-        defaults = { stash = Config.Stash, deco = Config.Deco.defaultLimit, rent = Config.Rent }, maxCapacity = Config.GarageMaxCapacity }
+        defaults = { stash = Config.Stash, deco = Config.Deco.defaultLimit, rent = Config.Rent }, maxCapacity = Config.GarageMaxCapacity,
+        agencies = (function() local l = {} for _, a in ipairs(P.agencyList) do l[#l + 1] = { job = a.job, label = a.label } end return l end)() }
 end }
 
 P.Admin.prop = { fn = function(_, d)
@@ -243,15 +252,17 @@ P.Admin.propSave = { fn = function(src, d)
     local stashSlots = P.Int(d.stashSlots, 0, 500, Config.Stash.slots)
     local stashWeight = P.Int(d.stashWeight, 0, 10000, Config.Stash.weight)
     local decoLimit = P.Int(d.decoLimit, 0, Config.Deco.maxLimit, Config.Deco.defaultLimit)
+    -- Agence qui gère le bien (choisie par le staff ; première agence par défaut)
+    local job = (d.job and P.agencies[d.job] and d.job) or (pr and pr.job) or P.MainJob()
     local interior = nil
     if cat ~= 'garage' and d.interiorId and d.interiorId ~= '' then
         interior = ValidInterior(d.interiorId, { apartment = true, house = true, villa = true })
         if not interior then return { error = 'Intérieur invalide pour une habitation.' } end
     end
     if isNew then
-        local id = MySQL.insert.await([[INSERT INTO `d8_properties` (`name`, `address`, `category`, `interior_id`, `sale_price`, `rent_price`, `extend_price`, `rent_min_days`,
+        local id = MySQL.insert.await([[INSERT INTO `d8_properties` (`job`, `name`, `address`, `category`, `interior_id`, `sale_price`, `rent_price`, `extend_price`, `rent_min_days`,
             `rent_max_days`, `for_sale`, `for_rent`, `stash_slots`, `stash_weight`, `deco_limit`, `points`, `enabled`, `created_by`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', 0, ?)]], { name, address, cat, interior and interior.id or nil, sale, rent, ext, rmin, rmax,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', 0, ?)]], { job, name, address, cat, interior and interior.id or nil, sale, rent, ext, rmin, rmax,
             d.forSale ~= false and 1 or 0, d.forRent ~= false and 1 or 0, stashSlots, stashWeight, decoLimit, P.Name(src) })
         if not id then return { error = 'Création impossible.' } end
         P.LoadProperty(id)
@@ -268,6 +279,7 @@ P.Admin.propSave = { fn = function(src, d)
     pr.forSale, pr.forRent = d.forSale ~= false, d.forRent ~= false
     pr.stashSlots, pr.stashWeight, pr.decoLimit = stashSlots, stashWeight, decoLimit
     pr.notes = P.Clean(d.notes, 255)
+    pr.job = job
     if cat == 'garage' then pr.interiorId = nil end
     P.SaveProp(pr)
     P.PropLog(pr.id, 'Bien modifié', name, src)

@@ -76,7 +76,7 @@ local function exec(kind, sql, a)
     a = a or {}
     -- ems_appointments
     if s:find('^INSERT INTO ems_appointments') then
-        return insert('ems_appointments', { 'citizenid', 'name', 'phone', 'type', 'reason', 'created_at' }, { a[1], a[2], a[3], a[4], a[5], a[6] }) and (function()
+        return insert('ems_appointments', { 'job', 'citizenid', 'name', 'phone', 'type', 'reason', 'created_at' }, { a[1], a[2], a[3], a[4], a[5], a[6], a[7] }) and (function()
             DB.ems_appointments[#DB.ems_appointments].status = 'pending' return seq.ems_appointments end)()
     end
     if s:find("^SELECT COUNT%(%*%) FROM ems_appointments WHERE citizenid = %? AND status IN") then
@@ -108,6 +108,9 @@ local function exec(kind, sql, a)
     end
     if s:find('^SELECT %* FROM ems_appointments WHERE citizenid = %?') then
         local out = {} for i = #rows('ems_appointments'), 1, -1 do local r = rows('ems_appointments')[i] if r.citizenid == a[1] then out[#out + 1] = r end end return out
+    end
+    if s:find("^SELECT %* FROM ems_appointments WHERE job = %? AND status IN") then
+        local out = {} for _, r in ipairs(rows('ems_appointments')) do if r.job == a[1] and (r.status == 'pending' or r.status == 'accepted') then out[#out + 1] = r end end return out
     end
     if s:find("^SELECT %* FROM ems_appointments WHERE status IN") then
         local out = {} for _, r in ipairs(rows('ems_appointments')) do if r.status == 'pending' or r.status == 'accepted' then out[#out + 1] = r end end return out
@@ -162,6 +165,13 @@ MySQL = {
 local notes = {}
 Ems = { Actions = {}, Tables = {}, TableOrder = {}, Settings = {}, ready = true, down = {}, duty = { [2] = true } }
 local P = Ems
+-- Agences (server/agencies.lua) : une seule agence « ambulance » dans ces simulations
+P.agencies, P.agencyList = { ambulance = { job = 'ambulance' } }, { { job = 'ambulance' } }
+function P.MainJob() return 'ambulance' end
+function P.MyJob() return 'ambulance' end
+function P.RouteJobs() return { ambulance = true } end
+function P.JobSetting(job, key, d) local v = P.Settings[key .. '@' .. (job or 'ambulance')] if v == nil then v = P.Settings[key] end if v == nil then return d end return v end
+function P.SetJobSetting(job, key, v) P.Settings[key .. '@' .. (job or 'ambulance')] = v end
 function P.GetSetting(k, d) local v = P.Settings[k] if v == nil then return d end return v end
 function P.SetSetting(k, v) P.Settings[k] = v end
 function P.Cid(s) return players[s] and not players[s].offline and players[s].cid or nil end

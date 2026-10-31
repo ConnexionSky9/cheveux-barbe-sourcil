@@ -23,7 +23,7 @@ local function PointHere(src)
     local c = P.Coords(src)
     if not c then return nil end
     local best, bestD
-    for _, w in ipairs(P.WorkshopList()) do
+    for _, w in ipairs(P.WorkshopsOf(P.MyJob(src))) do   -- ponts des points de son agence
         if w.coords then
             local d = #(c - vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0))
             if d <= (tonumber(w.radius) or 3.5) + (LC.range or 3.0) and (not bestD or d < bestD) then best, bestD = w, d end
@@ -45,9 +45,9 @@ local function NearVehicle(src, radius)
 end
 
 -- Point d'atelier sur lequel un véhicule est garé
-local function PointOfVehicle(veh)
+local function PointOfVehicle(veh, job)
     local vc = GetEntityCoords(veh)
-    for _, w in ipairs(P.WorkshopList()) do
+    for _, w in ipairs(P.WorkshopsOf(job)) do
         if w.coords and #(vc - vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0)) <= (tonumber(w.radius) or 3.5) + 1.0 then return w end
     end
 end
@@ -65,7 +65,7 @@ local function Install(src)
     if GetVehiclePedIsIn(GetPlayerPed(src), false) ~= 0 then P.Notify(src, 'Descendez du véhicule pour poser le pont.', 'error') return false end
     local veh = NearVehicle(src, LC.vehicleRange or 5.0)
     if not veh then P.Notify(src, 'Approchez-vous du véhicule sous lequel poser le pont.', 'error') return false end
-    local here = PointOfVehicle(veh)
+    local here = PointOfVehicle(veh, P.MyJob(src))
     if not here then P.Notify(src, 'Garez d\'abord le véhicule sur un point d\'atelier (cercle au sol).', 'error') return false end
     local list = P.WorkshopList()
     for _, w in ipairs(list) do

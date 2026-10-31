@@ -196,15 +196,17 @@ P.Actions.labSample = { perm = 'lab_sample', duty = true, fn = function(src, d)
     return { message = ('Prélèvement LAB-%05d enregistré. Analyse depuis la tablette › Laboratoire.'):format(id), id = id }
 end }
 
-P.Actions.labList = { perm = 'lab_view', fn = function(_, d)
+-- Laboratoire : prélèvements et analyses de SON agence seulement
+P.Actions.labList = { perm = 'lab_view', fn = function(src, d)
     local q = P.Clean(d.q, 60):gsub('[%%_]', '')
+    local job = P.MyJob(src)
     local rows
     if d.cid and d.cid ~= '' then
-        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 60', { tostring(d.cid):sub(1, 50) })
+        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `job` = ? AND `citizenid` = ? ORDER BY `id` DESC LIMIT 60', { job, tostring(d.cid):sub(1, 50) })
     elseif q ~= '' then
-        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `patient_name` LIKE ? ORDER BY `id` DESC LIMIT 60', { '%' .. q .. '%' })
+        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `job` = ? AND `patient_name` LIKE ? ORDER BY `id` DESC LIMIT 60', { job, '%' .. q .. '%' })
     else
-        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` ORDER BY (`status` = \'pending\') DESC, `id` DESC LIMIT 60')
+        rows = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `job` = ? ORDER BY (`status` = \'pending\') DESC, `id` DESC LIMIT 60', { job })
     end
     local out = {}
     for _, r in ipairs(rows or {}) do out[#out + 1] = view(r, false) end
@@ -212,11 +214,11 @@ P.Actions.labList = { perm = 'lab_view', fn = function(_, d)
 end }
 
 P.Actions.labReport = { perm = 'lab_view', fn = function(src, d)
-    local row = MySQL.single.await('SELECT * FROM `ems_lab_samples` WHERE `id` = ?', { tonumber(d.id) or 0 })
+    local row = MySQL.single.await('SELECT * FROM `ems_lab_samples` WHERE `id` = ? AND `job` = ?', { tonumber(d.id) or 0, P.MyJob(src) })
     if not row then return { error = 'Analyse introuvable.' } end
     local v = view(row, true)
-    -- autres analyses du même patient (historique)
-    local others = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `citizenid` = ? AND `id` <> ? ORDER BY `id` DESC LIMIT 15', { row.citizenid, row.id }) or {}
+    -- autres analyses du même patient dans cette agence (historique)
+    local others = MySQL.query.await('SELECT * FROM `ems_lab_samples` WHERE `citizenid` = ? AND `job` = ? AND `id` <> ? ORDER BY `id` DESC LIMIT 15', { row.citizenid, row.job, row.id }) or {}
     v.previous = {}
     for _, r in ipairs(others) do v.previous[#v.previous + 1] = view(r, false) end
     v.canAnalyze = row.status == 'pending' and P.Can(src, 'lab_analyze')
@@ -226,7 +228,7 @@ end }
 
 -- Analyse : calculée une seule fois par le serveur, puis figée dans le rapport
 P.Actions.labAnalyze = { perm = 'lab_analyze', duty = true, fn = function(src, d)
-    local row = MySQL.single.await('SELECT * FROM `ems_lab_samples` WHERE `id` = ?', { tonumber(d.id) or 0 })
+    local row = MySQL.single.await('SELECT * FROM `ems_lab_samples` WHERE `id` = ? AND `job` = ?', { tonumber(d.id) or 0, P.MyJob(src) })
     if not row then return { error = 'Prélèvement introuvable.' } end
     if row.status ~= 'pending' then return { error = 'Ce prélèvement a déjà été analysé.' } end
     local now = os.time()
@@ -242,7 +244,7 @@ end }
 
 -- Annuler un prélèvement non analysé (erreur de patient…) : direction ou médecin responsable
 P.Actions.labCancel = { perm = 'lab_analyze', fn = function(src, d)
-    local row = MySQL.single.await('SELECT `id`, `status`, `history` FROM `ems_lab_samples` WHERE `id` = ?', { tonumber(d.id) or 0 })
+    local row = MySQL.single.await('SELECT `id`, `status`, `history` FROM `ems_lab_samples` WHERE `id` = ? AND `job` = ?', { tonumber(d.id) or 0, P.MyJob(src) })
     if not row or row.status ~= 'pending' then return { error = 'Seul un prélèvement en attente peut être annulé.' } end
     local history = decode(row.history, {})
     history[#history + 1] = { at = os.time(), by = P.Name(src), action = 'Prélèvement annulé' .. (P.Clean(d.reason, 120) ~= '' and (' : ' .. P.Clean(d.reason, 120)) or '') }

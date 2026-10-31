@@ -186,7 +186,7 @@ local function InitDb()
     -- Mise à jour d'une base créée avant la partie Finance
     if HasColumn('police_employees', 'service_seconds') == 0 then MySQL.query.await('ALTER TABLE `police_employees` ADD COLUMN `service_seconds` INT NOT NULL DEFAULT 0') end
     -- Mise à jour d'une base créée avant les agences : tout ce qui existe appartient à la première agence
-    P.AddJobColumns({ 'police_grades', 'police_employees' }, { 'police_admin_log', 'police_alerts' }, 'police_grades')
+    P.AddJobColumns({ 'police_grades', 'police_employees' }, { 'police_admin_log', 'police_alerts', 'police_fines', 'police_wanted', 'police_reports' }, 'police_grades')
     pcall(function() core:ToUtf8mb4({ 'police_grades', 'police_employees', 'police_admin_log', 'police_reports', 'police_report_history', 'police_fines', 'police_alerts', 'police_wanted' }) end)
 end
 

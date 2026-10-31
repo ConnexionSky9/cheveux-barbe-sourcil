@@ -397,11 +397,11 @@ exports('HealthAdmin', function(op, src, d)
         return { ok = true, message = ('%s est complètement guéri(e).'):format(P.Name(t)) }
     end
     if op == 'pointAdd' then
-        local ok, msg = P.RecordsPointAdd(src, d.label, staff)
+        local ok, msg = P.RecordsPointAdd(src, d.label, staff, d.job)
         return ok and { ok = true, message = msg } or { error = msg }
     end
     if op == 'pointRemove' then
-        local ok, msg = P.RecordsPointRemove(src, d.id)
+        local ok, msg = P.RecordsPointRemove(src, d.id, true)
         return ok and { ok = true, message = msg } or { error = msg }
     end
     -- Actes médicaux en mini-jeux et blessures localisées (server/procedures.lua)

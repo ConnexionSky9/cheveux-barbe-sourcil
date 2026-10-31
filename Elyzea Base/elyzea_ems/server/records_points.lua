@@ -10,11 +10,21 @@ local P = Ems
 local R = Config.Records
 local KEY = 'records_points'
 
-local function List() return P.GetSetting(KEY, {}) end
+-- Chaque poste appartient à une agence (p.job) : seuls ses employés l'utilisent (anciens postes → première agence)
+local function List()
+    local list = P.GetSetting(KEY, {})
+    for _, p in ipairs(list) do p.job = p.job or P.MainJob() end
+    return list
+end
+local function ListOf(job)
+    local out = {}
+    for _, p in ipairs(List()) do if p.job == job then out[#out + 1] = p end end
+    return out
+end
 
 local function Publish()
     local pub = {}
-    for _, p in ipairs(List()) do pub[#pub + 1] = { id = p.id, x = p.x, y = p.y, z = p.z, label = p.label } end
+    for _, p in ipairs(List()) do pub[#pub + 1] = { id = p.id, job = p.job, x = p.x, y = p.y, z = p.z, label = p.label } end
     GlobalState.emsRecordsPoints = pub
 end
 P.OnReady = P.OnReady or {}
@@ -24,16 +34,17 @@ P.OnReady[#P.OnReady + 1] = Publish
 function P.AtRecords(src)
     local c = P.Coords(src)
     if not c then return false end
-    for _, p in ipairs(List()) do
+    for _, p in ipairs(ListOf(P.MyJob(src))) do   -- seulement les postes de son agence
         if #(c - vector3(p.x, p.y, p.z)) <= R.useRadius then return true end
     end
     return false
 end
 
 -- Ajout d'un poste à la position d'un joueur ; by = nom affiché dans l'historique
-function P.RecordsPointAdd(src, label, by)
+function P.RecordsPointAdd(src, label, by, job)
     local list = List()
-    if #list >= R.maxPoints then return false, ('%d postes au maximum.'):format(R.maxPoints) end
+    job = (job and P.agencies[job] and job) or P.MyJob(src) or P.MainJob()   -- staff : agence choisie, sinon la première
+    if #ListOf(job) >= R.maxPoints then return false, ('%d postes au maximum par agence.'):format(R.maxPoints) end
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 then return false, 'Joueur introuvable.' end
     local c = GetEntityCoords(ped)
@@ -42,17 +53,17 @@ function P.RecordsPointAdd(src, label, by)
     id = id + 1
     label = P.Clean(label, 60)
     if label == '' then label = ('Poste des dossiers #%d'):format(id) end
-    list[#list + 1] = { id = id, label = label, x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor(c.z * 100) / 100 }
+    list[#list + 1] = { id = id, job = job, label = label, x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor(c.z * 100) / 100 }
     P.SetSetting(KEY, list)
     Publish()
     P.Log(src, 'Poste des dossiers placé', ('#%d %s%s'):format(id, label, by and (' · ' .. by) or ''))
     return true, ('« %s » placé à votre position.'):format(label), id
 end
 
-function P.RecordsPointRemove(src, id)
+function P.RecordsPointRemove(src, id, staff)
     local list = List()
     for i, p in ipairs(list) do
-        if p.id == tonumber(id) then
+        if p.id == tonumber(id) and (staff or p.job == P.MyJob(src)) then
             table.remove(list, i)
             P.SetSetting(KEY, list)
             Publish()
@@ -63,10 +74,10 @@ function P.RecordsPointRemove(src, id)
     return false, 'Poste introuvable.'
 end
 
-function P.RecordsPoints() return List() end
+function P.RecordsPoints(job) if job then return ListOf(job) end return List() end
 
--- Tablette › Direction › Garage
-P.Actions.recordsPoints = { perm = 'garage_manage', fn = function() return { list = List() } end }
+-- Tablette › Direction › Garage (postes de SON agence)
+P.Actions.recordsPoints = { perm = 'garage_manage', fn = function(src) return { list = ListOf(P.MyJob(src)) } end }
 P.Actions.recordsPointAdd = { perm = 'garage_manage', fn = function(src, d)
     local ok, msg = P.RecordsPointAdd(src, d.label, nil)
     if not ok then return { error = msg } end

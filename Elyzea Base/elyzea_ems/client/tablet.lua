@@ -99,7 +99,8 @@ CreateThread(function()
         local pts = GlobalState.emsRecordsPoints
         if pts and #pts > 0 and C.IsEms() and C.Can('records_view') and not kiosk and not C.IsDown() then
             local pos = GetEntityCoords(PlayerPedId())
-            for _, p in ipairs(pts) do
+            local myJob = (C.State() or {}).job
+            for _, p in ipairs(pts) do if p.job == nil or p.job == myJob then   -- postes de son agence
                 local d = #(pos - vector3(p.x, p.y, p.z))
                 if d < 12.0 then
                     sleep = 0
@@ -113,7 +114,7 @@ CreateThread(function()
                         if IsControlJustPressed(0, 38) then C.OpenRecords(p) end
                     end
                 end
-            end
+            end end
         end
         Wait(sleep)
     end

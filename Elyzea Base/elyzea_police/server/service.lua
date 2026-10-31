@@ -149,7 +149,8 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
         recent = MySQL.query.await([[SELECT `id`, `kind`, `type`, `title`, `street`, `author_name`, `status`, UNIX_TIMESTAMP(`created_at`) AS t
             FROM `police_alerts` WHERE FIND_IN_SET(?, `job`) ORDER BY `id` DESC LIMIT 8]], { job }) or {},
         reports = P.Can(src, 'reports_view') and (MySQL.query.await([[SELECT `id`, `title`, `type`, `status`, `author_name`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `police_reports` WHERE `status` <> 'archived' ORDER BY `id` DESC LIMIT 5]]) or {}) or nil,
+            FROM `police_reports` WHERE `status` <> 'archived']] .. (P.RecJob(src) and ' AND `job` = ?' or '') .. ' ORDER BY `id` DESC LIMIT 5',
+            { P.RecJob(src) }) or {}) or nil,
         now = os.time(),
     }
 end }

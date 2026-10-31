@@ -140,8 +140,8 @@ P.Actions.fine = { perm = 'fine', duty = true, fn = function(src, d)
     if not tp then return { error = 'Personne introuvable.' } end
     local e = P.Employee(src)
     local name = P.Name(t)
-    local id = MySQL.insert.await([[INSERT INTO `police_fines` (`citizenid`, `name`, `offense`, `reason`, `description`, `amount`, `officer_cid`, `officer_name`, `officer_matricule`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]], { tp.PlayerData.citizenid, name, o.label, reason, desc ~= '' and desc or nil, amount, P.Cid(src), P.Name(src), e and e.matricule })
+    local id = MySQL.insert.await([[INSERT INTO `police_fines` (`job`, `citizenid`, `name`, `offense`, `reason`, `description`, `amount`, `officer_cid`, `officer_name`, `officer_matricule`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { P.MyJob(src) or P.MainJob(), tp.PlayerData.citizenid, name, o.label, reason, desc ~= '' and desc or nil, amount, P.Cid(src), P.Name(src), e and e.matricule })
     local paidWith = Collect(t, amount)
     if paidWith then
         MySQL.update.await('UPDATE `police_fines` SET `paid` = 1 WHERE `id` = ?', { id })

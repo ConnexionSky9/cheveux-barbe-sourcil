@@ -117,7 +117,7 @@ local function Quote(pr, kind, days)
 end
 
 P.Actions.assignOffer = { perm = 'tablet', duty = true, fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr or not pr.enabled then return { error = 'Bien indisponible.' } end
     local kind = d.kind == 'rent' and 'rent' or 'sale'
     if not P.Can(src, kind == 'rent' and 'rent' or 'sell') then return { error = kind == 'rent' and 'Votre grade ne permet pas de louer.' or 'Votre grade ne permet pas de vendre.' } end
@@ -232,7 +232,7 @@ AddEventHandler('playerDropped', function() offers[source] = nil end)
 -- Réservation, résiliation, tarifs (direction / responsables)
 -- ---------------------------------------------------------------------
 P.Actions.reserve = { perm = 'contracts_manage', duty = true, fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr or not pr.enabled or pr.contractId then return { error = 'Bien indisponible.' } end
     if d.on == true then
         if pr.status ~= 'available' then return { error = 'Seul un bien disponible peut être réservé.' } end
@@ -249,7 +249,7 @@ P.Actions.reserve = { perm = 'contracts_manage', duty = true, fn = function(src,
 end }
 
 P.Actions.terminate = { perm = 'contracts_manage', duty = true, fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr or not pr.contractId then return { error = 'Aucun contrat actif.' } end
     local reason = P.Clean(d.reason, 120)
     if #reason < 3 then return { error = 'Indiquez le motif.' } end
@@ -259,7 +259,7 @@ P.Actions.terminate = { perm = 'contracts_manage', duty = true, fn = function(sr
 end }
 
 P.Actions.pricesSave = { perm = 'prices_manage', fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr then return { error = 'Bien introuvable.' } end
     local maxP = Config.Prices.max
     local sale, rent = P.Int(d.salePrice, 0, maxP, nil), P.Int(d.rentPrice, 0, maxP, nil)
@@ -304,15 +304,16 @@ end
 P.Actions.props = { perm = 'tablet', fn = function(src)
     local full = P.Can(src, 'properties_view')
     local list = {}
+    local job = P.MyJob(src)
     for _, pr in pairs(P.props) do
-        if pr.enabled then list[#list + 1] = ListView(pr, full) end
+        if pr.enabled and pr.job == job then list[#list + 1] = ListView(pr, full) end   -- biens de SON agence
     end
     table.sort(list, function(a, b) return a.name < b.name end)
     return { list = list, full = full }
 end }
 
 P.Actions.propInfo = { perm = 'tablet', fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr or not pr.enabled then return { error = 'Bien introuvable.' } end
     local full = P.Can(src, 'properties_view')
     local v = ListView(pr, full)
@@ -339,8 +340,9 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     me.times = P.MyTimes(src)
     local counts = { available = 0, rented = 0, sold = 0, reserved = 0, apartment = 0, house = 0, villa = 0, garage = 0 }
     local soon = {}
+    local job = P.MyJob(src)
     for _, pr in pairs(P.props) do
-        if pr.enabled then
+        if pr.enabled and pr.job == job then
             counts[pr.status] = (counts[pr.status] or 0) + 1
             counts[pr.category] = (counts[pr.category] or 0) + 1
             local c = P.Contract(pr.id)
@@ -354,11 +356,11 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
         (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `job` = ? AND `type` = 'in' AND `created_at` >= CURDATE()) AS today,
         (SELECT COALESCE(SUM(`amount`), 0) FROM `d8_transactions` WHERE `job` = ? AND `type` = 'in' AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY)) AS week]], { P.MyJob(src), P.MyJob(src) }) or {}
     local last = MySQL.query.await([[SELECT c.`kind`, c.`holder_name`, c.`price`, c.`days`, c.`employee_name`, p.`name`, UNIX_TIMESTAMP(c.`started_at`) AS t
-        FROM `d8_contracts` c LEFT JOIN `d8_properties` p ON p.`id` = c.`property_id` ORDER BY c.`id` DESC LIMIT 8]]) or {}
+        FROM `d8_contracts` c LEFT JOIN `d8_properties` p ON p.`id` = c.`property_id` WHERE p.`job` = ? ORDER BY c.`id` DESC LIMIT 8]], { job }) or {}
     local visits = MySQL.query.await([[SELECT v.`employee_name`, v.`clients`, p.`name`, UNIX_TIMESTAMP(v.`started_at`) AS t FROM `d8_visits` v
-        LEFT JOIN `d8_properties` p ON p.`id` = v.`property_id` ORDER BY v.`id` DESC LIMIT 6]]) or {}
+        LEFT JOIN `d8_properties` p ON p.`id` = v.`property_id` WHERE p.`job` = ? ORDER BY v.`id` DESC LIMIT 6]], { job }) or {}
     if not P.Can(src, 'properties_view') then for _, l in ipairs(last) do l.holder_name = nil end end
-    local total = 0 for _ in pairs(P.employees) do total = total + 1 end
+    local total = 0 for _, e in pairs(P.employees) do if e.job == job then total = total + 1 end end
     return { me = me, crew = crew, dutyCount = #crew, employees = total, counts = counts, soon = soon, last = last, visits = visits,
         revenue = { today = tonumber(rev.today) or 0, week = tonumber(rev.week) or 0 }, now = os.time() }
 end }
@@ -367,12 +369,13 @@ P.Actions.map = { perm = 'tablet', fn = function(src)
     local crew = {}
     for _, id in ipairs(P.CrewOnDuty(nil, P.MyJob(src))) do crew[#crew + 1] = P.CrewInfo(id, true) end
     local list = {}
-    for _, pr in pairs(P.props) do if pr.enabled then list[#list + 1] = ListView(pr, false) end end
+    local job = P.MyJob(src)
+    for _, pr in pairs(P.props) do if pr.enabled and pr.job == job then list[#list + 1] = ListView(pr, false) end end
     return { crew = crew, props = list, now = os.time() }
 end }
 
-P.Actions.contracts = { perm = 'properties_view', fn = function(_, d)
-    local where, args = {}, {}
+P.Actions.contracts = { perm = 'properties_view', fn = function(src, d)
+    local where, args = { 'p.`job` = ?' }, { P.MyJob(src) }   -- contrats des biens de SON agence
     local st = tostring(d.status or '')
     if st:match('^%a+$') then where[#where + 1] = 'c.`status` = ?' args[#args + 1] = st end
     local q = P.Clean(d.q, 40):gsub('[%%_]', '')

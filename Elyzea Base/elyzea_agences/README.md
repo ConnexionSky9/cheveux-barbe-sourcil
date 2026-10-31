@@ -54,14 +54,29 @@ Les alertes internes (alerte agent police, soutien EMS, alertes du téléphone d
 
 ## Ce qui est séparé / partagé
 
-| Séparé par agence | Partagé entre les agences d'un même métier |
+**Deux agences d'un même métier sont totalement séparées** : chacune ne voit, ne modifie et ne facture que ce qui lui appartient.
+Le serveur le vérifie à chaque action (pas seulement l'interface).
+
+| Séparé par agence | Détail |
 |---|---|
-| Grades, permissions, salaires, commissions | Casier, avis de recherche, amendes, rapports (police) |
-| Employés, recrutement, direction, historique | Dossiers médicaux, tarifs des soins et des PPA (EMS) |
-| Compte de société, paie, transactions, factures | Catalogue, ateliers (mécano) ; biens immobiliers (Dynasty 8) |
-| Alertes / appels reçus, carte des collègues | |
-| Téléphone de service (numéros, annuaire, messages, appels) | |
-| Garage de service et pharmacie / coffre d'atelier (EMS, mécano) | |
+| Grades, permissions, salaires, commissions, employés, recrutement, direction, historique | (déjà le cas) |
+| Compte de société, chiffre d'affaires, paie, transactions, factures, **statistiques** | tableaux de bord, CA du jour / 7 jours, statistiques : seulement l'agence |
+| Alertes, appels, carte des collègues, téléphone de service | (déjà le cas) |
+| Garage de service, coffre d'atelier / pharmacie | (déjà le cas) |
+| **Mécano** | **points d'atelier** (chaque point appartient à l'agence qui l'a posé ; les autres ne le voient pas et ne peuvent pas l'ouvrir), **catalogue et prix**, devis, historique des véhicules, ponts roulants de ses points |
+| **EMS** | **tarifs des soins et des PPA**, **dossiers médicaux** (un dossier par patient ET par agence : notes, groupe sanguin, allergies), actes, comptes rendus, PPA délivrés, analyses du laboratoire, **postes des dossiers**, rendez-vous (attribués à l'agence qui couvre l'endroit de la demande) |
+| **Police** | amendes vues par les agents, **avis de recherche**, **rapports**, casier (`Config.SharedRecords = true` dans `elyzea_police/config.lua` pour partager ce fichier entre polices) |
+| **Dynasty 8** | **biens** (chaque bien est géré par une agence, choisie par le staff dans la fiche du bien), contrats, visites, tarifs |
+| **Presse** | articles, flashs, interviews, médias (déjà le cas) |
+
+Restent communs, volontairement :
+- l'**état de santé du personnage** (maladies en cours, blessures, sang, vaccins) : c'est son corps, pas un dossier d'agence ;
+- les **règles du jeu** réglées par le staff (maladies, actes médicaux) ;
+- ce qui appartient au **joueur** : ses amendes à payer (`/amendes`), son bien acheté, son véhicule.
+
+Mise à jour d'une base existante : tout ce qui existe est rattaché à la **première agence** de chaque métier (rien n'est perdu ;
+les tarifs, points et catalogue actuels deviennent ceux de la première agence). Une nouvelle agence reçoit le catalogue mécano de départ.
+Test sur une vraie base MariaDB : `tests/separation_db_test.py`.
 
 L'argent encaissé va sur le compte de l'agence de l'employé qui encaisse (amendes, factures, PPA, devis, ventes et locations).
 Les frais d'hôpital vont à l'agence EMS dont la zone couvre le lieu du coma.

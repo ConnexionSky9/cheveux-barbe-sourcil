@@ -197,12 +197,14 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src)
     local total = 0
     local myJob = P.MyJob(src)
     for _, e in pairs(P.employees) do if e.job == myJob then total = total + 1 end end
+    -- Chiffres du jour de SON agence seulement
     local today = MySQL.single.await([[SELECT
-        (SELECT COUNT(*) FROM `meca_tow` WHERE `created_at` >= CURDATE()) AS tows,
-        (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `created_at` >= CURDATE()) AS interventions,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= CURDATE()) AS revenue,
-        (SELECT COUNT(*) FROM `meca_quotes` WHERE `status` IN ('pending', 'accepted')) AS openQuotes,
-        (SELECT COUNT(*) FROM `meca_carplay`) AS carplay]]) or {}
+        (SELECT COUNT(*) FROM `meca_tow` WHERE `created_at` >= CURDATE() AND FIND_IN_SET(?, `job`)) AS tows,
+        (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `created_at` >= CURDATE() AND `job` = ?) AS interventions,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= CURDATE() AND `job` = ?) AS revenue,
+        (SELECT COUNT(*) FROM `meca_quotes` WHERE `status` IN ('pending', 'accepted') AND `job` = ?) AS openQuotes,
+        (SELECT COUNT(*) FROM `meca_carplay` c JOIN `meca_invoices` i ON i.`uid` = c.`invoice_uid` WHERE i.`job` = ?) AS carplay]],
+        { myJob, myJob, myJob, myJob, myJob }) or {}
     return {
         me = me, perms = perms, crew = crew, dutyCount = #crew, employees = total,
         tows = P.TowList and P.TowList(src) or {},

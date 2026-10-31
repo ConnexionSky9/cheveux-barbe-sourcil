@@ -124,8 +124,8 @@ P.Actions.finance = { perm = 'finance', fn = function(src)
     end
     -- Recettes par type de prestation (factures payées sur 7 jours, lignes réellement installées)
     local split = { perf = 0, cosmetic = 0, carplay = 0, service = 0, custom = 0 }
-    local pendingQuotes = MySQL.single.await("SELECT COUNT(*) AS n, COALESCE(SUM(`total`), 0) AS total FROM `meca_quotes` WHERE `status` = 'pending'") or {}
-    for _, r in ipairs(MySQL.query.await([[SELECT `items` FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY)]]) or {}) do
+    local pendingQuotes = MySQL.single.await("SELECT COUNT(*) AS n, COALESCE(SUM(`total`), 0) AS total FROM `meca_quotes` WHERE `status` = 'pending' AND `job` = ?", { job }) or {}
+    for _, r in ipairs(MySQL.query.await([[SELECT `items` FROM `meca_invoices` WHERE `status` = 'paid' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY)]], { job }) or {}) do
         local ok, items = pcall(json.decode, r.items or '[]')
         for _, l in ipairs(ok and items or {}) do split[l.kind] = (split[l.kind] or 0) + (tonumber(l.total) or 0) end
     end

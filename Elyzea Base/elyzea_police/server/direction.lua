@@ -157,8 +157,8 @@ P.Actions.employee = { perm = 'employees_view', fn = function(src, d)
     v.canAct = e.citizenid ~= P.Cid(src) and v.level < mine
     v.history = P.Can(src, 'history_view') and (MySQL.query.await([[SELECT `actor_name`, `action`, `old_grade`, `new_grade`, `reason`, UNIX_TIMESTAMP(`created_at`) AS t
         FROM `police_admin_log` WHERE `target_cid` = ? ORDER BY `id` DESC LIMIT 30]], { e.citizenid }) or {}) or nil
-    v.fines = MySQL.scalar.await('SELECT COUNT(*) FROM `police_fines` WHERE `officer_cid` = ?', { e.citizenid }) or 0
-    v.reports = MySQL.scalar.await('SELECT COUNT(*) FROM `police_reports` WHERE `author_cid` = ?', { e.citizenid }) or 0
+    v.fines = MySQL.scalar.await('SELECT COUNT(*) FROM `police_fines` WHERE `officer_cid` = ? AND `job` = ?', { e.citizenid, e.job }) or 0
+    v.reports = MySQL.scalar.await('SELECT COUNT(*) FROM `police_reports` WHERE `author_cid` = ? AND `job` = ?', { e.citizenid, e.job }) or 0
     return { employee = v }
 end }
 

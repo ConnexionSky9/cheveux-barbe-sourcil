@@ -212,19 +212,21 @@ end
 -- ---------------------------------------------------------------------
 -- Statistiques
 -- ---------------------------------------------------------------------
-P.Actions.stats = { perm = 'stats_view', fn = function(_, d)
+-- Chiffres de SON agence seulement (chiffre d'affaires, salaires, dépannages…)
+P.Actions.stats = { perm = 'stats_view', fn = function(src, d)
     local days = P.Int(d.days, 1, 90, 7)
+    local job = P.MyJob(src)
     local s = MySQL.single.await([[SELECT
-        (SELECT COUNT(*) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS invoices,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS revenue,
-        (SELECT COUNT(*) FROM `meca_carplay` WHERE `installed_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS carplay,
-        (SELECT COUNT(*) FROM `meca_tow` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS tows,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'salary' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS salaries,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'refund' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS refunds,
-        (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS interventions]],
-        { days, days, days, days, days, days, days }) or {}
+        (SELECT COUNT(*) FROM `meca_invoices` WHERE `status` = 'paid' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS invoices,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_invoices` WHERE `status` = 'paid' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS revenue,
+        (SELECT COUNT(*) FROM `meca_carplay` c JOIN `meca_invoices` i ON i.`uid` = c.`invoice_uid` WHERE i.`job` = ? AND c.`installed_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS carplay,
+        (SELECT COUNT(*) FROM `meca_tow` WHERE FIND_IN_SET(?, `job`) AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS tows,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'salary' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS salaries,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `meca_transactions` WHERE `type` = 'out' AND `category` = 'refund' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS refunds,
+        (SELECT COUNT(*) FROM `meca_vehicle_history` WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)) AS interventions]],
+        { job, days, job, days, job, days, job, days, job, days, job, days, job, days }) or {}
     local top, byKind = {}, {}
-    for _, r in ipairs(MySQL.query.await([[SELECT `items` FROM `meca_invoices` WHERE `status` = 'paid' AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)]], { days }) or {}) do
+    for _, r in ipairs(MySQL.query.await([[SELECT `items` FROM `meca_invoices` WHERE `status` = 'paid' AND `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)]], { job, days }) or {}) do
         local ok, items = pcall(json.decode, r.items or '[]')
         for _, l in ipairs(ok and items or {}) do
             local k = l.name or l.code
@@ -238,7 +240,7 @@ P.Actions.stats = { perm = 'stats_view', fn = function(_, d)
     for _, v in pairs(top) do list[#list + 1] = v end
     table.sort(list, function(a, b) return a.n > b.n end)
     while #list > 10 do table.remove(list) end
-    local workers = MySQL.query.await([[SELECT `mechanic_name` AS name, COUNT(*) AS n FROM `meca_vehicle_history` WHERE `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        AND `mechanic_name` IS NOT NULL GROUP BY `mechanic_cid`, `mechanic_name` ORDER BY n DESC LIMIT 10]], { days }) or {}
+    local workers = MySQL.query.await([[SELECT `mechanic_name` AS name, COUNT(*) AS n FROM `meca_vehicle_history` WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        AND `mechanic_name` IS NOT NULL GROUP BY `mechanic_cid`, `mechanic_name` ORDER BY n DESC LIMIT 10]], { job, days }) or {}
     return { days = days, totals = s, top = list, byKind = byKind, workers = workers }
 end }

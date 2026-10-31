@@ -273,7 +273,7 @@ local function InitDb()
         Q(('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
     end
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
-    P.AddJobColumns({ 'd8_grades', 'd8_employees' }, { 'd8_admin_log', 'd8_transactions', 'd8_contracts' }, 'd8_grades')
+    P.AddJobColumns({ 'd8_grades', 'd8_employees' }, { 'd8_admin_log', 'd8_transactions', 'd8_contracts', 'd8_properties' }, 'd8_grades')
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
 end
 

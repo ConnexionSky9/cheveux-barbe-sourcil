@@ -33,9 +33,11 @@ function P.HasCarPlay(plate)
 end
 function P.ForgetCarPlay(plate) cpCache[P.CleanPlate(plate)] = nil end
 
-function P.History(vehicleId, plate, action, details, ref, src)
-    MySQL.insert('INSERT INTO `meca_vehicle_history` (`vehicle_id`, `plate`, `action`, `details`, `ref`, `mechanic_cid`, `mechanic_name`) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        { vehicleId, P.CleanPlate(plate), action, details and tostring(details):sub(1, 255) or nil, ref, src and P.Cid(src) or nil, src and P.Name(src) or nil })
+-- Historique d'un véhicule : chaque ligne appartient à l'agence qui a fait le travail (job)
+function P.History(vehicleId, plate, action, details, ref, src, job)
+    job = job or (src and P.MyJob(src)) or P.MainJob()
+    MySQL.insert('INSERT INTO `meca_vehicle_history` (`job`, `vehicle_id`, `plate`, `action`, `details`, `ref`, `mechanic_cid`, `mechanic_name`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        { job, vehicleId, P.CleanPlate(plate), action, details and tostring(details):sub(1, 255) or nil, ref, src and P.Cid(src) or nil, src and P.Name(src) or nil })
 end
 
 -- Fusionne des propriétés dans la carte grise (les états mécaniques ne sont pas touchés ici)
@@ -69,12 +71,12 @@ P.OwnerName = OwnerName
 -- ---------------------------------------------------------------------
 -- Tablette › Véhicules clients
 -- ---------------------------------------------------------------------
-P.Actions.vehicleSearch = { perm = 'vehicles_view', fn = function(_, d)
+P.Actions.vehicleSearch = { perm = 'vehicles_view', fn = function(src, d)
     local q = P.Clean(d.q, 40):gsub('[%%_]', '')
-    if #q < 2 then
+    if #q < 2 then   -- derniers véhicules passés dans SON agence
         return { list = MySQL.query.await([[SELECT h.`vehicle_id` AS id, MAX(h.`plate`) AS plate, MAX(UNIX_TIMESTAMP(h.`created_at`)) AS t, MAX(v.`vehicle`) AS model
-            FROM `meca_vehicle_history` h LEFT JOIN `player_vehicles` v ON v.`id` = h.`vehicle_id` WHERE h.`vehicle_id` IS NOT NULL
-            GROUP BY h.`vehicle_id` ORDER BY t DESC LIMIT 40]]) or {}, recent = true }
+            FROM `meca_vehicle_history` h LEFT JOIN `player_vehicles` v ON v.`id` = h.`vehicle_id` WHERE h.`vehicle_id` IS NOT NULL AND h.`job` = ?
+            GROUP BY h.`vehicle_id` ORDER BY t DESC LIMIT 40]], { P.MyJob(src) }) or {}, recent = true }
     end
     local like = '%' .. q .. '%'
     local rows = MySQL.query.await([[SELECT v.`id`, v.`plate`, v.`vehicle` AS model, v.`citizenid` FROM `player_vehicles` v
@@ -97,16 +99,17 @@ P.Actions.vehicleGet = { perm = 'vehicles_view', fn = function(src, d)
         if key == 'turbo' then v = mods.modTurbo == true and 1 or 0 else v = (tonumber(mods['mod' .. key:sub(1, 1):upper() .. key:sub(2)]) or -1) + 1 end
         perf[key] = v
     end
+    local job = P.MyJob(src)   -- historique, devis et factures de SON agence seulement
     local carplay = MySQL.single.await('SELECT `invoice_uid`, `price`, `installed_by`, UNIX_TIMESTAMP(`installed_at`) AS t FROM `meca_carplay` WHERE `vehicle_id` = ?', { row.id })
     return { vehicle = {
         id = row.id, plate = P.CleanPlate(row.plate), model = row.vehicle, owner = OwnerName(row.citizenid), perf = perf, carplay = carplay,
         engine = math.floor((tonumber(mods.engineHealth) or 1000) / 10), body = math.floor((tonumber(mods.bodyHealth) or 1000) / 10),
         history = MySQL.query.await([[SELECT `action`, `details`, `ref`, `mechanic_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_vehicle_history`
-            WHERE `vehicle_id` = ? ORDER BY `id` DESC LIMIT 80]], { row.id }) or {},
+            WHERE `vehicle_id` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 80]], { row.id, job }) or {},
         quotes = MySQL.query.await([[SELECT `uid`, `customer_name`, `mechanic_name`, `total`, `status`, UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_quotes`
-            WHERE `vehicle_id` = ? ORDER BY `id` DESC LIMIT 30]], { row.id }) or {},
+            WHERE `vehicle_id` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 30]], { row.id, job }) or {},
         invoices = (P.Can(src, 'finance') or P.Can(src, 'quotes')) and (MySQL.query.await([[SELECT `uid`, `amount`, `status`, `mechanic_name`, UNIX_TIMESTAMP(`created_at`) AS t
-            FROM `meca_invoices` WHERE `vehicle_id` = ? ORDER BY `id` DESC LIMIT 30]], { row.id }) or {}) or nil,
+            FROM `meca_invoices` WHERE `vehicle_id` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 30]], { row.id, job }) or {}) or nil,
     } }
 end }
 

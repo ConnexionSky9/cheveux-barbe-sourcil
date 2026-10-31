@@ -13,9 +13,9 @@ local P = Ems
 local B = Config.Billing
 local WINDOW = 360   -- minutes : actes récents pris en compte pour une facture
 
--- Réglages : { mode, flat, services = { [id] = { price, enabled } } }
-function P.BillingSettings()
-    local s = P.GetSetting('billing', {})
+-- Réglages : { mode, flat, services = { [id] = { price, enabled } } } — tarifs PROPRES à chaque agence
+function P.BillingSettings(job)
+    local s = P.JobSetting(job, 'billing', {})
     local out = { mode = s.mode or B.mode, flat = tonumber(s.flat) or B.flat, services = {} }
     for _, def in ipairs(B.services) do
         local o = type(s.services) == 'table' and s.services[def.id] or nil
@@ -24,33 +24,33 @@ function P.BillingSettings()
     end
     return out
 end
-local function ServiceDef(id)
-    for _, s in ipairs(P.BillingSettings().services) do if s.id == id then return s end end
+local function ServiceDef(id, job)
+    for _, s in ipairs(P.BillingSettings(job).services) do if s.id == id then return s end end
 end
 
--- Actes non facturés du patient (fenêtre récente)
-local function Unbilled(cid)
+-- Actes non facturés du patient faits par CETTE agence (fenêtre récente)
+local function Unbilled(cid, job)
     return MySQL.query.await([[SELECT `id`, `service`, `ems_name`, `call_id`, UNIX_TIMESTAMP(`created_at`) AS t FROM `ems_treatments`
-        WHERE `patient_cid` = ? AND `invoice_uid` IS NULL AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY `id`]], { cid, WINDOW }) or {}
+        WHERE `patient_cid` = ? AND `job` = ? AND `invoice_uid` IS NULL AND `created_at` >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY `id`]], { cid, job, WINDOW }) or {}
 end
 
--- Calcul serveur : chaque prestation comptée une fois par intervention
-local function Compute(cid, extras)
-    local set = P.BillingSettings()
-    local rows = Unbilled(cid)
+-- Calcul serveur : chaque prestation comptée une fois par intervention, aux tarifs de l'agence qui facture
+local function Compute(cid, extras, job)
+    local set = P.BillingSettings(job)
+    local rows = Unbilled(cid, job)
     local seen, items, ids, total = {}, {}, {}, 0
     for _, r in ipairs(rows) do
         ids[#ids + 1] = r.id
         if not seen[r.service] then
             seen[r.service] = true
-            local s = ServiceDef(r.service)
+            local s = ServiceDef(r.service, job)
             if s and s.enabled then items[#items + 1] = { id = s.id, label = s.label, price = s.price, auto = true } end
         end
     end
     for _, id in ipairs(type(extras) == 'table' and extras or {}) do
         id = tostring(id)
         if not seen[id] then
-            local s = ServiceDef(id)
+            local s = ServiceDef(id, job)
             if s and s.enabled then seen[id] = true items[#items + 1] = { id = s.id, label = s.label, price = s.price, extra = true } end
         end
     end
@@ -70,7 +70,7 @@ P.Actions.billPreview = { perm = 'billing', duty = true, fn = function(src, d)
     if P.Dist(src, t) > Config.Distances.interact + 2.0 then return { error = 'Le patient est trop loin.' } end
     local cid = P.Cid(t)
     if not cid then return { error = 'Patient introuvable.' } end
-    local c = Compute(cid, d.extras)
+    local c = Compute(cid, d.extras, P.MyJob(src))
     c.patient = { id = t, name = P.Name(t) }
     return { bill = c }
 end }
@@ -87,10 +87,10 @@ P.Actions.billSend = { perm = 'billing', duty = true, fn = function(src, d)
     local ok, res = pcall(function()
         -- Les prestations ajoutées à la main deviennent des actes enregistrés
         for _, id in ipairs(type(d.extras) == 'table' and d.extras or {}) do
-            local s = ServiceDef(tostring(id))
+            local s = ServiceDef(tostring(id), P.MyJob(src))
             if s and s.enabled then P.AddTreatment(t, s.id, src) end
         end
-        local c = Compute(cid, nil)
+        local c = Compute(cid, nil, P.MyJob(src))
         if #c.items == 0 or c.total <= 0 then return { error = 'Aucun acte à facturer pour ce patient.' } end
         -- Montant vu par l'EMS dans l'aperçu : refus si les tarifs ont changé entre-temps
         if tonumber(d.expected) and tonumber(d.expected) ~= c.total then
@@ -194,7 +194,7 @@ P.Actions.invoiceRefund = { perm = 'billing_manage', fn = function(src, d)
 end }
 
 P.Actions.billingSettings = { perm = 'finance', fn = function(src)
-    return { settings = P.BillingSettings(), canEdit = P.Can(src, 'billing_manage'), maxPrice = B.maxPrice }
+    return { settings = P.BillingSettings(P.MyJob(src)), canEdit = P.Can(src, 'billing_manage'), maxPrice = B.maxPrice }
 end }
 
 P.Actions.billingSave = { perm = 'billing_manage', fn = function(src, d)
@@ -212,7 +212,7 @@ P.Actions.billingSave = { perm = 'billing_manage', fn = function(src, d)
             services[def.id] = { price = price, enabled = o.enabled == true }
         end
     end
-    P.SetSetting('billing', { mode = mode, flat = flat, services = services })
+    P.SetJobSetting(P.MyJob(src), 'billing', { mode = mode, flat = flat, services = services })
     P.AddLog(src, nil, nil, 'Tarifs des soins', nil, nil, ('mode %s, forfait %d $'):format(mode, flat))
     return { ok = true, message = 'Tarifs enregistrés (appliqués aux prochaines factures).' }
 end }

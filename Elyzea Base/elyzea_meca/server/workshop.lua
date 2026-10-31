@@ -175,16 +175,25 @@ local function Pos(src)
     return { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor(c.z * 100) / 100 }
 end
 
+-- Tous les points (toutes agences). Chaque point appartient à UNE agence (w.job) : seuls ses employés
+-- le voient et l'utilisent. Les points d'avant les agences sont rattachés à la première agence.
 function P.WorkshopList()
     local list = {}
     for _, w in ipairs(P.GetSetting('workshops', {})) do
         if type(w) == 'table' and w.id then
             -- Ancien format (point du mécanicien + emplacement) : on garde l'emplacement du véhicule
             if w.vehicle then w.coords, w.vehicle = w.vehicle, nil end
+            w.job = w.job or P.MainJob()
             list[#list + 1] = w
         end
     end
     return list
+end
+-- Points d'une agence
+function P.WorkshopsOf(job)
+    local out = {}
+    for _, w in ipairs(P.WorkshopList()) do if w.job == job then out[#out + 1] = w end end
+    return out
 end
 -- Rubriques d'un point (le CarPlay ne s'installe plus à l'atelier : rubrique ignorée sur les anciens points)
 function P.WsCats(list)
@@ -196,7 +205,7 @@ local function Publish()
     local pub = {}
     for _, w in ipairs(P.WorkshopList()) do
         if w.coords then
-            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = P.WsCats(w.categories), minLevel = w.minLevel,
+            pub[#pub + 1] = { id = w.id, job = w.job, label = w.label, coords = w.coords, radius = w.radius, categories = P.WsCats(w.categories), minLevel = w.minLevel,
                 lift = type(w.lift) == 'table' and { h = tonumber(w.lift.h) or 0.0 } or nil }
         end
     end
@@ -210,7 +219,7 @@ P.OnReady[#P.OnReady + 1] = Publish
 local function Workshop(id)
     for _, w in ipairs(P.WorkshopList()) do
         if w.id == id and w.coords then
-            return { id = w.id, label = w.label, coords = Vec(w.coords), radius = tonumber(w.radius) or WD.radius,
+            return { id = w.id, job = w.job, label = w.label, coords = Vec(w.coords), radius = tonumber(w.radius) or WD.radius,
                 categories = P.WsCats(w.categories), minLevel = tonumber(w.minLevel) or 1, lift = type(w.lift) == 'table' and w.lift or nil }
         end
     end
@@ -220,7 +229,7 @@ P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
     local grades = {}
     for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do grades[#grades + 1] = { level = g.level, name = g.name } end
     local list = {}
-    for _, w in ipairs(P.WorkshopList()) do
+    for _, w in ipairs(P.WorkshopsOf(P.MyJob(src))) do   -- seulement les points de son agence
         local n = 0
         for _, q in pairs(P.quotes) do if q.workshop == w.id then n = n + 1 end end
         local c = w.coords and P.Coords(src)
@@ -237,8 +246,9 @@ local function Find(list, id) for i, w in ipairs(list) do if w.id == id then ret
 -- Créer (au point où se tient la direction) ou modifier le nom, les rubriques, le grade et la tolérance
 P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
     local list = P.WorkshopList()
+    local job = P.MyJob(src)
     local w = d.id and Find(list, tostring(d.id)) or nil
-    if d.id and not w then return { error = 'Point introuvable.' } end
+    if d.id and (not w or w.job ~= job) then return { error = 'Point introuvable.' } end
     local label = P.Clean(d.label, 40)
     if #label < 2 then return { error = 'Nom trop court.' } end
     local cats, seen = {}, {}
@@ -250,8 +260,8 @@ P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
     local minLevel = P.Int(d.minLevel, 1, 99, 1)
     local radius = math.max(1.5, math.min(8.0, tonumber(d.radius) or WD.radius))
     if not w then
-        if #list >= Config.WorkshopMax then return { error = ('%d points maximum.'):format(Config.WorkshopMax) } end
-        w = { id = P.Uid('WS'), coords = Pos(src) }
+        if #P.WorkshopsOf(job) >= Config.WorkshopMax then return { error = ('%d points maximum par agence.'):format(Config.WorkshopMax) } end
+        w = { id = P.Uid('WS'), job = job, coords = Pos(src) }
         list[#list + 1] = w
     end
     w.label, w.categories, w.minLevel, w.radius = label, cats, minLevel, math.floor(radius * 10) / 10
@@ -266,7 +276,7 @@ end }
 P.Actions.workshopPlace = { perm = 'garage_manage', fn = function(src, d)
     local list = P.WorkshopList()
     local w = Find(list, tostring(d.id or ''))
-    if not w then return { error = 'Point introuvable.' } end
+    if not w or w.job ~= P.MyJob(src) then return { error = 'Point introuvable.' } end
     w.coords = Pos(src)
     P.SetSetting('workshops', list)
     Publish()
@@ -277,7 +287,7 @@ end }
 P.Actions.workshopDelete = { perm = 'garage_manage', fn = function(src, d)
     local list = P.WorkshopList()
     local w, i = Find(list, tostring(d.id or ''))
-    if not w then return { error = 'Point introuvable.' } end
+    if not w or w.job ~= P.MyJob(src) then return { error = 'Point introuvable.' } end
     for _, q in pairs(P.quotes) do
         if q.workshop == w.id then return { error = 'Un devis est en cours sur ce point : terminez-le ou annulez-le d\'abord.' } end
     end
@@ -300,6 +310,7 @@ end
 -- Le mécanicien est au point d'atelier et le véhicule sur l'emplacement
 local function CheckWorkshop(src, w, net)
     if not w then return nil, 'Point d\'atelier inconnu.' end
+    if w.job ~= P.MyJob(src) then return nil, 'Ce point d\'atelier appartient à une autre agence.' end
     local g = P.Grade(src)
     if not g or g.level < (w.minLevel or 1) then return nil, 'Votre grade ne permet pas d\'utiliser ce point.' end
     if not P.Can(src, 'workshop') then return nil, 'Votre grade ne permet pas d\'utiliser les points d\'atelier.' end
@@ -456,7 +467,7 @@ P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     local ok, mods = pcall(json.decode, row and row.mods or '{}')
     mods = ok and type(mods) == 'table' and mods or {}
     local items = {}
-    for _, it in ipairs(P.SortedCatalog()) do
+    for _, it in ipairs(P.SortedCatalog(w.job)) do   -- catalogue et prix de l'agence du point
         if it.enabled and Allowed(w, it) then
             local can, reason = P.CanSell(src, it)
             items[#items + 1] = { code = it.code, name = it.name, description = it.description, category = it.category, kind = it.kind, mod = it.mod,
@@ -467,6 +478,7 @@ P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     for key, k in pairs(PERF_KEYS) do saved[key] = (tonumber(mods[k]) or -1) + 1 end
     saved.turbo = mods.modTurbo == true and 1 or 0
     local q = ActiveQuoteForPlate(plate)
+    if q and q.job ~= w.job then q = nil end   -- devis d'une autre agence : jamais affiché ici
     return { ws = { id = w.id, label = w.label, categories = w.categories }, plate = plate, owned = row ~= nil, vehicleId = row and row.id,
         owner = row and P.OwnerName(row.citizenid) or nil, savedPerf = saved, drift = mods.driftTyres == true,
         items = items, categories = P.CATEGORIES, customers = NearbyCustomers(src, veh, row and row.citizenid), lift = w.lift ~= nil,
@@ -481,7 +493,7 @@ local function BuildLines(src, w, list, ctx)
     if #list > Q.maxItems then return nil, ('%d lignes maximum.'):format(Q.maxItems) end
     local lines, seen, total = {}, {}, 0
     for _, req in ipairs(list) do
-        local it = P.catalog[tostring(type(req) == 'table' and req.code or '')]
+        local it = P.CatalogOf(ctx.job)[tostring(type(req) == 'table' and req.code or '')]
         if not it then return nil, 'Article inconnu dans le devis.' end
         local can, why = P.CanSell(src, it)
         if not can then return nil, why end
@@ -551,7 +563,7 @@ P.Actions.quoteCreate = { perm = 'quotes', duty = true, fn = function(src, d)
     local savedPerf = {}
     for key, k in pairs(PERF_KEYS) do savedPerf[key] = (tonumber(mods[k]) or -1) + 1 end
     savedPerf.turbo = mods.modTurbo == true and 1 or 0
-    local lines, total = BuildLines(src, w, d.items, { savedPerf = savedPerf, vehicleId = row and row.id, plate = plate })
+    local lines, total = BuildLines(src, w, d.items, { savedPerf = savedPerf, vehicleId = row and row.id, plate = plate, job = P.MyJob(src) })
     if not lines then return { error = total } end
     local uid = P.Uid('DEV')
     local q = { uid = uid, status = 'pending', items = lines, total = total, plate = plate, vehicleId = row and row.id,
@@ -647,7 +659,7 @@ local function Finalize(q, results, actorSrc)
             P.ForgetCarPlay(q.plate)
         end
         P.History(q.vehicleId, q.plate or '', line.kind == 'carplay' and 'CarPlay installé' or (line.kind == 'service' or line.kind == 'custom') and 'Prestation' or 'Installation',
-            ('%s · %d $'):format(line.label, line.total), invoiceUid, actorSrc)
+            ('%s · %d $'):format(line.label, line.total), invoiceUid, actorSrc, q.job)
     end
     if q.vehicleId and next(patch) then P.SaveMods(q.vehicleId, patch) end
     P.quotes[q.uid] = nil
@@ -725,7 +737,7 @@ end)
 -- des lignes (sans leurs propriétés : elles sont remises une par une, au moment de la pose)
 P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(src, d)
     local q = P.quotes[tostring(d.uid or '')]
-    if not q or q.status ~= 'accepted' then return { error = 'Ce devis n\'est pas prêt à être installé.' } end
+    if not q or q.status ~= 'accepted' or q.job ~= P.MyJob(src) then return { error = 'Ce devis n\'est pas prêt à être installé.' } end
     if q.mechanicCid ~= P.Cid(src) and not P.Can(src, 'quotes_manage') then return { error = 'Seul le mécanicien du devis peut l\'installer.' } end
     if q.installing and q.installing.by ~= src and GetPlayerName(q.installing.by) and os.time() - (q.installing.beat or 0) < BEAT_TIMEOUT then
         return { error = 'Un autre mécanicien installe déjà ce devis.' }
@@ -845,7 +857,7 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
             if ok then
                 P.ForgetCarPlay(old)
                 q.plate = l.plateText
-                P.History(q.vehicleId, l.plateText, 'Plaque changée', ('%s → %s'):format(old or '?', l.plateText), q.uid, src)
+                P.History(q.vehicleId, l.plateText, 'Plaque changée', ('%s → %s'):format(old or '?', l.plateText), q.uid, src, q.job)
                 if q.customerCid then
                     local cust = exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
                     if cust then exports.elyzea_core:GiveKeys(cust, l.plateText) end
@@ -865,7 +877,7 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
     -- Remise des clés : le véhicule reste immobilisé jusqu'à ce que le mécanicien rende les clés au client
     local cust = q.customerCid and q.customerCid ~= q.mechanicCid and exports.elyzea_core:GetSourceByCitizenId(q.customerCid) or nil
     if cust and cust ~= src then
-        P.handovers[q.uid] = { uid = q.uid, mech = src, custCid = q.customerCid, custName = q.customerName, plate = q.plate, vehicleId = q.vehicleId,
+        P.handovers[q.uid] = { uid = q.uid, job = q.job, mech = src, custCid = q.customerCid, custName = q.customerName, plate = q.plate, vehicleId = q.vehicleId,
             net = net, ws = wsId, t = os.time() }
         r.handover = { uid = q.uid, customer = cust, name = q.customerName }
         r.message = ('Véhicule terminé · %s Allez remettre les clés au client (E à côté de lui).'):format(bill)
@@ -901,7 +913,7 @@ local function CloseHandover(h, how)
     if GetPlayerName(h.mech) then TriggerClientEvent('meca:client:handoverClosed', h.mech, h.uid, how) end
     if cust then TriggerClientEvent('meca:client:jobFeed', cust, { uid = h.uid, closed = true, how = how }) end
     P.History(h.vehicleId, h.plate or '', 'Véhicule rendu', how == 'keys' and 'Clés remises au client' or 'Rendu automatiquement au client', h.uid,
-        how == 'keys' and GetPlayerName(h.mech) and h.mech or nil)
+        how == 'keys' and GetPlayerName(h.mech) and h.mech or nil, h.job)
 end
 P.CloseHandover = CloseHandover
 
@@ -965,7 +977,7 @@ end)
 -- Annulation par le mécanicien : avant acceptation, ou après (remboursement intégral)
 P.Actions.quoteCancel = { perm = 'quotes', fn = function(src, d)
     local q = P.quotes[tostring(d.uid or '')]
-    if not q then return { error = 'Devis introuvable ou terminé.' } end
+    if not q or q.job ~= P.MyJob(src) then return { error = 'Devis introuvable ou terminé.' } end
     if q.mechanicCid ~= P.Cid(src) and not P.Can(src, 'quotes_manage') then return { error = 'Ce devis n\'est pas le vôtre.' } end
     if q.status == 'accepted' then
         if q.installing and GetPlayerName(q.installing.by) and os.time() - (q.installing.beat or 0) < BEAT_TIMEOUT then
@@ -1075,7 +1087,7 @@ end }
 P.Actions.invoices = { perm = 'quotes', fn = function(src, d)
     if not (P.Can(src, 'finance') or P.Can(src, 'quotes_manage')) then
         return { list = MySQL.query.await([[SELECT `uid`, `quote_uid`, `customer_name`, `plate`, `mechanic_name`, `items`, `amount`, `status`, `method`, `note`,
-            UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_invoices` WHERE `mechanic_name` = ? ORDER BY `id` DESC LIMIT 80]], { P.Name(src) }) or {}, canManage = false }
+            UNIX_TIMESTAMP(`created_at`) AS t FROM `meca_invoices` WHERE `mechanic_name` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 80]], { P.Name(src), P.MyJob(src) }) or {}, canManage = false }
     end
     local q = P.Clean(d.q, 40):gsub('[%%_]', '')
     local rows
@@ -1118,9 +1130,9 @@ P.Actions.invoiceRefund = { perm = 'quotes_manage', fn = function(src, d)
         if inv.vehicle_id and MySQL.scalar.await('SELECT 1 FROM `meca_carplay` WHERE `invoice_uid` = ?', { uid }) then
             MySQL.update.await('DELETE FROM `meca_carplay` WHERE `invoice_uid` = ?', { uid })
             P.ForgetCarPlay(inv.plate)
-            P.History(inv.vehicle_id, inv.plate, 'CarPlay retiré', 'Facture remboursée : ' .. reason, uid, src)
+            P.History(inv.vehicle_id, inv.plate, 'CarPlay retiré', 'Facture remboursée : ' .. reason, uid, src, job)
         end
-        P.History(inv.vehicle_id, inv.plate or '', 'Facture remboursée', ('%d $ · %s'):format(amount, reason), uid, src)
+        P.History(inv.vehicle_id, inv.plate or '', 'Facture remboursée', ('%d $ · %s'):format(amount, reason), uid, src, job)
         return { ok = true, message = ('Facture %s remboursée (%d $).'):format(uid, amount) }
     end)
     refunding[uid] = nil

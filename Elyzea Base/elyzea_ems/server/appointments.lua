@@ -111,12 +111,19 @@ function P.ApptCreate(src, d)
     local reason = HR.Clean(d.reason, 200)
     local phone
     if GetResourceState('elyzea_aura') == 'started' then pcall(function() phone = exports.elyzea_aura:GetPhoneNumber(src) end) end
-    local id = MySQL.insert.await([[INSERT INTO `ems_appointments` (`citizenid`, `name`, `phone`, `type`, `reason`, `status`, `created_at`) VALUES (?, ?, ?, ?, ?, 'pending', ?)]],
-        { cid, P.Name(src), phone and tostring(phone):sub(1, 20) or nil, t.id, reason ~= '' and reason or nil, now })
+    -- Agence qui reçoit la demande : celle choisie, sinon celle qui couvre l'endroit où se trouve la personne (comme les alertes)
+    local job = d.job and P.agencies[d.job] and d.job or nil
+    if not job then
+        local set = P.RouteJobs(P.Coords(src))
+        for _, a in ipairs(P.agencyList) do if set[a.job] then job = a.job break end end
+    end
+    job = job or P.MainJob()
+    local id = MySQL.insert.await([[INSERT INTO `ems_appointments` (`job`, `citizenid`, `name`, `phone`, `type`, `reason`, `status`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)]],
+        { job, cid, P.Name(src), phone and tostring(phone):sub(1, 20) or nil, t.id, reason ~= '' and reason or nil, now })
     if not id then return { error = 'Demande impossible, réessayez.' } end
     lastAsk[cid] = now
     -- EMS en service : petite alerte
-    for _, e in ipairs(P.CrewOnDuty and P.CrewOnDuty() or {}) do
+    for _, e in ipairs(P.CrewOnDuty and P.CrewOnDuty(nil, job) or {}) do   -- EMS de cette agence seulement
         local es = type(e) == 'table' and (e.src or e.id) or e
         if tonumber(es) then P.Notify(tonumber(es), ('📅 Nouvelle demande de rendez-vous : %s.'):format(t.label), 'inform') end
     end
@@ -150,9 +157,9 @@ function P.ApptMine(src)
 end
 
 -- Historique pour le dossier médical (poste des dossiers)
-function P.ApptHistory(cid)
+function P.ApptHistory(cid, job)
     local out = {}
-    for _, r in ipairs(MySQL.query.await('SELECT * FROM `ems_appointments` WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 20', { cid }) or {}) do out[#out + 1] = View(r) end
+    for _, r in ipairs(MySQL.query.await('SELECT * FROM `ems_appointments` WHERE `citizenid` = ? AND `job` = ? ORDER BY `id` DESC LIMIT 20', { cid, job or P.MainJob() }) or {}) do out[#out + 1] = View(r) end
     return out
 end
 
@@ -162,7 +169,7 @@ end
 P.Actions.apptList = { perm = 'medical', duty = true, fn = function(src)
     local cid = P.Cid(src)
     local pending, mine, others = {}, {}, {}
-    for _, r in ipairs(MySQL.query.await("SELECT * FROM `ems_appointments` WHERE `status` IN ('pending', 'accepted') ORDER BY `created_at` ASC LIMIT 100") or {}) do
+    for _, r in ipairs(MySQL.query.await("SELECT * FROM `ems_appointments` WHERE `job` = ? AND `status` IN ('pending', 'accepted') ORDER BY `created_at` ASC LIMIT 100", { P.MyJob(src) }) or {}) do
         local v = View(r)
         v.online = core:GetSourceByCitizenId(r.citizenid) ~= nil
         if r.status == 'pending' then
@@ -178,8 +185,8 @@ P.Actions.apptAccept = { perm = 'medical', duty = true, fn = function(src, d)
     local id = tonumber(d.id) or 0
     local now = os.time()
     -- Une seule acceptation possible (la mise à jour ne passe que si la demande est encore en attente)
-    local n = MySQL.update.await("UPDATE `ems_appointments` SET `status` = 'accepted', `ems_cid` = ?, `ems_name` = ?, `accepted_at` = ? WHERE `id` = ? AND `status` = 'pending'",
-        { P.Cid(src), P.Name(src), now, id })
+    local n = MySQL.update.await("UPDATE `ems_appointments` SET `status` = 'accepted', `ems_cid` = ?, `ems_name` = ?, `accepted_at` = ? WHERE `id` = ? AND `status` = 'pending' AND `job` = ?",
+        { P.Cid(src), P.Name(src), now, id, P.MyJob(src) })
     if n ~= 1 then return { error = 'Ce rendez-vous a déjà été pris ou annulé.' } end
     local r = MySQL.single.await('SELECT * FROM `ems_appointments` WHERE `id` = ?', { id })
     if r then
@@ -192,7 +199,7 @@ end }
 
 P.Actions.apptDone = { perm = 'medical', duty = true, fn = function(src, d)
     local id = tonumber(d.id) or 0
-    local n = MySQL.update.await("UPDATE `ems_appointments` SET `status` = 'done', `closed_at` = ? WHERE `id` = ? AND `status` = 'accepted'", { os.time(), id })
+    local n = MySQL.update.await("UPDATE `ems_appointments` SET `status` = 'done', `closed_at` = ? WHERE `id` = ? AND `status` = 'accepted' AND `job` = ?", { os.time(), id, P.MyJob(src) })
     if n ~= 1 then return { error = 'Rendez-vous introuvable.' } end
     PushPhones()
     return { ok = true, message = 'Rendez-vous terminé.' }

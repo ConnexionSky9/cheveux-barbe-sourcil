@@ -347,7 +347,7 @@ Meca = {
     PublishWorkshops = nil,
     IsMeca = function() return true end, OnDuty = function() return true end, Uid = function(p) nextId = nextId + 1 return p .. nextId end, AddLog = function() end,
     Clean = function(s, n) return tostring(s or ''):sub(1, n or 60) end, Int = function(v, a, b, d) return tonumber(v) or d end,
-    SortedGrades = function() return {} end, MyJob = function() return 'mechanic' end,
+    SortedGrades = function() return {} end, MyJob = function(src) return (W.jobOf or {})[src] or 'mechanic' end, MainJob = function() return 'mechanic' end,
     Coords = function(src) local p = GetPlayerPed(src) return ents[p] and ents[p].pos end,
     Grade = function() return { level = 5 } end, Can = function(src, perm) return true end,
     Cid = function(src) return src == 1 and 'MECH' or (src == 3 and 'MECH2' or 'CUST') end, Name = function(src) return 'Nom' .. src end,
@@ -376,6 +376,7 @@ cat('cosmetic_newtyres', 'Pneus neufs', 'cosmetic', 'wheels', 'newtyres', nil, 3
 cat('cosmetic_drift', 'Pneus DRIFT', 'cosmetic', 'wheels', 'drift', nil, 6500)
 cat('carplay', 'Installation CarPlay', 'carplay', 'carplay', nil, nil, 3500)
 Meca.SortedCatalog = function() local t = {} for _, v in pairs(Meca.catalog) do t[#t + 1] = v end return t end
+Meca.CatalogOf = function(job) if job == 'mechanic' then return Meca.catalog end return {} end
 MecaC = {}
 
 -- ---------------------------------------------------------------- chargement du vrai code
@@ -419,6 +420,7 @@ C.WsApplyPatch = function(veh, patch)
     return true
 end
 C.Workshops = function() return {} end
+C.AllWorkshops = function() return {} end
 C.Do = function(a, d) return C.Req(a, d) end
 C.IsMeca = function() return true end
 C.Can = function() return true end
@@ -687,7 +689,24 @@ check(math.abs(ents[W.veh].pos.z - 30.5) < 0.01 and math.abs(o.x) > 0.9, 'mécan
 check(ents[W.veh].state.mecaLift == false and installed(uid5) + (P.handovers[uid5] and 1 or 0) >= 1, 'bras repliés, transmission posée')
 W.workshops[1].lift = nil
 
-print('\n[16] CarPlay')
+print('\n[16] Deux garages séparés')
+newWorld()
+W.jobOf = { [1] = 'meca_paleto' }
+local r2 = P.Actions.wsOpen.fn(1, { ws = 'WS1', net = 900 })
+check(r2.error and r2.error:find('autre agence'), 'mécano d\'une autre agence : le point d\'atelier lui est refusé')
+local r3 = P.Actions.quoteCreate.fn(1, { ws = 'WS1', net = 900, customer = 2, items = { { code = 'engine_2' } } })
+check(r3.error ~= nil, 'il ne peut pas y faire de devis')
+local mine = P.Actions.workshopList.fn(1, {})
+check(#mine.list == 0, 'sa tablette ne liste pas les points de l\'autre agence')
+W.jobOf = nil
+local uid6 = newQuote({ { code = 'engine_2' } })
+W.jobOf = { [1] = 'meca_paleto' }
+check(P.Actions.quoteInstallStart.fn(1, { uid = uid6, net = 900 }).error ~= nil, 'il ne peut pas installer le devis payé de l\'autre agence')
+check(P.Actions.quoteCancel.fn(1, { uid = uid6 }).error ~= nil, 'ni l\'annuler')
+W.jobOf = nil
+check(P.quotes[uid6].job == 'mechanic' and money.society > 0, 'l\'argent du devis va sur le compte de l\'agence du mécanicien')
+
+print('\n[17] CarPlay')
 check(Config.CarPlayFree == true, 'Config.CarPlayFree = true : le CarPlay d\'elyzea_aura reste utilisable')
 
 check(DB.badSql == 0, 'requêtes SQL bien formées')

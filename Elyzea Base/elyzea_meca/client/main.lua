@@ -204,20 +204,32 @@ function C.Plate(veh) return ((GetVehicleNumberPlateText(veh) or ''):gsub('^%s+'
 -- GlobalState renvoie une NOUVELLE table à chaque lecture : on ne relit qu'après un changement publié
 -- (le gestionnaire reçoit la nouvelle valeur avant qu'elle soit écrite : on garde celle-ci)
 local wsCache, wsDirty, wsPub = {}, true, nil
+local wsAll, wsCacheJob
 AddStateBagChangeHandler('mecaWorkshops', 'global', function(_, _, value) wsPub, wsDirty = value, true end)
-function C.Workshops()
+-- Tous les points publiés (toutes agences) : les ponts roulants sont des objets visibles par tout le monde
+function C.AllWorkshops()
     if wsDirty then
         wsDirty = false
         local pub = wsPub
         if pub == nil then pub = GlobalState.mecaWorkshops end
-        wsCache = {}
+        wsAll, wsCache, wsCacheJob = {}, nil, nil
         for _, w in ipairs(type(pub) == 'table' and pub or {}) do
             if w.coords then
-                wsCache[#wsCache + 1] = { id = w.id, label = w.label, radius = tonumber(w.radius) or 3.5, categories = w.categories, minLevel = tonumber(w.minLevel) or 1,
+                wsAll[#wsAll + 1] = { id = w.id, job = w.job, label = w.label, radius = tonumber(w.radius) or 3.5, categories = w.categories, minLevel = tonumber(w.minLevel) or 1,
                     coords = vector3(w.coords.x + 0.0, w.coords.y + 0.0, w.coords.z + 0.0),
                     lift = type(w.lift) == 'table' and { h = tonumber(w.lift.h) or 0.0 } or nil }   -- pont roulant posé sur ce point
             end
         end
+    end
+    return wsAll or {}
+end
+-- Points de SON agence seulement (marqueurs, blips, E, F6)
+function C.Workshops()
+    local all = C.AllWorkshops()
+    local job = (C.State() or {}).job
+    if wsCache == nil or wsCacheJob ~= job then
+        wsCache, wsCacheJob = {}, job
+        for _, w in ipairs(all) do if job and w.job == job then wsCache[#wsCache + 1] = w end end
     end
     return wsCache
 end

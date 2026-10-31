@@ -31,6 +31,10 @@ Config.Recruit = { distance = 5.0, timeout = 30, cooldown = 8 }
 -- ---------------------------------------------------------------------
 -- Amendes : prélevées sur la banque, puis le liquide ; sinon l'amende reste due (/amendes)
 -- ---------------------------------------------------------------------
+-- Agences (plusieurs polices) : casier (amendes vues par les agents), avis de recherche et rapports
+-- sont SÉPARÉS par agence (false). true = partagés entre toutes les polices (fichier commun).
+Config.SharedRecords = false
+
 Config.Fines = {
     maxAmount = 100000,
     toSociety = true,          -- l'argent va sur le compte de la société « police »

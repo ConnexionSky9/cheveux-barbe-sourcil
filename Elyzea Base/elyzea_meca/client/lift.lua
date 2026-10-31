@@ -78,7 +78,7 @@ CreateThread(function()
     while true do
         local pos = GetEntityCoords(PlayerPedId())
         local seen = {}
-        for _, w in ipairs(C.Workshops()) do
+        for _, w in ipairs(C.AllWorkshops()) do   -- tous les ponts (visibles par tout le monde)
             if w.lift then
                 seen[w.id] = true
                 local l = lifts[w.id]

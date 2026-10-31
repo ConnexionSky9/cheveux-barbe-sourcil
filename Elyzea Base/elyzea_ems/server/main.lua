@@ -315,7 +315,10 @@ local function InitDb()
         pcall(MySQL.query.await, ('CREATE INDEX IF NOT EXISTS `created_at` ON `%s` (`created_at`)'):format(t))
     end
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
-    P.AddJobColumns({ 'ems_grades', 'ems_employees' }, { 'ems_admin_log', 'ems_transactions', 'ems_calls', 'ems_support', 'ems_invoices' }, 'ems_grades')
+    P.AddJobColumns({ 'ems_grades', 'ems_employees', 'ems_patients' }, { 'ems_admin_log', 'ems_transactions', 'ems_calls', 'ems_support', 'ems_invoices',
+        'ems_treatments', 'ems_ppa', 'ems_reports', 'ems_procedures', 'ems_appointments' }, 'ems_grades')
+    -- Dossiers médicaux séparés par agence : un dossier par patient ET par agence
+    P.JobPrimary('ems_patients', { 'job', 'citizenid' })
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
 end
 

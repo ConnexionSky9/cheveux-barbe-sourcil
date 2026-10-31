@@ -30,8 +30,9 @@ local function History(id, src, action)
     MySQL.insert('INSERT INTO `police_report_history` (`report_id`, `actor_name`, `action`) VALUES (?, ?, ?)', { id, P.Name(src), action })
 end
 
-P.Actions.reportsList = { perm = 'reports_view', fn = function(_, d)
+P.Actions.reportsList = { perm = 'reports_view', fn = function(src, d)
     local where, params = {}, {}
+    if P.RecJob(src) then where[#where + 1] = '`job` = ?' params[#params + 1] = P.RecJob(src) end   -- rapports de SON agence
     local status = d.status
     if status == 'all' then
         -- tout
@@ -57,7 +58,7 @@ end }
 
 P.Actions.reportGet = { perm = 'reports_view', fn = function(src, d)
     local r = MySQL.single.await([[SELECT *, UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`updated_at`) AS u FROM `police_reports` WHERE `id` = ?]], { P.Int(d.id, 1, nil, 0) })
-    if not r then return { error = 'Rapport introuvable.' } end
+    if not r or (P.RecJob(src) and r.job ~= P.RecJob(src)) then return { error = 'Rapport introuvable.' } end
     r.people, r.attachments = Decode(r.people), Decode(r.attachments)
     r.created_at, r.updated_at = nil, nil
     local mine = r.author_cid == P.Cid(src)
@@ -80,8 +81,8 @@ P.Actions.reportSave = { perm = 'reports_write', fn = function(src, d)
     if #description < 5 then return { error = 'Décrivez les faits.' } end
     local id = P.Int(d.id, 1, nil, nil)
     if id then
-        local r = MySQL.single.await('SELECT `id`, `author_cid`, `status` FROM `police_reports` WHERE `id` = ?', { id })
-        if not r then return { error = 'Rapport introuvable.' } end
+        local r = MySQL.single.await('SELECT `id`, `author_cid`, `status`, `job` FROM `police_reports` WHERE `id` = ?', { id })
+        if not r or (P.RecJob(src) and r.job ~= P.RecJob(src)) then return { error = 'Rapport introuvable.' } end
         if r.status == 'archived' then return { error = 'Ce rapport est archivé.' } end
         if r.author_cid ~= P.Cid(src) and not P.Can(src, 'reports_manage') then return { error = 'Vous ne pouvez modifier que vos rapports.' } end
         MySQL.update.await([[UPDATE `police_reports` SET `title` = ?, `type` = ?, `people` = ?, `location` = ?, `description` = ?, `observations` = ?,
@@ -90,9 +91,9 @@ P.Actions.reportSave = { perm = 'reports_write', fn = function(src, d)
         return { ok = true, id = id, message = 'Rapport enregistré.' }
     end
     local e = P.Employee(src)
-    id = MySQL.insert.await([[INSERT INTO `police_reports` (`title`, `type`, `people`, `location`, `description`, `observations`, `attachments`, `status`,
-        `author_cid`, `author_name`, `author_matricule`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
-        { title, d.type, people, location, description, observations, attachments, status, P.Cid(src), P.Name(src), e and e.matricule })
+    id = MySQL.insert.await([[INSERT INTO `police_reports` (`job`, `title`, `type`, `people`, `location`, `description`, `observations`, `attachments`, `status`,
+        `author_cid`, `author_name`, `author_matricule`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
+        { P.MyJob(src) or P.MainJob(), title, d.type, people, location, description, observations, attachments, status, P.Cid(src), P.Name(src), e and e.matricule })
     if not id then return { error = 'Enregistrement impossible.' } end
     History(id, src, 'Rédigé')
     P.Log(src, 'Rapport rédigé', ('#%d · %s'):format(id, title))
@@ -101,8 +102,8 @@ end }
 
 P.Actions.reportArchive = { perm = 'reports_manage', fn = function(src, d)
     local id = P.Int(d.id, 1, nil, 0)
-    local r = MySQL.single.await('SELECT `id`, `status` FROM `police_reports` WHERE `id` = ?', { id })
-    if not r then return { error = 'Rapport introuvable.' } end
+    local r = MySQL.single.await('SELECT `id`, `status`, `job` FROM `police_reports` WHERE `id` = ?', { id })
+    if not r or (P.RecJob(src) and r.job ~= P.RecJob(src)) then return { error = 'Rapport introuvable.' } end
     local archive = d.archive ~= false
     MySQL.update.await('UPDATE `police_reports` SET `status` = ? WHERE `id` = ?', { archive and 'archived' or 'done', id })
     History(id, src, archive and 'Archivé' or 'Désarchivé')

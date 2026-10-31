@@ -50,7 +50,8 @@ P.Actions.citizenSearch = { perm = 'search', fn = function(_, d)
     end
     if #cids > 0 then
         local marks = ('?,'):rep(#cids):sub(1, -2)
-        local wanted = MySQL.query.await(('SELECT DISTINCT `citizenid` FROM `police_wanted` WHERE `status` = \'active\' AND `citizenid` IN (%s)'):format(marks), cids) or {}
+        local params = { table.unpack(cids) }
+        local wanted = MySQL.query.await(And(src, ('SELECT DISTINCT `citizenid` FROM `police_wanted` WHERE `status` = \'active\' AND `citizenid` IN (%s)'):format(marks), params), params) or {}
         local set = {}
         for _, w in ipairs(wanted) do set[w.citizenid] = true end
         for _, c in ipairs(list) do c.wanted = set[c.cid] == true end
@@ -58,6 +59,15 @@ P.Actions.citizenSearch = { perm = 'search', fn = function(_, d)
     table.sort(list, function(a, b) return a.name < b.name end)
     return { list = list }
 end }
+
+-- Agence dont on lit / écrit le fichier (nil = fichier commun, Config.SharedRecords)
+function P.RecJob(src) if Config.SharedRecords == true then return nil end return P.MyJob(src) or P.MainJob() end
+local function And(src, sql, params)
+    local job = P.RecJob(src)
+    if not job then return sql end
+    params[#params + 1] = job
+    return sql .. ' AND `job` = ?'
+end
 
 P.Actions.citizenGet = { perm = 'search', fn = function(src, d)
     local cid = P.Clean(d.cid, 50)
@@ -74,25 +84,28 @@ P.Actions.citizenGet = { perm = 'search', fn = function(src, d)
         licences = { driver = lic.driver == true, weapon = lic.weapon == true },
         isCop = P.employees[r.citizenid] ~= nil,
     }
-    c.fines = MySQL.query.await([[SELECT `id`, `offense`, `reason`, `amount`, `paid`, `officer_name`, `officer_matricule`, UNIX_TIMESTAMP(`created_at`) AS t
-        FROM `police_fines` WHERE `citizenid` = ? ORDER BY `id` DESC LIMIT 30]], { cid }) or {}
+    local fp = { cid }
+    c.fines = MySQL.query.await(And(src, [[SELECT `id`, `offense`, `reason`, `amount`, `paid`, `officer_name`, `officer_matricule`, UNIX_TIMESTAMP(`created_at`) AS t
+        FROM `police_fines` WHERE `citizenid` = ?]], fp) .. ' ORDER BY `id` DESC LIMIT 30', fp) or {}
     c.unpaid = 0
     for _, f in ipairs(c.fines) do
         f.paid = f.paid == true or f.paid == 1
         if not f.paid then c.unpaid = c.unpaid + (tonumber(f.amount) or 0) end
     end
-    c.reports = P.Can(src, 'reports_view') and (MySQL.query.await([[SELECT `id`, `title`, `type`, `status`, UNIX_TIMESTAMP(`created_at`) AS t FROM `police_reports`
-        WHERE `people` LIKE ? ORDER BY `id` DESC LIMIT 20]], { Like(name) }) or {}) or nil
-    c.wanted = MySQL.query.await([[SELECT `id`, `reason`, `description`, `danger`, `status`, `author_name`, `author_matricule`, `closed_by`, `close_reason`,
-        UNIX_TIMESTAMP(`created_at`) AS t FROM `police_wanted` WHERE `citizenid` = ? ORDER BY (`status` = 'active') DESC, `id` DESC LIMIT 20]], { cid }) or {}
+    local rp, wp = { Like(name) }, { cid }
+    c.reports = P.Can(src, 'reports_view') and (MySQL.query.await(And(src, [[SELECT `id`, `title`, `type`, `status`, UNIX_TIMESTAMP(`created_at`) AS t FROM `police_reports`
+        WHERE `people` LIKE ?]], rp) .. ' ORDER BY `id` DESC LIMIT 20', rp) or {}) or nil
+    c.wanted = MySQL.query.await(And(src, [[SELECT `id`, `reason`, `description`, `danger`, `status`, `author_name`, `author_matricule`, `closed_by`, `close_reason`,
+        UNIX_TIMESTAMP(`created_at`) AS t FROM `police_wanted` WHERE `citizenid` = ?]], wp) .. " ORDER BY (`status` = 'active') DESC, `id` DESC LIMIT 20", wp) or {}
     return { citizen = c }
 end }
 
 -- ---------------------------------------------------------------------
 -- Personnes recherchées
 -- ---------------------------------------------------------------------
-P.Actions.wantedList = { perm = 'wanted_view', fn = function(_, d)
+P.Actions.wantedList = { perm = 'wanted_view', fn = function(src, d)
     local where, params = {}, {}
+    if P.RecJob(src) then where[#where + 1] = '`job` = ?' params[#params + 1] = P.RecJob(src) end
     if d.status == 'closed' then where[#where + 1] = '`status` = \'closed\''
     elseif d.status ~= 'all' then where[#where + 1] = '`status` = \'active\'' end
     local q = P.Clean(d.q, 60)
@@ -103,7 +116,8 @@ P.Actions.wantedList = { perm = 'wanted_view', fn = function(_, d)
     local rows = MySQL.query.await(([[SELECT `id`, `citizenid`, `name`, `reason`, `description`, `danger`, `photo`, `status`, `author_name`, `author_matricule`,
         `closed_by`, `close_reason`, UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`closed_at`) AS ct FROM `police_wanted` %s
         ORDER BY (`status` = 'active') DESC, `danger` DESC, `id` DESC LIMIT 100]]):format(#where > 0 and ('WHERE ' .. table.concat(where, ' AND ')) or ''), params) or {}
-    local active = MySQL.scalar.await('SELECT COUNT(*) FROM `police_wanted` WHERE `status` = \'active\'') or 0
+    local ap = {}
+    local active = MySQL.scalar.await(And(src, 'SELECT COUNT(*) FROM `police_wanted` WHERE `status` = \'active\'', ap), ap) or 0
     return { list = rows, active = tonumber(active) or 0 }
 end }
 
@@ -111,7 +125,8 @@ P.Actions.wantedSave = { perm = 'wanted_manage', fn = function(src, d)
     local id = tonumber(d.id)
     local old
     if id then
-        old = MySQL.single.await('SELECT `id`, `status` FROM `police_wanted` WHERE `id` = ?', { id })
+        local op = { id }
+        old = MySQL.single.await(And(src, 'SELECT `id`, `status` FROM `police_wanted` WHERE `id` = ?', op), op)
         if not old then return { error = 'Avis introuvable.' } end
         if old.status ~= 'active' then return { error = 'Cet avis est levé, il ne peut plus être modifié.' } end
     end
@@ -138,12 +153,12 @@ P.Actions.wantedSave = { perm = 'wanted_manage', fn = function(src, d)
         return { ok = true, id = id, message = 'Avis de recherche modifié.' }
     end
     local aCid, aName, aMat = Author(src)
-    local newId = MySQL.insert.await([[INSERT INTO `police_wanted` (`citizenid`, `name`, `reason`, `description`, `danger`, `photo`, `author_cid`, `author_name`, `author_matricule`)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]], { cid, name, reason, description, danger, photo, aCid, aName, aMat })
+    local newId = MySQL.insert.await([[INSERT INTO `police_wanted` (`job`, `citizenid`, `name`, `reason`, `description`, `danger`, `photo`, `author_cid`, `author_name`, `author_matricule`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { P.MyJob(src) or P.MainJob(), cid, name, reason, description, danger, photo, aCid, aName, aMat })
     if not newId then return { error = 'Enregistrement impossible.' } end
     P.Log(src, ('Avis de recherche #%d : %s (%s)'):format(newId, name, reason))
     -- Prévenir les collègues en service
-    for _, s in ipairs(P.CopsOnDuty('wanted_view')) do
+    for _, s in ipairs(P.CopsOnDuty('wanted_view', P.RecJob(src))) do   -- agents de son agence (ou de toutes si fichier commun)
         if s ~= src then P.Notify(s, ('Nouvel avis de recherche : %s · %s'):format(name, reason), danger == 3 and 'error' or 'inform') end
     end
     return { ok = true, id = newId, message = ('Avis de recherche publié : %s.'):format(name) }
@@ -151,7 +166,8 @@ end }
 
 P.Actions.wantedClose = { perm = 'wanted_manage', fn = function(src, d)
     local id = tonumber(d.id) or 0
-    local w = MySQL.single.await('SELECT `id`, `name`, `status` FROM `police_wanted` WHERE `id` = ?', { id })
+    local cp = { id }
+    local w = MySQL.single.await(And(src, 'SELECT `id`, `name`, `status` FROM `police_wanted` WHERE `id` = ?', cp), cp)
     if not w then return { error = 'Avis introuvable.' } end
     if w.status ~= 'active' then return { error = 'Cet avis est déjà levé.' } end
     local _, aName, aMat = Author(src)

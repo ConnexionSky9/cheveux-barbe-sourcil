@@ -57,6 +57,28 @@ function P.AddJobColumns(required, optional, gradesTbl)
     end
 end
 
+-- Réglages propres à une agence (tarifs, points placés…) : clé « nom@métier ».
+-- La première agence reprend l'ancien réglage commun (rien n'est perdu à la mise à jour).
+function P.JobSetting(job, key, default)
+    job = job or P.MainJob()
+    local v = P.GetSetting and P.GetSetting(key .. '@' .. job) or nil
+    if v == nil and job == P.MainJob() and P.GetSetting then v = P.GetSetting(key) end
+    if v == nil then return default end
+    return v
+end
+function P.SetJobSetting(job, key, value) P.SetSetting(key .. '@' .. (job or P.MainJob()), value) end
+
+-- Clé primaire « par agence » (ex. un dossier par patient ET par agence) : `job` ajouté à la clé
+function P.JobPrimary(tbl, cols)
+    local cur = MySQL.scalar.await([[SELECT GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX`) FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = 'PRIMARY']], { tbl })
+    if cur == nil or cur == table.concat(cols, ',') then return end
+    local list = {}
+    for _, c in ipairs(cols) do list[#list + 1] = ('`%s`'):format(c) end
+    local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` DROP PRIMARY KEY, ADD PRIMARY KEY (%s)'):format(tbl, table.concat(list, ', ')))
+    if not ok then print(('^1[%s] Clé « %s » : %s^0'):format(GetCurrentResourceName(), tbl, tostring(err))) end
+end
+
 local function Default()
     return { job = Config.Job.name, label = Config.Job.label, short = Config.Job.label, mat = Config.Matricule.prefix,
         society = Config.Society or Config.Job.name }

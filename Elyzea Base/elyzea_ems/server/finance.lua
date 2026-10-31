@@ -122,8 +122,8 @@ P.Actions.finance = { perm = 'finance', fn = function(src)
         WHERE `job` = ? AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY `type`, `category`]], { job }) or {}) do
         sums[r.type .. ':' .. r.category] = { total = tonumber(r.total) or 0, n = tonumber(r.n) or 0 }
     end
-    local ppaSplit = MySQL.query.await([[SELECT `type`, SUM(`price`) AS total, COUNT(*) AS n FROM `ems_ppa` WHERE `payment_status` = 'paid'
-        AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY `type`]]) or {}
+    local ppaSplit = MySQL.query.await([[SELECT `type`, SUM(`price`) AS total, COUNT(*) AS n FROM `ems_ppa` WHERE `payment_status` = 'paid' AND `job` = ?
+        AND `created_at` >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY `type`]], { job }) or {}
     local logs = {}
     local ok, rows = pcall(function() return core:GetSocietyLogs(P.Society(job), 15) end)
     for _, r in ipairs(ok and rows or {}) do logs[#logs + 1] = { amount = r.amount, reason = r.reason, t = LogTime(r.created_at) } end

@@ -9,7 +9,10 @@
 -- =====================================================================
 local P = Meca
 
-P.catalog = {}          -- [code] = article
+-- Chaque agence a SON catalogue et SES prix (colonne `job`) : P.catalogs[job][code] = article.
+-- P.catalog reste le catalogue de la première agence (compatibilité).
+P.catalogs = {}
+P.catalog = {}
 
 P.KINDS = { service = true, perf = true, cosmetic = true, carplay = true, custom = true }
 P.CATEGORIES = { service = 'Prestations', perf = 'Performances', cosmetic = 'Carrosserie', paint = 'Peinture et vitres', wheels = 'Roues',
@@ -32,19 +35,42 @@ local function Row(r)
 end
 
 function P.LoadCatalog()
-    P.catalog = {}
-    for _, r in ipairs(MySQL.query.await('SELECT * FROM `meca_catalog`') or {}) do P.catalog[r.code] = Row(r) end
+    P.catalogs = {}
+    for _, r in ipairs(MySQL.query.await('SELECT * FROM `meca_catalog`') or {}) do
+        local job = r.job or P.MainJob()
+        P.catalogs[job] = P.catalogs[job] or {}
+        P.catalogs[job][r.code] = Row(r)
+    end
+    P.catalog = P.catalogs[P.MainJob()] or {}
+end
+-- Catalogue d'une agence
+function P.CatalogOf(job) return job and P.catalogs[job] or {} end
+
+-- Base d'avant les agences : colonne `job` ajoutée (articles existants → première agence),
+-- un même code peut exister une fois PAR agence.
+local function Migrate()
+    P.AddJobColumns({ 'meca_catalog' })
+    local idx = MySQL.query.await([[SELECT `INDEX_NAME` AS n, GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX`) AS c FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'meca_catalog' AND NON_UNIQUE = 0 AND INDEX_NAME <> 'PRIMARY' GROUP BY `INDEX_NAME`]]) or {}
+    local has = false
+    for _, r in ipairs(idx) do
+        if r.c == 'code' then pcall(MySQL.query.await, ('ALTER TABLE `meca_catalog` DROP INDEX `%s`'):format(r.n)) end
+        if r.c == 'job,code' then has = true end
+    end
+    if not has then pcall(MySQL.query.await, 'ALTER TABLE `meca_catalog` ADD UNIQUE KEY `job_code` (`job`, `code`)') end
 end
 
--- Ajoute les articles de Config.DefaultCatalog absents de la base (premier démarrage ou nouvelle version) ;
--- un article déjà en base n'est jamais modifié (prix, activation…).
+-- Ajoute les articles de Config.DefaultCatalog absents du catalogue de CHAQUE agence (nouvelle agence,
+-- nouvelle version) ; un article déjà en base n'est jamais modifié (prix, activation…).
 local function Seed()
     local n = 0
-    for i, c in ipairs(Config.DefaultCatalog) do
-        local id = MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `sort`, `updated_by`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Installation')]], { c.code, c.name, c.description, c.category, c.kind, c.mod, c.level, c.price,
-            c.enabled == false and 0 or 1, c.minLevel or 1, i })
-        if (tonumber(id) or 0) > 0 then n = n + 1 end
+    for _, a in ipairs(P.agencyList) do
+        for i, c in ipairs(Config.DefaultCatalog) do
+            local id = MySQL.insert.await([[INSERT IGNORE INTO `meca_catalog` (`job`, `code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `sort`, `updated_by`)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Installation')]], { a.job, c.code, c.name, c.description, c.category, c.kind, c.mod, c.level, c.price,
+                c.enabled == false and 0 or 1, c.minLevel or 1, i })
+            if (tonumber(id) or 0) > 0 then n = n + 1 end
+        end
     end
     if n > 0 then print(('^2[MECA] Catalogue : %d article(s) ajouté(s).^0'):format(n)) end
     -- Pneus pare-balles retirés de l'atelier : ancien nom corrigé (prix et activation conservés)
@@ -55,13 +81,17 @@ end
 
 P.OnReady = P.OnReady or {}
 P.OnReady[#P.OnReady + 1] = function()
+    Migrate()
     Seed()
     P.LoadCatalog()
 end
+-- Nouvelle agence créée en jeu : elle reçoit le catalogue de départ (ses propres prix ensuite)
+P.AfterAgencies = P.AfterAgencies or {}
+P.AfterAgencies[#P.AfterAgencies + 1] = function() Seed() P.LoadCatalog() end
 
-function P.SortedCatalog()
+function P.SortedCatalog(job)
     local list = {}
-    for _, c in pairs(P.catalog) do list[#list + 1] = c end
+    for _, c in pairs(P.CatalogOf(job or P.MainJob())) do list[#list + 1] = c end
     table.sort(list, function(a, b)
         if a.category ~= b.category then return a.category < b.category end
         if a.sort ~= b.sort then return a.sort < b.sort end
@@ -81,9 +111,9 @@ function P.CanSell(src, item)
 end
 
 P.Actions.catalog = { perm = 'tablet', fn = function(src)
-    local list = P.SortedCatalog()
-    local carplay = MySQL.single.await([[SELECT COUNT(*) AS n,
-        (SELECT COALESCE(SUM(`price`), 0) FROM `meca_carplay`) AS total FROM `meca_carplay`]]) or {}
+    local list = P.SortedCatalog(P.MyJob(src))   -- catalogue et prix de SON agence
+    local carplay = MySQL.single.await([[SELECT COUNT(*) AS n, COALESCE(SUM(c.`price`), 0) AS total FROM `meca_carplay` c
+        JOIN `meca_invoices` i ON i.`uid` = c.`invoice_uid` WHERE i.`job` = ?]], { P.MyJob(src) }) or {}
     return { list = list, categories = P.CATEGORIES, canEdit = P.Can(src, 'catalog_manage'), maxPrice = Config.Catalog.maxPrice,
         perfMods = P.PERF_MODS, cosmetic = P.COSMETIC, carplay = { count = tonumber(carplay.n) or 0, revenue = tonumber(carplay.total) or 0 },
         grades = (function() local l = {} for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do l[#l + 1] = { level = g.level, name = g.name } end return l end)() }
@@ -91,7 +121,8 @@ end }
 
 P.Actions.catalogSave = { perm = 'catalog_manage', fn = function(src, d)
     local code = tostring(d.code or ''):lower():gsub('[^%w_]', ''):sub(1, 40)
-    local existing = P.catalog[code]
+    local job = P.MyJob(src)
+    local existing = P.CatalogOf(job)[code]
     if code == '' then return { error = 'Code invalide (lettres, chiffres, _).' } end
     if d.isNew and existing then return { error = 'Ce code existe déjà.' } end
     if not d.isNew and not existing then return { error = 'Article introuvable.' } end
@@ -124,13 +155,13 @@ P.Actions.catalogSave = { perm = 'catalog_manage', fn = function(src, d)
     local desc = P.Clean(d.description, 255)
     local compat = P.Clean(d.compat, 120)
     if d.isNew then
-        MySQL.insert.await([[INSERT INTO `meca_catalog` (`code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `compat`, `sort`, `updated_by`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 999, ?)]], { code, name, desc ~= '' and desc or nil, category, kind, mod, level, price, enabled and 1 or 0, minLevel,
+        MySQL.insert.await([[INSERT INTO `meca_catalog` (`job`, `code`, `name`, `description`, `category`, `kind`, `mod_key`, `level`, `price`, `enabled`, `min_level`, `compat`, `sort`, `updated_by`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 999, ?)]], { job, code, name, desc ~= '' and desc or nil, category, kind, mod, level, price, enabled and 1 or 0, minLevel,
             compat ~= '' and compat or nil, P.Name(src) })
     else
         MySQL.update.await([[UPDATE `meca_catalog` SET `name` = ?, `description` = ?, `category` = ?, `price` = ?, `enabled` = ?, `min_level` = ?,
-            `compat` = ?, `updated_by` = ? WHERE `code` = ?]], { name, desc ~= '' and desc or nil, (kind == 'perf' or kind == 'carplay') and existing.category or category,
-            price, enabled and 1 or 0, minLevel, compat ~= '' and compat or nil, P.Name(src), code })
+            `compat` = ?, `updated_by` = ? WHERE `code` = ? AND `job` = ?]], { name, desc ~= '' and desc or nil, (kind == 'perf' or kind == 'carplay') and existing.category or category,
+            price, enabled and 1 or 0, minLevel, compat ~= '' and compat or nil, P.Name(src), code, job })
     end
     local old = existing and existing.price
     P.LoadCatalog()
@@ -141,10 +172,11 @@ end }
 
 -- Suppression : seulement les articles créés par la direction (prestations libres) ; les autres se désactivent
 P.Actions.catalogDelete = { perm = 'catalog_manage', fn = function(src, d)
-    local c = P.catalog[tostring(d.code or '')]
+    local job = P.MyJob(src)
+    local c = P.CatalogOf(job)[tostring(d.code or '')]
     if not c then return { error = 'Article introuvable.' } end
     if c.kind ~= 'custom' then return { error = 'Cet article fait partie du système : désactivez-le plutôt.' } end
-    MySQL.update.await('DELETE FROM `meca_catalog` WHERE `code` = ?', { c.code })
+    MySQL.update.await('DELETE FROM `meca_catalog` WHERE `code` = ? AND `job` = ?', { c.code, job })
     P.LoadCatalog()
     P.AddLog(src, nil, nil, 'Article supprimé', nil, c.name, nil)
     return { ok = true, message = ('« %s » supprimé du catalogue (les anciennes factures le gardent).'):format(c.name) }

@@ -12,8 +12,9 @@ local P = Ems
 local C = Config.PPA
 local PERM = { civil = 'ppa_civil', fdo = 'ppa_fdo' }
 
-function P.PpaSettings()
-    local s = P.GetSetting('ppa', {})
+-- Prix et activation des PPA : PROPRES à chaque agence
+function P.PpaSettings(job)
+    local s = P.JobSetting(job, 'ppa', {})
     local out = {}
     for kind, def in pairs(C.types) do
         local o = type(s[kind]) == 'table' and s[kind] or {}
@@ -35,7 +36,7 @@ local function Check(src, d)
     if not t or t == src or not GetPlayerName(t) or not P.GetPlayer(t) then return nil, nil, 'Bénéficiaire introuvable.' end
     if P.Dist(src, t) > Config.Distances.interact + 2.0 then return nil, nil, 'Le bénéficiaire est trop loin.' end
     if P.IsDown(t) then return nil, nil, 'Le bénéficiaire est inconscient.' end
-    local set = P.PpaSettings()[kind]
+    local set = P.PpaSettings(P.MyJob(src))[kind]
     if not set.enabled then return nil, nil, ('La délivrance du %s est désactivée par la direction.'):format(def.label) end
     if not Papiers() then return nil, nil, 'Le système de papiers (elyzea_papiers) n\'est pas démarré.' end
     local cond = C.conditions or {}
@@ -78,8 +79,8 @@ P.Actions.ppaDeliver = { perm = nil, fn = function(src, d)
         local uid = P.Uid('PPA')
         local job = P.MyJob(src)   -- agence qui délivre (son compte encaisse)
         local name, g = P.Name(t), P.Grade(src)
-        MySQL.insert.await([[INSERT INTO `ems_ppa` (`uid`, `citizenid`, `name`, `type`, `ems_cid`, `ems_name`, `ems_grade`, `price`, `payment_status`, `delivery_status`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')]], { uid, cid, name, set.kind, P.Cid(src), P.Name(src), g and g.name, set.price })
+        MySQL.insert.await([[INSERT INTO `ems_ppa` (`job`, `uid`, `citizenid`, `name`, `type`, `ems_cid`, `ems_name`, `ems_grade`, `price`, `payment_status`, `delivery_status`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')]], { job, uid, cid, name, set.kind, P.Cid(src), P.Name(src), g and g.name, set.price })
         local function Upd(pay, del, extra)
             MySQL.update.await(('UPDATE `ems_ppa` SET `payment_status` = ?, `delivery_status` = ?, `updated_at` = NOW()%s WHERE `uid` = ?'):format(extra or ''), { pay, del, uid })
         end
@@ -143,7 +144,7 @@ end }
 -- Historique (recherche)
 P.Actions.ppaHistory = { perm = nil, fn = function(src, d)
     if not (P.Can(src, 'ppa_manage') or P.Can(src, 'finance') or P.Can(src, 'stats_view')) then return { error = 'Votre grade ne permet pas de voir l\'historique des PPA.' } end
-    local where, args = {}, {}
+    local where, args = { '`job` = ?' }, { P.MyJob(src) }
     local kind = tostring(d.kind or '')
     if C.types[kind] then where[#where + 1] = '`type` = ?' args[#args + 1] = kind end
     local q = P.Clean(d.q, 60):gsub('[%%_]', '')
@@ -158,7 +159,7 @@ end }
 
 P.Actions.ppaSettings = { perm = nil, fn = function(src)
     local list = {}
-    for _, s in pairs(P.PpaSettings()) do list[#list + 1] = s end
+    for _, s in pairs(P.PpaSettings(P.MyJob(src))) do list[#list + 1] = s end
     table.sort(list, function(a, b) return a.kind < b.kind end)
     local allowed = {}
     for _, g in ipairs(P.SortedGrades(P.MyJob(src))) do
@@ -176,7 +177,7 @@ P.Actions.ppaSave = { perm = 'ppa_manage', fn = function(src, d)
         if not price then return { error = ('Prix invalide : %s.'):format(def.label) } end
         out[kind] = { price = price, enabled = o.enabled == true }
     end
-    P.SetSetting('ppa', out)
+    P.SetJobSetting(P.MyJob(src), 'ppa', out)
     P.AddLog(src, nil, nil, 'Réglages PPA', nil, nil, ('civil %d $ (%s), FDO %d $ (%s)'):format(out.civil.price, out.civil.enabled and 'actif' or 'inactif',
         out.fdo.price, out.fdo.enabled and 'actif' or 'inactif'))
     return { ok = true, message = 'Réglages PPA enregistrés (prochaines délivrances).' }

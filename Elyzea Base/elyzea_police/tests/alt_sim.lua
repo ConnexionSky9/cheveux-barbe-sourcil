@@ -60,6 +60,7 @@ function IsPedHuman(e) return ENTS[e].human ~= false end
 PoliceC = { ui = {} }
 Config = { Distances = { alt = 3.0, vehicle = 5.0 }, Keys = { alt = 'LMENU' } }
 function RegisterNUICallback() end function RegisterCommand() end function RegisterKeyMapping() end function CreateThread() end function AddEventHandler() end
+exports = setmetatable({}, { __call = function() end })   -- exports('OpenFor', …) au chargement d'alt.lua
 local src = io.open(ROOT .. '/client/alt.lua'):read('a')
 assert(load(src, '=alt.lua'))()
 local C = PoliceC

@@ -295,7 +295,7 @@ function P.ReleaseAll(src)
 end
 
 P.Actions.visitStart = { perm = 'visits', duty = true, fn = function(src, d)
-    local pr = P.props[tonumber(d.pid) or 0]
+    local pr = P.MyProp(src, d.pid)
     if not pr or not pr.enabled then return { error = 'Bien indisponible.' } end
     if pr.status ~= 'available' or pr.contractId then return { error = 'Seuls les biens disponibles peuvent être visités.' } end
     for pid, v in pairs(P.visits) do if v.agent == src then return { error = ('Vous avez déjà une visite en cours (bien #%d).'):format(pid) } end end

@@ -267,7 +267,7 @@ local function InitDb()
         pcall(MySQL.query.await, ('CREATE INDEX IF NOT EXISTS `created_at` ON `%s` (`created_at`)'):format(t))
     end
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
-    P.AddJobColumns({ 'meca_grades', 'meca_employees' }, { 'meca_admin_log', 'meca_transactions', 'meca_tow', 'meca_quotes', 'meca_invoices' }, 'meca_grades')
+    P.AddJobColumns({ 'meca_grades', 'meca_employees' }, { 'meca_admin_log', 'meca_transactions', 'meca_tow', 'meca_quotes', 'meca_invoices', 'meca_vehicle_history' }, 'meca_grades')
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
 end
 
