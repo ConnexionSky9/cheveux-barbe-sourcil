@@ -69,6 +69,7 @@ const LIGHT_TOOLS = [
     ['led', 'Bande LED', { length: 3, color: { r: 80, g: 160, b: 255 }, range: 3, intensity: 4 }], ['lampe', 'Lampe', { range: 4, intensity: 2 }],
 ];
 const BUILDING_PRESETS = [
+    { t: 'Maison', s: '2 niveaux, toit 2 pans', o: { floors: 2, width: 10, depth: 8, facade: 'fenetres', winW: 1, winH: 1.5, spacing: 3, shutters: true, roof: 'deux_pans' } },
     { t: 'Petit immeuble', s: '4 étages, fenêtres', o: { floors: 4, width: 12, depth: 10, facade: 'fenetres', winW: 1.5, winH: 1.5, spacing: 3 } },
     { t: 'Commerce + logements', s: 'RDC vitrines', o: { floors: 5, width: 16, depth: 12, facade: 'fenetres', shop: true, elevator: true } },
     { t: 'Tour de bureaux', s: '15 étages, ascenseur', o: { floors: 15, width: 20, depth: 20, facade: 'fenetres', winW: 2, winH: 2, spacing: 2.5, elevator: true, glass: 'verre_teinte' } },
@@ -106,7 +107,7 @@ function kitSide() {
 }
 function bindKitSide(root) {
     const k = $('#newKit', root), m = $('#newMat', root);
-    if (k) k.onchange = () => { S.newKit = k.value; S.newMat = kitOf(k.value).defaultMaterial; Panels.renderPalette(); };
+    if (k) k.onchange = () => { S.kitChosen = true; S.newKit = k.value; S.newMat = kitOf(k.value).defaultMaterial; Panels.renderPalette(); };
     if (m) m.onchange = () => { S.newMat = m.value; };
 }
 
@@ -172,7 +173,7 @@ Panels.renderPalette = () => {
         $$('[data-vm]', root).forEach((b) => b.onclick = () => { const m = b.dataset.vm; v.models = v.models.includes(m) ? v.models.filter((x) => x !== m) : [...v.models, m]; b.classList.toggle('active'); });
         $$('[data-ter-preset]', root).forEach((c) => c.onclick = () => {
             post('terrainHeights', { kind: c.dataset.terPreset, cols: t.cols, rows: t.rows, amplitude: t.amplitude, seed: t.seed }).then((r) => {
-                startTool(c, { kind: 'element', label: 'Terrain : ' + c.querySelector('.t').textContent, template: { type: 'terrain', kit: 'ubk', name: 'Terrain ' + c.querySelector('.t').textContent, params: { cols: t.cols, rows: t.rows, cell: t.cell, base: t.base, heights: r.heights || [] } } });
+                startTool(c, { kind: 'element', label: 'Terrain : ' + c.querySelector('.t').textContent, template: { type: 'terrain', kit: (S.kitStatus && S.kitStatus.ubk && S.kitStatus.ubk.present > 0) ? 'ubk' : S.newKit, name: 'Terrain ' + c.querySelector('.t').textContent, params: { cols: t.cols, rows: t.rows, cell: t.cell, base: t.base, heights: r.heights || [] } } });
             });
         });
         $('#vegGo').onclick = (e) => {
@@ -197,7 +198,7 @@ Panels.renderPalette = () => {
         });
         $$('[data-bp]', root).forEach((c) => c.onclick = () => {
             const pr = BUILDING_PRESETS[+c.dataset.bp];
-            startTool(c, { kind: 'building', label: pr.t, opts: Object.assign({ kit: S.newKit, mat: S.newMat, name: pr.t, floorHeight: P.building.floorHeight, roof: P.building.roof }, pr.o) });
+            startTool(c, { kind: 'building', label: pr.t, opts: Object.assign({ kit: S.newKit, mat: S.newMat, name: pr.t, floorHeight: P.building.floorHeight, roof: P.building.roof }, pr.o, pr.o.roof ? { roof: pr.o.roof } : {}) });
         });
     }
 };

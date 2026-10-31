@@ -150,7 +150,13 @@ function applyPerms() {
 function refreshModelStatus() {
     const models = [...(S.init?.catalog || []), ...S.custom].map((i) => i.model);
     post('checkModels', { models }).then((r) => { if (r.models) { Object.assign(S.modelStatus, r.models); Panels.renderPalette(); } });
-    post('kitStatus').then((r) => { if (r.kits) { S.kitStatus = r.kits; S.ubkMaterials = r.ubkMaterials || {}; Panels.renderMaterials(); Panels.renderPalette(); } });
+    post('kitStatus').then((r) => { if (r.kits) {
+        S.kitStatus = r.kits; S.ubkMaterials = r.ubkMaterials || {};
+        // Simplification : sans kit architectural installé, on construit avec les blocs vanilla (visibles tout de suite)
+        if (!S.kitChosen && S.newKit === 'ubk' && r.kits.ubk && r.kits.ubk.present === 0 && r.kits.blocs && r.kits.blocs.present > 0) {
+            S.newKit = 'blocs'; S.newMat = 't0';
+            toast('Kit architectural non installé : construction avec les blocs vanilla (visibles tout de suite).');
+        } Panels.renderMaterials(); Panels.renderPalette(); } });
 }
 window.refreshModelStatus = refreshModelStatus;
 
