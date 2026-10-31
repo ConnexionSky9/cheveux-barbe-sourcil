@@ -262,6 +262,38 @@ check(not AA(2, 'settings_save', { sections = { products = { shroom_cake_l = { m
 AA(1, 'settings_reset', { section = 'drugs' })
 check(DS.S.products.shroom_cake_l.mult == 2.2, '« Revenir à config.lua » : valeurs des gâteaux remises')
 
+print('[Four et plan de travail posés avec l\'éditeur de map (E)]')
+local oldTimeout = SetTimeout
+SetTimeout = function(_, fn) fn() end   -- les mises à jour différées s'exécutent tout de suite ici
+EDITOR_PROPS = { { id = 12, role = 'cake_oven', model = 'prop_cooker_03', x = 3, y = 1, z = 0, h = 90 }, { id = 13, role = 'cake_prep', model = 'prop_table_04', x = 3, y = 2, z = 0, h = 0 },
+    { id = 14, role = 'police_pc', model = 'prop_laptop_01a', x = 9, y = 9, z = 0 } }
+FIRE('adminmenu:propsChanged', 0) NOW = NOW + 1
+local eOven, ePrep = DS.EXT_BASE + 12, DS.EXT_BASE + 13
+check(DS.sites[eOven] and DS.sites[eOven].type == 'shroom_oven' and DS.sites[eOven].ext and DS.sites[ePrep] and DS.sites[ePrep].type == 'shroom_prep' and not DS.sites[DS.EXT_BASE + 14],
+    'props de l\'éditeur (rôle four / plan de travail) : deviennent des postes à gâteaux, les autres props sont ignorés')
+local sent = last('elyzea_drogues:sites', -1)
+local seen = false
+for _, x in ipairs(sent and sent.args[1] or {}) do if x.id == eOven and x.ext then seen = true end end
+check(seen, 'envoyés aux joueurs comme « prop de l\'éditeur » (le jeu réutilise l\'objet déjà posé)')
+P(11, 3, 1.5, 0)   -- un joueur ordinaire, sans métier ni permission
+local i11 = PLAYERS[11].inv
+i11.cake_flour, i11.cake_sugar, i11.cake_yeast, i11.cake_milk, i11.dried_mushroom = 2, 1, 1, 1, 1
+r = CALL('craftStart', 11, ePrep, 'shroom_batter_s', 1) NOW = NOW + 10
+check(r.ok and CALL('craftFinish', 11, r.token).ok and i11.shroom_batter_s == 1, 'tout le monde : pâte faite au plan de travail posé avec l\'éditeur')
+r = CALL('craftStart', 11, eOven, 'shroom_cake_s', 1) NOW = NOW + 12
+check(r.ok and CALL('craftFinish', 11, r.token).ok and i11.shroom_cake_s == 1, 'tout le monde : gâteau cuit au four posé avec l\'éditeur')
+check(not AA(1, 'site_delete', { id = eOven }) and DS.sites[eOven], 'il ne se supprime pas depuis Gestion des drogues (c\'est l\'éditeur qui le gère)')
+check(not AA(1, 'site_save', { id = eOven, type = 'shroom_oven', model = 'prop_cooker_03', x = 1, y = 1, z = 0 }), 'ni ne se déplace depuis Gestion des drogues')
+local listed = false
+for _, x in ipairs(AD(1).sites) do if x.id == eOven then listed = true end end
+check(not listed, 'absent de la liste « Installations » (géré dans l\'éditeur › Pâtisserie)')
+EDITOR_PROPS = { { id = 12, role = 'cake_oven', model = 'prop_cooker_03', x = 5, y = 1, z = 0, h = 90 } }
+FIRE('adminmenu:propsChanged', 0) NOW = NOW + 1
+check(DS.sites[eOven] and DS.sites[eOven].x == 5 and not DS.sites[ePrep], 'four déplacé / plan de travail supprimé dans l\'éditeur : suivi tout de suite')
+EDITOR_PROPS = {}
+FIRE('adminmenu:propsChanged', 0) NOW = NOW + 1
+SetTimeout = oldTimeout
+
 print('[Menu admin]')
 local d = AD(1)
 check(d.available and d.full and #d.sites == 7 and #d.recipes > 40 and d.labels.joint_ww, 'données du menu : installations, recettes, libellés')

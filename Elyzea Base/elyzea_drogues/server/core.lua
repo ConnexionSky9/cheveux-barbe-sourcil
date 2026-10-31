@@ -138,7 +138,29 @@ function DS.PublicSettings()
 end
 function DS.PushSettings(target) TriggerClientEvent('elyzea_drogues:settings', target or -1, DS.PublicSettings()) end
 
-function DS.PublicSite(s) return { id = s.id, type = s.type, model = s.model, x = s.x, y = s.y, z = s.z, h = s.h, rx = s.rx, ry = s.ry } end
+function DS.PublicSite(s) return { id = s.id, type = s.type, model = s.model, x = s.x, y = s.y, z = s.z, h = s.h, rx = s.rx, ry = s.ry, ext = s.ext } end
+
+-- ---------------------------------------------------------------- props posés avec l'éditeur de map (admin_menu)
+-- Rôle « cake_oven » → four à gâteaux, « cake_prep » → plan de travail (pâte). Ce sont des postes comme les autres
+-- (mêmes recettes, mêmes vérifications), utilisables par tout le monde avec E. Pas enregistrés ici :
+-- l'éditeur garde le prop ; identifiant = EXT_BASE + n° du prop.
+DS.EXT_BASE = 1000000
+local EDITOR_ROLES = { cake_oven = 'shroom_oven', cake_prep = 'shroom_prep' }
+function DS.LoadEditorProps(push)
+    for id, s in pairs(DS.sites) do if s.ext then DS.sites[id] = nil end end
+    if GetResourceState('admin_menu') == 'started' then
+        for role, ty in pairs(EDITOR_ROLES) do
+            local ok, list = pcall(function() return exports.admin_menu:GetPropsByRole(role) end)
+            for _, p in ipairs(ok and type(list) == 'table' and list or {}) do
+                local id = DS.EXT_BASE + (tonumber(p.id) or 0)
+                DS.sites[id] = { id = id, type = ty, model = p.model, x = p.x + 0.0, y = p.y + 0.0, z = p.z + 0.0, h = (p.h or 0.0) + 0.0, ext = true }
+            end
+        end
+    end
+    if push then DS.PushSites() end
+end
+AddEventHandler('adminmenu:propsChanged', function() if DS.ready then SetTimeout(300, function() DS.LoadEditorProps(true) end) end end)
+AddEventHandler('onResourceStart', function(res) if res == 'admin_menu' and DS.ready then SetTimeout(3000, function() DS.LoadEditorProps(true) end) end end)
 function DS.PushSites(target)
     local list = {}
     for _, s in pairs(DS.sites) do list[#list + 1] = DS.PublicSite(s) end
@@ -175,6 +197,7 @@ CreateThread(function()
         end
     end
     if DS.LoadPlants then DS.LoadPlants() end
+    DS.LoadEditorProps(false)
     DS.ready = true
     print(('[elyzea_drogues] Prêt : %d installation(s), %d pot(s).'):format((function() local n = 0 for _ in pairs(DS.sites) do n = n + 1 end return n end)(),
         (function() local n = 0 for _ in pairs(DS.plants) do n = n + 1 end return n end)()))

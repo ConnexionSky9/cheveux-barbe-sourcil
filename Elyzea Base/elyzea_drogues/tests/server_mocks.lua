@@ -57,7 +57,9 @@ EMS = {}
 exports = setmetatable({}, { __call = function(_, name, fn) EXPORTED = EXPORTED or {} EXPORTED[name] = fn end, __index = function(_, res)
     if res == 'elyzea_inventory' then return inv end
     if res == 'elyzea_core' then return core end
-    if res == 'admin_menu' then return { HasPermission = function(_, s, perm) return PLAYERS[s] and ((PLAYERS[s].admin and perm == 'drugs_manage') or (PLAYERS[s].effects and perm == 'drugs_effects')) end } end
+    if res == 'admin_menu' then return { HasPermission = function(_, s, perm) return PLAYERS[s] and ((PLAYERS[s].admin and perm == 'drugs_manage') or (PLAYERS[s].effects and perm == 'drugs_effects')) end,
+        -- props de l'éditeur de map avec un rôle (four / plan de travail à gâteaux)
+        GetPropsByRole = function(_, role) local out = {} for _, p in ipairs(EDITOR_PROPS or {}) do if p.role == role then out[#out + 1] = p end end return out end } end
     if res == 'elyzea_police' then return { IsOnDuty = function(_, s) return PLAYERS[s] and PLAYERS[s].police == true end } end
     if res == 'elyzea_ems' then return { RecordConsumption = function(_, s, k) EMS[#EMS + 1] = { s, k } return true end } end
     return setmetatable({}, { __index = function() return function() end end })

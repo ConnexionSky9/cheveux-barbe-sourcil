@@ -68,13 +68,13 @@ function AdminData(src)
     if not DS.ready then return { available = false, loading = true } end
     local full = isAdmin(src, false)
     local sites = {}
-    for _, s in pairs(DS.sites) do
+    for _, s in pairs(DS.sites) do if not s.ext then   -- props de l'éditeur de map : gérés dans l'éditeur
         local ti = typeInfo(s.type) or {}
         sites[#sites + 1] = { id = s.id, type = s.type, typeLabel = ti.label or s.type, icon = ti.icon, model = s.model,
             x = math.floor(s.x * 100) / 100, y = math.floor(s.y * 100) / 100, z = math.floor(s.z * 100) / 100, h = math.floor(s.h),
             cat = Config.Stations[s.type] and 'station' or Config.Harvest[s.type] and 'harvest' or 'npc',
             drug = ti.drug, by = s.createdBy, regrow = (DS.nodeUntil[s.id] or 0) > os.time() and (DS.nodeUntil[s.id] - os.time()) or nil }
-    end
+    end end
     table.sort(sites, function(a, b) return a.id < b.id end)
     local pos = src ~= 0 and DS.Pos(src) or nil
     local drugs = {}
@@ -171,6 +171,7 @@ A.site_save = function(src, d)
     if src ~= 0 and not DS.Near(src, { x = x, y = y, z = z }, 250.0) then return false, 'Position trop loin de toi.' end
     local id = tonumber(d.id)
     local by = src ~= 0 and (GetPlayerName(src) or tostring(src)) or 'console'
+    if id and DS.sites[id] and DS.sites[id].ext then return false, 'Posé avec l\'éditeur de map : déplace-le dans Éditeur › Pâtisserie.' end
     if id and DS.sites[id] then
         local s = DS.sites[id]
         MySQL.update('UPDATE `drogues_sites` SET `type` = ?, `model` = ?, `x` = ?, `y` = ?, `z` = ?, `h` = ?, `rx` = ?, `ry` = ? WHERE `id` = ?', { t, model, x, y, z, h, rx, ry, id })
@@ -194,6 +195,7 @@ end
 A.site_delete = function(src, d)
     local id = tonumber(d.id)
     if not id or not DS.sites[id] then return false, 'Installation introuvable.' end
+    if DS.sites[id].ext then return false, 'Posé avec l\'éditeur de map : supprime-le dans Éditeur › Pâtisserie.' end
     MySQL.query('DELETE FROM `drogues_sites` WHERE `id` = ?', { id })
     DS.sites[id], DS.nodeUntil[id], DS.stationBusy[id] = nil, nil, nil
     DS.PushSites(-1)

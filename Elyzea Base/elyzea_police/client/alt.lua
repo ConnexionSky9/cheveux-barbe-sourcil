@@ -435,6 +435,25 @@ C.ui.alt = { close = CloseMenu }
 
 local function Stop() active = false end
 
+-- Ouvre directement le menu ALT sur l'objet d'une ressource (ex. four à gâteaux avec E : elyzea_drogues)
+exports('OpenFor', function(ent)
+    if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return false end
+    if not ent or ent == 0 or not DoesEntityExist(ent) then return false end
+    if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy or LocalPlayer.state.emsDown then return false end
+    local res, title = ExtTarget(ent)
+    if not res then return false end
+    local ctx = { kind = 'ext', entity = ent, provider = res, title = title }
+    local opts = Options(ctx)
+    if #opts == 0 then return false end
+    menuCtx, menuOpts = ctx, opts
+    menuOpen = true
+    C.Focus('alt', true)
+    local ui = {}
+    for i, o in ipairs(opts) do ui[i] = { key = i, label = o.label, desc = o.desc, disabled = o.disabled, icon = o.icon } end
+    SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), kind = ctx.kind, options = ui, x = 0.55, y = 0.45 })
+    return true
+end)
+
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return end
     if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy or LocalPlayer.state.emsDown then return end

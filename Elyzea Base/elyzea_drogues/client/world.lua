@@ -58,9 +58,9 @@ end
 local function despawn(key)
     local e = W.ents[key]
     if not e then return end
-    for _, ent in ipairs(e) do
+    for i, ent in ipairs(e) do
         W.byEnt[ent] = nil
-        if DoesEntityExist(ent) then DeleteEntity(ent) end
+        if DoesEntityExist(ent) and not (e.ext and i == 1) then DeleteEntity(ent) end   -- le prop de l'éditeur reste
     end
     W.ents[key] = nil
     local sid = tonumber(key:match('^site:(%d+)$') or '')
@@ -74,7 +74,12 @@ local function spawnSite(s)
     local list = {}
     W.ents[key] = list   -- réservé tout de suite (pas de double apparition pendant le chargement)
     local ent
-    if Config.NpcSites[s.type] then
+    if s.ext then
+        -- prop posé avec l'éditeur de map (admin_menu) : il existe déjà, on le retrouve (jamais supprimé ici)
+        ent = GetClosestObjectOfType(s.x, s.y, s.z, 1.5, GetHashKey(s.model or ''), false, false, false)
+        if not ent or ent == 0 then W.ents[key] = nil return end   -- pas encore affiché par l'éditeur : réessayé plus tard
+        list.ext = true
+    elseif Config.NpcSites[s.type] then
         ent = npc(s.model, s.x, s.y, s.z, s.h, Config.NpcSites[s.type].scenario)
     else
         ent = obj(s.model, s.x, s.y, s.z, s.h, s.rx, s.ry, false)
@@ -186,6 +191,9 @@ CreateThread(function()
         for id, s in pairs(W.sites) do
             local d = #(pos - vector3(s.x, s.y, s.z))
             local hidden = (W.nodeHidden[id] or 0) > now
+            -- prop de l'éditeur recréé par admin_menu (distance, modification) : on le retrouve à nouveau
+            local e = W.ents['site:' .. id]
+            if e and e.ext and not DoesEntityExist(e[1] or 0) then despawn('site:' .. id) end
             if d < SPAWN and not hidden and not W.ents['site:' .. id] then spawnSite(s)
             elseif (d > DESPAWN or hidden) and W.ents['site:' .. id] then despawn('site:' .. id) end
         end

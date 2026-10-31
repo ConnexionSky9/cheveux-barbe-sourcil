@@ -197,7 +197,10 @@ def('editor_save_prop', 'editor_props', function(src, d)
         AM.addLog(src, 'Prop déplacé', ('#%d %s'):format(r.id, r.model))
     else
         r = { id = nextId(Data.props), model = model, x = x, y = y, z = z, h = h }
-        if d.role == 'police_pc' then r.role = 'police_pc' end   -- PC Police (noirx_police_laptop_prop)
+        -- Props avec un rôle, lus par d'autres ressources (GetPropsByRole) :
+        --   police_pc : PC Police (noirx_police_laptop_prop) · cake_oven / cake_prep : four et plan de travail à gâteaux (elyzea_drogues, E pour cuisiner)
+        local ROLES = { police_pc = true, cake_oven = true, cake_prep = true }
+        if ROLES[d.role] then r.role = d.role end
         r.rx, r.ry = tilt(d)
         local _, folder = findIndex(Data.propFolders, d.folder)
         r.folder = folder and folder.id or nil

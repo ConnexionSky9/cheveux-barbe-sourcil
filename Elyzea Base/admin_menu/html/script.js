@@ -1132,6 +1132,16 @@ function edProps() {
             <button class="btn danger" data-ed="delete" data-kind="prop" data-id="${r.id}">Supprimer</button></span></div>`).join('')}
         </div>
 
+        <div class="section"><h2>🎂 Pâtisserie : four et plan de travail (${ed.props.filter((r) => r.role === 'cake_oven' || r.role === 'cake_prep').length})</h2>
+        <p class="hint">Props fonctionnels pour les gâteaux aux champignons : <b>tout le monde</b> s'en sert avec <span class="keycap">E</span> (plan de travail : la pâte ; four : la cuisson). Placement, rotation et déplacement comme un prop normal ; sauvegardé et remis après un redémarrage (ressource elyzea_drogues).</p>
+        <div class="btn-row"><button class="btn primary" data-ed="place_prop" data-model="prop_cooker_03" data-role="cake_oven">🔥 Placer un four à gâteaux</button>
+            <button class="btn primary" data-ed="place_prop" data-model="prop_table_04" data-role="cake_prep">🥣 Placer un plan de travail (pâte)</button></div>
+        ${ed.props.filter((r) => r.role === 'cake_oven' || r.role === 'cake_prep').map((r) => `<div class="inline" style="margin-top:6px"><span>${r.role === 'cake_oven' ? '🔥 <b>Four à gâteaux</b>' : '🥣 <b>Plan de travail</b>'} <span class="muted">#${r.id} · ${esc(r.model)}</span></span>
+            <span class="btn-row" style="margin:0"><button class="btn" data-ed="move" data-kind="prop" data-id="${r.id}">Déplacer / tourner</button>
+            <button class="btn" data-ed="tp" data-kind="prop" data-id="${r.id}">TP</button>
+            <button class="btn danger" data-ed="delete" data-kind="prop" data-id="${r.id}">Supprimer</button></span></div>`).join('')}
+        </div>
+
         <div class="section"><h2>Props enregistrés (${ed.props.length})</h2>
         <div class="folder-bar">
             <button class="folder-chip ${propView === 'all' ? 'active' : ''}" data-pview="all">📋 Tous <b>${ed.props.length}</b></button>

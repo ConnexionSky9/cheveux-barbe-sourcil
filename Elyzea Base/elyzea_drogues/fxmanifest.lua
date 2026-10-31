@@ -45,6 +45,7 @@ client_scripts {
     'client/world.lua',
     'client/placement.lua',
     'client/alt.lua',
+    'client/cakes.lua',     -- four et plan de travail à gâteaux : E pour s'en servir
 }
 
 ui_page 'html/index.html'

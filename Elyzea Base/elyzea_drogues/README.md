@@ -18,11 +18,18 @@ Tout est détaillé dans **`docs/IMMERSIF.md`** (commandes `/drogues_verif` et `
 
 ## Gâteaux aux champignons hallucinogènes
 
-**Deux postes**, placés par le staff (admin_menu › Gestion des drogues › Installations) :
+**Deux postes, utilisables par tout le monde** (pas seulement l'illégal) :
 - « Plan de travail (pâte à gâteau) » : une table ;
 - « Four (gâteaux aux champignons) » : la cuisinière `prop_cooker_03` ou le barbecue `prop_bbq_5`.
 
-**1. La pâte** : ALT sur le plan de travail › la taille, puis un mini-jeu de dosage.
+**Les poser** (au choix) :
+- **Éditeur de map** (admin_menu › Éditeur › 🎂 Pâtisserie) : « Poser un four » (`prop_cooker_03`) ou « Poser un plan de travail » (`prop_table_04`). Déplacer / TP / Supprimer dans la même section. Ils apparaissent tout de suite, sans redémarrage.
+- Ou admin_menu › Gestion des drogues › Installations, comme avant.
+
+**Interagir** : devant le poste, **E** ouvre le menu des recettes (ALT marche aussi). E a besoin d'`elyzea_police` démarré (c'est lui qui affiche le menu).
+Les postes posés avec l'éditeur ne sont pas listés dans Installations : on les gère depuis l'éditeur.
+
+**1. La pâte** : E (ou ALT) sur le plan de travail › la taille, puis un mini-jeu de dosage.
 - On attrape le sac indiqué, on le glisse au-dessus de la casserole et on verse, en relâchant pile sur la quantité.
 - Ordre : farine, sucre, levure, lait, champignons séchés.
 - Trop versé : erreur, et on recommence cet ingrédient.
