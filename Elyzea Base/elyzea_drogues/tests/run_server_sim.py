@@ -9,7 +9,7 @@ def run(path):
     src = open(path, encoding='utf-8').read()
     return L.execute(re.sub(r'`([^`]+)`', r'GetHashKey("\1")', src))
 run(os.path.join(root, 'tests', 'server_mocks.lua'))
-for f in ['config.lua', 'config/varieties.lua', 'config/culture.lua', 'config/stations.lua', 'config/recipes.lua', 'config/harvest.lua',
+for f in ['config.lua', 'config/varieties.lua', 'config/culture.lua', 'config/stations.lua', 'config/cakes.lua', 'config/recipes.lua', 'config/harvest.lua',
           'config/products.lua', 'config/economy.lua', 'config/minigames.lua', 'shared/rules.lua', 'shared/steps.lua', 'shared/growth.lua',
           'server/core.lua', 'server/crafting.lua', 'server/culture.lua', 'server/sale.lua', 'server/main.lua', 'server/admin.lua']:
     run(os.path.join(root, f))

@@ -43,7 +43,9 @@ end
 local function apply(src, id, item, test)
     local set = S().drugs[id]
     local prod = item and Config.Products[item] or nil
-    local duration = math.floor(set.duration * (prod and prod.mult or 1.0) + 0.5)
+    local pset = item and S().products and S().products[item] or nil   -- réglé dans le menu admin › Effets
+    local mult = (pset and pset.mult) or (prod and prod.mult) or 1.0
+    local duration = math.floor(set.duration * mult + 0.5)
     local now = os.time()
     active[src] = active[src] or {}
     local untilT = DrugRules.Extend(active[src][id], now, duration, Config.MaxStack)
@@ -60,7 +62,8 @@ local function apply(src, id, item, test)
     local color = DrugRules.SmokeColor(S(), prod)
     if color then lastSmoke[src] = { untilT = now + 15, color = color, lastPuff = 0 } end
     -- Force du produit (ex. gros gâteau aux champignons) : intensité × power
-    local intensity = (tonumber(set.intensity) or 100) * (prod and tonumber(prod.power) or 1.0)
+    local power = (pset and pset.power) or (prod and tonumber(prod.power)) or 1.0
+    local intensity = (tonumber(set.intensity) or 100) * power
     TriggerClientEvent('elyzea_drogues:take', src, id, untilT - now, test == true, item, color, intensity)
 end
 DS.ApplyDrug = apply

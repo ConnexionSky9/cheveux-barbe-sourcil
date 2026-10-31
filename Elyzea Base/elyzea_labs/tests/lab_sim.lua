@@ -7,7 +7,8 @@ local FILES = { 'config.lua', 'shared/sha256.lua', 'shared/rules.lua', 'server/m
     'server/equipment.lua', 'server/production.lua', 'server/storage.lua', 'server/upgrades.lua', 'server/raids.lua', 'server/tablet.lua', 'server/admin.lua' }
 -- étapes immersives communes (comme dans fxmanifest : '@elyzea_drogues/...')
 table.insert(FILES, 4, '../elyzea_drogues/config/minigames.lua')
-table.insert(FILES, 5, '../elyzea_drogues/shared/steps.lua')
+table.insert(FILES, 4, '../elyzea_drogues/config/cakes.lua')   -- avant minigames.lua (tailles des gâteaux)
+table.insert(FILES, 6, '../elyzea_drogues/shared/steps.lua')
 local function boot() for _, f in ipairs(FILES) do dofile(ROOT .. '/' .. f) end M.Pump(4) end
 boot()
 local L = Labs

@@ -140,6 +140,7 @@ Config.Decor = {
     shroom_sort = { props = { P(M.plate, 'top', 0.3, 0.0, 0), P(M.weedbucket, 'ground', 1.0, 0.0, 0, 0.35) } },
     shroom_dry  = { props = { P(M.tray, 'ground', 0.0, -1.0, 0, 0.45) } },
     shroom_pack = { props = { P(M.cokescale, 'top', 0.0, 0.1, 0), P(M.smallbag, 'top', 0.5, 0.2, 0) } },
+    shroom_prep = { props = { P(M.plate, 'top', 0.3, 0.0, 0), P(M.bottle, 'top', -0.4, 0.2, 0) } },
     shroom_oven = { props = { P(M.plate, 'top', 0.4, 0.0, 0) } },
 }
 -- Équipements des laboratoires (elyzea_labs) → décor équivalent
@@ -244,9 +245,35 @@ S.shroom_dry  = { game = 'hang', skin = 'mush', per = 3, min = 3, cap = 9, plusO
     title = 'Faire sécher', hint = 'Suspends chaque champignon, puis règle la ventilation.' }
 S.shroom_bag  = { game = 'scale', skin = 'mush', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = 10, pose = 'stand', anim = AN.table_pack, extra = { grams = 2.0 },
     title = 'Peser et ensacher', hint = 'Maintiens le clic sur le bocal et vise le poids exact.' }
--- Gâteaux aux champignons (petit / moyen / gros : même profil, plus d'objectifs pour un gros gâteau)
-S.shroom_cake = { game = 'heat', skin = 'stove', per = 6, min = 6, cap = 30, maxMistakes = 3, secPer = 2.5, pose = 'stand', anim = AN.stove,
-    title = 'Cuire le gâteau', hint = 'Maintiens le clic pour chauffer le four, relâche pour refroidir : garde la cuisson dans la zone verte.' }
+-- Gâteaux aux champignons
+--  Pâte (plan de travail) : glisser chaque sac dans la casserole et verser la bonne quantité (grammes de la recette)
+--  Cuisson (four) : régler la température sur la cible et la tenir jusqu'à ce que le gâteau soit cuit
+local function batter(k, title)
+    local c = Config.CakeSizes[k]
+    return { game = 'batter', per = 5, min = 5, cap = 25, maxMistakes = 3, secPer = 7, pose = 'stand', anim = AN.table_cut,
+        extra = { ingredients = {
+            { label = 'Farine', grams = c.flour * 100, unit = 'g', color = 'flour' },
+            { label = 'Sucre', grams = c.sugar * 50, unit = 'g', color = 'sugar' },
+            { label = 'Levure', grams = c.yeast * 10, unit = 'g', color = 'yeast' },
+            { label = 'Lait', grams = c.milk * 100, unit = 'mL', color = 'milk' },
+            { label = 'Champignons séchés', grams = c.shroom * 10, unit = 'g', color = 'shroom' } } },
+        title = title, hint = 'Attrape le sac indiqué, glisse-le au-dessus de la casserole et verse. Relâche pile sur la quantité demandée.' }
+end
+-- (config/cakes.lua doit être chargé avant ce fichier ; sinon les profils des gâteaux sont simplement absents)
+local CS = Config.CakeSizes
+if CS then
+    S.shroom_batter_s = batter('s', 'Pâte à petit gâteau')
+    S.shroom_batter_m = batter('m', 'Pâte à gâteau moyen')
+    S.shroom_batter_l = batter('l', 'Pâte à gros gâteau')
+    local function oven(target, bake, title)
+        return { game = 'oven', per = 1, min = 1, cap = 5, maxMistakes = 3, secPer = bake + 18, pose = 'stand', anim = AN.stove,
+            extra = { target = target, tol = 10, bake = bake }, title = title,
+            hint = ('Règle le thermostat sur %d °C (molette ou glisser le bouton) et garde-le dans la zone verte jusqu\'à la cuisson complète. Trop chaud : il brûle.'):format(target) }
+    end
+    S.shroom_cake_s = oven(CS.s.oven, CS.s.bakeTime, 'Cuire le petit gâteau')
+    S.shroom_cake_m = oven(CS.m.oven, CS.m.bakeTime, 'Cuire le gâteau moyen')
+    S.shroom_cake_l = oven(CS.l.oven, CS.l.bakeTime, 'Cuire le gros gâteau')
+end
 
 -- ---------------------------------------------------------------- récolte (champs placés avec l'admin_menu, pots)
 -- Pas de mini-jeu : barre de progression avec une animation adaptée à la plante et un objet tenu.

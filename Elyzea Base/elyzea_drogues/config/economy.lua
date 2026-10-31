@@ -32,5 +32,5 @@ Config.Shop = {
     { item = 'baking_soda', price = 20 }, { item = 'drg_solvent', price = 50 }, { item = 'drg_reagent', price = 120 }, { item = 'drg_acid', price = 60 },
     { item = 'drg_safrole', price = 90 }, { item = 'drg_dye_pink', price = 30 }, { item = 'drg_dye_blue', price = 30 }, { item = 'drg_dye_yellow', price = 30 },
     { item = 'drg_opium_raw', price = 110 }, { item = 'drg_syringe_empty', price = 15 }, { item = 'drg_keta_liquid', price = 130 },
-    { item = 'cake_mix', price = 25 },
+    { item = 'cake_flour', price = 4 }, { item = 'cake_sugar', price = 3 }, { item = 'cake_yeast', price = 2 }, { item = 'cake_milk', price = 3 },
 }

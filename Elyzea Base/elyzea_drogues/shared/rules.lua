@@ -46,8 +46,10 @@ end
 
 -- ---------------------------------------------------------------- valeurs par défaut
 function DrugRules.Defaults()
-    local s = { drugs = {}, trip = {}, creatures = {}, recipes = {}, prices = {}, shop = {}, sale = {}, varieties = {}, culture = {}, harvest = {}, sceneOffsets = {} }
+    local s = { drugs = {}, trip = {}, creatures = {}, recipes = {}, prices = {}, shop = {}, sale = {}, varieties = {}, culture = {}, harvest = {}, sceneOffsets = {}, products = {} }
     for id, d in pairs(Config.Drugs) do s.drugs[id] = { enabled = true, duration = d.duration, cooldown = d.cooldown, intensity = d.intensity or 100 } end
+    -- Produits consommables : durée × (mult) et force × (power), réglables dans le menu admin › Effets
+    for item, p in pairs(Config.Products or {}) do s.products[item] = { mult = p.mult or 1.0, power = p.power or 1.0 } end
     local t = Config.Trip
     s.trip = { maxCreatures = t.maxCreatures, spawnEvery = t.spawnEvery, hitCooldown = t.hitCooldown, fallTime = t.fallTime, lifetime = t.lifetime }
     for _, c in ipairs(t.creatures) do s.creatures[c.model] = true end
@@ -148,6 +150,10 @@ function DrugRules.Clean(input)
         local mn = int(x.min, 1, 50, h.min)
         out.harvest[id] = { enabled = x.enabled ~= false, min = mn, max = math.max(mn, int(x.max, 1, 50, h.max)),
             respawn = int(x.respawn, 5, 86400, h.respawn), duration = int(x.duration, 1, 120, h.duration) }
+    end
+    for item, p in pairs(def.products) do
+        local x = type(sec('products')[item]) == 'table' and sec('products')[item] or {}
+        out.products[item] = { mult = math.floor(num(x.mult, 0.1, 5, p.mult) * 100 + 0.5) / 100, power = math.floor(num(x.power, 0.25, 3, p.power) * 100 + 0.5) / 100 }
     end
     -- réglage de l'assise (staff, commande /drogues_assise) : décalage du personnage sur la chaise, par type de poste
     for t, o in pairs(sec('sceneOffsets')) do

@@ -70,7 +70,7 @@ end })
 DrugFx = { settings = {}, notify = function() end }
 Config = {}
 -- ------------------------------------------------ chargement
-for _, f in ipairs({ 'config/minigames.lua', 'client/scene.lua', 'client/steps.lua' }) do
+for _, f in ipairs({ 'config/cakes.lua', 'config/minigames.lua', 'client/scene.lua', 'client/steps.lua' }) do
     local src = io.open(ROOT .. '/' .. f, 'r'):read('a'); assert(load(src, '=' .. f))()
 end
 local function run(fn) -- exécute une étape jusqu'au bout (boucle des fils simulés)

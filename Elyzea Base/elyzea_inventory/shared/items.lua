@@ -379,7 +379,15 @@ do
     Items.dried_mushroom.close, Items.dried_mushroom.description = true, 'Champignons séchés : à ensacher, ou à manger.'
     -- Gâteaux aux champignons (four : elyzea_drogues) : plus le gâteau est gros, plus l'effet est long et fort.
     -- rename = true : clic droit › Renommer (nom gardé dans l'objet)
-    Items.cake_mix      = D('Préparation pour gâteau', 400, '📦', 'Farine, sucre et œufs en poudre. Au four avec des champignons séchés.')
+    -- Ingrédients (vendus par les fournisseurs de matériel) : 1 objet = 1 dose, dosée au gramme dans le mini-jeu de la pâte
+    Items.cake_flour    = D('Farine', 100, '🌾', 'Sachet de 100 g. Pâte à gâteau : plan de travail.')
+    Items.cake_sugar    = D('Sucre', 50, '🧂', 'Dose de 50 g. Pâte à gâteau : plan de travail.')
+    Items.cake_yeast    = D('Levure', 10, '🟡', 'Sachet de 10 g. Pâte à gâteau : plan de travail.')
+    Items.cake_milk     = D('Lait', 100, '🥛', 'Dose de 10 cL. Pâte à gâteau : plan de travail.')
+    -- Pâte crue (plan de travail) → gâteau (four, réglage de la température)
+    Items.shroom_batter_s = D('Pâte à petit gâteau', 300, '🥣', 'Pâte crue aux champignons : à cuire au four.')
+    Items.shroom_batter_m = D('Pâte à gâteau moyen', 700, '🥣', 'Pâte crue aux champignons : à cuire au four.')
+    Items.shroom_batter_l = D('Pâte à gros gâteau', 1100, '🥣', 'Pâte crue aux champignons : à cuire au four.')
     local function cake(label, weight, icon, desc)
         local c = D(label, weight, icon, desc, true)
         c.max, c.rename, c.category = 10, true, 'food'

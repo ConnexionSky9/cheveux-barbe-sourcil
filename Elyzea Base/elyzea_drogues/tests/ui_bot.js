@@ -1,6 +1,6 @@
 // Usage : node tests/ui_bot.js <dossier_captures> html/index.html   (MISTAKE=1 : une erreur volontaire au début de chaque partie, puis on finit)
 // Joueur automatique : fait chaque mini-jeu de bout en bout dans Chromium (page de l'interface réelle)
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium } = require('playwright');
 const path = require('path');
 const OUT = process.argv[2];
 const PAGE = 'file://' + path.resolve(process.argv[3]) + '?mg';
@@ -28,6 +28,10 @@ const CASES = [
   { type: 'press', drug: 'ecstasy', count: 5, extra: { color: 'blue' }, title: 'Presser les comprimés' },
   { type: 'sort', drug: 'mushrooms', count: 4, title: 'Trier les champignons' },
   { type: 'syringe', drug: 'opiates', count: 2, title: 'Préparer les seringues' },
+  { type: 'batter', drug: 'mushrooms', count: 5, title: 'Pâte à petit gâteau', extra: { ingredients: [
+    { label: 'Farine', grams: 200, unit: 'g', color: 'flour' }, { label: 'Sucre', grams: 50, unit: 'g', color: 'sugar' }, { label: 'Levure', grams: 10, unit: 'g', color: 'yeast' },
+    { label: 'Lait', grams: 100, unit: 'mL', color: 'milk' }, { label: 'Champignons séchés', grams: 10, unit: 'g', color: 'shroom' }] } },
+  { type: 'oven', drug: 'mushrooms', count: 2, title: 'Cuire le petit gâteau', extra: { target: 180, tol: 10, bake: 4 } },
 ];
 const BOT = String.raw`
 window.__bot = (cfg, mistakeFirst) => new Promise((resolve) => {
@@ -83,6 +87,13 @@ window.__bot = (cfg, mistakeFirst) => new Promise((resolve) => {
       case 'press': { if (Math.abs(st.r - 36) < 4) steps([['pointerdown', 300, 230], ['pointerup', 300, 230, 30]]); break; }
       case 'sort': { const it = st.items.find((k) => k.x > 60 && k.x < 600); if (!it) break; const to = it.good ? [110, 360] : [645, 360];
         steps([['pointerdown', it.x, it.y], ...line(it.x, it.y, to[0], to[1], 6, 16), ['pointerup', to[0], to[1]]]); break; }
+      case 'batter': {
+        const it = st.list[st.idx]; if (!it || st.pause > 0) break;
+        const tol = Math.max(2, it.grams * 0.08), est = st.amt + st.flow * 0.15 * 1.05, h = [410 + st.idx * 76, 112];
+        if (!st.held && st.lag <= 0.0001 && st.stable === 0 && est < it.grams - tol * 0.4) { hold = true; steps([['pointermove', h[0], h[1]], ['pointerdown', h[0], h[1], 60], ...line(h[0], h[1], 230, 180, 10, 16)]); }
+        else if (st.held && st.pouring && est >= it.grams - tol * 0.3) { ev('pointerup', 230, 180); hold = false; }
+        break; }
+      case 'oven': { if (st.set !== st.target && !st.drag) { const y1 = 205 - (st.target - st.set); steps([['pointerdown', 600, 205], ...line(600, 205, 600, y1, 8, 16), ['pointerup', 600, y1, 40]]); } break; }
       case 'syringe': { if (st.bubbles.length) { const b = st.bubbles[0]; steps([['pointerdown', b.x, b.y], ['pointerup', b.x, b.y, 40]]); }
         else { const x0 = 170 + st.v * 436, x1 = 170 + st.target * 436; steps([['pointerdown', x0, 220], ...line(x0, 220, x1, 220, 10, 16), ['pointerup', x1, 220, 60]]); } break; }
     }
@@ -109,6 +120,8 @@ window.__bot = (cfg, mistakeFirst) => new Promise((resolve) => {
       case 'smash': break;
       case 'press': if (Math.abs(st.r - 36) > 40) steps([['pointerdown', 300, 230], ['pointerup', 300, 230, 30]]); break;
       case 'sort': { const it = st.items.find((k) => k.good && k.x > 60 && k.x < 500); if (it) steps([['pointerdown', it.x, it.y], ...line(it.x, it.y, 645, 360, 6, 16), ['pointerup', 645, 360]]); break; }
+      case 'batter': { if (!st.held && st.pause <= 0) { const h = [410 + st.idx * 76, 112]; hold = true; steps([['pointerdown', h[0], h[1], 60], ...line(h[0], h[1], 230, 180, 10, 16)]); } break; }
+      case 'oven': { if (st.set < 250 && !st.drag) steps([['pointerdown', 600, 205], ...line(600, 205, 600, 40, 8, 16), ['pointerup', 600, 40, 40]]); break; }
       case 'syringe': { const x0 = 170 + st.v * 436; steps([['pointerdown', x0, 220], ...line(x0, 220, 610, 220, 10, 16), ['pointerup', 610, 220, 60]]); break; }
     }
   }

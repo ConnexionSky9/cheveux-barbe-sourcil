@@ -18,24 +18,37 @@ Tout est détaillé dans **`docs/IMMERSIF.md`** (commandes `/drogues_verif` et `
 
 ## Gâteaux aux champignons hallucinogènes
 
-**Le four** : poste « Four (gâteaux aux champignons) ».
-- Le staff le place depuis admin_menu › Gestion des drogues › Installations.
-- Modèle : cuisinière `prop_cooker_03`, ou barbecue `prop_bbq_5`.
-- On l'utilise avec ALT dessus › la recette, puis un mini-jeu de cuisson : garder la chaleur dans la zone verte.
+**Deux postes**, placés par le staff (admin_menu › Gestion des drogues › Installations) :
+- « Plan de travail (pâte à gâteau) » : une table ;
+- « Four (gâteaux aux champignons) » : la cuisinière `prop_cooker_03` ou le barbecue `prop_bbq_5`.
 
-**Les recettes** :
+**1. La pâte** : ALT sur le plan de travail › la taille, puis un mini-jeu de dosage.
+- On attrape le sac indiqué, on le glisse au-dessus de la casserole et on verse, en relâchant pile sur la quantité.
+- Ordre : farine, sucre, levure, lait, champignons séchés.
+- Trop versé : erreur, et on recommence cet ingrédient.
 
-| Gâteau | Ingrédients | Effet des champignons |
-|---|---|---|
-| 🧁 Petit gâteau | 1 champignon séché + 1 préparation pour gâteau | durée ×0,7, force ×0,7 |
-| 🍰 Gâteau moyen | 3 champignons séchés + 2 préparations | durée ×1,4, force ×1,1 |
-| 🎂 Gros gâteau | 6 champignons séchés + 3 préparations | durée ×2,2, force ×1,6 |
+| Pâte | Farine | Sucre | Levure | Lait | Champignons séchés |
+|---|---|---|---|---|---|
+| Petit gâteau | 2 (200 g) | 1 (50 g) | 1 (10 g) | 1 (10 cL) | 1 |
+| Gâteau moyen | 4 (400 g) | 2 (100 g) | 1 (10 g) | 2 (20 cL) | 3 |
+| Gros gâteau | 6 (600 g) | 3 (150 g) | 2 (20 g) | 3 (30 cL) | 6 |
 
-- **Préparation pour gâteau** (`cake_mix`) : vendue 25 $ par les fournisseurs de matériel.
-- **Manger le gâteau** (Utiliser) donne l'effet des champignons hallucinogènes. La force augmente le nombre de créatures, leur fréquence et la déformation de l'image.
-- **Renommer** : clic droit › Renommer, par exemple « Gâteau d'anniversaire ». Le nom reste sur le gâteau, même donné ou vendu.
-- **Délai** : le même que pour les champignons, entre deux prises. La prise est enregistrée pour le labo EMS (psilocybine).
-- **Prix de revente** aux acheteurs : 60 / 160 / 320 $. Tout se règle dans le menu (recettes, prix, durée de la drogue).
+**2. La cuisson** : ALT sur le four › cuire la pâte, puis un mini-jeu de température.
+- On règle le thermostat (bouton à tourner, molette, flèches ou boutons −/+) sur la cible et on le tient dans la zone verte jusqu'à 100 % de cuisson :
+  - petit gâteau : 180 °C ;
+  - gâteau moyen : 170 °C ;
+  - gros gâteau : 160 °C, plus long.
+- Le four bouge tout seul (porte entrouverte, résistance qui s'emballe).
+- Trop chaud : le gâteau brûle. 4 fois brûlé : raté, mais la pâte est gardée.
+
+**Ingrédients** : farine, sucre, levure et lait sont vendus par les fournisseurs de matériel. Les quantités se règlent dans `config/cakes.lua`.
+
+**Manger le gâteau** donne l'effet des champignons. Ses réglages se font dans admin_menu › Gestion des drogues › **Effets** :
+- **Durée ×** et **Force ×** pour chaque gâteau (et chaque autre produit) ;
+- les valeurs de départ sont petit ×0,7 / ×0,7, moyen ×1,4 / ×1,1, gros ×2,2 / ×1,6 ;
+- la permission « effets » suffit.
+
+**Renommer** : clic droit › Renommer, sur le gâteau.
 
 ## Installation
 1. Copier `elyzea_drogues` dans le dossier des ressources (à côté des autres ressources Elyzea).

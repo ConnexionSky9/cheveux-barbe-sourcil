@@ -155,6 +155,20 @@
     }
 
     /* ---------------------------------------------- effets */
+    // Produits d'une drogue : durée × et force × de chacun (ex. petit / moyen / gros gâteau aux champignons)
+    function prodTable(d, x) {
+        const list = d.products.filter((p) => p.drug === x.id);
+        if (!list.length) return '';
+        const s = G.draft;
+        if (!s.products) return `<p class="hint" style="margin-top:6px">Produits : ${list.map((p) => esc(p.label)).join(', ')}</p>`;
+        const inp = (path, min, max) => `<input class="input" type="number" min="${min}" max="${max}" step="0.05" style="width:78px" data-dn="${path}" value="${esc(getPath(s, path) ?? '')}">`;
+        return `<table class="loot" style="margin-top:8px;width:100%"><tr><th>Produit</th><th title="Durée de l'effet × X">Durée ×</th><th title="Force de l'effet × X (créatures, vision, tremblements)">Force ×</th><th>Effet</th></tr>
+            ${list.map((p) => { const pr = s.products[p.item]; if (!pr) return ''; const secs = Math.round((s.drugs[x.id].duration || 0) * (Number(pr.mult) || 1));
+                return `<tr><td>${esc(p.label)}</td><td>${inp(`products.${p.item}.mult`, 0.1, 5)}</td><td>${inp(`products.${p.item}.power`, 0.25, 3)}</td>
+                    <td class="muted">${fmtS(secs)} · ${Math.round((s.drugs[x.id].intensity || 100) * (Number(pr.power) || 1))} %</td></tr>`; }).join('')}</table>
+            <p class="hint" style="margin:4px 0 0">Durée × : multiplie la durée ci-dessus. Force × : multiplie l'intensité (champignons : plus de créatures, plus souvent).</p>`;
+    }
+
     function viewEffects(d) {
         const s = G.draft;
         return `<div class="section"><h2>Joueurs sous effet (${d.users.length})</h2>
@@ -170,7 +184,7 @@
                 <p class="hint" style="margin:4px 0 8px">${esc(x.desc)}</p>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">${num('Durée (s)', `drugs.${x.id}.duration`, 10, 3600, fmtS(s.drugs[x.id].duration))}
                     ${num('Délai (s)', `drugs.${x.id}.cooldown`, 0, 3600)}${num('Intensité (%)', `drugs.${x.id}.intensity`, 25, 200)}</div>
-                <p class="hint" style="margin-top:6px">Produits : ${d.products.filter((p) => p.drug === x.id).map((p) => `${esc(p.label)}${p.mult !== 1 ? ` (×${p.mult})` : ''}`).join(', ')}</p>
+                ${prodTable(d, x)}
                 <div class="btn-row" style="margin-top:6px"><button class="btn" data-dtest="${esc(x.id)}">🧪 Tester sur moi</button></div></div>`).join('')}</div></div>
         <div class="section"><h2>🍄 Hallucinations des champignons</h2>
             <p class="hint">Créatures visibles uniquement par le joueur qui a pris des champignons. Quand elles le frappent, il tombe sans perdre de vie.</p>
@@ -179,7 +193,7 @@
                 ${num('Délai entre deux coups (s)', 'trip.hitCooldown', 1, 60)}${num('Temps au sol (s)', 'trip.fallTime', 1, 15)}${num('Durée de vie (s)', 'trip.lifetime', 5, 300)}</div>
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-top:10px">${d.creatures.map((c) => tog(`creatures.${c.model}`, `${c.label} : oui`, `${c.label} : non`)).join('')}</div>
             <p class="hint">Couleurs de fumée des joints : onglet Culture (couleur de chaque variété).</p>
-            ${saveBar('drugs,trip,creatures', 'drugs')}</div>`;
+            ${saveBar(G.draft.products ? 'drugs,trip,creatures,products' : 'drugs,trip,creatures', 'drugs')}</div>`;
     }
 
     function viewLogs(d) {

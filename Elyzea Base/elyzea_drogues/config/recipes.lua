@@ -116,13 +116,15 @@ R.shroom_dry   = { label = 'Faire sécher', drug = 'mushrooms', step = 5, statio
     inputs = { { 'shroom_sorted', 1 } }, outputs = { { 'dried_mushroom', 1 } }, duration = 10, loss = 0 }
 R.shroom_bag   = { label = 'Ensacher les champignons séchés', drug = 'mushrooms', step = 6, station = 'shroom_pack',
     inputs = { { 'dried_mushroom', 3 }, { 'drug_bag', 1 } }, outputs = { { 'shroom_bag', 1 } }, duration = 4, loss = 0 }
--- Gâteaux au four (étape 7) : plus le gâteau est gros, plus il faut de champignons et plus l'effet est fort (config/products.lua)
-R.shroom_cake_s = { label = 'Petit gâteau aux champignons', drug = 'mushrooms', step = 7, station = 'shroom_oven',
-    inputs = { { 'dried_mushroom', 1 }, { 'cake_mix', 1 } }, outputs = { { 'shroom_cake_s', 1 } }, duration = 8, loss = 0 }
-R.shroom_cake_m = { label = 'Gâteau moyen aux champignons', drug = 'mushrooms', step = 7, station = 'shroom_oven',
-    inputs = { { 'dried_mushroom', 3 }, { 'cake_mix', 2 } }, outputs = { { 'shroom_cake_m', 1 } }, duration = 12, loss = 0 }
-R.shroom_cake_l = { label = 'Gros gâteau aux champignons', drug = 'mushrooms', step = 7, station = 'shroom_oven',
-    inputs = { { 'dried_mushroom', 6 }, { 'cake_mix', 3 } }, outputs = { { 'shroom_cake_l', 1 } }, duration = 18, loss = 0 }
+-- Gâteaux aux champignons : 7 pâte au plan de travail (doser chaque ingrédient) · 8 cuisson au four (régler la température)
+-- Plus le gâteau est gros, plus il faut d'ingrédients et plus l'effet est long et fort (config/products.lua, réglable dans le menu)
+for k, c in pairs(Config.CakeSizes) do   -- tailles et quantités : config/cakes.lua
+    R['shroom_batter_' .. k] = { label = ('Pâte à %s'):format(c.label), drug = 'mushrooms', step = 7, station = 'shroom_prep',
+        inputs = { { 'cake_flour', c.flour }, { 'cake_sugar', c.sugar }, { 'cake_yeast', c.yeast }, { 'cake_milk', c.milk }, { 'dried_mushroom', c.shroom } },
+        outputs = { { 'shroom_batter_' .. k, 1 } }, duration = c.prep, loss = 0 }
+    R['shroom_cake_' .. k] = { label = ('Cuire le %s'):format(c.label), drug = 'mushrooms', step = 8, station = 'shroom_oven',
+        inputs = { { 'shroom_batter_' .. k, 1 } }, outputs = { { 'shroom_cake_' .. k, 1 } }, duration = c.bake, loss = 0 }
+end
 
 -- Fabrication en série : jusqu'à X fois la recette d'affilée (une seule barre de progression)
 Config.MaxBatch = 5

@@ -81,7 +81,7 @@ function AdminData(src)
     for id, d in pairs(Config.Drugs) do drugs[#drugs + 1] = { id = id, label = d.label, icon = d.icon, desc = d.desc, substance = d.substance } end
     table.sort(drugs, function(a, b) return a.label < b.label end)
     local products = {}
-    for item, p in pairs(Config.Products) do products[#products + 1] = { item = item, label = DS.Label(item), drug = p.drug, use = p.use, mult = p.mult } end
+    for item, p in pairs(Config.Products) do products[#products + 1] = { item = item, label = DS.Label(item), drug = p.drug, use = p.use, mult = p.mult or 1, power = p.power or 1 } end
     table.sort(products, function(a, b) return a.label < b.label end)
     local creatures = {}
     for _, c in ipairs(Config.Trip.creatures) do creatures[#creatures + 1] = { model = c.model, label = c.label, kind = c.kind } end
@@ -114,7 +114,7 @@ A.settings_save = function(src, d, full)
     local sections = type(d.sections) == 'table' and d.sections or {}
     for k, v in pairs(sections) do
         if merged[k] ~= nil then
-            if not full and k ~= 'drugs' and k ~= 'trip' and k ~= 'creatures' then return false, 'Ta permission ne permet de modifier que les effets.' end
+            if not full and k ~= 'drugs' and k ~= 'trip' and k ~= 'creatures' and k ~= 'products' then return false, 'Ta permission ne permet de modifier que les effets.' end
             merged[k] = v
         end
     end
@@ -141,9 +141,9 @@ A.settings_reset = function(src, d, full)
         if not full then return false, 'Permission insuffisante.' end
         merged = def
     elseif merged[sec] ~= nil then
-        if not full and sec ~= 'drugs' and sec ~= 'trip' and sec ~= 'creatures' then return false, 'Permission insuffisante.' end
+        if not full and sec ~= 'drugs' and sec ~= 'trip' and sec ~= 'creatures' and sec ~= 'products' then return false, 'Permission insuffisante.' end
         merged[sec] = def[sec]
-        if sec == 'drugs' then merged.trip, merged.creatures = def.trip, def.creatures end
+        if sec == 'drugs' then merged.trip, merged.creatures, merged.products = def.trip, def.creatures, def.products end
     else return false, 'Section inconnue.' end
     applySettings(DrugRules.Clean(merged) or def)
     return true, 'Valeurs de config.lua rétablies.'

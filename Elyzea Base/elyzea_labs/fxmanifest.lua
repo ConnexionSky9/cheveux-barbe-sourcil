@@ -13,6 +13,7 @@ shared_scripts {
     'shared/sha256.lua',
     'shared/rules.lua',
     -- étapes immersives (mini-jeux et scènes) communes avec elyzea_drogues
+    '@elyzea_drogues/config/cakes.lua',
     '@elyzea_drogues/config/minigames.lua',
     '@elyzea_drogues/shared/steps.lua',
 }

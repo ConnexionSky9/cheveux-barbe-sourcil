@@ -59,6 +59,7 @@ Config.Stations = {
     shroom_sort = { label = 'Table de tri (champignons)',  drug = 'mushrooms', icon = '🍄', models = { 'prop_table_04', 'prop_table_03' }, anim = A.table },
     shroom_dry  = { label = 'Séchoir (champignons)',       drug = 'mushrooms', icon = '💡', models = { 'prop_worklight_03a', 'prop_worklight_04a' }, anim = A.bulb },
     shroom_pack = { label = 'Ensachage (champignons)',     drug = 'mushrooms', icon = '🛍️', models = { 'prop_table_06', 'prop_table_02' }, anim = A.write },
+    shroom_prep = { label = 'Plan de travail (pâte à gâteau)', drug = 'mushrooms', icon = '🥣', models = { 'prop_table_04', 'prop_table_02', 'prop_table_06' }, anim = A.bench },
     shroom_oven = { label = 'Four (gâteaux aux champignons)', drug = 'mushrooms', icon = '🎂', models = { 'prop_cooker_03', 'prop_bbq_5', 'prop_table_04' }, anim = A.cook },
 }
 

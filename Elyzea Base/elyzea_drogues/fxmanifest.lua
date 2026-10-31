@@ -15,6 +15,7 @@ shared_scripts {
     'config/varieties.lua',
     'config/culture.lua',
     'config/stations.lua',
+    'config/cakes.lua',     -- gâteaux aux champignons : tailles, quantités, cuisson
     'config/recipes.lua',
     'config/harvest.lua',
     'config/products.lua',
@@ -47,4 +48,4 @@ client_scripts {
 }
 
 ui_page 'html/index.html'
-files { 'html/index.html', 'html/mg.css', 'html/mg.js', 'html/mg_games1.js', 'html/mg_games2.js' }
+files { 'html/index.html', 'html/mg.css', 'html/mg.js', 'html/mg_games1.js', 'html/mg_games2.js', 'html/mg_games3.js' }

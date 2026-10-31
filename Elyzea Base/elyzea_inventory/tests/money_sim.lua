@@ -135,9 +135,9 @@ for _, it in ipairs(ser.items) do if it.slot == slotC then shown = it end end
 check(shown and shown.label == 'Gâteau d\'anniversaire de Tom' and shown.rename == true, 'l\'inventaire affiche le nouveau nom et propose « Renommer »')
 act(1, 'renameWeapon', { slot = slotC, name = '' })
 check(Inv[1].slots[slotC].metadata.label == nil, 'nom d\'origine rendu')
-local okB, slotB = API.AddItem(1, 'cake_mix', 1)
+local okB, slotB = API.AddItem(1, 'cake_flour', 1)
 act(1, 'renameWeapon', { slot = slotB, name = 'Farine' })
-check(not (Inv[1].slots[slotB].metadata and Inv[1].slots[slotB].metadata.label), 'un objet non renommable (préparation) : refusé')
+check(not (Inv[1].slots[slotB].metadata and Inv[1].slots[slotB].metadata.label), 'un objet non renommable (farine) : refusé')
 
 print(('\nRésultat : %d réussis, %d échecs'):format(passes, fails))
 return fails

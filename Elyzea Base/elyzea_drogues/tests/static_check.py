@@ -23,7 +23,7 @@ run(os.path.join(inv, 'shared', 'items.lua'))
 data = run(os.path.join(inv, 'data', 'items.lua'))
 known = set(L.eval('Items').keys()) | set(data.keys() if data else [])
 
-for f in ['config.lua', 'config/varieties.lua', 'config/culture.lua', 'config/stations.lua', 'config/recipes.lua', 'config/harvest.lua',
+for f in ['config.lua', 'config/varieties.lua', 'config/culture.lua', 'config/stations.lua', 'config/cakes.lua', 'config/recipes.lua', 'config/harvest.lua',
           'config/products.lua', 'config/economy.lua', 'shared/rules.lua', 'shared/growth.lua']:
     run(os.path.join(root, f))
 C = L.eval('Config')

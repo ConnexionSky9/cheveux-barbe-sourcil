@@ -203,24 +203,39 @@ check(USABLE.meth(2) == false, 'pendant une arène PvP : refusé')
 PLAYERS[2].state.pvpArena = nil
 
 print('[Gâteaux aux champignons (four)]')
+AA(1, 'site_save', { type = 'shroom_prep', model = 'prop_table_04', x = 1, y = 2, z = 0 })
 ok = AA(1, 'site_save', { type = 'shroom_oven', model = 'prop_cooker_03', x = 0, y = 2, z = 0 })
-local oven
-for id, st in pairs(DS.sites) do if st.type == 'shroom_oven' then oven = id end end
-check(ok and oven, 'four placé par le staff (modèle prop_cooker_03)')
+local oven, prep
+for id, st in pairs(DS.sites) do if st.type == 'shroom_oven' then oven = id elseif st.type == 'shroom_prep' then prep = id end end
+check(ok and oven and prep, 'plan de travail et four placés par le staff')
 P(7, 0, 1, 0) P(8, 0, 1, 0) P(9, 0, 1, 0)
-PLAYERS[7].inv.dried_mushroom, PLAYERS[7].inv.cake_mix = 10, 6
-r = CALL('craftStart', 7, oven, 'shroom_cake_s', 1) NOW = NOW + 8
+local inv7 = PLAYERS[7].inv
+inv7.dried_mushroom, inv7.cake_flour, inv7.cake_sugar, inv7.cake_yeast, inv7.cake_milk = 10, 12, 6, 4, 6
+r = CALL('craftStart', 7, prep, 'shroom_batter_s', 1)
+check(r.ok and r.game and r.game.type == 'batter' and #r.game.extra.ingredients == 5 and r.game.extra.ingredients[1].grams == 200 and r.game.count == 5,
+    'pâte à petit gâteau : mini-jeu de dosage (5 ingrédients, farine 200 g)')
+NOW = NOW + 10
 f = CALL('craftFinish', 7, r.token)
-check(f.ok and PLAYERS[7].inv.shroom_cake_s == 1 and PLAYERS[7].inv.dried_mushroom == 9 and PLAYERS[7].inv.cake_mix == 5, 'petit gâteau : 1 champignon séché + 1 préparation')
-r = CALL('craftStart', 7, oven, 'shroom_cake_m', 1) NOW = NOW + 12
+check(f.ok and inv7.shroom_batter_s == 1 and inv7.cake_flour == 10 and inv7.cake_sugar == 5 and inv7.cake_yeast == 3 and inv7.cake_milk == 5 and inv7.dried_mushroom == 9,
+    'pâte : 2 farine + 1 sucre + 1 levure + 1 lait + 1 champignon retirés')
+r = CALL('craftStart', 7, prep, 'shroom_batter_m', 1) NOW = NOW + 14
+check(CALL('craftFinish', 7, r.token).ok and inv7.shroom_batter_m == 1, 'pâte à gâteau moyen (4 farine, 2 sucre, 1 levure, 2 lait, 3 champignons)')
+r = CALL('craftStart', 7, prep, 'shroom_batter_l', 1) NOW = NOW + 18
+check(CALL('craftFinish', 7, r.token).ok and inv7.shroom_batter_l == 1 and inv7.cake_flour == 0 and inv7.dried_mushroom == 0, 'pâte à gros gâteau : tout est utilisé')
+check((CALL('craftStart', 7, prep, 'shroom_batter_s', 1).error or ''):find('manque'), 'plus d\'ingrédients : refusé')
+r = CALL('craftStart', 7, oven, 'shroom_cake_s', 1)
+check(r.ok and r.game.type == 'oven' and r.game.extra.target == 180 and r.game.extra.bake == 10, 'four : mini-jeu de température (petit gâteau : 180 °C, 10 s de cuisson)')
+NOW = NOW + 12
 f = CALL('craftFinish', 7, r.token)
-check(f.ok and PLAYERS[7].inv.shroom_cake_m == 1 and PLAYERS[7].inv.dried_mushroom == 6 and PLAYERS[7].inv.cake_mix == 3, 'gâteau moyen : 3 champignons + 2 préparations')
-r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1) NOW = NOW + 18
-f = CALL('craftFinish', 7, r.token)
-check(f.ok and PLAYERS[7].inv.shroom_cake_l == 1 and PLAYERS[7].inv.dried_mushroom == 0 and PLAYERS[7].inv.cake_mix == 0, 'gros gâteau : 6 champignons + 3 préparations')
-r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1)
-check(r.error and r.error:find('manque'), 'plus d\'ingrédients : refusé')
-check((CALL('craftStart', 7, grind, 'shroom_cake_s', 1).error) ~= nil, 'gâteau sur un autre poste que le four : refusé')
+check(f.ok and inv7.shroom_cake_s == 1 and inv7.shroom_batter_s == 0, 'pâte cuite : petit gâteau obtenu')
+r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1) NOW = NOW + 20
+f = RAW_CALL('craftFinish', 7, r.token, { id = r.game.id, ok = false, done = 0, mistakes = 4, reason = 'mistakes' })
+check(f.error and inv7.shroom_batter_l == 1 and not inv7.shroom_cake_l, 'gâteau brûlé (trop d\'erreurs) : rien obtenu, la pâte est gardée')
+r = CALL('craftStart', 7, oven, 'shroom_cake_l', 1) NOW = NOW + 20
+check(CALL('craftFinish', 7, r.token).ok and inv7.shroom_cake_l == 1, 'gros gâteau bien cuit')
+r = CALL('craftStart', 7, oven, 'shroom_cake_m', 1) NOW = NOW + 16
+check(CALL('craftFinish', 7, r.token).ok and inv7.shroom_cake_m == 1, 'gâteau moyen bien cuit')
+check((CALL('craftStart', 7, prep, 'shroom_cake_s', 1).error) ~= nil, 'cuire sur le plan de travail : refusé (il faut le four)')
 -- manger : la taille change la durée et la force
 local base = DS.S.drugs.mushrooms
 check(USABLE.shroom_cake_s(7) == true, 'petit gâteau mangé')
@@ -234,10 +249,22 @@ check(t2.args[2] > t1.args[2] and t2.args[6] > t1.args[6], ('moyen : plus long e
 check(t3.args[2] > t2.args[2] and t3.args[6] > t2.args[6], ('gros : encore plus long et plus fort (%d s, %d %%)'):format(t3.args[2], math.floor(t3.args[6])))
 check(EMS[#EMS][2] == 'psilocybin', 'prise enregistrée pour le laboratoire EMS (psilocybine)')
 check(USABLE.shroom_cake_m(7) == false, 'délai des champignons respecté entre deux gâteaux')
+-- réglage des effets dans le menu admin (onglet Effets) : durée × et force × par produit
+check(DS.S.products.shroom_cake_l.mult == 2.2 and DS.S.products.shroom_cake_l.power == 1.6, 'menu : valeurs de départ du gros gâteau (×2,2 durée, ×1,6 force)')
+ok = AA(5, 'settings_save', { sections = { products = { shroom_cake_l = { mult = 3, power = 2 }, shroom_cake_s = { mult = 99, power = -4 } } } })
+check(ok and DS.S.products.shroom_cake_l.mult == 3 and DS.S.products.shroom_cake_l.power == 2, 'permission « effets » : durée et force du gros gâteau modifiées')
+check(DS.S.products.shroom_cake_s.mult == 5 and DS.S.products.shroom_cake_s.power == 0.25, 'valeurs hors limites bornées (durée ×5 max, force ×0,25 min)')
+P(10, 0, 1, 0) PLAYERS[10].inv.shroom_cake_l = 1
+USABLE.shroom_cake_l(10)
+local t4 = last('elyzea_drogues:take', 10)
+check(t4.args[2] == math.floor(base.duration * 3 + 0.5) and math.abs(t4.args[6] - base.intensity * 2) < 0.01, ('le gros gâteau suit le menu : %d s, force %d %%'):format(t4.args[2], math.floor(t4.args[6])))
+check(not AA(2, 'settings_save', { sections = { products = { shroom_cake_l = { mult = 1 } } } }), 'joueur sans permission : refusé')
+AA(1, 'settings_reset', { section = 'drugs' })
+check(DS.S.products.shroom_cake_l.mult == 2.2, '« Revenir à config.lua » : valeurs des gâteaux remises')
 
 print('[Menu admin]')
 local d = AD(1)
-check(d.available and d.full and #d.sites == 6 and #d.recipes > 40 and d.labels.joint_ww, 'données du menu : installations, recettes, libellés')
+check(d.available and d.full and #d.sites == 7 and #d.recipes > 40 and d.labels.joint_ww, 'données du menu : installations, recettes, libellés')
 check(AD(2).denied, 'joueur sans permission : rien')
 check(AD(5).available and not AD(5).full, 'permission « effets » : accès limité')
 local rec = DrugRules.copy(DS.S.recipes)
@@ -281,11 +308,13 @@ for id in pairs(Config.Harvest) do
     if DrugSteps.Challenge(DrugSteps.HarvestKey(id) or '', 1) then withGame[#withGame + 1] = id end
 end
 check(#noAnim == 0 and #withGame == 0 and not DrugSteps.Challenge('pot:harvest', 1), 'récolte (champs et pots) : pas de mini-jeu, une animation adaptée pour chaque plante')
-local GAMES_OK = { trim = 1, harvest = 1, pick = 1, hang = 1, grind = 1, roll = 1, scale = 1, count = 1, pour = 1, heat = 1, shake = 1, cut = 1, smash = 1, press = 1, sort = 1, syringe = 1 }
+local GAMES_OK = { trim = 1, harvest = 1, pick = 1, hang = 1, grind = 1, roll = 1, scale = 1, count = 1, pour = 1, heat = 1, shake = 1, cut = 1, smash = 1, press = 1, sort = 1, syringe = 1, batter = 1, oven = 1 }
 local badG = {}
 for k, p in pairs(Config.Steps) do
     if not GAMES_OK[p.game] then badG[#badG + 1] = k end
     if p.game == 'pour' and (p.per % #p.extra.reagents ~= 0 or p.cap % #p.extra.reagents ~= 0 or p.min % #p.extra.reagents ~= 0) then badG[#badG + 1] = k .. ' (réactifs)' end
+    if p.game == 'batter' and (p.per % #p.extra.ingredients ~= 0 or p.cap % #p.extra.ingredients ~= 0 or p.min % #p.extra.ingredients ~= 0) then badG[#badG + 1] = k .. ' (ingrédients)' end
+    if p.game == 'oven' and not (p.extra and p.extra.target and p.extra.bake) then badG[#badG + 1] = k .. ' (four)' end
     if p.game == 'roll' and (p.per % 3 ~= 0 or p.cap % 3 ~= 0 or p.min % 3 ~= 0) then badG[#badG + 1] = k .. ' (3 objectifs par joint)' end
 end
 check(#badG == 0, 'profils valides (mini-jeu connu, dosage et roulage complets)' .. (#badG > 0 and (' : ' .. table.concat(badG, ', ')) or ''))
