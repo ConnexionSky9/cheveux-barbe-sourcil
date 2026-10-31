@@ -293,6 +293,17 @@ local function withoutLock(e)
     return c
 end
 
+-- Élément trop lourd pour GTA (trop d'objets) : message qui dit quoi changer
+local function tooHeavy(el, n)
+    local tips = {
+        terrain = 'réduis les colonnes / rangées ou l\'amplitude',
+        wall = 'raccourcis-le', facade = 'raccourcis-la ou réduis sa hauteur', floor = 'réduis sa surface', roof = 'réduis sa surface',
+        road = 'raccourcis-la ou découpe-la en plusieurs tronçons', scatter = 'plante moins d\'objets',
+    }
+    return ('« %s » ferait %d objets (maximum %d par élément) : %s. Au-delà, GTA ne suit plus (risque de plantage).')
+        :format(el.name or el.type, n, L.maxPiecesPerElement, tips[el.type] or 'réduis sa taille')
+end
+
 -- Vérifie et prépare une opération sur un état de travail (copie)
 local function check(src, p, work, op, out, counts)
     if type(op) ~= 'table' then return 'opération invalide' end
@@ -307,7 +318,9 @@ local function check(src, p, work, op, out, counts)
             if el.parent and not work[el.parent] then el.parent = nil end
             work[el.id] = el
             local n = #BGeo.pieces(el, c)
+            if n > L.maxPiecesPerElement then return tooHeavy(el, n) end
             counts.total = counts.total + n
+            counts.added = (counts.added or 0) + n
             counts.per[el.id] = n
             out.elements[#out.elements + 1] = el
         end
@@ -335,6 +348,8 @@ local function check(src, p, work, op, out, counts)
             end
             work[el.id] = el
             local n = #BGeo.pieces(el, c)
+            if n > L.maxPiecesPerElement and n > (counts.per[el.id] or 0) then return tooHeavy(el, n) end
+            counts.added = (counts.added or 0) + math.max(0, n - (counts.per[el.id] or 0))
             counts.total = counts.total - (counts.per[el.id] or 0) + n
             counts.per[el.id] = n
             out.elements[#out.elements + 1] = el
@@ -391,6 +406,10 @@ function Projects.apply(src, id, op)
         if err then return nil, err end
         results[#results + 1] = out
     end
+    if (counts.added or 0) > L.maxPiecesPerOp then
+        return nil, ('Trop lourd en une fois : %d objets (maximum %d). Réduis la taille ou le nombre d\'étages, ou pose-le en plusieurs fois.'):format(counts.added, L.maxPiecesPerOp)
+    end
+    counts.added = nil
     local n = 0
     for _ in pairs(work) do n = n + 1 end
     if n > L.maxElementsPerProject then return nil, ('Limite d\'éléments du projet atteinte (%d).'):format(L.maxElementsPerProject) end

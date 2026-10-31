@@ -48,7 +48,9 @@ Config.Textures = {
 Config.Limits = {
     maxProjects = 200,
     maxElementsPerProject = 5000,
-    maxPiecesPerProject = 25000,       -- modules réellement créés en jeu
+    maxPiecesPerProject = 12000,       -- modules réellement créés en jeu (chargés par distance)
+    maxPiecesPerElement = 1500,        -- un seul élément (terrain, mur, toit…) : au-delà GTA ne suit pas
+    maxPiecesPerOp = 2500,             -- objets ajoutés en une action (pièce, immeuble, terrain…)
     maxElementsPerOp = 600,            -- par action (un immeuble = beaucoup d'éléments)
     maxOpsPerSecond = 25,              -- anti-spam par joueur
     maxVersionsPerProject = 30,        -- points de restauration conservés
@@ -64,8 +66,11 @@ Config.AutoRestoreMinutes = 15
 Config.Stream = {
     radius = 250.0,        -- distance de chargement des éléments
     unloadMargin = 40.0,   -- marge avant déchargement (évite le clignotement)
-    spawnPerFrame = 12,    -- entités créées au maximum par image
-    maxEntities = 6000,    -- garde-fou global
+    spawnPerFrame = 8,     -- entités créées au maximum par image (fluidité)
+    maxEntities = 1500,    -- objets du studio affichés en même temps au maximum
+    -- Objets dans TOUT le monde du joueur (GTA compris). GTA plante quand sa réserve d'objets
+    -- est pleine (« Pool full ») : le studio n'en crée plus au-delà de cette valeur.
+    maxWorldObjects = 1800,
     lightDistance = 60.0,  -- les lumières ne sont dessinées que près de la caméra
     maxLights = 48,        -- lumières dessinées au maximum par image
 }

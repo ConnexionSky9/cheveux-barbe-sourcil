@@ -5,7 +5,7 @@ local R = BRuntime
 for k, v in pairs({
     Radius = Config.Stream.radius, UnloadMargin = Config.Stream.unloadMargin, SpawnPerFrame = Config.Stream.spawnPerFrame,
     MaxEntities = Config.Stream.maxEntities, LightDistance = Config.Stream.lightDistance, MaxLights = Config.Stream.maxLights,
-    MaxTextures = Config.Textures.maxActive,
+    MaxTextures = Config.Textures.maxActive, MaxWorldObjects = Config.Stream.maxWorldObjects,
 }) do R.cfg[k] = v end
 
 local myServerId = nil
@@ -289,10 +289,43 @@ cb('duplicateFloor', function(d) Ed.duplicateFloor(d.id, tonumber(d.count) or 1,
 cb('preview', function(d) Ed.preview(d.model) end)
 
 -- Reliefs prédéfinis (même calcul que l'export / le serveur)
+-- Nombre d'objets que GTA devra créer (avec les dimensions mesurées en jeu)
+local function piecesOf(el) return #BGeo.pieces(el, { measured = R.measured }) end
+local function terrainEl(d, heights)
+    return { type = 'terrain', kit = d.kit or 'blocs', mat = d.mat, pos = { x = 0, y = 0, z = 0 }, rot = { x = 0, y = 0, z = 0 },
+        params = { cols = d.cols, rows = d.rows, cell = tonumber(d.cell) or 4, base = tonumber(d.base) or 0, heights = heights } }
+end
 cb('terrainHeights', function(d)
     local cols = math.floor(BMath.clamp(tonumber(d.cols) or 8, 1, 128))
     local rows = math.floor(BMath.clamp(tonumber(d.rows) or 8, 1, 128))
-    return { ok = true, heights = BGeo.terrainPreset(d.kind, cols, rows, { amplitude = tonumber(d.amplitude), seed = tonumber(d.seed) }) }
+    d.cols, d.rows = cols, rows
+    local heights = BGeo.terrainPreset(d.kind, cols, rows, { amplitude = tonumber(d.amplitude), seed = tonumber(d.seed) })
+    return { ok = true, heights = heights, pieces = piecesOf(terrainEl(d, heights)), max = Config.Limits.maxPiecesPerElement }
+end)
+-- Estimation avant de poser (cartes de terrains et d'immeubles)
+cb('estimate', function(d)
+    local max = { element = Config.Limits.maxPiecesPerElement, op = Config.Limits.maxPiecesPerOp }
+    if d.kind == 'terrain' then
+        local out = {}
+        for _, k in ipairs(d.presets or {}) do
+            local cols = math.floor(BMath.clamp(tonumber(d.cols) or 8, 1, 128))
+            local rows = math.floor(BMath.clamp(tonumber(d.rows) or 8, 1, 128))
+            local e = { kit = d.kit, mat = d.mat, cols = cols, rows = rows, cell = d.cell, base = d.base }
+            out[k] = piecesOf(terrainEl(e, BGeo.terrainPreset(k, cols, rows, { amplitude = tonumber(d.amplitude), seed = tonumber(d.seed) })))
+        end
+        return { ok = true, pieces = out, max = max }
+    elseif d.kind == 'building' then
+        local out = {}
+        for i, o in ipairs(d.list or {}) do
+            local n, biggest = 0, 0
+            local k = 0
+            local list = BCompose.building(o, { x = 0, y = 0, z = 0 }, 0, function() k = k + 1 return 'est' .. k end)
+            for _, el in ipairs(list) do local c = piecesOf(el) n = n + c if c > biggest then biggest = c end end
+            out[i] = { pieces = n, biggest = biggest }
+        end
+        return { ok = true, list = out, max = max }
+    end
+    return { ok = false }
 end)
 
 -- Position de placement d'un nouvel élément : devant la caméra

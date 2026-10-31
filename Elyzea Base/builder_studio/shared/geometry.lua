@@ -713,7 +713,9 @@ function BGeo.terrain(el, ctx)
             local mat = mats[j * cols + i + 1] or BGeo.autoTerrainMat(h, base)
             local key = mat
             if not cache[key] then
-                cache[key] = { floor = mods(ctx, el, 'floor', mat), wall = mods(ctx, el, 'wall', mat) }
+                local slope = mods(ctx, el, 'slope', mat)
+                if #slope == 0 then slope = mods(ctx, el, 'wall', mat) end
+                cache[key] = { floor = mods(ctx, el, 'floor', mat), wall = slope }
             end
             local m = cache[key]
             if #m.floor > 0 then

@@ -108,6 +108,8 @@ BKits.kits = {
             pillar  = { 'stt_prop_stunt_bblock_sml2' },
             step    = { 'stt_prop_stunt_bblock_sml1' },
             trim    = { 'stt_prop_stunt_bblock_sml1' },
+            -- Talus des terrains : gros blocs d'abord (4 fois moins d'objets qu'avec des blocs de 1 m)
+            slope   = { 'stt_prop_stunt_bblock_mdm1', 'stt_prop_stunt_bblock_sml1' },
             door    = { 'prop_com_ls_door_01' },
             shutter = {},
         },
@@ -152,7 +154,7 @@ function BKits.modules(kitId, moduleType, matId, measured)
             mat = BKits.materialById.aluminium   -- montants / colonnes d'une verrière : alu
             glass = false
         end
-        for _, m in ipairs(BKits.ubkModules[moduleType] or {}) do
+        for _, m in ipairs(BKits.ubkModules[moduleType == 'slope' and 'wall' or moduleType] or {}) do
             local y = m.y
             if glass and (moduleType == 'wall' or moduleType == 'door') then y = BKits.glassThickness end
             if glass and moduleType == 'floor' then y = m.y end

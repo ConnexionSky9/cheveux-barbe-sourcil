@@ -172,8 +172,11 @@ mets-le dans `stream/` de la ressource exportée et passe `Mode = 'ymap'` dans s
 - Chaque événement serveur vérifie l'ACE correspondante ; la console a tous les droits.
 - Données client nettoyées : champs connus, nombres finis et bornés (±20 000 m), textes courts, noms de modèles `[A-Za-z0-9_-]`, taille des paramètres limitée, hiérarchie sans boucle.
 - Opérations **atomiques** (un lot invalide n'applique rien), verrous respectés, 25 actions / s max par joueur.
-- Limites (`Config.Limits`) : 5 000 éléments et 25 000 modules par projet, 600 éléments par action, 200 projets.
-- Client : entités **locales** (aucune charge réseau / OneSync), chargement par distance (250 m) avec marge de déchargement, 12 créations par image, plafond global de 6 000 entités, 48 lumières max près de la caméra, attente de modèle limitée à 6 s, suppression de tout à l'arrêt de la ressource.
+- Limites (`Config.Limits`) : 5 000 éléments et 12 000 modules par projet, **1 500 objets par élément**, **2 500 objets ajoutés par action**, 600 éléments par action, 200 projets. Un élément trop lourd est refusé avec un conseil (réduire la grille, les étages…) ; un élément déjà trop gros reste déplaçable.
+- **Anti-plantage** : GTA plante quand sa réserve d'objets est pleine (« Pool full »). Le studio compte les objets de tout le monde du joueur chaque seconde et n'en crée jamais au-delà de `Config.Stream.maxWorldObjects` (1 800), ni plus de `maxEntities` (1 500) pour lui-même. Les éléments les plus proches de la caméra passent en premier ; au-delà, la barre d'état l'indique.
+- **Fluidité** : modifier un élément (sculpture, longueur d'un mur…) réutilise les objets déjà posés et ne crée / supprime que la différence ; le déplacement d'un gros élément est rafraîchi ~16 fois par seconde ; 8 créations par image.
+- Estimation avant de poser : chaque carte de relief et d'immeuble affiche le nombre d'objets, et les cartes trop lourdes sont grisées.
+- Client : entités **locales** (aucune charge réseau / OneSync), chargement par distance (250 m) avec marge de déchargement, 48 lumières max près de la caméra, attente de modèle limitée à 6 s, suppression de tout à l'arrêt de la ressource.
 
 ## 8. Tests
 

@@ -177,4 +177,56 @@ fire('builder:tex:remove', 5, u.id)
 check(Textures.get(u.id) == nil and #Textures.list == 1, 'texture supprimée')
 Textures.load()
 check(#Textures.list == 1 and Textures.list[1].id == img.id, 'bibliothèque relue depuis le disque (redémarrage)')
+
+print('\n[Éléments trop lourds pour GTA (cause du plantage)]')
+-- Dimensions des blocs vanilla (mesurées en jeu d'habitude) : 1 m et 2 m
+local function box(s) return { min = { x = -s / 2, y = -s / 2, z = 0 }, max = { x = s / 2, y = s / 2, z = s } } end
+for _, m in ipairs({ 'stt_prop_stunt_bblock_sml1', 'stt_prop_stunt_bblock_sml2', 'stt_prop_stunt_bblock_sml3' }) do Projects.dims[m] = box(1) end
+Projects.dims['stt_prop_stunt_bblock_mdm1'] = box(2)
+Projects.dims['prop_com_ls_door_01'] = box(1)
+local seq = 0
+local function nid() seq = seq + 1 return ('t%05d'):format(seq) end
+local function terrain(kind, n, amp)
+    return { id = nid(), type = 'terrain', name = 'Terrain ' .. kind, kit = 'blocs', mat = 't0', pos = { x = 0, y = 0, z = 70 }, rot = { x = 0, y = 0, z = 0 },
+        params = { cols = n, rows = n, cell = 4, base = 0, heights = env.BGeo.terrainPreset(kind, n, n, { amplitude = amp, seed = 7 }) } }
+end
+local r, err = Projects.apply(1, pid, { kind = 'add', elements = { terrain('ile', 16, 12) } })
+check(r == nil and err and err:find('objets', 1, true) and err:find('colonnes', 1, true), 'île 16 × 16 (≈ 1 800 objets) refusée avec un conseil : ' .. tostring(err))
+r, err = Projects.apply(1, pid, { kind = 'add', elements = { terrain('montagne', 16, 12) } })
+check(r == nil, 'montagne 16 × 16 (≈ 2 250 objets) refusée')
+r, err = Projects.apply(1, pid, { kind = 'add', elements = { terrain('ile', 12, 10) } })
+check(r ~= nil, 'île 12 × 12 (réglage par défaut) acceptée' .. (err and (' : ' .. err) or ''))
+local function building(o)
+    o.kit, o.mat = 'blocs', 't0'
+    return env.BCompose.building(o, { x = 100, y = 0, z = 70 }, 0, nid)
+end
+r, err = Projects.apply(1, pid, { kind = 'add', elements = building({ floors = 15, width = 20, depth = 20, facade = 'fenetres', winW = 2, winH = 2, spacing = 2.5, elevator = true }) })
+check(r == nil and err and err:find('Trop lourd', 1, true), 'ancienne « Tour de bureaux » 15 étages (≈ 9 500 objets) refusée : ' .. tostring(err))
+r, err = Projects.apply(1, pid, { kind = 'add', elements = building({ floors = 40, width = 24, depth = 24, facade = 'mur_rideau', elevator = true }) })
+check(r == nil, 'ancien « Gratte-ciel » 40 étages (≈ 18 000 objets) refusé')
+local presets = {
+    { floors = 2, width = 10, depth = 8, facade = 'fenetres', winW = 1, winH = 1.5, spacing = 3, shutters = true, roof = 'deux_pans' },
+    { floors = 4, width = 12, depth = 10, facade = 'fenetres', winW = 1.5, winH = 1.5, spacing = 3 },
+    { floors = 3, width = 14, depth = 10, facade = 'fenetres', shop = true, elevator = true },
+    { floors = 3, width = 14, depth = 14, facade = 'fenetres', winW = 2, winH = 2, spacing = 2.5, elevator = true },
+    { floors = 5, width = 12, depth = 12, facade = 'mur_rideau', elevator = true },
+    { floors = 1, basements = 1, width = 16, depth = 20, facade = 'plein', elevator = true },
+    { floors = 1, floorHeight = 8, width = 20, depth = 24, facade = 'plein', roof = 'plat' },
+}
+local okAll = true
+for i, o in ipairs(presets) do
+    local pr2 = Projects.create(1, 'P' .. i, { x = 0, y = 0, z = 70 })
+    local res, e = Projects.apply(1, pr2.id, { kind = 'add', elements = building(o) })
+    if not res then okAll = false print('    refusé : préréglage ' .. i .. ' : ' .. tostring(e)) end
+end
+check(okAll, 'les 7 nouveaux immeubles prédéfinis sont acceptés')
+-- Un élément déjà trop gros (créé avant ce correctif) peut toujours être déplacé
+local p2 = Projects.get(pid)
+local big = terrain('ile', 16, 12)
+p2.elements[big.id] = big
+Projects.recount(p2)
+local moved = env.BCompose.deepcopy(big)
+moved.pos.x = moved.pos.x + 5
+r, err = Projects.apply(1, pid, { kind = 'update', elements = { moved } })
+check(r ~= nil, 'ancien élément trop gros : déplacement toujours possible (pas de blocage)' .. (err and (' : ' .. err) or ''))
 return fails

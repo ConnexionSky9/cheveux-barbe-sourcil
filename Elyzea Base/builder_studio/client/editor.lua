@@ -544,7 +544,15 @@ local function dragPreview()
     end
     -- aperçu : on applique le delta aux pièces déjà créées (pas de régénération)
     local pr = project()
-    for _, id in ipairs(d.ids) do
+    if not d.entCount then
+        d.entCount = 0
+        for _, id in ipairs(d.ids) do local st = pr.els[id] if st then for _ in pairs(st.ents) do d.entCount = d.entCount + 1 end end end
+    end
+    -- gros éléments (terrain, immeuble) : aperçu rafraîchi ~16 fois par seconde au lieu de chaque image
+    local now = GetGameTimer()
+    local skip = d.entCount > 300 and now - (d.lastApply or 0) < 60
+    if not skip then d.lastApply = now end
+    for _, id in ipairs(skip and {} or d.ids) do
         local st = pr.els[id]
         if st and st.done and d.mode ~= 'scale' then
             for i, pc in ipairs(st.pieces) do
@@ -1164,6 +1172,7 @@ local function statusLoop()
         nui('status', {
             cam = { x = BMath.round(Ed.camPos.x, 2), y = BMath.round(Ed.camPos.y, 2), z = BMath.round(Ed.camPos.z, 2), h = BMath.round(Ed.camRot.z, 1) },
             entities = R.entityCount,
+            capped = R.isCapped(), maxEntities = R.cfg.MaxEntities, world = R.worldObjects,
             fps = math.floor(1.0 / math.max(GetFrameTime(), 0.001)),
             loaded = pr and (function() local n = 0 for _ in pairs(pr.els) do n = n + 1 end return n end)() or 0,
         })

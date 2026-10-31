@@ -10,7 +10,10 @@
 BRuntime = {
     projects = {},        -- [pid] = { data = projet, els = { [eid] = état } }
     dims = {},            -- dimensions mesurées des modèles
-    cfg = { Radius = 250.0, UnloadMargin = 40.0, SpawnPerFrame = 12, MaxEntities = 6000, LightDistance = 60.0, MaxLights = 48 },
+    cfg = { Radius = 250.0, UnloadMargin = 40.0, SpawnPerFrame = 8, MaxEntities = 1500, MaxWorldObjects = 1800, LightDistance = 60.0, MaxLights = 48 },
+    worldObjects = 0,     -- objets présents dans le monde du joueur (jeu + studio), recompté chaque seconde
+    spawnedSince = 0,     -- créés depuis le dernier comptage
+    capped = 0,           -- dernier moment où la limite d'objets a bloqué une création
     texturesPath = 'textures/custom/',
     duiPage = 'html/tex.html',   -- page qui affiche une image dans une texture (DUI)
     texData = {},                -- [id] = image (data URL) des textures de la bibliothèque
@@ -162,6 +165,12 @@ function R.updateElement(pid, el)
         R.retransform(pid, el, st)
         return
     end
+    -- Forme changée (sculpture, longueur, ouvertures…) : on garde les objets existants
+    -- et on ne crée / supprime que la différence (pas de clignotement, pas de pic d'objets)
+    if st and not el.vehicle and not el.hidden and R.rebuild then
+        R.rebuild(pid, el, st)
+        return
+    end
     R.despawn(pid, el.id)
 end
 
@@ -248,12 +257,23 @@ local function prepare(pid, el)
     return st
 end
 
+-- GTA plante si sa réserve d'objets déborde (« Pool full ») : on ne crée JAMAIS au-delà
+-- de MaxEntities objets du studio ni au-delà de MaxWorldObjects objets dans tout le monde du joueur.
+function R.canSpawn()
+    if R.entityCount >= R.cfg.MaxEntities then return false end
+    if R.worldObjects + R.spawnedSince >= (R.cfg.MaxWorldObjects or 1800) then return false end
+    return true
+end
+function R.isCapped() return GetGameTimer() - (R.capped or 0) < 2000 end
+
 -- Crée au plus « budget » entités pour cet élément ; renvoie le budget restant
 local function spawnStep(pid, el, st, budget)
     while st.next <= #st.pieces and budget > 0 do
         local pc = st.pieces[st.next]
-        if pc.model and pc.kind ~= 'light' then
-            if R.entityCount >= R.cfg.MaxEntities then return 0 end
+        if st.ents[st.next] then
+            st.next = st.next + 1          -- entité réutilisée (R.rebuild) : déjà en place
+        elseif pc.model and pc.kind ~= 'light' then
+            if not R.canSpawn() then R.capped = GetGameTimer() return 0 end
             local h = hashOf(pc.model)
             if not IsModelInCdimage(h) then
                 st.missing = (st.missing or 0) + 1
@@ -285,6 +305,7 @@ local function spawnStep(pid, el, st, budget)
                     st.ents[st.next] = ent
                     R.entityLookup[ent] = { pid = pid, eid = el.id, idx = st.next }
                     R.entityCount = R.entityCount + 1
+                    R.spawnedSince = R.spawnedSince + 1
                     if pc.door then
                         local key = pid .. ':' .. el.id .. ':' .. st.next
                         if R.doorOpen[key] then pc.doorT = 1.0 R.applyDoor(ent, pc, 1.0) end
@@ -303,6 +324,51 @@ local function spawnStep(pid, el, st, budget)
         if R.hooks.onSpawn then R.hooks.onSpawn(pid, el.id, st) end
     end
     return budget
+end
+
+local function deleteEnt(ent)
+    if ent and DoesEntityExist(ent) then
+        R.entityLookup[ent] = nil
+        SetEntityAsMissionEntity(ent, true, true)
+        DeleteObject(ent)
+        R.entityCount = R.entityCount - 1
+    end
+end
+function R.rebuild(pid, el, st)
+    local pr = R.projects[pid]
+    if not pr then return end
+    local nst = prepare(pid, el)
+    local pool = {}
+    for i, ent in pairs(st.ents or {}) do
+        local pc = st.pieces[i]
+        if ent and DoesEntityExist(ent) and pc and pc.model then
+            pool[pc.model] = pool[pc.model] or {}
+            table.insert(pool[pc.model], ent)
+        end
+    end
+    for i, pc in ipairs(nst.pieces) do
+        if pc.model and pc.kind ~= 'light' then
+            local list = pool[pc.model]
+            local ent = list and table.remove(list)
+            if ent then
+                R.setMatrix(ent, pc.matrix, pc.pos, pc.scale)
+                FreezeEntityPosition(ent, not pc.dynamic)
+                if pc.tint then SetObjectTextureVariation(ent, pc.tint) end
+                if pc.alpha and pc.alpha < 255 then SetEntityAlpha(ent, pc.alpha, false) else ResetEntityAlpha(ent) end
+                nst.ents[i] = ent
+                R.entityLookup[ent] = { pid = pid, eid = el.id, idx = i }
+                if pc.door then
+                    local key = pid .. ':' .. el.id .. ':' .. i
+                    if R.doorOpen[key] then pc.doorT = 1.0 R.applyDoor(ent, pc, 1.0) end
+                end
+            end
+        end
+    end
+    for _, list in pairs(pool) do for _, ent in ipairs(list) do deleteEnt(ent) end end
+    pr.els[el.id] = nst
+    if R.hooks.onDespawn then R.hooks.onDespawn(pid, el.id) end
+    queued[pid .. ':' .. el.id] = nil
+    R.queue(pid, el.id)
 end
 
 function R.queue(pid, eid)
@@ -480,12 +546,39 @@ CreateThread(function()
     end
 end)
 
+-- Objets présents dans le monde du joueur (jeu compris) : recompté chaque seconde
+CreateThread(function()
+    while true do
+        local ok, pool = pcall(GetGamePool, 'CObject')
+        if ok and type(pool) == 'table' then R.worldObjects = #pool R.spawnedSince = 0 end
+        Wait(1000)
+    end
+end)
+
+-- File triée : ce qui est près de la caméra apparaît d'abord (2 fois par seconde)
+local lastSort = 0
+local function sortQueue()
+    if #queue < 2 or GetGameTimer() - lastSort < 500 then return end
+    lastSort = GetGameTimer()
+    local ref = refPoint()
+    local dist = {}
+    for _, q in ipairs(queue) do
+        local pr = R.projects[q.pid]
+        local el = pr and pr.data.elements[q.eid]
+        dist[q] = el and el.pos and BMath.dist(ref, el.pos) or 1e9
+    end
+    table.sort(queue, function(a, b) return dist[a] < dist[b] end)
+end
+
 -- Création progressive (chaque image)
 CreateThread(function()
     while true do
         if #queue == 0 then
             Wait(100)
+        elseif R.isCapped() and not R.canSpawn() then
+            Wait(250)      -- limite d'objets atteinte : on attend qu'il y ait de la place
         else
+            sortQueue()
             local budget = R.cfg.SpawnPerFrame
             while budget > 0 and #queue > 0 do
                 local q = queue[1]

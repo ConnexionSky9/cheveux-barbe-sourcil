@@ -114,7 +114,8 @@ const handlers = {
     undoState(d) { S.undo = d.undo; S.redo = d.redo; $('#stUndo').textContent = `Annuler : ${d.undo} · Rétablir : ${d.redo}`; },
     status(d) {
         if (d.cam) $('#stCam').textContent = `Caméra ${d.cam.x}, ${d.cam.y}, ${d.cam.z} · cap ${d.cam.h}°`;
-        $('#stEnt').textContent = `${d.entities} entités · ${d.loaded} éléments chargés`;
+        $('#stEnt').textContent = `${d.entities} entités · ${d.loaded} éléments chargés${d.capped ? ' · ⚠ limite d\'objets atteinte : le plus loin n\'est pas affiché' : ''}`;
+        $('#stEnt').style.color = d.capped ? 'var(--err)' : '';
         $('#stFps').textContent = `${d.fps} i/s`;
     },
     tool(d) {

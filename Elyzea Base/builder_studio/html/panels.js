@@ -68,14 +68,16 @@ const LIGHT_TOOLS = [
     ['neon', 'Néon', { length: 2, color: { r: 255, g: 60, b: 200 }, range: 4, intensity: 6 }],
     ['led', 'Bande LED', { length: 3, color: { r: 80, g: 160, b: 255 }, range: 3, intensity: 4 }], ['lampe', 'Lampe', { range: 4, intensity: 2 }],
 ];
+// Préréglages calibrés pour rester affichables en entier par GTA (objets placés : ~1 500 visibles au plus).
+// Plus haut : sélectionne un étage › « Dupliquer l'étage » (l'estimation s'affiche sur chaque carte).
 const BUILDING_PRESETS = [
     { t: 'Maison', s: '2 niveaux, toit 2 pans', o: { floors: 2, width: 10, depth: 8, facade: 'fenetres', winW: 1, winH: 1.5, spacing: 3, shutters: true, roof: 'deux_pans' } },
     { t: 'Petit immeuble', s: '4 étages, fenêtres', o: { floors: 4, width: 12, depth: 10, facade: 'fenetres', winW: 1.5, winH: 1.5, spacing: 3 } },
-    { t: 'Commerce + logements', s: 'RDC vitrines', o: { floors: 5, width: 16, depth: 12, facade: 'fenetres', shop: true, elevator: true } },
-    { t: 'Tour de bureaux', s: '15 étages, ascenseur', o: { floors: 15, width: 20, depth: 20, facade: 'fenetres', winW: 2, winH: 2, spacing: 2.5, elevator: true, glass: 'verre_teinte' } },
-    { t: 'Gratte-ciel vitré', s: '40 étages, mur rideau', o: { floors: 40, width: 24, depth: 24, facade: 'mur_rideau', elevator: true, glass: 'verre_teinte' } },
-    { t: 'Parking souterrain', s: '2 sous-sols', o: { floors: 1, basements: 2, width: 24, depth: 30, facade: 'plein', elevator: true } },
-    { t: 'Entrepôt', s: 'Grand volume', o: { floors: 1, floorHeight: 8, width: 30, depth: 40, facade: 'plein', roof: 'plat' } },
+    { t: 'Commerce + logements', s: 'RDC vitrines, 3 niveaux', o: { floors: 3, width: 14, depth: 10, facade: 'fenetres', shop: true, elevator: true } },
+    { t: 'Immeuble de bureaux', s: '3 étages, ascenseur', o: { floors: 3, width: 14, depth: 14, facade: 'fenetres', winW: 2, winH: 2, spacing: 2.5, elevator: true, glass: 'verre_teinte' } },
+    { t: 'Immeuble vitré', s: '5 étages, mur rideau', o: { floors: 5, width: 12, depth: 12, facade: 'mur_rideau', elevator: true, glass: 'verre_teinte' } },
+    { t: 'Parking souterrain', s: '1 sous-sol', o: { floors: 1, basements: 1, width: 16, depth: 20, facade: 'plein', elevator: true } },
+    { t: 'Entrepôt', s: 'Grand volume', o: { floors: 1, floorHeight: 8, width: 20, depth: 24, facade: 'plein', roof: 'plat' } },
 ];
 
 let activeCard = null;
@@ -91,7 +93,7 @@ function startTool(card, t) {
 // ---------------------------------------------------------
 //  Palettes (panneau du bas)
 // ---------------------------------------------------------
-const P = { cat: 'all', q: '', filter: 'all', room: { width: 5, depth: 4, height: 3, doorKind: 'porte' }, terrain: { cols: 16, rows: 16, cell: 4, amplitude: 12, seed: 7, base: 0 }, veg: { radius: 25, count: 40, gap: 3, models: ['prop_tree_pine_01', 'prop_tree_pine_02', 'prop_bush_lrg_04b'] }, building: { floorHeight: 3, roof: 'plat' } };
+const P = { cat: 'all', q: '', filter: 'all', room: { width: 5, depth: 4, height: 3, doorKind: 'porte' }, terrain: { cols: 12, rows: 12, cell: 4, amplitude: 10, seed: 7, base: 0 }, veg: { radius: 25, count: 40, gap: 3, models: ['prop_tree_pine_01', 'prop_tree_pine_02', 'prop_bush_lrg_04b'] }, building: { floorHeight: 3, roof: 'plat' } };
 
 function kitSide() {
     const kits = S.init?.kits || [];
@@ -111,6 +113,14 @@ function bindKitSide(root) {
     if (m) m.onchange = () => { S.newMat = m.value; };
 }
 
+// Estimation affichée sur une carte : nombre d'objets que GTA devra créer
+function markCard(card, n, heavy) {
+    let tag = card.querySelector('.est');
+    if (!tag) { tag = document.createElement('div'); tag.className = 'est'; card.appendChild(tag); }
+    tag.textContent = heavy ? `≈ ${n} objets · trop lourd` : `≈ ${n} objets`;
+    card.classList.toggle('heavy', !!heavy);
+    card.title = heavy ? 'Trop d\'objets pour GTA : réduis la taille.' : '';
+}
 function cardsHtml(list, attr) {
     return `<div class="cards">${list.map((c, i) => `<div class="card" data-${attr}="${i}"><div class="t">${esc(c.t)}</div><div class="s">${esc(c.s || '')}</div></div>`).join('')}</div>`;
 }
@@ -160,7 +170,7 @@ Panels.renderPalette = () => {
             <label>Amplitude</label><input type="number" data-ter="amplitude" value="${t.amplitude}">
             <label>Graine</label><input type="number" data-ter="seed" value="${t.seed}">
             <label>Niveau de base</label><input type="number" data-ter="base" value="${t.base}"></div>
-            <div class="hint">${t.cols * t.rows} cases · ${t.cols * t.cell} × ${t.rows * t.cell} m</div></div>
+            <div class="hint">${t.cols * t.rows} cases · ${t.cols * t.cell} × ${t.rows * t.cell} m · le nombre d'objets s'affiche sur chaque relief (GTA en supporte ~1 500 à la fois)</div></div>
             <div class="palMain"><h5>Reliefs (dalles + talus, collisions réelles, kit architectural)</h5>
             <div class="cards">${Object.entries(S.init.terrains || {}).map(([k, l]) => `<div class="card" data-ter-preset="${k}"><div class="t">${esc(l)}</div><div class="s">${t.cols}×${t.rows}</div></div>`).join('')}</div>
             <h5>Végétation / forêt (posée sur le vrai sol)</h5>
@@ -171,8 +181,15 @@ Panels.renderPalette = () => {
         $$('[data-ter]', root).forEach((i) => i.onchange = () => { P.terrain[i.dataset.ter] = +i.value; Panels.renderPalette(); });
         $$('[data-veg]', root).forEach((i) => i.onchange = () => { P.veg[i.dataset.veg] = +i.value; });
         $$('[data-vm]', root).forEach((b) => b.onclick = () => { const m = b.dataset.vm; v.models = v.models.includes(m) ? v.models.filter((x) => x !== m) : [...v.models, m]; b.classList.toggle('active'); });
+        const terKit = (S.kitStatus && S.kitStatus.ubk && S.kitStatus.ubk.present > 0) ? 'ubk' : S.newKit;
+        const terMat = terKit === S.newKit ? S.newMat : undefined;
+        post('estimate', { kind: 'terrain', presets: Object.keys(S.init.terrains || {}), cols: t.cols, rows: t.rows, cell: t.cell, amplitude: t.amplitude, seed: t.seed, base: t.base, kit: terKit, mat: terMat }).then((r) => {
+            if (!r || !r.pieces) return;
+            Object.entries(r.pieces).forEach(([k, n]) => { const card = $(`[data-ter-preset="${k}"]`, root); if (card) markCard(card, n, n > r.max.element); });
+        });
         $$('[data-ter-preset]', root).forEach((c) => c.onclick = () => {
-            post('terrainHeights', { kind: c.dataset.terPreset, cols: t.cols, rows: t.rows, amplitude: t.amplitude, seed: t.seed }).then((r) => {
+            post('terrainHeights', { kind: c.dataset.terPreset, cols: t.cols, rows: t.rows, cell: t.cell, base: t.base, amplitude: t.amplitude, seed: t.seed, kit: terKit, mat: terMat }).then((r) => {
+                if (r.pieces > r.max) return toast(`Ce terrain ferait ≈ ${r.pieces} objets (maximum ${r.max}) : réduis colonnes / rangées ou l'amplitude.`, 'error');
                 startTool(c, { kind: 'element', label: 'Terrain : ' + c.querySelector('.t').textContent, template: { type: 'terrain', kit: (S.kitStatus && S.kitStatus.ubk && S.kitStatus.ubk.present > 0) ? 'ubk' : S.newKit, name: 'Terrain ' + c.querySelector('.t').textContent, params: { cols: t.cols, rows: t.rows, cell: t.cell, base: t.base, heights: r.heights || [] } } });
             });
         });
@@ -196,9 +213,23 @@ Panels.renderPalette = () => {
             const k = c.dataset.road;
             startTool(c, { kind: 'path', label: c.querySelector('.t').textContent, template: tpl('road', { kind: k, width: k === 'quai' ? 6 : 8, rail: k !== 'route', lift: k === 'pont' ? 0 : 0.05, pillarEvery: k === 'quai' ? 6 : 15, pillarDepth: k === 'quai' ? 4 : 12, tunnelHeight: 6 }, { mat: S.newKit === 'ubk' ? (k === 'quai' ? 'bois' : 'asphalte') : S.newMat, name: c.querySelector('.t').textContent }) });
         });
+        const bOpts = (pr) => Object.assign({ kit: S.newKit, mat: S.newMat, name: pr.t, floorHeight: P.building.floorHeight, roof: P.building.roof }, pr.o, pr.o.roof ? { roof: pr.o.roof } : {});
+        const est = {};
         $$('[data-bp]', root).forEach((c) => c.onclick = () => {
             const pr = BUILDING_PRESETS[+c.dataset.bp];
-            startTool(c, { kind: 'building', label: pr.t, opts: Object.assign({ kit: S.newKit, mat: S.newMat, name: pr.t, floorHeight: P.building.floorHeight, roof: P.building.roof }, pr.o, pr.o.roof ? { roof: pr.o.roof } : {}) });
+            const e = est[c.dataset.bp];
+            if (e && e.tooHeavy) return toast(e.why, 'error');
+            startTool(c, { kind: 'building', label: pr.t, opts: bOpts(pr) });
+        });
+        post('estimate', { kind: 'building', list: BUILDING_PRESETS.map(bOpts) }).then((r) => {
+            if (!r || !r.list) return;
+            r.list.forEach((x, i) => {
+                const card = $(`[data-bp="${i}"]`, root);
+                if (!card || !x) return;
+                const heavy = x.pieces > r.max.op || x.biggest > r.max.element;
+                est[i] = { tooHeavy: heavy, why: `Trop lourd pour GTA : ≈ ${x.pieces} objets (maximum ${r.max.op} en une fois).` };
+                markCard(card, x.pieces, heavy);
+            });
         });
     }
 };

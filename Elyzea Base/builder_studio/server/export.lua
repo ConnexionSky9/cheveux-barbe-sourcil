@@ -255,6 +255,7 @@ function Export.build(p, opts)
         ('    UnloadMargin = %.1f,'):format(Config.Stream.unloadMargin),
         ('    SpawnPerFrame = %d,'):format(Config.Stream.spawnPerFrame),
         ('    MaxEntities = %d,'):format(Config.Stream.maxEntities),
+        ('    MaxWorldObjects = %d,   -- GTA plante si sa réserve d\'objets déborde : jamais au-delà'):format(Config.Stream.maxWorldObjects),
         ('    LightDistance = %.1f,'):format(Config.Stream.lightDistance),
         ('    MaxLights = %d,'):format(Config.Stream.maxLights),
         '}',

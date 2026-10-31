@@ -174,3 +174,7 @@ pre.files { background: var(--bg0); padding: 8px; border-radius: var(--r); max-h
 .texRow { display: grid; grid-template-columns: minmax(0, 1fr) 34px auto; gap: 4px; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 .texRow [data-t="target"] { grid-column: 1 / -1; }
 .texRow select { min-width: 0; width: 100%; }
+/* Estimation du nombre d'objets sur les cartes */
+.card .est { font-size: 10px; color: var(--tx2); margin-top: 2px; }
+.card.heavy { opacity: .55; border-color: var(--err); }
+.card.heavy .est { color: var(--err); }
