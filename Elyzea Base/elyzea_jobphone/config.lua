@@ -18,6 +18,7 @@ Config.Jobs = {
     { res = 'elyzea_concess', bag = 'concess', label = 'Concession', prefix = '915', color = '#a855f7' },
     { res = 'elyzea_presse',  bag = 'presse',  label = 'Presse',    prefix = '916', color = '#e11d48' },
     { res = 'elyzea_club',    bag = 'club',    label = 'Boîte de nuit', prefix = '917', color = '#d946ef' },
+    { res = 'elyzea_restaurant', bag = 'resto', label = 'Restaurant', prefix = '918', color = '#f97316' },
 }
 
 -- Alertes (mêmes niveaux que la police et l'EMS ; pour les autres métiers,

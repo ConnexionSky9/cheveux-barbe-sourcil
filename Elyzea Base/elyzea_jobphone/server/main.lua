@@ -415,10 +415,17 @@ function A.rdv(src, me, d)
     return r or { error = 'Les rendez-vous ne répondent pas.' }
 end
 
+-- Commande (restaurants) : commandes des clients, prise en charge, remise du sac
+function A.cmd(src, me, d)
+    if me.res ~= 'elyzea_restaurant' then return { error = 'Application réservée aux restaurants.' } end
+    local r = Bridge(me.res, 'cmd', src, { op = tostring(d.op or ''), data = type(d.data) == 'table' and d.data or {} })
+    return r or { error = 'Les commandes ne répondent pas.' }
+end
+
 -- Applications : nil = toujours, true = en service
 local NEED_DUTY = { home = false, duty = false, directory = true, threads = true, messages = true, send = true, call = true,
     answer = true, hangup = false, map = true, alerts = true, alert = true, alertClose = true, tablet = true, menu = true,
-    annonce = true, planning = true, rdv = true }
+    annonce = true, planning = true, rdv = true, cmd = true }
 
 local rate = {}
 Ely.callback.register('jobphone:req', function(src, action, data)

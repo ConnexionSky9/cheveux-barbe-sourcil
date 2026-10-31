@@ -63,6 +63,7 @@
     { id: 'annonce', icon: '📣', label: 'Annonce' },
     { id: 'planning', icon: '🗓️', label: 'Planning', res: 'elyzea_presse' },   // journalistes seulement
     { id: 'rdv', icon: '📅', label: 'Rendez-vous', res: 'elyzea_ems' },          // EMS seulement
+    { id: 'cmd', icon: '🧾', label: 'Commande', res: 'elyzea_restaurant' },     // restaurants seulement
   ];
 
   async function loadHome() {
@@ -591,6 +592,58 @@
   };
 
   // ------------------------------------------------------------------
+  // Commande (restaurants) : commandes des clients du restaurant de l'employé.
+  // En attente → « Prendre en charge » (un seul employé) → stations → sac → remise.
+  // ------------------------------------------------------------------
+  const CMD = { tab: 'pending' };
+  VIEWS.cmd = async () => {
+    screen.innerHTML = `${header('Commande')}<div class="body" id="cmd"><div class="empty">Chargement…</div></div>`;
+    wire();
+    const load = async () => {
+      if (S.view !== 'cmd') return;
+      const r = await req('cmd', { op: 'list' });
+      const box = $('#cmd'); if (!box || S.view !== 'cmd') return;
+      if (r.error) { box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+      const can = r.can || {};
+      const lines = (o) => o.lines.map((l) => `${l.qty} × ${esc(l.label)}${o.status !== 'pending' ? ` <span class="${l.done >= l.qty ? 'life-ok' : ''}">(${l.done}/${l.qty})</span>` : ''}`).join('<br>');
+      const item = (o, kind) => `<div class="row" style="align-items:flex-start"><div class="tx">
+          <div class="t1">Commande ${esc(o.num)} · ${esc(o.statusLabel)}</div>
+          <div class="t2 wrap">${lines(o)}</div>
+          <div class="t2 meta">${hhmm(o.t)} · ${esc(o.customer || '')} · ${o.units} produit(s)${o.employee && kind !== 'mine' ? ` · ${esc(o.employee)}` : ''}${o.status === 'preparing' ? ` · ${o.done}/${o.units} prêt(s)` : ''}</div>
+          ${o.bagMissing ? '<div class="t2 meta">⚠️ Sac non reçu (inventaire plein)</div>' : ''}
+          <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem">
+          ${kind === 'pending' && can.take ? `<button style="width:auto;padding:7px 10px" class="btn small" data-take="${o.id}">Prendre en charge</button>` : ''}
+          ${kind === 'mine' && o.status === 'ready' && o.bagMissing ? `<button style="width:auto;padding:7px 10px" class="btn small" data-bag="${o.id}">Prendre le sac</button>` : ''}
+          ${o.status === 'ready' && can.deliver ? `<button style="width:auto;padding:7px 10px" class="btn small" data-del="${o.id}">Remettre au client</button>` : ''}
+          ${kind === 'mine' && o.status === 'preparing' ? `<button style="width:auto;padding:7px 10px" class="btn small off" data-rel="${o.id}">Rendre</button>` : ''}
+          </div></div></div>`;
+      const sec = (t, l, kind, none) => `<div class="section">${t} (${l.length})</div>${l.length ? l.map((o) => item(o, kind)).join('') : `<div class="empty small">${none}</div>`}`;
+      const tabs = [['pending', `En attente (${r.pending.length})`], ['mine', `Mes commandes (${r.mine.length})`], ['history', 'Historique']];
+      let html = `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.4rem">${tabs.map(([k, l]) => `<button style="width:auto;padding:7px 10px" class="btn small ${CMD.tab === k ? '' : 'off'}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+      if (CMD.tab === 'pending') html += sec('Commandes en attente', r.pending, 'pending', 'Aucune commande en attente.');
+      else if (CMD.tab === 'mine') {
+        html += sec('Mes commandes', r.mine, 'mine', 'Aucune commande à votre nom.')
+          + `<div class="t2 meta" style="padding:.3rem">Préparez chaque produit à sa station de cuisine (E), puis remettez le sac au client.</div>`
+          + (r.others.length ? sec('Prises par des collègues', r.others, 'others', '') : '');
+      } else {
+        html += `<div class="section">Historique (${r.history.length})</div>` + (r.history.map((h) => `<div class="row"><div class="tx"><div class="t1">${esc(h.num)} · ${esc(h.statusLabel)}</div>
+          <div class="t2 wrap">${h.lines.map((l) => `${l.qty} × ${esc(l.label)}`).join(', ')}</div><div class="t2 meta">${esc(h.customer_name || '')}${h.employee_name ? ` · ${esc(h.employee_name)}` : ''}</div></div></div>`).join('')
+          || '<div class="empty small">Aucune commande terminée.</div>');
+      }
+      box.innerHTML = html;
+      const on = (sel, fn) => box.querySelectorAll(sel).forEach((b) => (b.onclick = async () => { b.disabled = true; await fn(b); load(); }));
+      box.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { CMD.tab = b.dataset.tab; load(); }));
+      on('[data-take]', async (b) => { const x = await req('cmd', { op: 'take', data: { id: Number(b.dataset.take) } }); result(x); if (x.ok) CMD.tab = 'mine'; });
+      on('[data-bag]', async (b) => result(await req('cmd', { op: 'bag', data: { id: Number(b.dataset.bag) } })));
+      on('[data-del]', async (b) => result(await req('cmd', { op: 'deliver', data: { id: Number(b.dataset.del) } })));
+      on('[data-rel]', async (b) => result(await req('cmd', { op: 'release', data: { id: Number(b.dataset.rel) } })));
+    };
+    S.reloadCmd = load;
+    load();
+    S.timers.push(setInterval(load, 10000));
+  };
+
+  // ------------------------------------------------------------------
   // Saisie : le clavier passe au téléphone uniquement pendant l'écriture
   // ------------------------------------------------------------------
   function typingWire() {
@@ -632,6 +685,7 @@
       else if (d.what === 'alerts' && S.view === 'alerts' && S.reloadAlerts) S.reloadAlerts();
       else if (d.what === 'planning' && S.view === 'planning' && S.reloadPlanning) S.reloadPlanning();
       else if (d.what === 'rdv' && S.view === 'rdv' && S.reloadRdv) S.reloadRdv();
+      else if (d.what === 'cmd' && S.view === 'cmd' && S.reloadCmd) S.reloadCmd();
     } else if (d.action === 'message') {
       if (S.home) S.home.unread = (S.home.unread || 0) + 1;
       if (!S.open) return;

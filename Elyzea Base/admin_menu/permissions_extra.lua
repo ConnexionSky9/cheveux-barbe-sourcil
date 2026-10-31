@@ -25,6 +25,14 @@ local EXTRA = {
     { key = 'club_toggle',   label = 'Boîtes de nuit : activer / désactiver une boîte', cat = 'Métiers' },
     { key = 'club_delete',   label = 'Boîtes de nuit : supprimer une boîte', cat = 'Métiers' },
     { key = 'club_music',    label = 'Boîtes de nuit : retirer une enceinte, couper la musique', cat = 'Métiers' },
+    { key = 'resto_manage',  label = 'Restaurants : TOUT (toutes les cases « Restaurants » ci-dessous) (elyzea_restaurant)', cat = 'Métiers' },
+    { key = 'resto_view',    label = 'Restaurants : voir les restaurants (panneau staff en lecture, aller aux points)', cat = 'Métiers' },
+    { key = 'resto_edit',    label = 'Restaurants : créer un restaurant, modifier ses réglages (nom, logo, métier, compte, icône)', cat = 'Métiers' },
+    { key = 'resto_points',  label = 'Restaurants : placer / retirer le point de commande, le coffre, le bureau et les stations de cuisine', cat = 'Métiers' },
+    { key = 'resto_boss',    label = 'Restaurants : nommer le patron d\'un restaurant', cat = 'Métiers' },
+    { key = 'resto_toggle',  label = 'Restaurants : activer / désactiver un restaurant', cat = 'Métiers' },
+    { key = 'resto_delete',  label = 'Restaurants : supprimer un restaurant', cat = 'Métiers' },
+    { key = 'resto_orders',  label = 'Restaurants : voir les commandes en cours, annuler et rembourser', cat = 'Métiers' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

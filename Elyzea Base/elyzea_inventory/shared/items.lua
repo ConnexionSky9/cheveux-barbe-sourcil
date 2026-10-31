@@ -413,6 +413,12 @@ Items.presse_bloc = { label = 'Bloc-notes de reportage', weight = 150, stack = f
 Items.presse_carte = { label = 'Carte de presse', weight = 10, stack = false, close = true, icon = '🪪',
     description = 'Carte nominative délivrée par la direction. Utiliser : la montrer aux personnes proches (validité vérifiée).' }
 
+-- ───────── Restaurants (ressource elyzea_restaurant) ─────────
+-- Sac d'une commande : unique (numéro de sac dans les métadonnées), contenu gardé par le serveur.
+-- Utiliser : ouvrir le sac et récupérer les produits (seulement une fois remis au client).
+Items.restaurant_bag = { label = 'Sac de commande', weight = 400, stack = false, close = true, image = 'paperbag.png', icon = '🛍️',
+    description = 'Sac d\'une commande de restaurant. Utiliser : l\'ouvrir et récupérer les produits.' }
+
 -- Objets ignorés (l'argent liquide est un compte de la base Elyzea, pas un objet)
 IgnoredItems = { money = true, testburger = true }
 

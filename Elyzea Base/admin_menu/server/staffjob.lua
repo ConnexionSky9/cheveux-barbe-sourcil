@@ -34,16 +34,32 @@ local function clubJobs()
     end
     return out
 end
+-- Restaurants (elyzea_restaurant) : même principe, clé « resto_<id> »
+local RESTO_RES = 'elyzea_restaurant'
+local function restoJobs()
+    local out = {}
+    if GetResourceState(RESTO_RES) ~= 'started' then return out end
+    local ok, list = pcall(function() return exports[RESTO_RES]:GetRestaurants() end)
+    if not ok or type(list) ~= 'table' then return out end
+    table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    for _, c in ipairs(list) do
+        out[#out + 1] = { key = 'resto_' .. tostring(c.id), res = RESTO_RES, job = c.job, shop = c.id,
+            label = '🍽️ ' .. tostring(c.name) .. (c.enabled == false and ' (désactivé)' or '') }
+    end
+    return out
+end
 -- Tous les métiers, dans l'ordre d'affichage : { key, J }
 local function allJobs()
     local out = {}
     for _, k in ipairs(ORDER) do out[#out + 1] = { key = k, J = JOBS[k] } end
     for _, J in ipairs(clubJobs()) do out[#out + 1] = { key = J.key, J = J } end
+    for _, J in ipairs(restoJobs()) do out[#out + 1] = { key = J.key, J = J } end
     return out
 end
 local function jobByKey(key)
     if JOBS[key] then return JOBS[key] end
     for _, J in ipairs(clubJobs()) do if J.key == key then return J end end
+    for _, J in ipairs(restoJobs()) do if J.key == key then return J end end
 end
 
 local function available(J) return J ~= nil and GetResourceState(J.res) == 'started' end
@@ -162,7 +178,9 @@ table.insert(AM.DataHooks, function(src, data)
     local jobs = {}
     local list = allJobs()
     local clubState = GetResourceState(CLUB_RES)
-    if clubState ~= 'missing' and clubState ~= 'unknown' and not list[#list].J.shop then
+    local hasClub = false
+    for _, e in ipairs(list) do if e.J.res == CLUB_RES and e.J.shop then hasClub = true end end
+    if clubState ~= 'missing' and clubState ~= 'unknown' and not hasClub then
         -- Ressource des boîtes arrêtée, ou aucune boîte créée : une entrée qui l'explique
         list[#list + 1] = { key = 'club', J = { res = CLUB_RES, label = '🪩 Boîtes de nuit' }, none = clubState == 'started' }
     end
