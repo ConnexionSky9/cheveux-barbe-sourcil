@@ -327,7 +327,7 @@ body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none;
 /* =====================================================================
    ATELIER FUTURISTE (verre sombre, filets lumineux cyan / ambre)
    ===================================================================== */
-:root { --cyan: #38bdf8; --cyan-soft: rgba(56, 189, 248, .14); --glass: rgba(8, 14, 26, .88); --glow: 0 0 0 1px rgba(56, 189, 248, .35), 0 0 22px rgba(56, 189, 248, .18); }
+:root { --cyan: #38bdf8; --cyan-soft: rgba(56, 189, 248, .14); --glass: rgba(8, 14, 26, .92); --glow: 0 0 0 1px rgba(56, 189, 248, .35), 0 0 22px rgba(56, 189, 248, .18); }
 .ico { width: 1.15rem; height: 1.15rem; flex: none; }
 .ico.s { width: .95rem; height: .95rem; }
 .ico.xl { width: 3rem; height: 3rem; opacity: .5; }
@@ -339,7 +339,7 @@ body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none;
 .pill.cyan { color: var(--cyan); border-color: rgba(56, 189, 248, .4); background: var(--cyan-soft); }
 
 #workshop { position: fixed; right: 1.2rem; top: 50%; transform: translateY(-50%); width: min(50rem, 62vw); height: min(54rem, 92vh); z-index: 30;
-  display: flex; flex-direction: column; overflow: hidden; border-radius: 1.1rem; background: var(--glass); backdrop-filter: blur(14px);
+  display: flex; flex-direction: column; overflow: hidden; border-radius: 1.1rem; background: var(--glass);
   border: 1px solid rgba(56, 189, 248, .22); box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .05); animation: wsIn .28s cubic-bezier(.2, .8, .2, 1); }
 #workshop::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), var(--accent), transparent); opacity: .8; }
 @keyframes wsIn { from { opacity: 0; transform: translate(1.5rem, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
@@ -463,7 +463,7 @@ body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none;
 .q-items .bill-line em { font-style: normal; color: var(--cyan); }
 
 /* ---------- Installation en cours (sans curseur) ---------- */
-#install { position: fixed; left: 1.2rem; top: 22vh; width: 21rem; z-index: 25; padding: .85rem .9rem; border-radius: 1rem; background: var(--glass); backdrop-filter: blur(10px);
+#install { position: fixed; left: 1.2rem; top: 22vh; width: 21rem; z-index: 25; padding: .85rem .9rem; border-radius: 1rem; background: var(--glass);
   border: 1px solid rgba(56, 189, 248, .25); box-shadow: var(--shadow); animation: fade .25s; }
 .in-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .55rem; }
 .in-head .eyebrow { color: var(--cyan); }
@@ -482,7 +482,7 @@ body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none;
 
 /* ---------- Mini-jeux ---------- */
 #minigame { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(3, 7, 15, .35), rgba(3, 7, 15, .7)); }
-.mg-card { width: min(38rem, 92vw); border-radius: 1.1rem; background: var(--glass); backdrop-filter: blur(14px); border: 1px solid rgba(56, 189, 248, .3);
+.mg-card { width: min(38rem, 92vw); border-radius: 1.1rem; background: var(--glass); border: 1px solid rgba(56, 189, 248, .3);
   box-shadow: var(--shadow), 0 0 40px rgba(56, 189, 248, .12); overflow: hidden; animation: mgIn .22s cubic-bezier(.2, .8, .2, 1); }
 .mg-card.win { border-color: var(--green); box-shadow: var(--shadow), 0 0 50px rgba(34, 197, 94, .35); }
 @keyframes mgIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
@@ -554,7 +554,7 @@ body.cam-drag, body.cam-drag * { cursor: grabbing !important; user-select: none;
   border-radius: .9rem; background: var(--glass); border: 1px solid rgba(34, 197, 94, .4); box-shadow: var(--shadow), 0 0 26px rgba(34, 197, 94, .15); animation: fade .3s; }
 #handover .ico { width: 1.8rem; height: 1.8rem; color: var(--green); }
 #handover small { display: block; font-size: .76rem; color: var(--muted); margin-top: .15rem; }
-#watch { position: fixed; right: 1.2rem; top: 18vh; width: 19rem; z-index: 25; padding: .85rem .95rem; border-radius: 1rem; background: var(--glass); backdrop-filter: blur(10px);
+#watch { position: fixed; right: 1.2rem; top: 18vh; width: 19rem; z-index: 25; padding: .85rem .95rem; border-radius: 1rem; background: var(--glass);
   border: 1px solid rgba(56, 189, 248, .25); box-shadow: var(--shadow); animation: fade .3s; display: flex; flex-direction: column; gap: .4rem; font-size: .85rem; }
 #watch .eyebrow { display: flex; align-items: center; gap: .35rem; color: var(--cyan); }
 #watch b.ok { color: var(--green); } #watch b.warn { color: var(--orange); }
