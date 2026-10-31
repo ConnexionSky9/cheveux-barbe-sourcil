@@ -181,268 +181,7 @@ function showNotif(m) {
   setTimeout(() => { if (notifEls.get(k) === el) removeNotif(m.kind, a.id); }, life);
 }
 
-/* =====================================================================
-   Atelier : catalogue, aperçu, devis, installation
-   ===================================================================== */
-const W = { d: null, cat: null, item: null, sub: null, opts: null, cur: null, cart: [], customer: null, quote: null, busy: false, result: null };
-const PERF_LABEL = { engine: 'Moteur', brakes: 'Freins', transmission: 'Transmission', suspension: 'Suspension', armor: 'Blindage', turbo: 'Turbo' };
-const slotOf = (spec, item) => {
-  if (item.kind === 'perf') return `perf:${item.mod}`;
-  if (item.kind === 'carplay') return 'carplay';
-  if (item.kind === 'service' || item.kind === 'custom') return `svc:${item.code}`;
-  if (!spec) return `cos:${item.mod}`;
-  if (spec.t === 'mod') return `cos:mod${spec.id}`;
-  if (spec.t === 'paint') return `cos:paint${spec.slot}`;
-  if (spec.t === 'extra') return `cos:extra${spec.id}`;
-  return `cos:${spec.t}`;
-};
-const curPerf = (mod) => Math.max(Number((W.d.live || {})[mod] || 0), Number((W.d.data.savedPerf || {})[mod] || 0));
-const cartTotal = () => W.cart.reduce((s, l) => s + l.price * (l.qty || 1), 0);
-
-function wsCats() {
-  const cats = [];
-  const items = W.d.data.items;
-  (W.d.data.ws.categories || []).forEach((c) => {
-    const list = items.filter((i) => i.category === c);
-    if (list.length) cats.push({ id: c, label: (W.d.data.categories || {})[c] || c, n: W.cart.filter((l) => l.category === c).length });
-  });
-  return cats;
-}
-
-function wsRender() {
-  const d = W.d, data = d.data;
-  const q = W.quote;
-  let main = '';
-  if (q) {
-    main = `<h2 style="margin-bottom:.4rem">Devis ${esc(q.uid)}</h2><p class="lead">${esc(QST[q.status] || q.status)} · total ${money(q.total)}${q.customer ? ` · client : ${esc(q.customer)}` : ''}</p>
-      <div class="q-items">${q.items.map((l) => `<div class="bill-line"><span>${esc(l.label)}${l.qty > 1 ? ` ×${l.qty}` : ''}</span><b>${money(l.total)}</b></div>`).join('')}</div>
-      ${q.status === 'pending' ? '<p class="faint">Le client doit accepter le devis sur son écran. Le paiement est prélevé à l\'acceptation.</p>' : ''}
-      ${q.status === 'accepted' ? '<p class="lead" style="color:var(--green)">Payé par le client. Installez maintenant : seules les lignes réellement posées seront facturées, le reste est remboursé.</p>' : ''}
-      ${W.result ? `<div class="note">${esc(W.result)}</div>` : ''}
-      <div class="actions" style="justify-content:flex-start">${q.status === 'accepted' && data.canInstall !== false ? `<button class="btn primary" data-ws="install">🔧 Installer le devis</button>` : ''}
-        ${q.status === 'pending' || q.status === 'accepted' ? '<button class="btn danger" data-ws="cancelQuote">Annuler le devis</button>' : ''}
-        ${!['pending', 'accepted'].includes(q.status) ? '<button class="btn" data-ws="newQuote">Nouveau devis</button>' : ''}</div>`;
-  } else if (!W.cat) {
-    main = '<div class="empty">Choisissez une rubrique à gauche : chaque option s\'affiche tout de suite sur le véhicule et s\'ajoute au devis (re-cliquez pour la retirer). Rien n\'est facturé tant que le client n\'a pas payé, et tout ce qui n\'est pas payé et installé est retiré en quittant l\'atelier.</div>';
-  } else {
-    const list = data.items.filter((i) => i.category === W.cat);
-    if (W.cat === 'perf') {
-      const mods = [...new Set(list.map((i) => i.mod))];
-      main = `<h2 style="margin-bottom:.6rem">Performances</h2>` + mods.map((m) => {
-        const cur = curPerf(m), max = (d.maxLv || {})[m] || 0;
-        const inCart = W.cart.find((l) => l.slot === `perf:${m}`);
-        const lv = list.filter((i) => i.mod === m).sort((a, b) => a.level - b.level);
-        return `<div class="lvl-row"><div class="name">${esc(PERF_LABEL[m] || m)}<div class="now">Actuel : ${m === 'turbo' ? (cur ? 'installé' : 'aucun') : `niveau ${cur}`} · ${max ? `${max} niveau(x) possible(s)` : 'non compatible'}</div></div>
-          <div class="steps">${lv.map((i) => { const bad = i.locked || i.level <= cur || i.level > max;
-            return `<button class="opt ${inCart && inCart.code === i.code ? 'on' : ''}" data-perf="${esc(i.code)}" ${bad ? 'disabled' : ''} title="${esc(i.reason || '')}">${esc(m === 'turbo' ? 'Turbo' : `Niv. ${i.level}`)}<small>${money(i.price)}</small></button>`; }).join('')}</div></div>`;
-      }).join('');
-    } else if (W.cat === 'carplay') {
-      main = `<h2 style="margin-bottom:.4rem">CarPlay</h2><p class="lead">${data.carplay ? '✅ Ce véhicule est déjà équipé du CarPlay.' : '❌ Ce véhicule n\'a pas le CarPlay.'}
-        ${!data.owned ? '<br>Le CarPlay ne s\'installe que sur un véhicule de joueur (carte grise).' : ''}</p>` + list.map((i) => {
-        const bad = i.locked || !data.owned || (i.code === 'carplay' ? data.carplay : !data.carplay);
-        const inCart = W.cart.find((l) => l.code === i.code);
-        return `<div class="lvl-row"><div class="name">${esc(i.name)}<div class="now">${esc(i.description || '')}</div></div>
-          <button class="btn ${inCart ? 'success' : 'primary'}" data-cp="${esc(i.code)}" ${bad ? 'disabled' : ''}>${inCart ? '✓ Ajouté' : `${money(i.price)} · Ajouter`}</button></div>`;
-      }).join('');
-    } else if (W.cat === 'service') {
-      main = `<h2 style="margin-bottom:.6rem">Prestations</h2>` + list.map((i) => { const inCart = W.cart.find((l) => l.code === i.code);
-        return `<div class="lvl-row"><div class="name">${esc(i.name)}<div class="now">${esc(i.description || '')}</div></div>
-          <button class="btn ${inCart ? 'success' : ''}" data-svc="${esc(i.code)}" ${i.locked ? 'disabled' : ''}>${inCart ? '✓' : money(i.price)}</button></div>`; }).join('');
-    } else {
-      // Esthétique : articles de la rubrique (ex. Peinture, Livrée…) puis pièces / options
-      if (!W.item || !list.find((i) => i.code === W.item)) W.item = list[0] && list[0].code;
-      const it = list.find((i) => i.code === W.item);
-      const grp = it ? (d.groups || {})[it.mod] || {} : {};
-      main = `<div class="subtabs">${list.map((i) => `<button class="${i.code === W.item ? 'on' : ''}" data-witem="${esc(i.code)}" ${(d.groups[i.mod] || {}).empty ? 'disabled title="Rien de compatible avec ce véhicule"' : ''}>${esc(i.name)} · ${money(i.price)}</button>`).join('')}</div>`;
-      if (it && it.locked) main += `<div class="empty">${esc(it.reason || 'Indisponible pour votre grade.')}</div>`;
-      else if (it && grp.empty) main += `<div class="empty">${it.mod === 'platetext' ? 'La plaque personnalisée ne se pose que sur un véhicule de joueur (carte grise).' : 'Aucune option compatible avec ce véhicule.'}</div>`;
-      else if (it && grp.text) {
-        const inCart = W.cart.find((l) => l.code === it.code);
-        main += `<div class="lvl-row"><div class="name">Nouvelle plaque<div class="now">Actuelle : <span class="mono">${esc(data.plate)}</span> · 1 à 8 caractères (lettres, chiffres, espaces), unique sur le serveur</div></div></div>
-          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem"><input class="input mono" id="wsPlate" maxlength="8" style="text-transform:uppercase;max-width:12rem;font-size:1.1rem;letter-spacing:.15em"
-            value="${esc(inCart ? inCart.spec.v : '')}" placeholder="${esc(data.plate)}"><button class="btn primary" data-wplate="1">${inCart ? 'Modifier' : 'Ajouter au devis'} · ${money(it.price)}</button></div>
-          <p class="faint" style="font-size:.78rem;margin-top:.4rem">La plaque s'affiche sur le véhicule pendant que vous tapez.</p>
-          <p class="faint" style="font-size:.78rem;margin-top:.6rem">La plaque change à l'installation : carte grise, clés et coffre du véhicule suivent (le contenu du coffre est conservé).</p>`;
-      } else if (it) {
-        if (grp.subs) main += `<div class="subtabs">${grp.subs.map((s) => `<button class="${String(W.sub) === s.id ? 'on' : ''}" data-wsub="${esc(s.id)}">${esc(s.label)}</button>`).join('')}</div>`;
-        if (grp.subs && W.sub === null) main += '<div class="empty">Choisissez la pièce.</div>';
-        else if (RGB_GROUPS[it.mod]) main += rgbCard(it);
-        else if (!W.opts) main += '<div class="empty">Lecture des options…</div>';
-        else {
-          const inCart = W.cart.find((l) => l.code === it.code && l.slot === slotOf(W.opts[0] && W.opts[0].spec, it));
-          main += `<div class="opt-grid">${W.opts.map((o, i) => `<button class="opt ${inCart && JSON.stringify(inCart.spec) === JSON.stringify(o.spec) ? 'on' : ''} ${String(o.value) === String(W.cur) ? 'cur' : ''}" data-wopt="${i}">
-            ${esc(o.label)}${String(o.value) === String(W.cur) ? '<small>Actuel</small>' : ''}</button>`).join('') || '<div class="empty">Aucune option.</div>'}</div>`;
-        }
-      }
-    }
-  }
-  const customers = data.customers || [];
-  $('#workshop').innerHTML = `<div class="ws-head"><div><div class="eyebrow">${esc(data.ws.label)}</div><h2>${esc(d.model)} · <span class="mono">${esc(data.plate)}</span></h2>
-      <div class="meta">${data.owned ? `Propriétaire : ${esc(data.owner || 'inconnu')}` : 'Véhicule sans carte grise (rien n\'est sauvegardé après sa disparition)'} · CarPlay : ${data.carplay ? 'oui' : 'non'}</div>
-      <div class="health" style="margin-top:.35rem"><span>Moteur ${d.health.engine}%<i><b style="width:${d.health.engine}%"></b></i></span><span>Carrosserie ${d.health.body}%<i><b style="width:${Math.max(0, d.health.body)}%"></b></i></span></div><div class="cam-hint">🖱️ Clic droit maintenu + glisser (hors du panneau) : tourner la caméra · molette : zoom · double-clic : recentrer</div></div>
-      <button class="icon-btn" data-ws="close" title="Fermer (Échap)">✕</button></div>
-    <div class="ws-body"><div class="ws-cats">${wsCats().map((c) => `<button class="ws-cat ${W.cat === c.id ? 'active' : ''}" data-wcat="${c.id}" ${q ? 'disabled' : ''}>
-        <span>${esc(c.label)}</span>${c.n ? `<span class="tag">${c.n}</span>` : ''}</button>`).join('')}</div>
-      <div class="ws-main">${main}</div></div>
-    ${q ? '' : `<div class="ws-cart"><div class="section-label" style="padding-left:0">Devis (${W.cart.length})</div>
-      ${W.cart.map((l, i) => `<div class="line"><span>${esc(l.label)}</span><span><b>${money(l.price * (l.qty || 1))}</b> <button data-wdel="${i}" title="Retirer">✕</button></span></div>`).join('') || '<div class="faint" style="font-size:.82rem">Aucune ligne.</div>'}
-      <div class="ws-total"><span>Total : <b>${money(cartTotal())}</b></span>
-        <span style="display:flex;gap:.4rem;align-items:center"><select class="input" id="wsCustomer" style="width:auto">${customers.length ? customers.map((c) => `<option value="${c.id}" ${String(W.customer) === String(c.id) ? 'selected' : ''}>${c.self ? `🔧 Moi-même${c.owner ? ' (propriétaire)' : ''} · je paie` : c.owner ? `👤 ${esc(c.name || '')} (propriétaire)` : `Personne · ID ${c.id}`}</option>`).join('') : '<option value="">Aucun client à côté</option>'}</select>
-        <button class="btn" data-ws="clear" ${W.cart.length ? '' : 'disabled'}>Vider</button><button class="btn primary" data-ws="send" ${W.cart.length && customers.length ? '' : 'disabled'}>Envoyer le devis</button></span></div></div>`}`;
-}
-
-/* ---------- Couleur personnalisée (RVB) : peinture, néons, fumée, xénon ---------- */
-// Couleur libre : peinture et fumée. Néons et phares : palette fixe (couleur libre et multicolore réservés au staff)
-const RGB_GROUPS = { paint: true, smoke: true };
-const RGB_FINISH = [[0, 'Normal'], [1, 'Métallisé'], [2, 'Nacré'], [3, 'Mat'], [4, 'Métal'], [5, 'Chrome']];
-const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16) || 0);
-function rgbCard(it) {
-  const prev = W.rgb && W.rgb[it.mod] || { hex: '#d9b56a', finish: 1 };
-  return `<div class="rgb-card"><span>🎨 Couleur personnalisée</span><input type="color" id="wsRgb" value="${esc(prev.hex)}">
-    ${it.mod === 'paint' ? `<select class="input" id="wsRgbFin" style="width:auto">${RGB_FINISH.map(([v, l]) => `<option value="${v}" ${prev.finish === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
-    <button class="btn primary" data-wrgb="add">Ajouter au devis · ${money(it.price)}</button><span class="faint" style="font-size:.76rem">Visible en direct sur le véhicule</span></div>`;
-}
-function rgbSpec(it) {
-  const hex = ($('#wsRgb') || {}).value || '#ffffff', rgb = hexToRgb(hex);
-  const finish = Number(($('#wsRgbFin') || {}).value || 1);
-  W.rgb = W.rgb || {}; W.rgb[it.mod] = { hex, finish };
-  const label = `perso ${hex.toUpperCase()}`;
-  if (it.mod === 'paint') return { spec: { t: 'paint', slot: Number(W.sub) || 1, color: rgb, finish }, label: `${Number(W.sub) === 2 ? 'secondaire' : 'principale'} ${label}` };
-  if (it.mod === 'neon') return { spec: { t: 'neon', on: true, sides: W.sub || '1111', rgb }, label };
-  if (it.mod === 'xenon') return { spec: { t: 'xenon', on: true, rgb }, label };
-  return { spec: { t: 'smoke', rgb }, label };
-}
-
-async function wsLoadOptions() {
-  const it = W.d.data.items.find((i) => i.code === W.item);
-  if (!it) return;
-  const grp = (W.d.groups || {})[it.mod] || {};
-  if (grp.subs && W.sub === null) { W.opts = null; return wsRender(); }
-  W.opts = null; wsRender();
-  const r = await post('wsOptions', { group: it.mod, sub: W.sub });
-  W.opts = r.options || []; W.cur = r.current;
-  wsRender();
-}
-function wsAdd(line) {
-  W.cart = W.cart.filter((l) => l.slot !== line.slot);
-  W.cart.push(line);
-  wsRender();
-}
-const wsReapply = () => post('wsReapply', { specs: W.cart.map((l) => l.preview).filter(Boolean) });
-// Aperçu « en direct » pas encore ajouté au devis : retiré dès qu'on change de rubrique
-const dropLive = () => { if (W.live) { W.live = false; wsReapply(); } };
-let liveTimer = null, livePending = null;
-function livePreview(spec) {
-  W.live = true; livePending = spec;
-  if (liveTimer) return;
-  liveTimer = setTimeout(() => { liveTimer = null; post('wsPreview', { spec: livePending }); }, 60);
-}
-
-$('#workshop').addEventListener('click', async (e) => {
-  let b;
-  if ((b = e.target.closest('[data-wcat],[data-witem],[data-wsub]'))) dropLive();
-  if ((b = e.target.closest('[data-wcat]'))) { W.cat = b.dataset.wcat; W.item = null; W.sub = null; W.opts = null; wsRender(); if (!['perf', 'carplay', 'service'].includes(W.cat)) wsLoadOptions(); return; }
-  if ((b = e.target.closest('[data-witem]'))) { W.item = b.dataset.witem; W.sub = null; W.opts = null; return wsLoadOptions(); }
-  if ((b = e.target.closest('[data-wsub]'))) { W.sub = b.dataset.wsub; return wsLoadOptions(); }
-  if ((b = e.target.closest('[data-wopt]'))) {
-    const it = W.d.data.items.find((i) => i.code === W.item), o = W.opts[Number(b.dataset.wopt)];
-    const slot = slotOf(o.spec, it), inCart = W.cart.find((l) => l.slot === slot);
-    W.live = false;
-    // Re-cliquer l'option déjà choisie la retire du devis et du véhicule
-    if (inCart && JSON.stringify(inCart.spec) === JSON.stringify(o.spec)) { W.cart = W.cart.filter((l) => l !== inCart); wsReapply(); return wsRender(); }
-    post('wsPreview', { spec: o.spec });
-    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec: o.spec, preview: o.spec, slot: slotOf(o.spec, it), label: `${it.name} : ${o.label}` });
-  }
-  if ((b = e.target.closest('[data-wrgb]'))) {
-    const it = W.d.data.items.find((i) => i.code === W.item);
-    if (!it) return;
-    const { spec, label } = rgbSpec(it);
-    post('wsPreview', { spec });
-    W.live = false;
-    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: slotOf(spec, it), label: `${it.name} : ${label}` });
-  }
-  if ((b = e.target.closest('[data-wplate]'))) {
-    const it = W.d.data.items.find((i) => i.code === W.item);
-    const v = String(($('#wsPlate') || {}).value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
-    if (!v || v.length > 8) return toast('Plaque invalide : 1 à 8 caractères (lettres, chiffres, espaces).', false);
-    if (v === String(W.d.data.plate).toUpperCase()) return toast('C\'est déjà la plaque du véhicule.', false);
-    const spec = { t: 'platetext', v };
-    post('wsPreview', { spec });
-    W.live = false;
-    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: it.category, price: it.price, spec, preview: spec, slot: 'cos:platetext', label: `${it.name} : ${v}` });
-  }
-  if ((b = e.target.closest('[data-perf]'))) {
-    const it = W.d.data.items.find((i) => i.code === b.dataset.perf);
-    const spec = { t: 'perf', mod: it.mod, level: it.level };
-    const inCart = W.cart.find((l) => l.slot === `perf:${it.mod}`);
-    if (inCart && inCart.code === it.code) { W.cart = W.cart.filter((l) => l !== inCart); wsReapply(); return wsRender(); }
-    post('wsPreview', { spec });
-    return wsAdd({ code: it.code, name: it.name, kind: 'perf', category: 'perf', price: it.price, preview: spec, slot: `perf:${it.mod}`, label: it.name, current: curPerf(it.mod) });
-  }
-  if ((b = e.target.closest('[data-cp]'))) {
-    const it = W.d.data.items.find((i) => i.code === b.dataset.cp);
-    if (W.cart.find((l) => l.code === it.code)) { W.cart = W.cart.filter((l) => l.code !== it.code); return wsRender(); }
-    return wsAdd({ code: it.code, name: it.name, kind: 'carplay', category: 'carplay', price: it.price, slot: 'carplay', label: it.name });
-  }
-  if ((b = e.target.closest('[data-svc]'))) {
-    const it = W.d.data.items.find((i) => i.code === b.dataset.svc);
-    if (W.cart.find((l) => l.code === it.code)) { W.cart = W.cart.filter((l) => l.code !== it.code); return wsRender(); }
-    return wsAdd({ code: it.code, name: it.name, kind: it.kind, category: 'service', price: it.price, slot: `svc:${it.code}`, label: it.name, qty: 1 });
-  }
-  if ((b = e.target.closest('[data-wdel]'))) { W.cart.splice(Number(b.dataset.wdel), 1); wsReapply(); return wsRender(); }
-  if ((b = e.target.closest('[data-ws]'))) {
-    const a = b.dataset.ws;
-    if (a === 'close') return post('close', { ui: 'workshop' });
-    if (a === 'clear') { if (!(await confirmBox('Vider le devis ?', 'Les aperçus sont retirés du véhicule.', 'Vider', true))) return; W.cart = []; post('wsRevert'); return wsRender(); }
-    if (a === 'send') {
-      const customer = Number(($('#wsCustomer') || {}).value);
-      if (!customer) return toast('Choisissez le client.', false);
-      W.customer = customer;
-      const selfQ = ((W.d && W.d.data && W.d.data.customers) || []).some((c) => c.self && String(c.id) === String(customer));
-      if (!(await confirmBox(selfQ ? 'Payer votre devis ?' : 'Envoyer le devis ?', selfQ
-        ? `${W.cart.length} ligne(s) · <b>${money(cartTotal())}</b> (prix officiels, recalculés par le serveur).<br>Devis pour vous-même : le montant est prélevé tout de suite (banque puis liquide), puis vous installez vos pièces. Les pièces non posées sont remboursées.`
-        : `${W.cart.length} ligne(s) · <b>${money(cartTotal())}</b> (prix officiels, recalculés par le serveur).<br>Le client doit l'accepter ; le paiement est prélevé à l'acceptation.`, selfQ ? 'Payer et continuer' : 'Envoyer'))) return;
-      b.classList.add('loading');
-      const r = await post('wsSend', { customer, items: W.cart.map((l) => ({ code: l.code, spec: l.kind === 'cosmetic' ? l.spec : undefined, label: l.label, current: l.current, qty: l.qty })) });
-      b.classList.remove('loading');
-      if (r.error) return toast(r.error, false);
-      W.quote = r.quote; W.result = selfQ ? r.message : null;
-      if (W.d && W.d.data) W.d.data.canInstall = true;   // le mécanicien qui envoie le devis peut l'installer
-      return wsRender();
-    }
-    if (a === 'cancelQuote') {
-      if (!(await confirmBox('Annuler le devis ?', W.quote.status === 'accepted' ? 'Le client est remboursé intégralement.' : 'Le client ne pourra plus l\'accepter.', 'Annuler le devis', true))) return;
-      const r = await post('wsCancelQuote', { uid: W.quote.uid });
-      if (r.ok) { W.quote = null; W.cart = []; post('wsRevert'); }
-      return wsRender();
-    }
-    if (a === 'install') {
-      if (!(await confirmBox('Installer le devis ?', 'Vous réalisez l\'intervention sur le véhicule : pont ou chandelles, roues, capot, pièces… chaque pièce est posée au bon moment puis vérifiée. Les lignes qui ne se posent pas ne sont pas facturées.<br>X pendant l\'intervention : interrompre (reprise possible).', 'Commencer l\'intervention'))) return;
-      W.busy = true; b.classList.add('loading');
-      const r = await post('wsInstall', { uid: W.quote.uid });
-      W.busy = false;
-      if (r.error) { b.classList.remove('loading'); return toast(r.error, false); }
-      W.quote.status = r.status; W.result = r.message + (r.note ? ` — ${r.note}` : ''); W.cart = [];
-      return wsRender();
-    }
-    if (a === 'newQuote') { W.quote = null; W.result = null; W.cart = []; return wsRender(); }
-  }
-});
-$('#workshop').addEventListener('change', (e) => {
-  if (e.target.id === 'wsCustomer') W.customer = e.target.value;
-  if (e.target.id === 'wsRgbFin') { const it = W.d.data.items.find((i) => i.code === W.item); if (it) livePreview(rgbSpec(it).spec); }
-});
-// Aperçu en direct : couleur choisie dans le sélecteur, plaque tapée
-$('#workshop').addEventListener('input', (e) => {
-  const it = W.d && W.d.data.items.find((i) => i.code === W.item);
-  if (!it) return;
-  if (e.target.id === 'wsRgb') return livePreview(rgbSpec(it).spec);
-  if (e.target.id === 'wsPlate') {
-    const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
-    if (v && v.length <= 8) return livePreview({ t: 'platetext', v });
-    return dropLive();
-  }
-});
+/* Atelier, installation, mini-jeux : html/workshop.js et html/minigames.js */
 
 /* =====================================================================
    Devis reçu (client)
@@ -558,12 +297,11 @@ window.addEventListener('message', (e) => {
     case 'notify': return showNotif(m);
     case 'alertClosed': case 'alertDismiss': return removeNotif(m.kind, m.id);
     case 'alertsClear': [...notifEls.keys()].forEach((k) => { const [kind, id] = k.split(':'); removeNotif(kind, id); }); return;
-    case 'workshop':
-      if (m.show) {
-        Object.assign(W, { d: m, cat: null, item: null, sub: null, opts: null, cart: [], customer: (m.data.customers[0] || {}).id, quote: m.data.quote || null, result: null, live: false });
-        show('#workshop', true); wsRender();
-      } else show('#workshop', false);
-      return;
+    case 'workshop': if (m.show) wsOpen(m); else show('#workshop', false); return;
+    case 'install': return installRender(m);
+    case 'minigame': if (m.show) MG.open(m); else MG.close(m.id); return;
+    case 'watch': return watchRender(m.data || {});
+    case 'handover': return handoverRender(m);
     case 'wsQuote': if (W.quote && m.quote && W.quote.uid === m.quote.uid) { W.quote = m.quote; wsRender(); } return;
     case 'quoteOffer': if (m.show) { offerQ = m.quote; quoteOfferRender(m.quote, m.timeout); } else { show('#quoteOffer', false); offerQ = null; clearInterval(offerT); } return;
     case 'svcQuote':
@@ -575,13 +313,14 @@ window.addEventListener('message', (e) => {
     case 'offer': if (m.show) showOffer(m.offer); else { show('#offer', false); clearInterval(offerTimer); } return;
     case 'tablet': if (window.Tablet) { if (m.show) { applyCfg(m.cfg || APP.cfg); Tablet.open(m.state, m.opts); } else Tablet.hide(); } return;
     case 'tabletGo': if (window.Tablet) Tablet.goTo(m.opts); return;
-    case 'closeAll': ['#f6', '#workshop', '#quoteOffer', '#svcQuote', '#garage', '#offer', '#confirm'].forEach((s) => show(s, false)); if (window.Tablet) Tablet.hide(); return;
+    case 'closeAll': ['#f6', '#workshop', '#quoteOffer', '#svcQuote', '#garage', '#offer', '#confirm'].forEach((s) => show(s, false)); MG.cancel(); if (window.Tablet) Tablet.hide(); return;
   }
 });
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   e.preventDefault();
+  if (MG.cur) return MG.cancel();   // mini-jeu : Échap annule (rien n'est posé)
   if (!$('#confirm').classList.contains('hidden')) { show('#confirm', false); if (confirmResolve) { confirmResolve(null); confirmResolve = null; } return; }
   for (const [sel, ui] of [['#workshop', 'workshop'], ['#quoteOffer', 'quoteOffer'], ['#svcQuote', 'svcQuote'], ['#garage', 'garage'], ['#offer', 'offer']]) {
     if (!$(sel).classList.contains('hidden')) return post('close', { ui });

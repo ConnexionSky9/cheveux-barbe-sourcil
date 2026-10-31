@@ -18,9 +18,12 @@ P.CATEGORIES = { service = 'Prestations', perf = 'Performances', cosmetic = 'Car
 P.PERF_MODS = { engine = 11, brakes = 12, transmission = 13, suspension = 15, armor = 16, turbo = 18 }
 P.COSMETIC = { body = true, paint = true, pearl = true, livery = true, tint = true, plate = true, wheels = true, wheelcolor = true,
     intcolor = true, dashcolor = true, tyres = true, extras = true, roofliv = true, platetext = true,
-    smoke = true, neon = true, xenon = true, interior = true }
+    smoke = true, neon = true, xenon = true, interior = true, newtyres = true, drift = true }
 -- Permission nécessaire pour vendre / installer chaque type
-P.KIND_PERM = { service = 'quotes', custom = 'quotes', perf = 'perf', cosmetic = 'cosmetic', carplay = 'carplay' }
+P.KIND_PERM = { service = 'quotes', custom = 'quotes', perf = 'perf', cosmetic = 'cosmetic' }
+-- Le CarPlay ne s'installe plus à l'atelier : ses anciens articles restent en base (historique, statistiques)
+-- mais sont désactivés et ne sont plus proposés (P.Installable).
+function P.Installable(item) return item ~= nil and item.kind ~= 'carplay' end
 
 local function Row(r)
     return { id = r.id, code = r.code, name = r.name, description = r.description, category = r.category, kind = r.kind,
@@ -46,6 +49,8 @@ local function Seed()
     if n > 0 then print(('^2[MECA] Catalogue : %d article(s) ajouté(s).^0'):format(n)) end
     -- Pneus pare-balles retirés de l'atelier : ancien nom corrigé (prix et activation conservés)
     MySQL.update.await("UPDATE `meca_catalog` SET `name` = 'Pneus (flancs)' WHERE `code` = 'cosmetic_tyres' AND `name` = 'Pneus (flancs, pare-balles)'")
+    -- CarPlay retiré des installations mécano : articles désactivés (rien n'est supprimé)
+    MySQL.update.await("UPDATE `meca_catalog` SET `enabled` = 0 WHERE `kind` = 'carplay' AND `enabled` = 1")
 end
 
 P.OnReady = P.OnReady or {}
@@ -67,7 +72,7 @@ end
 
 -- Un employé peut-il vendre cet article ?
 function P.CanSell(src, item)
-    if not item or not item.enabled then return false, 'Article indisponible.' end
+    if not item or not item.enabled or not P.Installable(item) then return false, 'Article indisponible.' end
     local g = P.Grade(src)
     if not g or g.level < (item.minLevel or 1) then return false, ('« %s » demande un grade plus élevé.'):format(item.name) end
     local perm = P.KIND_PERM[item.kind] or 'quotes'
@@ -112,10 +117,10 @@ P.Actions.catalogSave = { perm = 'catalog_manage', fn = function(src, d)
             mod = tostring(d.mod or '')
             if not P.COSMETIC[mod] then return { error = 'Groupe esthétique inconnu.' } end
         elseif kind == 'carplay' then
-            return { error = 'Les articles CarPlay sont fixes (Installation / Réinstallation) : modifiez leur prix.' }
+            return { error = 'Le CarPlay ne s\'installe plus à l\'atelier.' }
         end
     end
-    local enabled = d.enabled ~= false
+    local enabled = d.enabled ~= false and kind ~= 'carplay'   -- CarPlay : plus installable, reste désactivé
     local desc = P.Clean(d.description, 255)
     local compat = P.Clean(d.compat, 120)
     if d.isNew then

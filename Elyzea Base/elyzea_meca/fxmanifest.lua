@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'elyzea_meca'
 author 'Elyzea FA'
-description 'Métier Mécano Elyzea : réparations ALT, points d\'atelier, catalogue et tarifs, devis et factures, CarPlay vendu (elyzea_aura), dépannage, tablette (direction, finance, paie au taux horaire)'
-version '1.0.0'
+description 'Métier Mécano Elyzea : réparations ALT, atelier (esthétique, performances, pneus DRIFT), devis payés, installation par mini-jeux, remise des clés, dépannage, tablette'
+version '2.0.0'
 
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
@@ -38,7 +38,7 @@ client_scripts {
     'client/tow.lua',
     'client/quotes.lua',
     'client/lift.lua',
-    'client/interventions.lua',
+    'client/install.lua',
     'client/workshop.lua',
     'client/f6.lua',
     'client/tablet.lua',
@@ -52,6 +52,8 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/workshop.js',
+    'html/minigames.js',
     'html/tablet.js',
     'html/map.js',
     'html/img/*',

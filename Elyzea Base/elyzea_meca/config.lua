@@ -44,35 +44,56 @@ Config.Repair = {
 -- ---------------------------------------------------------------------
 -- Points d'atelier (touche E) : placés EN JEU par la direction
 -- (tablette › Direction › Points d'atelier), autant que vous voulez.
--- Rubriques possibles : 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'carplay', 'service'
+-- Rubriques possibles : 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'service'
 -- ---------------------------------------------------------------------
-Config.WorkshopDefaults = { radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'carplay', 'service' }, minLevel = 1 }
+Config.WorkshopDefaults = { radius = 3.5, categories = { 'perf', 'cosmetic', 'paint', 'wheels', 'lights', 'interior', 'service' }, minLevel = 1 }
 Config.WorkshopMax = 30
 Config.WorkshopMarker = true      -- marqueur au sol pour les mécaniciens en service
 
 -- ---------------------------------------------------------------------
--- Interventions animées à l'installation d'un devis (client/interventions.lua)
--- Après paiement, « Installer » lance le vrai travail : pont / chandelles, sous le véhicule,
--- roue par roue, capot, carrosserie… chaque pièce apparaît au moment où elle est posée.
--- Animations et modèles : noms du jeu, vérifiés au chargement (absent = étape sans l'objet).
+-- Installation d'un devis payé : points d'intervention + mini-jeux (client/install.lua)
+-- Après paiement, « Installer » affiche la liste des interventions. Pour chacune, une flèche
+-- montre où se placer autour du véhicule ; E lance le mini-jeu ; la pièce est posée à la fin.
 -- ---------------------------------------------------------------------
-Config.Interventions = {
-    speed = 0.6,              -- multiplie toutes les durées (0.5 = deux fois plus rapide, 1.0 = lent et détaillé)
-    walkSpeed = 1.6,          -- vitesse de marche du mécanicien autour du véhicule (1.0 = marche, 2.0 = course)
-    maxDistance = 12.0,       -- le mécanicien qui s'éloigne plus que ça du véhicule interrompt l'intervention
-    serverTimeout = 120,      -- secondes sans nouvelle du mécanicien → intervention libérée, scène remise en état
-    debug = false,            -- détails dans la console F8 (modèle ou animation manquants, lignes posées)
+Config.Install = {
+    reach = 1.4,              -- distance au point d'intervention pour lancer le mini-jeu (E)
+    maxDistance = 25.0,       -- le mécanicien qui s'éloigne plus que ça du véhicule interrompt l'intervention
+    gameTimeout = 120,        -- secondes : un mini-jeu ne reste jamais ouvert plus longtemps (fermé, rien n'est posé)
+    beat = 15,                -- secondes entre deux signes de vie envoyés au serveur
+    handoverTimeout = 600,    -- secondes : sans remise des clés, le véhicule est rendu automatiquement au client
+    handoverRange = 3.0,      -- distance mécanicien ↔ client pour remettre les clés (E)
+    paintFx = true,           -- brume de peinture (effet du jeu) pendant le mini-jeu de peinture
+    -- Animations jouées pendant les mini-jeux (le premier dictionnaire qui existe ; sinon le scénario)
+    anims = {
+        stand  = { { 'mini@repair', 'fixing_a_player', 1 } },
+        hood   = { { 'mini@repair', 'fixing_a_ped', 1 } },
+        kneel  = { { 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', 'machinic_loop_mechandplayer', 1 }, { 'amb@medic@standing@kneel@base', 'base', 1 } },
+        inside = { { 'anim@gangops@facility@servers@bodysearch@', 'player_search', 1 } },
+        under  = { { 'amb@prop_human_movie_bulb@base', 'base', 1 } },        -- debout sous le véhicule levé (pont)
+        spray  = { { 'switch@franklin@lamar_tagging_wall', 'lamar_tagging_wall_loop_lamar', 1 } },
+        give   = { 'mp_common', 'givetake1_a', 48 },                       -- remise des clés (mécanicien)
+        take   = { 'mp_common', 'givetake1_b', 48 },                       -- remise des clés (client)
+    },
+    scenarios = { stand = 'WORLD_HUMAN_WELDING', under = 'WORLD_HUMAN_VEHICLE_MECHANIC', spray = 'WORLD_HUMAN_MAID_CLEAN' },
+    props = {
+        wrench = { model = 'prop_cs_wrench', bone = 57005, pos = { 0.10, 0.03, -0.02 }, rot = { -90.0, 0.0, 0.0 } },
+        spray  = { model = 'ng_proc_spraycan01b', bone = 57005, pos = { 0.10, 0.02, -0.03 }, rot = { -70.0, 0.0, 0.0 } },
+        keys   = { model = 'p_car_keys_01', bone = 57005, pos = { 0.11, 0.03, -0.02 }, rot = { -90.0, 0.0, 0.0 } },
+    },
+}
 
-    -- Levage pour moteur-dessous / freins / transmission / suspension / échappement :
-    --  · sans modèle de pont : chandelles (crics) sous les roues, véhicule levé de standsHeight,
-    --    le mécanicien travaille allongé sur un chariot (scénario WORLD_HUMAN_VEHICLE_MECHANIC) ;
-    --  · avec le modèle d'un pont de ta map (model = 'nom_du_modele') : posé sous le véhicule,
-    --    véhicule levé de height, le mécanicien travaille debout dessous (underLiftScenario).
-    --    platformMoves = true si le modèle est un plateau qui doit monter avec le véhicule.
-    lift = { model = nil, height = 1.6, offsetZ = 0.0, heading = 0.0, platformMoves = false, standsHeight = 0.5,
-        -- Pont roulant posé avec l'objet (points équipés) : véhicule levé pour laisser clearance mètres
-        -- sous la caisse (le mécanicien passe dessous debout), puis wheelHeight pour les roues / freins.
-        clearance = 1.95, wheelHeight = 0.5,
+-- Pneus DRIFT : vrai comportement de dérive du jeu (natif SetDriftTyresEnabled, build 2944 ou plus).
+-- Seuls les véhicules équipés sont concernés ; enregistré sur la carte grise (driftTyres).
+Config.Drift = { enabled = true }
+
+-- Le CarPlay ne s'installe plus à l'atelier. true = elyzea_aura accepte le CarPlay sur tous les véhicules
+-- (exports.elyzea_meca:HasCarPlay renvoie vrai) ; false = seuls les véhicules déjà équipés le gardent.
+Config.CarPlayFree = true
+
+-- Pont roulant (objet d'inventaire « pont_roulant ») : levage pendant les travaux de dessous de caisse
+Config.Interventions = {
+    serverTimeout = 120,      -- secondes sans nouvelle du mécanicien → intervention libérée, scène remise en état
+    lift = { clearance = 1.95, wheelHeight = 0.5, liftTime = 2.5,
         -- Dessin du pont (aucun modèle de pont garanti dans le jeu de base) : couleurs et hauteur des colonnes
         color = { 235, 180, 20 }, darkColor = { 60, 60, 66 }, postHeight = 2.9, drawDistance = 45.0,
         armSwing = 1.0,       -- secondes pour que les 4 bras pivotent sous la voiture (ou se replient)
@@ -82,61 +103,6 @@ Config.Interventions = {
     -- Objet d'inventaire « Pont roulant » (5 kg)
     -- Posé (utilisé) à côté d'un véhicule garé sur un point d'atelier ; H à côté du pont pour le reprendre
     liftItem = { name = 'pont_roulant', perm = 'workshop', range = 3.0, vehicleRange = 5.0, pickupKey = 74 },
-    -- Sous le véhicule levé : debout, bras levés au-dessus de la tête, clé en main (le premier qui existe)
-    underLiftAnims = {
-        { 'amb@prop_human_movie_bulb@base', 'base', 1 },
-        { 'amb@prop_human_movie_bulb@idle_a', 'idle_b', 1 },
-    },
-    underLiftScenarios = { 'PROP_HUMAN_MOVIE_BULB' },   -- repli si aucune animation ci-dessus n'existe
-    settleSpeed = 1.2,        -- recalage fin sur le point de travail (m/s), après la marche
-    settleMax = 0.9,          -- au-delà de cette distance, pas de recalage (le trajet a échoué)
-    walkMargin = 0.85,        -- distance gardée autour de la carrosserie quand le mécanicien fait le tour
-    collisionPad = 0.3,
-    jackHeight = 0.12,        -- roue changée sans pont : le véhicule se soulève légèrement au cric
-    underSide = 'left',       -- côté par lequel le mécanicien se glisse sous le véhicule
-    underOffset = 0.35,       -- distance au bord du véhicule avant de s'allonger (à ajuster selon le rendu)
-    underHeadingOffset = 0.0, -- correction d'orientation (degrés) si le mécanicien s'allonge dans le mauvais sens
-    paintScenario = 'WORLD_HUMAN_MAID_CLEAN',
-    allWheels = true,         -- jantes / pneus : passer aux 4 roues (false = une seule roue)
-    brakesRear = false,       -- freins : aussi les roues arrière
-    detachHood = true,        -- capot : l'ancien capot disparaît pendant le remplacement (seulement si la carrosserie est intacte)
-    removeTyres = true,       -- roues : le pneu est retiré visuellement (seulement s'il n'était pas déjà crevé)
-
-    -- Durées de chaque travail (ms, avant « speed »)
-    durations = {
-        liftUp = 4000, liftDown = 3500, liftArms = 1200, carry = 4000,
-        transmission = 14000, exhaust = 12000, suspension = 12000, brakes = 8000, brakesSwap = 3000, wheel = 9000, wheelpaint = 7000,
-        engine = 14000, turbo = 14000, enginebay = 10000, hood = 12000, armor = 14000, panel = 10000, roof = 9000,
-        paint = 16000, tint = 9000, lights = 8000, neon = 9000, plate = 7000, interior = 10000, carplay = 10000,
-    },
-
-    -- Animations { dictionnaire, nom, drapeau }
-    anims = {
-        hoodWork  = { 'mini@repair', 'fixing_a_ped', 1 },                                          -- penché sur le moteur
-        standWork = { 'mini@repair', 'fixing_a_player', 1 },                                       -- travail debout sur la carrosserie
-        kneelWork = { 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', 'machinic_loop_mechandplayer', 1 }, -- accroupi (roues, bas de caisse)
-        kneel     = { 'amb@medic@standing@kneel@base', 'base', 1 },                                -- à genoux (plaque)
-        carry     = { 'anim@heists@box_carry@', 'idle', 49 },                                      -- porter une pièce en marchant
-        interior  = { 'anim@gangops@facility@servers@bodysearch@', 'player_search', 1 },           -- penché dans l'habitacle
-        tablet    = { 'amb@code_human_in_bus_passenger_idles@female@tablet@base', 'base', 49 },    -- CarPlay (tablette)
-        finish    = { 'anim@mp_player_intmenu@key_fob@', 'fob_click', 48 },                        -- fin : clé du véhicule
-    },
-
-    -- Objets : liste de modèles (le premier qui existe est utilisé), os de la main, position, rotation
-    -- 57005 = main droite, 60309 = main gauche (prise « carton » des deux mains avec l'animation carry)
-    props = {
-        wrench  = { models = { 'prop_cs_wrench' }, bone = 57005, pos = { 0.10, 0.03, -0.02 }, rot = { -90.0, 0.0, 0.0 } },
-        tablet  = { models = { 'prop_cs_tablet' }, bone = 60309, pos = { 0.03, 0.002, 0.0 }, rot = { 10.0, 160.0, 0.0 } },
-        jack    = { 'prop_carjack', 'imp_prop_car_jack_01a' },
-        wheel   = { models = { 'imp_prop_impexp_tyre_01a', 'prop_wheel_tyre' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        caliper = { models = { 'imp_prop_impexp_brake_caliper_01a' }, bone = 57005, pos = { 0.10, 0.02, -0.02 }, rot = { 0.0, 0.0, 0.0 } },
-        hood    = { models = { 'imp_prop_impexp_bonnet_02a', 'imp_prop_impexp_bonnet_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        frontBumper = { models = { 'imp_prop_impexp_front_bumper_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        rearBumper  = { models = { 'imp_prop_impexp_rear_bumper_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        spoiler = { models = { 'imp_prop_impexp_spoiler_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        panel   = { models = { 'imp_prop_impexp_car_panel_01a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-        door    = { models = { 'imp_prop_impexp_car_door_04a' }, bone = 60309, pos = { 0.025, 0.08, 0.255 }, rot = { -145.0, 290.0, 0.0 } },
-    },
 }
 
 -- ---------------------------------------------------------------------
@@ -152,7 +118,7 @@ Config.Quotes = {
 }
 
 -- Catalogue de départ : copié en base au premier démarrage, ensuite modifiable dans la tablette.
--- kind : service | perf | cosmetic | carplay | custom
+-- kind : service | perf | cosmetic | custom (le CarPlay ne s'installe plus à l'atelier)
 -- mod / level : modification GTA concernée et niveau (perf) ; category : rubrique de l'atelier
 Config.DefaultCatalog = {
     -- Prestations
@@ -201,11 +167,11 @@ Config.DefaultCatalog = {
     { code = 'cosmetic_extras',   name = 'Éléments optionnels',      category = 'cosmetic', kind = 'cosmetic', mod = 'extras', price = 250 },
     { code = 'cosmetic_platetext', name = 'Plaque personnalisée',    category = 'paint',    kind = 'cosmetic', mod = 'platetext', price = 5000,
       description = 'Texte de plaque au choix (1 à 8 caractères), réservé aux véhicules avec carte grise.' },
-    -- CarPlay (téléphone elyzea_aura)
-    { code = 'carplay', name = 'Installation CarPlay', category = 'carplay', kind = 'carplay', price = 3500,
-      description = 'Rend le véhicule compatible avec ElyzeaCarPlay (tablette F4 et contrôle depuis le téléphone). Liée au véhicule.' },
-    { code = 'carplay_reinstall', name = 'Réinstallation CarPlay', category = 'carplay', kind = 'carplay', price = 1000, enabled = false,
-      description = 'Remplacement sur un véhicule déjà équipé (désactivé par défaut).' },
+    -- Pneus : neufs (à l'unité ou les 4, prix par pneu) et pneus DRIFT (vrai comportement de dérive)
+    { code = 'cosmetic_newtyres', name = 'Pneus neufs',            category = 'wheels',   kind = 'cosmetic', mod = 'newtyres', price = 350,
+      description = 'Prix par pneu. Les 4 pneus en une seule intervention, ou un seul pneu.' },
+    { code = 'cosmetic_drift',    name = 'Pneus DRIFT',            category = 'wheels',   kind = 'cosmetic', mod = 'drift', price = 6500,
+      description = 'Gomme dure de dérive : le véhicule glisse en virage (comportement réel du jeu). Retrait possible (pneus route).' },
 }
 
 -- ---------------------------------------------------------------------
@@ -250,12 +216,12 @@ Config.DefaultGrades = {
     { name = 'Apprenti',            level = 1, salary = 350, default = true,
       perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'tow', 'tablet', 'vehicles_view' } },
     { name = 'Mécanicien',          level = 2, salary = 500,
-      perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'tow', 'tablet', 'vehicles_view' } },
+      perms = { 'duty', 'repair', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'quotes', 'tow', 'tablet', 'vehicles_view' } },
     { name = 'Mécanicien confirmé', level = 3, salary = 650,
-      perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'tow', 'tow_manage', 'tablet',
+      perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'quotes', 'tow', 'tow_manage', 'tablet',
                 'vehicles_view', 'stats_view', 'garage' } },
     { name = 'Chef d\'atelier',     level = 4, salary = 850,
-      perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'carplay', 'quotes', 'quotes_manage', 'tow', 'tow_manage',
+      perms = { 'duty', 'repair', 'repair_full', 'clean', 'flip', 'workshop', 'cosmetic', 'perf', 'quotes', 'quotes_manage', 'tow', 'tow_manage',
                 'tablet', 'vehicles_view', 'stats_view', 'garage', 'direction', 'recruit', 'employees_view', 'promote',
                 'demote', 'history_view' } },
     { name = 'Directeur',           level = 5, salary = 1100, perms = 'all' },

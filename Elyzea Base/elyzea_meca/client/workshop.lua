@@ -5,9 +5,9 @@
 --  · Chaque option s'affiche tout de suite sur le véhicule (aperçu en direct).
 --    En quittant l'atelier, tout ce qui n'a pas été payé ET installé est retiré.
 --  · Pendant l'atelier : moteur, phares et néons allumés pour voir le rendu.
---  · À l'installation, le serveur envoie les propriétés exactes de chaque ligne :
---    elles sont appliquées puis relues sur le véhicule ; seule une ligne réellement
---    posée est déclarée réussie (et donc facturée).
+--  · « Installer » (devis payé) : le mécanicien réalise les interventions avec des
+--    mini-jeux (client/install.lua). Chaque pièce est posée puis relue sur le véhicule ;
+--    seule une ligne réellement posée est facturée.
 -- =====================================================================
 local C = MecaC
 local core = exports.elyzea_core
@@ -161,6 +161,21 @@ local function Options(veh, group, sub)
         return out, GetVehicleRoofLivery(veh)
     elseif group == 'platetext' then
         return out, C.Plate(veh)
+    elseif group == 'drift' then
+        if not SetDriftTyresEnabled then return out end   -- build du serveur trop ancien : pas de pneus drift
+        local on = GetDriftTyresEnabled(veh)
+        out[#out + 1] = { value = 1, label = 'Pneus DRIFT', spec = { t = 'drift', on = true }, badge = 'DRIFT' }
+        out[#out + 1] = { value = 0, label = 'Pneus route (retirer les DRIFT)', spec = { t = 'drift', on = false } }
+        return out, (on == true or on == 1) and 1 or 0
+    elseif group == 'newtyres' then
+        local bike = IsThisModelABike(GetEntityModel(veh))
+        local all = bike and { 0, 4 } or { 0, 1, 4, 5 }
+        local names = { [0] = bike and 'Avant' or 'Avant gauche', [1] = 'Avant droit', [4] = bike and 'Arrière' or 'Arrière gauche', [5] = 'Arrière droit' }
+        out[#out + 1] = { value = 'all', label = ('Les %d pneus (une seule intervention)'):format(#all), spec = { t = 'newtyres', w = all }, qty = #all }
+        for _, w in ipairs(all) do
+            out[#out + 1] = { value = w, label = ('%s%s'):format(names[w], IsVehicleTyreBurst(veh, w, false) and ' · crevé' or ''), spec = { t = 'newtyres', w = { w } }, qty = 1 }
+        end
+        return out
     elseif group == 'wheels' then
         local t = tonumber(sub) or GetVehicleWheelType(veh)
         local curT, curM = GetVehicleWheelType(veh), GetVehicleMod(veh, 23)
@@ -245,11 +260,13 @@ local function Preview(veh, spec)
     elseif t == 'livery' then if GetNumVehicleMods(veh, 48) > 0 then SetVehicleMod(veh, 48, spec.v, false) else SetVehicleLivery(veh, spec.v) end
     elseif t == 'perf' then
         if spec.mod == 'turbo' then ToggleVehicleMod(veh, 18, true) elseif PERF[spec.mod] then SetVehicleMod(veh, PERF[spec.mod], spec.level - 1, false) end
+    elseif t == 'drift' then
+        if SetDriftTyresEnabled then SetDriftTyresEnabled(veh, spec.on == true) end
     end
 end
 
 -- La ligne est-elle réellement posée ? (relecture des propriétés du véhicule)
-local IGNORE = { modBackWheels = true, paintType1 = true, paintType2 = true, xenonColor = true }
+local IGNORE = { modBackWheels = true, paintType1 = true, paintType2 = true, xenonColor = true, tyresNew = true }
 -- Vrai / faux : certains natifs renvoient 1 / 0 (ou 1 / false) au lieu de true / false
 local function Truthy(v) return v == true or v == 1 end
 local function Same(a, b)
@@ -274,7 +291,7 @@ local function Verify(veh, patch)
     for k, v in pairs(patch) do
         if not IGNORE[k] then
             local got = props[k]
-            if k == 'modXenon' or k == 'modTurbo' or k == 'modSmokeEnabled' or k == 'bulletProofTyres' or k == 'modCustomTiresF' or k == 'modCustomTiresR' then
+            if k == 'modXenon' or k == 'modTurbo' or k == 'modSmokeEnabled' or k == 'bulletProofTyres' or k == 'modCustomTiresF' or k == 'modCustomTiresR' or k == 'driftTyres' then
                 got = Truthy(props[k])
                 v = Truthy(v)
             end
@@ -303,6 +320,9 @@ end
 -- Caméra : clic droit maintenu + glisser pour tourner autour du véhicule, molette pour zoomer
 -- ---------------------------------------------------------------------
 local CAM = { cam = nil, h = 0.0, p = 12.0, d = 6.0 }
+-- { angle autour du véhicule (0 = devant), hauteur, distance (× taille du véhicule) }
+local FOCUS = { front = { 20.0, 10.0, 0.95 }, rear = { 200.0, 12.0, 0.95 }, left = { 90.0, 8.0, 1.0 }, right = { 270.0, 8.0, 1.0 },
+    wheel = { 60.0, 4.0, 0.7 }, top = { 220.0, 55.0, 1.15 }, interior = { 75.0, 18.0, 0.55 }, hood = { 10.0, 30.0, 0.85 }, overview = { 220.0, 12.0, 1.25 } }
 local function CamUpdate()
     if not CAM.cam or not WS.veh or not DoesEntityExist(WS.veh) then return end
     local c = GetEntityCoords(WS.veh) + vector3(0.0, 0.0, 0.4)
@@ -334,6 +354,15 @@ RegisterNUICallback('wsCam', function(body, cb)
     CAM.p = math.max(-10.0, math.min(70.0, CAM.p + (tonumber(body.dy) or 0) * 0.25))
     if tonumber(body.zoom) then CAM.d = math.max(2.5, math.min(16.0, CAM.d + tonumber(body.zoom))) end
     if body.reset then CAM.h, CAM.p = GetEntityHeading(WS.veh) + 220.0, 12.0 end
+    -- Caméra placée sur la pièce choisie (avant, arrière, côté, roues, toit, habitacle)
+    local f = FOCUS[tostring(body.focus or '')]
+    if f then
+        local min, max = GetModelDimensions(GetEntityModel(WS.veh))
+        local size = #(max - min)
+        CAM.h = (GetEntityHeading(WS.veh) + f[1]) % 360
+        CAM.p = f[2]
+        CAM.d = math.max(2.5, math.min(16.0, size * f[3]))
+    end
     CamUpdate()
 end)
 
@@ -396,6 +425,7 @@ local function PointVehicle(w)
 end
 
 local function Open(w)
+    if C.InstallRunning and C.InstallRunning() then return C.Notify('Terminez d\'abord l\'intervention en cours (ou remettez les clés).', 'error') end
     local ped = PlayerPedId()
     local veh = PointVehicle(w)
     if not veh then return C.Notify('Garez le véhicule du client sur le cercle de l\'atelier.', 'error') end
@@ -416,6 +446,9 @@ local function Open(w)
     local maxLv = {}
     for k, id in pairs(PERF) do maxLv[k] = GetNumVehicleMods(veh, id) end
     maxLv.turbo = 1
+    local drift = SetDriftTyresEnabled and GetDriftTyresEnabled(veh)
+    live.drift = (drift == true or drift == 1) and 1 or 0
+    r.driftSupported = SetDriftTyresEnabled ~= nil
     local groups = {}
     for _, it in ipairs(r.items) do
         if it.kind == 'cosmetic' and not groups[it.mod] then
@@ -494,11 +527,27 @@ RegisterNUICallback('wsCancelQuote', function(body, cb)
 end)
 
 -- Pose d'une ligne : propriétés exactes envoyées par le serveur, appliquées puis relues.
--- Appelée par client/interventions.lua AU MOMENT où l'animation pose la pièce.
+-- Appelée par client/install.lua à la fin du mini-jeu de l'intervention.
 function C.WsApplyPatch(veh, patch)
     if type(patch) ~= 'table' or not DoesEntityExist(veh) then return false end
     Control(veh)
+    -- Pneus neufs : pneus remis à neuf (n° GTA), vérifiés un par un
+    if type(patch.tyresNew) == 'table' then
+        for _, w in ipairs(patch.tyresNew) do SetVehicleTyreFixed(veh, tonumber(w) or 0) end
+        local only = true
+        for k in pairs(patch) do if k ~= 'tyresNew' then only = false end end
+        if only then
+            for _, w in ipairs(patch.tyresNew) do if IsVehicleTyreBurst(veh, tonumber(w) or 0, false) then return false end end
+            return true
+        end
+    end
+    -- Pneus DRIFT : vrai comportement de dérive (natif du jeu) ; refusé si le build du serveur ne l'a pas
+    if patch.driftTyres ~= nil and not SetDriftTyresEnabled then
+        print('^3[MECA] Pneus DRIFT : natif SetDriftTyresEnabled absent (sv_enforceGameBuild 2944 ou plus requis).^0')
+        return false
+    end
     core:SetVehicleProperties(veh, patch)
+    if patch.driftTyres ~= nil then SetDriftTyresEnabled(veh, patch.driftTyres == true) end
     if patch.modXenon == true and not patch.customXenon then ClearVehicleXenonLightsCustomColor(veh) SetVehicleXenonLightsColor(veh, patch.xenonColor or -1) end
     if patch.modCustomTiresF ~= nil then
         SetVehicleMod(veh, 23, GetVehicleMod(veh, 23), patch.modCustomTiresF == true)
@@ -536,33 +585,28 @@ function C.WsApplyPatch(veh, patch)
     return ok
 end
 
--- Installation : le mécanicien réalise l'intervention en jeu (client/interventions.lua).
--- L'atelier se ferme pendant le travail ; à la fin, l'état posé devient la référence du véhicule.
+-- Installation : l'atelier se ferme et le mécanicien réalise les interventions (client/install.lua) :
+-- flèches autour du véhicule, E, mini-jeu, pièce posée. Le serveur refuse toute pièce d'un devis non payé.
 RegisterNUICallback('wsInstall', function(body, cb)
     if not WS.open then return cb({ error = 'Atelier fermé.' }) end
-    -- Fichier des interventions absent : manifeste pas rechargé (« refresh » puis « ensure elyzea_meca »)
-    if type(C.RunIntervention) ~= 'function' or type(C.InterventionRunning) ~= 'function' then
-        print('^1[MECA] client/interventions.lua non chargé : tapez « refresh » puis « ensure elyzea_meca » dans la console du serveur.^0')
+    if type(C.StartInstall) ~= 'function' then
+        print('^1[MECA] client/install.lua non chargé : tapez « refresh » puis « ensure elyzea_meca » dans la console du serveur.^0')
         return cb({ error = 'Mise à jour incomplète : la direction doit taper « refresh » puis « ensure elyzea_meca » dans la console du serveur.' })
     end
-    if C.InterventionRunning() then return cb({ error = 'Une intervention est déjà en cours.' }) end
+    if C.InstallRunning() then return cb({ error = 'Une intervention est déjà en cours (ou des clés sont à remettre).' }) end
     local veh = WS.veh
     if not veh or not DoesEntityExist(veh) then return cb({ error = 'Véhicule introuvable.' }) end
-    local okR, errR = pcall(function() Restore() Control(veh) end)   -- on enlève les aperçus : seul le devis sera posé, pièce par pièce
-    if not okR then print(('^1[MECA] Préparation de l\'intervention : %s^0'):format(tostring(errR))) end
+    -- Aperçus retirés : seul le devis payé sera posé, intervention par intervention
     WS.busy = true
-    CamStop()
-    C.Focus('workshop', false)
-    SendNUIMessage({ action = 'workshop', show = false })
-    cb({ ok = true, status = 'accepted', message = 'Intervention en cours sur le véhicule…' })
-    local ok, res = pcall(C.RunIntervention, veh, body.uid, VehToNet(veh))
-    if not ok then print(('^1[MECA] Intervention : %s^0'):format(tostring(res))) res = { error = 'Erreur pendant l\'intervention : la scène a été remise en état.' } end
-    WS.busy = false
-    if DoesEntityExist(veh) then WS.snapshot = core:GetVehicleProperties(veh) end   -- état réellement posé = nouvelle référence
     Close(true)
-    if res.error then C.Notify(res.error, 'error')
-    elseif res.aborted then C.Notify(res.message, 'error')
-    elseif res.message then C.Notify(res.message, (res.failed or 0) > 0 and 'inform' or 'success') end
+    WS.busy = false
+    cb({ ok = true, status = 'accepted', message = 'Intervention en cours : suivez les flèches autour du véhicule.' })
+    local ok, res = pcall(C.StartInstall, veh, body.uid, VehToNet(veh))
+    if not ok then
+        print(('^1[MECA] Installation : %s^0'):format(tostring(res)))
+        res = { error = 'Erreur au lancement de l\'intervention : rien n\'a été posé, réessayez.' }
+    end
+    if res and res.error then C.Notify(res.error, 'error') end
 end)
 
 RegisterNetEvent('meca:client:quoteUpdate', function(q)
@@ -637,7 +681,7 @@ CreateThread(function()
                     end
                     local inVeh = GetVehiclePedIsIn(ped, false)
                     local near = veh and ((inVeh == veh and GetPedInVehicleSeat(veh, -1) == ped) or (inVeh == 0 and #(pos - GetEntityCoords(veh)) < 4.0))
-                    if near and not C.AnyOpen() then
+                    if near and not C.AnyOpen() and not (C.InstallRunning and C.InstallRunning()) then
                         if inVeh ~= 0 then DisableControlAction(0, 86, true) end     -- E = klaxon en véhicule
                         Help(('~INPUT_CONTEXT~ Ouvrir l\'atelier · %s'):format(w.label))
                         if IsDisabledControlJustPressed(0, 86) or IsControlJustPressed(0, Config.Keys.workshop) then

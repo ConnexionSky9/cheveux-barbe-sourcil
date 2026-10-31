@@ -12,7 +12,6 @@ MecaPerms = {
     { key = 'workshop',      group = 'Atelier',     label = 'Utiliser les points d\'atelier' },
     { key = 'perf',          group = 'Atelier',     label = 'Installer des améliorations de performance' },
     { key = 'cosmetic',      group = 'Atelier',     label = 'Installer des modifications esthétiques' },
-    { key = 'carplay',       group = 'Atelier',     label = 'Installer le CarPlay' },
     { key = 'garage',        group = 'Atelier',     label = 'Sortir et ranger les véhicules de service' },
     -- Clients
     { key = 'quotes',        group = 'Clients',     label = 'Créer des devis et facturer' },

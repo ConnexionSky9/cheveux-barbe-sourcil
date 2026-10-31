@@ -21,6 +21,8 @@ end
 
 local cpCache = {}   -- [plaque] = { at, ok }
 function P.HasCarPlay(plate)
+    -- Le CarPlay ne s'installe plus à l'atelier : avec Config.CarPlayFree, tous les véhicules y ont droit
+    if Config.CarPlayFree ~= false then return true end
     plate = P.CleanPlate(plate)
     local c = cpCache[plate]
     if c and os.time() - c.at < 20 then return c.ok end
@@ -47,7 +49,7 @@ function P.SaveMods(vehicleId, patch)
         if k == 'extras' and type(v) == 'table' then
             saved.extras = type(saved.extras) == 'table' and saved.extras or {}
             for id, x in pairs(v) do saved.extras[id] = x end
-        elseif k ~= 'plate' and k ~= 'model' then saved[k] = v end
+        elseif k ~= 'plate' and k ~= 'model' and k ~= 'tyresNew' then saved[k] = v end   -- pneus neufs : rien à garder
     end
     MySQL.update.await('UPDATE `player_vehicles` SET `mods` = ? WHERE `id` = ?', { json.encode(saved), vehicleId })
     return true

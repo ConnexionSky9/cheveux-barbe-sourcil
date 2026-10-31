@@ -13,12 +13,13 @@
 --     Les modifications sont enregistrées sur la carte grise ; le CarPlay est lié au véhicule.
 --  Un devis ne sert qu'une fois (identifiant unique) : aucune double facturation.
 --
---  Interventions animées (client/interventions.lua) : à l'installation, le serveur
---  verrouille le point d'atelier et le mécanicien, puis ne remet les propriétés d'une
---  ligne qu'au moment où l'animation la pose (quoteInstallStep). Chaque ligne posée et
---  vérifiée est marquée « installed » et enregistrée en base : une intervention
---  interrompue (annulation, mort, déconnexion, véhicule déplacé…) peut être reprise,
---  et seules les lignes posées sont facturées, comme avant.
+--  Installation (client/install.lua) : à l'installation, le serveur verrouille le point
+--  d'atelier et le mécanicien, puis ne remet les propriétés d'une ligne qu'au début de son
+--  mini-jeu (quoteInstallStep). Le résultat (pièce relue sur le véhicule) est confirmé par
+--  quoteInstallStepDone : chaque ligne posée est marquée « installed » et enregistrée en base.
+--  Une intervention interrompue peut être reprise ; seules les lignes posées sont facturées.
+--  6. Fin : facture, puis remise des clés au client (E à côté de lui) qui clôt l'intervention.
+--  Le client suit l'avancement en direct (meca:client:jobFeed).
 -- =====================================================================
 local P = Meca
 local Q = Config.Quotes
@@ -140,6 +141,18 @@ local function CosmeticPatch(group, s)
         local en = {}
         for i = 1, 4 do en[i] = on and sides:sub(i, i) == '1' end
         return { neonEnabled = en, neonColor = c }, 'neon'
+    elseif group == 'newtyres' and t == 'newtyres' then
+        -- Pneus neufs : les 4 (une seule intervention) ou un seul ; n° de pneu GTA 0, 1 (avant), 4, 5 (arrière)
+        local list, seen = {}, {}
+        for _, w in ipairs(type(s.w) == 'table' and s.w or {}) do
+            local n = N(w, 0, 5)
+            if n and (n == 0 or n == 1 or n == 4 or n == 5) and not seen[n] then seen[n] = true list[#list + 1] = n end
+        end
+        if #list == 0 then return nil end
+        table.sort(list)
+        return { tyresNew = list }, 'newtyres', nil, #list
+    elseif group == 'drift' and t == 'drift' then
+        return { driftTyres = s.on == true }, 'drift'
     elseif group == 'xenon' and t == 'xenon' then
         local on = s.on == true
         if on and s.rgb ~= nil then return nil end     -- couleur libre des phares : staff seulement (admin_menu)
@@ -173,11 +186,17 @@ function P.WorkshopList()
     end
     return list
 end
+-- Rubriques d'un point (le CarPlay ne s'installe plus à l'atelier : rubrique ignorée sur les anciens points)
+function P.WsCats(list)
+    local out = {}
+    for _, c in ipairs(type(list) == 'table' and list or {}) do if c ~= 'carplay' then out[#out + 1] = c end end
+    return out
+end
 local function Publish()
     local pub = {}
     for _, w in ipairs(P.WorkshopList()) do
         if w.coords then
-            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
+            pub[#pub + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = P.WsCats(w.categories), minLevel = w.minLevel,
                 lift = type(w.lift) == 'table' and { h = tonumber(w.lift.h) or 0.0 } or nil }
         end
     end
@@ -192,7 +211,7 @@ local function Workshop(id)
     for _, w in ipairs(P.WorkshopList()) do
         if w.id == id and w.coords then
             return { id = w.id, label = w.label, coords = Vec(w.coords), radius = tonumber(w.radius) or WD.radius,
-                categories = w.categories or {}, minLevel = tonumber(w.minLevel) or 1, lift = type(w.lift) == 'table' and w.lift or nil }
+                categories = P.WsCats(w.categories), minLevel = tonumber(w.minLevel) or 1, lift = type(w.lift) == 'table' and w.lift or nil }
         end
     end
 end
@@ -205,10 +224,12 @@ P.Actions.workshopList = { perm = 'garage_manage', fn = function(src)
         local n = 0
         for _, q in pairs(P.quotes) do if q.workshop == w.id then n = n + 1 end end
         local c = w.coords and P.Coords(src)
-        list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = w.categories, minLevel = w.minLevel,
+        list[#list + 1] = { id = w.id, label = w.label, coords = w.coords, radius = w.radius, categories = P.WsCats(w.categories), minLevel = w.minLevel,
             lift = w.lift ~= nil, quotes = n, distance = c and math.floor(#(c - Vec(w.coords))) or nil }
     end
-    return { list = list, categories = P.CATEGORIES, grades = grades, max = Config.WorkshopMax, defaults = WD }
+    local cats = {}
+    for k, v in pairs(P.CATEGORIES) do if k ~= 'carplay' then cats[k] = v end end
+    return { list = list, categories = cats, grades = grades, max = Config.WorkshopMax, defaults = WD }
 end }
 
 local function Find(list, id) for i, w in ipairs(list) do if w.id == id then return w, i end end end
@@ -223,7 +244,7 @@ P.Actions.workshopSave = { perm = 'garage_manage', fn = function(src, d)
     local cats, seen = {}, {}
     for _, c in ipairs(type(d.categories) == 'table' and d.categories or {}) do
         c = tostring(c)
-        if P.CATEGORIES[c] and not seen[c] then seen[c] = true cats[#cats + 1] = c end
+        if P.CATEGORIES[c] and c ~= 'carplay' and not seen[c] then seen[c] = true cats[#cats + 1] = c end
     end
     if #cats == 0 then return { error = 'Choisissez au moins une rubrique.' } end
     local minLevel = P.Int(d.minLevel, 1, 99, 1)
@@ -270,6 +291,7 @@ P.Actions.workshopDelete = { perm = 'garage_manage', fn = function(src, d)
     return { ok = true, message = ('« %s » supprimé.'):format(w.label) }
 end }
 local function Allowed(w, item)
+    if not P.Installable(item) then return false end
     if not w then return item.kind == 'service' or item.kind == 'custom' end   -- devis hors atelier (F6) : prestations seulement
     for _, c in ipairs(w.categories) do if c == item.category then return true end end
     return false
@@ -353,6 +375,7 @@ local function CleanScene(q)
     end
     local veh = ins.veh
     if veh and DoesEntityExist(veh) then
+        Entity(veh).state:set('mecaLift', false, true)   -- bras du pont repliés
         local owner = NetworkGetEntityOwner(veh)
         if owner and owner > 0 and GetPlayerName(owner) then
             TriggerClientEvent('meca:client:interventionRestore', owner, NetworkGetNetworkIdFromEntity(veh), ins.base, ins.scene or {})
@@ -375,6 +398,24 @@ end
 local function SaveItems(q)
     MySQL.update('UPDATE `meca_quotes` SET `items` = ?, `updated_at` = NOW() WHERE `uid` = ?', { json.encode(q.items), q.uid })
 end
+
+-- Suivi en direct pour le client (avancement, pièces posées) : au plus 4 messages par seconde
+local feedAt = {}
+local function Feed(q, data)
+    if q.customerCid == nil or q.customerCid == q.mechanicCid then return end   -- devis pour soi-même : rien à suivre
+    local cust = exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
+    if not cust then return end
+    if data.progress then   -- avancement d'un mini-jeu : au plus 4 messages par seconde
+        local now = GetGameTimer()
+        if feedAt[q.uid] and now - feedAt[q.uid] < 250 then return end
+        feedAt[q.uid] = now
+    end
+    local n, total = 0, 0
+    for _, l in ipairs(q.items) do if l.kind ~= 'service' and l.kind ~= 'custom' then total = total + 1 if l.installed then n = n + 1 end end end
+    data.uid, data.plate, data.installed, data.count, data.mechanic = q.uid, q.plate, n, total, q.mechanicName
+    TriggerClientEvent('meca:client:jobFeed', cust, data)
+end
+P.Feed = Feed
 
 -- Intervention du mécanicien (vérifie que c'est bien lui qui installe ce devis)
 local function Installing(src, uid)
@@ -409,6 +450,7 @@ P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     local veh, why = CheckWorkshop(src, w, d.net)
     if not veh then return { error = why } end
     if WorkshopLocked(w.id, src) then return { error = 'Une intervention est en cours sur ce point : attendez qu\'elle soit terminée.' } end
+    if P.HandoverOn and P.HandoverOn(w.id) then return { error = 'Véhicule terminé en attente de remise des clés au client.' } end
     local plate = P.CleanPlate(GetVehicleNumberPlateText(veh))
     local row = P.VehicleRow(plate)
     local ok, mods = pcall(json.decode, row and row.mods or '{}')
@@ -426,8 +468,8 @@ P.Actions.wsOpen = { perm = 'workshop', duty = true, fn = function(src, d)
     saved.turbo = mods.modTurbo == true and 1 or 0
     local q = ActiveQuoteForPlate(plate)
     return { ws = { id = w.id, label = w.label, categories = w.categories }, plate = plate, owned = row ~= nil, vehicleId = row and row.id,
-        owner = row and P.OwnerName(row.citizenid) or nil, carplay = row and P.HasCarPlay(plate) or false, savedPerf = saved,
-        items = items, categories = P.CATEGORIES, customers = NearbyCustomers(src, veh, row and row.citizenid),
+        owner = row and P.OwnerName(row.citizenid) or nil, savedPerf = saved, drift = mods.driftTyres == true,
+        items = items, categories = P.CATEGORIES, customers = NearbyCustomers(src, veh, row and row.citizenid), lift = w.lift ~= nil,
         quote = q and QuoteView(q) or nil, canInstall = q and (q.mechanicCid == P.Cid(src) or P.Can(src, 'quotes_manage')) or false }
 end }
 
@@ -454,7 +496,7 @@ local function BuildLines(src, w, list, ctx)
             line.patch = key == 'turbo' and { modTurbo = true } or { [PERF_KEYS[key]] = (it.level or 1) - 1 }
             line.label = it.name
         elseif it.kind == 'cosmetic' then
-            local patch, slot, plateText = CosmeticPatch(it.mod, req.spec)
+            local patch, slot, plateText, count = CosmeticPatch(it.mod, req.spec)
             if not patch then return nil, ('Option invalide pour « %s ».'):format(it.name) end
             if seen['cos:' .. slot] then return nil, 'La même pièce apparaît deux fois dans le devis.' end
             seen['cos:' .. slot] = true
@@ -466,17 +508,12 @@ local function BuildLines(src, w, list, ctx)
                 patch = nil
             end
             line.patch = patch
+            if count then line.qty = count end   -- pneus neufs : prix par pneu
             local lbl = P.Clean(req.label, 60)
             -- « Néons : Or » déjà préfixé par l'interface : pas de « Néons : Néons : Or »
             line.label = lbl:sub(1, #it.name) == it.name and lbl or ('%s : %s'):format(it.name, lbl)
         elseif it.kind == 'carplay' then
-            if not ctx.vehicleId then return nil, 'Le CarPlay ne s\'installe que sur un véhicule de joueur (carte grise).' end
-            if seen.carplay then return nil, 'Le CarPlay apparaît deux fois.' end
-            seen.carplay = true
-            local has = P.HasCarPlay(ctx.plate)
-            if it.code == 'carplay' and has then return nil, 'Ce véhicule a déjà le CarPlay : aucune nouvelle installation à facturer.' end
-            if it.code ~= 'carplay' and not has then return nil, 'Une réinstallation n\'est possible que sur un véhicule déjà équipé.' end
-            line.label = it.name
+            return nil, 'Le CarPlay ne s\'installe plus à l\'atelier.'
         else
             line.qty = N(req.qty, 1, 10) or 1
             line.label = it.name
@@ -719,8 +756,10 @@ P.Actions.quoteInstallStart = { perm = 'workshop', duty = true, fn = function(sr
         local keys = {}
         for k in pairs(l.patch or {}) do keys[#keys + 1] = k end
         table.sort(keys)
-        lines[i] = { i = i, label = l.label, kind = l.kind, code = l.code, keys = keys, plate = l.plateText ~= nil, done = l.installed == true }
+        lines[i] = { i = i, label = l.label, kind = l.kind, code = l.code, keys = keys, plate = l.plateText ~= nil, done = l.installed == true,
+            wheels = l.patch and l.patch.tyresNew or nil }
     end
+    Feed(q, { start = true })
     return { ok = true, lines = lines, uid = q.uid, lift = w.lift ~= nil }
 end }
 
@@ -749,11 +788,17 @@ P.Actions.quoteInstallStepDone = { perm = 'workshop', duty = true, fn = function
     local i = N(d.i, 1, #q.items)
     if not i or not q.installing.granted[i] then return { error = 'Ligne non commencée.' } end
     q.installing.granted[i] = nil
-    if d.ok == true and not q.items[i].installed then
-        q.items[i].installed = true
+    local line = q.items[i]
+    if d.ok == true and not line.installed then
+        line.installed = true
         SaveItems(q)
+        -- Pneus DRIFT : comportement appliqué par le conducteur du véhicule (état partagé du véhicule)
+        if line.patch and line.patch.driftTyres ~= nil and q.installing.veh and DoesEntityExist(q.installing.veh) then
+            Entity(q.installing.veh).state:set('mecaDrift', line.patch.driftTyres == true, true)
+        end
     end
     Scene(q, d.scene)
+    Feed(q, { line = i, label = line.label, ok = d.ok == true })
     return { ok = true }
 end }
 
@@ -762,6 +807,9 @@ P.Actions.quoteInstallBeat = { perm = 'workshop', duty = true, fn = function(src
     local q = Installing(src, d.uid)
     if not q then return { error = 'Intervention non démarrée.' } end
     Scene(q, d.scene)
+    if type(d.job) == 'table' then
+        Feed(q, { job = P.Clean(d.job.label, 60), progress = math.max(0, math.min(1, tonumber(d.job.progress) or 0)), active = d.job.active == true })
+    end
     return { ok = true }
 end }
 
@@ -774,6 +822,7 @@ P.Actions.quoteInstallAbort = { perm = 'workshop', fn = function(src, d)
     local n, total = 0, 0
     for _, l in ipairs(q.items) do if l.kind ~= 'service' and l.kind ~= 'custom' then total = total + 1 if l.installed then n = n + 1 end end end
     P.Log(src, 'Intervention interrompue', ('%s · %d/%d posée(s) · %s'):format(q.uid, n, total, P.Clean(d.reason, 80)))
+    Feed(q, { paused = true })
     local left = math.max(1, math.floor((Q.installTimeout - (os.time() - (q.acceptedAt or os.time()))) / 60))
     return { ok = true, message = ('Intervention interrompue : %d/%d pièce(s) posée(s). Rouvrez l\'atelier et « Installer » pour reprendre (sinon remboursement automatique des pièces non posées dans %d min).')
         :format(n, total, left) }
@@ -808,14 +857,110 @@ P.Actions.quoteInstallDone = { perm = 'workshop', duty = true, fn = function(src
         end
         results[i] = ok
     end
+    local net, wsId = q.installing.net, q.workshop
     local r = Finalize(q, results, src)
     P.Log(src, 'Installation', ('%s · %s · %d $'):format(q.uid, q.plate or '?', r.amount))
-    r.message = r.failed > 0 and ('Facture %s : %d $ (%d ligne(s) non posée(s), %d $ remboursés). Le véhicule peut repartir.'):format(r.invoice or '-', r.amount, r.failed, r.refund)
-        or ('Intervention terminée · facture %s : %d $. Le véhicule peut repartir.'):format(r.invoice or '-', r.amount)
-    local cust = q.customerCid and exports.elyzea_core:GetSourceByCitizenId(q.customerCid)
-    if cust and cust ~= src then P.Notify(cust, 'Intervention terminée : votre véhicule peut repartir.', 'success') end
+    local bill = r.failed > 0 and ('Facture %s : %d $ (%d ligne(s) non posée(s), %d $ remboursés).'):format(r.invoice or '-', r.amount, r.failed, r.refund)
+        or ('Facture %s : %d $.'):format(r.invoice or '-', r.amount)
+    -- Remise des clés : le véhicule reste immobilisé jusqu'à ce que le mécanicien rende les clés au client
+    local cust = q.customerCid and q.customerCid ~= q.mechanicCid and exports.elyzea_core:GetSourceByCitizenId(q.customerCid) or nil
+    if cust and cust ~= src then
+        P.handovers[q.uid] = { uid = q.uid, mech = src, custCid = q.customerCid, custName = q.customerName, plate = q.plate, vehicleId = q.vehicleId,
+            net = net, ws = wsId, t = os.time() }
+        r.handover = { uid = q.uid, customer = cust, name = q.customerName }
+        r.message = ('Véhicule terminé · %s Allez remettre les clés au client (E à côté de lui).'):format(bill)
+        P.Notify(cust, 'Votre véhicule est prêt : le mécanicien vient vous remettre les clés.', 'success')
+        TriggerClientEvent('meca:client:jobFeed', cust, { uid = q.uid, plate = q.plate, finished = true, mechanic = q.mechanicName })
+    else
+        r.message = ('Intervention terminée · %s Le véhicule peut repartir.'):format(bill)
+    end
     return r
 end }
+
+-- ---------------------------------------------------------------------
+-- Remise des clés : clôture de l'intervention
+-- ---------------------------------------------------------------------
+P.handovers = {}   -- [uid] = { mech, custCid, plate, net, ws, t }
+function P.HandoverOn(wsId) for _, h in pairs(P.handovers) do if h.ws == wsId then return true end end return false end
+
+-- Véhicule débloqué par le joueur qui le contrôle (portes, immobilisation)
+local function ReleaseVehicle(h)
+    local veh = NetworkGetEntityFromNetworkId(tonumber(h.net) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) then return end
+    local owner = NetworkGetEntityOwner(veh)
+    if owner and owner > 0 and GetPlayerName(owner) then TriggerClientEvent('meca:client:vehicleRelease', owner, h.net)
+    else FreezeEntityPosition(veh, false) end
+end
+
+local function CloseHandover(h, how)
+    if not P.handovers[h.uid] then return end
+    P.handovers[h.uid] = nil
+    local cust = h.custCid and exports.elyzea_core:GetSourceByCitizenId(h.custCid)
+    if cust and h.plate then exports.elyzea_core:GiveKeys(cust, h.plate) end
+    ReleaseVehicle(h)
+    if GetPlayerName(h.mech) then TriggerClientEvent('meca:client:handoverClosed', h.mech, h.uid, how) end
+    if cust then TriggerClientEvent('meca:client:jobFeed', cust, { uid = h.uid, closed = true, how = how }) end
+    P.History(h.vehicleId, h.plate or '', 'Véhicule rendu', how == 'keys' and 'Clés remises au client' or 'Rendu automatiquement au client', h.uid,
+        how == 'keys' and GetPlayerName(h.mech) and h.mech or nil)
+end
+P.CloseHandover = CloseHandover
+
+local giving = {}
+P.Actions.handoverGive = { perm = 'workshop', fn = function(src, d)
+    local h = P.handovers[tostring(d.uid or '')]
+    if not h then return { error = 'Aucune remise de clés en attente.' } end
+    if h.mech ~= src then return { error = 'C\'est le mécanicien de l\'intervention qui remet les clés.' } end
+    if giving[h.uid] then return { error = 'Remise en cours.' } end
+    local cust = exports.elyzea_core:GetSourceByCitizenId(h.custCid)
+    if not cust then CloseHandover(h, 'auto') return { ok = true, message = 'Client absent : le véhicule lui est rendu (clés à sa reconnexion).' } end
+    local a, b = P.Coords(src), P.Coords(cust)
+    local range = (Config.Install and Config.Install.handoverRange or 3.0) + 0.5
+    if not a or not b or #(a - b) > range then return { error = ('Approchez-vous de %s.'):format(h.custName or 'votre client') } end
+    giving[h.uid] = true
+    TriggerClientEvent('meca:client:handoverAnim', src, 'give', cust)
+    TriggerClientEvent('meca:client:handoverAnim', cust, 'take', src)
+    SetTimeout(1800, function()
+        giving[h.uid] = nil
+        CloseHandover(h, 'keys')
+        P.Notify(cust, ('Clés de votre véhicule remises (%s). Bonne route !'):format(h.plate or '?'), 'success')
+        P.Log(src, 'Remise des clés', ('%s · %s'):format(h.uid, h.plate or '?'))
+    end)
+    return { ok = true, message = 'Clés remises : intervention clôturée.' }
+end }
+
+CreateThread(function()
+    while true do
+        Wait(10000)
+        local limit = Config.Install and Config.Install.handoverTimeout or 600
+        for _, h in pairs(P.handovers) do
+            -- Délai dépassé, ou client parti (clés données à sa reconnexion par le garage)
+            if os.time() - h.t > limit or not exports.elyzea_core:GetSourceByCitizenId(h.custCid) then
+                CloseHandover(h, 'auto')
+                if GetPlayerName(h.mech) then P.Notify(h.mech, ('Véhicule %s rendu automatiquement au client (délai dépassé).'):format(h.plate or '?'), 'inform') end
+            end
+        end
+    end
+end)
+
+-- ---------------------------------------------------------------------
+-- Pneus DRIFT : le conducteur demande l'état enregistré du véhicule (carte grise)
+-- ---------------------------------------------------------------------
+local driftAsk, driftN = {}, 0
+RegisterNetEvent('meca:server:driftSync', function(net)
+    local src = source
+    if (Config.Drift or {}).enabled == false then return end
+    local now, key = os.time(), tostring(net)
+    if driftAsk[key] and now - driftAsk[key] < 30 then return end
+    if not driftAsk[key] then driftN = driftN + 1 if driftN > 2000 then driftAsk, driftN = {}, 1 end end
+    driftAsk[key] = now
+    local veh = NetworkGetEntityFromNetworkId(tonumber(net) or 0)
+    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
+    if GetPedInVehicleSeat(veh, -1) ~= GetPlayerPed(src) then return end
+    local row = P.VehicleRow(GetVehicleNumberPlateText(veh))
+    if not row then return end   -- véhicule sans carte grise : rien d'enregistré, on n'y touche pas
+    local ok, mods = pcall(json.decode, row.mods or '{}')
+    Entity(veh).state:set('mecaDrift', ok and type(mods) == 'table' and mods.driftTyres == true, true)
+end)
 
 -- Annulation par le mécanicien : avant acceptation, ou après (remboursement intégral)
 P.Actions.quoteCancel = { perm = 'quotes', fn = function(src, d)
@@ -992,5 +1137,10 @@ AddEventHandler('playerDropped', function()
             -- Mécanicien déconnecté en pleine intervention : scène remise en état, devis repris plus tard
             Release(q, true)
         end
+    end
+    -- Remise des clés en attente : véhicule rendu au client si le mécanicien ou le client part
+    local cid = P.Cid and P.Cid(src)
+    for _, h in pairs(P.handovers) do
+        if h.mech == src or (cid and h.custCid == cid) then CloseHandover(h, 'auto') end
     end
 end)

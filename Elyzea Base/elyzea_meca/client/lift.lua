@@ -197,7 +197,7 @@ end
 local picking = false
 local function Pickup()
     if picking then return end
-    if C.InterventionRunning and C.InterventionRunning() then return C.Notify('Terminez l\'intervention avant de reprendre le pont.', 'error') end
+    if C.InstallRunning and C.InstallRunning() then return C.Notify('Terminez l\'intervention avant de reprendre le pont.', 'error') end
     picking = true
     Kneel(2500)
     C.Do('liftRemove')
@@ -221,7 +221,7 @@ CreateThread(function()
             local ped = PlayerPedId()
             local pos = GetEntityCoords(ped)
             for _, l in pairs(lifts) do
-                if l.near and not IsPedInAnyVehicle(ped, false) and not (C.InterventionRunning and C.InterventionRunning()) then
+                if l.near and not IsPedInAnyVehicle(ped, false) and not (C.InstallRunning and C.InstallRunning()) then
                     local d = #(pos.xy - l.coords.xy)
                     if d < (l.radius or 3.5) + 1.5 then
                         sleep = 0
