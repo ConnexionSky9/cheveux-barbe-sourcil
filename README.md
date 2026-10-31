@@ -370,6 +370,14 @@ recopie la ligne affichée dans la console F8 dans `Config.BodyWeapons`, puis `r
 
 ---
 
+## 10 bis. Builder Studio : construire des maps en jeu (/mapping)
+
+`Elyzea Base/builder_studio` est un éditeur de construction 3D **standalone** : bâtiments pièce par pièce
+(murs avec vraies ouvertures, sols, toits, escaliers…), gratte-ciel étage par étage, intérieurs meublés,
+terrains / îles, routes, ponts, tunnels, catalogue d'objets, projets avec sauvegarde automatique et points
+de restauration, export en ressource FiveM autonome. Droits ACE `builder.*` (déjà dans `permissions.cfg`).
+Documentation complète, limites du moteur et pipeline d'assets : `Elyzea Base/builder_studio/README.md`.
+
 ## 11. Pour les développeurs
 
 **Serveur**

@@ -1,1 +1,7 @@
 Serveur cfg/secrets.cfg
+
+# Builder Studio : données du serveur (projets, sauvegardes) et exports générés
+Elyzea Base/builder_studio/data/**/*.json
+Elyzea Base/builder_studio/exports/*/
+Elyzea Base/builder_studio/tests/_out/
+Elyzea Base/builder_studio/textures/custom/*.png
