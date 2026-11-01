@@ -37,28 +37,41 @@ local function Plate(veh) return ((GetVehicleNumberPlateText(veh) or ''):gsub('^
 
 local function Notify(src, text) Sync(src, { type = 'error', text = text }) end
 
--- Ouvre le coffre du véhicule (netId) ; class = GetVehicleClass côté client
-RegisterNetEvent('elyzea_inv:openTrunk', function(netId, class)
-    local src = source
-    if not Inv[src] or (InArena and InArena(src)) then return end
+-- Vérifie l'accès au coffre d'un véhicule (distance, verrou / clés, catégorie) et l'enregistre.
+-- Renvoie l'identifiant du coffre (« trunk:PLAQUE ») et si le joueur a les clés, ou nil + message.
+-- Utilisé à l'ouverture du coffre et par les autres ressources (ex. sacs de shopping d'elyzea_clothing).
+local function PrepareTrunk(src, netId, class)
+    if not Inv[src] or (InArena and InArena(src)) then return nil end
     local veh = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
-    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return end
+    if not veh or veh == 0 or not DoesEntityExist(veh) or GetEntityType(veh) ~= 2 then return nil, 'Véhicule introuvable.' end
     local ped = GetPlayerPed(src)
-    if #(GetEntityCoords(ped) - GetEntityCoords(veh)) > Config.Trunks.distance then return Notify(src, Config.Messages.too_far) end
+    if #(GetEntityCoords(ped) - GetEntityCoords(veh)) > Config.Trunks.distance then return nil, Config.Messages.too_far end
     -- verrouillé : seulement avec les clés du véhicule (son propre véhicule)
     local keys = false
     if (GetVehicleDoorLockStatus(veh) or 0) >= 2 then
         local ok, k = pcall(function() return exports.elyzea_core:HasKeys(src, veh) end)
         keys = ok and k == true
-        if not keys then return Notify(src, 'Le véhicule est verrouillé.') end
+        if not keys then return nil, 'Le véhicule est verrouillé.' end
     end
     local cap = Trunk[tonumber(class) or -1]
-    if not cap or cap.slots <= 0 or cap.kg <= 0 then return Notify(src, 'Ce véhicule n\'a pas de coffre.') end
+    if not cap or cap.slots <= 0 or cap.kg <= 0 then return nil, 'Ce véhicule n\'a pas de coffre.' end
     local plate = Plate(veh)
-    if plate == '' then return end
+    if plate == '' then return nil, 'Véhicule sans plaque.' end
     local id = 'trunk:' .. plate
     local owned = (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `player_vehicles` WHERE `plate` = ?', { plate })) or 0) > 0
     RegisterStash(id, ('Coffre · %s'):format(plate), cap.slots, math.floor(cap.kg * 1000), nil, nil, nil, { temporary = not owned })
+    return id, keys, plate
+end
+exports('PrepareTrunk', PrepareTrunk)
+
+-- Ouvre le coffre du véhicule (netId) ; class = GetVehicleClass côté client
+RegisterNetEvent('elyzea_inv:openTrunk', function(netId, class)
+    local src = source
+    local id, keys = PrepareTrunk(src, netId, class)
+    if not id then
+        if keys then Notify(src, keys) end
+        return
+    end
     if ForceOpen(src, 'stash', id) then
         OpenTrunk[src] = { netId = tonumber(netId), id = id, keys = keys }
         TriggerClientEvent('elyzea_inv:trunkOpened', src, tonumber(netId))

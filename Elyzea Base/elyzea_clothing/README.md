@@ -186,3 +186,42 @@ python3 tests/run_knockoff_client_sim.py   # client : chute repérée seulement 
 | `html/` | Interface |
 
 Utilise `@elyzea_core/lib/clothing.lua` (lecture/pose des vêtements par collection), aussi utilisé par `ely_creator`.
+
+## Sacs de shopping 🛍️
+
+Au paiement, le client choisit **Avec un sac** ou **Sans sac** (sous le total, avant « Payer »).
+
+- **Avec un sac** : les vêtements achetés (non portés) vont dans un ou plusieurs sacs (`Config.Bags.perBag` par sac, 6 par défaut). Le joueur reçoit les sacs, pas les vêtements. Ses anciens vêtements (s'il porte tout de suite) vont toujours dans l'inventaire.
+- **Sans sac** : comme avant, tout va dans l'inventaire.
+
+**Couleurs** : rose, violet, bleu, jaune, orange, multicolore (objets `sac_shopping_<couleur>`, images dans `elyzea_inventory/html/img`). Chaque boutique choisit sa couleur : admin_menu › PNJ › rôle 👕 Boutique › « Couleur des sacs de shopping » (ou « Au hasard »).
+
+**En main** : 1 sac → main droite ; 2 sacs → un dans chaque main ; 3 ou plus → un paquet de sacs à droite et un sac à gauche. Animation « sac à la main » (on marche normalement). Cachés en véhicule, arme en main, menotté, à terre ; une animation lancée passe avant.
+
+**Ouvrir** : utiliser le sac dans l'inventaire → fenêtre avec chaque vêtement (nom, quantité), « Prendre » ou « Tout récupérer ». Les vêtements arrivent dans l'inventaire comme des vêtements normaux (portables comme d'habitude). Sac vide → supprimé.
+
+**ALT sur un véhicule** (menu ALT existant d'elyzea_police) :
+- « Ranger un sac de shopping » (une ligne par sac en main) → le sac va dans le **vrai coffre** du véhicule (`trunk:PLAQUE`, mêmes règles qu'en ouvrant le coffre : distance, verrou / clés, capacité de la catégorie).
+- « Récupérer un sac de shopping » → liste des sacs réellement dans ce coffre → choisir.
+
+**ALT sur une personne** : « Offrir un sac de shopping 🎁 » (une ligne par sac). L'autre reçoit un bandeau avec ton nom : **Y** accepter, **L** refuser (20 s). Le sac complet (même contenu) passe chez lui ; il pourra l'ouvrir sans avoir rien acheté.
+
+### Sécurité
+
+- L'objet sac n'est qu'une **clé** (métadonnée `bag` = identifiant). Le **contenu** est enregistré par le serveur dans la table `elyzea_shopping_bags` (créée toute seule) : identifiant, couleur, boutique, propriétaire, acheteur, contenu, emplacement (joueur ou coffre). Copier l'objet ne copie aucun vêtement ; chaque vêtement ne sort qu'une fois.
+- Le serveur vérifie tout : le sac est-il **vraiment** sur le joueur ou **dans ce coffre**, place dans l'inventaire / le coffre **avant** chaque transfert, distance, verrou, destinataire disponible (pas menotté, porté, à terre). Un verrou par sac empêche deux opérations simultanées ; anti-spam des demandes.
+- Transferts sans perte : retrait puis ajout ; si l'ajout échoue, le sac revient. Vêtement retiré du sac (enregistré) **avant** d'être donné.
+- Déconnexion pendant un cadeau : annulé, rien ne bouge. Sacs gardés après déconnexion et redémarrage (coffres des véhicules possédés : sauvegardés par elyzea_inventory ; véhicule sans propriétaire : coffre temporaire, comme avant).
+
+### Réglages (`config.lua` › `Config.Bags`)
+
+`perBag`, `maxBags`, `default` (couleur des boutiques sans couleur), `giftDistance`, `giftTimeout`, `acceptKey` / `refuseKey`, `colors` (objet, nom, couleur d'interface, **modèle 3D**), `hold` (os, positions, animation).
+
+**Modèles 3D** : GTA n'a pas de sacs de shopping de couleur. Par défaut : sac du casino (rose, violet), sac en papier (bleu, jaune, orange), paquet de sacs colorés (multicolore). Pour de vrais sacs de la bonne couleur en 3D, streame tes propres modèles et mets leur nom dans `colors.<couleur>.model`.
+
+### Tests hors jeu
+
+- `python3 tests/run_bags_sim.py <socket MariaDB>` : vrais `server/shop.lua` + `server/bags.lua`, **vraie base MariaDB**, inventaire / coffres / joueurs imités (53 vérifications : achat, ouverture, duplication, coffre, redémarrage, cadeaux).
+- `python3 tests/run_bags_client_sim.py` : sacs en main, menu ALT, demandes envoyées (17).
+- `NODE_PATH=$(npm root -g) node tests/ui_bags.cjs` : choix au paiement, fenêtre du sac, coffre, cadeau (17).
+- `elyzea_inventory` : `python3 tests/run_trunk_sim.py` (ouverture du coffre inchangée + export `PrepareTrunk`).

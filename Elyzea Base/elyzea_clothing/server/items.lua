@@ -15,6 +15,7 @@ local function inv() return exports[INV] end
 local function notify(src, msg, kind) TriggerClientEvent('elyzea_clothing:notify', src, msg, kind or 'error') end
 
 function Items.enabled() return Config.Items.enabled and GetResourceState(INV) == 'started' end
+function Items.nameOf(cat) return ITEM_OF[cat] end   -- objet d'inventaire d'un rayon (sacs de shopping)
 function Items.setBag(src, state) return inv():SetBagEquipped(src, state) end
 
 function Items.sexOf(src)

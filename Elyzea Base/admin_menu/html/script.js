@@ -1213,7 +1213,7 @@ function npcSummary(n) {
     }
     if (n.pvp) parts.push(`⚔️ Arène PvP <b>${esc(n.pvp.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
-    if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}${n.clothing.currency === 'pesos' ? ' · 🪙 <b>pesos uniquement</b>' : ''}`);
+    if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}${n.clothing.currency === 'pesos' ? ' · 🪙 <b>pesos uniquement</b>' : ''}${n.clothing.bagColor ? ` · 🛍️ sacs ${esc(n.clothing.bagColor)}` : ''}`);
     if (n.exchange) parts.push(`🪙 Bureau de change <b>${esc(n.exchange.name)}</b> · 100 $ → ${n.exchange.toPesos} pesos · 100 pesos → ${n.exchange.toCash} $`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
     const jl = (n.jobs && n.jobs.length ? n.jobs : (n.garage && n.garage.jobs)) || [];
@@ -1323,6 +1323,7 @@ function toPedEdit(r) {
         clMult: n.clothing ? n.clothing.multiplier : 100,
         clCats: clone(n.clothing && n.clothing.categories && n.clothing.categories.length ? n.clothing.categories : CLOTHING_CATS.map((c) => c.id)),
         clPesos: !!(n.clothing && n.clothing.currency === 'pesos'),
+        clBag: (n.clothing && n.clothing.bagColor) || 'auto',
         exchangeOn: !!n.exchange,
         xName: n.exchange ? n.exchange.name : 'Bureau de change',
         xToPesos: n.exchange ? n.exchange.toPesos : 100,
@@ -1696,7 +1697,8 @@ function pedEditPayload(p) {
         gov: p.govOn ? { name: String(p.govName || '').trim(), blip: !!p.govBlip, blipSprite: 419, blipColor: 0 } : null,
         pubgarage: p.pubOn ? { name: String(p.pubName || '').trim(), blip: !!p.pubBlip, blipSprite: 357, blipColor: 3, storeRadius: num(p.pubRadius, 4) } : null,
         clothing: p.clothingOn ? { name: String(p.clName || '').trim(), multiplier: num(p.clMult, 100),
-            categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice(), currency: p.clPesos ? 'pesos' : 'normal' } : null,
+            categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice(), currency: p.clPesos ? 'pesos' : 'normal',
+            bagColor: p.clBag && p.clBag !== 'auto' ? p.clBag : null } : null,
         exchange: p.exchangeOn ? { name: String(p.xName || '').trim(), toPesos: num(p.xToPesos, 100), toCash: num(p.xToCash, 100) } : null,
         barber: p.barberOn ? {
             name: String(p.bbName || '').trim(),
@@ -1784,10 +1786,20 @@ function clothingCard(p) {
             <div class="tile toggle-tile ${!p.clPesos ? 'on' : ''}" data-ed="cl_pay_normal"><div><strong>💵 Liquide ou banque</strong><span>Comme les autres boutiques</span></div><div class="switch"></div></div>
             <div class="tile toggle-tile ${p.clPesos ? 'on' : ''}" data-ed="cl_pay_pesos"><div><strong>🪙 Pesos uniquement</strong><span>Prix affichés et payés en pesos (objet « pesos »)</span></div><div class="switch"></div></div>
         </div>
+        <label style="margin-top:14px">🛍️ Couleur des sacs de shopping</label>
+        <div class="chips" style="margin-top:6px">${BAG_COLORS.map((c) => `<button class="chip ${p.clBag === c.id ? 'active' : ''}" data-ed="cl_bag" data-bag="${c.id}"
+            style="${p.clBag === c.id ? `border-color:${c.hex};color:#fff;background:${c.hex}33` : 'opacity:.6'}">${c.dot} ${c.label}</button>`).join('')}</div>
+        <p class="hint" style="margin-top:6px">Au paiement, le client choisit « avec un sac » ou « sans sac ». Avec un sac, ses achats sont dans un sac de cette couleur.</p>
         ${p.clPesos ? '<p class="hint" style="margin-top:6px">Les prix (même %) sont payés en pesos. Les joueurs changent leur liquide au <b>bureau de change</b> (rôle 🪙 d\'un PNJ).</p>' : ''}
     </div>`;
 }
 
+const BAG_COLORS = [
+    { id: 'auto', label: 'Au hasard', hex: '#a78bfa', dot: '🎲' }, { id: 'rose', label: 'Rose', hex: '#ff5fa8', dot: '🩷' },
+    { id: 'violet', label: 'Violet', hex: '#9b6bff', dot: '💜' }, { id: 'bleu', label: 'Bleu', hex: '#3d9bff', dot: '💙' },
+    { id: 'jaune', label: 'Jaune', hex: '#ffc93c', dot: '💛' }, { id: 'orange', label: 'Orange', hex: '#ff8a3d', dot: '🧡' },
+    { id: 'multi', label: 'Multicolore', hex: '#ff5fa8', dot: '🌈' },
+];
 function exchangeCard(p) {
     const n = (v) => Math.max(1, Math.floor(Number(v) || 0));
     return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🪙 Bureau de change</h3>
@@ -2910,6 +2922,7 @@ async function handleEditor(n) {
         case 'cl_none': pedEdit.clCats = []; return render();
         case 'cl_pay_normal': pedEdit.clPesos = false; return render();
         case 'cl_pay_pesos': pedEdit.clPesos = true; return render();
+        case 'cl_bag': pedEdit.clBag = n.dataset.bag || 'auto'; return render();
         case 'pgj_add': pedEdit.gJobs.push({ job: '', grade: 0 }); return render();
         case 'pgj_del': pedEdit.gJobs.splice(Number(n.dataset.i), 1); return render();
         case 'gjobs_on': pedEdit.gJobsOn = true; return render();

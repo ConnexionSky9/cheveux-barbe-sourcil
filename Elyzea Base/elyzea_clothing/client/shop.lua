@@ -261,7 +261,8 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money, opts)
         return { action = 'open', shop = { name = shop.name, multiplier = shop.multiplier }, sex = sex, categories = cats, packs = packs,
             gta = sold(shop, nil), money = money,
             payments = (type(opts) == 'table' and opts.payments) or Config.Payments, currency = (type(opts) == 'table' and opts.currency) or Config.Currency,
-            images = imagesConfig(), itemsMode = ClothingItemsMode(), manage = canManage }
+            images = imagesConfig(), itemsMode = ClothingItemsMode(), manage = canManage,
+            bags = type(opts) == 'table' and opts.bags == true }
     end)
     if not ok then
         print('^1[elyzea_clothing] ouverture impossible : ' .. tostring(msg) .. '^0')
@@ -320,7 +321,7 @@ RegisterNUICallback('pay', function(d, cb)
             if snapshot then current[it.cat] = snapshotPiece(c) end
         end
     end
-    TriggerServerEvent('elyzea_clothing:buy', cart, d.method, d.wearNow == true, current)
+    TriggerServerEvent('elyzea_clothing:buy', cart, d.method, d.wearNow == true, current, d.withBag == true)
 end)
 
 RegisterNetEvent('elyzea_clothing:result', function(ok, msg, extra)

@@ -367,7 +367,8 @@ local function cleanNpc(n)
         end
         local name = cleanName(cl.name, 40)
         out.clothing = { name = name ~= '' and name or 'Boutique de vêtements', multiplier = math.floor(num(cl.multiplier, 0, 1000, 100)), categories = cats,
-            currency = cl.currency == 'pesos' and 'pesos' or nil }   -- 'pesos' : la boutique n'accepte que les pesos (elyzea_change)
+            currency = cl.currency == 'pesos' and 'pesos' or nil,   -- 'pesos' : la boutique n'accepte que les pesos (elyzea_change)
+            bagColor = ({ rose = 1, violet = 1, bleu = 1, jaune = 1, orange = 1, multi = 1 })[cl.bagColor] and cl.bagColor or nil }   -- couleur des sacs de shopping
     end
     -- Catalogue de la concession en lecture seule (ressource elyzea_concess)
     -- (+ essai routier : durée ici, point de départ posé à part, voir editor_catalog_spot)
@@ -1449,7 +1450,7 @@ RegisterNetEvent('adminmenu:clothing:open', function(id)
     end
     local cl = r.npc.clothing
     exports.elyzea_clothing:OpenFor(src, { name = cl.name, multiplier = cl.multiplier, categories = cl.categories, coords = { x = r.x, y = r.y, z = r.z },
-        currency = cl.currency })
+        currency = cl.currency, bagColor = cl.bagColor })
 end)
 
 -- Bureau de change : le PNJ ouvre le guichet de la ressource elyzea_change (taux pris ici, jamais du joueur)

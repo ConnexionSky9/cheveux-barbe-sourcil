@@ -262,6 +262,14 @@ Items.jetons_casino = { label = 'Jetons de casino', weight = 0, perGram = 1000, 
 Items.pesos = { label = 'Pesos', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'pesos.png', icon = '🪙',
     description = 'Pesos de Cayo Perico. S\'échangent contre de l\'argent liquide au bureau de change. Certaines boutiques n\'acceptent que les pesos.' }
 
+-- Sacs de shopping (elyzea_clothing) : un sac = une clé ; son contenu (vêtements) est gardé par le serveur
+-- (table elyzea_shopping_bags). S'ouvre depuis l'inventaire, se range dans un coffre, s'offre avec ALT.
+for _, c in ipairs({ { 'rose', 'rose' }, { 'violet', 'violet' }, { 'bleu', 'bleu' }, { 'jaune', 'jaune' }, { 'orange', 'orange' }, { 'multi', 'multicolore' } }) do
+    Items['sac_shopping_' .. c[1]] = { label = 'Sac de shopping ' .. c[2], weight = 300, stack = false, max = 1, image = 'sac_shopping_' .. c[1] .. '.png',
+        icon = '🛍️', close = true,
+        description = 'Sac d\'une boutique de vêtements. Utiliser : voir et récupérer les vêtements. ALT : le ranger dans un coffre, l\'offrir.' }
+end
+
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
     description = 'Peins un tag sur un mur de ton quartier.' }

@@ -116,6 +116,10 @@ exports('AltNearby', function()
 end)
 
 exports('AltOptions', function(ctx)
+    -- Personne ou véhicule visé : sacs de shopping (client/bags.lua, fournisseur « sac: » d'elyzea_police)
+    if type(ctx) == 'table' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
+        return ClothingBags and ClothingBags.altOptions(ctx) or {}
+    end
     local cat = fallen(ctx and ctx.entity)
     if not cat or not enabled() then return {} end
     local out = { { id = 'take', label = 'Ramasser', icon = 'bag', desc = 'Va dans ton inventaire' } }
@@ -127,6 +131,10 @@ end)
 
 local busyAct = false
 exports('AltSelect', function(id, ctx)
+    if type(ctx) == 'table' and (ctx.kind == 'player' or ctx.kind == 'vehicle') then
+        if ClothingBags then ClothingBags.altSelect(id, ctx) end
+        return true
+    end
     local cat, dropId = fallen(ctx and ctx.entity)
     if not cat or busyAct then return true end
     busyAct = true

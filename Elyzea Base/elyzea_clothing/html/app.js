@@ -53,7 +53,7 @@ const MAX_CART = 30;        // même limite que le serveur (Config.MaxCart)
 const keyOf = (c, d, t) => `${c}|${d}|${t}`;
 const inCat = (id) => [...cart.values()].filter((x) => x.cat === id);
 const wornOf = (id) => inCat(id).find((x) => x.wear) || null;
-let wearNow = false, method = 'cash', shown = 60, query = '', camView = 'full', hands = false, busy = false;
+let wearNow = false, withBag = true, method = 'cash', shown = 60, query = '', camView = 'full', hands = false, busy = false;
 const PAY = { cash: 'Liquide', bank: 'Banque', pesos: 'Pesos' };
 const money = (n) => `${Math.round(n || 0).toLocaleString('fr-FR')} ${S ? S.currency : '$'}`;
 const catById = (id) => S.categories.find((c) => c.id === id);
@@ -347,7 +347,12 @@ function renderCart() {
     ? (several ? 'Une pièce par rayon, celle marquée « Sur toi », est portée (pas dans l\'inventaire : F3 pour la ranger). Le reste et tes vêtements actuels vont dans ton inventaire.'
       : 'Les pièces achetées sont portées (pas dans l\'inventaire : F3 pour les ranger). Tes vêtements actuels vont dans ton inventaire.')
     : 'Tout ce que tu achètes va dans ton inventaire.'}</small></span></label>` : '';
-  $('#cartFoot').innerHTML = `<div class="total"><span>Total</span><b>${money(total)}</b></div>${wearOpt}
+  // Sac de shopping : choisi AVANT de payer (seulement les vêtements achetés et non portés vont dans le sac)
+  const bagOpt = S.itemsMode && S.bags ? `<div class="bagopt" role="radiogroup" aria-label="Emballage">
+      <button type="button" class="${withBag ? 'on' : ''}" data-bag="1" role="radio" aria-checked="${withBag}"><span class="bi">🛍️</span><b>Avec un sac</b><small>Tes achats dans un joli sac, à la main</small></button>
+      <button type="button" class="${withBag ? '' : 'on'}" data-bag="0" role="radio" aria-checked="${!withBag}"><span class="bi">📦</span><b>Sans sac</b><small>Directement dans ton inventaire</small></button>
+    </div>` : '';
+  $('#cartFoot').innerHTML = `<div class="total"><span>Total</span><b>${money(total)}</b></div>${wearOpt}${bagOpt}
     <div class="pay">${pays.map((k) => `<button class="${k === method ? 'on' : ''} ${(S.money[k] || 0) < total ? 'short' : ''}" data-pay="${k}"><small>${PAY[k]}</small><b>${money(S.money[k])}</b></button>`).join('')}</div>
     ${items.length && short ? `<p class="warn">Solde ${PAY[method].toLowerCase()} insuffisant : il manque ${money(total - (S.money[method] || 0))}.</p>` : ''}
     <button class="btn primary wide" id="payBtn" ${!items.length || short || busy ? 'disabled' : ''}>${busy ? 'Paiement…' : items.length ? `Payer ${money(total)}` : 'Payer'}</button>`;
@@ -433,7 +438,7 @@ function clearCart() {
 function pay() {
   if (busy || !cart.size) return;
   busy = true; renderCart();
-  post('pay', { method, wearNow, cart: [...cart.values()].map((x) => ({ cat: x.cat, drawable: x.drawable, texture: x.texture, wear: x.wear })) });
+  post('pay', { method, wearNow, withBag: !!(S.bags && withBag), cart: [...cart.values()].map((x) => ({ cat: x.cat, drawable: x.drawable, texture: x.texture, wear: x.wear })) });
 }
 function askClose() {
   if (!cart.size) return doClose();
@@ -518,6 +523,7 @@ $('#cartClear').addEventListener('click', () => {
 $('#cartFoot').addEventListener('change', (e) => { if (e.target.id === 'wearNow') { wearNow = e.target.checked; renderCart(); } });
 $('#cartFoot').addEventListener('click', (e) => {
   const p = e.target.closest('[data-pay]'); if (p) { method = p.dataset.pay; return renderCart(); }
+  const bg = e.target.closest('[data-bag]'); if (bg) { withBag = bg.dataset.bag === '1'; return renderCart(); }
   if (e.target.closest('#payBtn')) pay();
 });
 $('#tools').addEventListener('click', (e) => {
@@ -715,7 +721,7 @@ window.addEventListener('message', (e) => {
   switch (m.action) {
     case 'open':
       S = { shop: m.shop, sex: m.sex, categories: m.categories, packs: m.packs || [], gta: m.gta !== false, money: m.money || {},
-        payments: m.payments || ['cash', 'bank'], currency: m.currency || '$', itemsMode: !!m.itemsMode, manage: !!m.manage };
+        payments: m.payments || ['cash', 'bank'], currency: m.currency || '$', itemsMode: !!m.itemsMode, manage: !!m.manage, bags: !!m.bags };
       IMG.setup(m.images);
       cart.clear(); wearNow = false; busy = false; hands = false; camView = 'full'; filter = 'all'; totals = null; method = S.payments[0];
       $('#shopName').textContent = S.shop.name;

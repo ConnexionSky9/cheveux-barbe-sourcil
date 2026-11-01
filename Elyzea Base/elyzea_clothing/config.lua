@@ -119,3 +119,42 @@ Config.Images = {
 -- Commande de test réservée au staff (permission ACE). nil pour la désactiver.
 Config.TestCommand = 'boutique_vetements'
 Config.TestAce = 'elyzea.clothing.test'
+
+-- =====================================================================
+--  SACS DE SHOPPING (server/bags.lua, client/bags.lua, html/bags.js)
+--  Au paiement, le joueur choisit « avec un sac » ou « sans sac ».
+--  Avec un sac : les vêtements achetés vont dans un ou plusieurs sacs (objets sac_shopping_<couleur>),
+--  pas directement dans l'inventaire. Le CONTENU de chaque sac est gardé par le serveur
+--  (table elyzea_shopping_bags) : l'objet n'est qu'une clé, impossible de dupliquer un vêtement.
+--  Utiliser le sac (inventaire) : fenêtre pour récupérer les vêtements. ALT : ranger dans le coffre
+--  du véhicule, le reprendre, l'offrir à quelqu'un (il accepte ou refuse).
+-- =====================================================================
+Config.Bags = {
+    enabled     = true,
+    perBag      = 6,            -- vêtements max par sac (au-delà : un sac de plus)
+    maxBags     = 5,            -- sacs max par achat
+    default     = 'auto',       -- couleur des boutiques sans couleur choisie : 'auto' (une couleur au hasard) ou une couleur ci-dessous
+    giftDistance = 3.0,         -- distance max pour offrir un sac (mètres)
+    giftTimeout  = 20,          -- secondes pour accepter un cadeau
+    acceptKey    = 'Y',         -- accepter un cadeau (modifiable dans Paramètres GTA > Raccourcis > FiveM)
+    refuseKey    = 'L',         -- refuser un cadeau
+    -- Couleurs : objet d'inventaire, nom affiché, couleur de l'interface, modèle 3D tenu en main.
+    -- Les modèles sont ceux du jeu (aucun sac de couleur n'existe dans GTA) : remplace « model » par
+    -- ton propre sac streamé (ex. 'ely_bag_rose') pour avoir la vraie couleur en 3D.
+    colors = {
+        rose    = { item = 'sac_shopping_rose',   label = 'rose',        hex = '#ff5fa8', model = 'vw_prop_casino_shopping_bag_01a' },
+        violet  = { item = 'sac_shopping_violet', label = 'violet',      hex = '#9b6bff', model = 'vw_prop_casino_shopping_bag_01a' },
+        bleu    = { item = 'sac_shopping_bleu',   label = 'bleu',        hex = '#3d9bff', model = 'prop_cs_shopping_bag' },
+        jaune   = { item = 'sac_shopping_jaune',  label = 'jaune',       hex = '#ffc93c', model = 'prop_cs_shopping_bag' },
+        orange  = { item = 'sac_shopping_orange', label = 'orange',      hex = '#ff8a3d', model = 'prop_cs_shopping_bag' },
+        multi   = { item = 'sac_shopping_multi',  label = 'multicolore', hex = '#ff5fa8', model = 'prop_shopping_bags02' },
+    },
+    order = { 'rose', 'violet', 'bleu', 'jaune', 'orange', 'multi' },
+    -- Sacs tenus en main : main droite (1er sac), main gauche (2e sac). 3 sacs ou plus : un paquet de sacs à droite.
+    hold = {
+        right = { bone = 28422, pos = { 0.24, 0.03, -0.04 }, rot = { 0.0, -90.0, 10.0 } },
+        left  = { bone = 60309, pos = { 0.20, -0.03, 0.04 }, rot = { 0.0, -90.0, -170.0 } },
+        bunch = { model = 'prop_shopping_bags02', bone = 28422, pos = { 0.05, 0.02, 0.0 }, rot = { 178.8, 91.19, 9.97 } },
+        anim  = { dict = 'move_weapon@jerrycan@generic', name = 'idle' },   -- bras tendu, sac à la main (on peut marcher)
+    },
+}

@@ -21,6 +21,7 @@ client_scripts {
     'client/shop.lua',
     'client/outfits.lua',
     'client/knockoff.lua',   -- pousser, coups : chapeau et lunettes qui tombent ; écraser des lunettes
+    'client/bags.lua',       -- sacs de shopping : en main, ALT (coffre, cadeau), fenêtre
 }
 
 server_scripts {
@@ -31,6 +32,7 @@ server_scripts {
     'server/shop.lua',
     'server/outfits.lua',
     'server/knockoff.lua',
+    'server/bags.lua',       -- sacs de shopping (table elyzea_shopping_bags)
 }
 
 ui_page 'html/index.html'
@@ -38,6 +40,8 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/bags.js',
+    'html/bags.css',
     'html/logo.png',
     'html/images/**/*',
 }

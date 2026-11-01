@@ -63,6 +63,7 @@ local function cleanShop(shop)
         multiplier = math.max(0, math.min(1000, math.floor(tonumber(shop.multiplier) or 100))),
         categories = cats, packs = packs,
         pesos = shop.currency == 'pesos',
+        bagColor = (type(shop.bagColor) == 'string' and Config.Bags and Config.Bags.colors[shop.bagColor]) and shop.bagColor or nil,
     }
 end
 
@@ -100,7 +101,8 @@ local function openFor(src, shop)
     local pos = c and vector3(c.x + 0.0, c.y + 0.0, c.z + 0.0) or GetEntityCoords(GetPlayerPed(src))
     Shop.sessions[src] = { shop = s, coords = pos }
     s.vendor = c and { x = pos.x, y = pos.y, z = pos.z } or nil
-    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src, s), { manage = Hidden.canManage(src), payments = paymentsOf(s), currency = currencyOf(s) })
+    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src, s), { manage = Hidden.canManage(src), payments = paymentsOf(s), currency = currencyOf(s),
+        bags = Config.Bags and Config.Bags.enabled and Items.enabled() or false })
     return true
 end
 exports('OpenFor', openFor)
@@ -115,7 +117,8 @@ AddEventHandler('playerDropped', function() Shop.sessions[source] = nil end)
 --   (une seule par rayon). current = ce qui était porté avant l'essayage.
 -- ---------------------------------------------------------------------
 local paying = {}
-RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
+-- withBag = true : les vêtements achetés (non portés) vont dans des sacs de shopping (server/bags.lua)
+RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current, withBag)
     local src = source
     if paying[src] then return end
     local s = Shop.sessions[src]
@@ -186,7 +189,25 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
             local old = Items.cleanPiece(current[cat])
             if not Items.isNaked(sex, cat, old.drawable) and not Items.same(old, it.piece) then toGive[#toGive + 1] = { cat = cat, piece = old, old = true } end
         end
-        if #toGive > 0 and not Items.canCarry(src, sex, toGive) then
+    end
+    -- Sac de shopping : les articles achetés (pas les anciens vêtements) vont dans un ou plusieurs sacs
+    local bagList, bagColor = {}, nil
+    if useItems and withBag == true and Config.Bags and Config.Bags.enabled and Bags then
+        for _, g in ipairs(toGive) do if not g.old then bagList[#bagList + 1] = g end end
+        if #bagList > 0 then bagColor = Bags.pickColor(s.shop.bagColor) end
+    end
+    if useItems and #toGive > 0 then
+        local okCarry
+        if bagColor then
+            local extra = {}
+            for _, g in ipairs(toGive) do
+                if g.old then extra[#extra + 1] = { Items.nameOf(g.cat), 1, Items.metadata(sex, g.cat, g.piece) } end
+            end
+            okCarry = Bags.canCarry(src, bagColor, Bags.count(#bagList), extra)
+        else
+            okCarry = Items.canCarry(src, sex, toGive)
+        end
+        if not okCarry then
             return result(src, false, 'Ton inventaire est plein ou trop lourd : fais de la place avant de payer.')
         end
     end
@@ -207,12 +228,31 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
     for _, it in ipairs(list) do
         if it.wear then wear[#wear + 1] = { cat = it.cat, piece = it.piece } end
     end
+    local bagged, bagCount = 0, 0
+    local function refundOf(g)
+        for _, it in ipairs(list) do if it.cat == g.cat and it.piece == g.piece then refund = refund + it.price end end
+    end
     if useItems then
+        if bagColor then
+            -- articles achetés → sacs (le contenu est enregistré par le serveur) ; ce qui n'a pas pu être mis en sac est remboursé
+            local entries, ofEntry = {}, {}
+            for _, g in ipairs(bagList) do
+                local e = { name = Items.nameOf(g.cat), md = Items.metadata(sex, g.cat, g.piece) }
+                entries[#entries + 1] = e
+                ofEntry[e] = g
+            end
+            local left, made = Bags.create(src, bagColor, s.shop.name, entries)
+            bagCount = made or 0
+            bagged = #entries - #left
+            for _, e in ipairs(left) do refundOf(ofEntry[e]) end
+        end
         for _, g in ipairs(toGive) do
-            if Items.give(src, sex, g.cat, g.piece) then
-                if g.old then given = given + 1 else bought = bought + 1 end
-            elseif not g.old then
-                for _, it in ipairs(list) do if it.cat == g.cat and it.piece == g.piece then refund = refund + it.price end end
+            if not bagColor or g.old then
+                if Items.give(src, sex, g.cat, g.piece) then
+                    if g.old then given = given + 1 else bought = bought + 1 end
+                elseif not g.old then
+                    refundOf(g)
+                end
             end
         end
     end
@@ -225,9 +265,13 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
             useItems and ' (F3 pour ' .. (#wear > 1 and 'les' or 'la') .. ' ranger dans l\'inventaire)' or '')
     end
     if bought > 0 then parts[#parts + 1] = ('%d %s dans ton inventaire.'):format(bought, bought > 1 and 'vêtements' or 'vêtement') end
+    if bagged > 0 then
+        parts[#parts + 1] = ('%d %s dans %d sac%s de shopping 🛍️ (utilise le sac dans ton inventaire pour l\'ouvrir).'):format(bagged,
+            bagged > 1 and 'vêtements' or 'vêtement', bagCount, bagCount > 1 and 's' or '')
+    end
     if given > 0 then parts[#parts + 1] = 'Tes anciens vêtements y sont aussi.' end
     if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(refund, CUR) end
-    result(src, true, table.concat(parts, ' '), { wear = (wearNow or not useItems) and wear or {} })
+    result(src, true, table.concat(parts, ' '), { wear = (wearNow or not useItems) and wear or {}, bags = bagCount })
 end)
 AddEventHandler('playerDropped', function() paying[source] = nil end)
 
