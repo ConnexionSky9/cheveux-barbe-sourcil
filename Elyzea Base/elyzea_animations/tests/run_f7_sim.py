@@ -30,9 +30,10 @@ def run(settings, binds):
     g.SetResourceKvp = lambda k, v: saved.__setitem__(k, json.loads(v))
     g.RegisterKeyMapping = lambda cmd, desc, dev, key: mapped.append(key)
     lua.execute("LocalPlayer = { state = {} } exports = setmetatable({}, { __call = function() end }) function CreateThread() end function Wait() end")
-    with open(os.path.join(root, 'client.lua'), encoding='utf8') as f:
-        src = re.sub(r'`(mp_[a-z0-9_]+)`', r'GetHashKey("\1")', f.read())
-    lua.execute(src)
+    for name in ('client_engine.lua', 'client.lua'):
+        with open(os.path.join(root, name), encoding='utf8') as f:
+            src = re.sub(r'`(mp_[a-z0-9_]+)`', r'GetHashKey("\1")', f.read())
+        lua.execute(src)
     return saved, mapped
 
 fails = 0

@@ -6,7 +6,7 @@
 -- =========================================================
 local Config = {
     RequestTimeout = 15,   -- secondes pour accepter
-    MaxDistance    = 3.0,  -- distance max entre les deux joueurs (rpemotes refuse au-delà de 3 m)
+    MaxDistance    = 3.0,  -- distance max entre les deux joueurs (mètres)
     Cooldown       = 3,    -- secondes entre deux demandes d'un même joueur
 }
 local IX = ElyzeaInteractions
@@ -40,7 +40,7 @@ local function busyReason(id)
     if Sessions[id] then return 'déjà dans une animation à deux' end
 end
 
--- Animation demandée valable ? mode 'shared' (rpemotes, deux rôles) ou 'together' (même animation solo)
+-- Animation demandée valable ? mode 'shared' (deux rôles) ou 'together' (même animation solo)
 local function validEmote(emote, mode)
     if type(emote) ~= 'string' or #emote > 40 then return false end
     if mode == 'together' then
@@ -176,11 +176,12 @@ RegisterNetEvent('elyzea_anim:respond', function(accept, reason)
         TriggerClientEvent('elyzea_anim:together', from, { partner = src, emote = p.emote, label = p.label })
         TriggerClientEvent('elyzea_anim:together', src, { partner = from, emote = p.emote, label = p.label })
     else
-        -- Lancement par rpemotes : même logique que son propre système d'acceptation (il place les deux joueurs)
+        -- Lancé en même temps chez les deux (client_engine.lua) : le demandeur se place devant l'autre,
+        -- ou celui dont le rôle est « accroché » (porté, câlin…) s'attache au partenaire
         local other = ElyzeaSharedPartners[p.emote] or p.emote
         startSession(from, src, p.emote, other, 'shared')
-        TriggerClientEvent('SyncPlayEmote', src, other, from)
-        TriggerClientEvent('SyncPlayEmoteSource', from, p.emote, src)
+        TriggerClientEvent('elyzea_anim:sharedPlay', src, { emote = other, partner = from, source = false, label = p.label })
+        TriggerClientEvent('elyzea_anim:sharedPlay', from, { emote = p.emote, partner = src, source = true, label = p.label })
     end
     notify(from, ('%s a accepté : %s'):format(name(src), p.label), 'ok')
 end)

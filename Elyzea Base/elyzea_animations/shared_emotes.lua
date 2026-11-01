@@ -1,4 +1,4 @@
--- Généré automatiquement depuis rpemotes (RP.Shared) : emote demandée -> emote du partenaire
+-- Généré par tools/gen_anim_data.py depuis rpemotes-reborn (RP.Shared) : rôle demandé -> rôle du partenaire
 ElyzeaSharedPartners = {
     ["baseball"] = "baseballthrow",
     ["baseballthrow"] = "baseball",
@@ -18,6 +18,8 @@ ElyzeaSharedPartners = {
     ["carrymecute2"] = "carrymecute",
     ["cbdog"] = "cbdog2",
     ["cbdog2"] = "cbdog",
+    ["ccat"] = "ccat2",
+    ["ccat2"] = "ccat",
     ["coupleanim"] = "coupleanim2",
     ["coupleanim2"] = "coupleanim",
     ["couplehhands"] = "couplehhands2",

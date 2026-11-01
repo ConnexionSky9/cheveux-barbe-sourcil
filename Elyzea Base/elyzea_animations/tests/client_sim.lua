@@ -4,7 +4,7 @@
 --  personnages, animations jouées, objets en main, attaches. Vérifie la détection de
 --  « Copier l'animation », la copie, les options du menu ALT et l'arrêt des animations à deux.
 --  Lancer : python3 tests/run_client_sim.py
---  Ne remplace pas un essai en jeu (rendu réel des animations, rpemotes, synchronisation réseau).
+--  Ne remplace pas un essai en jeu (rendu réel des animations, synchronisation réseau).
 -- =========================================================
 local PASS, FAIL = 0, 0
 local function check(cond, label)
@@ -27,7 +27,7 @@ local ME = 100
 local W = {}
 local function resetWorld()
     W = { playing = {}, scenario = {}, objects = {}, attachedTo = {}, pos = { [ME] = v3(0, 0) }, players = { [1] = ME },
-          sids = { [1] = 1 }, veh = {}, dead = {}, phase = 0.3, commands = {}, server = {}, nui = {} }
+          sids = { [1] = 1 }, veh = {}, dead = {}, phase = 0.3, commands = {}, server = {}, nui = {}, nextObj = 5000 }
     LocalPlayer = { state = {} }
 end
 resetWorld()
@@ -53,14 +53,54 @@ function IsPedInAnyVehicle(ped) return W.veh[ped] == true end
 function IsEntityDead(ped) return W.dead[ped] == true end
 function DoesAnimDictExist(d) return not (W.missingDict and W.missingDict[d]) end
 function IsModelInCdimage() return true end
-function GetGameTimer() return 0 end
+local NOW = 0
+function GetGameTimer() return NOW end
+-- Animations / objets joués par le moteur (client_engine.lua)
+function HasAnimDictLoaded() return true end
+function HasModelLoaded() return true end
+function HasAnimSetLoaded() return true end
+function DoesEntityExist(e) return e ~= nil and e ~= 0 and (e < 1000 or W.objects[e] ~= nil) end
+function TaskPlayAnim(ped, d, a) W.playing[ped] = d .. '/' .. a W.scenario[ped] = nil end
+function StopAnimTask(ped, d, a) if W.playing[ped] == d .. '/' .. a then W.playing[ped] = nil end end
+function ClearPedTasks(ped) W.playing[ped] = nil W.scenario[ped] = nil end
+ClearPedTasksImmediately = ClearPedTasks
+function TaskStartScenarioInPlace(ped, name) W.scenario[ped] = name W.playing[ped] = nil end
+function CreateObject(hash) W.nextObj = W.nextObj + 1 W.objects[W.nextObj] = false W.models = W.models or {} W.models[W.nextObj] = hash return W.nextObj end
+function AttachEntityToEntity(e, to) if e >= 1000 then W.objects[e] = to else W.attachedTo[e] = to end end
+function DeleteEntity(e) W.objects[e] = nil end
+function DetachEntity(e) if e < 1000 then W.attachedTo[e] = nil end end
+function GetEntityHeading() return 0.0 end
+function GetOffsetFromEntityInWorldCoords(e, x, y, z) local p = W.pos[e] or v3(0, 0) return v3(p.x + x, p.y + y, p.z + z) end
+function SetEntityCoordsNoOffset(e, x, y, z) W.pos[e] = v3(x, y, z) end
+local function props(ped) local n = 0 for _, owner in pairs(W.objects) do if owner == ped then n = n + 1 end end return n end
+local function played() return W.playing[ME] end
 function GetResourceKvpString() return nil end
 function GetCurrentResourceName() return 'elyzea_animations' end
 function ExecuteCommand(c) W.commands[#W.commands + 1] = c end
 function TriggerServerEvent(name, ...) W.server[#W.server + 1] = { name = name, args = { ... } } end
 function SendNUIMessage(m) W.nui[#W.nui + 1] = m end
-function CreateThread() end   -- les boucles de fond ne tournent pas ici
-function Wait() end
+-- Fils simulés : chaque CreateThread est une coroutine ; Wait() rend la main ; step() fait avancer le temps
+local threads = {}
+function CreateThread(fn)
+    local co = coroutine.create(fn)
+    local ok, err = coroutine.resume(co)
+    if not ok then error(err) end
+    if coroutine.status(co) ~= 'dead' then threads[#threads + 1] = co end
+end
+function Wait() if coroutine.isyieldable() then coroutine.yield() end end
+function SetTimeout(ms, fn) CreateThread(function() fn() end) end
+local function step(n)
+    for _ = 1, n or 1 do
+        NOW = NOW + 250
+        local cur = threads
+        threads = {}
+        for _, co in ipairs(cur) do
+            local ok, err = coroutine.resume(co)
+            if not ok then error(err) end
+            if coroutine.status(co) ~= 'dead' then threads[#threads + 1] = co end
+        end
+    end
+end
 local events, nui, exported = {}, {}, {}
 function RegisterNetEvent(name, fn) if fn then events[name] = fn end end
 local listeners = {}
@@ -72,7 +112,7 @@ end
 function RegisterNUICallback(name, fn) nui[name] = fn end
 exports = setmetatable({}, { __call = function(_, name, fn) exported[name] = fn end })
 
-for _, f in ipairs({ 'anim_data.lua', 'shared_emotes.lua', 'interactions.lua', 'client.lua', 'client_interactions.lua' }) do
+for _, f in ipairs({ 'anim_data.lua', 'shared_emotes.lua', 'interactions.lua', 'client_engine.lua', 'client.lua', 'client_interactions.lua' }) do
     local chunk, err = load(read_fivem(f), '@' .. f)
     assert(chunk, err)
     chunk()
@@ -94,7 +134,7 @@ check(r and r.kind == 'none', 'aucune animation : « none »')
 W.playing[ME] = ElyzeaAnims.danceslow.d .. '/' .. ElyzeaAnims.danceslow.a
 r = probe()
 check(r and r.kind == 'emote' and r.cmd == 'danceslow' and r.phase == 0.3, 'danse lancée par /e (hors menu) : reconnue par son clip + moment de l\'animation')
-check(#W.commands == 0, 'détection en lecture seule : aucune commande lancée sur la personne copiée')
+check(#W.commands == 0 and played() == ElyzeaAnims.danceslow.d .. '/' .. ElyzeaAnims.danceslow.a, 'détection en lecture seule : rien de changé sur la personne copiée')
 -- Même clip pour deux animations : celle avec l'objet en main l'emporte
 resetWorld()
 W.playing[ME] = 'timetable@ron@ig_3_couch/base'
@@ -136,13 +176,12 @@ nui.stopEmote({}, function() end)
 section('Copier : côté de celui qui copie')
 resetWorld()
 events['elyzea_anim:copyResult']({ kind = 'emote', cmd = 'danceslow', phase = 0.5 }, 'Joueur 2')
-check(W.commands[#W.commands] == 'e danceslow', 'animation copiée lancée par rpemotes : /e danceslow')
+check(played() == ElyzeaAnims.danceslow.d .. '/' .. ElyzeaAnims.danceslow.a and #W.commands == 0, 'animation copiée jouée directement (sans commande rpemotes) : danceslow')
 local notes = {} for _, m in ipairs(W.nui) do if m.action == 'notify' then notes[#notes + 1] = m.text end end
 check(table.concat(notes, '|'):find('X pour l\'arrêter'), 'message : comment l\'arrêter')
 check(LocalPlayer.state ~= nil and W.pos[ME].x == 0 and W.pos[ME].y == 0, 'pas de téléportation')
-W.commands = {}
 nui.stopEmote({}, function() end)
-check(W.commands[1] == 'emotecancel', 'X arrête l\'animation copiée')
+check(played() == nil, 'X arrête l\'animation copiée')
 for _, case in ipairs({
     { { kind = 'shared', cmd = 'hug' }, 'animation à deux' },
     { { kind = 'unknown' }, 'non reconnue' },
@@ -151,21 +190,21 @@ for _, case in ipairs({
     resetWorld()
     events['elyzea_anim:copyResult'](case[1], 'Joueur 2')
     local txt = '' for _, m in ipairs(W.nui) do if m.action == 'notify' then txt = txt .. m.text end end
-    check(#W.commands == 0 and txt:find(case[2]), ('« %s » : rien lancé, message clair'):format(case[2]))
+    check(played() == nil and txt:find(case[2]), ('« %s » : rien lancé, message clair'):format(case[2]))
 end
 resetWorld()
 W.missingDict = { [ElyzeaAnims.danceslow.d] = true }
 events['elyzea_anim:copyResult']({ kind = 'emote', cmd = 'danceslow' }, 'Joueur 2')
 local txt = '' for _, m in ipairs(W.nui) do if m.action == 'notify' then txt = txt .. m.text end end
-check(#W.commands == 0 and txt:find('fichier manquant'), 'fichier absent chez celui qui copie : rien lancé, message « fichier manquant »')
+check(played() == nil and txt:find('fichier manquant'), 'fichier absent chez celui qui copie : rien lancé, message « fichier manquant »')
 resetWorld()
 W.veh[ME] = true
 events['elyzea_anim:copyResult']({ kind = 'emote', cmd = 'danceslow' }, 'Joueur 2')
-check(#W.commands == 0, 'en véhicule : animation à pied non lancée')
+check(played() == nil, 'en véhicule : animation à pied non lancée')
 resetWorld()
 LocalPlayer.state.cuffed = true
 events['elyzea_anim:copyResult']({ kind = 'emote', cmd = 'danceslow' }, 'Joueur 2')
-check(#W.commands == 0, 'menotté : rien lancé')
+check(played() == nil, 'menotté : rien lancé')
 
 -- =========================================================
 section('Menu ALT')
@@ -191,19 +230,22 @@ section('Arrêt d\'une animation à deux')
 W.server = {} W.commands = {}
 nui.stopEmote({}, function() end)
 check(W.server[1] and W.server[1].name == 'elyzea_anim:sessionEnd' and W.server[1].args[1] == 'stopped', 'X : le serveur est prévenu (l\'autre arrête aussi)')
+addPlayer(2, 2, 200, 1.0)
 events['elyzea_anim:session']({ partner = 2, emote = 'hug', mode = 'shared' })
-W.commands = {}
+events['elyzea_anim:sharedPlay']({ emote = 'hug', partner = 2, source = true, label = 'Câlin' })
+check(played() == ElyzeaAnims.nearby_hug.d .. '/' .. ElyzeaAnims.nearby_hug.a, 'animation à deux jouée (rôle hug)')
 events['elyzea_anim:partnerStop']('Joueur2 a arrêté l\'animation')
-check(W.commands[1] == 'emotecancel', 'l\'autre arrête : mon animation s\'arrête aussi')
-W.commands = {}
+check(played() == nil, 'l\'autre arrête : mon animation s\'arrête aussi')
+W.server = {}
 events['elyzea_anim:partnerStop']('encore')
-check(#W.commands == 0, 'arrêt reçu sans animation à deux en cours : ignoré')
-W.commands = {}
+check(#W.server == 0, 'arrêt reçu sans animation à deux en cours : ignoré')
 events['onResourceStop']('elyzea_animations')
-check(#W.commands == 0, 'redémarrage de la ressource sans animation : rien à arrêter')
-events['elyzea_anim:session']({ partner = 2, emote = 'hug', mode = 'shared' })
+check(played() == nil, 'redémarrage de la ressource sans animation : rien à arrêter')
+events['elyzea_anim:session']({ partner = 2, emote = 'carry', mode = 'shared' })
+events['elyzea_anim:sharedPlay']({ emote = 'carry2', partner = 2, source = false, label = 'Porter' })
+check(W.attachedTo[ME] == 200, 'rôle « porté » : accroché au partenaire')
 events['onResourceStop']('elyzea_animations')
-check(W.commands[#W.commands] == 'emotecancel', 'redémarrage de la ressource pendant une animation à deux : personne ne reste bloqué')
+check(played() == nil and W.attachedTo[ME] == nil, 'redémarrage de la ressource pendant une animation à deux : personne ne reste bloqué ni accroché')
 
 section('Danser ensemble')
 resetWorld()
@@ -212,7 +254,7 @@ W.pos[200] = v3(1, 0)
 local heading
 SetEntityHeading = function(_, h) heading = h end
 events['elyzea_anim:together']({ partner = 2, emote = 'danceslow', label = 'Slow' })
-check(W.commands[#W.commands] == 'e danceslow', 'chacun lance la même danse')
+check(played() == ElyzeaAnims.danceslow.d .. '/' .. ElyzeaAnims.danceslow.a, 'chacun lance la même danse')
 check(heading and math.abs(heading - 270.0) < 0.01, 'tourné vers l\'autre (partenaire à l\'est : cap 270°), sans déplacement : ' .. tostring(heading))
 
 section('Invitation reçue : accepter seulement si possible')

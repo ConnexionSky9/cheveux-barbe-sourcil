@@ -15,10 +15,10 @@ ElyzeaInteractions = {
     SessionMaxDuration = 1800,
 
     -- Catégories de « Proposer une animation ».
-    -- Chaque entrée : { commande rpemotes de TON rôle, nom affiché, [sexe du rôle : 'f' / 'm'] }.
-    -- L'autre joueur fait l'animation partenaire (shared_emotes.lua) : rpemotes place et synchronise les deux.
+    -- Chaque entrée : { commande de TON rôle, nom affiché, [sexe du rôle : 'f' / 'm'] }.
+    -- L'autre joueur fait l'animation partenaire (shared_emotes.lua) : client_engine.lua place et synchronise les deux.
     -- mode = 'together' : pas une animation de couple ; chacun fait la même animation solo, face à face, lancée en même temps.
-    -- Une animation absente de rpemotes (shared_emotes.lua) ou dont le fichier manque n'est pas affichée.
+    -- Une animation absente de shared_emotes.lua, ou dont le fichier manque chez le joueur, n'est pas affichée.
     Categories = {
         { id = 'salut', label = 'Salutations', icon = 'hand', desc = 'Se saluer entre amis.', items = {
             { 'bro', 'Check entre potes' }, { 'bro2', 'Check entre potes 2' },
@@ -56,12 +56,12 @@ ElyzeaInteractions = {
             { 'coupleanim', 'Trinquer (verres de vin)' }, { 'coupleanim2', 'Trinquer (verres de vin) 2' },
         } },
         { id = 'danse', label = 'Danser ensemble', icon = 'music', mode = 'together',
-          desc = 'rpemotes n\'a pas de danse de couple : vous faites la même danse, face à face, lancée au même moment.', items = {
+          desc = 'Pas de danse de couple dans la liste : vous faites la même danse, face à face, lancée au même moment.', items = {
             { 'dance', 'Danse' }, { 'dance2', 'Danse 2' }, { 'dance3', 'Danse 3' }, { 'dance4', 'Danse 4' },
             { 'salsa', 'Salsa' }, { 'danceclub', 'Danse de club' }, { 'danceclubb', 'Danse de club 2' }, { 'danceshy', 'Danse timide' },
         } },
         { id = 'slow', label = 'Slow', icon = 'heart-pulse', mode = 'together',
-          desc = 'rpemotes n\'a pas de slow à deux : vous faites le même slow, face à face, lancé au même moment.', items = {
+          desc = 'Pas de slow à deux dans la liste : vous faites le même slow, face à face, lancé au même moment.', items = {
             { 'danceslow', 'Slow' }, { 'danceslow2', 'Slow 2' }, { 'danceslow3', 'Slow 3' }, { 'danceslow4', 'Slow 4' },
         } },
         { id = 'porter', label = 'Porter', icon = 'person-standing', desc = 'Porter quelqu\'un ou se faire porter.', items = {
@@ -74,6 +74,7 @@ ElyzeaInteractions = {
             { 'cbdog', 'Porter un grand chien (partenaire en chien)' }, { 'cbdog2', 'Grand chien porté' },
             { 'csdog', 'Porter un petit chien (partenaire en chien)' }, { 'csdog2', 'Petit chien porté' },
             { 'csdog3', 'Porter un petit chien 2' }, { 'csdog4', 'Petit chien porté 2' },
+            { 'ccat', 'Porter un chat (partenaire en chat)' }, { 'ccat2', 'Chat porté' },
         } },
         { id = 'autres', label = 'Autres interactions', icon = 'sparkles', desc = 'Soins, fouille, bagarre pour rire…', items = {
             { 'cprs', 'Faire un massage cardiaque' }, { 'cprs2', 'Recevoir un massage cardiaque' },

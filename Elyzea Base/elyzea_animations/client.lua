@@ -2,10 +2,7 @@
 --  Elyzea - Menu des animations (client)
 -- =========================================================
 local Config = {
-    EmoteCommand   = 'e',          -- /e wave
-    WalkCommand    = 'walk',       -- /walk Casual
-    MoodCommand    = 'mood',       -- /mood Happy
-    CancelCommand  = 'emotecancel',-- arrête l'animation (et l'animation partagée des deux côtés)
+    Command        = 'anim',       -- /anim wave  (/anim seul = arrêter) ; rpemotes garde /e s'il est lancé
     DefaultOpenKey = 'K',
     DefaultStopKey = 'X',
     AcceptKey      = 'Y',          -- accepter une demande d'animation partagée
@@ -36,8 +33,8 @@ local Config = {
     },
 }
 
--- Les animations partagées sont jouées et synchronisées par rpemotes lui-même
--- (événements SyncPlayEmote / SyncPlayEmoteSource), après acceptation dans le menu Elyzea.
+-- Toutes les animations sont jouées par client_engine.lua (ElyEngine) : plus aucune commande rpemotes.
+local Engine = ElyEngine
 
 -- ---------------------------------------------------------
 local menuOpen = false
@@ -142,22 +139,7 @@ end, false)
 -- ---------------------------------------------------------
 local pv = { ped = nil, cam = nil, props = {}, active = false, token = 0 }
 
-local function loadDict(dict)
-    if not DoesAnimDictExist(dict) then return false end
-    if HasAnimDictLoaded(dict) then return true end
-    RequestAnimDict(dict)
-    local t = GetGameTimer() + 2000
-    while not HasAnimDictLoaded(dict) and GetGameTimer() < t do Wait(10) end
-    return HasAnimDictLoaded(dict)
-end
-
-local function loadModel(hash)
-    if not IsModelInCdimage(hash) then return false end
-    RequestModel(hash)
-    local t = GetGameTimer() + 2000
-    while not HasModelLoaded(hash) and GetGameTimer() < t do Wait(10) end
-    return HasModelLoaded(hash)
-end
+local loadDict = Engine.loadDict
 
 local function clearPreviewProps()
     for _, obj in ipairs(pv.props) do
@@ -223,39 +205,25 @@ end
 -- alive() dit si la demande est toujours d'actualité (les chargements prennent du temps).
 local function applyEmoteToPed(ped, e, props, alive, alpha)
     ClearPedTasksImmediately(ped)
-    for i = #props, 1, -1 do
-        if DoesEntityExist(props[i]) then DeleteEntity(props[i]) end
-        props[i] = nil
-    end
+    Engine.deleteProps(props)
     ClearFacialIdleAnimOverride(ped)
     if not e then return end
 
     if e.k == 'w' then
-        if loadDict(e.d) and alive() then
+        -- Démarche : le perso marche sur place avec ce style (si le style a une animation « walk »)
+        if e.d and loadDict(e.d) and alive() then
             TaskPlayAnim(ped, e.d, 'walk', 8.0, -8.0, -1, 1, 0.0, false, false, false)
         end
     elseif e.k == 'm' then
-        SetFacialIdleAnimOverride(ped, e.d, 0)
-    elseif e.d and e.d:find('Scenario') then
+        if e.d then SetFacialIdleAnimOverride(ped, e.d, 0) end
+    elseif Engine.isScenario(e) then
         TaskStartScenarioInPlace(ped, e.a, 0, true)
     elseif e.d and loadDict(e.d) and alive() then
         TaskPlayAnim(ped, e.d, e.a, 8.0, -8.0, -1, 1, 0.0, false, false, false)
     end
-
+    -- Objets locaux (visibles seulement par toi)
     if e.p and alive() then
-        for _, p in ipairs(e.p) do
-            local hash = GetHashKey(p[1])
-            if loadModel(hash) and alive() and DoesEntityExist(ped) then
-                local obj = CreateObject(hash, 0.0, 0.0, 0.0, false, true, false)
-                SetEntityCollision(obj, false, false)
-                AttachEntityToEntity(obj, ped, GetPedBoneIndex(ped, p[2]),
-                    p[3] + 0.0, p[4] + 0.0, p[5] + 0.0, p[6] + 0.0, p[7] + 0.0, p[8] + 0.0,
-                    true, true, false, true, 1, true)
-                if alpha then SetEntityAlpha(obj, alpha, false) end
-                props[#props + 1] = obj
-                SetModelAsNoLongerNeeded(hash)
-            end
-        end
+        Engine.attachProps(ped, e.p, props, alive, { network = false, alpha = alpha })
     end
 end
 
@@ -335,38 +303,71 @@ RegisterKeyMapping('elyzea_anim_refuser', 'Elyzea animations : refuser une deman
 --  Animations solo
 -- ---------------------------------------------------------
 local function playEmote(emote, etype, label, target)
-    if not emote then return end
+    if type(emote) ~= 'string' then return end
     if etype == 'walk' then
-        local style = emote:gsub('^walk_', '')
-        ExecuteCommand(Config.WalkCommand .. ' ' .. style)
+        CreateThread(function()
+            local ok, why = Engine.setWalk(emote)
+            if not ok then notify(why or 'Démarche indisponible', 'err') end
+        end)
     elseif etype == 'mood' then
-        local mood = emote:gsub('^mood_', '')
-        ExecuteCommand(Config.MoodCommand .. ' ' .. mood)
+        local ok, why = Engine.setMood(emote)
+        if not ok then notify(why or 'Humeur indisponible', 'err') end
     elseif etype == 'shared' or etype == 'together' then
         local name = emote:gsub('^nearby_', '')
         requestShared(name, label, target, etype == 'together' and 'together' or nil)
     else
+        local e = ElyzeaAnims[emote]
+        local why = Engine.reason(e)
+        if why then
+            notify(why, 'err')
+            return SendNUIMessage({ action = 'stopped' })
+        end
         ElyAnim.onPlay(emote)
         currentEmote, currentLabel = emote, label
         -- Déjà figé à un endroit placé : on garde la place pour la nouvelle animation
         if placed then placed.cmd, placed.since = emote, GetGameTimer() end
-        ExecuteCommand(Config.EmoteCommand .. ' ' .. emote)
+        CreateThread(function()
+            local ok, err = Engine.play(emote)
+            if not ok and err and currentEmote == emote then
+                currentEmote, currentLabel = nil, nil
+                notify(err, 'err')
+                SendNUIMessage({ action = 'stopped' })
+            elseif ok and e.fx then
+                notify(('Effet : maintiens %s'):format(Engine.Config.FxKey))
+            end
+        end)
     end
 end
 
-local function stopEmote()
-    ElyAnim.onStop()
-    ExecuteCommand(Config.CancelCommand)
+-- hooks = false : arrêt demandé par client_interactions (pas de nouvel arrêt de l'animation à deux)
+local function stopEmote(hooks)
+    if hooks ~= false then ElyAnim.onStop() end
+    Engine.stop()
     currentEmote, currentLabel = nil, nil
     releasePlaced()
     SendNUIMessage({ action = 'stopped' })
 end
 
--- Les animations partagées sont placées par rpemotes : on libère le personnage
-RegisterNetEvent('SyncPlayEmote')
-RegisterNetEvent('SyncPlayEmoteSource')
-AddEventHandler('SyncPlayEmote', function() releasePlaced() end)
-AddEventHandler('SyncPlayEmoteSource', function() releasePlaced() end)
+-- Fin naturelle (durée écoulée) ou interruption (chute, mort, autre ressource)
+Engine.onEnded = function(cmd)
+    if currentEmote == cmd then currentEmote, currentLabel = nil, nil end
+    SendNUIMessage({ action = 'stopped' })
+end
+
+-- Animation à deux acceptée : le serveur l'envoie aux deux joueurs en même temps
+RegisterNetEvent('elyzea_anim:sharedPlay', function(data)
+    if type(data) ~= 'table' or type(data.emote) ~= 'string' then return end
+    releasePlaced()
+    CreateThread(function()
+        local ok, why = Engine.playShared(data.emote, tonumber(data.partner), data.source == true)
+        if ok then
+            currentEmote, currentLabel = 'nearby_' .. data.emote, data.label
+        else
+            notify(why or 'Animation impossible', 'err')
+            ElyAnim.onStop()
+        end
+    end)
+end)
 
 -- ---------------------------------------------------------
 --  Menu et touches
@@ -409,6 +410,7 @@ end
 local function isPlayingEmote(ped, cmd)
     local e = ElyzeaAnims[cmd]
     if not e or not e.d then return true end
+    if ped == PlayerPedId() and Engine.current() == cmd then return Engine.isPlaying(cmd) end
     if e.d:find('Scenario') then return IsPedUsingAnyScenario(ped) end
     return IsEntityPlayingAnim(ped, e.d, e.a, 3)
 end
@@ -470,11 +472,7 @@ local function watchPlaced(state)
             if not placing then
                 for _, c in ipairs(PLACED_CANCEL_KEYS) do
                     if IsControlJustPressed(0, c) then
-                        ExecuteCommand(Config.CancelCommand)
-                        currentEmote, currentLabel = nil, nil
-                        SendNUIMessage({ action = 'stopped' })
-                        releasePlaced()
-                        return
+                        return stopEmote()
                     end
                 end
             end
@@ -482,7 +480,7 @@ local function watchPlaced(state)
             if now >= nextCheck then
                 nextCheck = now + 400
                 if IsEntityDead(ped) or IsPedInAnyVehicle(ped, false) then return releasePlaced() end
-                -- 3 s pour laisser rpemotes charger et lancer l'animation
+                -- 3 s pour laisser le temps de charger et lancer l'animation
                 if not placing and now - state.since > 3000 and not isPlayingEmote(ped, state.cmd) then
                     return releasePlaced()
                 end
@@ -671,6 +669,17 @@ RegisterCommand('elyzea_anim_place', function()
 end, false)
 RegisterKeyMapping('elyzea_anim_place', 'Elyzea animations : déplacer mon animation', 'keyboard', Config.Placement.Key)
 
+-- /anim wave : lancer une animation ; /anim seul : arrêter
+RegisterCommand(Config.Command, function(_, args)
+    local cmd = args[1]
+    if not cmd or cmd == '' then return stopEmote() end
+    local e = ElyzeaAnims[cmd] or ElyzeaAnims[cmd:lower()]
+    if not e then return notify('Animation inconnue : ' .. cmd, 'err') end
+    cmd = ElyzeaAnims[cmd] and cmd or cmd:lower()
+    local etype = e.k == 'w' and 'walk' or e.k == 'm' and 'mood' or cmd:sub(1, 7) == 'nearby_' and 'shared' or 'emote'
+    playEmote(cmd, etype, cmd)
+end, false)
+
 -- /placer wave : placer une animation précise ; /placer : déplacer celle en cours
 RegisterCommand(Config.Placement.Command, function(_, args)
     if not Config.Placement.Enabled or placing or menuOpen then return end
@@ -777,6 +786,7 @@ ElyAnim.Config = Config
 ElyAnim.notify = notify
 ElyAnim.playEmote = playEmote
 ElyAnim.stopEmote = stopEmote
+ElyAnim.cancelAnim = function() stopEmote(false) end
 ElyAnim.openMenu = openMenu
 ElyAnim.isMenuOpen = function() return menuOpen end
 ElyAnim.isPlacing = function() return placing ~= nil end
@@ -792,6 +802,11 @@ CreateThread(function()
     TriggerEvent('chat:removeSuggestion', '/elyzea_anim_accept')
     TriggerEvent('chat:removeSuggestion', '/elyzea_anim_refuse')
     TriggerEvent('chat:removeSuggestion', '/elyzea_anim_place')
+    TriggerEvent('chat:removeSuggestion', '/+elyzea_anim_fx')
+    TriggerEvent('chat:removeSuggestion', '/-elyzea_anim_fx')
+    TriggerEvent('chat:addSuggestion', '/' .. Config.Command, 'Lancer une animation (vide = arrêter)', {
+        { name = 'animation', help = 'Commande de l\'animation, ex. wave' },
+    })
     if Config.Placement.Enabled then
         TriggerEvent('chat:addSuggestion', '/' .. Config.Placement.Command, 'Placer une animation où tu veux', {
             { name = 'animation', help = "Commande de l'animation (vide = celle en cours)" },
@@ -802,8 +817,8 @@ CreateThread(function()
     for key, label in pairs(Config.ReservedKeys) do reserved[key] = label end
     SendNUIMessage({ action = 'init', settings = settings, binds = binds, reserved = reserved,
         keys = { accept = Config.AcceptKey, refuse = Config.RefuseKey,
-                 place = Config.Placement.Enabled and Config.Placement.Key or nil } })
-    -- Laisse le temps aux fichiers de rpemotes d'être chargés avant de vérifier
+                 place = Config.Placement.Enabled and Config.Placement.Key or nil, fx = Engine.Config.FxKey } })
+    -- Laisse le temps aux fichiers d'animations (fournis par rpemotes) d'être chargés avant de vérifier
     while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
     Wait(5000)
     checkAvailability()

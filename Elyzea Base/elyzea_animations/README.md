@@ -2,49 +2,49 @@
 
 Menu d'animations pour le serveur Elyzea RP. Il s'ouvre avec **K**, l'animation s'arrête avec **X**, et les favoris peuvent recevoir leur propre touche de raccourci.
 
+**Moteur intégré (nouveau).** Le menu joue lui-même les animations avec les fonctions du jeu (`client_engine.lua`) : il n'envoie plus aucune commande à rpemotes (`/e`, `/walk`, `/mood`, `/emotecancel`). Avant, le menu dépendait des commandes et des événements de rpemotes : quand rpemotes a changé (rpemotes-reborn a renommé ses événements d'animations à deux), les animations du menu ont cessé de marcher.
+
 ## Contenu du dossier
 
 ```
 elyzea_animations/
-├── fxmanifest.lua      Déclaration de la ressource
-├── client.lua          Touches, raccourcis, animations partagées, lien avec ton script d'emotes
+├── fxmanifest.lua           Déclaration de la ressource
+├── client_engine.lua        Moteur : animations, objets, effets, scénarios, démarches, humeurs, sorties, animations à deux
+├── client.lua               Menu, touches, raccourcis, aperçu 3D, placement, demandes d'animations à deux
 ├── client_interactions.lua  Menu ALT : copier une animation, proposer une animation, arrêt des animations à deux
-├── server.lua          Demandes d'animations partagées, animations à deux en cours, copie (tout est vérifié ici)
-├── interactions.lua    Réglages et catégories de « Proposer une animation » (client + serveur)
-├── shared_emotes.lua   Liste des animations partagées de rpemotes et de leur partenaire
-├── anim_data.lua       Données des animations (aperçu 3D, vérification, reconnaissance pour la copie)
-├── tests/              Simulations hors jeu (serveur et client) : python3 tests/run_interactions_sim.py, run_client_sim.py
-├── README.md           Ce fichier
-└── html/
-    └── index.html      L'interface (menu, logo, liste des animations)
+├── server.lua               Demandes d'animations à deux, animations à deux en cours, copie (tout est vérifié ici)
+├── interactions.lua         Réglages et catégories de « Proposer une animation » (client + serveur)
+├── anim_data.lua            Données de TOUTES les animations (généré, voir plus bas)
+├── shared_emotes.lua        Animations à deux : rôle de l'autre joueur (généré)
+├── html/
+│   ├── index.html           L'interface
+│   ├── style.css            Thème du menu
+│   ├── app.js               Fonctionnement du menu (liste virtualisée)
+│   ├── emotes.js            Liste du menu par catégorie (généré)
+│   └── logo.webp            Logo
+├── tools/
+│   ├── gen_anim_data.py     Générateur des 3 fichiers « générés »
+│   └── rpemotes_source/     Liste d'animations de rpemotes-reborn utilisée par le générateur (licence GPL-3 incluse)
+└── tests/                   Tests hors jeu (voir la fin de ce fichier)
 ```
 
 ## Prérequis
 
-Le menu utilise **rpemotes** (version nox-rpemotes) pour jouer les animations. Toutes ses animations sont déjà listées dans le menu : environ 1 500, réparties en 14 catégories.
-
-rpemotes doit être installé et fonctionnel. Vérifie en jeu que `/e wave` marche avant d'installer le menu.
+- **rpemotes** (ou rpemotes-reborn) reste installé et démarré **avant** le menu : il fournit les **fichiers** des animations personnalisées et des objets (son dossier `stream/`). Le menu n'utilise plus ses commandes.
+- Sans rpemotes, les animations de base de GTA marchent quand même ; celles dont le fichier manque sont masquées automatiquement.
+- Pour les animations récentes, une version du jeu suffisante dans `server.cfg` (par exemple `sv_enforceGameBuild 3095`).
 
 ## Installation
 
-1. Décompresse le zip et place le dossier `elyzea_animations` dans le dossier `resources` de ton serveur. Tu peux le mettre dans un sous-dossier, par exemple `resources/[elyzea]/elyzea_animations`.
-
-2. Ouvre ton `server.cfg` et ajoute la ligne suivante **après** ton script d'emotes :
+1. Remplace le dossier `elyzea_animations` par celui du zip (les réglages et favoris des joueurs sont gardés : ils sont enregistrés chez chaque joueur).
+2. Dans `server.cfg`, l'ordre ne change pas :
 
    ```
    ensure rpemotes
    ensure elyzea_animations
    ```
 
-   Remplace `rpemotes` par le nom exact du dossier de ton script d'emotes. Le zip s'appelle `nox-rpemotes-master` : renomme le dossier en `rpemotes`, c'est le plus simple.
-
-3. Redémarre le serveur, ou tape dans la console :
-
-   ```
-   refresh
-   ensure elyzea_animations
-   ```
-
+3. Redémarre le serveur, ou dans la console : `refresh` puis `ensure elyzea_animations`.
 4. En jeu, appuie sur **K** : le menu s'ouvre.
 
 ## Réglages
@@ -53,27 +53,20 @@ En haut de `client.lua`, la partie `Config` :
 
 ```lua
 local Config = {
-    EmoteCommand   = 'e',           -- animations : /e wave
-    WalkCommand    = 'walk',        -- démarches : /walk Casual
-    MoodCommand    = 'mood',        -- humeurs : /mood Happy
-    CancelCommand  = 'emotecancel', -- arrêter l'animation
+    Command        = 'anim',  -- /anim wave (lancer), /anim seul (arrêter)
     DefaultOpenKey = 'K',
     DefaultStopKey = 'X',
-    AcceptKey      = 'Y',           -- accepter une demande d'animation partagée
-    RefuseKey      = 'N',           -- refuser une demande
-    NearbyRadius   = 3.0,           -- distance max (mètres) pour les animations partagées
-    PreviewCam = {                  -- caméra de l'aperçu 3D
-        side   = 0.0,               -- décalage sur le côté (0 = perso au milieu de l'écran)
-        dist   = 3.3,               -- distance (plus grand = perso plus petit)
-        height = 0.15,              -- hauteur
-        fov    = 50.0,              -- angle de vue
-    },
+    AcceptKey      = 'Y',     -- accepter une demande d'animation à deux
+    RefuseKey      = 'L',     -- refuser une demande (N = parler avec pma-voice)
+    NearbyRadius   = 3.0,     -- distance max (mètres) pour les animations à deux
+    PreviewCam = { side = 0.0, dist = 3.3, height = 0.15, fov = 50.0 },   -- caméra de l'aperçu 3D
+    Placement = { ... },      -- voir « Placer son animation »
 }
 ```
 
-Ces commandes sont celles de rpemotes, tu n'as normalement rien à changer.
+En haut de `client_engine.lua`, `ElyEngine.Config` : `FxKey = 'G'` (touche des effets), vitesses de transition, délai max de chargement.
 
-**Touche du menu rpemotes.** rpemotes ouvre aussi son propre menu (F3 par défaut). Si tu veux que les joueurs n'utilisent que le menu Elyzea, mets `MenuKeybindEnabled = false` dans le `config.lua` de rpemotes.
+**Menu de rpemotes.** rpemotes ouvre aussi son propre menu et garde `/e`. Si tu veux que les joueurs n'utilisent que le menu Elyzea, désactive le menu de rpemotes dans son `config.lua` (`MenuKeybindEnabled = false`).
 
 ## Utilisation en jeu
 
@@ -85,14 +78,17 @@ Ces commandes sont celles de rpemotes, tu n'as normalement rien à changer.
 | Mettre en favori | L'étoile en haut à droite d'une animation |
 | Assigner une touche | Onglet Favoris, bouton « + Touche », puis appuie sur la touche voulue |
 | Retirer une touche | Clique sur la touche assignée, puis « Retirer la touche » |
-| Animation à deux | Onglet Partagées : choisis un joueur proche, il reçoit une demande |
+| Choisir au clavier | **Flèches** puis **Entrée** (aussi depuis la recherche) |
+| Effet de l'animation (fumée, flash, billets…) | **G** : maintenir (fumée) ou appuyer (effet court). « G effet » s'affiche dans le menu |
+| Animation à deux | Onglet À deux : choisis un joueur proche, il reçoit une demande |
 | Accepter une demande | **Y** (ou le bouton Accepter si ton menu est ouvert) |
-| Refuser une demande | **N** (ou le bouton Refuser) |
+| Refuser une demande | **L** (ou le bouton Refuser) |
+| Dans le chat | `/anim wave` pour lancer, `/anim` pour arrêter |
 | Placer une animation où je veux | Clic droit sur une animation, ou l'icône flèches en bas à droite de la case |
 | Déplacer l'animation en cours | **J** (menu fermé), ou `/placer` |
 | Paramètres | L'icône engrenage en haut du menu |
 
-Touches acceptées pour les raccourcis : chiffres, F1 à F12, pavé numérique et lettres libres. Les touches du jeu (ZQSD, WASD, E, F, G, R, T, C, V, Espace, Tab) sont bloquées pour éviter les conflits.
+Touches acceptées pour les raccourcis : chiffres, F1 à F12, pavé numérique et lettres libres. Les touches du jeu (ZQSD, WASD, E, F, G, R, T, C, V, Espace, Tab) et celles du menu (Y, L, J, G) sont bloquées pour éviter les conflits.
 
 **F7 est réservée à « Mes animaux » (`elyzea_animaux`).** Le menu des animations ne peut plus s'ouvrir, s'arrêter ni lancer un raccourci avec F7. Un joueur qui avait choisi F7 repasse automatiquement sur **K** (son raccourci sur F7 est retiré). Liste des touches réservées : `ReservedKeys` en haut de `client.lua`.
 
@@ -108,8 +104,6 @@ Comment ça marche : une copie de ton personnage, visible seulement par toi, pre
 - L'aperçu est désactivé dans un véhicule.
 - Tu peux le couper dans les paramètres du menu (« Aperçu 3D »).
 - Pour régler le cadrage, change `PreviewCam` dans `client.lua` (par exemple `dist = 4.0` pour voir le perso plus petit).
-
-Dans l'aperçu web (hors jeu), un mannequin doré remplace ton personnage, juste pour montrer l'emplacement.
 
 ## Placer son animation
 
@@ -145,7 +139,7 @@ Le fantôme ne peut pas s'éloigner de plus de 3 m de l'endroit où tu étais.
 
 **Après validation**, ton personnage est déplacé à la place du fantôme et l'animation démarre. Si tu l'as placé en hauteur ou dans un meuble (chaise, lit, muret), il est figé sur place pour ne pas tomber. Il se relève quand l'animation s'arrête (**X**), quand tu bouges (**Z Q S D**, **Espace**), ou quand l'animation se termine d'elle-même. Posé à plat sur le sol, rien ne change : l'animation se comporte comme d'habitude.
 
-Ça ne marche que pour les animations classiques (`/e`) : pas pour les démarches, les humeurs, les animations partagées (rpemotes place déjà les deux joueurs) ni en véhicule.
+Ça ne marche que pour les animations classiques : pas pour les démarches, les humeurs, les animations à deux (le moteur place déjà les deux joueurs) ni en véhicule.
 
 **Réglages**, dans `client.lua`, partie `Config.Placement` :
 
@@ -167,21 +161,21 @@ Placement = {
 
 Garde `MaxDistance` et `MaxHeight` petits : ce sont eux qui empêchent de se servir du placement pour monter sur un toit ou entrer quelque part. La touche **J** se change aussi dans Paramètres GTA > Raccourcis > FiveM (« déplacer mon animation »).
 
-**Note.** `/placer` et **J** ne connaissent que les animations lancées par le menu, un raccourci ou `/placer`. Une animation tapée directement avec `/e` ne peut pas être déplacée avec **J** : utilise `/placer nomdelanimation` à la place.
+**Note.** `/placer` et **J** ne connaissent que les animations lancées par le menu, un raccourci, `/anim` ou `/placer`. Une animation lancée par `/e` de rpemotes ne peut pas être déplacée avec **J** : utilise `/placer nomdelanimation` à la place.
 
 ## Animations masquées automatiquement
 
 Le menu ne montre que les animations que tu peux vraiment faire :
 
-- **Fichiers manquants** : au démarrage, le menu vérifie chaque animation et chaque objet. Si un fichier n'existe pas (fichier absent de rpemotes, version du jeu trop ancienne), l'animation est masquée. Tape `elyzea_anim_check` dans la console F8 pour voir la liste.
+- **Fichiers manquants** : au démarrage, le menu vérifie chaque animation et chaque objet. Si un fichier n'existe pas (rpemotes absent ou ancien, version du jeu trop ancienne), l'animation est masquée. Tape `elyzea_anim_check` dans la console F8 pour voir la liste.
 - **Véhicule** : les animations « seulement en véhicule » n'apparaissent que quand tu es dans un véhicule, et celles interdites en véhicule disparaissent quand tu y montes.
 - **Sexe du personnage** : les animations prévues pour l'autre sexe (« Female », « Male » dans leur nom) sont masquées. Désactivable dans les paramètres (« Masquer l'autre sexe »).
 
 Si beaucoup d'animations sont masquées pour fichiers manquants, vérifie la version du jeu dans `server.cfg` (par exemple `sv_enforceGameBuild 3095`) : certaines animations de rpemotes viennent de mises à jour récentes de GTA.
 
-## Animations partagées
+## Animations à deux
 
-Quand tu choisis une animation à deux et un joueur, celui-ci reçoit une fenêtre en haut de son écran avec ton nom et l'animation proposée. Il a 15 secondes pour appuyer sur **Y** (accepter) ou **N** (refuser).
+Quand tu choisis une animation à deux et un joueur, celui-ci reçoit une fenêtre en haut de son écran avec ton nom et l'animation proposée. Il a 15 secondes pour appuyer sur **Y** (accepter) ou **L** (refuser).
 
 Tu reçois un message dans tous les cas : accepté, refusé, ou pas de réponse. Une fois acceptée, l'animation démarre pour vous deux. **X** l'arrête pour les deux joueurs.
 
@@ -199,9 +193,13 @@ local Config = {
 
 Le contrôle de distance côté serveur nécessite **OneSync** (activé par défaut sur les serveurs récents).
 
-**Comment les animations sont jouées.** Une fois la demande acceptée dans le menu Elyzea, c'est rpemotes qui place les deux joueurs et lance les deux animations synchronisées (porter, câlin, poignée de main, etc.). Le fichier `shared_emotes.lua` indique, pour chaque animation, celle que joue l'autre joueur (par exemple `carry` pour celui qui porte, `carry2` pour celui qui est porté).
+**Comment les animations sont jouées.** Une fois la demande acceptée, le serveur envoie l'événement `elyzea_anim:sharedPlay` aux deux joueurs en même temps. Chacun joue son rôle (`shared_emotes.lua` : par exemple `carry` pour celui qui porte, `carry2` pour celui qui est porté), comme rpemotes-reborn :
 
-La distance maximale est de 3 mètres, comme dans rpemotes.
+- le rôle « accroché » (porté, sur le dos, otage…) s'attache à l'os prévu du partenaire ;
+- sinon, celui qui a demandé se place devant l'autre (distance et angle propres à chaque animation) ;
+- l'arrêt (X, mort, éloignement, déconnexion) détache et libère les deux.
+
+La distance maximale est de 3 mètres.
 
 ## Menu ALT : copier une animation, proposer une animation
 
@@ -209,9 +207,9 @@ Maintenir **ALT** et cliquer sur une personne (menu ALT d'`elyzea_police`, le m�
 
 **Copier l'animation**
 - Le jeu de la personne visée regarde ce que son personnage joue **vraiment** (dictionnaire + clip, ou scénario) et le compare
-  au catalogue de rpemotes (`anim_data.lua`). Si plusieurs animations ont le même clip, celle dont l'objet en main correspond est choisie.
+  au catalogue (`anim_data.lua`). Si plusieurs animations ont le même clip, celle dont l'objet en main correspond est choisie.
   Rien n'est modifié chez la personne copiée.
-- Ton personnage lance la même animation (`/e …` de rpemotes), au même moment de l'animation, **sans être déplacé**. **X** l'arrête.
+- Ton personnage lance la même animation, au même moment de l'animation, **sans être déplacé**. **X** l'arrête.
 - Refus expliqué, sans rien lancer : aucune animation reconnue, animation hors catalogue (« non reconnue »), **animation à deux**
   (porté, câlin avec un partenaire, animation lancée par le menu…) → utilise « Proposer une animation », fichier absent chez toi
   (« fichier manquant »), animation de véhicule à pied (ou l'inverse), menotté / à terre.
@@ -220,13 +218,13 @@ Maintenir **ALT** et cliquer sur une personne (menu ALT d'`elyzea_police`, le m�
 **Proposer une animation**
 - Le menu **K** s'ouvre en mode « Proposer une animation à … », avec seulement les animations à deux, classées :
   Salutations, Poignées de main, Accolades et câlins, Interactions amicales, En couple, **Danser ensemble**, **Slow**, Porter, Autres interactions.
-  Ce sont les 92 animations à deux réellement présentes dans rpemotes (`shared_emotes.lua`) ; celles dont le fichier manque sont masquées.
+  Ce sont les 94 rôles d'animations à deux de rpemotes-reborn (`shared_emotes.lua`) ; ceux dont le fichier manque sont masqués.
 - La personne reçoit l'invitation : **Y** accepter, **L** refuser. Tu vois un bandeau « Invitation envoyée » : **L** (ou `/annuleranim`,
   ou ALT › « Annuler l'invitation ») pour l'annuler. Sans réponse en 15 s : expirée, les deux sont prévenus.
 - Une seule invitation à la fois : on ne peut pas inviter quelqu'un qui a déjà une invitation, ni en envoyer deux.
 - À l'acceptation, le serveur revérifie : connectés, à moins de 4 m, ni menotté, ni porté, ni à terre, ni en véhicule, ni déjà en animation à deux.
-- Les animations à deux sont lancées par **rpemotes** avec le clip de **chaque rôle** (ex. `hug` / `hug2`) : il place les deux personnages.
-- **Danser ensemble / Slow** : rpemotes n'a **aucune danse de couple** ni slow à deux. Ces catégories proposent donc une danse **solo** que
+- Les animations à deux sont jouées par le moteur avec le clip de **chaque rôle** (ex. `hug` / `hug2`) : il place les deux personnages.
+- **Danser ensemble / Slow** : la liste n'a **aucune danse de couple** ni slow à deux. Ces catégories proposent donc une danse **solo** que
   vous faites tous les deux, tournés l'un vers l'autre, lancée au même moment (c'est écrit dans le menu et dans l'invitation).
   Les danses « Hip Hop » de rpemotes sont le rôle A d'une danse GTA à deux : elles ne sont pas proposées (jouer deux fois le même rôle ne donne pas une danse de couple).
 - **Arrêt** : **X** chez l'un arrête les deux ; ALT › « Arrêter l'animation à deux » aussi. Arrêt automatique des deux si l'un meurt,
@@ -236,43 +234,23 @@ Réglages : `interactions.lua` (catégories, distances, durées) et `Config` en 
 
 ## Personnaliser
 
-**Ajouter ou modifier des animations.** Ajoute d'abord l'animation dans rpemotes (fichier `client/AnimationListCustom.lua`) et vérifie qu'elle marche avec `/e`. Ensuite, dans `html/index.html`, cherche `const EMOTES`. Chaque catégorie est une liste au format :
+**Mettre à jour ou ajouter des animations.** Les fichiers `anim_data.lua`, `shared_emotes.lua` et `html/emotes.js` sont **générés** depuis la liste de rpemotes-reborn :
 
-```
-["Nom affiché","commande"]
-```
+1. Remplace `tools/rpemotes_source/AnimationList.lua` (et `types.lua`) par ceux de ta version de rpemotes, ou ajoute tes animations dedans au même format.
+2. Lance `python3 tools/gen_anim_data.py` (paquet Python `lupa`).
+3. Les catégories et noms déjà choisis sont gardés ; les nouvelles animations sont classées automatiquement (par mots-clés). Tu peux ensuite les déplacer à la main dans `html/emotes.js` : le générateur gardera ton choix la fois suivante.
 
-Ajoute ta ligne dans la catégorie voulue, par exemple dans `"objets":[...]` : `["Ma pancarte","mapancarte"]`. Respecte les virgules entre les entrées.
+Ce qui est repris de rpemotes pour chaque animation : dictionnaire et clip, drapeau de mouvement (marcher pendant l'animation, boucle, figé), durée, délai, 1 ou 2 objets (modèle, os, position, rotation), effet (asset, nom, placement, os, couleurs, maintenir ou appuyer), animation de sortie (se relever, ranger le téléphone…), règles véhicule, et pour les animations à deux : accroche (os + position) ou placement devant le partenaire.
 
-Préfixes à utiliser selon le type :
+Pour une nouvelle animation à deux, range-la aussi dans une catégorie de `interactions.lua` pour qu'elle apparaisse dans « Proposer une animation » (menu ALT).
 
-| Type | Préfixe | Exemple |
-|---|---|---|
-| Animation classique | aucun | `["Saluer","wave"]` |
-| Animation partagée | `nearby_` | `["Câlin","nearby_hug"]` |
-| Démarche | `walk_` | `["Gangster","walk_Gangster"]` |
-| Humeur | `mood_` | `["Heureux","mood_Happy"]` |
+**Animations exclues.** Les animations marquées « adulte » dans rpemotes (comme avant ; `INCLUDE_ADULT = True` en haut du générateur pour les ajouter) et les animations d'animaux (il faut un personnage animal).
 
-Pour une nouvelle animation partagée, ajoute aussi une ligne dans `shared_emotes.lua` : `["moncalin"] = "moncalin2",` (l'animation de l'autre joueur, ou la même),
-une ligne `["nearby_moncalin"] = {d="dictionnaire",a="clip",k="e"},` dans `anim_data.lua` (reconnaissance et fichier manquant),
-puis range-la dans une catégorie de `interactions.lua` pour qu'elle apparaisse dans « Proposer une animation » (menu ALT).
-Une vraie danse de couple ajoutée à rpemotes de cette façon apparaît dans « Proposer une animation » comme les autres animations à deux.
+**Noms en anglais.** Les noms sont ceux de rpemotes. Tu peux les traduire dans `html/emotes.js` : seul le premier texte est affiché, la commande ne change pas (le générateur garde ta traduction).
 
-Les catégories (nom, icône, description) se règlent juste en dessous, dans `const META`. Les icônes viennent de lucide.dev.
+**Changer le logo.** Remplace `html/logo.webp` par ton image (même nom).
 
-**Animations exclues.** Les 35 animations marquées « adulte » dans rpemotes et les animations d'animaux (désactivées par défaut dans rpemotes) ne sont pas dans le menu. Les animations adultes restent utilisables avec `/e` si rpemotes les autorise (`AdultEmotesDisabled` dans son `config.lua`).
-
-**Noms en anglais.** Les noms des animations sont ceux de rpemotes, en anglais. Tu peux les traduire directement dans `const EMOTES` : seul le premier texte est affiché, la commande ne change pas.
-
-**Changer le logo.** Le logo est intégré dans `index.html` (ligne `<img src="data:image/webp;base64,...">`). Pour le remplacer, place une image `logo.png` dans le dossier `html`, ajoute-la dans `fxmanifest.lua` :
-
-```lua
-files { 'html/index.html', 'html/logo.png' }
-```
-
-puis remplace la source de l'image par `src="logo.png"`.
-
-**Changer les couleurs.** En haut du `<style>` de `index.html`, les variables `--gold`, `--blue` et `--red` définissent l'ambiance du menu.
+**Changer les couleurs.** En haut de `html/style.css` : `--cy` (couleur principale), `--a1` / `--a2` (reflets bleu / rouge). L'ambiance se choisit aussi dans les paramètres du menu.
 
 ## Problèmes fréquents
 
@@ -280,10 +258,10 @@ puis remplace la source de l'image par `src="logo.png"`.
 Vérifie que la ressource démarre bien (`ensure elyzea_animations` dans la console, aucune erreur en F8). Si K est déjà utilisée par un autre script, change la touche dans les paramètres du menu ou dans Paramètres GTA > Raccourcis > FiveM.
 
 **Le menu s'ouvre mais l'animation ne se lance pas.**
-Vérifie que rpemotes est démarré avant le menu dans `server.cfg`, et teste la commande affichée sous l'animation directement dans le chat (par exemple `/e wave`). Si elle ne marche pas non plus, le problème vient de rpemotes.
+Un message explique pourquoi (en véhicule, menotté, fichier absent…). « Fichier absent » : rpemotes n'est pas démarré, ou ta version n'a pas ce fichier ; tape `elyzea_anim_check` dans F8 pour la liste des animations masquées.
 
-**Les icônes du menu n'apparaissent pas.**
-Elles sont chargées depuis internet (jsdelivr). Le menu fonctionne quand même, seules les icônes manquent.
+**Rien ne s'affiche quand j'appuie sur G.**
+Seules les animations marquées d'une flamme dans le menu ont un effet. Si un autre script utilise G, change la touche dans Paramètres GTA > Raccourcis > FiveM (« effet de l'animation »).
 
 **Je ne peux plus bouger, la souris reste affichée.**
 Appuie sur Échap. Si ça persiste, tape `restart elyzea_animations` dans la console F8.
@@ -291,7 +269,7 @@ Appuie sur Échap. Si ça persiste, tape `restart elyzea_animations` dans la con
 **La demande partagée n'arrive pas à l'autre joueur.**
 Vérifie que `server.lua` est bien chargé (il est déclaré dans `fxmanifest.lua`) et que vous êtes à moins de 3 mètres. Regarde la console serveur pour une éventuelle erreur.
 
-**Y ou N ne font rien.**
+**Y ou L ne font rien.**
 Un autre script utilise peut-être ces touches. Change-les dans Paramètres GTA > Raccourcis > FiveM (« accepter une demande » et « refuser une demande »), ou dans `Config.AcceptKey` et `Config.RefuseKey`.
 
 **Je reste bloqué sur place après un placement.**
@@ -302,3 +280,17 @@ Un autre script utilise peut-être cette touche. Change-la dans Paramètres GTA 
 
 **Une touche changée ne prend pas effet.**
 FiveM garde en mémoire les raccourcis déjà créés. Va dans Paramètres GTA > Raccourcis > FiveM et vérifie la touche liée à « Elyzea animations ».
+
+## Tests hors jeu
+
+Depuis `elyzea_animations/` (paquets `lupa` pour Python, `playwright` pour Node) :
+
+| Commande | Ce qui est vérifié |
+|---|---|
+| `python3 tests/run_engine_sim.py` | Moteur avec natives simulées : **toutes** les animations lancées puis arrêtées (animation, drapeau, durée, objets, effets, sortie), toutes les démarches et humeurs, les 94 rôles à deux (placement / accroche), cas particuliers |
+| `python3 tests/run_client_sim.py` | Copier l'animation, menu ALT, arrêt des animations à deux, danser ensemble |
+| `python3 tests/run_interactions_sim.py` | Serveur : invitations, acceptation, refus, expiration, déconnexions, copie |
+| `python3 tests/run_f7_sim.py` | F7 réservée à « Mes animaux » |
+| `NODE_PATH=$(npm root -g) node tests/ui_menu.js` | Interface dans Chromium, sans internet : catégories, liste virtualisée, recherche, clavier, favoris, raccourcis, à deux, proposer, paramètres, petit écran |
+
+Ces tests vérifient ce qui est **demandé au jeu**, pas le rendu : un essai en jeu reste nécessaire (rendu des animations, positions des objets, synchronisation entre deux joueurs).

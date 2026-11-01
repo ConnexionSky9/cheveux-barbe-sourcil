@@ -2,7 +2,7 @@
 --  Elyzea - Interactions avec un autre joueur (client)
 --  Branché au menu ALT d'elyzea_police (exports AltOptions / AltSelect) :
 --   · Copier l'animation : le jeu de la personne visée dit ce qu'elle joue VRAIMENT
---     (dictionnaire + clip reconnus sur son personnage), puis on lance la même via rpemotes.
+--     (dictionnaire + clip reconnus sur son personnage), puis on lance la même (client_engine.lua).
 --   · Proposer une animation : le menu K s'ouvre sur les animations à deux, l'autre accepte ou refuse.
 --  Le serveur valide tout (server.lua). Réglages : interactions.lua.
 -- =========================================================
@@ -52,7 +52,7 @@ local function linkedToPed(ped)
     return false
 end
 
--- Un joueur proche joue le clip de l'autre rôle de cette animation à deux (ex. poignée de main lancée par rpemotes)
+-- Un joueur proche joue le clip de l'autre rôle de cette animation à deux (ex. poignée de main)
 local function partnerNearby(ped, duo)
     local other = ElyzeaSharedPartners[duo]
     local clip = other and ElyzeaSharedAnims[other]
@@ -158,16 +158,16 @@ RegisterNetEvent('elyzea_anim:copyResult', function(info, name)
     -- Fichier (animation ou objet) absent chez moi : on ne lance rien
     local hidden = ElyAnim.hiddenList()
     for _, h in ipairs(hidden) do
-        if h == cmd then return notify(('Animation indisponible chez toi (fichier manquant : /e %s). Vérifie rpemotes et ses ressources.'):format(cmd), 'err') end
+        if h == cmd then return notify(('Animation indisponible chez toi (fichier manquant : /anim %s). Vérifie que rpemotes, qui fournit les fichiers, est bien lancé.'):format(cmd), 'err') end
     end
     if e.d and not e.d:find('Scenario') and not DoesAnimDictExist(e.d) then
-        return notify(('Animation indisponible chez toi (fichier manquant : /e %s).'):format(cmd), 'err')
+        return notify(('Animation indisponible chez toi (fichier manquant : /anim %s).'):format(cmd), 'err')
     end
     if session then TriggerServerEvent('elyzea_anim:sessionEnd', 'stopped') session = nil end
     ElyAnim.playEmote(cmd, 'emote', cmd)
     local state = { cmd = cmd }
     copied = state
-    notify(('Animation copiée : /e %s · %s pour l\'arrêter'):format(cmd, Config.DefaultStopKey), 'ok')
+    notify(('Animation copiée : /anim %s · %s pour l\'arrêter'):format(cmd, Config.DefaultStopKey), 'ok')
     -- Même moment de l'animation que la personne copiée (sans toucher à sa position)
     if info.phase and e.d and not e.d:find('Scenario') then
         CreateThread(function()
@@ -260,7 +260,7 @@ local function endSession(reason, silent)
     local s = session
     if not s then return end
     session = nil
-    if reason ~= 'finished' and reason ~= 'stopped' then ExecuteCommand(Config.CancelCommand) end
+    if reason ~= 'finished' and reason ~= 'stopped' then ElyAnim.cancelAnim() end
     TriggerServerEvent('elyzea_anim:sessionEnd', reason)
     if not silent and reason == 'distance' then notify('Animation à deux arrêtée : vous êtes trop loin l\'un de l\'autre.', 'err') end
 end
@@ -277,7 +277,7 @@ local function watchSession(s)
             local pl = GetPlayerFromServerId(s.partner)
             local other = pl ~= -1 and GetPlayerPed(pl) or 0
             if other == 0 or #(GetEntityCoords(other) - GetEntityCoords(ped)) > IX.SessionMaxDistance then endSession('distance') break end
-            -- Animation finie toute seule (durée fixe) ou arrêtée par rpemotes : on libère les deux, sans rien couper
+            -- Animation finie toute seule (durée fixe) ou interrompue : on libère les deux, sans rien couper
             if clip and GetGameTimer() - s.since > 3000 and not IsEntityPlayingAnim(ped, clip.d, clip.a, 3) then endSession('finished', true) break end
         end
     end)
@@ -315,7 +315,7 @@ end)
 RegisterNetEvent('elyzea_anim:partnerStop', function(text)
     if not session then return end
     session = nil
-    ExecuteCommand(Config.CancelCommand)
+    ElyAnim.cancelAnim()
     if text then notify(text, 'err') end
 end)
 RegisterNetEvent('elyzea_anim:sessionClear', function() session = nil end)
@@ -375,5 +375,5 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     -- Personne ne reste bloqué dans une animation à deux ou copiée
-    if session or copied then ExecuteCommand(Config.CancelCommand) end
+    if session or copied then ElyAnim.cancelAnim() end
 end)
