@@ -259,7 +259,8 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money, opts)
             if sold(shop, pk) then packs[#packs + 1] = { id = p.id, label = p.label, price = p.price, folder = p.id:gsub('^col:', '') } end
         end
         return { action = 'open', shop = { name = shop.name, multiplier = shop.multiplier }, sex = sex, categories = cats, packs = packs,
-            gta = sold(shop, nil), money = money, payments = Config.Payments, currency = Config.Currency,
+            gta = sold(shop, nil), money = money,
+            payments = (type(opts) == 'table' and opts.payments) or Config.Payments, currency = (type(opts) == 'table' and opts.currency) or Config.Currency,
             images = imagesConfig(), itemsMode = ClothingItemsMode(), manage = canManage }
     end)
     if not ok then

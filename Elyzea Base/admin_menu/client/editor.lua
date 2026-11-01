@@ -1365,6 +1365,9 @@ CreateThread(function()
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.barber then
                     ShowPrompt('Appuyer pour entrer chez', best.ref.npc.barber.name or best.ref.name or 'le coiffeur')
                     if pressed then TriggerServerEvent('adminmenu:barber:request', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.exchange then
+                    ShowPrompt('Appuyer pour changer de l\'argent à', best.ref.npc.exchange.name or 'au bureau de change')
+                    if pressed then TriggerServerEvent('adminmenu:change:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.clothing then
                     ShowPrompt('Appuyer pour entrer dans', best.ref.npc.clothing.name or best.ref.name or 'la boutique')
                     if pressed then TriggerServerEvent('adminmenu:clothing:open', best.ref.id) end

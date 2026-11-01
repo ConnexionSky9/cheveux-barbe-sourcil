@@ -366,7 +366,8 @@ local function cleanNpc(n)
             if c ~= '' and #cats < 30 then cats[#cats + 1] = c end
         end
         local name = cleanName(cl.name, 40)
-        out.clothing = { name = name ~= '' and name or 'Boutique de vêtements', multiplier = math.floor(num(cl.multiplier, 0, 1000, 100)), categories = cats }
+        out.clothing = { name = name ~= '' and name or 'Boutique de vêtements', multiplier = math.floor(num(cl.multiplier, 0, 1000, 100)), categories = cats,
+            currency = cl.currency == 'pesos' and 'pesos' or nil }   -- 'pesos' : la boutique n'accepte que les pesos (elyzea_change)
     end
     -- Catalogue de la concession en lecture seule (ressource elyzea_concess)
     -- (+ essai routier : durée ici, point de départ posé à part, voir editor_catalog_spot)
@@ -429,8 +430,15 @@ local function cleanNpc(n)
         local name = cleanName(n.pvp.name, 40)
         out.pvp = { name = name ~= '' and name or 'Arène PvP' }
     end
+    -- Bureau de change (ressource elyzea_change) : argent liquide <-> pesos, taux pour 100
+    if type(n.exchange) == 'table' then
+        local name = cleanName(n.exchange.name, 40)
+        out.exchange = { name = name ~= '' and name or 'Bureau de change',
+            toPesos = math.floor(num(n.exchange.toPesos, 1, 100000, 100)), toCash = math.floor(num(n.exchange.toCash, 1, 100000, 100)) }
+    end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
-        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp then return nil end
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp
+        and not out.exchange then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -1440,7 +1448,21 @@ RegisterNetEvent('adminmenu:clothing:open', function(id)
         return AM.notify(src, 'La boutique est fermée (ressource elyzea_clothing non démarrée).', 'error')
     end
     local cl = r.npc.clothing
-    exports.elyzea_clothing:OpenFor(src, { name = cl.name, multiplier = cl.multiplier, categories = cl.categories, coords = { x = r.x, y = r.y, z = r.z } })
+    exports.elyzea_clothing:OpenFor(src, { name = cl.name, multiplier = cl.multiplier, categories = cl.categories, coords = { x = r.x, y = r.y, z = r.z },
+        currency = cl.currency })
+end)
+
+-- Bureau de change : le PNJ ouvre le guichet de la ressource elyzea_change (taux pris ici, jamais du joueur)
+RegisterNetEvent('adminmenu:change:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'npc', 4, 1000) then return end
+    local r = checkNpc(src, tonumber(id))
+    if not r or not r.npc.exchange then return end
+    if GetResourceState('elyzea_change') ~= 'started' then
+        return AM.notify(src, 'Le bureau de change est fermé (ressource elyzea_change non démarrée).', 'error')
+    end
+    local x = r.npc.exchange
+    CallExport(src, 'elyzea_change', 'OpenFor', src, { name = x.name, toPesos = x.toPesos, toCash = x.toCash, coords = { x = r.x, y = r.y, z = r.z } })
 end)
 
 RegisterNetEvent('adminmenu:npc:open', function(id)

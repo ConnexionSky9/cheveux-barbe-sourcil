@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bureau de change</title>
+<style>
+:root{--bg:rgba(8,12,24,.96);--bg2:rgba(16,24,46,.94);--text:#eef3ff;--muted:#8a98bb;--line:rgba(255,200,90,.22);--gold:#ffc85a;--gold2:#e2962c;--cy:#5ce1ff;--ok:#3fe0a0;--err:#ff4d6d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:"Segoe UI","Bahnschrift",system-ui,sans-serif;color:var(--text);background:transparent;overflow:hidden}
+body.demo{background:radial-gradient(60% 60% at 30% 40%,rgba(255,200,90,.12),transparent),linear-gradient(#0a1024,#04060c)}
+button,input{font:inherit;color:inherit}
+.panel{position:fixed;left:50%;top:50%;width:min(440px,calc(100vw - 24px));transform:translate(-50%,-50%) scale(.97);opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .22s;border-radius:18px;overflow:hidden;border:1px solid var(--line);
+  background:linear-gradient(160deg,var(--bg2),var(--bg));box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 40px -18px var(--gold)}
+.panel.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.panel::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),var(--cy),transparent)}
+.head{display:flex;align-items:center;gap:14px;padding:18px 18px 12px}
+.head img{width:56px;height:56px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+.head h1{margin:0;font-size:19px;letter-spacing:.14em;text-transform:uppercase}
+.head p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.x{margin-left:auto;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;color:var(--gold);font-size:18px}
+.bal{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 18px 12px}
+.bal div{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
+.bal small{display:block;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.bal b{font-size:18px}
+.dir{display:grid;grid-template-columns:1fr 1fr;margin:0 18px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.dir button{border:0;background:none;padding:11px 8px;cursor:pointer;color:var(--muted);font-weight:700}
+.dir button.on{background:linear-gradient(180deg,rgba(255,200,90,.2),rgba(255,200,90,.06));color:var(--gold)}
+.box{padding:0 18px}
+label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+.amt{display:flex;align-items:center;gap:8px;height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(2,5,12,.7)}
+.amt:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,200,90,.1)}
+.amt input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:22px;font-weight:700}
+.amt span{color:var(--muted);font-weight:700}
+.amt input::-webkit-inner-spin-button,.amt input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.quick{display:flex;gap:6px;margin-top:8px}
+.quick button{flex:1;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);cursor:pointer;font-weight:600;font-size:13px}
+.quick button:hover{border-color:var(--gold)}
+.res{margin:14px 18px 0;padding:12px 14px;border-radius:12px;border:1px dashed var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.res small{color:var(--muted)}
+.res b{font-size:22px;color:var(--gold)}
+.rate{margin:6px 18px 0;color:var(--muted);font-size:12.5px}
+.go{display:block;width:calc(100% - 36px);margin:14px 18px 18px;height:48px;border-radius:12px;border:0;cursor:pointer;font-weight:800;letter-spacing:.06em;
+  color:#1a1003;background:linear-gradient(180deg,#ffe29a,var(--gold2));box-shadow:0 6px 20px -8px var(--gold)}
+.go:disabled{opacity:.45;cursor:default}
+.msg{min-height:20px;margin:-8px 18px 14px;font-size:13.5px;text-align:center}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
+</style>
+</head>
+<body class="demo">
+<section class="panel" id="panel" role="dialog" aria-label="Bureau de change">
+  <div class="head">
+    <img src="pesos.png" alt="">
+    <div><h1 id="name">Bureau de change</h1><p>Argent liquide ⇄ pesos de Cayo Perico</p></div>
+    <button class="x" id="close" type="button" aria-label="Fermer">✕</button>
+  </div>
+  <div class="bal">
+    <div><small>Liquide</small><b id="cash">0 $</b></div>
+    <div><small>Pesos</small><b id="pesos">0</b></div>
+  </div>
+  <div class="dir" id="dir">
+    <button type="button" data-d="buy" class="on">$ → Pesos</button>
+    <button type="button" data-d="sell">Pesos → $</button>
+  </div>
+  <div class="box">
+    <label for="amount" id="amtLabel">Montant à changer</label>
+    <div class="amt"><input id="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="0"><span id="unit">$</span></div>
+    <div class="quick"><button type="button" data-q="100">+100</button><button type="button" data-q="1000">+1 000</button><button type="button" data-q="10000">+10 000</button><button type="button" data-q="all">Tout</button></div>
+  </div>
+  <div class="res"><small>Tu reçois</small><b id="out">0 pesos</b></div>
+  <p class="rate" id="rate"></p>
+  <button class="go" id="go" type="button" disabled>Échanger</button>
+  <p class="msg" id="msg"></p>
+</section>
+<script>
+(() => {
+  const IS_FIVEM = typeof GetParentResourceName === 'function';
+  if (IS_FIVEM) document.body.classList.remove('demo');
+  const post = (ev, data) => IS_FIVEM ? fetch(`https://${GetParentResourceName()}/${ev}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data || {}) }).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Math.floor(n || 0).toLocaleString('fr-FR');
+  let D = null, dir = 'buy', busy = false;
+  const quote = (n) => Math.floor(n * (dir === 'buy' ? D.toPesos : D.toCash) / 100);
+  const have = () => dir === 'buy' ? D.money.cash : D.money.pesos;
+  function render() {
+    if (!D) return;
+    $('name').textContent = D.name;
+    $('cash').textContent = fmt(D.money.cash) + ' $';
+    $('pesos').textContent = fmt(D.money.pesos);
+    document.querySelectorAll('#dir button').forEach(b => b.classList.toggle('on', b.dataset.d === dir));
+    $('unit').textContent = dir === 'buy' ? '$' : 'pesos';
+    $('amtLabel').textContent = dir === 'buy' ? 'Dollars à changer (liquide)' : 'Pesos à changer';
+    $('rate').textContent = `Taux : 100 $ = ${fmt(D.toPesos)} pesos · 100 pesos = ${fmt(D.toCash)} $`;
+    const n = Math.floor(Number($('amount').value) || 0);
+    const out = n > 0 ? quote(n) : 0;
+    $('out').textContent = dir === 'buy' ? `${fmt(out)} pesos` : `${fmt(out)} $`;
+    const bad = n < D.min || n > D.max || out < 1 || n > have();
+    $('go').disabled = busy || bad;
+    $('go').textContent = busy ? 'Change en cours…' : (n > have() ? 'Solde insuffisant' : 'Échanger');
+  }
+  function msg(t, kind) { $('msg').textContent = t || ''; $('msg').className = 'msg ' + (kind || ''); }
+  function open(d) { D = d; dir = 'buy'; busy = false; $('amount').value = ''; msg(''); $('panel').classList.add('open'); render(); setTimeout(() => $('amount').focus(), 60); }
+  function close() { if (!$('panel').classList.contains('open')) return; $('panel').classList.remove('open'); D = null; post('close'); }
+  $('dir').onclick = (e) => { const b = e.target.closest('button'); if (!b || busy) return; dir = b.dataset.d; $('amount').value = ''; msg(''); render(); };
+  document.querySelector('.quick').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b || !D) return;
+    const cur = Math.floor(Number($('amount').value) || 0);
+    $('amount').value = b.dataset.q === 'all' ? Math.min(have(), D.max) : Math.min(cur + Number(b.dataset.q), D.max);
+    render();
+  };
+  $('amount').oninput = render;
+  $('go').onclick = () => {
+    if (!D || busy) return;
+    const n = Math.floor(Number($('amount').value) || 0);
+    busy = true; msg(''); render();
+    const nonce = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    post('convert', { dir, amount: n, nonce });
+    if (!IS_FIVEM) setTimeout(() => {
+      const out = quote(n);
+      if (dir === 'buy') { D.money.cash -= n; D.money.pesos += out; } else { D.money.pesos -= n; D.money.cash += out; }
+      window.postMessage({ action: 'result', ok: true, text: 'Change effectué (aperçu).', money: D.money }, '*');
+    }, 300);
+  };
+  $('close').onclick = close;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); if (e.key === 'Enter' && !$('go').disabled) $('go').click(); });
+  window.addEventListener('message', (e) => {
+    const m = e.data || {};
+    if (m.action === 'open') open(m.data);
+    else if (m.action === 'close') { $('panel').classList.remove('open'); D = null; }
+    else if (m.action === 'result' && D) {
+      busy = false;
+      if (m.money) D.money = m.money;
+      if (m.ok) $('amount').value = '';
+      msg(m.text, m.ok ? 'ok' : 'err'); render();
+    }
+  });
+  if (!IS_FIVEM) setTimeout(() => open({ name: 'Bureau de change', toPesos: 100, toCash: 90, min: 1, max: 1000000, money: { cash: 2500, pesos: 300 } }), 200);
+})();
+</script>
+</body>
+</html>

@@ -54,7 +54,7 @@ const keyOf = (c, d, t) => `${c}|${d}|${t}`;
 const inCat = (id) => [...cart.values()].filter((x) => x.cat === id);
 const wornOf = (id) => inCat(id).find((x) => x.wear) || null;
 let wearNow = false, method = 'cash', shown = 60, query = '', camView = 'full', hands = false, busy = false;
-const PAY = { cash: 'Liquide', bank: 'Banque' };
+const PAY = { cash: 'Liquide', bank: 'Banque', pesos: 'Pesos' };
 const money = (n) => `${Math.round(n || 0).toLocaleString('fr-FR')} ${S ? S.currency : '$'}`;
 const catById = (id) => S.categories.find((c) => c.id === id);
 const packById = (id) => S.packs.find((p) => p.id === id);

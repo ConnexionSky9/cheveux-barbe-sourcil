@@ -1213,7 +1213,8 @@ function npcSummary(n) {
     }
     if (n.pvp) parts.push(`⚔️ Arène PvP <b>${esc(n.pvp.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
-    if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}`);
+    if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}${n.clothing.currency === 'pesos' ? ' · 🪙 <b>pesos uniquement</b>' : ''}`);
+    if (n.exchange) parts.push(`🪙 Bureau de change <b>${esc(n.exchange.name)}</b> · 100 $ → ${n.exchange.toPesos} pesos · 100 pesos → ${n.exchange.toCash} $`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
     const jl = (n.jobs && n.jobs.length ? n.jobs : (n.garage && n.garage.jobs)) || [];
     if (jl.length) parts.push(`🔑 Réservé à ${jl.map((j) => `<b>${esc(jobLabelOf(j.job))}</b>${j.grade ? ` (grade ${j.grade}+)` : ''}`).join(', ')}`);
@@ -1321,6 +1322,11 @@ function toPedEdit(r) {
         clName: n.clothing ? n.clothing.name : 'Boutique de vêtements',
         clMult: n.clothing ? n.clothing.multiplier : 100,
         clCats: clone(n.clothing && n.clothing.categories && n.clothing.categories.length ? n.clothing.categories : CLOTHING_CATS.map((c) => c.id)),
+        clPesos: !!(n.clothing && n.clothing.currency === 'pesos'),
+        exchangeOn: !!n.exchange,
+        xName: n.exchange ? n.exchange.name : 'Bureau de change',
+        xToPesos: n.exchange ? n.exchange.toPesos : 100,
+        xToCash: n.exchange ? n.exchange.toCash : 100,
         ...barberEdit(n.barber),
         ...tattooEdit(n.tattoo),
         ...marketEdit(n.market),
@@ -1673,7 +1679,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.exchangeOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
@@ -1690,7 +1696,8 @@ function pedEditPayload(p) {
         gov: p.govOn ? { name: String(p.govName || '').trim(), blip: !!p.govBlip, blipSprite: 419, blipColor: 0 } : null,
         pubgarage: p.pubOn ? { name: String(p.pubName || '').trim(), blip: !!p.pubBlip, blipSprite: 357, blipColor: 3, storeRadius: num(p.pubRadius, 4) } : null,
         clothing: p.clothingOn ? { name: String(p.clName || '').trim(), multiplier: num(p.clMult, 100),
-            categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice() } : null,
+            categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice(), currency: p.clPesos ? 'pesos' : 'normal' } : null,
+        exchange: p.exchangeOn ? { name: String(p.xName || '').trim(), toPesos: num(p.xToPesos, 100), toCash: num(p.xToCash, 100) } : null,
         barber: p.barberOn ? {
             name: String(p.bbName || '').trim(),
             prices: Object.fromEntries(BARBER_PRICES_GET().map((x) => [x.k, Math.max(0, Math.floor(num(p.bbPrices[x.k], 0)))])),
@@ -1763,7 +1770,7 @@ function gradeSelect(i, j) {
 function clothingCard(p) {
     const all = p.clCats.length === CLOTHING_CATS.length;
     return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">👕 Boutique de vêtements</h3>
-        <p class="hint">Quand un joueur parle à ce PNJ, la boutique s'ouvre : catégories, essayage en direct, panier, paiement en liquide ou par banque.
+        <p class="hint">Quand un joueur parle à ce PNJ, la boutique s'ouvre : catégories, essayage en direct, panier, paiement en liquide ou par banque (ou en pesos seulement, voir plus bas).
             Nécessite la ressource <b>elyzea_clothing</b>.${p.shopOn || p.buyerOn || p.garageOn ? ' Avec ce rôle, parler au PNJ ouvre la boutique : ses autres rôles ne sont plus proposés.' : ''}</p>
         <div class="form-grid" style="grid-template-columns:2fr 1fr;margin-bottom:12px">
             <div><label>Nom de la boutique</label><input class="input" data-pe="clName" value="${esc(p.clName)}" placeholder="ex : Ponsonbys"></div>
@@ -1772,6 +1779,26 @@ function clothingCard(p) {
         <label>Rayons vendus ${all ? '<span class="muted">(tous)</span>' : `<span class="muted">(${p.clCats.length} sur ${CLOTHING_CATS.length})</span>`}</label>
         <div class="chips" style="margin-top:6px">${CLOTHING_CATS.map((c) => `<button class="chip ${p.clCats.includes(c.id) ? 'active' : ''}" data-ed="cl_cat" data-cat="${c.id}" style="${p.clCats.includes(c.id) ? 'border-color:var(--signal);color:var(--gold-hi);background:rgba(217,181,106,.12)' : 'opacity:.55'}">${p.clCats.includes(c.id) ? '✓ ' : ''}${esc(c.label)}</button>`).join('')}</div>
         <div class="btn-row" style="margin-top:8px"><button class="btn" data-ed="cl_all">Tout cocher</button><button class="btn" data-ed="cl_none">Tout décocher</button></div>
+        <label style="margin-top:14px">Moyen de paiement accepté</label>
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:6px">
+            <div class="tile toggle-tile ${!p.clPesos ? 'on' : ''}" data-ed="cl_pay_normal"><div><strong>💵 Liquide ou banque</strong><span>Comme les autres boutiques</span></div><div class="switch"></div></div>
+            <div class="tile toggle-tile ${p.clPesos ? 'on' : ''}" data-ed="cl_pay_pesos"><div><strong>🪙 Pesos uniquement</strong><span>Prix affichés et payés en pesos (objet « pesos »)</span></div><div class="switch"></div></div>
+        </div>
+        ${p.clPesos ? '<p class="hint" style="margin-top:6px">Les prix (même %) sont payés en pesos. Les joueurs changent leur liquide au <b>bureau de change</b> (rôle 🪙 d\'un PNJ).</p>' : ''}
+    </div>`;
+}
+
+function exchangeCard(p) {
+    const n = (v) => Math.max(1, Math.floor(Number(v) || 0));
+    return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🪙 Bureau de change</h3>
+        <p class="hint">En parlant à ce PNJ (E), les joueurs changent leur <b>argent liquide</b> en <b>pesos</b> et inversement. Les pesos sont un objet d'inventaire (pièce « Cayo Perico »).
+            Mets un taux de rachat un peu plus bas pour que le bureau prenne une commission. Nécessite la ressource <b>elyzea_change</b>.</p>
+        <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr;margin-bottom:6px">
+            <div><label>Nom affiché</label><input class="input" data-pe="xName" value="${esc(p.xName)}" placeholder="Bureau de change"></div>
+            <div><label>Pesos donnés pour 100 $</label><input class="input" type="number" min="1" max="100000" data-pe="xToPesos" value="${esc(p.xToPesos)}"></div>
+            <div><label>$ rendus pour 100 pesos</label><input class="input" type="number" min="1" max="100000" data-pe="xToCash" value="${esc(p.xToCash)}"></div>
+        </div>
+        <p class="hint">Exemple : 1 000 $ → <b>${Math.floor(1000 * n(p.xToPesos) / 100).toLocaleString('fr-FR')} pesos</b> · 1 000 pesos → <b>${Math.floor(1000 * n(p.xToCash) / 100).toLocaleString('fr-FR')} $</b></p>
     </div>`;
 }
 
@@ -1980,7 +2007,9 @@ function pedEditor() {
                 ${tog('gunshopOn', '🔫 Armurerie', 'Armes, munitions, accessoires, essai au stand de tir')}
                 ${tog('casinoOn', '🎰 Casino', 'Croupier (blackjack, roulette), roue de la fortune ou guichet des jetons')}
                 ${tog('pvpOn', '⚔️ Arène PvP', 'Parties en équipes avec mises et paris (ressource pvp_arena)')}
+                ${tog('exchangeOn', '🪙 Bureau de change', 'Argent liquide ⇄ pesos (ressource elyzea_change)')}
             </div>
+            ${p.exchangeOn ? exchangeCard(p) : ''}
             ${p.pvpOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">⚔️ Arène PvP</h3>
                 <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le menu des parties : créer, rejoindre, miser, parier.
                     Les arènes se règlent en jeu avec les commandes <b>/pvp_arena_*</b> (voir le README de pvp_arena). Nécessite la ressource <b>pvp_arena</b>.</p>
@@ -2879,6 +2908,8 @@ async function handleEditor(n) {
         case 'area_draw': return editorPost('npc_area_draw', { id: pedEdit.id, name: pedEdit.name });
         case 'cl_all': pedEdit.clCats = CLOTHING_CATS.map((c) => c.id); return render();
         case 'cl_none': pedEdit.clCats = []; return render();
+        case 'cl_pay_normal': pedEdit.clPesos = false; return render();
+        case 'cl_pay_pesos': pedEdit.clPesos = true; return render();
         case 'pgj_add': pedEdit.gJobs.push({ job: '', grade: 0 }); return render();
         case 'pgj_del': pedEdit.gJobs.splice(Number(n.dataset.i), 1); return render();
         case 'gjobs_on': pedEdit.gJobsOn = true; return render();

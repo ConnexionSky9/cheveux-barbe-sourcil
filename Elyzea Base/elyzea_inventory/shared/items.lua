@@ -258,6 +258,10 @@ Items.markedbills = { label = 'Billets marqués', weight = 0, perGram = 1000, st
 Items.jetons_casino = { label = 'Jetons de casino', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'jetons_casino.png', icon = '🎰',
     description = 'Jetons du casino. S\'achètent et se revendent au guichet, se misent au blackjack, à la roulette et à la roue de la fortune.' }
 
+-- Pesos de Cayo Perico (elyzea_change) : changés au bureau de change, acceptés par certaines boutiques. 1 000 pesos = 1 g
+Items.pesos = { label = 'Pesos', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'pesos.png', icon = '🪙',
+    description = 'Pesos de Cayo Perico. S\'échangent contre de l\'argent liquide au bureau de change. Certaines boutiques n\'acceptent que les pesos.' }
+
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
     description = 'Peins un tag sur un mur de ton quartier.' }

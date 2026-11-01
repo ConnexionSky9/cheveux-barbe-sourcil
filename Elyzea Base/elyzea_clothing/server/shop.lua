@@ -4,24 +4,44 @@
 --      name = 'Ponsonbys', multiplier = 250,          -- % des prix de base
 --      categories = { 'tops', 'pants' },              -- rayons vendus (tous si absent)
 --      packs = 'all' | 'gta' | { 'ma_marque' },       -- ce que la boutique vend (tout si absent)
---      coords = vector3(...) })                       -- position du vendeur
+--      coords = vector3(...),                         -- position du vendeur
+--      currency = 'pesos' })                          -- 'pesos' : la boutique n'accepte QUE les pesos (objet d'inventaire)
 --  Le PRIX est toujours recalculé ici : le client ne choisit jamais le prix.
 -- =====================================================================
 Shop = { sessions = {} }
 
 local core = exports.elyzea_core
 
+-- Pesos (elyzea_change) : objet d'inventaire, pas un compte d'argent
+local PESOS = Config.PesosItem or 'pesos'
 local function money(src, kind)
+    if kind == 'pesos' then
+        local ok, v = pcall(function() return exports.elyzea_inventory:GetItemCount(src, PESOS) end)
+        return ok and math.floor(tonumber(v) or 0) or 0
+    end
     local ok, v = pcall(function() return core:GetMoney(src, kind) end)
     return ok and math.floor(tonumber(v) or 0) or 0
 end
 local function removeMoney(src, kind, amount)
+    if kind == 'pesos' then
+        local ok, res = pcall(function() return exports.elyzea_inventory:RemoveItem(src, PESOS, amount) end)
+        return ok and res == true
+    end
     local ok, res = pcall(function() return core:RemoveMoney(src, kind, amount, 'boutique-vetements') end)
     return ok and res == true
 end
-local function balances(src)
+local function addMoney(src, kind, amount, reason)
+    if kind == 'pesos' then
+        return pcall(function() return exports.elyzea_inventory:AddItem(src, PESOS, amount) end)
+    end
+    return pcall(function() return core:AddMoney(src, kind, amount, reason) end)
+end
+-- Moyens de paiement et monnaie d'une boutique
+local function paymentsOf(shop) return (shop and shop.pesos) and { 'pesos' } or Config.Payments end
+local function currencyOf(shop) return (shop and shop.pesos) and 'pesos' or Config.Currency end
+local function balances(src, shop)
     local out = {}
-    for _, k in ipairs(Config.Payments) do out[k] = money(src, k) end
+    for _, k in ipairs(paymentsOf(shop)) do out[k] = money(src, k) end
     return out
 end
 local function result(src, ok, msg, extra) TriggerClientEvent('elyzea_clothing:result', src, ok, msg, extra or {}) end
@@ -42,6 +62,7 @@ local function cleanShop(shop)
         name = tostring(shop.name or 'Boutique de vêtements'):sub(1, 40),
         multiplier = math.max(0, math.min(1000, math.floor(tonumber(shop.multiplier) or 100))),
         categories = cats, packs = packs,
+        pesos = shop.currency == 'pesos',
     }
 end
 
@@ -79,7 +100,7 @@ local function openFor(src, shop)
     local pos = c and vector3(c.x + 0.0, c.y + 0.0, c.z + 0.0) or GetEntityCoords(GetPlayerPed(src))
     Shop.sessions[src] = { shop = s, coords = pos }
     s.vendor = c and { x = pos.x, y = pos.y, z = pos.z } or nil
-    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src), { manage = Hidden.canManage(src) })
+    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src, s), { manage = Hidden.canManage(src), payments = paymentsOf(s), currency = currencyOf(s) })
     return true
 end
 exports('OpenFor', openFor)
@@ -101,7 +122,8 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
     if not s then return result(src, false, 'La boutique est fermée.') end
     if #(GetEntityCoords(GetPlayerPed(src)) - s.coords) > Config.MaxDistance then return result(src, false, 'Tu es trop loin de la boutique.') end
     local okMethod = false
-    for _, k in ipairs(Config.Payments) do if k == method then okMethod = true end end
+    for _, k in ipairs(paymentsOf(s.shop)) do if k == method then okMethod = true end end
+    local CUR = currencyOf(s.shop)
     if not okMethod then return result(src, false, 'Moyen de paiement refusé.') end
     local sex = Items.sexOf(src)
     if not sex then return result(src, false, 'Personnage non compatible.') end
@@ -170,12 +192,12 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
     end
     if total > 0 then
         if money(src, method) < total then
-            return result(src, false, ('Il te manque %d %s.'):format(total - money(src, method), Config.Currency), { money = balances(src) })
+            return result(src, false, ('Il te manque %d %s.'):format(total - money(src, method), CUR), { money = balances(src, s.shop) })
         end
         paying[src] = true
         local ok = removeMoney(src, method, total)
         paying[src] = nil
-        if not ok then return result(src, false, 'Paiement refusé.', { money = balances(src) }) end
+        if not ok then return result(src, false, 'Paiement refusé.', { money = balances(src, s.shop) }) end
     end
     Shop.sessions[src] = nil
 
@@ -194,17 +216,17 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current)
             end
         end
     end
-    if refund > 0 then pcall(function() core:AddMoney(src, method, refund, 'remboursement-vetements') end) end
-    print(('[elyzea_clothing] %s [%d] : %d article(s), %d %s chez « %s »'):format(GetPlayerName(src), src, #list, total - refund, Config.Currency, s.shop.name))
+    if refund > 0 then addMoney(src, method, refund, 'remboursement-vetements') end
+    print(('[elyzea_clothing] %s [%d] : %d article(s), %d %s chez « %s »'):format(GetPlayerName(src), src, #list, total - refund, CUR, s.shop.name))
 
-    local parts = { ('Achat réglé : %d %s.'):format(total - refund, Config.Currency) }
+    local parts = { ('Achat réglé : %d %s.'):format(total - refund, CUR) }
     if #wear > 0 and wearNow then
         parts[#parts + 1] = ('%d %s sur toi%s.'):format(#wear, #wear > 1 and 'pièces portées' or 'pièce portée',
             useItems and ' (F3 pour ' .. (#wear > 1 and 'les' or 'la') .. ' ranger dans l\'inventaire)' or '')
     end
     if bought > 0 then parts[#parts + 1] = ('%d %s dans ton inventaire.'):format(bought, bought > 1 and 'vêtements' or 'vêtement') end
     if given > 0 then parts[#parts + 1] = 'Tes anciens vêtements y sont aussi.' end
-    if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(refund, Config.Currency) end
+    if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(refund, CUR) end
     result(src, true, table.concat(parts, ' '), { wear = (wearNow or not useItems) and wear or {} })
 end)
 AddEventHandler('playerDropped', function() paying[source] = nil end)
