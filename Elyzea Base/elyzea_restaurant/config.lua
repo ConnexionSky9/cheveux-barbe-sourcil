@@ -6,7 +6,9 @@
 --    les mini-jeux, les réglages des commandes et de la livraison.
 --  · Les restaurants se créent et se règlent EN JEU (admin_menu › Restaurants,
 --    permission « resto_manage ») ou au démarrage via Config.Restaurants (plus bas).
---  · Le patron règle sa carte (produits proposés, prix) dans la tablette.
+--  · Le staff choisit les produits que chaque restaurant a le droit de vendre
+--    (admin_menu › Restaurants › Produits vendus) ; le patron règle ensuite sa
+--    carte (produits proposés, prix) dans la tablette, parmi ceux-là.
 -- =====================================================================
 Config = {}
 
@@ -59,6 +61,8 @@ Config.StationTypes = {
     fryer    = { label = 'Friteuse',         icon = '🍟', color = { 234, 179, 8 } },
     fountain = { label = 'Fontaine à boissons', icon = '🥤', color = { 59, 130, 246 } },
     pastry   = { label = 'Plan de pâtisserie', icon = '🍰', color = { 236, 72, 153 } },
+    stove    = { label = 'Piano de cuisson (pâtes, woks, plats)', icon = '🍳', color = { 168, 85, 247 } },
+    prep     = { label = 'Plan de travail (sushis, wraps, sandwichs)', icon = '🔪', color = { 20, 184, 166 } },
 }
 
 -- ---------------------------------------------------------------------
@@ -72,6 +76,7 @@ Config.MiniGames = {
     drink   = { label = 'Remplissage au bon niveau',   minMs = 1200 },
     dessert = { label = 'Choix des bons ingrédients',  minMs = 1500 },
     fries   = { label = 'Cuisson des frites',          minMs = 1500 },
+    plat    = { label = 'Cuisson + dressage de l\'assiette', minMs = 2500 },
 }
 
 -- ---------------------------------------------------------------------
@@ -143,7 +148,8 @@ Config.Orders = {
     maxActivePerCustomer = 2, -- commandes non livrées en même temps par client
     maxPerEmployee = 3,       -- commandes prises en charge en même temps par un employé
     orderDistance = 3.0,      -- le client est à moins de X m du point de commande
-    methods = { 'bank', 'cash' },
+    methods = { 'bank', 'cash', 'pesos' },  -- moyens possibles ; le staff coche ceux de chaque restaurant (admin_menu)
+    defaultMethods = { 'bank', 'cash' },    -- moyens d'un restaurant tant que le staff n'a rien coché
     expireMinutes = 60,       -- commande jamais prise en charge : annulée et remboursée après X minutes
     notifyOffDuty = false,    -- prévenir aussi les employés hors service
     maxPrice = 100000,
@@ -170,6 +176,59 @@ Config.Delivery = {
 Config.Stash = { slots = 60, weight = 300 }   -- coffre du restaurant (kg)
 
 -- ---------------------------------------------------------------------
+-- Pesos de Cayo Perico (objet d'inventaire de elyzea_change)
+--   rate : prix en pesos = prix en $ × rate (arrondi au-dessus)
+--   Les pesos payés vont dans le COFFRE du restaurant (pas sur le compte en $) ;
+--   une commande annulée est remboursée en pesos depuis ce coffre.
+-- ---------------------------------------------------------------------
+Config.Pesos = { item = 'pesos', rate = 1.0 }
+
+-- ---------------------------------------------------------------------
+-- Recettes de elyzea_cuisine (80 plats, desserts et boissons) ajoutées au
+-- catalogue (shared/cuisine.lua). Le staff choisit ensuite, restaurant par
+-- restaurant, ce qui est vendu (admin_menu › Restaurants › Produits vendus).
+--   prices : prix de départ selon le type (+ un peu selon la faim / soif rendue)
+--   rules  : préparation (mini-jeu + station), première règle qui correspond
+--            (« match » = morceaux de l'identifiant de la recette, « kind » = type)
+-- ---------------------------------------------------------------------
+Config.Cuisine = {
+    enabled = true,
+    resource = 'elyzea_cuisine',
+    prices = { plat = 14, dessert = 7, boisson = 4 },
+    categories = {                            -- icônes des catégories (le nom vient de elyzea_cuisine)
+        italien = '🍝', fastfood = '🌭', japonais = '🍣', mexicain = '🌮',
+    },
+    rules = {
+        { kind = 'boisson', game = 'drink', station = 'fountain' },
+        { kind = 'dessert', game = 'dessert', station = 'pastry' },
+        { match = { 'pizza' }, game = 'pizza', station = 'oven' },
+        { match = { 'burger' }, game = 'burger', station = 'grill' },
+        { match = { 'frites', 'onion_rings', 'nuggets', 'tenders', 'wings', 'tempura', 'milanaise', 'katsudon', 'chimichanga', 'empanadas' },
+          game = 'fries', station = 'fryer' },
+        { match = { 'sushi', 'maki', 'california', 'sashimi', 'onigiri', 'bento', 'wrap', 'club_sandwich', 'tostadas', 'nachos' },
+          game = 'plat', station = 'prep', cook = false },
+        { match = { 'lasagnes', 'parmigiana', 'focaccia', 'enchiladas', 'tamales' }, game = 'plat', station = 'oven' },
+        { match = { 'hotdog', 'yakitori', 'elote', 'panini', 'tacos', 'quesadilla' }, game = 'plat', station = 'grill' },
+        { kind = 'plat', game = 'plat', station = 'stove' },
+    },
+    -- Ingrédients du mini-jeu « plat » (par cuisine) : clé = { emoji, nom }
+    ingredients = {
+        italien = { pasta = { '🍝', 'Pâtes' }, tomato = { '🍅', 'Sauce tomate' }, basil = { '🌿', 'Basilic' }, parmesan = { '🧀', 'Parmesan' },
+            garlic = { '🧄', 'Ail' }, olive = { '🫒', 'Huile d\'olive' }, mushroom = { '🍄', 'Champignons' }, meat = { '🥩', 'Viande hachée' },
+            cream = { '🥛', 'Crème' }, onion = { '🧅', 'Oignon' }, eggplant = { '🍆', 'Aubergine' }, salmon = { '🐟', 'Saumon' } },
+        fastfood = { bread = { '🍞', 'Pain' }, chicken = { '🍗', 'Poulet' }, cheese = { '🧀', 'Cheddar' }, salad = { '🥬', 'Salade' },
+            tomato = { '🍅', 'Tomate' }, sauce = { '🥫', 'Sauce' }, bacon = { '🥓', 'Bacon' }, sausage = { '🌭', 'Saucisse' },
+            onion = { '🧅', 'Oignon' }, pickles = { '🥒', 'Cornichons' }, tortilla = { '🫓', 'Galette' }, egg = { '🥚', 'Œuf' } },
+        japonais = { rice = { '🍚', 'Riz' }, nori = { '🟩', 'Algue nori' }, salmon = { '🐟', 'Saumon' }, tuna = { '🍣', 'Thon' },
+            soy = { '🥢', 'Sauce soja' }, wasabi = { '🟢', 'Wasabi' }, ginger = { '🫚', 'Gingembre' }, egg = { '🥚', 'Œuf' },
+            pork = { '🥓', 'Porc' }, chicken = { '🍗', 'Poulet' }, noodles = { '🍜', 'Nouilles' }, sesame = { '⚪', 'Sésame' } },
+        mexicain = { tortilla = { '🫓', 'Tortilla' }, beans = { '🫘', 'Haricots' }, avocado = { '🥑', 'Guacamole' }, pepper = { '🌶️', 'Piment' },
+            corn = { '🌽', 'Maïs' }, cheese = { '🧀', 'Fromage' }, beef = { '🥩', 'Bœuf' }, chicken = { '🍗', 'Poulet' },
+            rice = { '🍚', 'Riz' }, lime = { '🍋', 'Citron vert' }, coriander = { '🌿', 'Coriandre' }, salsa = { '🍅', 'Salsa' } },
+    },
+}
+
+-- ---------------------------------------------------------------------
 -- Restaurants créés au démarrage (facultatif). Un restaurant déjà en base
 -- (même « job ») n'est jamais modifié ni recréé : le réglage en jeu prime.
 -- Exemple (retirez les -- pour l'utiliser) :
@@ -187,7 +246,9 @@ Config.Restaurants = {
     --             { x = 0.0, y = 0.0, z = 0.0, h = 0.0, types = { 'fountain', 'pastry' } },
     --         },
     --     },
-    --     products = { 'pizza_ham', 'cola', 'orange', 'sundae' },   -- vide : produits « default »
+    --     products = { 'pizza_ham', 'cola', 'orange', 'sundae' },   -- à la carte au départ (vide : produits « default »)
+    --     catalog  = { 'pizza_ham', 'cola', 'orange', 'sundae', 'it_lasagnes' }, -- produits autorisés (absent : tous)
+    --     payments = { 'bank', 'cash', 'pesos' },                  -- moyens de paiement (absent : Config.Orders.defaultMethods)
     --     enabled = true,
     -- },
 }

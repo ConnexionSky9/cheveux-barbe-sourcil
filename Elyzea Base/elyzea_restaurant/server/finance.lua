@@ -121,8 +121,8 @@ P.Actions.finance = { perm = 'finance', fn = function(src, _, D)
         all[r.type .. ':' .. r.category] = { total = tonumber(r.total) or 0, n = tonumber(r.n) or 0 }
     end
     local methods = {}
-    for _, r in ipairs(MySQL.query.await([[SELECT `method`, COUNT(*) AS n, SUM(`total`) AS total FROM `rs_orders` WHERE `shop_id` = ? AND `status` <> 'cancelled' GROUP BY `method`]], { D.id }) or {}) do
-        methods[r.method or '?'] = { n = tonumber(r.n) or 0, total = tonumber(r.total) or 0 }
+    for _, r in ipairs(MySQL.query.await([[SELECT `method`, COUNT(*) AS n, SUM(`total`) AS total, SUM(COALESCE(`paid`, 0)) AS paid FROM `rs_orders` WHERE `shop_id` = ? AND `status` <> 'cancelled' GROUP BY `method`]], { D.id }) or {}) do
+        methods[r.method or '?'] = { n = tonumber(r.n) or 0, total = tonumber(r.total) or 0, paid = tonumber(r.paid) or 0 }
     end
     local logs = {}
     local ok, rows = pcall(function() return core:GetSocietyLogs(D.society, 15) end)

@@ -92,7 +92,7 @@
       <div class="cols"><div>
         <div class="card"><h2>Dernières commandes</h2>${d.last.map((l) => `<div class="list-row"><div class="main"><b>#${String(l.num).padStart(3, '0')} · ${lineTxt(l)}</b>
           <small>${esc(l.customer_name || '')}${l.employee_name ? ` · ${esc(l.employee_name)}` : ''} · ${fmtTime(l.t)}</small></div><span class="pill ${ST_PILL[l.status] || ''}">${esc({ pending: 'En attente', preparing: 'En préparation', ready: 'Terminée', delivered: 'Livrée', cancelled: 'Annulée' }[l.status] || l.status)}</span>
-          <span class="mono nw">${money(l.total)}</span></div>`).join('') || empty('Aucune commande.')}</div>
+          <span class="mono nw">${paidTxt(l)}</span></div>`).join('') || empty('Aucune commande.')}</div>
       </div><div>
         <div class="card"><h2>Moi</h2><div class="kv"><span>Restaurant</span><b>${esc(d.shop.name)}</b><span>Grade</span><b>${esc(d.me.grade)}</b><span>Matricule</span><b class="mono">${esc(d.me.matricule)}</b>
           <span>Service</span><b>${d.me.duty ? statusPill(d.me.status) : '<span class="pill off">Hors service</span>'}</b>
@@ -113,7 +113,7 @@
   const OS = { tab: 'pending' };
   const progress = (o) => `<div class="countdown" style="margin-top:.35rem"><i style="width:${o.units ? Math.round((o.done / o.units) * 100) : 0}%"></i></div>`;
   const orderCard = (o, d) => `<div class="card" style="margin-bottom:.6rem"><div class="list-row" style="border:0;padding:0"><div class="main"><b>Commande ${esc(o.num)}</b>
-      <small>${esc(o.customer || '')} · ${fmtTime(o.t)} · ${money(o.total)}${o.employee ? ` · ${esc(o.employee)}` : ''}</small></div><span class="pill ${ST_PILL[o.status] || ''}">${esc(o.statusLabel)}</span></div>
+      <small>${esc(o.customer || '')} · ${fmtTime(o.t)} · ${paidTxt(o)}${o.employee ? ` · ${esc(o.employee)}` : ''}</small></div><span class="pill ${ST_PILL[o.status] || ''}">${esc(o.statusLabel)}</span></div>
     <div style="margin-top:.5rem">${o.lines.map((l) => `<div class="list-row"><div class="main"><b>${l.qty} × ${esc(l.label)}</b><small>${esc(l.stationLabel || '')}</small></div>
       ${o.status !== 'pending' ? `<span class="pill ${l.done >= l.qty ? 'on' : 'warn'}">${l.done} / ${l.qty}</span>` : ''}</div>`).join('')}</div>
     ${o.status === 'preparing' ? progress(o) : ''}${o.bagMissing ? '<div class="warn-box" style="margin-top:.5rem">Sac non reçu (inventaire plein).</div>' : ''}
@@ -133,7 +133,7 @@
     let content;
     if (OS.tab === 'history') {
       content = d.history.map((h) => `<div class="list-row"><div class="main"><b>${esc(h.num)} · ${lineTxt(h)}</b><small>${esc(h.customer_name || '')}${h.employee_name ? ` · ${esc(h.employee_name)}` : ''} · ${fmtTime(h.t)}${h.cancel_reason ? ` · ${esc(h.cancel_reason)}` : ''}</small></div>
-        <span class="pill ${ST_PILL[h.status] || ''}">${esc(h.statusLabel)}</span><span class="mono nw">${money(h.total)}</span></div>`).join('') || empty('Aucune commande terminée.');
+        <span class="pill ${ST_PILL[h.status] || ''}">${esc(h.statusLabel)}</span><span class="mono nw">${paidTxt(h)}</span></div>`).join('') || empty('Aucune commande terminée.');
       content = `<div class="card">${content}</div>`;
     } else {
       const list = d[OS.tab] || [];
@@ -153,12 +153,14 @@
     if (stale(g)) return;
     if (d.error) { body().innerHTML = empty(d.error); return; }
     T.menu = d;
+    const pz = (d.methods || []).includes('pesos'), rate = Number(d.pesosRate || 1);
     body().innerHTML = `<div class="note">La carte est propre à votre restaurant. ${d.canEdit ? 'Changez un prix, retirez un produit de la carte ou remettez-le.' : 'Seuls les grades avec la permission « carte » la modifient.'}
-        Les commandes déjà payées ne changent pas.</div>
+        Les commandes déjà payées ne changent pas.${d.restricted ? ' Seuls les produits autorisés par le staff pour ce restaurant sont listés.' : ''}
+        ${pz ? `<br>Paiement en pesos accepté : prix en pesos = prix × ${rate} ; les pesos arrivent dans le coffre du restaurant.` : ''}</div>
       ${(d.categories || []).map((c) => { const list = d.list.filter((x) => x.cat === c.id); if (!list.length) return '';
         return `<div class="card" style="padding:.3rem .6rem"><h2 style="padding:.6rem .4rem 0">${esc(c.icon || '')} ${esc(c.label)}</h2><table class="tbl"><tr><th>Produit</th><th>Prix</th><th>Préparation</th><th>Carte</th><th></th></tr>
         ${list.map((x) => `<tr style="${x.enabled ? '' : 'opacity:.55'}"><td><b>${esc(x.label)}</b><br><small class="faint">${esc(x.desc || '')}</small></td>
-          <td class="mono">${money(x.price)}</td><td><small>${esc(((APP.cfg || {}).games || {})[x.game] ? APP.cfg.games[x.game].label : x.game)} · ${'★'.repeat(x.difficulty || 1)}</small></td>
+          <td class="mono">${money(x.price)}${pz ? `<br><small class="faint">${Math.ceil(x.price * rate - 1e-9).toLocaleString('fr-FR')} pesos</small>` : ''}</td><td><small>${esc(((APP.cfg || {}).games || {})[x.game] ? APP.cfg.games[x.game].label : x.game)} · ${'★'.repeat(x.difficulty || 1)}</small></td>
           <td>${x.enabled ? '<span class="pill on">À la carte</span>' : '<span class="pill off">Retiré</span>'}</td>
           <td class="nw">${d.canEdit ? `<button class="btn small" data-mprice="${esc(x.id)}">Prix</button> <button class="btn small" data-mtoggle="${esc(x.id)}">${x.enabled ? 'Retirer' : 'Remettre'}</button>` : ''}</td></tr>`).join('')}</table></div>`; }).join('')}`;
   };
@@ -386,7 +388,8 @@
       </div><div class="detail">
         <div class="card"><h2>Taux horaire et commission</h2>${grades}<p class="faint" style="font-size:.74rem;margin-top:.5rem">$/h : salaire par heure de service. % : commission sur les commandes servies au bar, versée par le restaurant. Appliqué à partir de maintenant.</p></div>
         <div class="card"><h2>Historique des taux</h2>${FS.rates.slice(0, 15).map((r) => `<div class="list-row"><div class="main"><b>${esc(r.grade_name)} · ${money(r.rate)}/h</b><small>${esc(r.actor_name || '')} · ${fmtTime(r.t)}</small></div></div>`).join('') || empty('Aucun changement.')}</div>
-        <div class="card"><h2>Moyens de paiement</h2><div class="kv"><span>Banque</span><b>${money(((d.methods || {}).bank || {}).total || 0)} · ${((d.methods || {}).bank || {}).n || 0} vente(s)</b><span>Espèces</span><b>${money(((d.methods || {}).cash || {}).total || 0)} · ${((d.methods || {}).cash || {}).n || 0} vente(s)</b></div></div>
+        <div class="card"><h2>Moyens de paiement</h2><div class="kv"><span>Banque</span><b>${money(((d.methods || {}).bank || {}).total || 0)} · ${((d.methods || {}).bank || {}).n || 0} vente(s)</b><span>Espèces</span><b>${money(((d.methods || {}).cash || {}).total || 0)} · ${((d.methods || {}).cash || {}).n || 0} vente(s)</b>
+          <span>Pesos (au coffre)</span><b>${Math.round(((d.methods || {}).pesos || {}).paid || 0).toLocaleString('fr-FR')} pesos · ${((d.methods || {}).pesos || {}).n || 0} vente(s)</b></div></div>
         <div class="card"><h2>Compte ${esc(d.society || '')} : derniers mouvements</h2>${d.logs.map((l) => `<div class="list-row"><div class="main"><b style="font-weight:500">${esc(l.reason || '—')}</b><small>${l.t ? fmtTime(l.t) : ''}</small></div>
           <b class="mono" style="color:${l.amount < 0 ? '#fca5a5' : 'var(--green)'}">${l.amount < 0 ? '−' : '+'}${money(Math.abs(l.amount))}</b></div>`).join('') || empty('Aucun mouvement.')}</div></div></div>`;
   }

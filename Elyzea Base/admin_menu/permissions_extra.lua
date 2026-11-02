@@ -33,6 +33,7 @@ local EXTRA = {
     { key = 'resto_toggle',  label = 'Restaurants : activer / désactiver un restaurant', cat = 'Métiers' },
     { key = 'resto_delete',  label = 'Restaurants : supprimer un restaurant', cat = 'Métiers' },
     { key = 'resto_orders',  label = 'Restaurants : voir les commandes en cours, annuler et rembourser', cat = 'Métiers' },
+    { key = 'resto_menu',    label = 'Restaurants : choisir les produits vendus par chaque restaurant et ses moyens de paiement (banque, espèces, pesos)', cat = 'Métiers' },
     { key = 'builder_manage', label = 'Builder Studio : TOUT (construire, modifier, supprimer, importer, exporter, projets des autres) (builder_studio)', cat = 'Gestion' },
     { key = 'builder_access', label = 'Builder Studio : ouvrir le studio et voir les projets', cat = 'Gestion' },
     { key = 'builder_build',  label = 'Builder Studio : créer des projets et des éléments', cat = 'Gestion' },

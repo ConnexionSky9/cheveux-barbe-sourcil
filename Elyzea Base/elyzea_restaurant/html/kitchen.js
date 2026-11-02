@@ -199,6 +199,58 @@
     },
   };
 
+  /* ---------- Plat (recettes elyzea_cuisine) : cuisson puis dressage ---------- */
+  GAMES.plat = {
+    hint: 'Arrêtez l\'aiguille dans la zone verte (clic ou Espace), puis dressez l\'assiette avec les ingrédients de la fiche.',
+    start(stage, p, api) {
+      const L = (k) => (p.labels && p.labels[k]) || ['❔', k];
+      const res = { picked: [] };
+      let n = null, off = () => {}, phase = p.cook ? 'cook' : 'plate';
+      const plate = () => {
+        phase = 'plate';
+        const picked = res.picked;
+        stage.innerHTML = `<div class="mg-hint">🍽️ Dressage${p.ordered ? ' (dans l\'ordre)' : ''} :</div>
+          <div class="recipe">${p.need.map((k) => `<span class="${picked.includes(k) ? 'done' : ''}">${L(k)[0]} ${esc(L(k)[1])}</span>`).join('')}</div>
+          <div class="palette">${p.shown.map((k) => `<button class="ing ${picked.includes(k) ? 'on' : ''}" data-ing="${esc(k)}"><span class="e">${L(k)[0]}</span>${esc(L(k)[1])}</button>`).join('')}</div>
+          <button class="btn primary" data-ok="1" ${picked.length !== p.need.length ? 'disabled' : ''}>Servir</button>`;
+      };
+      const cook = () => {
+        stage.innerHTML = `<div class="mg-hint">🔥 Cuisson</div>${gaugeHTML(p.cook)}<button class="btn primary" data-act="1">Stop (Espace)</button>`;
+        n = needle($('.needle', stage), p.cook.speed);
+        off = onKey(stopCook);
+      };
+      function stopCook() {
+        if (phase !== 'cook' || !n) return;
+        const v = n.stop();
+        off(); off = () => {};
+        res.gauge = v;
+        if (!inZone(p.cook, v)) { phase = 'end'; return api.fail(v > p.cook.to ? 'Trop cuit.' : 'Pas assez cuit.'); }
+        plate();
+      }
+      const click = (e) => {
+        let b;
+        if (phase === 'cook' && e.target.closest('[data-act]')) return stopCook();
+        if (phase !== 'plate') return;
+        if ((b = e.target.closest('[data-ing]'))) {
+          const k = b.dataset.ing, i = res.picked.indexOf(k);
+          if (i >= 0) res.picked.splice(i, 1); else if (res.picked.length < p.need.length) res.picked.push(k);
+          return plate();
+        }
+        if (e.target.closest('[data-ok]')) {
+          const ok = p.ordered ? p.need.every((k, i) => res.picked[i] === k) : p.need.every((k) => res.picked.includes(k));
+          phase = 'end';
+          if (!ok) return api.fail(p.ordered ? 'Mauvais ingrédients ou mauvais ordre.' : 'Mauvais ingrédients.');
+          const out = { picked: res.picked.slice() };
+          if (p.cook) out.gauge = res.gauge;
+          api.done(out);
+        }
+      };
+      stage.addEventListener('click', click);
+      if (p.cook) cook(); else plate();
+      return () => { phase = 'end'; if (n) n.kill(); off(); stage.removeEventListener('click', click); };
+    },
+  };
+
   /* ---------- Frites : sortir le panier quand elles sont dorées ---------- */
   GAMES.fries = {
     hint: 'Plongez le panier, puis sortez-le quand l\'aiguille est dans la zone dorée (clic ou Espace).',

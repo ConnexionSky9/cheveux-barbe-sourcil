@@ -51,20 +51,65 @@ function P.SeedMenu(D, onlyMissing, only)
     end
 end
 
--- Ligne de carte d'un restaurant (nil si produit inconnu ou retiré)
+-- ---------------------------------------------------------------------
+-- Produits que le staff autorise pour ce restaurant (admin_menu › Produits vendus)
+--   D.options.catalog = liste d'identifiants ; absente = tout le catalogue
+-- ---------------------------------------------------------------------
+local catalogCache = setmetatable({}, { __mode = 'k' })
+function P.CatalogSet(D)
+    local list = D and D.options and D.options.catalog
+    if type(list) ~= 'table' then return nil end
+    local c = catalogCache[list]
+    if not c then
+        c = {}
+        for _, id in ipairs(list) do c[tostring(id)] = true end
+        catalogCache[list] = c
+    end
+    return c
+end
+function P.Sells(D, productId)
+    local set = P.CatalogSet(D)
+    return set == nil or set[tostring(productId or '')] == true
+end
+
+-- Moyens de paiement acceptés par ce restaurant (cochés par le staff ; sinon ceux par défaut)
+local METHOD_OK = {}
+for _, m in ipairs(Config.Orders.methods) do METHOD_OK[m] = true end
+function P.Methods(D)
+    local out, seen = {}, {}
+    local list = type(D and D.options and D.options.payments) == 'table' and D.options.payments or Config.Orders.defaultMethods or Config.Orders.methods
+    for _, m in ipairs(list) do
+        m = tostring(m)
+        if METHOD_OK[m] and not seen[m] then seen[m] = true out[#out + 1] = m end
+    end
+    if #out == 0 then out[1] = 'bank' end
+    return out
+end
+function P.AcceptsMethod(D, method)
+    for _, m in ipairs(P.Methods(D)) do if m == method then return true end end
+    return false
+end
+-- Prix en pesos d'un montant en $ (arrondi au-dessus)
+function P.PesosPrice(amount)
+    local rate = tonumber((Config.Pesos or {}).rate) or 1.0
+    if rate <= 0 then rate = 1.0 end
+    return math.ceil((tonumber(amount) or 0) * rate - 1e-9)
+end
+
+-- Ligne de carte d'un restaurant (nil si produit inconnu, retiré ou non autorisé par le staff)
 function P.MenuLine(D, productId)
     local p = P.Products[tostring(productId or '')]
     local m = p and (P.menu[D.id] or {})[p.id]
-    if not p or not m or not m.enabled then return nil end
+    if not p or not m or not m.enabled or not P.Sells(D, p.id) then return nil end
     return p, m.price
 end
 
--- Carte affichée (publique : produits proposés seulement)
+-- Carte affichée (publique : produits proposés seulement ; jamais un produit non autorisé par le staff)
 function P.MenuView(D, publicOnly)
     local list = {}
     for _, p in ipairs(Config.Products) do
         local m = (P.menu[D.id] or {})[p.id]
-        if m and (not publicOnly or m.enabled) then
+        if m and (not publicOnly or m.enabled) and P.Sells(D, p.id) then
             list[#list + 1] = { id = p.id, item = p.item, label = p.label, desc = p.desc, cat = p.cat, price = m.price, enabled = m.enabled,
                 image = Image(p), game = not publicOnly and p.game or nil, difficulty = not publicOnly and p.difficulty or nil,
                 station = not publicOnly and p.station or nil }
@@ -94,7 +139,7 @@ P.Pub.init = { fn = function()
     local types = {}
     for k, t in pairs(Config.StationTypes) do types[k] = { label = t.label, icon = t.icon } end
     return { perms = RSPerms, statuses = Config.Statuses, keys = Config.Keys, categories = Config.Categories, stationTypes = types,
-        games = Config.MiniGames, methods = Config.Orders.methods, limits = { maxQty = Config.Orders.maxQty, maxLines = Config.Orders.maxLines, maxUnits = Config.Orders.maxUnits } }
+        games = Config.MiniGames, methods = Config.Orders.methods, pesosRate = tonumber((Config.Pesos or {}).rate) or 1.0, limits = { maxQty = Config.Orders.maxQty, maxLines = Config.Orders.maxLines, maxUnits = Config.Orders.maxUnits } }
 end }
 
 -- Points publics de chaque restaurant actif
@@ -118,13 +163,15 @@ end }
 -- Carte et prix (tablette)
 -- ---------------------------------------------------------------------
 P.Actions.menu = { perm = 'tablet', fn = function(src, _, D)
-    return { list = P.MenuView(D), categories = Config.Categories, canEdit = P.Can(src, 'menu'), maxPrice = Config.Orders.maxPrice }
+    return { list = P.MenuView(D), categories = Config.Categories, canEdit = P.Can(src, 'menu'), maxPrice = Config.Orders.maxPrice,
+        restricted = P.CatalogSet(D) ~= nil, methods = P.Methods(D), pesosRate = tonumber((Config.Pesos or {}).rate) or 1.0 }
 end }
 
 P.Actions.menuSet = { perm = 'menu', fn = function(src, d, D)
     local p = P.Products[tostring(d.id or '')]
     local m = p and (P.menu[D.id] or {})[p.id]
     if not m then return { error = 'Produit introuvable.' } end
+    if not P.Sells(D, p.id) then return { error = 'Ce produit n\'est pas autorisé pour ce restaurant (choix du staff).' } end
     local msg
     if d.price ~= nil then
         local price = P.Int(d.price, 0, Config.Orders.maxPrice, nil)
@@ -178,7 +225,7 @@ P.Actions.dashboard = { perm = 'tablet', fn = function(src, _, D)
     for _, s in ipairs(P.CrewOnDuty(D.id)) do crew[#crew + 1] = P.CrewInfo(s) end
     table.sort(crew, P.SortCrew)
     local e, g = P.Employee(src), P.Grade(src)
-    local last = MySQL.query.await([[SELECT `num`, `lines`, `total`, `status`, `customer_name`, `employee_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `rs_orders`
+    local last = MySQL.query.await([[SELECT `num`, `lines`, `total`, `method`, `paid`, `status`, `customer_name`, `employee_name`, UNIX_TIMESTAMP(`created_at`) AS t FROM `rs_orders`
         WHERE `shop_id` = ? ORDER BY `id` DESC LIMIT 8]], { D.id }) or {}
     for _, r in ipairs(last) do r.lines = P.Decode(r.lines, {}) end
     return { shop = { name = D.name, address = D.address, logo = P.Opt(D, 'logo', '🍽️') }, publicOpen = P.PublicOpen(D), canOpen = P.Can(src, 'open'),
@@ -226,6 +273,11 @@ P.OnReady[#P.OnReady + 1] = function()
                     end
                 end
                 local opts = { publicOpen = true, requireDuty = true, blip = c.blip ~= false, logo = c.logo or '🍽️', color = c.color or '#f97316' }
+                if type(c.catalog) == 'table' then
+                    opts.catalog = {}
+                    for _, pid in ipairs(c.catalog) do if P.Products[pid] then opts.catalog[#opts.catalog + 1] = pid end end
+                end
+                if type(c.payments) == 'table' then opts.payments = c.payments end
                 local society = tostring(c.society or job):lower():gsub('[^%w_]', '')
                 local name = P.Clean(c.name or job, 80)
                 local id = MySQL.insert.await([[INSERT INTO `rs_shops` (`name`, `address`, `job`, `job_label`, `society`, `mat_prefix`, `enabled`, `points`, `options`, `created_by`)

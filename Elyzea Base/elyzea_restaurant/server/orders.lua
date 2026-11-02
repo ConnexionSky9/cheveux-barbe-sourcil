@@ -1,6 +1,7 @@
 -- =====================================================================
 --  ELYZEA RESTAURANT - serveur : commandes
---  Client  : carte au point de commande → panier → paiement (banque / espèces)
+--  Client  : carte au point de commande → panier → paiement (banque / espèces /
+--            pesos, selon ce que le staff a coché pour le restaurant)
 --            → commande enregistrée, personnel prévenu.
 --  Employé : appli « Commande » du téléphone de service (ou tablette) :
 --            en attente → « Prendre en charge » (un seul employé, jamais deux)
@@ -21,6 +22,11 @@ local ordering = {}   -- [src] = true pendant un paiement (pas de double command
 P.StatusLabel = { pending = 'En attente', preparing = 'En préparation', ready = 'Terminée', delivered = 'Livrée', cancelled = 'Annulée' }
 
 function P.Num(o) return ('#%03d'):format(tonumber(o.num) or 0) end
+-- Montant réellement payé, avec sa monnaie (« 25 $ » ou « 25 pesos »)
+function P.PaidText(o)
+    if o.method == 'pesos' then return ('%d pesos'):format(tonumber(o.paid) or 0) end
+    return ('%d $'):format(tonumber(o.total) or 0)
+end
 local function Units(o)
     local n, done = 0, 0
     for _, l in ipairs(o.lines) do n, done = n + l.qty, done + math.min(l.qty, l.done or 0) end
@@ -47,7 +53,7 @@ function P.OrderView(o, viewerCid)
     end
     local units, done = Units(o)
     return { id = o.id, num = P.Num(o), status = o.status, statusLabel = P.StatusLabel[o.status] or o.status, t = o.created, total = o.total,
-        method = o.method, customer = o.cname, employee = o.empName, mine = viewerCid ~= nil and o.emp == viewerCid, units = units, done = done,
+        method = o.method, paid = o.method == 'pesos' and (tonumber(o.paid) or 0) or o.total, currency = o.method == 'pesos' and 'pesos' or '$', customer = o.cname, employee = o.empName, mine = viewerCid ~= nil and o.emp == viewerCid, units = units, done = done,
         lines = lines, bagMissing = o.status == 'ready' and o.bagGiven == false or nil, shop = (P.shops[o.shop] or {}).name }
 end
 
@@ -78,10 +84,10 @@ P.OnReady[#P.OnReady + 1] = function()
     for _, r in ipairs(MySQL.query.await('SELECT `shop_id`, MAX(`num`) AS n FROM `rs_orders` GROUP BY `shop_id`') or {}) do
         P.nums[tonumber(r.shop_id)] = tonumber(r.n) or 0
     end
-    for _, r in ipairs(MySQL.query.await([[SELECT `id`, `shop_id`, `num`, `customer_cid`, `customer_name`, `lines`, `total`, `method`, `status`, `employee_cid`, `employee_name`,
+    for _, r in ipairs(MySQL.query.await([[SELECT `id`, `shop_id`, `num`, `customer_cid`, `customer_name`, `lines`, `total`, `method`, `paid`, `status`, `employee_cid`, `employee_name`,
         `bag_uid`, UNIX_TIMESTAMP(`created_at`) AS t FROM `rs_orders` WHERE `status` IN ('pending', 'preparing', 'ready')]]) or {}) do
         P.orders[r.id] = { id = r.id, shop = r.shop_id, num = r.num, cid = r.customer_cid, cname = r.customer_name, lines = P.Decode(r.lines, {}),
-            total = tonumber(r.total) or 0, method = r.method, status = r.status, emp = r.employee_cid, empName = r.employee_name, bag = r.bag_uid,
+            total = tonumber(r.total) or 0, method = r.method, paid = tonumber(r.paid), status = r.status, emp = r.employee_cid, empName = r.employee_name, bag = r.bag_uid,
             bagGiven = r.status == 'ready' and true or nil, created = tonumber(r.t) or os.time() }
     end
 end
@@ -102,8 +108,9 @@ P.Pub.menuCard = { fn = function(src, d)
     local D = P.shops[tonumber(d.shop) or 0]
     if not D or not P.ShopOpen(D) then return { error = 'Restaurant introuvable.' } end
     local mine = MyActive(P.Cid(src) or '')
+    if P.DeliverRefunds then P.DeliverRefunds(src) end
     return { shop = { id = D.id, name = D.name, logo = P.Opt(D, 'logo', '🍽️'), color = P.Opt(D, 'color', '#f97316'), address = D.address, open = P.PublicOpen(D) },
-        categories = Config.Categories, products = P.MenuView(D, true), methods = O.methods,
+        categories = Config.Categories, products = P.MenuView(D, true), methods = P.Methods(D), pesosRate = tonumber((Config.Pesos or {}).rate) or 1.0,
         limits = { maxQty = O.maxQty, maxLines = O.maxLines, maxUnits = O.maxUnits }, mine = mine }
 end }
 
@@ -137,7 +144,6 @@ function P.BuildLines(D, raw)
     return order, total, units
 end
 
-local function MethodOk(m) for _, x in ipairs(O.methods) do if x == m then return true end end return false end
 
 P.Pub.order = { fn = function(src, d)
     local D = P.shops[tonumber(d.shop) or 0]
@@ -150,7 +156,7 @@ P.Pub.order = { fn = function(src, d)
     local _, active = MyActive(cid)
     if active >= O.maxActivePerCustomer then return { error = ('Vous avez déjà %d commande(s) en cours : attendez qu\'elle(s) soi(en)t livrée(s).'):format(active) } end
     local method = tostring(d.method or '')
-    if not MethodOk(method) then return { error = 'Moyen de paiement invalide.' } end
+    if not P.AcceptsMethod(D, method) then return { error = 'Moyen de paiement non accepté par ce restaurant.' } end
     local lines, total, units = P.BuildLines(D, d.lines)
     if not lines then return { error = total } end
     if tonumber(d.expect) and tonumber(d.expect) ~= total then return { error = 'Les prix ont changé : vérifiez votre panier.', reload = true } end
@@ -158,34 +164,47 @@ P.Pub.order = { fn = function(src, d)
     ordering[src] = true
     local ok, res = pcall(function()
         local label = ('Commande · %s'):format(D.name)
-        if not P.ChargeWith(src, total, method, label) then
-            return { error = method == 'cash' and 'Pas assez d\'espèces sur vous.' or 'Solde bancaire insuffisant.' }
-        end
-        if total > 0 and not P.SocietyAdd(D, total, label) then
-            P.Refund(cid, total, method, 'Remboursement · ' .. label)
-            return { error = 'Paiement impossible pour le moment : vous avez été remboursé.' }
+        local pesos = method == 'pesos'
+        local paid = pesos and P.PesosPrice(total) or total
+        if pesos then
+            local okP, why = P.ChargePesos(src, D, paid)
+            if not okP then return { error = why } end
+        else
+            if not P.ChargeWith(src, total, method, label) then
+                return { error = method == 'cash' and 'Pas assez d\'espèces sur vous.' or 'Solde bancaire insuffisant.' }
+            end
+            if total > 0 and not P.SocietyAdd(D, total, label) then
+                P.Refund(cid, total, method, 'Remboursement · ' .. label)
+                return { error = 'Paiement impossible pour le moment : vous avez été remboursé.' }
+            end
         end
         -- Numéro donné seulement une fois payé (aucune attente entre la lecture et l'écriture)
         local num = (P.nums[D.id] or 0) + 1
         P.nums[D.id] = num
         label = ('Commande %s · %s'):format(('#%03d'):format(num), D.name)
         local name = P.Name(src)
-        local id = MySQL.insert.await([[INSERT INTO `rs_orders` (`shop_id`, `num`, `customer_cid`, `customer_name`, `lines`, `total`, `method`, `status`)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')]], { D.id, num, cid, name, json.encode(lines), total, method })
+        local id = MySQL.insert.await([[INSERT INTO `rs_orders` (`shop_id`, `num`, `customer_cid`, `customer_name`, `lines`, `total`, `method`, `paid`, `status`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')]], { D.id, num, cid, name, json.encode(lines), total, method, pesos and paid or nil })
         if not id then
-            if total > 0 then P.SocietyRemove(D, total, 'Annulation · ' .. label) end
-            P.Refund(cid, total, method, 'Remboursement · ' .. label)
+            if pesos then
+                if P.TakeStashPesos(D, paid) then P.GivePesos(cid, paid, 'Remboursement · ' .. label) end
+            else
+                if total > 0 then P.SocietyRemove(D, total, 'Annulation · ' .. label) end
+                P.Refund(cid, total, method, 'Remboursement · ' .. label)
+            end
             return { error = 'Commande non enregistrée : vous avez été remboursé.' }
         end
-        local o = { id = id, shop = D.id, num = num, cid = cid, cname = name, lines = lines, total = total, method = method, status = 'pending', created = os.time() }
+        local o = { id = id, shop = D.id, num = num, cid = cid, cname = name, lines = lines, total = total, method = method, paid = pesos and paid or nil,
+            status = 'pending', created = os.time() }
         P.orders[id] = o
-        if total > 0 then
+        -- Les pesos vont au coffre (objet) : pas de transaction sur le compte en $
+        if total > 0 and not pesos then
             P.Tx(D, { type = 'in', category = 'order', amount = total, reason = label, actorCid = cid, actorName = name, ref = tostring(id) })
         end
         P.NotifyStaff(D, ('Nouvelle commande reçue ! Commande %s – %d produit(s). Consultez votre téléphone de service pour la prendre en charge.'):format(P.Num(o), units), 'success')
         P.PushOrders()
-        P.Log(src, 'Commande', ('%s · %s · %d $'):format(D.name, P.Num(o), total))
-        return { ok = true, order = P.OrderView(o), message = ('Commande %s payée (%d $). Vous serez prévenu(e) quand elle sera prête.'):format(P.Num(o), total) }
+        P.Log(src, 'Commande', ('%s · %s · %s'):format(D.name, P.Num(o), P.PaidText(o)))
+        return { ok = true, order = P.OrderView(o), message = ('Commande %s payée (%s). Vous serez prévenu(e) quand elle sera prête.'):format(P.Num(o), P.PaidText(o)) }
     end)
     ordering[src] = nil
     if not ok then print(('^1[RESTO] Commande : %s^0'):format(tostring(res))) return { error = 'Erreur pendant la commande.' } end
@@ -221,7 +240,7 @@ P.Actions.ordersList = { perm = 'orders', fn = function(src, _, D)
     end
     local byId = function(a, b) return a.id < b.id end
     table.sort(pending, byId) table.sort(mine, byId) table.sort(others, byId)
-    local history = MySQL.query.await([[SELECT `id`, `num`, `lines`, `total`, `status`, `customer_name`, `employee_name`, `cancel_reason`,
+    local history = MySQL.query.await([[SELECT `id`, `num`, `lines`, `total`, `method`, `paid`, `status`, `customer_name`, `employee_name`, `cancel_reason`,
         UNIX_TIMESTAMP(`created_at`) AS t, UNIX_TIMESTAMP(`delivered_at`) AS dt FROM `rs_orders`
         WHERE `shop_id` = ? AND `status` IN ('delivered', 'cancelled') ORDER BY `id` DESC LIMIT ?]], { D.id, O.historyLimit }) or {}
     for _, r in ipairs(history) do
@@ -276,7 +295,13 @@ function P.CancelOrder(D, o, reason, actorSrc)
         if not ok then return false, 'Le sac de cette commande doit d\'abord être récupéré (l\'employé qui l\'a n\'est pas connecté ou ne l\'a plus).' end
     end
     local label = ('Remboursement commande %s · %s'):format(P.Num(o), D.name)
-    if o.total > 0 then
+    if o.method == 'pesos' then
+        local paid = tonumber(o.paid) or 0
+        if paid > 0 then
+            if not P.TakeStashPesos(D, paid) then return false, ('Pas assez de pesos dans le coffre du restaurant pour rembourser (%d pesos).'):format(paid) end
+            P.GivePesos(o.cid, paid, label)
+        end
+    elseif o.total > 0 then
         if not P.SocietyRemove(D, o.total, label) then return false, ('Fonds insuffisants pour rembourser (%d $).'):format(o.total) end
         P.Refund(o.cid, o.total, o.method, label)
         P.Tx(D, { type = 'out', category = 'refund', amount = o.total, reason = label, actorCid = actorSrc and P.Cid(actorSrc) or nil,
@@ -286,7 +311,7 @@ function P.CancelOrder(D, o, reason, actorSrc)
     o.status = 'cancelled'
     P.orders[o.id] = nil
     P.SaveOrder(o, ', `cancel_reason` = ?', { P.Clean(reason or 'Annulée', 160) })
-    P.NotifyCid(o.cid, ('Votre commande %s chez %s a été annulée : %d $ remboursés.'):format(P.Num(o), D.name, o.total), 'error')
+    P.NotifyCid(o.cid, ('Votre commande %s chez %s a été annulée : %s remboursés.'):format(P.Num(o), D.name, P.PaidText(o)), 'error')
     P.PushOrders()
     return true
 end

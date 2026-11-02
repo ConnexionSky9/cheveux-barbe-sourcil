@@ -52,7 +52,8 @@ P.Actions.orderDeliver = { perm = 'deliver', duty = true, fn = function(src, d, 
         P.orders[o.id] = nil
         P.SaveOrder(o, ', `delivered_at` = NOW()')
         P.Notify(target, ('Votre commande %s de %s vous a été remise. Utilisez le sac dans votre inventaire pour l\'ouvrir.'):format(P.Num(o), D.name), 'success')
-        if o.emp then P.Commission(D, o.emp, o.total, ('Commande %s'):format(P.Num(o)), tostring(o.id)) end
+        -- Commande en pesos : rien n'est entré sur le compte en $, pas de commission prélevée dessus
+        if o.emp and o.method ~= 'pesos' then P.Commission(D, o.emp, o.total, ('Commande %s'):format(P.Num(o)), tostring(o.id)) end
         P.PushOrders()
         P.Log(src, 'Commande livrée', ('%s · %s → %s'):format(D.name, P.Num(o), o.cname or '?'))
         return { ok = true, message = ('Commande %s remise à %s.'):format(P.Num(o), o.cname or 'le client') }

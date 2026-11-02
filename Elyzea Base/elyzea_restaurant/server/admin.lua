@@ -7,6 +7,8 @@
 --    stations de cuisine (une ou plusieurs, chacune avec ses types).
 --  · Logo, couleur, blip ; nommer le patron, activer / désactiver, supprimer
 --    (désactivation : finances et historiques gardés) ; commandes (annuler).
+--  · Produits vendus (catalogue de config.lua + recettes de elyzea_cuisine) et
+--    moyens de paiement (banque, espèces, pesos), restaurant par restaurant.
 -- =====================================================================
 local P = Resto
 local core = exports.elyzea_core
@@ -31,9 +33,13 @@ local function ShopView(D)
     for _ in pairs(P.ShopEmployees(D.id)) do emp = emp + 1 end
     local active = 0
     for _, o in pairs(P.orders) do if o.shop == D.id then active = active + 1 end end
+    local onMenu = {}
+    for pid, m in pairs(P.menu[D.id] or {}) do if m.enabled and P.Sells(D, pid) then onMenu[#onMenu + 1] = pid end end
+    table.sort(onMenu)
     return { id = D.id, name = D.name, address = D.address, job = D.job, jobLabel = D.jobLabel, society = D.society, matPrefix = D.matPrefix,
         enabled = D.enabled, deleted = D.deleted, options = D.options, points = D.points, employees = emp, balance = P.Balance(D),
-        publicOpen = P.PublicOpen(D), activeOrders = active }
+        publicOpen = P.PublicOpen(D), activeOrders = active, methods = P.Methods(D), onMenu = onMenu,
+        pesos = P.PesosCount and P.PesosCount(P.StashId(D)) or 0 }
 end
 
 P.Admin.data = { fn = function()
@@ -49,7 +55,16 @@ P.Admin.data = { fn = function()
     local types = {}
     for k, t in pairs(Config.StationTypes) do types[#types + 1] = { id = k, label = t.label, icon = t.icon } end
     table.sort(types, function(a, c) return a.label < c.label end)
-    return { shops = shops, grades = grades, stationTypes = types }
+    local products = {}
+    for _, p in ipairs(Config.Products) do
+        products[#products + 1] = { id = p.id, label = p.label, cat = p.cat, price = p.price, station = p.station, image = p.image or (p.item .. '.png'),
+            kind = p.kind, cuisine = p.cuisine == true }
+    end
+    local methods = {}
+    for _, m in ipairs(Config.Orders.methods) do methods[#methods + 1] = m end
+    return { shops = shops, grades = grades, stationTypes = types, products = products, categories = Config.Categories, methods = methods,
+        defaultMethods = Config.Orders.defaultMethods, pesosRate = tonumber((Config.Pesos or {}).rate) or 1.0,
+        cuisine = { count = RSCuisine and RSCuisine.count or 0, error = RSCuisine and RSCuisine.error or nil } }
 end }
 
 -- ---------------------------------------------------------------------
@@ -263,6 +278,74 @@ P.Admin.orderCancel = { staff = 'orders', fn = function(src, d)
     if not o or not D then return { error = 'Commande introuvable.' } end
     local ok, why = P.CancelOrder(D, o, 'Annulée par le staff', src)
     if not ok then return { error = why } end
-    Log(src, 'Commande annulée', ('%s · %s · %d $ remboursés'):format(D.name, P.Num(o), o.total))
+    Log(src, 'Commande annulée', ('%s · %s · %s remboursés'):format(D.name, P.Num(o), P.PaidText(o)))
     return { ok = true, message = ('Commande %s annulée et remboursée.'):format(P.Num(o)) }
+end }
+
+-- ---------------------------------------------------------------------
+-- Produits vendus (staff) : liste des produits autorisés pour un restaurant
+--   all = true : tout le catalogue (le patron choisit dans sa tablette)
+--   products = { ids } : seulement ceux-là. Un produit nouvellement autorisé
+--   est mis à la carte (au prix de départ, que le patron peut changer) ; un
+--   produit retiré disparaît de la carte et de la tablette.
+-- ---------------------------------------------------------------------
+P.Admin.catalogSet = { staff = 'menu', fn = function(src, d)
+    local D = P.shops[tonumber(d.id) or 0]
+    if not D or D.deleted then return { error = 'Restaurant introuvable.' } end
+    local before = P.CatalogSet(D)
+    local list
+    if d.all ~= true then
+        if type(d.products) ~= 'table' then return { error = 'Liste de produits invalide.' } end
+        list = {}
+        local seen = {}
+        for _, pid in ipairs(d.products) do
+            pid = tostring(pid)
+            if P.Products[pid] and not seen[pid] then seen[pid] = true list[#list + 1] = pid end
+            if #list > 500 then break end
+        end
+        if #list == 0 then return { error = 'Cochez au moins un produit (ou « Tout le catalogue »).' } end
+    end
+    P.SeedMenu(D, true)
+    local added = 0
+    if list then
+        for _, pid in ipairs(list) do
+            local m = P.menu[D.id][pid]
+            if m and not m.enabled and not (before and before[pid]) then
+                m.enabled = true
+                added = added + 1
+                MySQL.update.await('UPDATE `rs_menu` SET `enabled` = 1 WHERE `shop_id` = ? AND `product` = ?', { D.id, pid })
+            end
+        end
+    end
+    D.options = D.options or {}
+    D.options.catalog = list
+    P.SaveShop(D)
+    P.Touch()
+    local msg = list and ('%d produit(s) autorisé(s) pour %s (%d nouveau(x) mis à la carte).'):format(#list, D.name, added)
+        or ('Tout le catalogue est autorisé pour %s : le patron choisit sa carte dans la tablette.'):format(D.name)
+    Log(src, 'Produits vendus', ('%s · %s'):format(D.name, list and (#list .. ' produit(s)') or 'tout le catalogue'))
+    P.AddLog(D.id, src, nil, nil, 'Produits vendus (staff)', nil, nil, list and (#list .. ' produit(s)') or 'Tout le catalogue')
+    return { ok = true, message = msg }
+end }
+
+-- Moyens de paiement acceptés (banque, espèces, pesos)
+P.Admin.paymentsSet = { staff = 'menu', fn = function(src, d)
+    local D = P.shops[tonumber(d.id) or 0]
+    if not D or D.deleted then return { error = 'Restaurant introuvable.' } end
+    local ok, out, seen = {}, {}, {}
+    for _, m in ipairs(Config.Orders.methods) do ok[m] = true end
+    for _, m in ipairs(type(d.methods) == 'table' and d.methods or {}) do
+        m = tostring(m)
+        if ok[m] and not seen[m] then seen[m] = true out[#out + 1] = m end
+    end
+    if #out == 0 then return { error = 'Cochez au moins un moyen de paiement.' } end
+    D.options = D.options or {}
+    D.options.payments = out
+    P.SaveShop(D)
+    P.Touch()
+    local LBL = { bank = 'banque', cash = 'espèces', pesos = 'pesos' }
+    local names = {}
+    for _, m in ipairs(out) do names[#names + 1] = LBL[m] or m end
+    Log(src, 'Paiements', ('%s · %s'):format(D.name, table.concat(names, ', ')))
+    return { ok = true, message = ('%s accepte : %s.'):format(D.name, table.concat(names, ', ')) }
 end }

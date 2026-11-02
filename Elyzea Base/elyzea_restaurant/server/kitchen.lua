@@ -69,7 +69,7 @@ P.Actions.cookStart = { perm = 'cook', duty = true, fn = function(src, d, D)
     if not p then return { error = 'Produit introuvable.' } end
     if (l.done or 0) >= l.qty then return { error = 'Ce produit est déjà prêt.' } end
     if not StationDoes(s, p) then return { error = 'Ce produit ne se prépare pas à cette station.' } end
-    local params = RSGames.Generate(p.game, p.difficulty, p.steps)
+    local params = RSGames.Generate(p.game, p.difficulty, p.steps, nil, p)
     if not params then return { error = ('Mini-jeu « %s » inconnu (config.lua).'):format(tostring(p.game)) } end
     local now = GetGameTimer()
     local token = P.Uid('CK')

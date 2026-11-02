@@ -174,6 +174,7 @@ P.Tables = {
         `lines` TEXT NOT NULL,
         `total` INT NOT NULL,
         `method` VARCHAR(6) NOT NULL,
+        `paid` INT NULL,
         `status` VARCHAR(12) NOT NULL DEFAULT 'pending',
         `employee_cid` VARCHAR(50) NULL, `employee_name` VARCHAR(100) NULL,
         `bag_uid` VARCHAR(40) NULL,
@@ -183,14 +184,35 @@ P.Tables = {
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `taken_at` DATETIME NULL, `ready_at` DATETIME NULL, `delivered_at` DATETIME NULL,
         INDEX (`shop_id`), INDEX (`status`), INDEX (`customer_cid`), UNIQUE KEY `bag_uid` (`bag_uid`) ) ]],
+    -- Remboursements en pesos (objet) d'un client absent : remis à sa prochaine connexion
+    rs_refunds = [[ (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `citizenid` VARCHAR(50) NOT NULL,
+        `item` VARCHAR(40) NOT NULL,
+        `amount` INT NOT NULL,
+        `reason` VARCHAR(160) NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (`citizenid`) ) ]],
 }
 P.TableOrder = { 'rs_settings', 'rs_shops', 'rs_grades', 'rs_employees', 'rs_admin_log', 'rs_sessions', 'rs_rates', 'rs_transactions',
-    'rs_menu', 'rs_orders' }
+    'rs_menu', 'rs_orders', 'rs_refunds' }
+
+-- Colonnes ajoutées après la première version (tables déjà créées)
+P.Migrations = {
+    { 'rs_orders', 'paid', 'ALTER TABLE `rs_orders` ADD COLUMN `paid` INT NULL AFTER `method`' },
+}
 
 local function InitDb()
     for _, name in ipairs(P.TableOrder) do
         local ok, err = pcall(MySQL.query.await, ('CREATE TABLE IF NOT EXISTS `%s` %s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'):format(name, P.Tables[name]))
         if not ok then print(('^1[RESTO] Table %s non créée : %s^0'):format(name, tostring(err))) end
+    end
+    for _, m in ipairs(P.Migrations) do
+        local okc, r = pcall(MySQL.single.await, 'SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', { m[1], m[2] })
+        if okc and r and (tonumber(r.n) or 0) == 0 then
+            local ok, err = pcall(MySQL.query.await, m[3])
+            if not ok then print(('^1[RESTO] Colonne %s.%s non ajoutée : %s^0'):format(m[1], m[2], tostring(err))) end
+        end
     end
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
 end
@@ -536,6 +558,7 @@ P.StaffPerms = {
     { key = 'toggle', perm = 'resto_toggle', label = 'Activer / désactiver' },
     { key = 'delete', perm = 'resto_delete', label = 'Supprimer un restaurant' },
     { key = 'orders', perm = 'resto_orders', label = 'Commandes : voir, annuler et rembourser' },
+    { key = 'menu',   perm = 'resto_menu',   label = 'Produits vendus et moyens de paiement' },
 }
 local function HasAdminPerm(src, perm)
     local ok, res = pcall(function() return exports.admin_menu:HasPermission(src, perm) end)

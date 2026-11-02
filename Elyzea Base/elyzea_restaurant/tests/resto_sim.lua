@@ -165,21 +165,29 @@ local function metaOk(m, want)
     for k, v in pairs(want) do if m[k] ~= v then return false end end
     return true
 end
+-- Stockages : joueurs (id numérique) et coffres (id texte, ex. « resto:1 »)
+local stashes, stashFull = {}, {}
+local function store(inv)
+    if type(inv) == 'string' then stashes[inv] = stashes[inv] or { items = {} } return stashes[inv], stashFull[inv] end
+    local p = players[tonumber(inv) or -1]
+    if p then return p, p.invFull end
+end
 local function count(src, name, meta)
+    local st = store(src)
     local n = 0
-    for _, it in ipairs(players[src].items) do if it.name == name and metaOk(it.metadata, meta) then n = n + it.count end end
+    for _, it in ipairs(st and st.items or {}) do if it.name == name and metaOk(it.metadata, meta) then n = n + it.count end end
     return n
 end
 local function copy(t) if type(t) ~= 'table' then return t end local o = {} for k, v in pairs(t) do o[k] = copy(v) end return o end
 local inventory = {
     AddItem = function(_, src, name, qty, meta)
-        local p = players[tonumber(src) or -1]
-        if not p or p.invFull then return false end
+        local p, full = store(src)
+        if not p or full then return false end
         p.items[#p.items + 1] = { name = name, count = qty or 1, metadata = copy(meta) }
         return true
     end,
     RemoveItem = function(_, src, name, qty, meta)
-        local p = players[tonumber(src) or -1]
+        local p = store(src)
         if not p or count(src, name, meta) < (qty or 1) then return false end
         local left = qty or 1
         for i = #p.items, 1, -1 do
@@ -192,16 +200,16 @@ local inventory = {
         end
         return true
     end,
-    GetItemCount = function(_, src, name, meta) return players[src] and count(src, name, meta) or 0 end,
+    GetItemCount = function(_, src, name, meta) return store(src) and count(src, name, meta) or 0 end,
     Search = function(_, src, kind, name, meta)
         local out = {}
         for i, it in ipairs(players[src].items) do if it.name == name and metaOk(it.metadata, meta) then out[#out + 1] = { slot = i, name = it.name, count = it.count, metadata = copy(it.metadata) } end end
         return out
     end,
-    CanCarryItem = function(_, src) local p = players[src] return p ~= nil and not p.invFull end,
-    CanCarryItems = function(_, src) local p = players[src] return p ~= nil and not p.invFull end,
+    CanCarryItem = function(_, src) local p, full = store(src) return p ~= nil and not full end,
+    CanCarryItems = function(_, src) local p, full = store(src) return p ~= nil and not full end,
     RegisterUsableItem = function(_, name, cb) usable[name] = cb end,
-    RegisterStash = function() end,
+    RegisterStash = function(_, id) store(id) end,
     RegisterStashAccess = function() end,
     OpenInventory = function() return true end,
 }
@@ -250,14 +258,21 @@ env.GetEntityHeading = function() return 90.0 end
 env.SetEntityCoords = function(ped, x, y, z) local p = players[ped] if p then p.pos = vector3(x, y, z) end end
 env.Player = function(src) states[src] = states[src] or {} local st = states[src] return { state = setmetatable({ set = function(_, k, v) st[k] = v end }, { __index = st }) } end
 env.source = 0
+env.IsDuplicityVersion = function() return true end
+env.LoadResourceFile = function(res, file)
+    local f = io.open(ROOT .. '/../' .. res .. '/' .. file, 'r')
+    if not f then return nil end
+    local s = f:read('a') f:close()
+    return s
+end
 
 local function loadFile(path)
     local f = assert(io.open(ROOT .. '/' .. path, 'r'))
     local s = f:read('a') f:close()
     assert(load(s, '@' .. path, 't', env))()
 end
-for _, f in ipairs({ 'config.lua', 'shared/perms.lua', 'shared/games.lua', 'server/main.lua', 'server/service.lua', 'server/finance.lua', 'server/commission.lua',
-    'server/direction.lua', 'server/resto.lua', 'server/orders.lua', 'server/kitchen.lua', 'server/bag.lua', 'server/admin.lua', 'server/phone.lua', 'server/api.lua' }) do loadFile(f) end
+for _, f in ipairs({ 'config.lua', 'shared/cuisine.lua', 'shared/perms.lua', 'shared/games.lua', 'server/main.lua', 'server/service.lua', 'server/finance.lua', 'server/commission.lua',
+    'server/direction.lua', 'server/resto.lua', 'server/pesos.lua', 'server/orders.lua', 'server/kitchen.lua', 'server/bag.lua', 'server/admin.lua', 'server/phone.lua', 'server/api.lua' }) do loadFile(f) end
 local R, Config, RSGames = env.Resto, env.Config, env.RSGames
 
 local function req(src, action, data) run(120) return callbacks['resto:req'](src, action, data or {}) end
@@ -274,6 +289,7 @@ local function solve(game, p)
     if game == 'drink' then return { level = mid(p) } end
     if game == 'dessert' then return { picked = copy(p.need) } end
     if game == 'fries' then return { t = mid(p) } end
+    if game == 'plat' then return { gauge = p.cook and mid(p.cook) or nil, picked = copy(p.need) } end
 end
 
 -- ---------------------------------------------------------------------
@@ -511,20 +527,180 @@ check(exportsTbl.PhoneBridge('cmd', 3, { op = 'list' }) == nil or exportsTbl.Pho
 req(4, 'duty', { on = false })
 check(exportsTbl.PhoneBridge('cmd', 4, { op = 'take', data = { id = O4 } }).error ~= nil, 'hors service : prise en charge refusée')
 
+P('\n[Recettes elyzea_cuisine au catalogue]')
+do
+    local ids = {}
+    for id, o in pairs(R.orders) do if o.cid == 'CLI3' then ids[#ids + 1] = id end end
+    for _, id in ipairs(ids) do adm(1, 'orderCancel', { order = id }) end
+end
+check(env.RSCuisine.count == 80, ('%d recettes ajoutées au catalogue (80 attendues)'):format(env.RSCuisine.count))
+local PR = R.Products
+check(PR.it_lasagnes and PR.it_lasagnes.item == 'it_lasagnes' and PR.it_lasagnes.station == 'oven' and PR.it_lasagnes.game == 'plat', 'lasagnes : objet it_lasagnes, mini-jeu plat au four')
+check(PR.jp_sushi_saumon.game == 'plat' and PR.jp_sushi_saumon.cook == false and PR.jp_sushi_saumon.station == 'prep', 'sushi : dressage sans cuisson, plan de travail')
+check(PR.ff_cheeseburger.game == 'burger' and PR.it_pizza_margherita.game == 'pizza' and PR.ff_frites.game == 'fries', 'burgers, pizzas et fritures : mini-jeux existants')
+check(PR.mx_agua_fresca.station == 'fountain' and PR.it_tiramisu.station == 'pastry' and PR.jp_ramen_porc.station == 'stove', 'boissons → fontaine, desserts → pâtisserie, ramen → piano')
+local nCat = 0 for _, cc in ipairs(Config.Categories) do if cc.cuisine then nCat = nCat + 1 end end
+check(nCat == 4, '4 catégories ajoutées (italien, fast-food, japonais, mexicain)')
+local coherent = true
+for _, p in ipairs(Config.Products) do
+    if not Config.StationTypes[p.station] or not RSGames[p.game] or not Config.MiniGames[p.game] or not p.price or p.price < 1 then coherent = false P('    incohérent : ' .. p.id) end
+end
+check(coherent, ('chaque produit (%d) : station, mini-jeu et prix valables'):format(#Config.Products))
+local nMenu = 0 for _ in pairs(R.menu[A]) do nMenu = nMenu + 1 end
+check(nMenu == #Config.Products, 'carte de A : une ligne par produit du catalogue')
+card = pub(3, 'menuCard', { shop = A })
+local anyCu = false for _, p in ipairs(card.products) do if PR[p.id].cuisine then anyCu = true end end
+check(not anyCu, 'recettes pas à la carte tant que personne ne les met')
+
+P('\n[Staff (admin_menu) : produits vendus par restaurant]')
+local dd = adm(1, 'data')
+check(#dd.products == #Config.Products and dd.cuisine.count == 80, ('panneau staff : catalogue complet (%d produits)'):format(#dd.products))
+check(adm(1, 'catalogSet', { id = A, products = {} }).error ~= nil, 'aucune case cochée : refusé')
+check(adm(3, 'catalogSet', { id = A, all = true }).error ~= nil, 'joueur sans permission staff : refusé')
+r = adm(1, 'catalogSet', { id = A, products = { 'classic', 'cola', 'it_lasagnes', 'jp_sushi_saumon', 'jp_ramen_porc', 'inconnu' } })
+check(r.ok, 'A : 5 produits autorisés : ' .. tostring(r.message or r.error))
+check(#R.shops[A].options.catalog == 5, 'identifiant inconnu ignoré')
+local saved = MySQL.single.await('SELECT `options` FROM `rs_shops` WHERE `id` = ?', { A })
+check(saved and saved.options:find('it_lasagnes', 1, true), 'liste enregistrée en base (rs_shops.options)')
+card = pub(3, 'menuCard', { shop = A })
+local on = {} for _, p in ipairs(card.products) do on[p.id] = true end
+check(#card.products == 5 and on.it_lasagnes and on.jp_sushi_saumon and on.classic, 'carte publique : exactement les 5 produits autorisés')
+check(not on.fries and not on.donut, 'produits non autorisés retirés de la carte publique')
+local tm = req(2, 'menu')
+check(#tm.list == 5 and tm.restricted == true, 'tablette du patron : seulement les 5 produits autorisés')
+check(req(2, 'menuSet', { id = 'fries', enabled = true }).error ~= nil, 'patron : remettre un produit non autorisé refusé')
+check(req(2, 'menuSet', { id = 'it_lasagnes', price = 31 }).ok, 'patron : prix des lasagnes fixé à 31 $')
+players[3].pos = vector3(100.5, 100, 30)
+check(pub(3, 'order', { shop = A, method = 'bank', lines = { { id = 'fries', qty = 1 } } }).error ~= nil, 'commande d\'un produit non autorisé refusée')
+local cardB = pub(3, 'menuCard', { shop = B })
+local onB = {} for _, p in ipairs(cardB.products) do onB[p.id] = true end
+check(onB.fries and not onB.it_lasagnes, 'restaurant B non touché (sa carte de départ)')
+dd = adm(1, 'data')
+local sA for _, x in ipairs(dd.shops) do if x.id == A then sA = x end end
+check(sA and #sA.onMenu == 5 and #sA.options.catalog == 5, 'panneau staff : liste et carte de A à jour')
+
+P('\n[Recette commandée, préparée aux stations, livrée]')
+players[1].pos = vector3(115, 100, 30)
+check(adm(1, 'station', { id = A, types = { 'prep', 'stove' } }).ok, 'station 3 (plan de travail + piano) posée')
+r = pub(3, 'order', { shop = A, method = 'bank', expect = 31 + PR.jp_sushi_saumon.price, lines = { { id = 'it_lasagnes', qty = 1 }, { id = 'jp_sushi_saumon', qty = 1 } } })
+check(r.ok, 'commande lasagnes + sushi payée : ' .. tostring(r.message or r.error))
+local OC = r.order.id
+check(req(2, 'orderTake', { id = OC }).ok, 'patron prend la commande')
+players[2].pos = vector3(105.5, 100, 30)
+c = req(2, 'cookStart', { station = 1, order = OC, line = 1 })
+check(c.ok and c.game == 'plat' and c.params.cook and c.params.labels and c.params.labels[c.params.need[1]], 'lasagnes au four : cuisson + dressage (ingrédients italiens envoyés)')
+local itOk = true for k in pairs(c.params.labels) do if not Config.Cuisine.ingredients.italien[k] then itOk = false end end
+check(itOk, 'ingrédients proposés : ceux de la cuisine italienne')
+run(4000)
+local w = solve('plat', c.params) w.gauge = c.params.cook.to + 4
+check(req(2, 'cookFinish', { token = c.token, result = w }).failed, 'cuisson ratée : refusé')
+c = req(2, 'cookStart', { station = 1, order = OC, line = 1 })
+run(4000)
+check(req(2, 'cookFinish', { token = c.token, result = solve('plat', c.params) }).ok, 'lasagnes prêtes')
+check(req(2, 'cookStart', { station = 1, order = OC, line = 2 }).error ~= nil, 'sushi refusé au four (mauvaise station)')
+players[2].pos = vector3(115.3, 100, 30)
+c = req(2, 'cookStart', { station = 3, order = OC, line = 2 })
+check(c.ok and c.game == 'plat' and c.params.cook == nil, 'sushi au plan de travail : dressage seul')
+run(4000)
+w = solve('plat', c.params) w.picked[1] = 'zzz'
+check(req(2, 'cookFinish', { token = c.token, result = w }).failed, 'mauvais ingrédient : raté')
+c = req(2, 'cookStart', { station = 3, order = OC, line = 2 })
+run(4000)
+r = req(2, 'cookFinish', { token = c.token, result = solve('plat', c.params) })
+check(r.ok and r.complete, 'commande terminée, sac donné')
+local uidC = R.orders[OC].bag
+players[3].pos = vector3(116, 100, 30)
+check(req(2, 'orderDeliver', { id = OC }).ok, 'sac remis au client')
+check(pub(3, 'bagTake', { uid = uidC }).ok, 'client vide le sac')
+check(count(3, 'it_lasagnes') == 1 and count(3, 'jp_sushi_saumon') == 1, 'client : 1 objet it_lasagnes + 1 objet jp_sushi_saumon (consommables elyzea_cuisine)')
+
+P('\n[Paiement en pesos]')
+players[3].pos = vector3(100.5, 100, 30)
+local SID = 'resto:' .. A
+card = pub(3, 'menuCard', { shop = A })
+local hasP = false for _, m in ipairs(card.methods) do if m == 'pesos' then hasP = true end end
+check(not hasP, 'par défaut : pesos non proposés')
+check((pub(3, 'order', { shop = A, method = 'pesos', lines = { { id = 'cola', qty = 1 } } }).error or ''):find('non accepté'), 'paiement en pesos refusé tant que le staff ne l\'a pas coché')
+check(adm(1, 'paymentsSet', { id = A, methods = {} }).error ~= nil, 'aucun moyen coché : refusé')
+r = adm(1, 'paymentsSet', { id = A, methods = { 'bank', 'pesos', 'crypto' } })
+check(r.ok, 'staff : banque + pesos : ' .. tostring(r.message or r.error))
+card = pub(3, 'menuCard', { shop = A })
+check(#card.methods == 2 and card.methods[1] == 'bank' and card.methods[2] == 'pesos', 'carte : banque et pesos (moyen inconnu ignoré)')
+check(pub(3, 'order', { shop = A, method = 'cash', lines = { { id = 'cola', qty = 1 } } }).error ~= nil, 'espèces décochées : refusé')
+check((pub(3, 'order', { shop = A, method = 'pesos', lines = { { id = 'it_lasagnes', qty = 1 } } }).error or ''):find('pesos'), 'pas de pesos sur soi : refusé')
+inventory:AddItem(3, 'pesos', 100)
+local socP = society.resto_pizza
+local bankP = players[3].money.bank
+r = pub(3, 'order', { shop = A, method = 'pesos', expect = 31, lines = { { id = 'it_lasagnes', qty = 1 } } })
+check(r.ok and r.order.method == 'pesos' and r.order.paid == 31 and r.order.currency == 'pesos', 'commande payée en pesos : ' .. tostring(r.message or r.error))
+local OP = r.order.id
+check(count(3, 'pesos') == 69 and players[3].money.bank == bankP, 'client : 31 pesos retirés, banque intacte')
+check(count(SID, 'pesos') == 31, 'coffre du restaurant : +31 pesos')
+check(society.resto_pizza == socP, 'compte de société en $ inchangé')
+local rowP = dbOrder(OP)
+check(rowP.method == 'pesos' and tonumber(rowP.paid) == 31 and tonumber(rowP.total) == 31, 'base : method = pesos, paid = 31')
+Config.Pesos.rate = 1.5
+check(R.PesosPrice(31) == 47 and R.PesosPrice(8) == 12, 'taux 1,5 : 31 $ → 47 pesos (arrondi au-dessus)')
+Config.Pesos.rate = 1.0
+stashFull[SID] = true
+local before = count(3, 'pesos')
+local rr = pub(3, 'order', { shop = A, method = 'pesos', lines = { { id = 'cola', qty = 1 } } })
+check((rr.error or ''):find('coffre', 1, true) ~= nil, 'coffre du restaurant plein : commande refusée (' .. tostring(rr.error) .. ')')
+stashFull[SID] = nil
+check(count(3, 'pesos') == before, 'coffre plein : aucun peso perdu')
+local p0, s0 = count(3, 'pesos'), count(SID, 'pesos')
+r = adm(1, 'orderCancel', { order = OP })
+check(r.ok, 'staff annule la commande en pesos')
+check(count(3, 'pesos') == p0 + 31 and count(SID, 'pesos') == s0 - 31, 'remboursée en pesos, repris dans le coffre')
+check(noteHas(3, '31 pesos remboursés'), 'client prévenu : « 31 pesos remboursés »')
+r = pub(3, 'order', { shop = A, method = 'pesos', lines = { { id = 'cola', qty = 1 } } })
+local OP2 = r.order and r.order.id
+check(OP2 ~= nil, 'nouvelle commande en pesos (cola)')
+inventory:RemoveItem(SID, 'pesos', count(SID, 'pesos'))
+check((adm(1, 'orderCancel', { order = OP2 }).error or ''):find('coffre'), 'coffre vidé par le patron : annulation refusée (rien n\'est inventé)')
+inventory:AddItem(SID, 'pesos', PR.cola and R.menu[A].cola.price or 8)
+local p3 = players[3]
+local held = count(3, 'pesos')
+players[3] = nil   -- le client se déconnecte
+run(61 * 60 * 1000)
+check(dbOrder(OP2).status == 'cancelled', 'client absent, commande jamais prise : annulée après 60 min')
+local pend = MySQL.query.await('SELECT * FROM `rs_refunds` WHERE `citizenid` = ?', { 'CLI3' })
+check(#pend == 1 and tonumber(pend[1].amount) == R.menu[A].cola.price and pend[1].item == 'pesos', 'remboursement en pesos mis de côté (rs_refunds)')
+players[3] = p3
+p3.invFull = true
+env.TriggerEvent('elyzea:server:playerLoaded', 3)
+run(6000)
+check(#MySQL.query.await('SELECT * FROM `rs_refunds` WHERE `citizenid` = ?', { 'CLI3' }) == 1 and count(3, 'pesos') == held, 'reconnexion, inventaire plein : gardé pour plus tard')
+p3.invFull = false
+env.TriggerEvent('elyzea:server:playerLoaded', 3)
+env.TriggerEvent('elyzea:server:playerLoaded', 3)
+run(6000)
+check(count(3, 'pesos') == held + R.menu[A].cola.price, 'reconnexion : pesos rendus une seule fois')
+check(#MySQL.query.await('SELECT * FROM `rs_refunds` WHERE `citizenid` = ?', { 'CLI3' }) == 0, 'rs_refunds vidé')
+r = pub(3, 'order', { shop = A, method = 'pesos', lines = { { id = 'cola', qty = 2 } } })
+check(r.ok, 'commande en pesos pour les statistiques')
+local fin = req(2, 'finance')
+check(fin.methods and fin.methods.pesos and fin.methods.pesos.n >= 1 and fin.methods.pesos.paid >= 2 * R.menu[A].cola.price, 'finances : ventes en pesos comptées à part')
+local dash = req(2, 'dashboard')
+check(dash.last and dash.last[1] and dash.last[1].method == 'pesos' and tonumber(dash.last[1].paid) == 2 * R.menu[A].cola.price, 'tableau de bord : dernière commande affichée en pesos')
+check(adm(1, 'catalogSet', { id = A, all = true }).ok and R.shops[A].options.catalog == nil, 'staff : retour à « tout le catalogue »')
+
 P('\n[Mini-jeux : tous les jeux, toutes les difficultés]')
 math.randomseed(7)
-for _, game in ipairs({ 'burger', 'pizza', 'drink', 'dessert', 'fries' }) do
+local platProduct = { cat = 'japonais', cook = true }
+for _, game in ipairs({ 'burger', 'pizza', 'drink', 'dessert', 'fries', 'plat' }) do
     local okAll, badAll = true, true
     for d = 1, 3 do
         for _ = 1, 30 do
-            local p = RSGames.Generate(game, d, 4)
+            local p = RSGames.Generate(game, d, 4, nil, platProduct)
             if not RSGames.Check(game, p, solve(game, p), 60000) then okAll = false end
             local wrong = solve(game, p)
             if game == 'burger' then wrong.gauge[1] = p.cook[1].to + 5
             elseif game == 'pizza' then wrong.spots[1] = { x = 0, y = 0 }
             elseif game == 'drink' then wrong.level = p.to + 3
             elseif game == 'dessert' then wrong.picked[1] = 'inconnu'
-            elseif game == 'fries' then wrong.t = p.to + 3 end
+            elseif game == 'fries' then wrong.t = p.to + 3
+            elseif game == 'plat' then wrong.gauge = p.cook.to + 5 end
             if RSGames.Check(game, p, wrong, 60000) then badAll = false end
         end
     end

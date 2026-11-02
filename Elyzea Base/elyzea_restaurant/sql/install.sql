@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS `rs_orders` (
   `lines` text NOT NULL,
   `total` int(11) NOT NULL,
   `method` varchar(6) NOT NULL,
+  `paid` int(11) DEFAULT NULL,
   `status` varchar(12) NOT NULL DEFAULT 'pending',
   `employee_cid` varchar(50) DEFAULT NULL,
   `employee_name` varchar(100) DEFAULT NULL,
@@ -165,3 +166,18 @@ CREATE TABLE IF NOT EXISTS `rs_transactions` (
   KEY `category` (`category`),
   KEY `created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Remboursements en pesos d'un client absent (remis à sa prochaine connexion)
+CREATE TABLE IF NOT EXISTS `rs_refunds` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `citizenid` varchar(50) NOT NULL,
+  `item` varchar(40) NOT NULL,
+  `amount` int(11) NOT NULL,
+  `reason` varchar(160) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `citizenid` (`citizenid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Base déjà installée avant la version 1.1 (la ressource le fait seule au démarrage) :
+-- ALTER TABLE `rs_orders` ADD COLUMN `paid` INT NULL AFTER `method`;

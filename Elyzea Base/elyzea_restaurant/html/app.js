@@ -8,6 +8,8 @@ const RES = IN_GAME ? GetParentResourceName() : 'elyzea_restaurant';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = (n) => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} $`;
+// Montant réellement payé par le client (commande en pesos : en pesos)
+const paidTxt = (o) => (o && o.method === 'pesos' ? `${Math.round(Number(o.paid) || 0).toLocaleString('fr-FR')} pesos` : money(o && o.total));
 // Images des produits : celles d'elyzea_inventory (repli : emoji de la catégorie)
 const IMG_BASE = IN_GAME ? 'nui://elyzea_inventory/html/img/' : '../../elyzea_inventory/html/img/';
 const imgUrl = (f) => (/^(https?:|nui:)/.test(String(f || '')) ? f : IMG_BASE + encodeURI(String(f || '')));

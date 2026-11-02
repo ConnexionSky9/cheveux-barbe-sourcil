@@ -581,3 +581,23 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #1d2b3d, #0b111b 70%
 .mg-result { text-align: center; padding: 1rem .5rem; }
 .mg-result .big { font-size: 3rem; }
 .mg-result p { color: var(--muted); margin: .4rem 0 1rem; }
+
+/* ---------- Staff : produits vendus et paiements ---------- */
+.cat-mode { display: flex; flex-wrap: wrap; gap: 1rem; margin: .2rem 0 .6rem; font-size: .86rem; }
+.cat-mode label, .check-lbl { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; }
+.cat-mode input, .check-lbl input, .cat-row input { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+.cat-warn[hidden] { display: none; }
+.cat-warn { margin: .2rem 0 .6rem; padding: .45rem .7rem; border-radius: .6rem; font-size: .8rem; color: var(--orange); background: rgba(245, 158, 11, .08); border: 1px solid rgba(245, 158, 11, .3); }
+.cat-tools { margin-bottom: .5rem; }
+.cat-tools.dim, .cat-list.dim { opacity: .45; }
+.cat-list { display: flex; flex-direction: column; gap: .4rem; max-height: 26rem; overflow: auto; padding-right: .2rem; }
+.cat-grp { border: 1px solid var(--line-2); border-radius: .7rem; background: rgba(255, 255, 255, .02); }
+.cat-grp > summary { display: flex; align-items: center; gap: .5rem; padding: .5rem .7rem; cursor: pointer; font-weight: 600; list-style: none; }
+.cat-grp > summary::-webkit-details-marker { display: none; }
+.cat-grp > summary > span:first-child { flex: 1; }
+.cat-row { display: flex; align-items: center; gap: .6rem; padding: .35rem .7rem; border-top: 1px solid var(--line-2); cursor: pointer; }
+.cat-row:hover { background: rgba(255, 255, 255, .03); }
+.cat-row img { width: 2rem; height: 2rem; object-fit: contain; flex: none; }
+.cat-row .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cat-row .nm small { color: var(--faint); font-size: .72rem; }
+.cat-row .pill { flex: none; font-size: .7rem; }

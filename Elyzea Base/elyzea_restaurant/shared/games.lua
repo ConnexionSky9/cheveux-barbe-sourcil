@@ -166,11 +166,50 @@ RSGames.fries = {
     end,
 }
 
--- Défi d'un produit : paramètres prêts à envoyer
-function RSGames.Generate(game, difficulty, steps, rnd)
+-- ---------------------------------------------------------------------
+-- Plat (recettes elyzea_cuisine) : cuisson (jauge, sauf plats froids) puis
+-- dressage avec les bons ingrédients de la cuisine du produit, parmi des leurres
+-- (dans l'ordre en difficile). Les noms / emojis sont envoyés avec le défi.
+-- ---------------------------------------------------------------------
+local PLAT_DECOYS = { 3, 4, 6 }
+RSGames.plat = {
+    gen = function(diff, steps, rnd, product)
+        diff = clampDiff(diff)
+        local ings = ((Config.Cuisine or {}).ingredients or {})[product and product.cat or ''] or ((Config.Cuisine or {}).ingredients or {}).fastfood or {}
+        local keys = {}
+        for k in pairs(ings) do keys[#keys + 1] = k end
+        table.sort(keys)
+        local pool = shuffle(keys, rnd)
+        local n = math.max(2, math.min(6, tonumber(steps) or 3, #pool))
+        local need, shown, labels = {}, {}, {}
+        for i = 1, n do need[i] = pool[i] shown[#shown + 1] = pool[i] end
+        for i = n + 1, math.min(#pool, n + PLAT_DECOYS[diff]) do shown[#shown + 1] = pool[i] end
+        for _, k in ipairs(shown) do labels[k] = ings[k] end
+        return { cook = (not product or product.cook ~= false) and gauge(diff, rnd) or nil, need = need, shown = shuffle(shown, rnd),
+            labels = labels, ordered = diff >= 3 }
+    end,
+    check = function(p, r)
+        if p.cook and not inGauge(p.cook, r.gauge) then return false, 'Cuisson ratée.' end
+        if type(r.picked) ~= 'table' or #r.picked ~= #p.need then return false, 'Mauvais ingrédients.' end
+        if p.ordered then
+            for i, k in ipairs(p.need) do if r.picked[i] ~= k then return false, 'Ingrédients dans le mauvais ordre.' end end
+            return true
+        end
+        local want, seen = {}, {}
+        for _, k in ipairs(p.need) do want[k] = true end
+        for _, k in ipairs(r.picked) do
+            if not want[k] or seen[k] then return false, 'Mauvais ingrédients.' end
+            seen[k] = true
+        end
+        return true
+    end,
+}
+
+-- Défi d'un produit : paramètres prêts à envoyer (product : fiche du produit, pour les jeux qui en ont besoin)
+function RSGames.Generate(game, difficulty, steps, rnd, product)
     local g = RSGames[game]
     if type(g) ~= 'table' or not g.gen then return nil end
-    return g.gen(difficulty, steps, rnd or math.random)
+    return g.gen(difficulty, steps, rnd or math.random, product)
 end
 function RSGames.Check(game, params, result, ms)
     local g = RSGames[game]

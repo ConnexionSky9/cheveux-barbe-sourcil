@@ -5,11 +5,12 @@ lua54 'yes'
 name 'elyzea_restaurant'
 author 'Elyzea FA'
 description 'Restaurants Elyzea (plusieurs établissements) : métier par restaurant, grades et permissions, service, paie, commissions, carte et prix, point de commande avec panier, commandes envoyées au personnel, appli « Commande » du téléphone de service, stations de cuisine avec mini-jeux validés par le serveur, sac de commande, remise au client, F6, tablette, administration staff'
-version '1.0.0'
+version '1.1.0'
 
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
     'config.lua',
+    'shared/cuisine.lua',       -- recettes de elyzea_cuisine ajoutées au catalogue (facultatif)
     'shared/perms.lua',
 }
 
@@ -22,6 +23,7 @@ server_scripts {
     'server/commission.lua',
     'server/direction.lua',
     'server/resto.lua',
+    'server/pesos.lua',
     'server/orders.lua',
     'server/kitchen.lua',
     'server/bag.lua',

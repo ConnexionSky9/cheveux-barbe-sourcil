@@ -6,7 +6,12 @@
 (() => {
   const O = { data: null, cat: null, cart: {}, method: 'bank', busy: false };
   const B = { data: null, busy: false };
-  const CAT_EMO = { burgers: '🍔', pizzas: '🍕', sides: '🍟', drinks: '🥤', desserts: '🍰' };
+  const CAT_EMO = { burgers: '🍔', pizzas: '🍕', sides: '🍟', drinks: '🥤', desserts: '🍰', italien: '🍝', fastfood: '🌭', japonais: '🍣', mexicain: '🌮' };
+  const PAY = { bank: ['💳', 'Banque', 'banque'], cash: ['💵', 'Espèces', 'espèces'], pesos: ['🪙', 'Pesos', 'pesos'] };
+  // Prix en pesos (même calcul que le serveur : prix × taux, arrondi au-dessus)
+  const toPesos = (n) => Math.ceil((Number(n) || 0) * Number((O.data && O.data.pesosRate) || 1) - 1e-9);
+  const pesosTxt = (n) => `${toPesos(n).toLocaleString('fr-FR')} pesos`;
+  const priceTxt = (n) => (O.method === 'pesos' ? pesosTxt(n) : money(n));
   const el = () => $('#order .modal');
   const emptyBox = (t) => `<div class="empty">${esc(t)}</div>`;
   const picture = (img, cat, cls = '') => `<img class="${cls}" src="${esc(imgUrl(img))}" alt="" data-emo="${esc(CAT_EMO[cat] || '🍽️')}">`;
@@ -39,6 +44,7 @@
     const list = products().filter((p) => p.cat === O.cat);
     const ls = lines(), tot = total();
     const methods = d.methods || ['bank', 'cash'];
+    if (!methods.includes(O.method)) O.method = methods[0];
     const track = (d.mine || []).map((o) => `<div class="track">Commande <b>${esc(o.num)}</b> · ${esc(o.shop || '')} · <b>${esc(o.statusLabel)}</b>${o.status === 'preparing' ? ` (${o.done}/${o.units})` : ''}</div>`).join('');
     root.innerHTML = `<div class="ord-head">${logoHTML(shop.logo)}<div class="grow"><h2>${esc(shop.name || 'Restaurant')}</h2>
         <small>${esc(shop.address || '')}${shop.open ? ' · <span style="color:#86efac">Commandes ouvertes</span>' : ' · <span style="color:#fca5a5">Commandes fermées</span>'}</small></div>
@@ -48,16 +54,17 @@
           <span class="n">${products().filter((p) => p.cat === c.id).length}</span></button>`).join('') || '<p class="faint" style="padding:.6rem">Carte vide.</p>'}</nav>
         <section class="ord-grid">${!shop.open ? '<div class="closed-banner">Ce restaurant ne prend pas de commandes pour le moment.</div>' : ''}
           ${list.map((p) => `<article class="prod"><div class="pic">${picture(p.image, p.cat)}</div><div class="info"><b>${esc(p.label)}</b><p>${esc(p.desc || '')}</p>
-            <div class="row"><span class="price">${money(p.price)}</span><button class="btn small primary" data-add="${esc(p.id)}" ${!shop.open || !canAdd(p.id) ? 'disabled' : ''}>+ Ajouter</button></div></div></article>`).join('')
+            <div class="row"><span class="price">${priceTxt(p.price)}</span><button class="btn small primary" data-add="${esc(p.id)}" ${!shop.open || !canAdd(p.id) ? 'disabled' : ''}>+ Ajouter</button></div></div></article>`).join('')
             || emptyBox('Aucun produit dans cette catégorie.')}</section>
         <aside class="ord-cart"><h3>Panier <span class="faint" style="font-size:.8rem">${units()} article(s)</span></h3>
-          <div class="cart-list">${track}${ls.map((l) => `<div class="cart-line">${picture(l.p.image, l.p.cat)}<div><b>${esc(l.p.label)}</b><small>${money(l.p.price)} · ${money(l.p.price * l.qty)}</small></div>
+          <div class="cart-list">${track}${ls.map((l) => `<div class="cart-line">${picture(l.p.image, l.p.cat)}<div><b>${esc(l.p.label)}</b><small>${priceTxt(l.p.price)} · ${priceTxt(l.p.price * l.qty)}</small></div>
             <div class="qty"><button class="btn small" data-q="${esc(l.p.id)}" data-d="-1" aria-label="Retirer un">−</button><span>${l.qty}</span>
             <button class="btn small" data-q="${esc(l.p.id)}" data-d="1" ${canAdd(l.p.id) ? '' : 'disabled'} aria-label="Ajouter un">+</button>
             <button class="btn small danger" data-rm="${esc(l.p.id)}" aria-label="Supprimer">✕</button></div></div>`).join('') || emptyBox('Votre panier est vide.')}</div>
-          <div class="cart-foot"><div class="cart-total"><span>Total</span><b>${money(tot)}</b></div>
-            <div class="pay-methods">${methods.map((m) => `<button data-m="${m}" class="${O.method === m ? 'on' : ''}">${m === 'cash' ? '💵 Espèces' : '💳 Banque'}</button>`).join('')}</div>
-            <button class="btn primary block" data-o="pay" ${!ls.length || !shop.open || O.busy ? 'disabled' : ''}>Valider et payer ${money(tot)}</button>
+          <div class="cart-foot"><div class="cart-total"><span>Total</span><b>${priceTxt(tot)}</b></div>
+            <div class="pay-methods">${methods.map((m) => `<button data-m="${esc(m)}" class="${O.method === m ? 'on' : ''}">${(PAY[m] || ['', m])[0]} ${esc((PAY[m] || ['', m])[1])}</button>`).join('')}</div>
+            ${O.method === 'pesos' ? '<small class="faint pesos-note" style="font-size:.72rem">Payé avec les pesos de votre inventaire.</small>' : ''}
+            <button class="btn primary block" data-o="pay" ${!ls.length || !shop.open || O.busy ? 'disabled' : ''}>Valider et payer ${priceTxt(tot)}</button>
             <small class="faint" style="font-size:.72rem">Le restaurant est prévenu dès le paiement. Le sac vous est remis par un employé.</small></div></aside>
       </div>`;
     fixImages(root);
@@ -67,7 +74,7 @@
     const ls = lines();
     if (!ls.length || O.busy) return;
     const tot = total();
-    if (!(await confirmBox('Confirmer la commande ?', `${ls.map((l) => `${l.qty} × ${esc(l.p.label)}`).join('<br>')}<br><br>Total : <b>${money(tot)}</b> (${O.method === 'cash' ? 'espèces' : 'banque'}).`, 'Payer'))) return;
+    if (!(await confirmBox('Confirmer la commande ?', `${ls.map((l) => `${l.qty} × ${esc(l.p.label)}`).join('<br>')}<br><br>Total : <b>${priceTxt(tot)}</b> (${esc((PAY[O.method] || ['', '', O.method])[2])}).`, 'Payer'))) return;
     O.busy = true;
     btn.classList.add('loading');
     const r = await post('orderSend', { shop: O.data.shop.id, method: O.method, expect: tot, lines: ls.map((l) => ({ id: l.p.id, qty: l.qty })) });
@@ -139,7 +146,7 @@
   });
 
   window.Order = {
-    open(d) { O.data = d; O.cart = {}; O.busy = false; O.cat = null; $('#order').classList.remove('hidden'); draw(); },
+    open(d) { O.data = d; O.cart = {}; O.busy = false; O.cat = null; if (!(d.methods || []).includes(O.method)) O.method = (d.methods || ['bank'])[0]; $('#order').classList.remove('hidden'); draw(); },
     hide() { $('#order').classList.add('hidden'); O.data = null; },
     bag(d) { B.data = d; B.busy = false; $('#bag').classList.remove('hidden'); drawBag(); },
     hideBag() { $('#bag').classList.add('hidden'); B.data = null; },
