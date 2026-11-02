@@ -829,6 +829,7 @@ function UseSlot(src, from)
                 token = token, slot = from, name = item.name, label = def.label,
                 anim = c.anim, prop = c.prop, usetime = c.usetime or 2500, notification = c.notification,
                 disable = c.disable, cancel = c.cancel ~= false, export = c.export,
+                cuisine = c.cuisine,   -- recette d'elyzea_cuisine : objets en main et animation propres au plat
             })
             return true
         end

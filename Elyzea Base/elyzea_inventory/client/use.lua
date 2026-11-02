@@ -20,14 +20,21 @@ RegisterNetEvent('elyzea_inv:consume', function(d)
     local anim = type(d.anim) == 'string' and ANIMS[d.anim] or d.anim
     local prop = type(d.prop) == 'string' and PROPS[d.prop] or d.prop
     if anim and anim.clip and not anim.flag then anim.flag = 49 end
-    local ok = exports.elyzea_core:ProgressBar({
-        duration = d.usetime or 2500,
-        label = ('Utilisation : %s'):format(d.label or d.name),
-        canCancel = d.cancel ~= false,
-        disable = d.disable or { car = false, combat = true },
-        anim = anim,
-        prop = prop,
-    })
+    local ok
+    if d.cuisine and GetResourceState('elyzea_cuisine') == 'started' then
+        -- Recette d'elyzea_cuisine : assiette + couvert, bol, gobelet à paille… et le geste adapté au plat
+        local okCall, res = pcall(function() return exports.elyzea_cuisine:Consume(d) end)
+        ok = okCall and res == true
+    else
+        ok = exports.elyzea_core:ProgressBar({
+            duration = d.usetime or 2500,
+            label = ('Utilisation : %s'):format(d.label or d.name),
+            canCancel = d.cancel ~= false,
+            disable = d.disable or { car = false, combat = true },
+            anim = anim,
+            prop = prop,
+        })
+    end
     TriggerServerEvent('elyzea_inv:consumed', d.token, ok == true)
     busy = false
     if ok and d.notification then notify(d.notification, 'success') end

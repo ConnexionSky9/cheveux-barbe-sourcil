@@ -270,6 +270,36 @@ for _, c in ipairs({ { 'rose', 'rose' }, { 'violet', 'violet' }, { 'bleu', 'bleu
         description = 'Sac d\'une boutique de vêtements. Utiliser : voir et récupérer les vêtements. ALT : le ranger dans un coffre, l\'offrir.' }
 end
 
+-- Recettes d'elyzea_cuisine (80 plats, desserts et boissons) : créées depuis elyzea_cuisine/data/recipes.lua
+-- (un seul fichier pour tout régler). elyzea_cuisine doit démarrer AVANT elyzea_inventory.
+-- La consommation garde le circuit habituel (jeton, objet revérifié, faim / soif par le serveur) ;
+-- seuls les objets en main et l'animation sont confiés à elyzea_cuisine (client.cuisine).
+do
+    local src = LoadResourceFile('elyzea_cuisine', 'data/recipes.lua')
+    local fn = src and load(src, '@elyzea_cuisine/data/recipes.lua', 't', {})
+    local ok, data = false, nil
+    if fn then ok, data = pcall(fn) end
+    if ok and type(data) == 'table' and type(data.Recipes) == 'table' then
+        local cats = {}
+        for _, c in ipairs(data.Categories or {}) do cats[c.id] = c.label end
+        for _, r in ipairs(data.Recipes) do
+            if type(r.id) == 'string' and not Items[r.id] then
+                Items[r.id] = {
+                    label = r.label, weight = r.weight or 250, stack = true, max = 10, image = r.id .. '.png',
+                    icon = (r.emoji and r.emoji[1]) or (r.kind == 'boisson' and '🥤' or '🍽️'), close = true, category = 'food',
+                    description = ('%s · %s'):format(r.desc or '', cats[r.cat] or r.cat or ''),
+                    client = {
+                        status = { hunger = (r.hunger or 0) * 10000, thirst = (r.thirst or 0) * 10000 },
+                        usetime = r.time or 5000, cuisine = r.id,
+                    },
+                }
+            end
+        end
+    elseif IsDuplicityVersion() then
+        print('^3[elyzea_inventory] recettes d\'elyzea_cuisine absentes : démarre elyzea_cuisine avant elyzea_inventory.^0')
+    end
+end
+
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
     description = 'Peins un tag sur un mur de ton quartier.' }
