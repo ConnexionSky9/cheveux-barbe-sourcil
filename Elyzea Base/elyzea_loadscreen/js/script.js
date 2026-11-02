@@ -232,7 +232,16 @@
             flash();
             showUI();
         }
+        let triedLow = false;
         function fallback() {
+            // 4K absente ou illisible : on essaie la 1080p avant l'image fixe
+            if (!triedLow && use4k && cfg.video.src1080 && v.currentSrc.indexOf(cfg.video.src1080) < 0) {
+                triedLow = true;
+                v.src = cfg.video.src1080;
+                const p = v.play();
+                if (p && p.catch) p.catch(() => fallback());
+                return;
+            }
             // Vidéo illisible : image finale du logo, interface directement
             if (cfg.video.poster) { v.poster = cfg.video.poster; }
             ended = true;
@@ -248,6 +257,7 @@
             if (p && p.catch) p.catch(() => fallback());
             // Sécurité : rien ne démarre en 4 s → interface quand même
             setTimeout(() => { if (!v.currentTime) fallback(); }, 4000);
+            setTimeout(() => { if (!v.currentTime && !uiShown) { ended = true; showUI(); } }, 8000);
             if (cfg.video.skippable) {
                 $('skip').addEventListener('click', skip);
                 addEventListener('keydown', (e) => { if (['Escape', 'Enter', ' ', 'Spacebar'].includes(e.key)) skip(); });
