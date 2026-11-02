@@ -120,6 +120,7 @@ const handlers = {
     S.open = true;
     applySettings(); setVisibility();
     loadContacts().then(() => { if (S.currentApp && !S.locked) refreshCurrent(); });
+    if (typeof svcLoadNames === 'function') svcLoadNames();   // noms des entreprises (numéros publics)
     api('getConversations').then(r => {
       S.unread = (r.conversations || []).reduce((a, c) => a + c.unread, 0);
       if (!S.currentApp && !S.locked && !screenEl.classList.contains('in-setup')) renderHome();
@@ -320,6 +321,12 @@ const Mock = {
       debutTexte: '12/10/2026 18:40', bebes: 0 }, historique: [
       { kind: 'decouverte', titre: 'Grossesse découverte', description: 'Découverte grâce à un test de grossesse.', date: '13/10/2026 09:12' },
       { kind: 't2', titre: 'Deuxième trimestre', description: 'Entrée dans le deuxième trimestre.', date: '17/10/2026 10:40' }] };
+    if (d.name === 'servicesList') return { ok: true, list: [
+      { unit: 'elyzea_ems', label: 'SAMS', jobLabel: 'SAMS', color: '#ef4444', number: '912-0001', open: true, onDuty: 3 },
+      { unit: 'elyzea_police', label: 'LSPD', jobLabel: 'LSPD', color: '#3b82f6', number: '911-0001', open: true, onDuty: 5 },
+      { unit: 'elyzea_restaurant:1', label: 'Pizza This', jobLabel: 'Restaurant', color: '#ef4444', number: '918-0001', open: true, onDuty: 2 },
+      { unit: 'elyzea_restaurant:2', label: 'Taco Libre', jobLabel: 'Restaurant', color: '#f59e0b', number: '918-0002', open: false, onDuty: 0 },
+      { unit: 'elyzea_club:1', label: 'Bahama Mamas', jobLabel: 'Boîte de nuit', color: '#d946ef', number: '917-0001', open: false, onDuty: 1 }] };
     if (d.name === 'santeHome') {
       const gro = this.handle('request', { name: 'grossesseSuivi', args: {} });
       this.rdv = this.rdv || [{ id: 2, type: 'blood', typeLabel: 'Prise de sang', status: 'accepted', ems: 'Lucas Martin', created: n - 3600, accepted: n - 1800, reason: 'Bilan annuel' },

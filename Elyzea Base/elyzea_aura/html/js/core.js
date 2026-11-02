@@ -67,7 +67,7 @@ const S = {
   stack: [], currentApp: null, unread: 0, call: null, callTimer: null,
   thread: null, gameTime: null, locked: true, lockNotifs: [], pendingDrops: [], notes: []
 };
-const nameFor = (number) => S.contacts.find(c => c.number === number)?.name || number;
+const nameFor = (number) => S.contacts.find(c => c.number === number)?.name || (S.bizNames && S.bizNames[number]) || number;
 
 // ---------- Apparence ----------
 const WALLPAPERS = ['halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni'];

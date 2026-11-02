@@ -256,7 +256,10 @@ RegisterNetEvent('elyzea_jobphone:client:call', function(c)
     if c.state == 'incoming' then
         call = c
         StartRing(c.id, true)
-        if not isOpen then Notify(('Appel pro de %s (%s) : sortez votre téléphone pour répondre.'):format(c.name, c.number or '?')) end
+        if not isOpen then
+            if c.business then Notify(('Appel client pour %s : %s. Sortez votre téléphone de service pour répondre.'):format(c.business, c.name))
+            else Notify(('Appel pro de %s (%s) : sortez votre téléphone pour répondre.'):format(c.name, c.number or '?')) end
+        end
     elseif c.state == 'active' then
         StopRing()
         call = c
@@ -285,6 +288,13 @@ RegisterNetEvent('elyzea_jobphone:client:message', function(m)
     PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
     if not isOpen then Notify(('Message pro · %s : %s'):format(m.from, (m.body or ''):sub(1, 80))) end
     SendNUIMessage({ action = 'message', msg = m })
+end)
+
+-- Message d'un client à l'entreprise (téléphone perso → numéro public)
+RegisterNetEvent('elyzea_jobphone:client:bizMessage', function(m)
+    PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
+    if not isOpen then Notify(('Message client (%s) · %s : %s'):format(m.business or '?', m.from or '?', (m.body or ''):sub(1, 80))) end
+    SendNUIMessage({ action = 'push', what = 'biz', msg = m })
 end)
 
 RegisterNetEvent('elyzea_jobphone:client:push', function(what)

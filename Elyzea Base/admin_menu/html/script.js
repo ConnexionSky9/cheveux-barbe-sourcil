@@ -2723,6 +2723,14 @@ function edDoors() {
             <div class="door-jobchips">${(sel.jobs || []).length ? jobChips(sel.jobs, 'door_rm_job', sel.id) : '<span class="muted">Aucun métier.</span>'}</div>
             <div class="inline" style="max-width:620px">${doorJobPicker('doorJob')}
                 <button class="btn primary" data-ed="door_add_job" data-id="${sel.id}">Autoriser ce métier</button></div>
+            <h3 class="sub-h" style="font-size:16px;margin-top:14px">🏢 Porte principale d'une entreprise</h3>
+            <p class="hint">Quand un responsable <b>ouvre</b> l'entreprise (téléphone de service › appli « Entreprise »), cette porte se <b>déverrouille</b> ;
+                quand il la <b>ferme</b>, elle se verrouille. Une entreprise peut avoir plusieurs portes principales.</p>
+            <div class="inline" style="max-width:620px">
+                <select class="input" data-draft="doorBiz"><option value="">— Aucune entreprise —</option>
+                    ${(D.businesses || []).map((b) => `<option value="${esc(b.unit)}" ${String(draft('doorBiz', sel.business || '')) === b.unit ? 'selected' : ''}>${esc(b.label)} · ${esc(b.jobLabel || '')}</option>`).join('')}</select>
+                <button class="btn primary" data-ed="door_business" data-id="${sel.id}">Enregistrer</button></div>
+            ${!(D.businesses || []).length ? '<p class="hint">Liste vide : la ressource <b>elyzea_jobphone</b> n\'est pas démarrée.</p>' : ''}
             <p class="hint" style="margin-top:12px">Code d'accès : <b>${sel.hasCode ? 'défini par le propriétaire' : 'aucun'}</b>
                 ${sel.hasCode ? `<button class="btn" style="margin-left:8px" data-ed="door_reset_code" data-id="${sel.id}">Supprimer le code</button>` : ''}</p>
         </div></div>` : ''}
@@ -2734,6 +2742,7 @@ function edDoors() {
                     <span>${(d.owners || []).length ? `🔑 ${d.owners.map((o) => esc(o.name)).join(', ')}` : '🔑 Aucun propriétaire'}</span>
                     <span>${(d.jobs || []).length ? d.jobs.map((k) => esc(doorJobLabel(k))).join(' · ') : '💼 Aucun métier'}</span>
                     <span>${d.hasCode ? '🔢 Code défini' : '🔢 Pas de code'}</span>
+                    ${d.business ? `<span>🏢 Porte principale : ${esc(((D.businesses || []).find((b) => b.unit === d.business) || {}).label || d.business)}</span>` : ''}
                     <span>📏 S'ouvre à ${Number(d.distance || D.config.doorDistance || 2.2).toFixed(1)} m${d.distance ? '' : ' (défaut)'}</span>
                 </div>
                 <div class="btn-row">
@@ -2985,7 +2994,7 @@ async function handleEditor(n) {
         case 'map_pick': return editorPost('map_pick');
         case 'door_pick': return editorPost('door_pick', { name: draft('doorName') });
         case 'door_toggle': action('editor_door_toggle', { id }); return setTimeout(() => post('refresh'), 300);
-        case 'door_manage': doorEditId = id; drafts.doorRename = undefined; drafts.doorDist = undefined; document.querySelector('#content').scrollTop = 0; return render();
+        case 'door_manage': doorEditId = id; drafts.doorRename = undefined; drafts.doorDist = undefined; drafts.doorBiz = undefined; document.querySelector('#content').scrollTop = 0; return render();
         case 'door_close': doorEditId = null; return render();
         case 'door_rename': action('editor_door_rename', { id, name: draft('doorRename') }); return setTimeout(() => post('refresh'), 300);
         case 'door_distance': action('editor_door_distance', { id, distance: Number(draft('doorDist', 2.2)) }); return setTimeout(() => post('refresh'), 300);
@@ -3002,6 +3011,7 @@ async function handleEditor(n) {
             drafts.doorJob = '';
             return setTimeout(() => post('refresh'), 300);
         case 'door_rm_job': action('editor_door_remove_job', { id, job: n.dataset.job }); return setTimeout(() => post('refresh'), 300);
+        case 'door_business': action('editor_door_business', { id, business: draft('doorBiz', '') }); drafts.doorBiz = undefined; return setTimeout(() => post('refresh'), 300);
         case 'dp_add_job': {
             const k = draft('dpJob'), p = dpDraft();
             if (!k) return toast('Choisis un métier dans la liste.', 'error');

@@ -400,6 +400,17 @@ Register('deleteContact', function(src, me, args)
 end)
 
 -- ---------------------------------------------------------
+--  Entreprises (téléphone de service elyzea_jobphone) : numéros publics
+-- ---------------------------------------------------------
+local function JobPhone() return GetResourceState('elyzea_jobphone') == 'started' and exports.elyzea_jobphone or nil end
+local function BusinessOf(number)
+    local jp = JobPhone()
+    if not jp then return nil end
+    local ok, b = pcall(function() return jp:GetBusinessByNumber(number) end)
+    return ok and type(b) == 'table' and b or nil
+end
+
+-- ---------------------------------------------------------
 --  Messages
 -- ---------------------------------------------------------
 Register('getConversations', function(src, me)
@@ -449,6 +460,9 @@ Register('sendMessage', function(src, me, args)
     local tsrc = GetSourceByNumber(target)
     if tsrc and not Players[tsrc].settings.airplane then
         TriggerClientEvent('elyzea_aura:client:newMessage', tsrc, { id = id, from = me.number, message = msg, ts = os.time() })
+    elseif not tsrc and BusinessOf(target) then
+        -- Numéro public d'une entreprise : le message arrive dans l'appli « Entreprise » de son téléphone de service
+        pcall(function() JobPhone():BusinessMessage(target, me.number, GetCharName(src), msg) end)
     end
     return { ok = true, message = { id = id, mine = true, message = msg, ts = os.time() } }
 end)
@@ -484,6 +498,11 @@ local function EndCall(callId, reason)
         TriggerClientEvent('elyzea_aura:client:callEnded', s, { id = callId, reason = reason })
     end
     Calls[callId] = nil
+    -- Appel vers une entreprise : le téléphone de service de l'employé raccroche aussi
+    if call.biz and not call.endedByBiz then
+        local jp = JobPhone()
+        if jp then pcall(function() jp:BizCallEnded(callId, reason) end) end
+    end
 end
 
 Register('getCalls', function(src, me)
@@ -509,6 +528,24 @@ Register('startCall', function(src, me, args)
     if PlayerCall[src] then return { ok = false, error = 'Déjà en ligne' } end
 
     local tsrc = GetSourceByNumber(number)
+    -- Numéro public d'une entreprise : sonne sur le téléphone de service des employés en service
+    local biz = not tsrc and BusinessOf(number) or nil
+    if biz then
+        callCounter = callCounter + 1
+        local callId = callCounter + 1000
+        Calls[callId] = { caller = src, target = nil, callerNumber = me.number, targetNumber = number, state = 'ringing', biz = biz.unit, bizLabel = biz.label }
+        PlayerCall[src] = callId
+        local ok, r = pcall(function() return JobPhone():RingBusiness(src, biz.unit, me.number, GetCharName(src), callId) end)
+        if not ok or type(r) ~= 'table' or (tonumber(r.count) or 0) == 0 then
+            Calls[callId], PlayerCall[src] = nil, nil
+            MySQL.insert('INSERT INTO elyzea_calls (caller, receiver, status) VALUES (?, ?, ?)', { me.number, number, 'missed' })
+            return { ok = false, error = (ok and type(r) == 'table' and r.error) or 'Entreprise injoignable' }
+        end
+        SetTimeout(30000, function()
+            if Calls[callId] and Calls[callId].state == 'ringing' then EndCall(callId, 'timeout') end
+        end)
+        return { ok = true, id = callId, business = biz.label }
+    end
     if not tsrc or Players[tsrc].settings.airplane or not HasPhoneItem(tsrc) then
         MySQL.insert('INSERT INTO elyzea_calls (caller, receiver, status) VALUES (?, ?, ?)', { me.number, number, 'missed' })
         return { ok = false, error = 'Correspondant injoignable' }
@@ -2323,3 +2360,50 @@ exports('SendNotification', function(src, title, text, app)
 end)
 
 exports('GetFramework', function() return Framework end)
+
+-- ---------------------------------------------------------
+--  Entreprises (elyzea_jobphone)
+-- ---------------------------------------------------------
+-- Appli « Services » : toutes les entreprises, ouvertes ou non, avec leur numéro public
+Register('servicesList', function(src, me)
+    local jp = JobPhone()
+    if not jp then return { ok = false, error = 'Annuaire des entreprises indisponible' } end
+    local ok, list = pcall(function() return jp:GetBusinesses() end)
+    if not ok or type(list) ~= 'table' then return { ok = false, error = 'Annuaire des entreprises indisponible' } end
+    local out = {}
+    for _, b in ipairs(list) do
+        out[#out + 1] = { unit = b.unit, label = b.label, jobLabel = b.jobLabel, color = b.color, number = b.number, open = b.open == true,
+            onDuty = b.onDuty or 0, disabled = b.disabled == true }
+    end
+    return { ok = true, list = out }
+end)
+
+-- Réponse d'une entreprise (téléphone de service) : message reçu dans l'appli Messages, envoyé par le numéro public
+exports('DeliverMessage', function(fromNumber, toNumber, message)
+    fromNumber, toNumber, message = trim(fromNumber, 20), trim(toNumber, 20), trim(message, Config.Limits.MessageLength)
+    if fromNumber == '' or toNumber == '' or message == '' then return false end
+    local id = MySQL.insert.await('INSERT INTO elyzea_messages (sender, receiver, message) VALUES (?, ?, ?)', { fromNumber, toNumber, message })
+    if not id then return false end
+    local tsrc = GetSourceByNumber(toNumber)
+    if tsrc and Players[tsrc] and not Players[tsrc].settings.airplane then
+        TriggerClientEvent('elyzea_aura:client:newMessage', tsrc, { id = id, from = fromNumber, message = message, ts = os.time() })
+    end
+    return true
+end)
+
+-- Un employé a décroché sur son téléphone de service : la voix passe par le canal de cet appel
+exports('BizCallAnswered', function(callId, employeeSrc)
+    local call = Calls[tonumber(callId)]
+    if not call or not call.biz or call.state ~= 'ringing' then error('appel terminé') end
+    call.state, call.startedAt, call.employee = 'active', os.time(), tonumber(employeeSrc)
+    TriggerClientEvent('elyzea_aura:client:callStarted', call.caller, { id = tonumber(callId) })
+    return true
+end)
+
+-- L'employé a raccroché (ou est parti) : fin de l'appel côté client
+exports('BizCallEnd', function(callId, reason)
+    local call = Calls[tonumber(callId)]
+    if not call or not call.biz then return end
+    call.endedByBiz = true
+    EndCall(tonumber(callId), call.state == 'active' and 'hangup' or ((reason == 'refusé') and 'declined' or 'timeout'))
+end)

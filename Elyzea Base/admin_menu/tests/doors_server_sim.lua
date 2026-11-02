@@ -26,7 +26,8 @@ TriggerEvent = function() end
 TriggerClientEvent = function(name, target, ...) sent[#sent + 1] = { name = name, target = target, args = { ... } } end
 TriggerLatentClientEvent = function() end
 GetCurrentResourceName = function() return 'admin_menu' end
-exports = stub()
+EXP = {}
+exports = setmetatable({}, { __call = function(_, name, fn) EXP[name] = fn end, __index = function() return stub() end })
 json = { encode = function() return '' end, decode = function() return {} end }
 
 local players = {}   -- [src] = { pos, state, job, duty, cid, admin }
@@ -169,6 +170,21 @@ check('pupitre supprimé : plus rien', lastSent('adminmenu:doorpanel:show', 4) =
 act('editor_door_add_job', 1, { id = 2, job = 'ems' })
 L = lastSync('doors')
 check('liste publique : métiers inclus, sans le code', L and L[2].jobs and L[2].jobs[1] == 'ems' and L[1].jobs[1] == 'police' and L[1].codeHash == nil)
+
+-- Porte principale d'une entreprise (téléphone de service › appli « Entreprise »)
+GetResourceState = function() return 'missing' end   -- elyzea_jobphone absent : pas de vérification du nom
+act('editor_door_business', 1, { id = 1, business = 'elyzea_restaurant:1' })
+act('editor_door_business', 1, { id = 3, business = 'elyzea_restaurant:1' })
+L = lastSync('doors')
+check('porte principale : entreprise enregistrée et envoyée aux clients', L and L[1].business == 'elyzea_restaurant:1' and L[3].business == 'elyzea_restaurant:1' and L[2].business == nil)
+local bd = EXP.GetBusinessDoors('elyzea_restaurant:1')
+check('export GetBusinessDoors : les 2 portes de l\'entreprise', #bd == 2 and bd[1].id == 1 and bd[2].id == 3)
+check('autre entreprise : aucune porte', #EXP.GetBusinessDoors('elyzea_restaurant:2') == 0)
+EXP.SetDoorLocked(1, false)
+L = lastSync('doors')
+check('export SetDoorLocked : porte déverrouillée', L and L[1].locked == false)
+act('editor_door_business', 1, { id = 3, business = '' })
+check('porte principale retirée', #EXP.GetBusinessDoors('elyzea_restaurant:1') == 1)
 
 print(('\n%d/%d'):format(n - fails, n))
 return fails

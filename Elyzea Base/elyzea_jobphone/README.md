@@ -57,8 +57,29 @@ Dans chacun des 5 métiers :
 - Numéro pro unique par employé et par métier (`911-` police, `912-` EMS,
   `913-` mécano, `914-` Dynasty 8, `915-` concession), conservé en base.
 
+## Entreprises (appli « Entreprise » + appli « Services » du téléphone perso)
+Chaque **entreprise** = une unité du téléphone de service : un restaurant, une boîte, une concession,
+une agence de police / EMS / mécano / Dynasty 8 / presse.
+- **Numéro public** donné automatiquement (préfixe du métier ou de l'agence : `918-0001`, `911-0001`…), gardé en base.
+- **Appli « Entreprise »** (téléphone de service, en service) : fiche, état, **Ouvrir / Fermer** (grades avec la
+  permission « Direction » ou « Ouverture »), portes principales, **messages des clients** et réponses.
+- **Ouvrir** déverrouille les **portes principales** de l'entreprise, **fermer** les verrouille. Les portes se
+  choisissent dans `admin_menu › Éditeur de map › Portes › Gérer › « Porte principale d'une entreprise »`.
+- **Appel d'un client** (appli « Services » d'Elyzea Aura ou numéro public composé) : ça sonne sur le téléphone de
+  service de **tous les employés en service** de l'entreprise ; le premier qui décroche prend l'appel (même canal
+  pma-voice que le client) ; « ✕ » sur un appel qui sonne = refuser pour soi (les collègues sonnent encore).
+  Entreprise fermée ou personne en service : appel refusé avec « laissez-lui un message ».
+- **Message d'un client** : arrive dans l'appli « Entreprise » (notification aux employés en service) ; la réponse
+  part du numéro public et arrive dans l'appli Messages du client. Possible même entreprise fermée.
+- Exports : `GetBusinesses()`, `GetBusinessByNumber(n)`, `BusinessMessage(…)`, `RingBusiness(…)`, `BizCallEnded(…)`.
+
 ## Base de données
-`jobphone_numbers`, `jobphone_messages`, `jobphone_reads`.
+`jobphone_numbers`, `jobphone_messages`, `jobphone_reads`, `jobphone_business`, `jobphone_biz_messages` (créées toutes seules).
+
+## Tests hors jeu
+- `python3 tests/run_business_sim.py <socket MariaDB>` : vrais scripts d'elyzea_jobphone ET d'elyzea_aura chargés ensemble,
+  entreprises, ouverture + portes, messages, appels (57 vérifications).
+- `NODE_PATH=$(npm root -g) node tests/ui_business.cjs` : appli « Entreprise » et appel client (12 vérifications).
 
 ## Limites connues
 - Non testé en jeu : uniquement tests serveur hors jeu (59 vérifications) et

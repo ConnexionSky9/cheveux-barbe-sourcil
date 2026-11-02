@@ -108,6 +108,7 @@ local function Me(src)
         numberKey = unit, prefix = a and a.phone or nil, color = a and a.color or nil,
         matricule = e and e.matricule or '?', grade = g and g.name or '?', level = g and g.level or 0,
         duty = P.OnDuty(src), canDuty = P.Can(src, 'duty'), tablet = P.Can(src, 'tablet'),
+        canOpen = P.Can(src, 'open') or P.Can(src, 'direction'),   -- ouvrir / fermer l'entreprise (appli « Entreprise »)
         times = Times(src), status = P.status[src] or 'available',
     }
 end
@@ -177,6 +178,38 @@ function Ops.alertClose(src, d)
     if P.Actions.supportClose then return Run(src, 'supportClose', { id = d.id }) end
     return { native = true }
 end
+
+-- Entreprises (appli « Services » du téléphone perso, appli « Entreprise » du téléphone de service) :
+-- chaque unité du métier (établissement, agence ou métier seul) avec le nombre d'employés en service
+function Ops.units()
+    local onDuty = {}
+    for s in pairs(P.duty or {}) do
+        if GetPlayerName(s) and IsMember(s) then
+            local u = UnitOf(s)
+            if u then onDuty[u] = (onDuty[u] or 0) + 1 end
+        end
+    end
+    local list = {}
+    local function Add(unit, label, color, enabled, prefix)
+        list[#list + 1] = { unit = unit, label = label, color = color, onDuty = onDuty[unit] or 0, enabled = enabled ~= false, prefix = prefix }
+    end
+    if P.ShopOf and P.shops then
+        for _, D in pairs(P.shops) do
+            if not D.deleted then Add(RES .. ':' .. D.id, D.name, D.options and D.options.color or nil, D.enabled) end
+        end
+    elseif P.AgencyOf and P.agencyList and #P.agencyList > 0 then
+        for _, a in ipairs(P.agencyList) do
+            Add(a.job == Config.Job.name and RES or (RES .. ':' .. a.job), a.label, a.color, true, a.phone)
+        end
+    else
+        Add(RES, Config.Job and Config.Job.label or RES, nil, true)
+    end
+    table.sort(list, function(a, b) return tostring(a.label) < tostring(b.label) end)
+    return list
+end
+
+-- Employés EN SERVICE d'une unité donnée (appels des clients vers l'entreprise)
+function Ops.unitCrew(_, d) return Crew(tostring(d.unit or '')) end
 
 exports('PhoneBridge', function(op, src, data)
     local f = Ops[op]

@@ -64,6 +64,7 @@
     { id: 'planning', icon: '🗓️', label: 'Planning', res: 'elyzea_presse' },   // journalistes seulement
     { id: 'rdv', icon: '📅', label: 'Rendez-vous', res: 'elyzea_ems' },          // EMS seulement
     { id: 'cmd', icon: '🧾', label: 'Commande', res: 'elyzea_restaurant' },     // restaurants seulement
+    { id: 'biz', icon: '🏢', label: 'Entreprise' },                              // ouvrir / fermer, messages des clients
   ];
 
   async function loadHome() {
@@ -244,7 +245,7 @@
       <div class="callbtns">${c.state === 'incoming' ? '<button class="ib green" id="ans">📞</button>' : ''}<button class="ib red" id="hang">✕</button></div>
     </div>`;
     if ($('#ans')) $('#ans').onclick = async () => { const r = await req('answer', { id: c.id }); result(r); };
-    $('#hang').onclick = async () => { await req('hangup'); S.call = null; callbar(); back(); };
+    $('#hang').onclick = async () => { await req('hangup', { id: c.id }); S.call = null; callbar(); back(); };
     if (c.state === 'active') {
       const t0 = Date.now();
       S.timers.push(setInterval(() => { const e = $('#cst'); if (e) e.textContent = `En communication · ${Math.floor((Date.now() - t0) / 60000)}:${String(Math.floor(((Date.now() - t0) / 1000) % 60)).padStart(2, '0')}`; }, 1000));
@@ -644,6 +645,68 @@
   };
 
   // ------------------------------------------------------------------
+  // Entreprise : ouvrir / fermer (portes principales de l'éditeur de map),
+  // numéro public, messages des clients (téléphone perso › appli « Services »)
+  // ------------------------------------------------------------------
+  VIEWS.biz = async () => {
+    screen.innerHTML = `${header('Entreprise')}<div class="body" id="biz"><div class="empty">Chargement…</div></div>`;
+    wire();
+    const load = async () => {
+      if (S.view !== 'biz') return;
+      const r = await req('biz', { op: 'state' });
+      const box = $('#biz'); if (!box || S.view !== 'biz') return;
+      if (r.error) { box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+      const b = r.business, open = !!b.open;
+      box.innerHTML = `
+        <div class="bizcard ${open ? 'open' : 'closed'}">
+          <div class="org">${esc(b.jobLabel)}</div>
+          <div class="nm">${esc(b.label)}</div>
+          <div class="sub">Numéro public : <b>${esc(b.number)}</b> · ${b.onDuty} en service</div>
+          <div class="state"><i></i>${b.disabled ? 'Désactivée par le staff' : open ? 'Ouverte' : 'Fermée'}</div>
+        </div>
+        ${r.canOpen ? `<button class="btn ${open ? 'off' : 'green'}" id="bizToggle" ${b.disabled ? 'disabled' : ''}>${open ? '🔒 Fermer l\'entreprise' : '🔓 Ouvrir l\'entreprise'}</button>`
+          : '<div class="empty small">Seuls les grades avec la permission « Direction » (ou « Ouverture ») ouvrent et ferment l\'entreprise.</div>'}
+        <div class="t2 meta" style="padding:.35rem .2rem;font-size:11px;color:var(--mute)">${r.doors.length ? `🚪 Porte(s) principale(s) : ${r.doors.map((d) => `${esc(d.name)} ${d.locked ? '🔒' : '🔓'}`).join(' · ')}`
+          : '🚪 Aucune porte principale : le staff la choisit dans l\'éditeur de map › Portes.'}</div>
+        <div class="section">Messages des clients ${r.unread ? `<i class="badge inline">${r.unread}</i>` : ''}</div>
+        ${r.threads.length ? r.threads.map((t) => `<div class="row" data-th="${esc(t.number)}" data-nm="${esc(t.name)}"><div class="av">${esc(initials(t.name))}</div>
+          <div class="tx"><div class="t1">${esc(t.name)}${t.unread ? ` <i class="badge inline">${t.unread}</i>` : ''}</div><div class="t2">${esc(t.last)}</div></div>
+          <div class="t2">${t.t ? ago(t.t) : ''}</div></div>`).join('') : '<div class="empty small">Aucun message. Les clients écrivent au numéro public depuis l\'appli « Services » de leur téléphone.</div>'}`;
+      const tg = $('#bizToggle');
+      if (tg) tg.onclick = async () => { tg.disabled = true; result(await req('biz', { op: 'toggle', data: { open: !open } })); load(); };
+      box.querySelectorAll('[data-th]').forEach((el) => (el.onclick = () => go('bizchat', { number: el.dataset.th, name: el.dataset.nm })));
+    };
+    S.reloadBiz = load;
+    load();
+    S.timers.push(setInterval(load, 15000));
+  };
+
+  VIEWS.bizchat = async (arg) => {
+    S.bizThread = arg.number;
+    screen.innerHTML = `${header(arg.name)}<div class="chat" id="chat"><div class="empty">Chargement…</div></div>
+      <div class="compose"><input id="msg" maxlength="500" placeholder="Répondre au client…"><button class="ib green" id="send">➤</button></div>`;
+    wire(); typingWire();
+    const draw = async () => {
+      const r = await req('biz', { op: 'thread', data: { number: arg.number } });
+      const box = $('#chat'); if (!box || S.view !== 'bizchat') return;
+      if (r.error) return toast(r.error, 'err');
+      box.innerHTML = r.list.length ? r.list.map((m) => `<div class="bubble ${m.mine ? 'mine' : ''}"><div class="who">${esc(m.from)} · ${hhmm(m.t)}</div>${esc(m.body)}</div>`).join('')
+        : '<div class="empty">Aucun message.</div>';
+      box.scrollTop = box.scrollHeight;
+    };
+    S.redrawBiz = draw;
+    const send = async () => {
+      const i = $('#msg'); const body = i.value.trim(); if (!body) return;
+      i.value = '';
+      const r = await req('biz', { op: 'reply', data: { number: arg.number, body } });
+      if (result(r)) draw();
+    };
+    $('#send').onclick = send;
+    $('#msg').onkeydown = (e) => { if (e.key === 'Enter') send(); };
+    draw();
+  };
+
+  // ------------------------------------------------------------------
   // Saisie : le clavier passe au téléphone uniquement pendant l'écriture
   // ------------------------------------------------------------------
   function typingWire() {
@@ -686,6 +749,11 @@
       else if (d.what === 'planning' && S.view === 'planning' && S.reloadPlanning) S.reloadPlanning();
       else if (d.what === 'rdv' && S.view === 'rdv' && S.reloadRdv) S.reloadRdv();
       else if (d.what === 'cmd' && S.view === 'cmd' && S.reloadCmd) S.reloadCmd();
+      else if (d.what === 'biz') {
+        if (d.msg && !(S.view === 'bizchat' && S.bizThread)) toast(`🏢 ${d.msg.from} : ${d.msg.body}`);
+        if (S.view === 'biz' && S.reloadBiz) S.reloadBiz();
+        if (S.view === 'bizchat' && S.redrawBiz) S.redrawBiz();
+      }
     } else if (d.action === 'message') {
       if (S.home) S.home.unread = (S.home.unread || 0) + 1;
       if (!S.open) return;

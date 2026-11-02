@@ -23,6 +23,7 @@ const path = require('path');
       config: { editor: { minLevel: 0, quickProps: [], quickPeds: [], npcPresets: [] }, doorDistance: 2.2, doorMinDistance: 0.8, doorMaxDistance: 15,
         doorJobCategories: [{ key: 'police', label: 'Police (toutes agences)', icon: '🚓' }, { key: 'ems', label: 'EMS (toutes agences)', icon: '🚑' }],
         doorPanelRadius: 1.5, doorPanelMinRadius: 0.8, doorPanelMaxRadius: 6 },
+      businesses: [{ unit: 'elyzea_restaurant:1', label: 'Pizza This', jobLabel: 'Restaurant' }, { unit: 'elyzea_police', label: 'LSPD', jobLabel: 'LSPD' }],
       editor: { spawns: [], props: [], peds: [], fields: [], stations: [], searches: [], hidden: [], zones: [], stashes: [],
         doors: [{ id: 1, name: 'Cellule 1', locked: true, owners: [], jobs: ['police'], dist: 3 }, { id: 2, name: 'Cellule 2', locked: false, owners: [], jobs: [], dist: 4 }],
         doorPanels: [{ id: 1, name: 'PC cellules', radius: 1.5, jobs: ['lspd'], doors: [1, 2], dist: 2 }] },
@@ -45,6 +46,14 @@ const path = require('path');
   await page.click('[data-ed="door_rm_job"][data-job="police"]');
   await page.waitForTimeout(150);
   check('retrait de métier envoyé', posts.some((p) => JSON.stringify(p.body).includes('editor_door_remove_job')));
+  // porte principale d'une entreprise (téléphone de service › appli « Entreprise »)
+  check('choix « Porte principale d\'une entreprise » : liste des entreprises', (await page.$$eval('select[data-draft="doorBiz"] option', (o) => o.map((x) => x.textContent))).some((t) => t.includes('Pizza This')));
+  await page.selectOption('select[data-draft="doorBiz"]', 'elyzea_restaurant:1');
+  await page.click('[data-ed="door_business"]');
+  await page.waitForTimeout(150);
+  const bz = posts.find((p) => JSON.stringify(p.body).includes('editor_door_business'));
+  check('porte principale envoyée (entreprise choisie)', bz && JSON.stringify(bz.body).includes('elyzea_restaurant:1'));
+  await page.screenshot({ path: out + '/porte_entreprise.png' });
   // création d'un pupitre
   await page.fill('input[data-dpf="name"]', 'PC LSPD');
   await page.selectOption('select[data-draft="dpJob"]', 'police');

@@ -30,6 +30,14 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Données fournies par `elyzea_ems` (rendez-vous, santé) et `elyzea_famille` (grossesse). Sans elles, l'onglet affiche « indisponible ».
 - **Correctif** : l'application Grossesse n'avait pas de réponse côté serveur (`grossesseSuivi`) ; elle lit maintenant `exports.elyzea_famille:SuiviGrossesse`.
 
+## Nouveautés : application Services
+- **Services** (sur l'écran d'accueil, pas besoin de la télécharger) : liste de **toutes les entreprises** du serveur
+  (restaurants, boîtes, concessions, police, EMS, mécano, Dynasty 8, presse…), rangées par métier, avec recherche,
+  filtre « Ouvertes », état **Ouverte / Fermée**, nombre d'employés en service et **numéro public**.
+- **Appeler** : sonne sur le téléphone de service des employés en service (elyzea_jobphone) ; **Message** : conversation
+  dans Messages avec le numéro public, les réponses de l'entreprise y arrivent. Le nom de l'entreprise remplace son numéro.
+- Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
+
 ## Applications
 Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 

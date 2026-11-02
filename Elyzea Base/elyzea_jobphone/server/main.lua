@@ -145,6 +145,8 @@ local function EndCall(id, reason)
     local c = JP.calls[id]
     if not c then return end
     JP.calls[id] = nil
+    -- Appel d'un client (téléphone perso) vers l'entreprise : voir server/business.lua
+    if c.biz then return JP.EndBizCall(c, reason) end
     for _, s in ipairs({ c.a, c.b }) do
         if JP.inCall[s] == id then JP.inCall[s] = nil end
         if GetPlayerName(s) then TriggerClientEvent('elyzea_jobphone:client:call', s, { state = 'ended', id = id, reason = reason }) end
@@ -319,6 +321,7 @@ end
 
 function A.answer(src, me, d)
     local c = JP.calls[tonumber(d.id) or 0]
+    if c and c.biz then return JP.AnswerBizCall(c, src, me) end
     if not c or c.b ~= src or c.state ~= 'ringing' then return { error = 'Appel terminé.' } end
     c.state, c.started = 'active', os.time()
     local channel = Config.Calls.channelBase + c.id
@@ -327,9 +330,12 @@ function A.answer(src, me, d)
     return { ok = true }
 end
 
-function A.hangup(src)
+function A.hangup(src, me, d)
     local id = JP.inCall[src]
-    if id then EndCall(id, 'raccroché') end
+    if id then EndCall(id, 'raccroché') return { ok = true } end
+    -- Appel client qui sonne chez plusieurs employés : celui-ci refuse (les autres sonnent encore)
+    local c = JP.calls[tonumber(d and d.id) or 0]
+    if c and c.biz and c.state == 'ringing' and c.ring[src] then JP.DeclineBizCall(c, src) end
     return { ok = true }
 end
 
@@ -468,6 +474,7 @@ end)
 -- ---------------------------------------------------------------------
 local function Gone(src)
     if JP.inCall[src] then EndCall(JP.inCall[src], 'correspondant déconnecté') end
+    for _, c in pairs(JP.calls) do if c.biz and c.state == 'ringing' and c.ring[src] then JP.DeclineBizCall(c, src) end end
     for id, a in pairs(JP.alerts) do if a.author == src then CloseAlert(id, 'Auteur déconnecté') end end
     JP.open[src], JP.unitOf[src], rate[src], lastMsg[src], lastAlert[src] = nil, nil, nil, nil, nil
 end
@@ -482,13 +489,23 @@ CreateThread(function()
             if now - a.t > Config.Alerts.maxMinutes * 60 then CloseAlert(id, 'Système') end
         end
         for id, c in pairs(JP.calls) do
+            -- Appel client : seul l'employé qui a décroché doit rester en service dans l'entreprise
+            if c.biz then
+                local me = c.b and GetPlayerName(c.b) and JP.Me(c.b)
+                if c.b and (not me or not me.duty or me.unit ~= c.unit) then EndCall(id, 'communication coupée') end
+                goto continue
+            end
             for _, s in ipairs({ c.a, c.b }) do
                 local me = GetPlayerName(s) and JP.Me(s)
                 if not me or not me.duty or me.unit ~= c.unit then EndCall(id, 'communication coupée') break end
             end
+            ::continue::
         end
     end
 end)
+
+-- Partagé avec server/business.lua (entreprises : appli « Entreprise », appels et messages des clients)
+JP.A, JP.NEED_DUTY, JP.Bridge, JP.EndCall, JP.Clean, JP.Notify = A, NEED_DUTY, Bridge, EndCall, Clean, Notify
 
 exports('GetNumber', function(res, cid) return JP.Number(res, cid) end)
 -- Numéro pro d'un joueur connecté (son unité actuelle)

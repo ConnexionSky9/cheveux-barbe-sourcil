@@ -90,7 +90,8 @@ local function publicList(kind)
     if kind ~= 'doors' then return Data[kind] end
     local out = {}
     for _, d in ipairs(Data.doors) do
-        out[#out + 1] = { id = d.id, name = d.name, leaves = d.leaves, locked = d.locked, hasCode = d.codeHash ~= nil, owners = d.owners, distance = d.distance, jobs = d.jobs }
+        out[#out + 1] = { id = d.id, name = d.name, leaves = d.leaves, locked = d.locked, hasCode = d.codeHash ~= nil, owners = d.owners, distance = d.distance, jobs = d.jobs,
+            business = d.business }
     end
     return out
 end
@@ -954,6 +955,32 @@ def('editor_door_remove_job', 'editor_doors', function(src, d)
             return
         end
     end
+end)
+
+-- Porte principale d'une entreprise (téléphone de service › appli « Entreprise ») :
+-- ouvrir l'entreprise déverrouille ses portes principales, la fermer les verrouille.
+-- business = unité du téléphone de service (ex. « elyzea_restaurant:3 », « elyzea_police »)
+def('editor_door_business', 'editor_doors', function(src, d)
+    local door = doorOf(d.id)
+    if not door then return end
+    local unit = tostring(d.business or ''):gsub('[^%w_:%-]', ''):sub(1, 80)
+    if unit == '' then
+        door.business = nil
+        save('doors') broadcast('doors')
+        AM.notify(src, ('« %s » n\'est plus la porte principale d\'une entreprise.'):format(door.name), 'success')
+        AM.addLog(src, 'Porte : entreprise retirée', ('#%d %s'):format(door.id, door.name))
+        return
+    end
+    local label
+    if GetResourceState('elyzea_jobphone') == 'started' then
+        local ok, list = pcall(function() return exports.elyzea_jobphone:GetBusinesses() end)
+        for _, b in ipairs(ok and list or {}) do if b.unit == unit then label = b.label end end
+        if not label then return AM.notify(src, 'Entreprise inconnue (téléphone de service).', 'error') end
+    end
+    door.business = unit
+    save('doors') broadcast('doors')
+    AM.notify(src, ('« %s » est la porte principale de %s : elle s\'ouvre et se ferme avec l\'entreprise.'):format(door.name, label or unit), 'success')
+    AM.addLog(src, 'Porte : porte principale d\'entreprise', ('#%d %s → %s'):format(door.id, door.name, label or unit))
 end)
 
 -- Pupitres de commande : une zone (ex. PC du commissariat) d'où l'on ouvre / ferme
@@ -2429,6 +2456,15 @@ exports('SetDoorLocked', function(id, locked)
     return true
 end)
 
+-- Portes principales d'une entreprise (choisies dans l'éditeur de map › Portes)
+exports('GetBusinessDoors', function(unit)
+    local out = {}
+    for _, d in ipairs(Data.doors) do
+        if unit and d.business == unit then out[#out + 1] = { id = d.id, name = d.name, locked = d.locked } end
+    end
+    return out
+end)
+
 -- Props ayant un rôle (ex. 'police_pc' : PC Police de noirx_police_laptop_prop), lus par d'autres ressources
 exports('GetPropsByRole', function(role)
     local out = {}
@@ -2447,4 +2483,11 @@ exports('GetCasinoPoints', function()
         end
     end
     return out
+end)
+
+-- Liste des entreprises (téléphone de service) pour le choix de la porte principale dans l'éditeur
+table.insert(AM.DataHooks, function(src, data)
+    if not AM.hasPerm(src, 'editor_doors') or GetResourceState('elyzea_jobphone') ~= 'started' then return end
+    local ok, list = pcall(function() return exports.elyzea_jobphone:GetBusinesses() end)
+    data.businesses = ok and list or {}
 end)

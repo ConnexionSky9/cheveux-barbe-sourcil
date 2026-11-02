@@ -111,3 +111,16 @@ html, body { width: 100%; height: 100%; background: transparent; overflow: hidde
 .btn.small { padding: 7px; font-size: 12px; border-radius: 10px; margin-top: 6px; }
 .empty.small { padding: 8px; font-size: 11px; }
 .t2.meta { white-space: normal; }
+
+/* Entreprise */
+.btn.green { background: #16a34a; }
+.bizcard { border-radius: 16px; padding: 12px; margin-bottom: 8px; background: var(--card); border: 1px solid var(--line); }
+.bizcard .org { font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+.bizcard .nm { font-size: 17px; font-weight: 800; margin: 2px 0; }
+.bizcard .sub { font-size: 12px; color: var(--mute); }
+.bizcard .state { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-weight: 700; font-size: 13px; }
+.bizcard .state i { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+.bizcard.open { border-color: rgba(34,197,94,.5); }
+.bizcard.open .state { color: #4ade80; } .bizcard.open .state i { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.bizcard.closed .state { color: #f87171; }
+.badge.inline { position: static; display: inline-block; margin-left: 4px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 700; font-style: normal; border-radius: 9px; padding: 1px 6px; }

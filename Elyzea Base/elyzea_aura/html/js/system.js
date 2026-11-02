@@ -14,6 +14,7 @@ const APPS = {
   ads:       { label: 'Annonces' },
   maps:      { label: 'Plans' },
   alert:     { label: 'Urgences' },
+  services:  { label: 'Services' },
   calc:      { label: 'Calcul' },
   settings:  { label: 'Réglages' },
   birdy:     { label: 'Birdy', store: true },
@@ -28,7 +29,7 @@ const APPS = {
   sante:     { label: 'Santé', store: true },
 };
 const DOCK = ['phone', 'messages', 'store', 'camera'];
-const GRID = ['contacts', 'bank', 'gallery', 'notes', 'ads', 'maps', 'alert', 'calc', 'settings'];
+const GRID = ['contacts', 'bank', 'gallery', 'notes', 'ads', 'maps', 'alert', 'services', 'calc', 'settings'];
 const Views = {};
 const homeEl = $('#home');
 
