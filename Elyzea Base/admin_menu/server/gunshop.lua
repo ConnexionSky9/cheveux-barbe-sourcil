@@ -72,13 +72,7 @@ end
 -- ---------------------------------------------------------
 --  Ouverture
 -- ---------------------------------------------------------
-local function walletOf(src, gs, n)
-    local w = {}
-    if gs.payChoice and n.payment ~= 'item' then
-        w.cash = Bridge.GetMoney(src, 'cash') w.bank = Bridge.GetMoney(src, 'bank')
-    else w[n.payment] = Bridge.GetMoney(src, n.payment, n.paymentItem) end
-    return w
-end
+local function walletOf(src, gs, n) return ShopPay.wallet(src, ShopPay.ctx(src, 'Armurerie', n, gs.payChoice)) end
 
 local Trials, LastTrial = {}, {}
 
@@ -95,14 +89,12 @@ RegisterNetEvent('adminmenu:gunshop:request', function(id)
         items[#items + 1] = { i = i, item = it.item, type = it.type, amount = it.amount,
             label = it.label ~= '' and it.label or (Bridge.GetLabel(it.item) or it.item), price = it.price, cat = it.cat, max = it.max }
     end
-    TriggerClientEvent('adminmenu:gunshop:show', src, {
-        kind = 'gunshop', id = r.id, name = gs.name, items = items, wallet = walletOf(src, gs, n),
-        payChoice = gs.payChoice and n.payment ~= 'item', payment = n.payment,
-        paymentLabel = n.payment == 'item' and (Bridge.GetLabel(n.paymentItem) or n.paymentItem) or nil,
+    TriggerClientEvent('adminmenu:gunshop:show', src, ShopPay.into({
+        kind = 'gunshop', id = r.id, name = gs.name, items = items,
         image = CFG.imagePath or 'nui://elyzea_inventory/html/img/%s.png', categories = CFG.categories or {},
         licence = gs.licence, hasLicence = (not gs.licence) or hasLicence(src),
         trial = gs.trial and gs.spot ~= nil, trialDuration = gs.trialDuration,
-    })
+    }, src, ShopPay.ctx(src, 'Armurerie', n, gs.payChoice), n))
 end)
 
 -- ---------------------------------------------------------
@@ -130,18 +122,14 @@ RegisterNetEvent('adminmenu:gunshop:buy', function(id, cart, method)
     end
     if #lines == 0 then return result(src, false, 'Ton panier est vide.') end
 
-    local kind, item = n.payment, n.paymentItem
-    if gs.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
+    local pay = ShopPay.ctx(src, 'Armurerie', n, gs.payChoice)
+    local m = ShopPay.pick(pay, method)
+    if not m then return result(src, false, 'Moyen de paiement non accepté ici.') end
     Busy[src] = true
-    if total > 0 then
-        if Bridge.GetMoney(src, kind, item) < total then
-            Busy[src] = nil
-            return result(src, false, kind == 'bank' and 'Pas assez d\'argent sur ton compte.' or 'Tu n\'as pas assez d\'argent sur toi.')
-        end
-        if not Bridge.RemoveMoney(src, kind, item, total, 'armurerie') then
-            Busy[src] = nil
-            return result(src, false, 'Le paiement a échoué.')
-        end
+    local okPay, err, paid = ShopPay.take(src, pay, m, total, 'armurerie')
+    if not okPay then
+        Busy[src] = nil
+        return result(src, false, err, ShopPay.wallet(src, pay))
     end
 
     local refund, missing = 0, {}
@@ -157,17 +145,17 @@ RegisterNetEvent('adminmenu:gunshop:buy', function(id, cart, method)
             missing[#missing + 1] = l.it.label ~= '' and l.it.label or (Bridge.GetLabel(l.it.item) or l.it.item)
         end
     end
-    if refund > 0 then Bridge.AddMoney(src, kind, item, refund, 'armurerie-remboursement') end
+    if refund > 0 then paid = ShopPay.refundPart(src, pay, m, paid, total - refund, 'armurerie-remboursement') end
     Busy[src] = nil
 
-    local wallet = walletOf(src, gs, n)
+    local wallet = ShopPay.wallet(src, pay)
     if refund == total and total > 0 then
         return result(src, false, 'Ton inventaire est plein : rien n\'a été acheté, tu es remboursé.', wallet)
     end
-    local msg = ('Achat effectué : %s $.'):format(total - refund)
+    local msg = ('Achat effectué : %s.'):format(ShopPay.fmt(pay, m, paid))
     if #missing > 0 then msg = msg .. (' Pas de place pour : %s (remboursé).'):format(table.concat(missing, ', ')) end
     result(src, true, msg, wallet)
-    AM.addLog(src, 'Armurerie : achat', ('PNJ #%d · %s $'):format(r.id, total - refund))
+    AM.addLog(src, 'Armurerie : achat', ('PNJ #%d · %s'):format(r.id, ShopPay.fmt(pay, m, paid)))
     TriggerEvent('adminmenu:gunshop:paid', src, total - refund, r.id, cart)
 end)
 

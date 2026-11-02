@@ -36,9 +36,32 @@ local function addMoney(src, kind, amount, reason)
     end
     return pcall(function() return core:AddMoney(src, kind, amount, reason) end)
 end
--- Moyens de paiement et monnaie d'une boutique
-local function paymentsOf(shop) return (shop and shop.pesos) and { 'pesos' } or Config.Payments end
-local function currencyOf(shop) return (shop and shop.pesos) and 'pesos' or Config.Currency end
+-- Moyens de paiement d'une boutique.
+-- Règle globale « Vetements » de elyzea_change (Config.Payment) : dollars et/ou pesos,
+-- monnaie imposée ou non. Une boutique réglée « pesos uniquement » sur son PNJ reste en pesos
+-- (sauf si la règle globale impose les dollars).
+local function changeOn() return GetResourceState('elyzea_change') == 'started' end
+local function payRule(shop)
+    if not changeOn() then
+        return { methods = (shop and shop.pesos) and { 'pesos' } or Config.Payments, rate = 1.0 }
+    end
+    local opts = { dollarMethods = Config.Payments }
+    if shop and shop.pesos then opts.npcCurrency, opts.npcForce = 'pesos', true end
+    local ok, r = pcall(function() return exports.elyzea_change:PaymentMethods(Config.PaymentBusiness or 'Vetements', opts) end)
+    if not ok or type(r) ~= 'table' or type(r.methods) ~= 'table' or #r.methods == 0 then
+        return { methods = (shop and shop.pesos) and { 'pesos' } or Config.Payments, rate = 1.0 }
+    end
+    return { methods = r.methods, rate = tonumber(r.rate) or 1.0 }
+end
+local function paymentsOf(shop) return payRule(shop).methods end
+local function onlyPesos(list) return #list == 1 and list[1] == 'pesos' end
+local function currencyOf(shop) return onlyPesos(paymentsOf(shop)) and 'pesos' or Config.Currency end
+-- Prix dans la monnaie choisie (les prix de la boutique sont en dollars)
+local function dueIn(method, total, rate)
+    if method == 'pesos' then return math.ceil(total * (rate or 1.0) - 1e-9) end
+    return total
+end
+local function unitOf(method) return method == 'pesos' and 'pesos' or Config.Currency end
 local function balances(src, shop)
     local out = {}
     for _, k in ipairs(paymentsOf(shop)) do out[k] = money(src, k) end
@@ -101,7 +124,8 @@ local function openFor(src, shop)
     local pos = c and vector3(c.x + 0.0, c.y + 0.0, c.z + 0.0) or GetEntityCoords(GetPlayerPed(src))
     Shop.sessions[src] = { shop = s, coords = pos }
     s.vendor = c and { x = pos.x, y = pos.y, z = pos.z } or nil
-    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src, s), { manage = Hidden.canManage(src), payments = paymentsOf(s), currency = currencyOf(s),
+    local rule = payRule(s)
+    TriggerClientEvent('elyzea_clothing:open', src, s, balances(src, s), { manage = Hidden.canManage(src), payments = rule.methods, currency = currencyOf(s), rate = rule.rate,
         bags = Config.Bags and Config.Bags.enabled and Items.enabled() or false })
     return true
 end
@@ -125,9 +149,13 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current,
     if not s then return result(src, false, 'La boutique est fermée.') end
     if #(GetEntityCoords(GetPlayerPed(src)) - s.coords) > Config.MaxDistance then return result(src, false, 'Tu es trop loin de la boutique.') end
     local okMethod = false
-    for _, k in ipairs(paymentsOf(s.shop)) do if k == method then okMethod = true end end
-    local CUR = currencyOf(s.shop)
-    if not okMethod then return result(src, false, 'Moyen de paiement refusé.') end
+    local rule = payRule(s.shop)
+    for _, k in ipairs(rule.methods) do if k == method then okMethod = true end end
+    local CUR = unitOf(method)
+    if not okMethod then
+        if onlyPesos(rule.methods) then return result(src, false, 'Cette boutique n\'accepte que les pesos.') end
+        return result(src, false, 'Moyen de paiement refusé.')
+    end
     local sex = Items.sexOf(src)
     if not sex then return result(src, false, 'Personnage non compatible.') end
     wearNow = wearNow == true
@@ -211,12 +239,15 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current,
             return result(src, false, 'Ton inventaire est plein ou trop lourd : fais de la place avant de payer.')
         end
     end
-    if total > 0 then
-        if money(src, method) < total then
-            return result(src, false, ('Il te manque %d %s.'):format(total - money(src, method), CUR), { money = balances(src, s.shop) })
+    local due = dueIn(method, total, rule.rate)
+    if due > 0 then
+        if money(src, method) < due then
+            local msg = ('Il te manque %d %s.'):format(due - money(src, method), CUR)
+            if method == 'pesos' then msg = msg .. ' Change de l\'argent au bureau de change.' end
+            return result(src, false, msg, { money = balances(src, s.shop) })
         end
         paying[src] = true
-        local ok = removeMoney(src, method, total)
+        local ok = removeMoney(src, method, due)
         paying[src] = nil
         if not ok then return result(src, false, 'Paiement refusé.', { money = balances(src, s.shop) }) end
     end
@@ -256,10 +287,16 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current,
             end
         end
     end
-    if refund > 0 then addMoney(src, method, refund, 'remboursement-vetements') end
-    print(('[elyzea_clothing] %s [%d] : %d article(s), %d %s chez « %s »'):format(GetPlayerName(src), src, #list, total - refund, CUR, s.shop.name))
+    -- Remboursement exact dans la monnaie payée
+    local paid = due
+    if refund > 0 then
+        local back = due - dueIn(method, total - refund, rule.rate)
+        if back > 0 then addMoney(src, method, back, 'remboursement-vetements') end
+        paid = due - math.max(0, back)
+    end
+    print(('[elyzea_clothing] %s [%d] : %d article(s), %d %s chez « %s »'):format(GetPlayerName(src), src, #list, paid, CUR, s.shop.name))
 
-    local parts = { ('Achat réglé : %d %s.'):format(total - refund, CUR) }
+    local parts = { ('Achat réglé : %d %s.'):format(paid, CUR) }
     if #wear > 0 and wearNow then
         parts[#parts + 1] = ('%d %s sur toi%s.'):format(#wear, #wear > 1 and 'pièces portées' or 'pièce portée',
             useItems and ' (F3 pour ' .. (#wear > 1 and 'les' or 'la') .. ' ranger dans l\'inventaire)' or '')
@@ -270,7 +307,7 @@ RegisterNetEvent('elyzea_clothing:buy', function(cart, method, wearNow, current,
             bagged > 1 and 'vêtements' or 'vêtement', bagCount, bagCount > 1 and 's' or '')
     end
     if given > 0 then parts[#parts + 1] = 'Tes anciens vêtements y sont aussi.' end
-    if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(refund, CUR) end
+    if refund > 0 then parts[#parts + 1] = ('%d %s remboursés (inventaire plein).'):format(due - paid, CUR) end
     result(src, true, table.concat(parts, ' '), { wear = (wearNow or not useItems) and wear or {}, bags = bagCount })
 end)
 AddEventHandler('playerDropped', function() paying[source] = nil end)

@@ -56,19 +56,11 @@ RegisterNetEvent('adminmenu:market:request', function(id)
         items[#items + 1] = { i = i, item = it.item, label = it.label ~= '' and it.label or (Bridge.GetLabel(it.item) or it.item),
             price = it.price, cat = it.cat, max = it.max }
     end
-    local choice = mk.payChoice and n.payment ~= 'item'
-    local wallet = {}
-    if choice then
-        wallet.cash = Bridge.GetMoney(src, 'cash')
-        wallet.bank = Bridge.GetMoney(src, 'bank')
-    else
-        wallet[n.payment] = Bridge.GetMoney(src, n.payment, n.paymentItem)
-    end
-    TriggerClientEvent('adminmenu:market:show', src, {
-        id = r.id, name = mk.name, items = items, payChoice = choice, payment = n.payment, wallet = wallet,
-        paymentLabel = n.payment == 'item' and (Bridge.GetLabel(n.paymentItem) or n.paymentItem) or nil,
+    local pay = ShopPay.ctx(src, 'Superette', n, mk.payChoice)
+    TriggerClientEvent('adminmenu:market:show', src, ShopPay.into({
+        id = r.id, name = mk.name, items = items,
         image = CFG.imagePath or 'nui://elyzea_inventory/html/img/%s.png', categories = CFG.categories or {},
-    })
+    }, src, pay, n))
 end)
 
 local Busy = {}
@@ -96,19 +88,15 @@ RegisterNetEvent('adminmenu:market:buy', function(id, cart, method)
     end
     if #lines == 0 then return result(src, false, 'Ton panier est vide.') end
 
-    local kind, item = n.payment, n.paymentItem
-    if mk.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
+    local pay = ShopPay.ctx(src, 'Superette', n, mk.payChoice)
+    local m = ShopPay.pick(pay, method)
+    if not m then return result(src, false, 'Moyen de paiement non accepté ici.') end
 
     Busy[src] = true
-    if total > 0 then
-        if Bridge.GetMoney(src, kind, item) < total then
-            Busy[src] = nil
-            return result(src, false, kind == 'bank' and 'Pas assez d\'argent sur ton compte.' or 'Tu n\'as pas assez d\'argent sur toi.')
-        end
-        if not Bridge.RemoveMoney(src, kind, item, total, 'superette') then
-            Busy[src] = nil
-            return result(src, false, 'Le paiement a échoué.')
-        end
+    local okPay, err, paid = ShopPay.take(src, pay, m, total, 'superette')
+    if not okPay then
+        Busy[src] = nil
+        return result(src, false, err, ShopPay.wallet(src, pay))
     end
 
     -- Remise des produits ; ce qui ne rentre pas est remboursé
@@ -120,21 +108,17 @@ RegisterNetEvent('adminmenu:market:buy', function(id, cart, method)
             missing[#missing + 1] = l.it.label ~= '' and l.it.label or (Bridge.GetLabel(l.it.item) or l.it.item)
         end
     end
-    if refund > 0 then Bridge.AddMoney(src, kind, item, refund, 'superette-remboursement') end
+    if refund > 0 then paid = ShopPay.refundPart(src, pay, m, paid, total - refund, 'superette-remboursement') end
     Busy[src] = nil
 
-    local wallet = {}
-    if mk.payChoice and n.payment ~= 'item' then
-        wallet.cash = Bridge.GetMoney(src, 'cash') wallet.bank = Bridge.GetMoney(src, 'bank')
-    else wallet[n.payment] = Bridge.GetMoney(src, n.payment, n.paymentItem) end
-
+    local wallet = ShopPay.wallet(src, pay)
     if #missing == #lines then
         return result(src, false, 'Ton inventaire est plein : rien n\'a été acheté, tu es remboursé.', wallet)
     end
-    local paid = total - refund
-    local msg = ('Achat effectué : %s $.'):format(paid)
+    local msg = ('Achat effectué : %s.'):format(ShopPay.fmt(pay, m, paid))
     if #missing > 0 then msg = msg .. (' Inventaire plein pour : %s (remboursé).'):format(table.concat(missing, ', ')) end
     result(src, true, msg, wallet)
+    paid = total - refund
     TriggerEvent('adminmenu:market:paid', src, paid, r.id, cart)
 end)
 

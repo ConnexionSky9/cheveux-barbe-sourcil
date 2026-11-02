@@ -10,6 +10,6 @@ files { 'html/index.html', 'html/pesos.png' }
 
 shared_scripts { 'config.lua' }
 client_scripts { 'client.lua' }
-server_scripts { 'server.lua' }
+server_scripts { 'server.lua', 'server_payment.lua' }
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }

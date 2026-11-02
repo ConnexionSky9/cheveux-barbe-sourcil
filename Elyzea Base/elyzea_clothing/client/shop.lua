@@ -261,6 +261,7 @@ RegisterNetEvent('elyzea_clothing:open', function(shop, money, opts)
         return { action = 'open', shop = { name = shop.name, multiplier = shop.multiplier }, sex = sex, categories = cats, packs = packs,
             gta = sold(shop, nil), money = money,
             payments = (type(opts) == 'table' and opts.payments) or Config.Payments, currency = (type(opts) == 'table' and opts.currency) or Config.Currency,
+            rate = type(opts) == 'table' and tonumber(opts.rate) or 1.0,
             images = imagesConfig(), itemsMode = ClothingItemsMode(), manage = canManage,
             bags = type(opts) == 'table' and opts.bags == true }
     end)

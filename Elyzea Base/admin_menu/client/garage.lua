@@ -36,7 +36,7 @@ RegisterNUICallback('npc_garage_take', function(d, cb)
     NpcOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'npcClose' })
-    TriggerServerEvent('adminmenu:garage:take', r.id, tonumber(d.idx), vehicleType(v.model))
+    TriggerServerEvent('adminmenu:garage:take', r.id, tonumber(d.idx), vehicleType(v.model), d.method)
 end)
 RegisterNUICallback('npc_garage_store', function(d, cb)
     cb('ok')

@@ -63,6 +63,7 @@ server_scripts {
     'server/storage.lua',
     'server/main.lua',
     'server/bridge.lua',
+    'server/payment.lua',             -- dollars / pesos (règle elyzea_change)
     'server/door_access.lua',
     'server/editor.lua',
     'server/gofast.lua',
@@ -112,6 +113,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
+    'html/payui.js',
     'html/catalog.js',
     'html/gofast.js',
     'html/zombies.js',

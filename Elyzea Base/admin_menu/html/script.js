@@ -1292,6 +1292,7 @@ function toPedEdit(r) {
         buyer: clone(b.items || [{ item: '', min: 50, max: 80 }]),
         maxPerSale: b.maxPerSale ?? 10, cooldown: b.cooldown ?? 60, policeChance: b.policeChance ?? 0, minPolice: b.minPolice ?? 0,
         payment: n.payment || 'cash', paymentItem: n.paymentItem || 'black_money',
+        currency: n.currency || '', currencyForce: !!n.currencyForce,
         hoursOn: !!n.hours, from: n.hours ? n.hours.from : 20, to: n.hours ? n.hours.to : 5,
         ...garageEdit(n.garage),
         ...jobsEdit(n.jobs && n.jobs.length ? n.jobs : (n.garage && n.garage.jobs)),
@@ -1682,6 +1683,7 @@ function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
     const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.exchangeOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
+        currency: p.currency === 'money' || p.currency === 'pesos' ? p.currency : '', currencyForce: !!p.currencyForce,
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
         buyer: p.buyerOn ? {
             items: p.buyer.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), min: num(i.min, 0), max: num(i.max, 0) })),
@@ -2099,6 +2101,13 @@ function pedEditor() {
                 <div><label>Monnaie utilisée</label><select class="input" data-pe="payment">
                     ${Object.entries(PAY_LABELS).map(([k, l]) => `<option value="${k}" ${p.payment === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
                 ${p.payment === 'item' ? inp('paymentItem', "Nom de l'objet monnaie", 'text', 'list="known-items"') : '<div></div>'}
+                ${p.payment !== 'item' ? `<div><label>Dollars ou pesos</label><select class="input" data-pe="currency">
+                    <option value="" ${!p.currency ? 'selected' : ''}>Réglage du commerce (elyzea_change)</option>
+                    <option value="money" ${p.currency === 'money' ? 'selected' : ''}>Dollars ($)</option>
+                    <option value="pesos" ${p.currency === 'pesos' ? 'selected' : ''}>Pesos</option></select></div>
+                <div><label>Autre monnaie acceptée ?</label><select class="input" data-pe="currencyForce" ${!p.currency ? 'disabled' : ''}>
+                    <option value="false" ${!p.currencyForce ? 'selected' : ''}>Oui, le client choisit</option>
+                    <option value="true" ${p.currencyForce ? 'selected' : ''}>Non, uniquement celle-ci</option></select></div>` : ''}
                 <div><label>Présence</label><select class="input" data-pe="hoursOn">
                     <option value="false" ${!p.hoursOn ? 'selected' : ''}>Toujours là</option>
                     <option value="true" ${p.hoursOn ? 'selected' : ''}>Seulement à certaines heures</option></select></div>
@@ -3274,9 +3283,9 @@ content.addEventListener('input', (e) => {
     }
     if (pedEdit && t.dataset.mki) { const [i, k] = t.dataset.mki.split(':'); if (pedEdit.mkItems[i]) pedEdit.mkItems[i][k] = t.value; return; }
     if (pedEdit && t.dataset.pe) {
-        const v = t.dataset.pe === 'hoursOn' ? t.value === 'true' : t.value;
+        const v = (t.dataset.pe === 'hoursOn' || t.dataset.pe === 'currencyForce') ? t.value === 'true' : t.value;
         pedEdit[t.dataset.pe] = v;
-        if (['payment', 'hoursOn', 'csRole'].includes(t.dataset.pe)) render();
+        if (['payment', 'hoursOn', 'csRole', 'currency'].includes(t.dataset.pe)) render();
         if (t.dataset.pe === 'gsTrialDuration') { const l = document.getElementById('gs-dur'); if (l) l.textContent = `${t.value} s`; }
         if (t.dataset.pe === 'gsTrialRadius') { const l = document.getElementById('gs-rad'); if (l) l.textContent = `${t.value} m`; }
         if (t.dataset.pe === 'gsFilter') {
@@ -3850,10 +3859,23 @@ function closeNpc() {
     NPC = null;
     post('npc_close');
 }
+// Paiement du PNJ (dollars / pesos) : n.pay = { methods, wallet, rate }
+const PAY_NAMES = { cash: '💵 Liquide', bank: '🏦 Banque', pesos: '🪙 Pesos', item: '💼 Objet' };
+let npcMethod = null;
+function npcPayState(n) {
+    const p = npcTab === 'garage' ? n.garagePay : n.pay;
+    if (!p || !p.methods || !p.methods.length) return null;
+    if (!p.methods.includes(npcMethod)) npcMethod = p.methods[0];
+    const m = npcMethod;
+    const price = (usd) => (m === 'pesos' ? Math.ceil(usd * (p.rate || 1) - 1e-9) : usd);
+    const fmt = (usd) => (m === 'pesos' ? `${price(usd)} pesos` : m === 'item' ? `${price(usd)} ${n.payment}` : `${price(usd)} $`);
+    return { m, have: Number(p.wallet?.[m] ?? 0), price, fmt, methods: p.methods };
+}
 function renderNpc() {
     const n = NPC;
     const avail = [n.buyer.length && ['sell', '💰 Lui vendre'], n.shop.length && ['buy', '🛒 Lui acheter'], n.garage && ['garage', '🚗 Garage']].filter(Boolean);
     if (!avail.find((a) => a[0] === npcTab) && avail.length) npcTab = avail[0][0];
+    const ps = npcPayState(n);
     const tabs = avail.length > 1 ? `<div class="segmented" style="margin:0 20px 4px">
         ${avail.map(([k, l]) => `<button class="seg ${npcTab === k ? 'active' : ''}" data-npctab="${k}">${l}</button>`).join('')}</div>` : '';
     let rows = '';
@@ -3868,10 +3890,13 @@ function renderNpc() {
                 <div class="st-act"><button class="btn primary" data-gstore="${g.out.netId}" ${g.out.storeOk ? '' : 'disabled'}>Ranger</button></div></div>`;
         }
         const blocked = !g.allowed || !g.spots || (g.out && g.onePerPlayer);
-        rows += g.vehicles.map((v) => `<div class="st-recipe">
-            <div class="st-out"><strong>${esc(v.label)}</strong><span class="muted">${v.price ? `${v.price} $` : 'Gratuit'}</span></div>
-            <div class="st-in">${v.price ? `<span class="${v.afford ? 'have' : 'miss'}">${v.afford ? 'Tu peux payer' : 'Pas assez d\'argent'}</span>` : ''}</div>
-            <div class="st-act"><button class="btn primary" data-gtake="${v.idx}" ${blocked || !v.afford ? 'disabled' : ''}>Sortir</button></div></div>`).join('');
+        rows += g.vehicles.map((v) => {
+            const afford = ps ? ps.have >= ps.price(v.price) : v.afford;
+            return `<div class="st-recipe">
+            <div class="st-out"><strong>${esc(v.label)}</strong><span class="muted">${v.price ? (ps ? ps.fmt(v.price) : `${v.price} $`) : 'Gratuit'}</span></div>
+            <div class="st-in">${v.price ? `<span class="${afford ? 'have' : 'miss'}">${afford ? 'Tu peux payer' : (ps && ps.m === 'pesos' ? 'Pas assez de pesos' : 'Pas assez d\'argent')}</span>` : ''}</div>
+            <div class="st-act"><button class="btn primary" data-gtake="${v.idx}" ${blocked || (v.price && !afford) ? 'disabled' : ''}>Sortir</button></div></div>`;
+        }).join('');
         if (g.out && g.onePerPlayer) rows += '<p class="hint muted" style="padding:0 4px">Range ton véhicule avant d\'en sortir un autre.</p>';
     } else if (npcTab === 'sell') {
         if (n.cooldown > 0) rows += `<div class="protect">⏳ Il ne veut plus rien pour l'instant. Reviens dans ${n.cooldown} s.</div>`;
@@ -3890,10 +3915,10 @@ function renderNpc() {
     } else {
         rows += n.shop.map((r) => {
             const q = nq['b' + r.idx] || 1;
-            const ok = n.money >= r.price * q;
+            const ok = ps ? ps.have >= ps.price(r.price * q) : n.money >= r.price * q;
             return `<div class="st-recipe">
-                <div class="st-out"><strong>${esc(r.label)}</strong><span class="muted">${r.price} $ l'unité</span></div>
-                <div class="st-in"><span class="${ok ? 'have' : 'miss'}">Total : ${r.price * q} $</span></div>
+                <div class="st-out"><strong>${esc(r.label)}</strong><span class="muted">${ps ? ps.fmt(r.price) : `${r.price} $`} l'unité</span></div>
+                <div class="st-in"><span class="${ok ? 'have' : 'miss'}">Total : ${ps ? ps.fmt(r.price * q) : `${r.price * q} $`}</span></div>
                 <div class="st-act">
                     <div class="stepper"><button data-nq="-1" data-k="b${r.idx}" data-max="100">−</button><span>${q}</span><button data-nq="1" data-k="b${r.idx}" data-max="100">+</button></div>
                     <button class="btn primary" data-npcbuy="${r.idx}" ${ok ? '' : 'disabled'}>Acheter</button>
@@ -3902,7 +3927,10 @@ function renderNpc() {
     }
     $('#npc').innerHTML = `<div class="st-box">
         <div class="st-head"><img src="logo.png" alt=""><h2>${esc(n.name)}</h2><button class="sb-close" data-npc-close>✕</button></div>
-        <p class="muted" style="padding:10px 20px 0;font-size:13px">${esc(n.payment)} : <b style="color:var(--text)">${n.money} ${n.payment === 'Liquide' || n.payment === 'Banque' ? '$' : ''}</b></p>
+        ${ps && npcTab !== 'sell' ? `<div class="npc-pay" style="padding:10px 20px 0">
+            ${ps.methods.length > 1 ? `<div class="segmented">${ps.methods.map((m) => `<button class="seg ${m === ps.m ? 'active' : ''}" data-npcpay="${m}">${PAY_NAMES[m] || m}</button>`).join('')}</div>` : `<p class="muted" style="font-size:13px;margin:0">Paiement uniquement : <b style="color:var(--text)">${PAY_NAMES[ps.m] || ps.m}</b></p>`}
+            <p class="muted" style="font-size:13px;margin:6px 0 0">Tu as : <b style="color:var(--text)">${ps.m === 'pesos' ? `${ps.have} pesos` : ps.m === 'item' ? `${ps.have}` : `${ps.have} $`}</b></p></div>`
+        : `<p class="muted" style="padding:10px 20px 0;font-size:13px">${esc(n.payment)} : <b style="color:var(--text)">${n.money} ${n.payment === 'Liquide' || n.payment === 'Banque' ? '$' : ''}</b></p>`}
         ${tabs}
         <div class="st-list">${rows || '<div class="empty">Rien pour le moment.</div>'}</div>
         <p class="muted st-foot">Échap pour fermer</p>
@@ -3912,6 +3940,8 @@ $('#npc').addEventListener('click', (e) => {
     if (e.target.closest('[data-npc-close]')) return closeNpc();
     const t = e.target.closest('[data-npctab]');
     if (t) { npcTab = t.dataset.npctab; return renderNpc(); }
+    const pm = e.target.closest('[data-npcpay]');
+    if (pm) { npcMethod = pm.dataset.npcpay; return renderNpc(); }
     const q = e.target.closest('[data-nq]');
     if (q) {
         nq[q.dataset.k] = Math.min(Number(q.dataset.max), Math.max(1, (nq[q.dataset.k] || 1) + Number(q.dataset.nq)));
@@ -3920,9 +3950,9 @@ $('#npc').addEventListener('click', (e) => {
     const s = e.target.closest('[data-npcsell]');
     if (s && !s.disabled) { s.disabled = true; return post('npc_sell', { id: NPC.id, idx: Number(s.dataset.npcsell), qty: nq['s' + s.dataset.npcsell] || 1 }); }
     const b = e.target.closest('[data-npcbuy]');
-    if (b && !b.disabled) { b.disabled = true; return post('npc_buy', { id: NPC.id, idx: Number(b.dataset.npcbuy), qty: nq['b' + b.dataset.npcbuy] || 1 }); }
+    if (b && !b.disabled) { b.disabled = true; return post('npc_buy', { id: NPC.id, idx: Number(b.dataset.npcbuy), qty: nq['b' + b.dataset.npcbuy] || 1, method: npcMethod }); }
     const gt = e.target.closest('[data-gtake]');
-    if (gt && !gt.disabled) { gt.disabled = true; return post('npc_garage_take', { id: NPC.id, idx: Number(gt.dataset.gtake) }); }
+    if (gt && !gt.disabled) { gt.disabled = true; return post('npc_garage_take', { id: NPC.id, idx: Number(gt.dataset.gtake), method: npcMethod }); }
     const gs = e.target.closest('[data-gstore]');
     if (gs && !gs.disabled) { gs.disabled = true; return post('npc_garage_store', { id: NPC.id, netId: Number(gs.dataset.gstore) }); }
 });

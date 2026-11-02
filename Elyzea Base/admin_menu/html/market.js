@@ -66,9 +66,7 @@
     }
 
     function drawWallet() {
-        const w = M.shop.wallet || {};
-        document.getElementById('mk-wallet').innerHTML = Object.entries(w).map(([k, v]) =>
-            `<span><i>${k === 'bank' ? '🏦' : k === 'cash' ? '💵' : '👜'}</i>${money(v)}</span>`).join('');
+        document.getElementById('mk-wallet').innerHTML = PayUI.wallet(M.shop);
     }
 
     function drawCats() {
@@ -90,7 +88,7 @@
         return `<div class="mk-card ${q ? 'in' : ''}" data-i="${p.i}">
             <div class="mk-img"><img src="${img(p.item)}" alt="" loading="lazy" data-fallback="${iconOf(p.cat)}"></div>
             ${isGun() ? `<i class="mk-type t-${p.type}">${TYPE_TAG[p.type] || ''}${p.type !== 'weapon' && p.amount > 1 ? ` · lot de ${p.amount}` : ''}</i>` : ''}
-            <div class="mk-info"><b>${esc(p.label)}</b><span>${p.price ? money(p.price) : 'Gratuit'}</span></div>
+            <div class="mk-info"><b>${esc(p.label)}</b><span>${p.price ? PayUI.fmt(M.shop, M.method, p.price) : 'Gratuit'}</span></div>
             ${isGun() && p.type === 'weapon' && M.shop.trial ? `<button class="mk-try" data-try="${p.i}" ${M.shop.licence && !M.shop.hasLicence ? 'disabled' : ''}>🎯 Essayer ${M.shop.trialDuration} s</button>` : ''}
             ${q ? `<div class="mk-step"><button data-dec="${p.i}">−</button><input type="number" min="0" max="${p.max}" value="${q}" data-qty="${p.i}"><button data-inc="${p.i}" ${q >= p.max ? 'disabled' : ''}>+</button></div>`
                 : `<button class="mk-add" data-inc="${p.i}">Ajouter</button>`}
@@ -127,25 +125,19 @@
         document.getElementById('mk-lines').innerHTML = keys.length ? keys.map((i) => {
             const p = byIdx(i);
             return `<div class="mk-line"><span class="mk-lq">${M.cart[i]}×</span><b>${esc(p.label)}${isGun() && p.type !== 'weapon' && p.amount > 1 ? ` <small>(${M.cart[i] * p.amount})</small>` : ''}</b>
-                <span class="mk-lp">${money(p.price * M.cart[i])}</span><button class="bb-del" data-del="${i}" title="Retirer">✕</button></div>`;
+                <span class="mk-lp">${PayUI.fmt(M.shop, M.method, p.price * M.cart[i])}</span><button class="bb-del" data-del="${i}" title="Retirer">✕</button></div>`;
         }).join('') : '<div class="mk-empty small">Ton panier est vide. Clique sur « Ajouter » sous un produit.</div>';
 
         const sum = total();
-        const w = M.shop.wallet || {};
-        const method = M.shop.payChoice ? M.method : M.shop.payment;
-        const have = w[method] ?? w[Object.keys(w)[0]];
-        const short = keys.length && sum > 0 && have !== undefined && have < sum;
+        const short = keys.length && sum > 0 ? PayUI.missing(M.shop, M.method, sum) : null;
         document.getElementById('mk-pay').innerHTML = `
-            <div class="bb-total"><span>Total</span><b>${money(sum)}</b></div>
-            ${M.shop.payChoice ? `<div class="bb-modes">
-                <button class="bb-mode ${M.method === 'cash' ? 'on' : ''}" data-method="cash">💵 Liquide</button>
-                <button class="bb-mode ${M.method === 'bank' ? 'on' : ''}" data-method="bank">🏦 Carte</button></div>`
-                : `<p class="bb-note">Paiement : ${M.shop.payment === 'bank' ? 'carte bancaire' : M.shop.payment === 'item' ? esc(M.shop.paymentLabel || 'objet') : 'argent liquide'}</p>`}
-            ${short ? `<p class="bb-warn">Il te manque ${money(sum - have)}.</p>` : ''}
+            <div class="bb-total"><span>Total</span><b>${PayUI.fmt(M.shop, M.method, sum)}</b></div>
+            ${PayUI.modes(M.shop, M.method)}
+            ${short ? `<p class="bb-warn">${esc(short)}</p>` : ''}
             ${M.error ? `<p class="bb-warn bb-shake">${esc(M.error)}</p>` : ''}
             ${M.done ? `<p class="bb-ok">✓ ${esc(M.done)}</p>` : ''}
             <button class="btn primary big bb-go" id="mk-go" ${!keys.length || M.paying || (isGun() && M.shop.licence && !M.shop.hasLicence) ? 'disabled' : ''}>
-                ${M.paying ? 'Paiement en cours…' : sum > 0 ? `Payer ${money(sum)}` : 'Prendre'}</button>
+                ${M.paying ? 'Paiement en cours…' : sum > 0 ? `Payer ${PayUI.fmt(M.shop, M.method, sum)}` : 'Prendre'}</button>
             <button class="btn bb-reset" id="mk-reset" ${!keys.length || M.paying ? 'disabled' : ''}>Vider le panier</button>`;
     }
 
@@ -164,7 +156,7 @@
         if ((n = e.target.closest('[data-inc]'))) { const i = Number(n.dataset.inc); return setQty(i, (M.cart[i] || 0) + 1); }
         if ((n = e.target.closest('[data-dec]'))) { const i = Number(n.dataset.dec); return setQty(i, (M.cart[i] || 0) - 1); }
         if ((n = e.target.closest('[data-del]'))) return setQty(Number(n.dataset.del), 0);
-        if ((n = e.target.closest('[data-method]'))) { M.method = n.dataset.method; M.error = null; return drawCart(); }
+        if ((n = e.target.closest('[data-method]'))) { M.method = PayUI.valid(M.shop, n.dataset.method); M.error = null; drawGrid(); return drawCart(); }
         if ((n = e.target.closest('[data-try]'))) return send('market_trial', { i: Number(n.dataset.try) });
         if (e.target.closest('#mk-reset')) { const ks = Object.keys(M.cart); M.cart = {}; ks.forEach((k) => redrawCard(Number(k))); return drawCart(); }
         if (e.target.closest('#mk-go')) {
@@ -201,7 +193,7 @@
         if (m.open) {
             Object.assign(M, {
                 open: true, shop: m.shop, cat: 'all', search: '', cart: {}, paying: false, error: null, done: null,
-                method: (m.shop.wallet && m.shop.wallet.cash === undefined) ? 'bank' : 'cash',
+                method: PayUI.initial(m.shop),
             });
             frame();
             root.classList.remove('hidden');

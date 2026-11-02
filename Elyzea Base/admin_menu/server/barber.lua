@@ -136,20 +136,9 @@ RegisterNetEvent('adminmenu:barber:request', function(id)
     for key, service in pairs(KEYS) do
         if offers(bb, service) then prices[key] = priceOf(bb, key) end
     end
-    local wallet = {}
-    if bb.payChoice and n.payment ~= 'item' then
-        wallet.cash = Bridge.GetMoney(src, 'cash')
-        wallet.bank = Bridge.GetMoney(src, 'bank')
-    else
-        wallet[n.payment] = Bridge.GetMoney(src, n.payment, n.paymentItem)
-    end
-
-    TriggerClientEvent('adminmenu:barber:show', src, {
-        id = r.id, name = bb.name, prices = prices,
-        payChoice = bb.payChoice and n.payment ~= 'item', payment = n.payment,
-        paymentLabel = n.payment == 'item' and (Bridge.GetLabel(n.paymentItem) or n.paymentItem) or nil,
-        specialEyes = bb.specialEyes, wallet = wallet,
-    })
+    TriggerClientEvent('adminmenu:barber:show', src, ShopPay.into({
+        id = r.id, name = bb.name, prices = prices, specialEyes = bb.specialEyes,
+    }, src, ShopPay.ctx(src, 'Coiffeur', n, bb.payChoice), n))
 end)
 
 -- ---------------------------------------------------------
@@ -180,19 +169,14 @@ RegisterNetEvent('adminmenu:barber:pay', function(id, cart, look, method)
     if lines == 0 then return result(src, false, 'Ton panier est vide.') end
     if not charKey(src) then return result(src, false, 'Personnage non chargé : réessaie dans un instant.') end
 
-    local kind, item = n.payment, n.paymentItem
-    if bb.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
-
+    local pay = ShopPay.ctx(src, 'Coiffeur', n, bb.payChoice)
+    local m = ShopPay.pick(pay, method)
+    if not m then return result(src, false, 'Moyen de paiement non accepté ici.') end
     Paying[src] = true
-    if total > 0 then
-        if Bridge.GetMoney(src, kind, item) < total then
-            Paying[src] = nil
-            return result(src, false, kind == 'bank' and 'Pas assez d\'argent sur ton compte.' or 'Tu n\'as pas assez d\'argent sur toi.')
-        end
-        if not Bridge.RemoveMoney(src, kind, item, total, 'coiffeur') then
-            Paying[src] = nil
-            return result(src, false, 'Le paiement a échoué.')
-        end
+    local okPay, err, paid = ShopPay.take(src, pay, m, total, 'coiffeur')
+    if not okPay then
+        Paying[src] = nil
+        return result(src, false, err)
     end
     Paying[src] = nil
 
@@ -204,7 +188,7 @@ RegisterNetEvent('adminmenu:barber:pay', function(id, cart, look, method)
         Storage.save('barber_looks', Looks)
     end
 
-    result(src, true, total > 0 and ('Payé %s $. Nouvelle tête enregistrée !'):format(total) or 'Nouvelle tête enregistrée !', total)
+    result(src, true, paid > 0 and ('Payé %s. Nouvelle tête enregistrée !'):format(ShopPay.fmt(pay, m, paid)) or 'Nouvelle tête enregistrée !', total)
     TriggerEvent('adminmenu:barber:paid', src, total, r.id, cart)  -- pour une société / des logs externes
 end)
 

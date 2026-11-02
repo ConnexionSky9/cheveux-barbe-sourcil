@@ -189,19 +189,9 @@ RegisterNetEvent('adminmenu:tattoo:request', function(id)
     local tt, n = r.npc.tattoo, r.npc
     local prices = {}
     for _, k in ipairs(PRICE_KEYS) do prices[k] = priceOf(tt, k) end
-    local wallet = {}
-    local choice = tt.payChoice and n.payment ~= 'item'
-    if choice then
-        wallet.cash = Bridge.GetMoney(src, 'cash')
-        wallet.bank = Bridge.GetMoney(src, 'bank')
-    else
-        wallet[n.payment] = Bridge.GetMoney(src, n.payment, n.paymentItem)
-    end
-    TriggerClientEvent('adminmenu:tattoo:show', src, {
-        id = r.id, name = tt.name, prices = prices, removal = tt.removal,
-        payChoice = choice, payment = n.payment, wallet = wallet, version = CatalogVersion,
-        paymentLabel = n.payment == 'item' and (Bridge.GetLabel(n.paymentItem) or n.paymentItem) or nil,
-    })
+    TriggerClientEvent('adminmenu:tattoo:show', src, ShopPay.into({
+        id = r.id, name = tt.name, prices = prices, removal = tt.removal, version = CatalogVersion,
+    }, src, ShopPay.ctx(src, 'Tatoueur', n, tt.payChoice), n))
 end)
 
 -- ---------------------------------------------------------
@@ -236,18 +226,14 @@ RegisterNetEvent('adminmenu:tattoo:pay', function(id, cart, final, method)
     local key = charKey(src)
     if not key then return result(src, false, 'Personnage non chargé : réessaie dans un instant.') end
 
-    local kind, item = n.payment, n.paymentItem
-    if tt.payChoice and n.payment ~= 'item' then kind = (method == 'bank') and 'bank' or 'cash' end
+    local pay = ShopPay.ctx(src, 'Tatoueur', n, tt.payChoice)
+    local m = ShopPay.pick(pay, method)
+    if not m then return result(src, false, 'Moyen de paiement non accepté ici.') end
     Paying[src] = true
-    if total > 0 then
-        if Bridge.GetMoney(src, kind, item) < total then
-            Paying[src] = nil
-            return result(src, false, kind == 'bank' and 'Pas assez d\'argent sur ton compte.' or 'Tu n\'as pas assez d\'argent sur toi.')
-        end
-        if not Bridge.RemoveMoney(src, kind, item, total, 'tatoueur') then
-            Paying[src] = nil
-            return result(src, false, 'Le paiement a échoué.')
-        end
+    local okPay, err, paid = ShopPay.take(src, pay, m, total, 'tatoueur')
+    if not okPay then
+        Paying[src] = nil
+        return result(src, false, err)
     end
     Paying[src] = nil
 
@@ -280,7 +266,7 @@ RegisterNetEvent('adminmenu:tattoo:pay', function(id, cart, final, method)
     Saved[key] = out
     Storage.save('tattoo_looks', Saved)
 
-    result(src, true, total > 0 and ('Payé %s $. Tatouages enregistrés !'):format(total) or 'Tatouages enregistrés !', out, key)
+    result(src, true, paid > 0 and ('Payé %s. Tatouages enregistrés !'):format(ShopPay.fmt(pay, m, paid)) or 'Tatouages enregistrés !', out, key)
     TriggerEvent('adminmenu:tattoo:paid', src, total, r.id, cart)
 end)
 

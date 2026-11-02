@@ -285,6 +285,11 @@ local function cleanNpc(n)
         paymentItem = cleanModel(n.paymentItem),
     }
     if out.paymentItem == '' then out.paymentItem = 'black_money' end
+    -- Dollars ou pesos (règle elyzea_change) : '' = réglage du commerce
+    if n.currency == 'money' or n.currency == 'pesos' then
+        out.currency = n.currency
+        out.currencyForce = n.currencyForce == true
+    end
 
     local shop = {}
     for _, it in ipairs(type(n.shop) == 'table' and type(n.shop.items) == 'table' and n.shop.items or {}) do
@@ -1331,6 +1336,8 @@ local function sendNpcMenu(src, r)
         id = r.id, name = (r.name ~= '' and r.name) or 'Inconnu',
         payment = payLabel(n), money = Bridge.GetMoney(src, n.payment, n.paymentItem),
         shop = {}, buyer = {}, cooldown = cd,
+        pay = n.shop and ShopPay.payload(src, ShopPay.ctx(src, 'BoutiquePNJ', n, false), n) or nil,
+        garagePay = n.garage and ShopPay.payload(src, ShopPay.ctx(src, 'GaragePNJ', n, false), n) or nil,
         maxPerSale = n.buyer and n.buyer.maxPerSale or 0,
     }
     for i, it in ipairs(n.shop and n.shop.items or {}) do
@@ -1500,7 +1507,7 @@ RegisterNetEvent('adminmenu:npc:open', function(id)
     if r then sendNpcMenu(src, r) end
 end)
 
-RegisterNetEvent('adminmenu:npc:buy', function(id, idx, qty)
+RegisterNetEvent('adminmenu:npc:buy', function(id, idx, qty, method)
     local src = source
     if not AM.rateLimit(src, 'npc', 4, 1000) then return end
     local r = checkNpc(src, tonumber(id))
@@ -1509,20 +1516,23 @@ RegisterNetEvent('adminmenu:npc:buy', function(id, idx, qty)
     qty = math.floor(num(qty, 1, 100, 1))
     if not it then return end
     local n, total = r.npc, it.price * qty
-    if Bridge.GetMoney(src, n.payment, n.paymentItem) < total then
-        AM.notify(src, ('Pas assez d\'argent (%s $ demandés).'):format(total), 'error')
+    local pay = ShopPay.ctx(src, 'BoutiquePNJ', n, false)
+    local m = ShopPay.pick(pay, method)
+    if not m then
+        AM.notify(src, 'Moyen de paiement non accepté ici.', 'error')
         return sendNpcMenu(src, r)
     end
-    if not Bridge.RemoveMoney(src, n.payment, n.paymentItem, total, 'achat-pnj') then
-        AM.notify(src, 'Paiement refusé.', 'error')
+    local okPay, err, paid = ShopPay.take(src, pay, m, total, 'achat-pnj')
+    if not okPay then
+        AM.notify(src, err, 'error')
         return sendNpcMenu(src, r)
     end
-    local ok, err = Bridge.AddItem(src, it.item, qty)
+    local ok, aerr = Bridge.AddItem(src, it.item, qty)
     if not ok then
-        Bridge.AddMoney(src, n.payment, n.paymentItem, total, 'remboursement-pnj')
-        AM.notify(src, (Bridge.Errors[err] or 'Achat impossible.') .. ' Tu as été remboursé.', 'error')
+        ShopPay.give(src, pay, m, paid, 'remboursement-pnj')
+        AM.notify(src, (Bridge.Errors[aerr] or 'Achat impossible.') .. ' Tu as été remboursé.', 'error')
     else
-        AM.notify(src, ('Acheté : %d %s pour %s $.'):format(qty, Bridge.GetLabel(it.item), total), 'success')
+        AM.notify(src, ('Acheté : %d %s pour %s.'):format(qty, Bridge.GetLabel(it.item), ShopPay.fmt(pay, m, paid)), 'success')
     end
     sendNpcMenu(src, r)
 end)
@@ -1665,7 +1675,7 @@ function GarageMenuData(src, r)
     return data
 end
 
-RegisterNetEvent('adminmenu:garage:take', function(pedId, idx, vtype)
+RegisterNetEvent('adminmenu:garage:take', function(pedId, idx, vtype, method)
     local src = source
     if not AM.rateLimit(src, 'garage', 2, 2000) then return end
     local r = checkNpc(src, tonumber(pedId))
@@ -1681,17 +1691,18 @@ RegisterNetEvent('adminmenu:garage:take', function(pedId, idx, vtype)
     end
     local _, spot = freeSpot(g)
     if not spot then return AM.notify(src, 'Toutes les places de sortie sont occupées. Libère la place et réessaie.', 'error') end
-    if v.price > 0 then
-        if Bridge.GetMoney(src, n.payment, n.paymentItem) < v.price then return AM.notify(src, ('Il te faut %d $.'):format(v.price), 'error') end
-        if not Bridge.RemoveMoney(src, n.payment, n.paymentItem, v.price, 'garage-pnj') then return AM.notify(src, 'Paiement refusé.', 'error') end
-    end
+    local pay = ShopPay.ctx(src, 'GaragePNJ', n, false)
+    local m = ShopPay.pick(pay, method)
+    if not m then return AM.notify(src, 'Moyen de paiement non accepté ici.', 'error') end
+    local okPay, err, paid = ShopPay.take(src, pay, m, v.price, 'garage-pnj')
+    if not okPay then return AM.notify(src, err, 'error') end
 
     vtype = VTYPES[vtype] and vtype or 'automobile'
     local veh = CreateVehicleServerSetter(joaat(v.model), vtype, spot.x, spot.y, spot.z, spot.h)
     local t = GetGameTimer()
     while (not veh or veh == 0 or not DoesEntityExist(veh)) and GetGameTimer() - t < 3000 do Wait(50) end
     if not veh or veh == 0 or not DoesEntityExist(veh) then
-        if v.price > 0 then Bridge.AddMoney(src, n.payment, n.paymentItem, v.price, 'remboursement-garage') end
+        ShopPay.give(src, pay, m, paid, 'remboursement-garage')
         return AM.notify(src, ('Le véhicule « %s » n\'a pas pu apparaître (modèle inconnu ?).'):format(v.model), 'error')
     end
     local plate = makePlate(g.plate)

@@ -13,7 +13,8 @@
 
     const B = { open: false };
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const money = (n) => `${Number(n || 0).toLocaleString('fr-FR')} $`;
+    // Prix affichés dans la monnaie choisie (dollars ou pesos)
+    const money = (n) => (B.shop ? PayUI.fmt(B.shop, B.method, n) : `${Number(n || 0).toLocaleString('fr-FR')} $`);
     const send = (ep, body = {}) => fetch(`https://${RES}/${ep}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(body),
     }).catch(() => {});
@@ -72,8 +73,7 @@
     function frame() {
         const tabs = B.catalog.tabs.filter(tabOn);
         if (!tabs.find((t) => t.id === B.tab)) B.tab = tabs[0] ? tabs[0].id : 'hair';
-        const w = B.shop.wallet || {};
-        const wallet = Object.entries(w).map(([k, v]) => `<span class="bb-w"><i>${k === 'bank' ? '🏦' : k === 'cash' ? '💵' : '👜'}</i>${money(v)}</span>`).join('');
+        const wallet = PayUI.wallet(B.shop).replace(/<span>/g, '<span class="bb-w">');
         root.innerHTML = `
             <div class="bb-stage" id="bb-stage"></div>
             <aside class="bb-panel bb-left">
@@ -239,17 +239,11 @@
 
         const sum = total();
         const pay = document.getElementById('bb-pay');
-        const w = B.shop.wallet || {};
-        const method = B.shop.payChoice ? B.method : B.shop.payment;
-        const have = w[method] ?? w[Object.keys(w)[0]];
-        const short = keys.length && sum > 0 && have !== undefined && have < sum;
+        const short = keys.length && sum > 0 ? PayUI.missing(B.shop, B.method, sum) : null;
         pay.innerHTML = `
             <div class="bb-total"><span>Total</span><b>${money(sum)}</b></div>
-            ${B.shop.payChoice ? `<div class="bb-modes bb-method">
-                <button class="bb-mode ${B.method === 'cash' ? 'on' : ''}" data-method="cash">💵 Liquide</button>
-                <button class="bb-mode ${B.method === 'bank' ? 'on' : ''}" data-method="bank">🏦 Banque</button></div>`
-                : `<p class="bb-note">Paiement : ${B.shop.payment === 'bank' ? 'banque' : B.shop.payment === 'item' ? esc(B.shop.paymentLabel || 'objet') : 'argent liquide'}</p>`}
-            ${short ? `<p class="bb-warn">Il te manque ${money(sum - have)}.</p>` : ''}
+            ${PayUI.modes(B.shop, B.method)}
+            ${short ? `<p class="bb-warn">${esc(short)}</p>` : ''}
             ${B.error ? `<p class="bb-warn bb-shake">${esc(B.error)}</p>` : ''}
             ${B.done ? `<p class="bb-ok">✓ ${esc(B.done)}</p>` : ''}
             <button class="btn primary big bb-go" id="bb-go" ${!keys.length || B.paying || B.done ? 'disabled' : ''}>
@@ -331,7 +325,7 @@
         }
         if ((n = e.target.closest('[data-mode]'))) { B.mode = n.dataset.mode; return drawTab(); }
         if ((n = e.target.closest('[data-cam]'))) return setCam(n.dataset.cam);
-        if ((n = e.target.closest('[data-method]'))) { B.method = n.dataset.method; B.error = null; return drawCart(); }
+        if ((n = e.target.closest('[data-method]'))) { B.method = PayUI.valid(B.shop, n.dataset.method); B.error = null; drawTab(); drawList(); drawCart(); return; }
         if ((n = e.target.closest('[data-del]'))) {
             const k = n.dataset.del;
             delete B.cart[k]; B.error = null;
@@ -443,7 +437,7 @@
                 hairMap: Array.isArray(m.hairList) ? Object.fromEntries(m.hairList.map((e) => [e.v, e])) : null,
                 bad: new Set(),
                 tab: (m.catalog.tabs[0] || {}).id, mode: null, search: '', cart: {}, cam: 'head',
-                method: (m.shop.wallet && m.shop.wallet.cash === undefined) ? 'bank' : 'cash',
+                method: PayUI.initial(m.shop),
                 paying: false, error: null, done: null,
             });
             hoverSent = null; hoverWant = null;

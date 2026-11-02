@@ -8,6 +8,7 @@ Config = {}
 Config.Currency = '$'
 Config.Payments = { 'cash', 'bank' }   -- moyens de paiement proposés : 'cash' (liquide), 'bank' (banque)
 Config.PesosItem = 'pesos'             -- boutique « pesos uniquement » (option du PNJ dans admin_menu) : objet payé
+Config.PaymentBusiness = 'Vetements'    -- règle dollars / pesos dans elyzea_change (Config.Payment.Businesses)
 Config.MaxDistance = 15.0               -- distance max entre le joueur et le vendeur pour payer
 Config.MaxCart = 30                     -- articles au maximum dans un panier (plusieurs par rayon possibles)
 

@@ -10,7 +10,8 @@
 
     const T = { open: false, cache: {} };
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const money = (n) => `${Number(n || 0).toLocaleString('fr-FR')} $`;
+    // Prix affichés dans la monnaie choisie (dollars ou pesos)
+    const money = (n) => (T.shop ? PayUI.fmt(T.shop, T.method, n) : `${Number(n || 0).toLocaleString('fr-FR')} $`);
     const send = (ep, body = {}) => fetch(`https://${RES}/${ep}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(body),
     }).catch(() => {});
@@ -31,8 +32,7 @@
 
     /* ---------- Squelette ---------- */
     function frame() {
-        const w = T.shop.wallet || {};
-        const wallet = Object.entries(w).map(([k, v]) => `<span class="bb-w"><i>${k === 'bank' ? '🏦' : k === 'cash' ? '💵' : '👜'}</i>${money(v)}</span>`).join('');
+        const wallet = PayUI.wallet(T.shop).replace(/<span>/g, '<span class="bb-w">');
         root.innerHTML = `
             <div class="bb-stage" id="tt-stage"></div>
             <aside class="bb-panel bb-left tt-left">
@@ -189,17 +189,11 @@
             || '<div class="bb-empty">Choisis une zone sur la silhouette, survole un tatouage pour le voir sur toi, puis clique pour l\'ajouter.</div>';
 
         const sum = total();
-        const w = T.shop.wallet || {};
-        const method = T.shop.payChoice ? T.method : T.shop.payment;
-        const have = w[method] ?? w[Object.keys(w)[0]];
-        const short = n && sum > 0 && have !== undefined && have < sum;
+        const short = n && sum > 0 ? PayUI.missing(T.shop, T.method, sum) : null;
         document.getElementById('tt-pay').innerHTML = `
             <div class="bb-total"><span>Total</span><b>${money(sum)}</b></div>
-            ${T.shop.payChoice ? `<div class="bb-modes">
-                <button class="bb-mode ${T.method === 'cash' ? 'on' : ''}" data-method="cash">💵 Liquide</button>
-                <button class="bb-mode ${T.method === 'bank' ? 'on' : ''}" data-method="bank">🏦 Banque</button></div>`
-                : `<p class="bb-note">Paiement : ${T.shop.payment === 'bank' ? 'banque' : T.shop.payment === 'item' ? esc(T.shop.paymentLabel || 'objet') : 'argent liquide'}</p>`}
-            ${short ? `<p class="bb-warn">Il te manque ${money(sum - have)}.</p>` : ''}
+            ${PayUI.modes(T.shop, T.method)}
+            ${short ? `<p class="bb-warn">${esc(short)}</p>` : ''}
             ${T.error ? `<p class="bb-warn bb-shake">${esc(T.error)}</p>` : ''}
             ${T.done ? `<p class="bb-ok">✓ ${esc(T.done)}</p>` : ''}
             <button class="btn primary big bb-go" id="tt-go" ${!n || T.paying || T.done ? 'disabled' : ''}>
@@ -265,7 +259,7 @@
             T.back = v === 'back';
             return send('tattoo_cam', { mode: zoneById(T.zone).cam || 'full', back: T.back });
         }
-        if ((n = e.target.closest('[data-method]'))) { T.method = n.dataset.method; T.error = null; return drawCart(); }
+        if ((n = e.target.closest('[data-method]'))) { T.method = PayUI.valid(T.shop, n.dataset.method); T.error = null; drawList(); drawModes(); drawCart(); return; }
         if ((n = e.target.closest('[data-unadd]'))) return toggle(Number(n.dataset.unadd));
         if ((n = e.target.closest('[data-unrm]'))) return toggle(Number(n.dataset.unrm));
         if (e.target.closest('#tt-more')) { T.shown += PAGE; return drawList(); }
@@ -341,7 +335,7 @@
                 open: true, shop: m.shop, list, byId, zones: zones.length ? zones : (m.zones || []),
                 owned: new Set((m.owned || []).filter((id) => byId[id])), adds: new Set(), removes: new Set(),
                 zone: (zones[0] || {}).id, coll: 'all', search: '', mode: 'shop', shown: PAGE,
-                method: (m.shop.wallet && m.shop.wallet.cash === undefined) ? 'bank' : 'cash',
+                method: PayUI.initial(m.shop),
                 paying: false, error: null, done: null, back: false,
             });
             sent = null; want = null;
