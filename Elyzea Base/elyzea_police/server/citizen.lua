@@ -138,7 +138,13 @@ P.Actions.impound = { perm = 'impound', duty = true, fn = function(src, d)
     local hidden = Entity(veh).state.trunkBy
     if hidden and InTrunk[hidden] then LeaveTrunk(hidden) end
     local owned = plate ~= '' and (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `player_vehicles` WHERE `plate` = ?', { plate })) or 0) > 0
-    if owned then MySQL.update.await('UPDATE `player_vehicles` SET `state` = 2 WHERE `plate` = ?', { plate }) end
+    if owned then
+        MySQL.update.await('UPDATE `player_vehicles` SET `state` = 2 WHERE `plate` = ?', { plate })
+        -- Fourrières (elyzea_fourriere) : catégorie et état (détruit ou non) relevés sur le véhicule avant sa suppression
+        if GetResourceState('elyzea_fourriere') == 'started' then
+            pcall(function() exports.elyzea_fourriere:Impound(veh, plate, 'police') end)
+        end
+    end
     DeleteEntity(veh)
     P.Log(src, 'Fourrière', ('%s%s'):format(plate, owned and '' or ' (sans propriétaire)'))
     return { ok = true, message = owned and ('Véhicule %s envoyé en fourrière.'):format(plate) or ('Véhicule %s enlevé (sans propriétaire).'):format(plate) }

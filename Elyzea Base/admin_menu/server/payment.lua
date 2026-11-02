@@ -44,10 +44,11 @@ function ShopPay.ctx(src, business, n, choice)
     return ctx
 end
 
--- Méthode demandée par le client, validée (nil = refusée)
+-- Méthode demandée par le client, validée (nil = refusée).
+-- Sans choix envoyé (ancienne interface) : le seul moyen accepté s'il n'y en a qu'un.
 function ShopPay.pick(ctx, method)
     if has(ctx.methods, method) then return method end
-    if #ctx.methods == 1 then return ctx.methods[1] end
+    if (method == nil or method == '') and #ctx.methods == 1 then return ctx.methods[1] end
     return nil
 end
 

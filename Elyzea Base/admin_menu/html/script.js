@@ -1196,7 +1196,8 @@ function npcSummary(n) {
         parts.push(`🚗 Garage : <b>${g.vehicles.length}</b> véhicule(s)${g.jobs && g.jobs.length ? ` · réservé à ${g.jobs.map((j) => esc(j.job)).join(', ')}` : ''}
             · ${sp ? `${sp} point(s) de sortie` : '<b style="color:var(--danger)">aucun point de sortie</b>'}`);
     }
-    if (n.pubgarage) parts.push(`🅿️ Garage public <b>${esc(n.pubgarage.name)}</b> · ${(n.pubgarage.spots || []).length ? `${n.pubgarage.spots.length} place(s) de sortie` : '<b style="color:var(--danger)">aucune place de sortie</b>'}`);
+    if (n.impound) parts.push(`🚧 Fourrière ${({ land: 'terrestre', air: 'aérienne', sea: 'maritime' })[n.impound.kind] || ''} <b>${esc(n.impound.name)}</b> · ${(n.impound.spots || []).length ? `${n.impound.spots.length} place(s) de sortie` : '<b style="color:var(--danger)">aucune place de sortie</b>'}`);
+    if (n.pubgarage) parts.push(`🅿️ Garage ${({ land: 'terrestre', air: 'aérien', sea: 'maritime' })[n.pubgarage.kind] || 'public'} <b>${esc(n.pubgarage.name)}</b> · ${(n.pubgarage.spots || []).length ? `${n.pubgarage.spots.length} place(s) de sortie` : '<b style="color:var(--danger)">aucune place de sortie</b>'}`);
     if (n.farm) parts.push(`🪓 Métier de farm <b>${esc(n.farm.name)}</b> (${esc(n.farm.farm)})`);
     if (n.gov) parts.push(`🏛️ Gouvernement <b>${esc(n.gov.name)}</b> (carte d'identité, changement d'identité)`);
     if (n.catalog) parts.push(`🚘 Catalogue de la concession : <b>${esc(n.catalog.name)}</b> (voir les véhicules, sans achat)`);
@@ -1314,6 +1315,11 @@ function toPedEdit(r) {
         pubName: n.pubgarage ? n.pubgarage.name : 'Garage public',
         pubBlip: n.pubgarage ? n.pubgarage.blip !== false : true,
         pubRadius: n.pubgarage ? (n.pubgarage.storeRadius || 4) : 4,
+        pubKind: n.pubgarage ? (n.pubgarage.kind || 'all') : 'all',
+        impOn: !!n.impound,
+        impKind: n.impound ? n.impound.kind : 'land',
+        impName: n.impound ? n.impound.name : '',
+        impBlip: n.impound ? n.impound.blip !== false : true,
         catalogOn: !!n.catalog,
         catName: n.catalog ? n.catalog.name : 'Catalogue des véhicules',
         catConcess: n.catalog && n.catalog.concess === 'air' ? 'air' : 'car',
@@ -1681,7 +1687,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.exchangeOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.impOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.exchangeOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         currency: p.currency === 'money' || p.currency === 'pesos' ? p.currency : '', currencyForce: !!p.currencyForce,
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
@@ -1697,7 +1703,8 @@ function pedEditPayload(p) {
             models: { car: String(p.dmvMCar || '').trim(), moto: String(p.dmvMMoto || '').trim(), truck: String(p.dmvMTruck || '').trim() } } : null,
         farm: p.farmOn ? { farm: String(p.farmType || 'bucheron'), name: String(p.farmName || '').trim(), blip: !!p.farmBlip, blipSprite: 85, blipColor: 25 } : null,
         gov: p.govOn ? { name: String(p.govName || '').trim(), blip: !!p.govBlip, blipSprite: 419, blipColor: 0 } : null,
-        pubgarage: p.pubOn ? { name: String(p.pubName || '').trim(), blip: !!p.pubBlip, blipSprite: 357, blipColor: 3, storeRadius: num(p.pubRadius, 4) } : null,
+        pubgarage: p.pubOn ? { name: String(p.pubName || '').trim(), blip: !!p.pubBlip, blipSprite: ({ air: 360, sea: 356 })[p.pubKind] || 357, blipColor: 3, storeRadius: num(p.pubRadius, 4), kind: p.pubKind || 'all' } : null,
+        impound: p.impOn ? { kind: p.impKind || 'land', name: String(p.impName || '').trim(), blip: !!p.impBlip } : null,
         clothing: p.clothingOn ? { name: String(p.clName || '').trim(), multiplier: num(p.clMult, 100),
             categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice(), currency: p.clPesos ? 'pesos' : 'normal',
             bagColor: p.clBag && p.clBag !== 'auto' ? p.clBag : null } : null,
@@ -1885,7 +1892,11 @@ function pubGarageCard(p, tog) {
             <b>Tous les garages publics sont connectés</b> : un véhicule rangé ici ressort de n'importe quel autre. Il ressort exactement dans
             l'état où il a été rangé (dégâts, pneus, vitres, déformations, essence). Nécessite la ressource <b>elyzea_garage</b>.
             ${p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn ? ' Avec ce rôle, parler au PNJ ouvre le garage : ses autres rôles ne sont plus proposés.' : ''}</p>
-        <div class="form-grid" style="grid-template-columns:1fr;margin-bottom:10px"><div><label>Nom du garage</label><input class="input" data-pe="pubName" value="${esc(p.pubName)}" placeholder="ex : Garage public de Pillbox"></div></div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px"><div><label>Nom du garage</label><input class="input" data-pe="pubName" value="${esc(p.pubName)}" placeholder="ex : Garage public de Pillbox"></div>
+            <div><label>Véhicules gérés</label><select class="input" data-pe="pubKind">
+                ${[['all', 'Tous les véhicules'], ['land', '🚗 Voitures et motos'], ['air', '🚁 Hélicoptères et avions (garage aérien)'], ['sea', '🚤 Bateaux (garage maritime)']]
+                    .map(([k, l]) => `<option value="${k}" ${(p.pubKind || 'all') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
+        ${p.pubKind === 'sea' ? '<p class="hint">Garage maritime : pose les places de sortie <b>sur l\'eau</b> (le bateau est posé à la surface).</p>' : ''}
         ${tog('pubBlip', '🗺️ Visible sur la carte', 'Icône de garage pour tous les joueurs')}
         <h3 class="sub-h" style="font-size:16px;margin-top:14px">📍 Places de sortie</h3>
         ${!saved ? '<div class="protect">💾 <span>Enregistre d\'abord le PNJ avec ce rôle, puis reviens ici pour placer les places de sortie.</span></div>' : `
@@ -1914,6 +1925,47 @@ function pubGarageCard(p, tog) {
                 <button class="btn danger" data-ed="pubgarage_store_del" data-i="${i + 1}">Supprimer</button></td></tr>`).join('')}</table>`
             : '<div class="empty">Aucune zone : les joueurs rangent en reparlant au gardien.</div>'}
         <button class="btn primary" style="margin-top:10px" data-ed="pubgarage_store">🔴 Placer ${stores.length ? 'une autre zone' : 'une zone'} de rangement</button>`}
+    </div>`;
+}
+
+// Fourrière (ressource elyzea_fourriere) : terrestre, aérienne ou maritime
+const IMP_KINDS = { land: { label: 'Fourrière terrestre', cls: [['car', '🚗 Voitures'], ['moto', '🏍️ Motos']] },
+    air: { label: 'Fourrière aérienne', cls: [['heli', '🚁 Hélicoptères'], ['plane', '✈️ Avions']] },
+    sea: { label: 'Fourrière maritime', cls: [['boat', '🚤 Bateaux']] } };
+function impoundCard(p, tog) {
+    const live = (D.editor.peds.find((x) => x.id === p.id) || {}).npc;
+    const saved = !!(live && live.impound);
+    const kind = IMP_KINDS[p.impKind] ? p.impKind : 'land';
+    const savedKind = saved ? live.impound.kind : kind;
+    const spots = (saved && live.impound.spots) || [];
+    const clsName = Object.fromEntries([...IMP_KINDS.land.cls, ...IMP_KINDS.air.cls, ...IMP_KINDS.sea.cls, ['all', '🔁 Tous les types']]);
+    return `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🚧 Fourrière</h3>
+        <p class="hint">En parlant à ce PNJ, le joueur voit <b>ses</b> véhicules en fourrière (modèle, plaque, type, prix, état) et paie pour les récupérer
+            (dollars ou pesos selon <b>elyzea_change/config.lua</b> et le réglage « Dollars ou pesos » plus bas).
+            Non détruit : il sort tout de suite sur une place libre. Détruit : réparation (durée dans <b>elyzea_fourriere/config.lua</b>),
+            puis retour automatique au garage. Nécessite la ressource <b>elyzea_fourriere</b>.</p>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+            <div><label>Type de fourrière</label><select class="input" data-pe="impKind">
+                ${Object.entries(IMP_KINDS).map(([k, v]) => `<option value="${k}" ${kind === k ? 'selected' : ''}>${v.label} (${v.cls.map((c) => c[1].split(' ')[1].toLowerCase()).join(', ')})</option>`).join('')}</select></div>
+            <div><label>Nom affiché</label><input class="input" data-pe="impName" value="${esc(p.impName)}" placeholder="${esc(IMP_KINDS[kind].label)}"></div></div>
+        ${tog('impBlip', '🗺️ Visible sur la carte', 'Icône de fourrière pour tous les joueurs')}
+        <h3 class="sub-h" style="font-size:16px;margin-top:14px">📍 Places de sortie par type</h3>
+        ${!saved ? '<div class="protect">💾 <span>Enregistre d\'abord le PNJ avec ce rôle, puis reviens ici pour placer les places de sortie.</span></div>'
+        : savedKind !== kind ? '<div class="protect">💾 <span>Type de fourrière changé : enregistre le PNJ avant de placer les places.</span></div>' : `
+        <p class="hint">Un véhicule « fantôme » du bon type apparaît : vise la place, molette pour l'orienter, <span class="keycap">E</span> pour valider.
+            Le véhicule sort sur la première place libre <b>de son type</b> (sinon sur une place « tous les types »). Place occupée : le joueur est prévenu et réessaie.
+            ${kind === 'sea' ? 'Bateaux : vise l\'eau, le bateau est posé à la surface.' : ''}</p>
+        ${spots.length ? `<table>${spots.map((s, i) => `<tr><td><strong>Place ${i + 1}</strong></td><td>${clsName[s.cls || 'all'] || esc(s.cls)}</td>
+            <td class="muted">${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)} · ${Math.round(s.h)}°</td>
+            <td style="text-align:right;white-space:nowrap">
+                <button class="btn" data-ed="impound_spot_tp" data-i="${i + 1}">Y aller</button>
+                <button class="btn" data-ed="impound_spot_move" data-i="${i + 1}" data-h="${s.h}" data-cls="${esc(s.cls || 'all')}">Déplacer</button>
+                <button class="btn danger" data-ed="impound_spot_del" data-i="${i + 1}">Supprimer</button></td></tr>`).join('')}</table>`
+            : '<div class="empty">Aucune place de sortie : les véhicules non détruits ne pourront pas sortir.</div>'}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            ${IMP_KINDS[kind].cls.map(([c, l]) => `<button class="btn primary" data-ed="impound_spot" data-cls="${c}">📍 Place ${l.toLowerCase()}</button>`).join('')}
+            ${IMP_KINDS[kind].cls.length > 1 ? '<button class="btn" data-ed="impound_spot" data-cls="all">📍 Place tous types</button>' : ''}
+        </div>`}
     </div>`;
 }
 
@@ -2011,7 +2063,8 @@ function pedEditor() {
                 ${tog('garageOn', '🚗 Garage', 'Il sort des véhicules aux joueurs')}
                 ${tog('clothingOn', '👕 Boutique de vêtements', 'Parler à lui ouvre la boutique')}
                 ${tog('catalogOn', '🚘 Catalogue concession', 'Montre les véhicules en vente (sans achat)')}
-                ${tog('pubOn', '🅿️ Garage public', 'Les joueurs sortent et rangent leurs véhicules')}
+                ${tog('pubOn', '🅿️ Garage public / aérien / maritime', 'Les joueurs sortent et rangent leurs véhicules')}
+                ${tog('impOn', '🚧 Fourrière', 'Terrestre, aérienne ou maritime : récupérer ses véhicules')}
                 ${tog('dmvOn', '🪪 Auto-école', 'Code, conduite et permis B / A / C')}
                 ${tog('govOn', '🏛️ Gouvernement', 'Carte d\'identité, changement d\'identité')}
                 ${tog('farmOn', '🪓 Métier de farm', 'Bûcheron… : commencer le travail et revendre')}
@@ -2052,6 +2105,7 @@ function pedEditor() {
                 ${tog('govBlip', '🗺️ Visible sur la carte', 'Icône du gouvernement pour tous les joueurs')}
             </div>` : ''}
             ${p.pubOn ? pubGarageCard(p, tog) : ''}
+            ${p.impOn ? impoundCard(p, tog) : ''}
             ${p.catalogOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🚘 Catalogue de la concession</h3>
                 <p class="hint">Quand un joueur parle à ce PNJ, le catalogue de la concession s'ouvre : catégories, recherche, fiches avec
                     caractéristiques. Il peut seulement <b>regarder</b> : l'achat se fait avec un vendeur. Les véhicules masqués n'apparaissent pas.
@@ -2096,7 +2150,7 @@ function pedEditor() {
 
         ${(p.buyerOn || p.shopOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? areaSection(p) : ''}
         ${(p.buyerOn || p.shopOn || p.garageOn || p.clothingOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? accessSection(p) : ''}
-        ${(p.buyerOn || p.shopOn || p.garageOn || p.clothingOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn) ? `<div class="section"><h2>Argent et horaires</h2>
+        ${(p.buyerOn || p.shopOn || p.garageOn || p.clothingOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.impOn) ? `<div class="section"><h2>Argent et horaires</h2>
             <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
                 <div><label>Monnaie utilisée</label><select class="input" data-pe="payment">
                     ${Object.entries(PAY_LABELS).map(([k, l]) => `<option value="${k}" ${p.payment === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -2955,6 +3009,12 @@ async function handleEditor(n) {
             if (!(await confirmBox('Effacer le parcours ?', 'La conduite ne sera plus possible tant qu\'un nouveau parcours n\'est pas enregistré.'))) return;
             editorPost('dmv_route_clear', { id: pedEdit.id });
             return setTimeout(() => post('refresh'), 300);
+        case 'impound_spot': return editorPost('impound_spot', { id: pedEdit.id, cls: n.dataset.cls });
+        case 'impound_spot_move': return editorPost('impound_spot', { id: pedEdit.id, idx: Number(n.dataset.i), h: Number(n.dataset.h), cls: n.dataset.cls });
+        case 'impound_spot_tp': return editorPost('impound_spot_tp', { id: pedEdit.id, idx: Number(n.dataset.i) });
+        case 'impound_spot_del':
+            action('editor_impound_spot_delete', { pedId: pedEdit.id, idx: Number(n.dataset.i) });
+            return setTimeout(() => post('refresh'), 300);
         case 'pubgarage_spot': return editorPost('pubgarage_spot', { id: pedEdit.id });
         case 'pubgarage_store': return editorPost('pubgarage_store', { id: pedEdit.id });
         case 'pubgarage_store_move': return editorPost('pubgarage_store', { id: pedEdit.id, idx: Number(n.dataset.i), h: Number(n.dataset.h) });
@@ -3285,7 +3345,7 @@ content.addEventListener('input', (e) => {
     if (pedEdit && t.dataset.pe) {
         const v = (t.dataset.pe === 'hoursOn' || t.dataset.pe === 'currencyForce') ? t.value === 'true' : t.value;
         pedEdit[t.dataset.pe] = v;
-        if (['payment', 'hoursOn', 'csRole', 'currency'].includes(t.dataset.pe)) render();
+        if (['payment', 'hoursOn', 'csRole', 'currency', 'impKind', 'pubKind'].includes(t.dataset.pe)) render();
         if (t.dataset.pe === 'gsTrialDuration') { const l = document.getElementById('gs-dur'); if (l) l.textContent = `${t.value} s`; }
         if (t.dataset.pe === 'gsTrialRadius') { const l = document.getElementById('gs-rad'); if (l) l.textContent = `${t.value} m`; }
         if (t.dataset.pe === 'gsFilter') {

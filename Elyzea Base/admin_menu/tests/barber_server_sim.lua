@@ -81,6 +81,7 @@ end
 loadFile('config.lua')
 loadFile('barber_data.lua')
 Config.Barber.debug = true
+loadFile('server/payment.lua')   -- paiement dollars / pesos (ShopPay)
 loadFile('server/barber.lua')
 
 -- ---------------------------------------------------------------- scénarios

@@ -390,7 +390,18 @@ local function cleanNpc(n)
         local name = cleanName(pg.name, 40)
         out.pubgarage = { name = name ~= '' and name or 'Garage public', blip = bool(pg.blip, true),
             blipSprite = math.floor(num(pg.blipSprite, 1, 900, 357)), blipColor = math.floor(num(pg.blipColor, 0, 85, 3)),
-            storeRadius = math.floor(num(pg.storeRadius, 1.5, 15, 4) * 10 + 0.5) / 10, spots = {}, stores = {} }
+            storeRadius = math.floor(num(pg.storeRadius, 1.5, 15, 4) * 10 + 0.5) / 10, spots = {}, stores = {},
+            -- Garage spécialisé : 'all' (tout), 'land' (voitures + motos), 'air' (hélicos + avions), 'sea' (bateaux)
+            kind = (pg.kind == 'land' or pg.kind == 'air' or pg.kind == 'sea') and pg.kind or 'all' }
+    end
+    -- Fourrière (ressource elyzea_fourriere) : terrestre, aérienne ou maritime ; les places de sortie se posent à part
+    local im = type(n.impound) == 'table' and n.impound or nil
+    if im then
+        local kind = (im.kind == 'air' or im.kind == 'sea') and im.kind or 'land'
+        local name = cleanName(im.name, 40)
+        local DEF = { land = { 'Fourrière terrestre', 68 }, air = { 'Fourrière aérienne', 359 }, sea = { 'Fourrière maritime', 410 } }
+        out.impound = { kind = kind, name = name ~= '' and name or DEF[kind][1], blip = bool(im.blip, true),
+            blipSprite = math.floor(num(im.blipSprite, 1, 900, DEF[kind][2])), blipColor = math.floor(num(im.blipColor, 0, 85, 47)), spots = {} }
     end
     -- Auto-école (ressource elyzea_permis) : le point de départ et le parcours se posent à part
     local dm = type(n.dmv) == 'table' and n.dmv or nil
@@ -443,7 +454,7 @@ local function cleanNpc(n)
         out.exchange = { name = name ~= '' and name or 'Bureau de change',
             toPesos = math.floor(num(n.exchange.toPesos, 1, 100000, 100)), toCash = math.floor(num(n.exchange.toCash, 1, 100000, 100)) }
     end
-    if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.dmv
+    if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.impound and not out.dmv
         and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp
         and not out.exchange then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
@@ -463,6 +474,7 @@ def('editor_save_ped', 'editor_peds', function(src, d)
             local oldTest = r.npc and r.npc.catalog and r.npc.catalog.testSpot
             local oldPub = r.npc and r.npc.pubgarage and r.npc.pubgarage.spots
             local oldStores = r.npc and r.npc.pubgarage and r.npc.pubgarage.stores
+            local oldImpound = r.npc and r.npc.impound and r.npc.impound.spots
             local oldDmv = r.npc and r.npc.dmv
             local oldRange = r.npc and r.npc.gunshop and r.npc.gunshop.spot
             local oldCasino = r.npc and r.npc.casino and r.npc.casino.table
@@ -472,6 +484,7 @@ def('editor_save_ped', 'editor_peds', function(src, d)
             if r.npc and r.npc.garage then r.npc.garage.spots = oldSpots or {} end   -- les points de sortie sont gardés
             if r.npc and r.npc.catalog then r.npc.catalog.testSpot = oldTest end     -- le point d'essai aussi
             if r.npc and r.npc.pubgarage then r.npc.pubgarage.spots = oldPub or {} r.npc.pubgarage.stores = oldStores or {} end
+            if r.npc and r.npc.impound then r.npc.impound.spots = oldImpound or {} end   -- places de sortie de la fourrière gardées
             if r.npc and r.npc.dmv and oldDmv then r.npc.dmv.spot, r.npc.dmv.route = oldDmv.spot, oldDmv.route end
         end
         AM.addLog(src, 'PNJ modifié', ('#%d %s'):format(r.id, r.model))
@@ -1411,7 +1424,21 @@ RegisterNetEvent('adminmenu:pubgarage:open', function(id)
         return AM.notify(src, 'Le garage est fermé (ressource elyzea_garage non démarrée).', 'error')
     end
     local pg = r.npc.pubgarage
-    CallExport(src, 'elyzea_garage', 'OpenFor', src, { name = pg.name, spots = pg.spots or {}, npc = { x = r.x, y = r.y, z = r.z } })
+    CallExport(src, 'elyzea_garage', 'OpenFor', src, { name = pg.name, spots = pg.spots or {}, npc = { x = r.x, y = r.y, z = r.z }, kind = pg.kind or 'all' })
+end)
+
+-- Fourrière : le PNJ ouvre l'interface elyzea_fourriere (terrestre / aérienne / maritime)
+RegisterNetEvent('adminmenu:impound:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'npc', 4, 1000) then return end
+    local r = checkNpc(src, tonumber(id))
+    if not r or not r.npc.impound then return end
+    if GetResourceState('elyzea_fourriere') ~= 'started' then
+        return AM.notify(src, 'La fourrière est fermée (ressource elyzea_fourriere non démarrée).', 'error')
+    end
+    local im = r.npc.impound
+    CallExport(src, 'elyzea_fourriere', 'OpenFor', src, { kind = im.kind, name = im.name, spots = im.spots or {},
+        npc = { x = r.x, y = r.y, z = r.z }, currency = r.npc.currency, currencyForce = r.npc.currencyForce })
 end)
 
 -- Auto-école : le PNJ ouvre l'interface du code et de la conduite
@@ -1860,7 +1887,7 @@ RegisterNetEvent('adminmenu:pubgarage:storeZone', function(pedId, idx)
     if GetResourceState('elyzea_garage') ~= 'started' then
         return AM.notify(src, 'Le garage est fermé (ressource elyzea_garage non démarrée).', 'error')
     end
-    CallExport(src, 'elyzea_garage', 'StoreAt', src, { name = pg.name, zone = { x = zone.x, y = zone.y, z = zone.z }, radius = pg.storeRadius or 4 })
+    CallExport(src, 'elyzea_garage', 'StoreAt', src, { name = pg.name, zone = { x = zone.x, y = zone.y, z = zone.z }, radius = pg.storeRadius or 4, kind = pg.kind or 'all' })
 end)
 
 -- Auto-école : point de départ des examens
@@ -1896,6 +1923,38 @@ def('editor_dmv_route', 'editor_peds', function(src, d)
     save('peds') broadcast('peds')
     AM.notify(src, d.clear and 'Parcours effacé.' or ('Parcours enregistré : %d points, environ %d min.'):format(#dm.route.points, math.max(1, math.floor(dm.route.duration / 60 + 0.5))), 'success')
     AM.addLog(src, d.clear and 'Auto-école : parcours effacé' or 'Auto-école : parcours enregistré', ('PNJ #%d'):format(r.id))
+end)
+
+-- Places de sortie d'une fourrière : chacune pour un type (voiture, moto, hélico, avion, bateau) ou 'all'
+local IMPOUND_CLS = { land = { car = true, moto = true }, air = { heli = true, plane = true }, sea = { boat = true } }
+def('editor_impound_spot', 'editor_peds', function(src, d)
+    local r = pedOf(tonumber(d.pedId))
+    local im = r and r.npc and r.npc.impound
+    if not im then return AM.notify(src, 'Active d\'abord le rôle « Fourrière » sur ce PNJ et enregistre.', 'error') end
+    local x, y, z, h = coords(d)
+    if not x then return AM.notify(src, 'Position invalide.', 'error') end
+    if #(GetEntityCoords(GetPlayerPed(src)) - vector3(x, y, z)) > 400.0 then return AM.notify(src, 'Position trop loin de toi.', 'error') end
+    local cls = (IMPOUND_CLS[im.kind] or {})[d.cls] and d.cls or 'all'
+    im.spots = im.spots or {}
+    local idx = tonumber(d.idx)
+    if idx and im.spots[idx] then
+        im.spots[idx] = { x = x, y = y, z = z, h = h, cls = im.spots[idx].cls or cls }
+    else
+        if #im.spots >= 30 then return AM.notify(src, '30 places de sortie maximum.', 'error') end
+        im.spots[#im.spots + 1] = { x = x, y = y, z = z, h = h, cls = cls }
+    end
+    save('peds') broadcast('peds')
+    AM.addLog(src, 'Fourrière : place de sortie', ('PNJ #%d · %s · %d place(s)'):format(r.id, cls, #im.spots))
+end)
+
+def('editor_impound_spot_delete', 'editor_peds', function(src, d)
+    local r = pedOf(tonumber(d.pedId))
+    local im = r and r.npc and r.npc.impound
+    local idx = tonumber(d.idx)
+    if not im or not idx or not (im.spots or {})[idx] then return end
+    table.remove(im.spots, idx)
+    save('peds') broadcast('peds')
+    AM.notify(src, 'Place de sortie supprimée.', 'success')
 end)
 
 def('editor_pubgarage_spot_delete', 'editor_peds', function(src, d)

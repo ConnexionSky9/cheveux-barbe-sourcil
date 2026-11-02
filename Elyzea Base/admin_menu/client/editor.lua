@@ -427,8 +427,16 @@ local function confirmPlacement()
         d.pedId, d.idx = P.pedId, P.idx
         TriggerServerEvent('adminmenu:action', 'editor_pubgarage_store', d)
         if not P.idx then return end -- plusieurs zones à la chaîne
+    elseif P.kind == 'garagespot' and P.target == 'impound' then
+        d.pedId, d.idx, d.cls = P.pedId, P.idx, P.cls
+        if P.cls == 'boat' then d.z = waterZ(d.x, d.y, d.z) end   -- bateau : posé à la surface de l'eau
+        TriggerServerEvent('adminmenu:action', 'editor_impound_spot', d)
+        if not P.idx then return end -- plusieurs places à la chaîne
     elseif P.kind == 'garagespot' and P.target == 'pubgarage' then
         d.pedId, d.idx = P.pedId, P.idx
+        for _, r in ipairs(Editor.peds or {}) do   -- garage maritime : places à la surface de l'eau
+            if r.id == P.pedId and r.npc and r.npc.pubgarage and r.npc.pubgarage.kind == 'sea' then d.z = waterZ(d.x, d.y, d.z) end
+        end
         TriggerServerEvent('adminmenu:action', 'editor_pubgarage_spot', d)
         if not P.idx then return end -- plusieurs places à la chaîne
     elseif P.kind == 'garagespot' and P.target == 'catalog' then
@@ -708,6 +716,13 @@ local function placementLoop(gen)
 end
 
 -- opts : kind, model, id?, fieldId?, idx?, scenario?, name?, hideKey?, heading?
+-- Hauteur de la surface de l'eau sous un point (sinon la hauteur donnée)
+function waterZ(x, y, z)
+    local ok, wz = GetWaterHeight(x + 0.0, y + 0.0, z + 5.0)
+    if ok and wz and wz > z - 15.0 then return wz + 0.2 end
+    return z
+end
+
 function StartPlacement(opts)
     stopPlacement()
     local hash = GetHashKey(opts.model or '')
@@ -1058,6 +1073,18 @@ RegisterNUICallback('editor', function(body, cb)
         CloseMenu()
         if not d.idx then Notify('Place la voiture sur une place de sortie (molette pour l\'orienter), E pour valider. Plusieurs à la suite, puis Retour pour terminer.', 'info') end
         StartPlacement({ kind = 'garagespot', target = 'pubgarage', model = 'blista', pedId = tonumber(d.id), idx = tonumber(d.idx), heading = tonumber(d.h) })
+    elseif n == 'impound_spot' and canEdit('editor_peds') then
+        -- Modèle fantôme selon le type de la place (voiture, moto, hélico, avion, bateau)
+        local GHOST = { car = 'blista', moto = 'bati', heli = 'frogger', plane = 'dodo', boat = 'dinghy', all = 'blista' }
+        local cls = GHOST[d.cls] and d.cls or 'all'
+        CloseMenu()
+        if not d.idx then Notify('Place le véhicule sur une place de sortie (molette pour l\'orienter), E pour valider. Plusieurs à la suite, puis Retour pour terminer.', 'info') end
+        StartPlacement({ kind = 'garagespot', target = 'impound', model = GHOST[cls], cls = cls, pedId = tonumber(d.id), idx = tonumber(d.idx), heading = tonumber(d.h) })
+    elseif n == 'impound_spot_tp' and canEdit('editor_peds') then
+        for _, r in ipairs(Editor.peds) do
+            local sp = r.id == tonumber(d.id) and r.npc and r.npc.impound and (r.npc.impound.spots or {})[tonumber(d.idx) or 0]
+            if sp then CloseMenu() CreateThread(function() TeleportTo(vector3(sp.x + 3.0, sp.y, sp.z + 0.5), true) end) end
+        end
     elseif n == 'dmv_spot' and canEdit('editor_peds') then
         CloseMenu()
         Notify('Place la voiture d\'examen là où les élèves partiront (molette pour l\'orienter), E pour valider.', 'info')
@@ -1339,6 +1366,9 @@ CreateThread(function()
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.gov then
                     ShowPrompt('Appuyer pour aller au guichet', best.ref.npc.gov.name or 'du gouvernement')
                     if pressed then TriggerServerEvent('adminmenu:gov:open', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.impound then
+                    ShowPrompt('Appuyer pour parler à', best.ref.npc.impound.name or 'la fourrière')
+                    if pressed then TriggerServerEvent('adminmenu:impound:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.pubgarage then
                     ShowPrompt('Appuyer pour ouvrir', best.ref.npc.pubgarage.name or 'le garage')
                     if pressed then TriggerServerEvent('adminmenu:pubgarage:open', best.ref.id) end

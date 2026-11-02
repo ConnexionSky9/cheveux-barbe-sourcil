@@ -126,6 +126,7 @@ local function startServer()
         { label = 'Crâne', collection = 'multiplayer_overlays', male = 'T_CRANE_M', female = 'T_CRANE_F', zone = 'ZONE_RIGHT_ARM' },
         { label = 'Étoile', collection = 'multiplayer_overlays', male = 'T_ETOILE_M', female = 'T_ETOILE_F', zone = 'ZONE_HEAD' },
     }
+    assert(load(readFile('server/payment.lua'), '@server/payment.lua', 't', SV))()   -- paiement dollars / pesos (ShopPay)
     assert(load(readFile('server/tattoo.lua'), '@server/tattoo.lua', 't', SV))()
     tick(40)   -- catalogue construit (Wait 1500)
 end

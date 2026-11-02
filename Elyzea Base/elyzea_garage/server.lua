@@ -25,6 +25,29 @@ local function FindOut(plate)
     end
 end
 
+-- Catégories (elyzea_fourriere) : land = voitures + motos, air = hélicos + avions, sea = bateaux
+local KIND_OF = { car = 'land', moto = 'land', heli = 'air', plane = 'air', boat = 'sea' }
+local KIND_LABEL = { land = 'voitures et motos', air = 'hélicoptères et avions', sea = 'bateaux' }
+local TYPE_CLASS = { automobile = 'car', quadbike = 'car', amphibious_automobile = 'car', amphibious_quadbike = 'car',
+    bike = 'moto', heli = 'heli', blimp = 'heli', plane = 'plane', boat = 'boat', submarine = 'boat', submarinecar = 'boat' }
+local function ClassOfEntity(veh)
+    local ok, t = pcall(GetVehicleType, veh)
+    return ok and TYPE_CLASS[tostring(t or '')] or nil
+end
+local function Accepts(s, cls) return not s or not s.kind or s.kind == 'all' or not cls or KIND_OF[cls] == s.kind end
+local function FourriereOn() return GetResourceState('elyzea_fourriere') == 'started' end
+local hasClassCol
+local function ClassCol()
+    if hasClassCol then return true end   -- colonne ajoutée par elyzea_fourriere (revérifiée tant qu'elle manque)
+    local ok, n = pcall(MySQL.scalar.await, [[SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'player_vehicles' AND COLUMN_NAME = 'vclass']])
+    hasClassCol = ok and (tonumber(n) or 0) > 0 or nil
+    return hasClassCol == true
+end
+local function SaveClass(plate, cls)
+    if cls and ClassCol() then MySQL.update('UPDATE player_vehicles SET vclass = ? WHERE plate = ?', { cls, plate }) end
+end
+
 local function NearNpc(src, max)
     local s = Sessions[src]
     if not s then return nil end
@@ -38,7 +61,16 @@ end
 local function count(t) local n = 0 for _ in pairs(type(t) == 'table' and t or {}) do n = n + 1 end return n end
 
 local function List(src)
-    local rows = MySQL.query.await('SELECT plate, vehicle, mods, state, garage FROM player_vehicles WHERE citizenid = ? ORDER BY vehicle', { Cid(src) }) or {}
+    local s = Sessions[src]
+    local rows
+    if FourriereOn() and ClassCol() then
+        rows = MySQL.query.await([[SELECT pv.plate, pv.vehicle, pv.mods, pv.state, pv.garage, pv.vclass,
+                TIMESTAMPDIFF(SECOND, NOW(), f.repair_until) AS remain
+            FROM player_vehicles pv LEFT JOIN elyzea_fourriere f ON f.plate = pv.plate
+            WHERE pv.citizenid = ? ORDER BY pv.vehicle]], { Cid(src) }) or {}
+    else
+        rows = MySQL.query.await('SELECT plate, vehicle, mods, state, garage' .. (ClassCol() and ', vclass' or '') .. ' FROM player_vehicles WHERE citizenid = ? ORDER BY vehicle', { Cid(src) }) or {}
+    end
     local list = {}
     local out = nil   -- plaques des véhicules en circulation, calculées une seule fois
     for _, r in ipairs(rows) do
@@ -47,12 +79,14 @@ local function List(src)
         if r.state == 1 then status = 'stored'
         elseif r.state == 2 then status = 'impound'
         elseif r.state == 3 then status = 'property'   -- rangé dans le garage d'une propriété (elyzea_dynasty)
+        elseif r.state == 4 then status = 'repair'     -- en réparation à la fourrière (elyzea_fourriere)
         else
             if not out then out = {} for _, v in ipairs(GetAllVehicles()) do if DoesEntityExist(v) then out[PlateOf(v)] = true end end end
             status = out[r.plate] and 'out' or 'lost'
         end   -- sorti mais introuvable : on peut le ressortir
-        list[#list + 1] = {
-            plate = r.plate, model = r.vehicle, status = status, image = Config.ImageUrl:format(r.vehicle),
+        if Accepts(s, r.vclass) then list[#list + 1] = {
+            plate = r.plate, model = r.vehicle, status = status, image = Config.ImageUrl:format(r.vehicle), cls = r.vclass,
+            remain = r.state == 4 and math.max(0, math.floor(tonumber(r.remain) or 0)) or nil,
             garage = props._garageName or (r.garage and r.garage:find('^concess') and 'Concession') or nil,
             engine = math.floor(math.max(0, tonumber(props.engineHealth) or 1000) / 10),
             body = math.floor(math.max(0, tonumber(props.bodyHealth) or 1000) / 10),
@@ -61,7 +95,7 @@ local function List(src)
             dirt = math.floor(math.min(15, tonumber(props.dirtLevel) or 0) / 15 * 100),
             tyres = count(props.tyres), windows = count(props.windows), doors = count(props.doors),
             deformed = type(props._deform) == 'table' and #props._deform > 0,
-        }
+        } end
     end
     return list
 end
@@ -69,29 +103,35 @@ end
 local function Send(src)
     local s = Sessions[src]
     if not s then return end
-    TriggerClientEvent('garage:client:data', src, { name = s.name, list = List(src), spots = #(s.spots or {}), impoundFee = Config.Impound.fee })
+    TriggerClientEvent('garage:client:data', src, { name = s.name, list = List(src), spots = #(s.spots or {}), impoundFee = Config.Impound.fee,
+        kind = s.kind or 'all', fourriere = FourriereOn() })
 end
 
 -- Appelé par admin_menu quand un joueur parle à un PNJ « Garage public »
 exports('OpenFor', function(src, opts)
     opts = type(opts) == 'table' and opts or {}
     if type(opts.npc) ~= 'table' then return end
-    Sessions[src] = { name = (opts.name and opts.name ~= '') and opts.name or 'Garage public', spots = opts.spots or {}, npc = opts.npc }
-    TriggerClientEvent('garage:client:open', src, { name = Sessions[src].name, list = List(src), spots = #Sessions[src].spots, impoundFee = Config.Impound.fee })
+    local kind = (opts.kind == 'land' or opts.kind == 'air' or opts.kind == 'sea') and opts.kind or 'all'
+    Sessions[src] = { name = (opts.name and opts.name ~= '') and opts.name or 'Garage public', spots = opts.spots or {}, npc = opts.npc, kind = kind }
+    TriggerClientEvent('garage:client:open', src, { name = Sessions[src].name, list = List(src), spots = #Sessions[src].spots, impoundFee = Config.Impound.fee,
+        kind = kind, fourriere = FourriereOn() })
 end)
 
 -- Appelé par admin_menu : le joueur est au volant dans une zone de rangement (cercle rouge)
 exports('StoreAt', function(src, opts)
     opts = type(opts) == 'table' and opts or {}
     if type(opts.zone) ~= 'table' then return end
+    local kind = (opts.kind == 'land' or opts.kind == 'air' or opts.kind == 'sea') and opts.kind or 'all'
     Sessions[src] = { name = (opts.name and opts.name ~= '') and opts.name or 'Garage public', spots = {}, npc = opts.zone,
-        storeRadius = (tonumber(opts.radius) or 4) + 4.0, zoneOnly = true }
+        storeRadius = (tonumber(opts.radius) or 4) + 4.0, zoneOnly = true, kind = kind }
     TriggerClientEvent('garage:client:storeNow', src)
 end)
 
 -- Récupérer un véhicule à la fourrière (payant) : il passe « rangé » et peut ressortir
 local function impound(src, plate)
     if not NearNpc(src) then return Notify(src, 'Rapproche-toi du gardien du garage.', 'error') end
+    -- Les fourrières terrestre / aérienne / maritime (elyzea_fourriere) remplacent le paiement au garage
+    if FourriereOn() then return Notify(src, 'Ce véhicule se récupère à la fourrière (PNJ « Fourrière ») : terrestre, aérienne ou maritime selon le véhicule.', 'error') end
     plate = tostring(plate or '')
     local row = MySQL.single.await('SELECT vehicle, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
     if not row or row.state ~= 2 then return Notify(src, 'Ce véhicule n\'est pas à la fourrière.', 'error') end
@@ -147,9 +187,11 @@ local function takeOut(src, plate, vtype)
     local s = NearNpc(src)
     if not s then return Notify(src, 'Rapproche-toi du gardien du garage.', 'error') end
     plate = tostring(plate or '')
-    local row = MySQL.single.await('SELECT vehicle, mods, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
+    local row = MySQL.single.await('SELECT vehicle, mods, state' .. (ClassCol() and ', vclass' or '') .. ' FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
     if not row then return Notify(src, 'Ce véhicule ne t\'appartient pas.', 'error') end
     if row.state == 2 then return Notify(src, 'Ce véhicule est à la fourrière.', 'error') end
+    if row.state == 4 then return Notify(src, 'Ce véhicule est en réparation : il reviendra tout seul au garage.', 'error') end
+    if not Accepts(s, row.vclass) then return Notify(src, ('Ce garage ne gère que les %s.'):format(KIND_LABEL[s.kind] or 'véhicules'), 'error') end
     if row.state == 3 then return Notify(src, 'Ce véhicule est rangé dans le garage d\'une propriété : sortez-le de là-bas.', 'error') end
     if FindOut(plate) then return Notify(src, 'Ce véhicule est déjà en circulation.', 'error') end
     local spot = FreeSpot(s.spots)
@@ -161,6 +203,13 @@ local function takeOut(src, plate, vtype)
     local t = GetGameTimer()
     while not DoesEntityExist(veh) and GetGameTimer() - t < 4000 do Wait(10) end
     if not DoesEntityExist(veh) then return Notify(src, ('Le modèle « %s » n\'existe pas sur ce serveur.'):format(row.vehicle), 'error') end
+    -- Catégorie réelle lue sur le véhicule : un garage spécialisé ne sort que ses véhicules
+    local cls = ClassOfEntity(veh)
+    if cls and cls ~= row.vclass then SaveClass(plate, cls) end
+    if not Accepts(s, cls) then
+        DeleteEntity(veh)
+        return Notify(src, ('Ce garage ne gère que les %s.'):format(KIND_LABEL[s.kind] or 'véhicules'), 'error')
+    end
 
     SetVehicleNumberPlateText(veh, plate)
     MySQL.update('UPDATE player_vehicles SET state = 0 WHERE plate = ?', { plate })
@@ -193,6 +242,10 @@ RegisterNetEvent('garage:server:store', function(netId, props)
     local row = MySQL.single.await('SELECT vehicle, state FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, Cid(src) })
     if not row then return Notify(src, 'Ce véhicule ne t\'appartient pas : impossible de le ranger.', 'error') end
     if row.state == 3 then return Notify(src, 'Ce véhicule est enregistré dans une propriété.', 'error') end
+    if row.state == 2 or row.state == 4 then return Notify(src, 'Ce véhicule est enregistré à la fourrière.', 'error') end
+    local cls = ClassOfEntity(veh)
+    if not Accepts(s, cls) then return Notify(src, ('Ce garage ne gère que les %s.'):format(KIND_LABEL[s.kind] or 'véhicules'), 'error') end
+    SaveClass(plate, cls)
     local ped = GetPlayerPed(src)
     for seat = -1, 6 do
         local occ = GetPedInVehicleSeat(veh, seat)

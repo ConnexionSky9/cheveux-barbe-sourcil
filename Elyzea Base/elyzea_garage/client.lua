@@ -14,10 +14,14 @@ local function TypeOf(model)
     return CLASS_TYPE[GetVehicleClassFromName(joaat(model))] or 'automobile'
 end
 
+-- Catégorie d'un modèle (affichage des garages spécialisés quand le serveur ne la connaît pas encore)
+local CLASS_CAT = { [8] = 'moto', [13] = 'moto', [14] = 'boat', [15] = 'heli', [16] = 'plane' }
+
 -- Nom lisible des modèles (le serveur ne le connaît pas)
 local function Decorate(list)
     for _, v in ipairs(list or {}) do
         local hash = joaat(v.model)
+        if not v.cls and IsModelInCdimage(hash) then v.cls = CLASS_CAT[GetVehicleClassFromName(hash)] or 'car' end
         local label = GetLabelText(GetDisplayNameFromVehicleModel(hash))
         v.label = (label and label ~= 'NULL' and label ~= '') and label or v.model
         v.known = IsModelInCdimage(hash)

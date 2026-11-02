@@ -62,3 +62,29 @@ Image de la pièce : `tools/make_coin.py` (Python + Pillow) la redessine si beso
 - Dans `elyzea_clothing` : `python3 tests/run_pesos_sim.py` (13) et `node tests/ui_pesos.cjs` (3).
 
 Non testé en jeu.
+
+## Monnaie de chaque commerce (dollars / pesos) : `Config.Payment`
+Un seul endroit décide quelle monnaie accepte un commerce.
+
+Commerces concernés : fourrières, tatoueur, coiffeur, supérette, armurerie, boutique PNJ, garage PNJ et boutiques de vêtements.
+
+```lua
+Tatoueur = { Currency = 'pesos', ForceCurrency = true },   -- pesos uniquement, pas de choix
+Superette = { Currency = 'money', ForceCurrency = false },  -- dollars d'abord, pesos acceptés
+```
+
+Règles :
+- `ForceCurrency = true` : seule cette monnaie est proposée et acceptée par le serveur.
+- Sinon, la monnaie réglée sur le PNJ s'applique (admin_menu › PNJ › « Dollars ou pesos ») ; à défaut, celle du commerce, l'autre monnaie restant acceptée.
+- `PesosRate` : nombre de pesos pour 1 $ de prix (arrondi au-dessus).
+- `Enabled = false` : retour aux dollars partout.
+- Pesos insuffisants : refus, rien n'est retiré ni donné, et le joueur est envoyé au bureau de change.
+
+Exports serveur (`server_payment.lua`) :
+- `PaymentPlan(src, commerce, opts)` ;
+- `PaymentCharge(src, commerce, montant, méthode, raison, opts)` → `{ ok, error, receipt }` ;
+- `PaymentRefund(src, reçu)` ;
+- `PaymentMethods(commerce, opts)` ;
+- `PaymentPrice(méthode, montant)`.
+
+Ils sont testés dans `elyzea_fourriere/tests/run_sim.py`.

@@ -12,11 +12,16 @@ const STATUS = {
     lost: { label: 'Introuvable', cls: 'warn' },
     impound: { label: 'Fourrière', cls: 'red' },
     property: { label: 'Dans une propriété', cls: 'warn' },
+    repair: { label: 'En réparation', cls: 'warn' },
 };
+// Garages spécialisés (elyzea_fourriere) : land = voitures + motos, air = hélicos + avions, sea = bateaux
+const KIND_OF = { car: 'land', moto: 'land', heli: 'air', plane: 'air', boat: 'sea' };
+const inKind = (v) => !G.data || !G.data.kind || G.data.kind === 'all' || !v.cls || KIND_OF[v.cls] === G.data.kind;
+const mins = (s) => Math.max(1, Math.ceil((Number(s) || 0) / 60));
 const TABS = [
     { id: 'stored', label: 'Au garage', match: (v) => v.status === 'stored' || v.status === 'lost' || v.status === 'property' },
     { id: 'out', label: 'En circulation', match: (v) => v.status === 'out' },
-    { id: 'impound', label: 'Fourrière', match: (v) => v.status === 'impound' },
+    { id: 'impound', label: 'Fourrière', match: (v) => v.status === 'impound' || v.status === 'repair' },
     { id: 'all', label: 'Tous', match: () => true },
 ];
 
@@ -48,9 +53,9 @@ function damages(v) {
 function render() {
     const d = G.data;
     $('#garageName').textContent = d.name;
-    const n = (id) => d.list.filter(TABS.find((t) => t.id === id).match).length;
+    const n = (id) => d.list.filter(inKind).filter(TABS.find((t) => t.id === id).match).length;
     $('#counters').innerHTML = `<div class="counter"><b class="gold-text">${n('stored')}</b><span>Au garage</span></div>
-        <div class="counter"><b>${n('out')}</b><span>Dehors</span></div><div class="counter"><b>${d.list.length}</b><span>Véhicules</span></div>`;
+        <div class="counter"><b>${n('out')}</b><span>Dehors</span></div><div class="counter"><b>${d.list.filter(inKind).length}</b><span>Véhicules</span></div>`;
     $('#tabs').innerHTML = TABS.map((t) => `<button class="tab ${G.tab === t.id ? 'on' : ''}" data-tab="${t.id}">${t.label}<small>${n(t.id)}</small></button>`).join('');
 
     // Véhicule à ranger
@@ -74,7 +79,7 @@ function render() {
 function renderGrid() {
     const d = G.data;
     const tab = TABS.find((t) => t.id === G.tab);
-    const list = d.list.filter(tab.match).filter((v) => !G.q || v.label.toLowerCase().includes(G.q) || v.plate.toLowerCase().includes(G.q));
+    const list = d.list.filter(inKind).filter(tab.match).filter((v) => !G.q || v.label.toLowerCase().includes(G.q) || v.plate.toLowerCase().includes(G.q));
     if (!list.length) {
         $('#grid').innerHTML = `<div class="empty">${G.q ? 'Aucun véhicule ne correspond à ta recherche.' : G.tab === 'stored' ? 'Aucun véhicule rangé.' : 'Rien ici.'}</div>`;
         return;
@@ -82,15 +87,18 @@ function renderGrid() {
     $('#grid').innerHTML = list.map((v, i) => {
         const st = STATUS[v.status] || STATUS.stored;
         const can = (v.status === 'stored' || v.status === 'lost') && d.spots > 0;
-        const why = v.status === 'property' ? 'Rangé dans le garage d\'une propriété' : v.status === 'out' ? 'Déjà en circulation' : v.status === 'impound' ? 'À la fourrière' : d.spots ? '' : 'Aucune place de sortie ici';
+        const why = v.status === 'property' ? 'Rangé dans le garage d\'une propriété' : v.status === 'out' ? 'Déjà en circulation' : v.status === 'impound' ? 'À la fourrière'
+            : v.status === 'repair' ? `En réparation : encore ${mins(v.remain)} min` : d.spots ? '' : 'Aucune place de sortie ici';
         return `<div class="card" style="animation-delay:${Math.min(i, 12) * 25}ms">
             <div class="img">${img(v.image)}<span class="badge ${st.cls} status">${st.label}</span><span class="plate">${esc(v.plate)}</span></div>
             <div class="body">
                 <div class="name">${esc(v.label)}</div>
-                <div class="where">${(v.status === 'stored' || v.status === 'property') && v.garage ? `Rangé à ${esc(v.garage)}` : v.status === 'lost' ? 'Introuvable en ville : tu peux le ressortir' : esc(v.model)}</div>
+                <div class="where">${(v.status === 'stored' || v.status === 'property') && v.garage ? `Rangé à ${esc(v.garage)}` : v.status === 'lost' ? 'Introuvable en ville : tu peux le ressortir'
+                    : v.status === 'repair' ? 'Réparé à la fourrière, il reviendra ici tout seul' : esc(v.model)}</div>
                 <div class="bars">${bar('Moteur', v.engine)}${bar('Carrosserie', v.body)}${bar('Réservoir', v.tank)}${bar('Essence', v.fuel)}</div>
                 <div class="damages">${damages(v)}</div>
-                ${v.status === 'impound' ? `<button class="btn primary" data-impound="${esc(v.plate)}">Payer la fourrière${d.impoundFee ? ` (${Number(d.impoundFee).toLocaleString('fr-FR')} $)` : ''}</button>`
+                ${v.status === 'impound' && d.fourriere ? '<button class="btn" disabled>À récupérer à la fourrière (PNJ « Fourrière »)</button>'
+                    : v.status === 'impound' ? `<button class="btn primary" data-impound="${esc(v.plate)}">Payer la fourrière${d.impoundFee ? ` (${Number(d.impoundFee).toLocaleString('fr-FR')} $)` : ''}</button>`
                     : `<button class="btn ${can ? 'primary' : ''}" data-out="${esc(v.plate)}" data-model="${esc(v.model)}" ${can ? '' : 'disabled'}>${can ? 'Sortir le véhicule' : why}</button>`}
             </div>
         </div>`;

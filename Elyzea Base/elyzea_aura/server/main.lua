@@ -1871,7 +1871,7 @@ local function OwnedVehicles(me)
         local ok, rows = pcall(MySQL.query.await, 'SELECT * FROM player_vehicles WHERE citizenid = ?', { me.identifier })
         for _, r in ipairs(ok and rows or {}) do
             local st = tonumber(r.state) or 0
-            out[#out + 1] = { plate = CleanPlate(r.plate), model = r.vehicle or r.hash, state = st == 1 and 'garage' or st == 2 and 'impound' or 'out',
+            out[#out + 1] = { plate = CleanPlate(r.plate), model = r.vehicle or r.hash, state = st == 1 and 'garage' or (st == 2 or st == 4) and 'impound' or 'out',   -- 4 : en réparation (elyzea_fourriere)
                 garage = r.garage or '', props = r.mods, fuel = tonumber(r.fuel) or 100, engine = tonumber(r.engine) or 1000, body = tonumber(r.body) or 1000 }
         end
     elseif ESX then
