@@ -275,8 +275,16 @@ end
 -- La consommation garde le circuit habituel (jeton, objet revérifié, faim / soif par le serveur) ;
 -- seuls les objets en main et l'animation sont confiés à elyzea_cuisine (client.cuisine).
 do
-    local src = LoadResourceFile('elyzea_cuisine', 'data/recipes.lua')
-    local fn = src and load(src, '@elyzea_cuisine/data/recipes.lua', 't', {})
+    -- elyzea_cuisine, ou le même dossier sous un autre nom (ex. « elyzea_cuisine-main »)
+    local function try(res) local raw = res and LoadResourceFile(res, 'data/recipes.lua') return raw and raw:find('D.Recipes', 1, true) and raw or nil end
+    local src, from = try('elyzea_cuisine'), 'elyzea_cuisine'
+    if not src then
+        for i = 0, GetNumResources() - 1 do
+            local r = GetResourceByFindIndex(i)
+            if r and r ~= 'elyzea_cuisine' and r:lower():find('cuisine', 1, true) then src = try(r) if src then from = r break end end
+        end
+    end
+    local fn = src and load(src, '@' .. from .. '/data/recipes.lua', 't', {})
     local ok, data = false, nil
     if fn then ok, data = pcall(fn) end
     if ok and type(data) == 'table' and type(data.Recipes) == 'table' then
@@ -296,7 +304,8 @@ do
             end
         end
     elseif IsDuplicityVersion() then
-        print('^3[elyzea_inventory] recettes d\'elyzea_cuisine absentes : démarre elyzea_cuisine avant elyzea_inventory.^0')
+        print(('^3[elyzea_inventory] recettes d\'elyzea_cuisine absentes (ressource elyzea_cuisine : %s) : copie le dossier elyzea_cuisine dans resources et mets « ensure elyzea_cuisine » AVANT elyzea_inventory.^0')
+            :format(GetResourceState('elyzea_cuisine')))
     end
 end
 

@@ -14,6 +14,37 @@ for i, c in ipairs(Config.Categories) do c.sort = i P.Cats[c.id] = c end
 
 P.menu = {}   -- [shopId] = { [productId] = { price, enabled } }
 
+-- Recettes de elyzea_cuisine absentes au démarrage (ressource démarrée après, ou ajoutée ensuite) :
+-- nouvel essai toutes les 15 s pendant 3 min, puis via /resto_recettes (staff, ace « command.resto_recettes »)
+function P.ReloadCuisine()
+    if not RSCuisine then return 0 end
+    local added = RSCuisine.Load()
+    if added > 0 then
+        for i, p in ipairs(Config.Products) do p.sort = i P.Products[p.id] = p end
+        for i, c in ipairs(Config.Categories) do c.sort = i P.Cats[c.id] = c end
+        for _, D in pairs(P.shops) do if not D.deleted then P.SeedMenu(D, true) end end
+        P.Touch()
+        print(('^2[RESTO] %d recettes de elyzea_cuisine ajoutées au catalogue.^0'):format(added))
+    end
+    return added
+end
+P.OnReady[#P.OnReady + 1] = function()
+    if not RSCuisine or RSCuisine.count > 0 or (Config.Cuisine or {}).enabled == false then return end
+    CreateThread(function()
+        for _ = 1, 12 do
+            Wait(15000)
+            if RSCuisine.count > 0 or P.ReloadCuisine() > 0 then return end
+        end
+        print(('^3[RESTO] Toujours pas de recettes : %s^0'):format(tostring(RSCuisine.error)))
+    end)
+end
+RegisterCommand('resto_recettes', function(src)
+    local n = P.ReloadCuisine()
+    local msg = n > 0 and ('%d recettes ajoutées au catalogue.'):format(n)
+        or (RSCuisine.count > 0 and ('Recettes déjà chargées (%d).'):format(RSCuisine.count) or ('Recettes non chargées : %s'):format(tostring(RSCuisine.error)))
+    if src > 0 then P.Notify(src, msg, n > 0 and 'success' or 'inform') else print('[RESTO] ' .. msg) end
+end, true)
+
 local function Image(p) return p.image or (p.item .. '.png') end
 
 P.OnReady[#P.OnReady + 1] = function()

@@ -259,6 +259,9 @@ env.SetEntityCoords = function(ped, x, y, z) local p = players[ped] if p then p.
 env.Player = function(src) states[src] = states[src] or {} local st = states[src] return { state = setmetatable({ set = function(_, k, v) st[k] = v end }, { __index = st }) } end
 env.source = 0
 env.IsDuplicityVersion = function() return true end
+env.RegisterCommand = function(name, fn) env.__commands = env.__commands or {} env.__commands[name] = fn end
+env.GetNumResources = function() return 0 end
+env.GetResourceByFindIndex = function() return nil end
 env.LoadResourceFile = function(res, file)
     local f = io.open(ROOT .. '/../' .. res .. '/' .. file, 'r')
     if not f then return nil end
