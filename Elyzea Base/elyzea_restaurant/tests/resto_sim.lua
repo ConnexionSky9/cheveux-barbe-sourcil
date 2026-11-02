@@ -685,6 +685,29 @@ local dash = req(2, 'dashboard')
 check(dash.last and dash.last[1] and dash.last[1].method == 'pesos' and tonumber(dash.last[1].paid) == 2 * R.menu[A].cola.price, 'tableau de bord : dernière commande affichée en pesos')
 check(adm(1, 'catalogSet', { id = A, all = true }).ok and R.shops[A].options.catalog == nil, 'staff : retour à « tout le catalogue »')
 
+P('\n[Staff : répartition des plats, un par un]')
+local function onCard(shop) local t = {} for _, p in ipairs(pub(3, 'menuCard', { shop = shop }).products or {}) do t[p.id] = true end return t end
+check(not onCard(A).mx_tacos_pastor, 'avant : tacos al pastor pas à la carte de A')
+r = adm(1, 'catalogAssign', { id = A, products = { 'mx_tacos_pastor' }, on = true })
+check(r.ok and onCard(A).mx_tacos_pastor and R.shops[A].options.catalog == nil, 'une case cochée : A vend les tacos (tout de suite, « tout le catalogue » gardé) · ' .. tostring(r.message or r.error))
+check(tonumber(MySQL.scalar.await('SELECT `enabled` FROM `rs_menu` WHERE `shop_id` = ? AND `product` = ?', { A, 'mx_tacos_pastor' })) == 1, 'enregistré en base (rs_menu)')
+r = adm(1, 'catalogAssign', { id = A, products = { 'classic' }, on = false })
+check(r.ok and not onCard(A).classic and onCard(A).mx_tacos_pastor, 'une case décochée : le Classic disparaît de la carte de A, le reste ne bouge pas')
+check(type(R.shops[A].options.catalog) == 'table' and #R.shops[A].options.catalog == #Config.Products - 1, '« tout sauf le Classic » : le patron garde le reste du catalogue')
+check(req(2, 'menuSet', { id = 'classic', enabled = true }).error ~= nil, 'patron : ne peut pas remettre un plat retiré par le staff')
+local italien = {}
+for _, p in ipairs(Config.Products) do if p.cat == 'italien' then italien[#italien + 1] = p.id end end
+r = adm(1, 'catalogAssign', { id = B, products = italien, on = true })
+local cB = onCard(B)
+local nIt = 0 for _, id in ipairs(italien) do if cB[id] then nIt = nIt + 1 end end
+check(r.ok and nIt == 20, ('« ✓ tout » : les 20 plats italiens à la carte de B (%d)'):format(nIt))
+check(adm(1, 'catalogAssign', { id = B, products = { 'inconnu' }, on = true }).error ~= nil, 'plat inconnu : refusé')
+check(adm(3, 'catalogAssign', { id = B, products = { 'it_lasagnes' }, on = false }).error ~= nil, 'joueur sans permission staff : refusé')
+local dd2 = adm(1, 'data')
+local sB for _, x in ipairs(dd2.shops) do if x.id == B then sB = x end end
+check(sB and #sB.onMenu >= 20, 'panneau staff : cases cochées à jour pour B')
+adm(1, 'catalogSet', { id = A, all = true })
+
 P('\n[Mini-jeux : tous les jeux, toutes les difficultés]')
 math.randomseed(7)
 local platProduct = { cat = 'japonais', cook = true }

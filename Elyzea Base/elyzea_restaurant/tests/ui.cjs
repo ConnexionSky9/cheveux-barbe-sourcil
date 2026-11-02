@@ -67,17 +67,19 @@ const PARAMS = {
   check(await page.isVisible('#order'), 'carte affichée');
   check((await page.locator('.ord-cat').count()) === 5, '5 catégories');
   check((await page.locator('.prod').count()) === 2, 'catégorie Burgers : 2 produits avec image');
-  await page.click('[data-add="classic"]'); await page.click('[data-add="classic"]');
+  await page.click('[data-add="classic"]');
+  check(await page.locator('.prod.in .qbadge').count() === 1, 'produit ajouté : quantité affichée sur la carte, « Ajouter » devient − / +');
+  await page.click('.prod [data-q="classic"][data-d="1"]');
   await page.click('[data-cat="drinks"]'); await page.click('[data-add="cola"]');
   await page.click('[data-cat="desserts"]');
   await page.waitForTimeout(300);
   check((await page.locator('.prod .emo').count()) >= 1, 'image manquante : repli sur l\'emoji');
   let tot = await page.textContent('.cart-total b');
   check(tot.replace(/\s/g, '') === '58$', 'total 2 × 25 + 8 = 58 $ (' + tot + ')');
-  await page.click('[data-q="classic"][data-d="1"]');
+  await page.click('.cart-line [data-q="classic"][data-d="1"]');
   tot = await page.textContent('.cart-total b');
   check(tot.replace(/\s/g, '') === '83$', 'quantité + : 83 $');
-  await page.click('[data-q="classic"][data-d="-1"]');
+  await page.click('.cart-line [data-q="classic"][data-d="-1"]');
   await page.click('[data-rm="cola"]');
   tot = await page.textContent('.cart-total b');
   check(tot.replace(/\s/g, '') === '50$', 'produit supprimé : 50 $');
@@ -94,8 +96,17 @@ const PARAMS = {
     'envoyé au jeu : identifiants + quantités + total attendu (aucun prix)');
   check((await page.textContent('#toasts')).includes('#001'), 'confirmation affichée');
   check((await page.locator('.cart-line').count()) === 0, 'panier vidé après paiement');
-  for (let i = 0; i < 12; i++) await page.click('[data-cat="burgers"] >> nth=0').then(() => page.click('[data-add="classic"]')).catch(() => {});
-  check(await page.locator('[data-add="classic"][disabled]').count() === 1, 'quantité max (10) : bouton « Ajouter » bloqué');
+  await page.click('[data-cat="burgers"] >> nth=0');
+  await page.click('[data-add="classic"]');
+  for (let i = 0; i < 12; i++) await page.click('.prod [data-q="classic"][data-d="1"]', { timeout: 500 }).catch(() => {});
+  check(await page.locator('.prod [data-q="classic"][data-d="1"][disabled]').count() === 1 && (await page.textContent('.prod.in .qbadge')).trim() === '10', 'quantité max (10) : bouton « + » bloqué');
+  // Cartes lisibles : le prix et le bouton ne sont jamais coupés
+  const clipped = await page.$$eval('.prod', (cards) => cards.filter((c) => { const b = c.querySelector('.buy').getBoundingClientRect(), r = c.getBoundingClientRect(); return b.bottom > r.bottom + 1; }).length);
+  check(clipped === 0, 'cartes produits : prix et bouton entièrement visibles');
+  await page.fill('#ordQ', 'cola');
+  await page.waitForTimeout(150);
+  check(await page.locator('.prod').count() === 1 && (await page.textContent('.ord-title')).includes('cola'), 'recherche « cola » : dans toute la carte');
+  await page.fill('#ordQ', '');
   await send({ action: 'order', show: false });
 
   // ---------------- Sac ----------------

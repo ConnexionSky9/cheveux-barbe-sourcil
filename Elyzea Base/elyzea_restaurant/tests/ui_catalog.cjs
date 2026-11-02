@@ -193,6 +193,55 @@ const SUSHI = { need: ['rice', 'nori'], shown: ['soy', 'rice', 'wasabi', 'nori',
   await shot('c4_staff_paiements.png');
   await send({ action: 'admin', show: false });
 
+  // ---------------- Répartition des plats (plat × restaurant) ----------------
+  console.log('\n[Staff : répartition des plats, un par un]');
+  await page.evaluate(() => {
+    const a = window.__adm;
+    a.shops = [Object.assign({}, a.shops[0], { onMenu: ['classic', 'cola'] }),
+      Object.assign({}, a.shops[0], { id: 2, name: 'ItalianRestaurent', onMenu: [] })];
+  });
+  await send({ action: 'admin', show: true, data: await page.evaluate(() => window.__adm) });
+  await page.waitForTimeout(300);
+  await page.click('[data-ad="matrix"]');
+  await page.waitForTimeout(300);
+  check(await page.locator('table.mx').count() === 1 && (await page.locator('table.mx tbody tr').count()) === 6, 'tableau : 6 plats × 2 restaurants');
+  check((await page.textContent('table.mx thead')).includes('ItalianRestaurent'), 'colonne par restaurant');
+  check(await page.locator('[data-mx="1"][value="classic"]:checked').count() === 1 && await page.locator('[data-mx="2"][value="classic"]:checked').count() === 0, 'cases cochées = plats en vente');
+  await page.click('[data-mcat="italien"]');
+  await page.waitForTimeout(200);
+  check((await page.locator('table.mx tbody tr').count()) === 2, 'filtre « Restaurant italien » : 2 plats');
+  await page.click('[data-mx="2"][value="it_lasagnes"]');
+  await page.waitForTimeout(300);
+  let mx = await page.evaluate(() => window.__posts.filter((p) => p.name === 'adm' && p.data.action === 'catalogAssign').pop());
+  check(mx && mx.data.data.id === 2 && mx.data.data.on === true && mx.data.data.products.join() === 'it_lasagnes', 'une case = « ItalianRestaurent vend les lasagnes » envoyé tout de suite');
+  check((await page.textContent('[data-mxn="2"]')).includes('1 en vente'), 'compteur de la colonne mis à jour');
+  await page.click('[data-mxall="2"]');
+  await page.waitForTimeout(300);
+  mx = await page.evaluate(() => window.__posts.filter((p) => p.name === 'adm' && p.data.action === 'catalogAssign').pop());
+  check(mx && mx.data.data.on === true && mx.data.data.products.sort().join() === 'it_lasagnes,it_tiramisu', '« ✓ tout » : tous les plats affichés (italien) pour ce restaurant');
+  await page.click('[data-mcat=""]');
+  await page.fill('[data-mq]', 'sushi');
+  await page.waitForTimeout(200);
+  check((await page.locator('table.mx tbody tr').count()) === 1, 'recherche « sushi » : 1 plat');
+  await page.fill('[data-mq]', '');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(OUT, 'c5_repartition.png') });
+  await send({ action: 'admin', show: false });
+
+  // ---------------- Capture : carte d'un restaurant italien en 1920×1080 ----------------
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const it = { shop: { id: 2, name: 'ItalianRestaurent', logo: '🍝', color: '#2e9e5b', address: '', open: true }, categories: CATS,
+    products: PRODUCTS.map((p) => ({ ...p, desc: p.cuisine ? 'Recette maison préparée à la commande, servie chaude.' : 'Le classique de la maison.' })), methods: ['bank', 'cash', 'pesos'], pesosRate: 1,
+    limits: { maxQty: 10, maxLines: 12, maxUnits: 25 }, mine: [{ num: '#003', shop: 'ItalianRestaurent', status: 'ready', statusLabel: 'Terminée', done: 3, units: 3 }] };
+  await page.evaluate((c) => { window.__card = c; }, it);
+  await send({ action: 'order', show: true, data: it });
+  await page.waitForTimeout(400);
+  await page.click('[data-cat="italien"]');
+  await page.click('[data-add="it_lasagnes"]');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(OUT, 'c6_carte_1080p.png') });
+  await send({ action: 'order', show: false });
+
   check(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' : ' + errs.join(' | ') : ''));
   await browser.close();
   console.log(`\nTOTAL : ${passes} ok, ${fails} échec(s)`);

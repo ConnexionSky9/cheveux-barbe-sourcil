@@ -349,3 +349,49 @@ P.Admin.paymentsSet = { staff = 'menu', fn = function(src, d)
     Log(src, 'Paiements', ('%s · %s'):format(D.name, table.concat(names, ', ')))
     return { ok = true, message = ('%s accepte : %s.'):format(D.name, table.concat(names, ', ')) }
 end }
+
+-- ---------------------------------------------------------------------
+-- Répartition des plats (staff) : un ou plusieurs produits, mis en vente ou
+-- retirés d'UN restaurant, enregistré tout de suite.
+--   on = true  : le produit est autorisé ET mis à la carte du restaurant
+--   on = false : retiré de la carte et des produits autorisés
+-- « Tout le catalogue » (aucune liste) reste ainsi quand on ajoute ; quand on
+-- retire, la liste devient « tout le catalogue sauf ce produit ».
+-- ---------------------------------------------------------------------
+P.Admin.catalogAssign = { staff = 'menu', fn = function(src, d)
+    local D = P.shops[tonumber(d.id) or 0]
+    if not D or D.deleted then return { error = 'Restaurant introuvable.' } end
+    local on = d.on == true
+    local ids, seen = {}, {}
+    for _, pid in ipairs(type(d.products) == 'table' and d.products or { d.product }) do
+        pid = tostring(pid or '')
+        if P.Products[pid] and not seen[pid] then seen[pid] = true ids[#ids + 1] = pid end
+        if #ids >= 200 then break end
+    end
+    if #ids == 0 then return { error = 'Produit inconnu.' } end
+    P.SeedMenu(D, true)
+    D.options = D.options or {}
+    local set = P.CatalogSet(D)
+    if set ~= nil or not on then
+        -- Liste explicite (créée depuis « tout le catalogue » si besoin)
+        local cur = {}
+        if set == nil then for _, p in ipairs(Config.Products) do cur[p.id] = true end
+        else for k in pairs(set) do cur[k] = true end end
+        for _, pid in ipairs(ids) do cur[pid] = on or nil end
+        local list = {}
+        for _, p in ipairs(Config.Products) do if cur[p.id] then list[#list + 1] = p.id end end
+        D.options.catalog = list
+    end
+    for _, pid in ipairs(ids) do
+        local m = P.menu[D.id][pid]
+        if m and m.enabled ~= on then
+            m.enabled = on
+            MySQL.update.await('UPDATE `rs_menu` SET `enabled` = ? WHERE `shop_id` = ? AND `product` = ?', { on and 1 or 0, D.id, pid })
+        end
+    end
+    P.SaveShop(D)
+    P.Touch()
+    local what = #ids == 1 and P.Products[ids[1]].label or (#ids .. ' produits')
+    Log(src, 'Répartition des plats', ('%s · %s %s'):format(D.name, on and '+' or '−', what))
+    return { ok = true, message = on and ('%s : %s mis en vente.'):format(D.name, what) or ('%s : %s retiré.'):format(D.name, what) }
+end }

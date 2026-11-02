@@ -19,7 +19,8 @@ Même architecture que les autres métiers Elyzea (copie adaptée d'`elyzea_club
 1. **+ Nouveau restaurant** : nom, logo (emoji ou lien d'image), couleur, métier et compte (créés tout seuls), 5 grades.
 2. **Point de commande** (obligatoire) : se placer au comptoir, « Placer ici ». Coffre et Bureau (tablette) : facultatifs.
 3. **Stations de cuisine** (au moins une) : cocher les types (grill, four, friteuse, fontaine, pâtisserie, piano de cuisson, plan de travail), « Poser ici ». Une station peut avoir plusieurs types.
-4. **Produits vendus** : cocher ce que ce restaurant a le droit de vendre (catégories repliables, « Tout » / « Rien » par catégorie, recherche). « Tout le catalogue » = le patron choisit lui-même. Chaque produit montre sa station ; s'il en manque une, un avertissement l'indique.
+4. **🍽️ Répartition des plats** (en haut de la liste des restaurants) : tableau plat × restaurant. Cocher une case = ce restaurant vend ce plat (mis à sa carte tout de suite) ; décocher = retiré. Filtre par catégorie, recherche, « ✓ tout » / « ✕ » par restaurant sur les plats affichés.
+   **Produits vendus** (fiche d'un restaurant) : cocher ce que ce restaurant a le droit de vendre (catégories repliables, « Tout » / « Rien » par catégorie, recherche). « Tout le catalogue » = le patron choisit lui-même. Chaque produit montre sa station ; s'il en manque une, un avertissement l'indique.
 5. **Paiements acceptés** : banque, espèces et/ou pesos.
 6. **Nommer le patron**, puis **Activer**.
 
@@ -89,9 +90,9 @@ Les produits utilisent les objets déjà présents dans `elyzea_inventory` (burg
 
 ## Tests hors jeu
 
-- `python3 tests/run_tests.py <socket MariaDB>` : scripts serveur réels + vraie base MariaDB, parcours complet à plusieurs joueurs, recettes, produits vendus, pesos (187 vérifications).
-- `NODE_PATH=$(npm root -g) node tests/ui.cjs` : carte, panier, sac, 5 mini-jeux joués, tablette (35 vérifications).
-- `NODE_PATH=$(npm root -g) node tests/ui_catalog.cjs` : carte en pesos, mini-jeu « plat » joué, panneau staff produits vendus + paiements (32 vérifications).
+- `python3 tests/run_tests.py <socket MariaDB>` : scripts serveur réels + vraie base MariaDB, parcours complet à plusieurs joueurs, recettes, produits vendus, répartition des plats, pesos (197 vérifications).
+- `NODE_PATH=$(npm root -g) node tests/ui.cjs` : carte (recherche, quantités sur les cartes, rien de coupé), panier, sac, 5 mini-jeux joués, tablette (38 vérifications).
+- `NODE_PATH=$(npm root -g) node tests/ui_catalog.cjs` : carte en pesos, mini-jeu « plat » joué, produits vendus, paiements, répartition des plats (40 vérifications).
 - `NODE_PATH=$(npm root -g) node tests/ui_phone.cjs` : appli « Commande » du téléphone (7 vérifications).
 
 Exports : `IsRestoEmployee(src)`, `GetRestaurants()`, `GetActiveOrders(src)`, et ceux du Métier staff d'admin_menu.

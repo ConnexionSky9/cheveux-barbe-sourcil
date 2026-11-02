@@ -4,7 +4,7 @@
    cuisine, nommer le patron, activer, supprimer, voir / annuler les commandes.
    ===================================================================== */
 (() => {
-  const A = { data: null, sel: null, edit: null, draft: null, q: '' };
+  const A = { data: null, sel: null, edit: null, draft: null, q: '', view: 'shops', mcat: '', mq: '' };
   const PAY = { bank: '💳 Banque', cash: '💵 Espèces', pesos: '🪙 Pesos' };
   const wrap = $('#admin');
   const el = () => $('#admin .modal');
@@ -113,11 +113,44 @@
     });
   }
 
+  /* ---------- Répartition des plats : un plat par ligne, un restaurant par colonne ---------- */
+  function matrixView() {
+    const d = A.data || {}, shops = d.shops || [], prods = d.products || [], edit = can('menu');
+    const cats = (d.categories || []).filter((c) => prods.some((p) => p.cat === c.id));
+    const q = norm(A.mq).trim();
+    const list = prods.filter((p) => (!A.mcat || p.cat === A.mcat) && (!q || norm(`${p.label} ${p.id}`).includes(q)));
+    const types = Object.fromEntries((d.stationTypes || []).map((t) => [t.id, t]));
+    const sells = (s, id) => (s.onMenu || []).includes(id);
+    const cu = d.cuisine || {};
+    if (!shops.length) return `<h2>Répartition des plats</h2>${empty('Créez d\'abord un restaurant.')}`;
+    return `<h2>Répartition des plats</h2>
+      <p class="lead">Cochez une case : <b>ce restaurant vend ce plat</b> (il apparaît tout de suite sur sa carte). Décochez : il est retiré.
+        Chaque case s'enregistre immédiatement. Le patron peut ensuite changer les prix dans sa tablette.
+        ${cu.count ? `<br>${prods.length} produits au catalogue, dont <b>${cu.count} recettes</b> de elyzea_cuisine.` : (cu.error ? `<br><span style="color:#fca5a5">Recettes elyzea_cuisine non chargées : ${esc(cu.error)}</span>` : '')}</p>
+      <div class="mx-tools"><div class="mx-cats"><button class="chip ${A.mcat ? '' : 'on'}" data-mcat="">Tout (${prods.length})</button>
+        ${cats.map((c) => `<button class="chip ${A.mcat === c.id ? 'on' : ''}" data-mcat="${esc(c.id)}">${esc(c.icon || '')} ${esc(c.label)} (${prods.filter((p) => p.cat === c.id).length})</button>`).join('')}</div>
+        <input class="input" data-mq placeholder="Rechercher un plat…" value="${esc(A.mq)}"></div>
+      <div class="mx-wrap"><table class="mx"><thead><tr><th class="mx-p">Plat (${list.length})</th><th>Station</th>
+        ${shops.map((s) => `<th class="mx-s" title="${esc(s.name)}"><span class="mx-sn">${esc(s.name)}</span><small data-mxn="${s.id}">${(s.onMenu || []).length} en vente</small>
+          ${edit ? `<span class="mx-bulk"><button class="btn small" data-mxall="${s.id}" title="Mettre en vente tous les plats affichés">✓ tout</button><button class="btn small" data-mxnone="${s.id}" title="Retirer tous les plats affichés">✕</button></span>` : ''}</th>`).join('')}</tr></thead>
+        <tbody>${list.map((p) => { const st = types[p.station] || {};
+          return `<tr><td class="mx-p"><img src="${esc(imgUrl(p.image))}" alt="" loading="lazy"><span><b>${esc(p.label)}</b><small class="mono">${esc(p.id)} · ${money(p.price)}</small></span></td>
+            <td class="mx-st" title="${esc(st.label || p.station || '')}">${esc(st.icon || '')}</td>
+            ${shops.map((s) => `<td class="mx-c"><input type="checkbox" data-mx="${s.id}" value="${esc(p.id)}" ${sells(s, p.id) ? 'checked' : ''} ${edit ? '' : 'disabled'} aria-label="${esc(s.name)} vend ${esc(p.label)}"></td>`).join('')}</tr>`; }).join('')
+          || `<tr><td colspan="${shops.length + 2}">${empty('Aucun plat ne correspond.')}</td></tr>`}</tbody></table></div>`;
+  }
+  function matrixCount(shopId) {
+    const s = (A.data.shops || []).find((x) => x.id === shopId), n = $(`[data-mxn="${shopId}"]`);
+    if (s && n) n.textContent = `${(s.onMenu || []).length} en vente`;
+  }
+
   function draw() {
     const d = A.data || { shops: [] };
     const s = d.shops.find((x) => x.id === A.sel);
     let main;
-    if (A.edit === 'new') {
+    if (A.view === 'matrix') {
+      main = matrixView();
+    } else if (A.edit === 'new') {
       main = `<h2>Nouveau restaurant</h2><p class="lead">Il est créé <b>désactivé</b>, avec 5 grades (Commis, Cuisinier, Serveur, Gérant, Patron) et une carte de départ (produits « default » de config.lua).</p>
         ${form(null)}<div class="actions"><button class="btn" data-ad="cancel">Annuler</button><button class="btn primary" data-ad="save">Créer</button></div>`;
     } else if (!s) {
@@ -152,22 +185,40 @@
             <div style="flex-basis:100%;display:flex;gap:.6rem;flex-wrap:wrap;margin:.3rem 0">${typeBoxes([], 0)}</div><button class="btn small primary" data-stsave="0">Poser ici</button></div>` : ''}</div>`;
     }
     el().innerHTML = `<div class="modal-head"><div><div class="eyebrow">Staff</div><h2>Restaurants</h2></div><button class="icon-btn" data-ad="close" aria-label="Fermer">✕</button></div>
-      <div class="adm-split"><div class="adm-list">${d.shops.map((x) => `<button class="pick ${x.id === A.sel ? 'on' : ''}" data-sel="${x.id}"><b>${esc(x.name)}</b>
+      <div class="adm-split"><div class="adm-list"><button class="pick pick-mx ${A.view === 'matrix' ? 'on' : ''}" data-ad="matrix"><b>🍽️ Répartition des plats</b><small>Quel restaurant vend quoi</small></button>
+        ${d.shops.map((x) => `<button class="pick ${A.view !== 'matrix' && x.id === A.sel ? 'on' : ''}" data-sel="${x.id}"><b>${esc(x.name)}</b>
           <small>${x.enabled ? 'Activé' : 'Désactivé'} · ${x.employees} employé(s)</small></button>`).join('') || '<p class="faint">Aucun restaurant.</p>'}
         ${can('edit') ? '<button class="btn primary block" data-ad="new" style="margin-top:.6rem">+ Nouveau restaurant</button>' : ''}${rightsLine()}</div>
       <div class="adm-main">${main}</div></div>`;
-    if (s && A.edit !== s.id) { filterRows(); updateWarn(); }
+    if (A.view !== 'matrix' && s && A.edit !== s.id) { filterRows(); updateWarn(); }
   }
 
   async function reload() { const r = await post('admReload'); if (!r.error) { A.data = r; draw(); } return r; }
   async function run(action, data, btn) { const r = await act(adm(action, data), btn); if (r.ok) await reload(); return r; }
 
-  wrap.addEventListener('change', (e) => {
+  wrap.addEventListener('change', async (e) => {
     const t = e.target;
+    if (t.matches('[data-mx]')) {
+      const id = Number(t.dataset.mx), pid = t.value, on = t.checked;
+      t.disabled = true;
+      const r = await adm('catalogAssign', { id, products: [pid], on });
+      t.disabled = false;
+      if (r.error) { t.checked = !on; return toast(r.error, false); }
+      const s = (A.data.shops || []).find((x) => x.id === id);
+      if (s) { s.onMenu = (s.onMenu || []).filter((x) => x !== pid); if (on) s.onMenu.push(pid); matrixCount(id); }
+      toast(r.message, true);
+      return;
+    }
     if (t.matches('[data-prod]') && A.draft) { if (t.checked) A.draft.set.add(t.dataset.prod); else A.draft.set.delete(t.dataset.prod); return refreshCounts(); }
     if (t.name === 'catmode' && A.draft) { A.draft.all = t.value === 'all'; el().querySelectorAll('.cat-list,.cat-tools').forEach((n) => n.classList.toggle('dim', A.draft.all)); updateWarn(); }
   });
-  wrap.addEventListener('input', (e) => { if (e.target.matches('[data-catq]')) { A.q = e.target.value; filterRows(); } });
+  wrap.addEventListener('input', (e) => {
+    if (e.target.matches('[data-catq]')) { A.q = e.target.value; filterRows(); }
+    if (e.target.matches('[data-mq]')) {
+      A.mq = e.target.value; const pos = e.target.selectionStart; draw();
+      const n = el().querySelector('[data-mq]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+    }
+  });
 
   wrap.addEventListener('click', async (e) => {
     let b;
@@ -181,7 +232,17 @@
       if (on && A.draft.all) { A.draft.all = false; const r = el().querySelector('input[name="catmode"][value="list"]'); if (r) r.checked = true; el().querySelectorAll('.cat-list,.cat-tools').forEach((n) => n.classList.remove('dim')); }
       return refreshCounts();
     }
-    if ((b = e.target.closest('[data-sel]'))) { A.sel = Number(b.dataset.sel); A.edit = null; A.orders = null; A.draft = null; A.q = ''; return draw(); }
+    if ((b = e.target.closest('[data-sel]'))) { A.view = 'shops'; A.sel = Number(b.dataset.sel); A.edit = null; A.orders = null; A.draft = null; A.q = ''; return draw(); }
+    if ((b = e.target.closest('[data-mcat]'))) { A.mcat = b.dataset.mcat; return draw(); }
+    if ((b = e.target.closest('[data-mxall],[data-mxnone]'))) {
+      const id = Number(b.dataset.mxall || b.dataset.mxnone), on = !!b.dataset.mxall;
+      const ids = [...el().querySelectorAll(`[data-mx="${id}"]`)].map((c) => c.value);
+      if (!ids.length) return;
+      if (!on && !(await confirmBox('Retirer ces plats ?', `${ids.length} plat(s) affiché(s) seront retirés de la carte de ce restaurant.`, 'Retirer', true))) return;
+      const r = await act(adm('catalogAssign', { id, products: ids, on }), b);
+      if (r.ok) await reload();
+      return;
+    }
     if ((b = e.target.closest('[data-pt]'))) return run('point', { id: A.sel, key: b.dataset.pt }, b);
     if ((b = e.target.closest('[data-ptdel]'))) return run('point', { id: A.sel, key: b.dataset.ptdel, remove: true }, b);
     if ((b = e.target.closest('[data-tp]'))) return act(adm('teleport', { id: A.sel, key: b.dataset.tp }), b);
@@ -203,6 +264,7 @@
     const a = b.dataset.ad;
     const s = (A.data.shops || []).find((x) => x.id === A.sel);
     if (a === 'close') return post('close', { ui: 'admin' });
+    if (a === 'matrix') { A.view = 'matrix'; A.edit = null; return draw(); }
     if (a === 'new') { A.edit = 'new'; return draw(); }
     if (a === 'edit') { A.edit = A.sel; return draw(); }
     if (a === 'cancel') { A.edit = null; return draw(); }
