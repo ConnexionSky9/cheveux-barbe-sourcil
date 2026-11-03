@@ -165,3 +165,28 @@ Tous les réglages sont dans `config_elypick.lua`, fichier séparé : ton `confi
 ### Tests hors jeu
 - `python3 tests/run_elypick_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base MariaDB, 3 joueurs, puis redémarrage simulé ; 91 vérifications.
 - `NODE_PATH=$(npm root -g) node tests/ui_elypick.cjs` : l'interface complète dans le navigateur, avec des données de démonstration.
+
+## Appli « LaserGame » (LaserGame ElyzeaFA)
+Application du téléphone au thème néon du LaserGame. Elle se télécharge dans **Appli** (catégorie Jeux) et ne fonctionne
+que si `elyzea_lasergame` est démarré (sinon : « Le LaserGame est fermé pour le moment »).
+
+| Onglet | Contenu |
+|---|---|
+| **Profil** | Mes points, mon rang (image du rang), ma position au classement, la progression vers le rang suivant, mes statistiques PVP et Zombie, mes 8 dernières parties. |
+| **Classement** | PVP Arena (points, ratio, victoires, séries) et Zombie (meilleure manche, éliminations, solo, équipes), 10 par page, podium et ma ligne en surbrillance. |
+| **Matchs** | Demandes de match PVP Arena : format 1 VS 1 à 6 VS 6, carte (ou au choix), « dès que possible » ou à une heure, mise proposée, message. Les autres joueurs **écrivent à l'auteur** ou **rejoignent**. |
+| **Annonces** | Soirées programmées : « demain 21:30, carte Zombie ». Heure obligatoire (jusqu'à 7 jours à l'avance), nombre de joueurs, compte à rebours, liste des inscrits, bouton **Rejoindre**. |
+| **Messages** | Discussions entre joueurs de l'appli (notification à la réception, pastille de non-lus). |
+
+- **Rejoindre ne téléporte jamais.** Le serveur renvoie la position du PNJ LaserGame le plus proche (config, `/lgadmin` ou
+  éditeur de map d'admin_menu) et le téléphone pose seulement un **point GPS**. Le bouton GPS en haut de l'appli fait de même.
+- Notifications : l'auteur est prévenu quand quelqu'un rejoint ; les inscrits reçoivent un rappel 10 min avant puis à l'heure,
+  et sont prévenus si l'annonce est retirée ; une nouvelle annonce est signalée aux joueurs qui ont l'appli.
+- Sécurité : tout est revérifié par `elyzea_lasergame` (`server/phone.lua`). Le téléphone n'envoie que des choix ; les
+  identifiants de personnage ne lui sont jamais envoyés (jetons aléatoires). Anti-spam (1 publication / min, 3 en cours au
+  plus, 1 message / 2 s), textes nettoyés, joueurs exclus du LaserGame refusés. L'auteur ou le staff (permission LaserGame
+  d'admin_menu) peut retirer une annonce.
+- Réglages : `elyzea_lasergame/config.lua › Config.Phone`. Tables `lg_phone_posts`, `lg_phone_joins`, `lg_phone_messages`
+  créées automatiquement.
+- Tests hors jeu : `elyzea_lasergame/tests/run_server_sim.py` (serveur, SQLite ou MariaDB) et
+  `NODE_PATH=$(npm root -g) node tests/ui_lasergame.cjs` (interface, aperçu navigateur).

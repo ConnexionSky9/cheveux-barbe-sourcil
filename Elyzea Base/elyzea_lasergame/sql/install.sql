@@ -75,3 +75,27 @@ CREATE TABLE IF NOT EXISTS `lg_settings` (
     `k` VARCHAR(40) NOT NULL PRIMARY KEY, `v` LONGTEXT NOT NULL,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) DEFAULT CHARSET=utf8mb4;
+
+
+-- Appli « LaserGame » du téléphone (elyzea_aura) : demandes de match, annonces, inscriptions, messages
+CREATE TABLE IF NOT EXISTS `lg_phone_posts` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `kind` VARCHAR(8) NOT NULL, `citizenid` VARCHAR(64) NOT NULL,
+    `name` VARCHAR(80) NOT NULL DEFAULT '', `mode` VARCHAR(8) NOT NULL, `map` VARCHAR(32) NOT NULL DEFAULT '',
+    `format` VARCHAR(8) NOT NULL DEFAULT '', `stake` INT NOT NULL DEFAULT 0, `slots` INT NOT NULL DEFAULT 0,
+    `starts_at` INT NOT NULL DEFAULT 0, `message` VARCHAR(200) NOT NULL DEFAULT '',
+    `status` VARCHAR(10) NOT NULL DEFAULT 'open', `notified` INT NOT NULL DEFAULT 0, `created_at` INT NOT NULL DEFAULT 0,
+    INDEX `status_kind` (`status`, `kind`), INDEX `cid` (`citizenid`)
+    ) DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `lg_phone_joins` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `post_id` INT NOT NULL, `citizenid` VARCHAR(64) NOT NULL,
+    `name` VARCHAR(80) NOT NULL DEFAULT '', `created_at` INT NOT NULL DEFAULT 0,
+    INDEX `post` (`post_id`), INDEX `cid` (`citizenid`)
+    ) DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `lg_phone_messages` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `from_cid` VARCHAR(64) NOT NULL, `from_name` VARCHAR(80) NOT NULL DEFAULT '',
+    `to_cid` VARCHAR(64) NOT NULL, `to_name` VARCHAR(80) NOT NULL DEFAULT '', `post_id` INT NOT NULL DEFAULT 0,
+    `body` VARCHAR(400) NOT NULL, `created_at` INT NOT NULL DEFAULT 0, `read_at` INT NOT NULL DEFAULT 0,
+    INDEX `to_read` (`to_cid`, `read_at`), INDEX `pair` (`from_cid`, `to_cid`, `id`)
+    ) DEFAULT CHARSET=utf8mb4;

@@ -528,5 +528,107 @@ for k = 1, 60 do local r = SIM.rpc(1, 'list:get') if r == false then flood = flo
 check(flood > 0, ('limite de fréquence : %d requêtes refusées sur 60'):format(flood))
 check(sql('scalar', "SELECT COUNT(*) FROM `lg_logs` WHERE `category` = 'security'") > 0, 'événements suspects journalisés')
 
+section('Appli « LaserGame » du téléphone (elyzea_aura)')
+do
+    local notes = {}
+    local origState = GetResourceState
+    GetResourceState = function(r) if r == 'elyzea_aura' then return 'started' end return origState(r) end
+    exports.elyzea_aura = { SendNotification = function(_, src, title, text, app) notes[#notes + 1] = { src = src, title = title, text = text, app = app } end }
+    local function call(src, action, args) local r = Phone.Call(src, action, args or {}) SIM.run(10) return r end
+    local function notesFor(src) local n = 0 for _, x in ipairs(notes) do if x.src == src then n = n + 1 end end return n end
+    SIM.run(31000)   -- tables créées par le fil de l'appli
+    check(sql('scalar', 'SELECT COUNT(*) FROM `lg_phone_posts`') == 0, 'tables de l\'appli créées')
+
+    local h = call(1, 'home')
+    check(h.ok and h.profile and h.profile.points and h.profile.rankLabel and #h.ranks == 8, 'accueil : points, rang et liste des rangs')
+    check(#h.formats >= 1 and #h.maps == 5 and h.me.token and not h.me.cid, 'accueil : formats, 5 cartes, jeton (jamais l\'identifiant du personnage)')
+    local b = call(1, 'board', { kind = 'pvp_points', page = 1 })
+    local leak = false
+    for _, r in ipairs(b.rows or {}) do if r.citizenid or r.cids then leak = true end end
+    check(b.ok and #b.rows > 0 and not leak, ('classement PVP (%d joueurs), sans identifiant de personnage'):format(b.total or 0))
+    check(call(1, 'board', { kind = 'zb_round' }).ok and not call(1, 'board', { kind = 'nope' }).ok, 'classement Zombie, classement inconnu refusé')
+
+    -- demande de match PVP « dès que possible »
+    local c = call(1, 'create', { kind = 'match', format = '2v2', map = 'pvp_small', stake = 500, message = '<b>Qui</b> pour un 2v2 ?' })
+    check(c.ok and c.broadcast and c.broadcast.text:find('2v2'), 'demande de match PVP publiée (texte d\'annonce aux autres)')
+    local row = sql('single', 'SELECT * FROM `lg_phone_posts` WHERE `id` = ?', { c.id })
+    check(row.message == 'bQui/b pour un 2v2 ?' and row.slots == 3 and row.starts_at == 0, 'texte nettoyé, 3 places restantes en 2v2')
+    check(not call(1, 'create', { kind = 'match', format = '1v1' }).ok, 'anti-spam : 2e publication trop rapide refusée')
+    check(not call(2, 'create', { kind = 'match', format = '9v9' }).ok, 'format inconnu refusé')
+    check(not call(2, 'create', { kind = 'match', format = '1v1', map = 'zombie_map' }).ok, 'carte Zombie refusée pour un match PVP')
+
+    -- annonce programmée Zombie
+    check(not call(2, 'create', { kind = 'event', mode = 'zombie', map = 'zombie_map' }).ok, 'annonce sans heure refusée')
+    check(not call(2, 'create', { kind = 'event', mode = 'zombie', startsAt = os.time() - 3600 }).ok, 'heure passée refusée')
+    check(not call(2, 'create', { kind = 'event', mode = 'zombie', startsAt = os.time() + 30 * 86400 }).ok, 'plus de 7 jours à l\'avance refusé')
+    local e = call(2, 'create', { kind = 'event', mode = 'zombie', map = 'zombie_map', startsAt = os.time() + 20 * 60, message = 'Survie à 4' })
+    check(e.ok and e.broadcast.text:find('Zombie'), 'annonce « dans 20 min : carte Zombie » publiée')
+
+    local ev = call(3, 'posts', { kind = 'event' })
+    local post = ev.posts and ev.posts[1]
+    check(ev.ok and #ev.posts == 1 and post.mapLabel == 'COMPLEXE ELYZEA-7' and post.when:find('à') and not post.mine, 'liste des annonces (carte, heure)')
+    -- Rejoindre : point GPS, jamais de téléportation
+    SIM.move(3, 100.0, 100.0, 30.0)
+    local before = GetEntityCoords(GetPlayerPed(3))
+    local restores = SIM.count(3, 'elyzea_lasergame:restore')
+    local j = call(3, 'join', { id = post.id })
+    local nearest = nil
+    for _, n in ipairs(Settings.Npcs()) do
+        if not nearest or LGU.Dist2D(n, { x = 100, y = 100 }) < LGU.Dist2D(nearest, { x = 100, y = 100 }) then nearest = n end
+    end
+    local after = GetEntityCoords(GetPlayerPed(3))
+    check(j.ok and j.gps and math.abs(j.gps.x - nearest.x) < 0.1 and math.abs(j.gps.y - nearest.y) < 0.1, 'Rejoindre : point GPS sur le PNJ LaserGame le plus proche')
+    check(before.x == after.x and before.y == after.y and before.z == after.z and SIM.count(3, 'elyzea_lasergame:restore') == restores, 'Rejoindre ne téléporte pas le joueur')
+    check(notesFor(2) >= 1, 'l\'auteur est prévenu qu\'un joueur rejoint')
+    local ev2 = call(3, 'posts', { kind = 'event' })
+    check(ev2.posts[1].joined and ev2.posts[1].count == 1 and ev2.posts[1].players[1] == 'Joueur 3', 'inscription visible (compteur, nom)')
+    call(3, 'join', { id = post.id })
+    check(sql('scalar', 'SELECT COUNT(*) FROM `lg_phone_joins` WHERE `post_id` = ?', { post.id }) == 1, 'rejoindre deux fois : une seule inscription')
+
+    -- rappels
+    local n3 = notesFor(3)
+    SIM.run(11 * 60 * 1000)
+    check(notesFor(3) > n3 and sql('scalar', 'SELECT `notified` FROM `lg_phone_posts` WHERE `id` = ?', { post.id }) == 1, 'rappel aux inscrits 10 min avant')
+    SIM.run(10 * 60 * 1000)
+    check(sql('scalar', 'SELECT `notified` FROM `lg_phone_posts` WHERE `id` = ?', { post.id }) == 2, 'notification « c\'est l\'heure »')
+
+    -- messagerie (sur une demande de match)
+    local m1 = call(4, 'send', { post = c.id, body = 'Je suis chaud pour ton 2v2' })
+    check(m1.ok and m1.token and notesFor(1) >= 1, 'message à l\'auteur d\'une demande : envoyé et notifié')
+    check(not call(1, 'send', { token = h.me.token, body = 'moi' }).ok, 'impossible de s\'écrire à soi-même')
+    local th = call(1, 'threads')
+    check(th.ok and #th.threads == 1 and th.threads[1].unread == 1 and th.unread == 1, 'conversations : 1 non lue')
+    local t1 = call(1, 'thread', { token = th.threads[1].token })
+    check(t1.ok and #t1.messages == 1 and not t1.messages[1].mine and t1.unread == 0, 'conversation ouverte : message lu')
+    SIM.run(3000)
+    local r1 = call(1, 'send', { token = th.threads[1].token, body = 'Go, viens au LaserGame' })
+    local th4 = call(4, 'threads')
+    if not (r1.ok and th4.threads[1].unread == 1) then SIM.print('    ' .. json.encode(r1) .. ' ' .. json.encode(th4)) end
+    check(r1.ok and th4.threads[1].unread == 1, 'réponse reçue')
+    check(not call(4, 'send', { token = 'inconnu', body = 'x' }).ok and not call(4, 'thread', { token = 'inconnu' }).ok, 'jeton inconnu refusé')
+
+    -- retirer : seul l'auteur ou le staff
+    check(not call(3, 'cancel', { id = c.id }).ok, 'un autre joueur ne peut pas retirer l\'annonce')
+    local n4 = notesFor(4)
+    check(call(10, 'cancel', { id = e.id }).ok, 'le staff retire une annonce')
+    check(call(1, 'cancel', { id = c.id }).ok and #call(1, 'posts', { kind = 'match' }).posts == 0, 'l\'auteur retire sa demande')
+    check(notesFor(3) > 0 and notesFor(4) >= n4, 'les inscrits sont prévenus de l\'annulation')
+
+    -- expiration d'une demande « dès que possible »
+    SIM.run(61000)
+    local x = call(5, 'create', { kind = 'match', format = '1v1' })
+    SIM.run(2 * 3600 * 1000 + 60000)
+    check(sql('scalar', 'SELECT `status` FROM `lg_phone_posts` WHERE `id` = ?', { x.id }) == 'expired', 'demande expirée après 2 h')
+
+    -- exclu du LaserGame
+    SIM.rpc(10, 'admin:players.set', 'CID6', 'exclude', nil, { reason = 'triche', hours = 0 })
+    check(not call(6, 'create', { kind = 'match', format = '1v1' }).ok, 'joueur exclu : ne peut pas publier')
+    SIM.rpc(10, 'admin:players.set', 'CID6', 'unexclude')
+    check(not Phone.Call(1, 'inconnu', {}).ok and not Phone.Call(999, 'home', {}).ok, 'action inconnue / personnage introuvable refusés')
+    local gps = call(1, 'gps')
+    check(gps.ok and gps.gps.label ~= nil, 'bouton « GPS vers le LaserGame »')
+    GetResourceState = origState
+end
+
 SIM.print(('\n%d vérifications réussies, %d échec(s), %d erreur(s) de fil'):format(PASS, FAIL, #SIM.errors))
 return FAIL + #SIM.errors

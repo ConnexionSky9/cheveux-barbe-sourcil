@@ -41,6 +41,9 @@ touché, état RP sauvegardé en base et restauré même après un crash.
   pagination, actualisation automatique ; profil ; historique.
 - **Staff** : parties (arrêt, expulsion), PVP, armes, Zombie, prix, cartes (déplacement, aperçu), PNJ, joueurs (points, rang,
   réinitialisation, exclusion), journaux (Discord facultatif).
+- **Appli du téléphone** (elyzea_aura › « LaserGame ») : points, rang, classements, demandes de match PVP, annonces
+  programmées avec bouton Rejoindre (point GPS vers le LaserGame, jamais de téléportation), messages entre joueurs
+  (`server/phone.lua`, docs/installation.md §9).
 
 ## Arborescence
 ```
@@ -48,7 +51,7 @@ elyzea_lasergame/
   fxmanifest.lua  config.lua  README.md  PROJECT_STATUS.md
   shared/   constants · config · utils · rpc
   server/   bridge · logs · security · database · players · settings · maps · economy · restoration
-            games · lobby · combat · ranking · pvp · zombie · admin · main
+            games · lobby · combat · ranking · pvp · zombie · admin · phone · main
   client/   main · interface · npc · maps · laser · weapons · restoration · pvp · spectator · zombie · doors · perks · admin
   html/     index.html · style.css · script.js · brand.css/js · ranks/ (8 emblèmes) · sounds/ (41 sons) · images/maps/ · assets/
   maps/     pvp_small · pvp_medium · pvp_large · pvp_xlarge · zombie_map  (map.json, preview.png, .ymap.xml) · validation_report.json

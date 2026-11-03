@@ -27,6 +27,7 @@ const APPS = {
   carplay:   { label: 'CarPlay', store: true },
   grossesse: { label: 'Grossesse', store: true },
   sante:     { label: 'Santé', store: true },
+  lasergame: { label: 'LaserGame', store: true },
 };
 const DOCK = ['phone', 'messages', 'store', 'camera'];
 const GRID = ['contacts', 'bank', 'gallery', 'notes', 'ads', 'maps', 'alert', 'services', 'calc', 'settings'];
@@ -51,7 +52,8 @@ function renderHome() {
   const tile = (id) => {
     const badge = id === 'messages' && S.unread > 0 ? `<span class="badge">${S.unread}</span>`
       : id === 'bank' && S.bankPending > 0 ? `<span class="badge">${S.bankPending}</span>`
-      : id === 'instapick' && S.epBadge > 0 ? `<span class="badge">${S.epBadge > 99 ? '99+' : S.epBadge}</span>` : '';
+      : id === 'instapick' && S.epBadge > 0 ? `<span class="badge">${S.epBadge > 99 ? '99+' : S.epBadge}</span>`
+      : id === 'lasergame' && S.lgBadge > 0 ? `<span class="badge">${S.lgBadge > 99 ? '99+' : S.lgBadge}</span>` : '';
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };
   const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(Object.keys(STORE).filter(isInstalled));

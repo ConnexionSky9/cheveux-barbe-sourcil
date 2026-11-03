@@ -76,3 +76,11 @@ Les journaux (staff, argent, PVP, Zombie, sécurité, erreurs) y sont envoyés e
 
 ## 8. Mise à jour
 Remplace les fichiers. Les réglages faits en jeu (`/lgadmin`) sont en base (`lg_settings`) et sont conservés.
+
+## 9. Appli « LaserGame » du téléphone (elyzea_aura)
+1. Remplace `elyzea_aura` et `elyzea_lasergame` par les versions de ce dépôt (les deux sont nécessaires), puis redémarre.
+2. En jeu : téléphone › **Appli** › LaserGame › Obtenir.
+3. Profil (points, rang), Classement, Matchs (demandes PVP), Annonces (soirées programmées), Messages.
+4. **Rejoindre** pose un point GPS sur le PNJ LaserGame le plus proche : aucun joueur n'est téléporté. Pour que le GPS
+   fonctionne, au moins un PNJ LaserGame doit être placé (§3).
+5. Réglages : `config.lua › Config.Phone` (limites, rappel avant l'heure, durée d'une demande « dès que possible »).

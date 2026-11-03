@@ -114,6 +114,21 @@ Config.Spectator = {
 }
 
 -- ---------------------------------------------------------------- classement
+-- ---------------------------------------------------------------- appli « LaserGame » du téléphone (elyzea_aura)
+-- Classement, points, demandes de match PVP, annonces programmées (bouton Rejoindre = point GPS, jamais de téléportation),
+-- messages entre joueurs. L'appli se télécharge dans « Appli » du téléphone.
+Config.Phone = {
+    MaxOpenPerPlayer = 3,       -- annonces / demandes ouvertes en même temps par joueur
+    PostCooldown = 60,          -- secondes entre deux publications d'un même joueur
+    MessageCooldown = 2,        -- secondes entre deux messages
+    MessageLength = 300,        -- caractères par message
+    PostTextLength = 160,       -- caractères du texte d'une annonce
+    MaxDaysAhead = 7,           -- une annonce se programme au plus N jours à l'avance
+    ReminderMinutes = 10,       -- rappel aux inscrits N minutes avant l'heure (puis à l'heure)
+    MatchRequestHours = 2,      -- une demande « dès que possible » disparaît après N heures
+    EventGraceMinutes = 60,     -- une annonce reste visible N minutes après son heure
+}
+
 Config.LeaderboardPageSize = 10
 Config.LeaderboardCacheSeconds = 30       -- les classements sont recalculés au plus toutes les N secondes
 

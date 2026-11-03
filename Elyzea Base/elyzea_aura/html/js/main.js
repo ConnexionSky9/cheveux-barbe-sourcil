@@ -302,6 +302,45 @@ const Mock = {
       ppa: { type: 'ppa', sub: 'civil', suspended: this.susp.ppa, data: Object.assign({ number: 'PPA-551204', issued: '01/11/2026', expires: '30/01/2027', expiresAt: Math.floor(Date.now() / 1000) + 9e6, doctor: 'Dr Morel', categories: ['Pistolet'] }, base) },
     };
   },
+  // Appli LaserGame (aperçu navigateur)
+  lg(action, a, n) {
+    const L = this.lgData = this.lgData || {
+      posts: [
+        { id: 1, kind: 'match', mode: 'pvp', map: 'pvp_medium', mapLabel: 'NEON PARKING', format: '2v2', formatLabel: '2 VS 2', stake: 2500, slots: 3, startsAt: 0, when: 'Dès que possible', message: 'Équipe de 2 cherche adversaires sérieux', author: 'Malik Benali', authorToken: 'tokmalik', created: n - 420, count: 1, players: ['Inès Morel'], joined: false, mine: false, canCancel: false, full: false },
+        { id: 2, kind: 'match', mode: 'pvp', map: '', mapLabel: 'Carte au choix', format: '1v1', formatLabel: '1 VS 1', stake: 0, slots: 1, startsAt: n + 3600, when: "aujourd'hui à 21:30", message: '', author: 'Lena Duval', authorToken: 'tokme', created: n - 60, count: 0, players: [], joined: false, mine: true, canCancel: true, full: false },
+        { id: 3, kind: 'event', mode: 'zombie', map: 'zombie_map', mapLabel: 'COMPLEXE ELYZEA-7', format: '', stake: 0, slots: 3, startsAt: n + 1500, when: "aujourd'hui à 21:30", message: 'Soirée survie : objectif manche 20 !', author: 'Inès Morel', authorToken: 'tokines', created: n - 3000, count: 2, players: ['Malik Benali', 'Tom Garcia'], joined: true, mine: false, canCancel: false, full: false },
+        { id: 4, kind: 'event', mode: 'pvp', map: 'pvp_large', mapLabel: 'BLACKSITE', format: '4v4', formatLabel: '4 VS 4', stake: 0, slots: 7, startsAt: n + 86400 + 1800, when: 'demain à 22:00', message: 'Tournoi du vendredi', author: 'Tom Garcia', authorToken: 'toktom', created: n - 8000, count: 5, players: ['A. Roy', 'K. Diaz', 'S. Lin', 'P. Nowak', 'J. Petit'], joined: false, mine: false, canCancel: false, full: false },
+      ],
+      msgs: { tokmalik: [{ id: 1, mine: false, body: 'Partant pour un 2v2 ce soir ?', at: n - 900, post: 1 }, { id: 2, mine: true, body: 'Carrément, on se retrouve au LaserGame dans 10 min', at: n - 600 }] },
+    };
+    const names = { tokmalik: 'Malik Benali', tokines: 'Inès Morel', toktom: 'Tom Garcia' };
+    const ranks = [['bronze', 'ELYZEA BRONZE', 0, '#C98A55'], ['silver', 'ELYZEA SILVER', 1100, '#C9D3E0'], ['gold', 'ELYZEA GOLD', 1250, '#FFC94A'], ['platinum', 'ELYZEA PLATINUM', 1400, '#7FE3D8'], ['diamond', 'ELYZEA DIAMOND', 1550, '#6FB6FF'], ['master', 'ELYZEA MASTER', 1700, '#B57BFF'], ['grandmaster', 'ELYZEA GRANDMASTER', 1850, '#FF4D8D'], ['legend', 'ELYZEA LEGEND', 2000, '#FFE7A3']].map(([id, label, min, color]) => ({ id, label, min, color }));
+    if (action === 'home') return { ok: true, me: { name: 'Lena Duval', token: 'tokme' }, ranks, unread: 1, pvp: true, zombie: true, excluded: false,
+      profile: { firstname: 'Lena', lastname: 'Duval', points: 1488, peak: 1532, rank: 'platinum', rankLabel: 'ELYZEA PLATINUM', progress: .59, next: { id: 'diamond', label: 'ELYZEA DIAMOND', min: 1550 }, position: 7,
+        wins: 42, losses: 19, draws: 2, kills: 611, deaths: 402, matches: 63, ratio: 1.52, streak: 3, bestStreak: 9, zbBestRound: 17, zbBestSolo: 11, zbKills: 1840, zbGames: 24 },
+      formats: [1, 2, 3, 4, 5, 6].map(k => ({ id: `${k}v${k}`, label: `${k} VS ${k}`, size: k })),
+      maps: [['pvp_small', 'ELYSIUM COMBAT', 'pvp'], ['pvp_medium', 'NEON PARKING', 'pvp'], ['pvp_large', 'BLACKSITE', 'pvp'], ['pvp_xlarge', 'LAST STAND', 'pvp'], ['zombie_map', 'COMPLEXE ELYZEA-7', 'zombie']].map(([id, label, mode]) => ({ id, label, mode })),
+      stake: { enabled: true, min: 0, max: 250000, step: 100 }, limits: { text: 160, message: 300, maxDays: 7, maxOpen: 3 },
+      history: [{ mode: 'pvp', format: '3v3', result: 'win', points_delta: 22, map: 'pvp_medium', mapLabel: 'NEON PARKING', score_a: 2, score_b: 1, created_at: n - 3600 },
+        { mode: 'zombie', round: 14, kills: 96, mapLabel: 'COMPLEXE ELYZEA-7', created_at: n - 9000 }, { mode: 'pvp', format: '1v1', result: 'loss', points_delta: -17, mapLabel: 'ELYSIUM COMBAT', score_a: 0, score_b: 2, created_at: n - 86000 }] };
+    if (action === 'board') {
+      const zb = a.kind.startsWith('zb'), team = a.kind === 'zb_teams';
+      const people = ['Kenji Sato', 'Lena Duval', 'Malik Benali', 'Inès Morel', 'Tom Garcia', 'Sara Lind', 'Hugo Petit', 'Nora Diaz', 'Yanis Roy', 'Emma Nowak'];
+      return { ok: true, kind: a.kind, page: 1, pages: 3, total: 27, rows: people.map((p, i) => team ? { pos: i + 1, names: `${p}, ${people[(i + 1) % 10]}`, v: 24 - i * 2, kills: 300 - i * 20, players: 2 + (i % 3) }
+        : zb ? { pos: i + 1, firstname: p.split(' ')[0], lastname: p.split(' ')[1], v: a.kind === 'zb_kills' ? 2400 - i * 180 : 22 - i * 2, zb_kills: 2400 - i * 180, zb_games: 40 - i * 3 }
+        : { pos: i + 1, firstname: p.split(' ')[0], lastname: p.split(' ')[1], v: a.kind === 'pvp_ratio' ? 2.4 - i * .15 : 2050 - i * 70, points: 2050 - i * 70, wins: 80 - i * 6, losses: 20 + i, rank: ranks[Math.max(0, 7 - Math.floor(i / 1.4))].id }) };
+    }
+    if (action === 'posts') return { ok: true, kind: a.kind, posts: L.posts.filter(p => p.kind === a.kind), now: n };
+    if (action === 'create') { L.posts.unshift({ id: Date.now(), kind: a.kind, mode: a.mode, map: a.map, mapLabel: a.map || 'Carte au choix', format: a.format, formatLabel: a.format, stake: a.stake, slots: 3, startsAt: a.startsAt, when: a.startsAt ? 'aujourd\'hui' : 'Dès que possible', message: a.message, author: 'Lena Duval', authorToken: 'tokme', created: n, count: 0, players: [], joined: false, mine: true, canCancel: true, full: false }); return { ok: true, message: 'Publié.' }; }
+    if (action === 'join') { const p = L.posts.find(x => x.id === a.id); if (p && !p.mine && !p.joined) { p.joined = true; p.count++; p.players.push('Lena Duval'); } return { ok: true, gps: { x: -1256.6, y: -1440.8, label: 'LaserGame ElyzeaFA' }, message: 'Point GPS posé : LaserGame ElyzeaFA.' }; }
+    if (action === 'leave') { const p = L.posts.find(x => x.id === a.id); if (p) { p.joined = false; p.count--; p.players.pop(); } return { ok: true, message: 'Tu n\'es plus inscrit.' }; }
+    if (action === 'cancel') { L.posts = L.posts.filter(x => x.id !== a.id); return { ok: true, message: 'Annonce retirée.' }; }
+    if (action === 'gps') return { ok: true, gps: { x: -1256.6, y: -1440.8, label: 'LaserGame ElyzeaFA' }, message: 'Point GPS posé : LaserGame ElyzeaFA.' };
+    if (action === 'threads') return { ok: true, unread: 0, threads: Object.entries(L.msgs).map(([tok, m]) => ({ token: tok, name: names[tok], last: m[m.length - 1].body, at: m[m.length - 1].at, mine: m[m.length - 1].mine, unread: 0 })) };
+    if (action === 'thread') return { ok: true, token: a.token, name: names[a.token] || '?', messages: L.msgs[a.token] || [], unread: 0 };
+    if (action === 'send') { const tok = a.token; (L.msgs[tok] = L.msgs[tok] || []).push({ id: Date.now(), mine: true, body: a.body, at: Math.floor(Date.now() / 1000), post: a.post }); return { ok: true, token: tok, name: names[tok] }; }
+    return { ok: false };
+  },
   handle(endpoint, d) {
     const n = Math.floor(Date.now() / 1000);
     if (endpoint === 'carplayAction') return this.carAction(d.action, d.value);
@@ -360,6 +399,7 @@ const Mock = {
         health: { ok: true, now: n, current: [{ kind: 'cold', label: 'Rhume', type: 'illness', cure: 'treat', since: n - 1200, expires: n + 2400 },
           { kind: 'leg', label: 'Blessure à la jambe', type: 'injury', cure: 'splint', since: n - 600 }], past: [{ label: 'Chlamydia', since: n - 400000, cured: n - 300000, curedBy: 'Lucas Martin' }] } };
     }
+    if (d.name === 'lgCall') return this.lg(a.action, a.data || {}, n);
     if (d.name === 'santeRdvCreate') { this.rdv.unshift({ id: Date.now(), type: a.type, typeLabel: { medical: 'Consultation médicale', psy: 'Consultation psychiatrique', blood: 'Prise de sang', pregnancy: 'Suivi de grossesse' }[a.type], status: 'pending', created: n, reason: a.reason }); return { ok: true, message: 'Demande envoyée.' }; }
     if (d.name === 'santeRdvCancel') { const x = this.rdv.find(r => r.id === a.id); if (x) x.status = 'cancelled'; return { ok: true, message: 'Rendez-vous annulé.' }; }
     if (d.name === 'deliveryCancel') { this.order = null; return { ok: true, refund: 99 }; }

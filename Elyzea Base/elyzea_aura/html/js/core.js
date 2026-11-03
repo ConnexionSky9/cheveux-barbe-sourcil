@@ -377,6 +377,7 @@ function endPeek() {
 
 function notify(raw) {
   const d = resolveNotif(raw);
+  if (typeof lgOnNotify === 'function') lgOnNotify(d);
   if (S.settings.notifications === false && d.app !== 'alert') return;
   if (!S.open) {
     if (S.locked) { S.lockNotifs.unshift(d); S.lockNotifs = S.lockNotifs.slice(0, 4); }

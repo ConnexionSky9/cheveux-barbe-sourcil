@@ -34,6 +34,7 @@ server_scripts {
     'server/pvp.lua',
     'server/zombie.lua',
     'server/admin.lua',
+    'server/phone.lua',
     'server/main.lua',
 }
 
