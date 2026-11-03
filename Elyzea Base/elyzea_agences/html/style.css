@@ -2,9 +2,9 @@
    ELYZEA AGENCES - interface staff
    ===================================================================== */
 :root {
-  --bg: #0b1220; --panel: #0f1a2e; --panel-2: #13213a; --line: rgba(148, 178, 230, .14); --line-2: rgba(148, 178, 230, .26);
-  --text: #e8eef9; --muted: #93a3bf; --faint: #64748b;
-  --accent: #3b82f6; --accent-2: #60a5fa; --accent-soft: rgba(59, 130, 246, .16);
+  --bg: #150b20; --panel: #1d0f2e; --panel-2: #25133a; --line: rgba(186, 148, 230, .14); --line-2: rgba(186, 148, 230, .26);
+  --text: #f0e8f9; --muted: #a78bc7; --faint: #754ea1;
+  --accent: #923bf6; --accent-2: #a862f8; --accent-soft: rgba(146, 59, 246, .16);
   --green: #22c55e; --orange: #f59e0b; --red: #ef4444;
   --radius: .7rem; --shadow: 0 1.6rem 3.6rem rgba(0, 0, 0, .55);
 }
@@ -17,22 +17,22 @@ button, input, select { font: inherit; color: inherit; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .92em; }
 .muted { color: var(--muted); }
 ::-webkit-scrollbar { width: .45rem; }
-::-webkit-scrollbar-thumb { background: rgba(148, 178, 230, .22); border-radius: 1rem; }
+::-webkit-scrollbar-thumb { background: rgba(186, 148, 230, .22); border-radius: 1rem; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; padding: .55rem .9rem; border-radius: .55rem;
-  border: 1px solid var(--line-2); background: rgba(148, 178, 230, .06); cursor: pointer; font-weight: 600; font-size: .88rem; white-space: nowrap; }
-.btn:hover:not(:disabled) { background: rgba(148, 178, 230, .13); }
+  border: 1px solid var(--line-2); background: rgba(186, 148, 230, .06); cursor: pointer; font-weight: 600; font-size: .88rem; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: rgba(186, 148, 230, .13); }
 .btn:disabled { opacity: .42; cursor: not-allowed; }
 .btn:focus-visible, .input:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover:not(:disabled) { background: #2563eb; }
+.btn.primary:hover:not(:disabled) { background: #8125eb; }
 .btn.danger { border-color: rgba(239, 68, 68, .5); color: #fca5a5; background: rgba(239, 68, 68, .08); }
 .btn.success { border-color: rgba(34, 197, 94, .5); color: #86efac; background: rgba(34, 197, 94, .1); }
 .btn.small { padding: .32rem .6rem; font-size: .8rem; }
 .btn.block { width: 100%; }
-.icon-btn { width: 2.2rem; height: 2.2rem; border-radius: .55rem; border: 1px solid var(--line-2); background: rgba(148, 178, 230, .06); cursor: pointer; }
+.icon-btn { width: 2.2rem; height: 2.2rem; border-radius: .55rem; border: 1px solid var(--line-2); background: rgba(186, 148, 230, .06); cursor: pointer; }
 .icon-btn:hover { background: rgba(239, 68, 68, .2); border-color: rgba(239, 68, 68, .5); }
-.input { width: 100%; padding: .5rem .65rem; border-radius: .5rem; border: 1px solid var(--line-2); background: rgba(5, 10, 20, .55); outline: none; }
+.input { width: 100%; padding: .5rem .65rem; border-radius: .5rem; border: 1px solid var(--line-2); background: rgba(12, 6, 19, .55); outline: none; }
 .input:focus { border-color: var(--accent); }
 .input[type=color] { padding: .15rem; height: 2.3rem; cursor: pointer; }
 .field { display: flex; flex-direction: column; gap: .3rem; }
@@ -50,7 +50,7 @@ button, input, select { font: inherit; color: inherit; }
 .title p { font-size: .8rem; color: var(--muted); }
 .kinds { display: flex; gap: .35rem; }
 .kind { padding: .45rem .8rem; border-radius: .55rem; border: 1px solid var(--line); background: transparent; cursor: pointer; font-weight: 600; font-size: .86rem; color: var(--muted); }
-.kind.on { color: var(--text); background: var(--accent-soft); border-color: rgba(59, 130, 246, .5); }
+.kind.on { color: var(--text); background: var(--accent-soft); border-color: rgba(146, 59, 246, .5); }
 .kind .n { margin-left: .3rem; font-size: .72rem; color: var(--faint); }
 
 .body { flex: 1; display: grid; grid-template-columns: 17rem 1fr 21rem; min-height: 0; }
@@ -61,23 +61,23 @@ button, input, select { font: inherit; color: inherit; }
 .ag { display: flex; gap: .6rem; align-items: center; padding: .6rem .65rem; border-radius: .6rem; border: 1px solid var(--line); background: var(--panel-2);
   cursor: pointer; text-align: left; width: 100%; }
 .ag:hover { border-color: var(--line-2); }
-.ag.on { border-color: var(--accent); background: rgba(59, 130, 246, .1); }
+.ag.on { border-color: var(--accent); background: rgba(146, 59, 246, .1); }
 .dot { width: .8rem; height: .8rem; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px rgba(0, 0, 0, .4); }
 .ag b { display: block; font-size: .92rem; }
 .ag small { color: var(--muted); font-size: .74rem; }
-.ag .z { margin-left: auto; font-size: .7rem; padding: .1rem .4rem; border-radius: .3rem; background: rgba(148, 178, 230, .1); color: var(--muted); }
+.ag .z { margin-left: auto; font-size: .7rem; padding: .1rem .4rem; border-radius: .3rem; background: rgba(186, 148, 230, .1); color: var(--muted); }
 .ag .z.yes { background: rgba(34, 197, 94, .14); color: #86efac; }
 
-.mapwrap { position: relative; min-width: 0; min-height: 0; background: #143d6b; }
+.mapwrap { position: relative; min-width: 0; min-height: 0; background: #3d146b; }
 .map { position: absolute; inset: 0; cursor: crosshair; }
 .map.grab { cursor: grabbing; }
 .map canvas { width: 100%; height: 100%; display: block; }
 .maptools { position: absolute; top: .7rem; left: .7rem; right: .7rem; display: flex; flex-wrap: wrap; gap: .4rem; pointer-events: none; }
 .maptools > * { pointer-events: auto; }
-.maptools .btn { background: rgba(11, 18, 32, .88); }
+.maptools .btn { background: rgba(21, 11, 32, .88); }
 .maptools .btn.primary { background: var(--accent); }
 .maptools .sep { flex: 1; pointer-events: none; }
-.hint { position: absolute; left: .7rem; bottom: .7rem; right: .7rem; padding: .55rem .75rem; border-radius: .55rem; background: rgba(11, 18, 32, .88);
+.hint { position: absolute; left: .7rem; bottom: .7rem; right: .7rem; padding: .55rem .75rem; border-radius: .55rem; background: rgba(21, 11, 32, .88);
   border: 1px solid var(--line); font-size: .82rem; color: var(--muted); line-height: 1.4; }
 .hint b { color: var(--text); }
 
@@ -85,12 +85,20 @@ button, input, select { font: inherit; color: inherit; }
 .card h3 { font-size: .9rem; display: flex; align-items: center; gap: .5rem; }
 .card p { font-size: .8rem; color: var(--muted); line-height: 1.45; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.stat { padding: .45rem; border-radius: .5rem; background: rgba(5, 10, 20, .45); text-align: center; }
+.stat { padding: .45rem; border-radius: .5rem; background: rgba(12, 6, 19, .45); text-align: center; }
 .stat b { display: block; font-size: 1.05rem; }
 .stat span { font-size: .7rem; color: var(--muted); }
 .inline { display: flex; gap: .4rem; }
 
 #toasts { position: fixed; top: 1.2rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: .4rem; z-index: 50; }
-.toast { padding: .6rem .95rem; border-radius: .55rem; background: #13213a; border: 1px solid var(--line-2); font-size: .88rem; box-shadow: var(--shadow); max-width: 34rem; }
+.toast { padding: .6rem .95rem; border-radius: .55rem; background: #25133a; border: 1px solid var(--line-2); font-size: .88rem; box-shadow: var(--shadow); max-width: 34rem; }
 .toast.error { border-color: rgba(239, 68, 68, .6); color: #fecaca; }
 .toast.success { border-color: rgba(34, 197, 94, .6); color: #bbf7d0; }
+
+/* ely-theme v1 */
+/* Thème Elyzea FA : accents du logo (ajouté par elyzea_core/brand/retheme.py) */
+:root {
+  --accent: #9B5CFF;
+  --accent-2: #C9A6FF;
+  --accent-soft: rgba(155, 92, 255, .16);
+}

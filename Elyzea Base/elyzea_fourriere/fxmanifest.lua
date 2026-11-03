@@ -18,6 +18,7 @@ server_scripts {
 }
 
 ui_page 'html/index.html'
-files { 'html/index.html', 'html/style.css', 'html/app.js' }
+files {
+    'html/brand.css', 'html/index.html', 'html/style.css', 'html/app.js' }
 
 dependencies { 'elyzea_core', 'elyzea_garage' }

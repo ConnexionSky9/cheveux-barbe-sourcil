@@ -1,9 +1,9 @@
 -- =========================================================
 --  ARRIVÉE EN VILLE : « Bienvenue sur Elyzea FA »
---  1. Titre de bienvenue sur écran noir
---  2. Génération « cyber » du personnage : la caméra descend de la
---     tête aux pieds pendant que le corps se matérialise
---  3. Message final, puis le joueur reprend la main
+--  1. Nuit : l'arc violet du logo, l'emblème E, « ELYZEA FA », la ville s'allume
+--  2. Un anneau de lumière violette s'ouvre sur la ville, vue du ciel
+--  3. La caméra descend vers le personnage (bandes cinéma, lieu, heure, nom)
+--  4. Message de bienvenue, puis le joueur reprend la main
 --  Déclenchement : validation d'un nouveau personnage dans ely_creator
 --  (ely_creator laisse l'écran noir et prévient le menu), sinon
 --  première arrivée en ville d'un personnage.
@@ -13,11 +13,28 @@ local playing = false
 local function ui(data) data.action = 'welcome' SendNUIMessage(data) end
 local function sound(name, set) PlaySoundFrontend(-1, name, set, true) end
 
-local function makeCam(ped, off, look)
+local function makeCam(ped, off, look, fov)
     local p = GetOffsetFromEntityInWorldCoords(ped, off.x, off.y, off.z)
-    local cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', p.x, p.y, p.z, 0.0, 0.0, 0.0, 45.0, false, 0)
+    local cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', p.x, p.y, p.z, 0.0, 0.0, 0.0, fov or 45.0, false, 0)
     PointCamAtCoord(cam, look.x, look.y, look.z)
     return cam
+end
+
+local function charName()
+    local ok, pd = pcall(function() return exports.elyzea_core:GetPlayerData() end)
+    local ci = ok and type(pd) == 'table' and pd.charinfo or nil
+    if type(ci) ~= 'table' then return nil end
+    local n = ((ci.firstname or '') .. ' ' .. (ci.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
+    return n ~= '' and n or nil
+end
+
+local function place(ped)
+    local c = GetEntityCoords(ped)
+    local zone = GetLabelText(GetNameOfZone(c.x, c.y, c.z))
+    if zone == 'NULL' then zone = nil end
+    local street = GetStreetNameFromHashKey((GetStreetNameAtCoord(c.x, c.y, c.z)))
+    if street == '' then street = nil end
+    return zone, street, ('%02d:%02d'):format(GetClockHours(), GetClockMinutes())
 end
 
 local function PlayWelcome(W, test)
@@ -26,7 +43,7 @@ local function PlayWelcome(W, test)
     W = W or {}
     local ped = PlayerPedId()
 
-    -- Préparation : écran noir, joueur immobile et invisible, interface du jeu masquée
+    -- Préparation : écran noir, joueur immobile, interface du jeu masquée
     if not IsScreenFadedOut() then
         DoScreenFadeOut(600)
         local w = GetGameTimer()
@@ -34,7 +51,7 @@ local function PlayWelcome(W, test)
     end
     FreezeEntityPosition(ped, true)
     SetEntityInvincible(ped, true)
-    SetEntityAlpha(ped, 0, false)
+    ResetEntityAlpha(ped)
     ClearPedTasksImmediately(ped)
     local hideHud = true
     CreateThread(function()
@@ -45,49 +62,34 @@ local function PlayWelcome(W, test)
         end
     end)
 
-    -- 1. Bienvenue
+    -- 1. Logo sur fond de nuit (l'interface couvre l'écran)
     ui({ stage = 'intro', title = W.title, name = W.name })
-    sound('Hack_Success', 'DLC_HEIST_BIOLAB_PREP_HACKING_SOUNDS')
-    Wait(4200)
-
-    -- 2. Génération du personnage, de la tête aux pieds
-    local head = GetPedBoneCoords(ped, 31086, 0.0, 0.0, 0.0)
-    local feet = GetEntityCoords(ped) - vector3(0.0, 0.0, 0.95)
     local mid = GetEntityCoords(ped)
-    local camHead = makeCam(ped, vector3(0.0, 0.85, 0.65), head)
-    local camFeet = makeCam(ped, vector3(0.0, 1.35, -0.45), feet)
-    local camWide = makeCam(ped, vector3(0.6, 3.2, 0.35), mid)
-    SetCamActive(camHead, true)
+    local head = GetPedBoneCoords(ped, 31086, 0.0, 0.0, 0.0)
+    local camSky = makeCam(ped, vector3(-40.0, -70.0, 55.0), mid, 50.0)
+    local camMid = makeCam(ped, vector3(0.0, -9.0, 3.0), mid, 42.0)
+    local camFace = makeCam(ped, vector3(0.4, 2.6, 0.5), head, 38.0)
+    SetCamActive(camSky, true)
     RenderScriptCams(true, false, 0, true, true)
-    ui({ stage = 'scan' })
-    DoScreenFadeIn(800)
+    Wait(5800)
 
-    SetCamActiveWithInterp(camFeet, camHead, 7000, 1, 1)
-    local parts = { 'head', 'torso', 'legs', 'feet' }
-    local start, lastPart = GetGameTimer(), 0
-    while GetGameTimer() - start < 7000 do
-        local k = (GetGameTimer() - start) / 7000
-        -- Le corps se matérialise comme un hologramme qui scintille
-        local alpha = math.floor(40 + k * 215)
-        if math.random() < 0.12 then alpha = math.floor(alpha * 0.4) end
-        SetEntityAlpha(ped, math.min(255, alpha), false)
-        local part = math.min(#parts, math.floor(k * #parts) + 1)
-        if part ~= lastPart then
-            lastPart = part
-            ui({ stage = 'part', part = parts[part], index = part, total = #parts })
-            sound('Beep_Green', 'DLC_HEIST_HACKING_SNAKE_SOUNDS')
-        end
-        ui({ stage = 'progress', pct = math.floor(k * 100) })
-        Wait(80)
-    end
-    ResetEntityAlpha(ped)
-    ui({ stage = 'progress', pct = 100 })
-    ui({ stage = 'done' })
-    sound('MP_WAVE_COMPLETE', 'HUD_FRONTEND_DEFAULT_SOUNDSET')
+    -- 2. L'anneau violet s'ouvre sur la ville
+    DoScreenFadeIn(0)
+    ui({ stage = 'reveal' })
+    sound('Hit_In', 'PLAYER_SWITCH_CUSTOM_SOUNDSET')
+    AnimpostfxPlay('CamPushInNeutral', 0, false)
+    SetCamActiveWithInterp(camMid, camSky, 7000, 1, 1)
+    Wait(1500)
 
-    -- 3. Plan large + message final
-    SetCamActiveWithInterp(camWide, camFeet, 2200, 1, 1)
-    Wait(1600)
+    -- 3. Plan de cinéma : lieu, heure, nom du citoyen
+    local zone, street, time = place(ped)
+    ui({ stage = 'city', district = zone, street = street, time = time, name = charName() })
+    Wait(5500)
+    SetCamActiveWithInterp(camFace, camMid, 2500, 1, 1)
+    sound('Hit_Out', 'PLAYER_SWITCH_CUSTOM_SOUNDSET')
+    Wait(2300)
+
+    -- 4. Message de bienvenue
     ui({ stage = 'outro', message = W.message, signature = W.signature })
     Wait(6500)
 
@@ -95,11 +97,11 @@ local function PlayWelcome(W, test)
     ui({ stage = 'end' })
     RenderScriptCams(false, true, 1500, true, true)
     Wait(1500)
-    for _, c in ipairs({ camHead, camFeet, camWide }) do DestroyCam(c, false) end
+    for _, c in ipairs({ camSky, camMid, camFace }) do DestroyCam(c, false) end
+    AnimpostfxStop('CamPushInNeutral')
     hideHud = false
     FreezeEntityPosition(ped, false)
     SetEntityInvincible(ped, false)
-    ResetEntityAlpha(ped)
     playing = false
     if not test then TriggerServerEvent('adminmenu:welcome:done') end
 end

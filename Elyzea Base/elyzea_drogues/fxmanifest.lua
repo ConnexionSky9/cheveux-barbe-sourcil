@@ -49,4 +49,5 @@ client_scripts {
 }
 
 ui_page 'html/index.html'
-files { 'html/index.html', 'html/mg.css', 'html/mg.js', 'html/mg_games1.js', 'html/mg_games2.js', 'html/mg_games3.js' }
+files {
+    'html/brand.css', 'html/index.html', 'html/mg.css', 'html/mg.js', 'html/mg_games1.js', 'html/mg_games2.js', 'html/mg_games3.js' }

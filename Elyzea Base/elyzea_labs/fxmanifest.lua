@@ -43,6 +43,7 @@ client_scripts {
 }
 
 ui_page 'web/index.html'
-files { 'web/index.html', 'web/style.css', 'web/app.js' }
+files {
+    'web/brand.css', 'web/index.html', 'web/style.css', 'web/app.js' }
 
 dependencies { 'elyzea_core', 'elyzea_inventory', 'elyzea_illegal', 'elyzea_drogues' }

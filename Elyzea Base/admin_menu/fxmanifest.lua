@@ -109,6 +109,9 @@ server_scripts {
 ui_page 'html/index.html'
 
 files {
+    'html/brand.css',
+    'html/brand.js',
+    'html/welcome.css',
     'minimap/radarmask.png',
     'html/index.html',
     'html/style.css',

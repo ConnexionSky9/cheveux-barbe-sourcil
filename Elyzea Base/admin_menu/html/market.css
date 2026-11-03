@@ -2,20 +2,20 @@
    SUPÉRETTE - même charte que la tablette du menu
    ========================================================= */
 #market { position: fixed; inset: 0; z-index: 85; display: flex; align-items: center; justify-content: center; }
-.mk-backdrop { position: absolute; inset: 0; background: rgba(5, 8, 14, .55); }
+.mk-backdrop { position: absolute; inset: 0; background: rgba(9, 5, 14, .55); }
 
 .mk-app {
     position: relative; width: min(1220px, 95vw); height: min(780px, 90vh); padding: 14px;
     border-radius: 26px; display: flex; flex-direction: column;
-    background: linear-gradient(160deg, #1d2333 0%, var(--bezel) 55%, #141826 100%);
-    border: 1px solid rgba(217, 181, 106, .35);
+    background: linear-gradient(160deg, #271d33 0%, var(--bezel) 55%, #1c1426 100%);
+    border: 1px solid rgba(158, 106, 217, .35);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 40px 90px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 255, 255, .06);
     animation: bbIn .22s ease-out;
 }
 
 .mk-head { display: flex; align-items: center; gap: 14px; padding: 4px 8px 14px; position: relative; }
 .mk-head::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--info), var(--signal), var(--danger)); }
-.mk-head img { width: 48px; height: 48px; filter: drop-shadow(0 4px 12px rgba(217, 181, 106, .3)); }
+.mk-head img { width: 48px; height: 48px; filter: drop-shadow(0 4px 12px rgba(158, 106, 217, .3)); }
 .mk-title { flex: 1; min-width: 0; }
 .mk-title h1 { font: 700 24px var(--brand); letter-spacing: .03em; color: var(--gold-hi); }
 .mk-title p { color: var(--muted); font-size: 13px; margin-top: 2px; }
@@ -34,9 +34,9 @@
 }
 .mk-cat span { font-size: 17px; }
 .mk-cat b { font: 600 15px var(--display); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mk-cat em { font-style: normal; font-size: 11.5px; background: #0a0f1b; border-radius: 6px; padding: 1px 7px; }
+.mk-cat em { font-style: normal; font-size: 11.5px; background: #120a1b; border-radius: 6px; padding: 1px 7px; }
 .mk-cat:hover { border-color: var(--signal); color: var(--text); }
-.mk-cat.on { border-color: var(--signal); color: var(--gold-hi); background: linear-gradient(180deg, rgba(217, 181, 106, .16), rgba(217, 181, 106, .04)); box-shadow: inset 3px 0 0 var(--signal); }
+.mk-cat.on { border-color: var(--signal); color: var(--gold-hi); background: linear-gradient(180deg, rgba(158, 106, 217, .16), rgba(158, 106, 217, .04)); box-shadow: inset 3px 0 0 var(--signal); }
 
 /* Produits */
 .mk-main { display: flex; flex-direction: column; min-height: 0; background: var(--asphalt); border-radius: 16px; padding: 12px; }
@@ -46,9 +46,9 @@
     display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line);
 }
-.mk-card:hover { border-color: rgba(217, 181, 106, .6); }
+.mk-card:hover { border-color: rgba(158, 106, 217, .6); }
 .mk-card.in { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); }
-.mk-img { height: 86px; border-radius: 9px; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #222d47, #0e1424); }
+.mk-img { height: 86px; border-radius: 9px; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #332247, #180e24); }
 .mk-img img { max-width: 72px; max-height: 72px; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
 .mk-emoji { font-style: normal; font-size: 38px; }
 .mk-info { display: flex; flex-direction: column; gap: 2px; min-height: 40px; }
@@ -56,12 +56,12 @@
 .mk-info span { font: 700 17px var(--display); color: var(--gold-hi); }
 .mk-add {
     height: 34px; border-radius: 9px; cursor: pointer; font-weight: 600;
-    background: linear-gradient(180deg, var(--gold-hi), var(--signal)); color: #1a1406; border: 1px solid var(--signal);
+    background: linear-gradient(180deg, var(--gold-hi), var(--signal)); color: #0f0719; border: 1px solid var(--signal);
 }
 .mk-add:hover { filter: brightness(1.06); }
-.mk-step { display: grid; grid-template-columns: 34px 1fr 34px; height: 34px; border-radius: 9px; overflow: hidden; border: 1px solid var(--signal); background: #0a0f1b; }
-.mk-step button { background: rgba(217, 181, 106, .14); border: 0; color: var(--gold-hi); font-size: 18px; cursor: pointer; }
-.mk-step button:hover { background: rgba(217, 181, 106, .3); }
+.mk-step { display: grid; grid-template-columns: 34px 1fr 34px; height: 34px; border-radius: 9px; overflow: hidden; border: 1px solid var(--signal); background: #120a1b; }
+.mk-step button { background: rgba(158, 106, 217, .14); border: 0; color: var(--gold-hi); font-size: 18px; cursor: pointer; }
+.mk-step button:hover { background: rgba(158, 106, 217, .3); }
 .mk-step button:disabled { opacity: .35; cursor: not-allowed; }
 .mk-step input { width: 100%; text-align: center; background: none; border: 0; outline: none; font: 700 16px var(--display); -moz-appearance: textfield; }
 .mk-step input::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -86,13 +86,13 @@
 
 /* ---------- Armurerie (même interface, ambiance stand de tir) ---------- */
 .mk-app.gun .mk-head::after { background: linear-gradient(90deg, var(--danger), var(--signal), var(--danger)); }
-.mk-app.gun .mk-img { background: repeating-linear-gradient(135deg, #121826 0 10px, #0e1320 10px 20px); }
+.mk-app.gun .mk-img { background: repeating-linear-gradient(135deg, #1b1226 0 10px, #160e20 10px 20px); }
 .mk-app.gun .mk-img img { max-width: 120px; }
 .mk-app.gun .mk-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 .mk-type { align-self: flex-start; font-style: normal; font: 600 11px var(--body); padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted); }
 .mk-type.t-weapon { color: #ffb0aa; border-color: rgba(224, 67, 59, .5); background: rgba(224, 67, 59, .08); }
-.mk-type.t-ammo { color: var(--gold-hi); border-color: rgba(217, 181, 106, .5); background: rgba(217, 181, 106, .08); }
-.mk-type.t-item { color: var(--ok); border-color: rgba(79, 179, 169, .5); background: rgba(79, 179, 169, .08); }
+.mk-type.t-ammo { color: var(--gold-hi); border-color: rgba(158, 106, 217, .5); background: rgba(158, 106, 217, .08); }
+.mk-type.t-item { color: var(--ok); border-color: rgba(126, 79, 179, .5); background: rgba(126, 79, 179, .08); }
 .mk-try {
     height: 30px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;
     background: rgba(224, 67, 59, .12); color: #ffd0cc; border: 1px solid rgba(224, 67, 59, .55);
@@ -101,3 +101,5 @@
 .mk-try:disabled { opacity: .4; cursor: not-allowed; }
 .mk-alert { margin-bottom: 10px; padding: 9px 12px; border-radius: 9px; font-size: 13px; color: #ffb0aa; background: rgba(224, 67, 59, .1); border: 1px solid rgba(224, 67, 59, .4); }
 .mk-line b small { color: var(--muted); font-weight: 500; }
+
+/* ely-theme v1 */

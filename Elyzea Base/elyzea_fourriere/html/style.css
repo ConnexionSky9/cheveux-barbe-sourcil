@@ -2,22 +2,22 @@
    ELYZEA · FOURRIÈRE  (même charte que le garage public)
    ========================================================= */
 :root {
-    --panel: rgba(17, 25, 44, .74);
-    --panel-2: rgba(24, 34, 58, .88);
-    --line: rgba(217, 181, 106, .14);
-    --line-strong: rgba(217, 181, 106, .36);
-    --text: #edf1f8;
-    --muted: #8f9bb4;
-    --gold: #d9b56a;
-    --gold-hi: #f6e2ae;
-    --gold-lo: #9c7a3c;
-    --legal: #3b6fe0;
+    --panel: rgba(30, 17, 44, .74);
+    --panel-2: rgba(40, 24, 58, .88);
+    --line: rgba(158, 106, 217, .14);
+    --line-strong: rgba(158, 106, 217, .36);
+    --text: #f2edf8;
+    --muted: #9f81c2;
+    --gold: #9e6ad9;
+    --gold-hi: #d0aef6;
+    --gold-lo: #693c9c;
+    --legal: #883be0;
     --illegal: #e0433b;
-    --ok: #4fb3a9;
+    --ok: #7e4fb3;
     --warn: #f0a43a;
     --gold-grad: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 55%, var(--gold-lo) 100%);
     --edge: linear-gradient(90deg, var(--legal) 0%, var(--gold) 50%, var(--illegal) 100%);
-    --brand: 'Cinzel', Georgia, serif;
+    --brand: 'Exo 2', Georgia, serif;
     --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
     --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
 }
@@ -25,11 +25,11 @@
 html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: var(--body); color: var(--text); font-size: 14px; user-select: none; }
 .hidden { display: none !important; }
 button { font: inherit; color: inherit; cursor: pointer; }
-::-webkit-scrollbar { width: 7px; } ::-webkit-scrollbar-thumb { background: rgba(217, 181, 106, .22); border-radius: 4px; }
+::-webkit-scrollbar { width: 7px; } ::-webkit-scrollbar-thumb { background: rgba(158, 106, 217, .22); border-radius: 4px; }
 .eyebrow { font: 700 .7rem var(--brand); letter-spacing: .26em; text-transform: uppercase; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .muted { color: var(--muted); }
 
-.layer { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(4, 6, 12, .3), rgba(4, 6, 12, .8)); animation: fade .25s ease; }
+.layer { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(8, 4, 12, .3), rgba(8, 4, 12, .8)); animation: fade .25s ease; }
 @keyframes rise { from { transform: translateY(18px) scale(.985); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
@@ -38,7 +38,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pound {
     position: relative; width: min(1180px, 94vw); height: min(760px, 90vh);
     display: grid; grid-template-rows: auto auto auto minmax(0, 1fr);
-    background: linear-gradient(160deg, rgba(20, 29, 50, .94), rgba(8, 11, 20, .95));
+    background: linear-gradient(160deg, rgba(34, 20, 50, .94), rgba(14, 8, 20, .95));
     border: 1px solid var(--line-strong); border-radius: 18px; overflow: hidden;
     box-shadow: 0 30px 90px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .04); animation: rise .35s ease;
 }
@@ -57,14 +57,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 24px; flex-wrap: wrap; }
 .tabs, .pay { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .tab, .pm { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font: 600 .95rem var(--display); letter-spacing: .03em; }
-.tab.on, .pm.on { background: var(--gold-grad); color: #1a1408; border-color: transparent; }
+.tab.on, .pm.on { background: var(--gold-grad); color: #10081a; border-color: transparent; }
 .tab em { font-style: normal; opacity: .7; margin-left: 4px; }
 .pay .lbl { color: var(--muted); font-size: .85rem; margin-right: 4px; }
 .pay .only { padding: 8px 14px; border-radius: 999px; border: 1px dashed var(--line-strong); font: 600 .95rem var(--display); }
 
 .msg { margin: 0 24px 6px; padding: 10px 14px; border-radius: 10px; font-weight: 600; }
 .msg.err { background: rgba(224, 67, 59, .16); border: 1px solid rgba(224, 67, 59, .45); animation: shake .35s ease; }
-.msg.ok { background: rgba(79, 179, 169, .16); border: 1px solid rgba(79, 179, 169, .45); }
+.msg.ok { background: rgba(126, 79, 179, .16); border: 1px solid rgba(126, 79, 179, .45); }
 
 .grid { overflow-y: auto; padding: 6px 24px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; align-content: start; }
 .empty { grid-column: 1 / -1; text-align: center; padding: 70px 20px; color: var(--muted); font-size: 1.05rem; }
@@ -73,29 +73,29 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .card { position: relative; display: flex; flex-direction: column; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; transition: transform .15s ease, border-color .15s ease; }
 .card:hover { transform: translateY(-2px); border-color: var(--line-strong); }
 .card.away { opacity: .55; }
-.img { position: relative; height: 128px; background: radial-gradient(ellipse at 50% 80%, rgba(217, 181, 106, .14), transparent 70%), rgba(4, 6, 12, .45); display: grid; place-items: center; }
+.img { position: relative; height: 128px; background: radial-gradient(ellipse at 50% 80%, rgba(158, 106, 217, .14), transparent 70%), rgba(8, 4, 12, .45); display: grid; place-items: center; }
 .img img { max-width: 88%; max-height: 112px; object-fit: contain; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .5)); }
 .img .ph { font-size: 52px; opacity: .8; }
 .badge { position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 999px; font: 700 .78rem var(--display); letter-spacing: .06em; text-transform: uppercase; }
 .badge.red { background: rgba(224, 67, 59, .85); }
-.badge.warn { background: rgba(240, 164, 58, .9); color: #1a1408; }
-.badge.ok { background: rgba(79, 179, 169, .9); color: #06201d; }
-.badge.blue { background: rgba(59, 111, 224, .85); }
-.plate { position: absolute; bottom: 8px; right: 10px; padding: 3px 9px; border-radius: 6px; background: #f2f2ea; color: #12204a; font: 700 .9rem 'Courier New', monospace; letter-spacing: .08em; border: 2px solid #12204a; }
-.type { position: absolute; top: 10px; right: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(4, 6, 12, .7); border: 1px solid var(--line); font: 600 .82rem var(--display); }
+.badge.warn { background: rgba(240, 164, 58, .9); color: #10081a; }
+.badge.ok { background: rgba(126, 79, 179, .9); color: #12091d; }
+.badge.blue { background: rgba(136, 59, 224, .85); }
+.plate { position: absolute; bottom: 8px; right: 10px; padding: 3px 9px; border-radius: 6px; background: #eee8f4; color: #2c124a; font: 700 .9rem 'Courier New', monospace; letter-spacing: .08em; border: 2px solid #2c124a; }
+.type { position: absolute; top: 10px; right: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(8, 4, 12, .7); border: 1px solid var(--line); font: 600 .82rem var(--display); }
 .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .name { font: 700 1.2rem var(--display); }
 .rows { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .88rem; }
 .rows dt { color: var(--muted); }
 .rows dd { text-align: right; font-weight: 600; }
 .rows dd.bad { color: #ff8a83; }
-.rows dd.good { color: #7fded4; }
+.rows dd.good { color: #ab7fde; }
 .timer { display: flex; flex-direction: column; gap: 6px; }
 .timer .t { font: 700 1.5rem var(--display); color: var(--warn); text-align: center; animation: pulse 2s ease infinite; }
 .timer .bar2 { height: 6px; border-radius: 4px; background: rgba(255, 255, 255, .08); overflow: hidden; }
 .timer .bar2 i { display: block; height: 100%; background: linear-gradient(90deg, var(--warn), var(--gold-hi)); transition: width 1s linear; }
 .price { font: 700 1.45rem var(--display); text-align: center; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.btn { margin-top: auto; padding: 11px; border-radius: 10px; border: 1px solid transparent; background: var(--gold-grad); color: #1a1408; font: 700 1.05rem var(--display); letter-spacing: .04em; }
+.btn { margin-top: auto; padding: 11px; border-radius: 10px; border: 1px solid transparent; background: var(--gold-grad); color: #10081a; font: 700 1.05rem var(--display); letter-spacing: .04em; }
 .btn:hover:not(:disabled) { filter: brightness(1.08); }
 .btn:disabled { background: rgba(255, 255, 255, .07); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
 .why { font-size: .8rem; color: var(--muted); text-align: center; min-height: 1em; }
@@ -104,4 +104,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
     .pound { width: 100vw; height: 100vh; border-radius: 0; }
     .head { flex-wrap: wrap; padding: 16px; }
     .bar, .grid { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ely-theme v1 */
+/* Thème Elyzea FA : accents du logo (ajouté par elyzea_core/brand/retheme.py) */
+:root {
+  --gold-hi: #E9D5FF;
+  --gold-lo: #7B2FF7;
+  --gold-grad: linear-gradient(120deg, #E9D5FF 0%, #B57BFF 45%, #7B2FF7 100%);
+  --edge: linear-gradient(90deg, #7B2FF7 0%, #B57BFF 50%, #E9D5FF 100%);
+  --ok: #3EE6B0;
 }

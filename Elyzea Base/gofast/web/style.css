@@ -3,16 +3,16 @@
    Asphalte, lampadaires au sodium, feux arrière.
    ===================================================================== */
 :root {
-    --asphalt: #1C2128;
-    --asphalt-deep: #14181D;
-    --asphalt-line: #2A313B;
+    --asphalt: #221c28;
+    --asphalt-deep: #18141d;
+    --asphalt-line: #312144;
     --sodium: #F2A541;
     --sodium-soft: rgba(242, 165, 65, 0.16);
     --taillight: #E5383B;
     --taillight-soft: rgba(229, 56, 59, 0.18);
-    --chalk: #E8E6E1;
-    --steel: #8A94A3;
-    --night: #2E4756;
+    --chalk: #e4dbee;
+    --steel: #9472bb;
+    --night: #402b59;
     --green: #6BBF8A;
 
     --font: 'Barlow Semi Condensed', 'Arial Narrow', 'Roboto Condensed', Arial, sans-serif;
@@ -76,7 +76,7 @@ html, body {
     top: 24px;
     right: 24px;
     width: 340px;
-    background: linear-gradient(180deg, rgba(28, 33, 40, 0.94), rgba(20, 24, 29, 0.94));
+    background: linear-gradient(180deg, rgba(34, 28, 40, 0.94), rgba(24, 20, 29, 0.94));
     border: 1px solid var(--asphalt-line);
     border-left: 3px solid var(--sodium);
     border-radius: var(--radius);
@@ -326,7 +326,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(20, 24, 29, 0.55), rgba(10, 12, 15, 0.85));
+    background: radial-gradient(ellipse at center, rgba(24, 20, 29, 0.55), rgba(12, 10, 15, 0.85));
     animation: fade-in 0.2s ease-out;
 }
 
@@ -414,7 +414,7 @@ html, body {
     grid-template-columns: 1fr auto;
     gap: 10px 18px;
     padding: 16px 18px 16px 22px;
-    background: linear-gradient(90deg, rgba(46, 71, 86, 0.35), rgba(28, 33, 40, 0.0) 60%), var(--asphalt);
+    background: linear-gradient(90deg, rgba(64, 43, 89, 0.35), rgba(34, 28, 40, 0.0) 60%), var(--asphalt);
     border: 1px solid var(--asphalt-line);
     border-radius: var(--radius);
     transition: border-color 0.2s ease, transform 0.2s ease;
@@ -481,7 +481,7 @@ html, body {
 
 .btn:disabled { cursor: not-allowed; opacity: 0.4; }
 .btn-primary { background: var(--sodium); color: var(--asphalt-deep); }
-.btn-primary:not(:disabled):hover { background: #F7B95F; }
+.btn-primary:not(:disabled):hover { background: #a65ff7; }
 .btn-danger { background: transparent; color: var(--taillight); border: 1px solid var(--taillight); }
 .btn-danger:hover { background: var(--taillight-soft); }
 .btn-ghost { background: transparent; color: var(--steel); border: 1px solid var(--asphalt-line); }
@@ -506,7 +506,7 @@ kbd {
     transform: translateX(-50%);
     width: 380px;
     padding: 18px 20px;
-    background: linear-gradient(180deg, rgba(28, 33, 40, 0.96), rgba(20, 24, 29, 0.96));
+    background: linear-gradient(180deg, rgba(34, 28, 40, 0.96), rgba(24, 20, 29, 0.96));
     border: 1px solid var(--asphalt-line);
     border-top: 3px solid var(--sodium);
     border-radius: var(--radius);
@@ -571,7 +571,7 @@ kbd {
     position: absolute;
     width: 270px;
     padding: 10px 12px 11px;
-    background: rgba(20, 24, 29, 0.84);
+    background: rgba(24, 20, 29, 0.84);
     border: 1px solid var(--asphalt-line);
     border-left: 3px solid var(--sodium);
     border-radius: 4px;
@@ -620,7 +620,7 @@ kbd {
 
 .obj-alerts { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .obj-alerts:empty { display: none; }
-.obj-alerts li { font-size: 0.8rem; padding: 3px 7px; border-radius: 3px; background: rgba(46, 71, 86, 0.45); }
+.obj-alerts li { font-size: 0.8rem; padding: 3px 7px; border-radius: 3px; background: rgba(64, 43, 89, 0.45); }
 .obj-alerts li.warning { background: var(--sodium-soft); color: var(--sodium); }
 .obj-alerts li.danger { background: var(--taillight-soft); color: #ff8a8c; }
 
@@ -668,7 +668,7 @@ kbd {
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: rgba(20, 24, 29, 0.95);
+    background: rgba(24, 20, 29, 0.95);
     border: 1px solid var(--asphalt-line);
     border-left: 3px solid var(--steel);
     border-radius: 4px;
@@ -688,4 +688,11 @@ kbd {
 @media (max-width: 1300px) {
     .hud { width: 310px; }
     .menu-panel { grid-template-columns: 250px 1fr; }
+}
+
+/* ely-theme v1 */
+/* Thème Elyzea FA : accents du logo (ajouté par elyzea_core/brand/retheme.py) */
+:root {
+  --sodium: #B57BFF;
+  --sodium-soft: rgba(155, 92, 255, .16);
 }

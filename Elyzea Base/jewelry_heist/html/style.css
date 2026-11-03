@@ -1,6 +1,6 @@
 :root {
-  --bg: rgba(12, 14, 22, .96); --panel: #151a28; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .14);
-  --text: #eef1f8; --muted: #a3acc2; --faint: #6f7891; --gold: #e7c26b; --gold-2: #f6dd9a; --red: #ef4444; --green: #22c55e;
+  --bg: rgba(17, 12, 22, .96); --panel: #1e1528; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .14);
+  --text: #f3eef8; --muted: #b198cd; --faint: #7d54ac; --gold: #e7c26b; --gold-2: #f6dd9a; --red: #ef4444; --green: #22c55e;
   --shadow: 0 24px 60px rgba(0, 0, 0, .55);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,7 +34,7 @@ html, body { background: transparent; font-family: 'Segoe UI', Inter, system-ui,
 .gem { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
   background: rgba(255, 255, 255, .025); margin-bottom: 8px; }
 .gem .pic { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 60%, rgba(231, 194, 107, .16), transparent 70%), #0d1120; }
+  background: radial-gradient(circle at 50% 60%, rgba(231, 194, 107, .16), transparent 70%), #160d20; }
 .gem .pic img { width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .5)); }
 .gem b { font-size: 14.5px; }
 .gem .meta, .money .meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
@@ -64,3 +64,5 @@ html, body { background: transparent; font-family: 'Segoe UI', Inter, system-ui,
 #progress .bar { height: 8px; border-radius: 8px; background: rgba(255, 255, 255, .08); overflow: hidden; }
 #progress .bar i { display: block; height: 100%; width: 0; border-radius: 8px; background: var(--gold); }
 #progress .time { font-size: 12px; color: var(--muted); text-align: right; margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+/* ely-theme v1 */

@@ -25,6 +25,7 @@ client_script 'client/main.lua'
 
 ui_page 'html/index.html'
 files {
+    'html/brand.css',
     'html/index.html',
     'html/style.css',
     'html/app.js',

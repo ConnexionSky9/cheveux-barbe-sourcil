@@ -38,6 +38,7 @@ server_scripts {
 }
 
 files {
+    'html/brand.css',
     'data/items.lua',
     'data/weapons.lua',
     'html/index.html',

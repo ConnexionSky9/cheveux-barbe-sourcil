@@ -1,0 +1,101 @@
+/* =====================================================================
+   ARRIVÉE EN VILLE · Elyzea FA
+   1. Nuit : l'arc violet du logo traverse l'écran, l'emblème E se dessine,
+      « ELYZEA FA » apparaît, la ville s'allume.
+   2. Ouverture : un anneau de lumière violette s'ouvre et révèle la ville.
+   3. Plan de cinéma : bandes noires, lieu et heure, nom du nouveau citoyen.
+   4. Message de bienvenue, puis retour au jeu.
+   ===================================================================== */
+.wl { position: fixed; inset: 0; z-index: 9000; pointer-events: none; overflow: hidden; color: #F6F2FF;
+  font-family: 'Manrope', 'Segoe UI', sans-serif; }
+.wl.hidden, .wl .hidden { display: none !important; }
+.wl-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; }
+
+/* Fond de nuit (masque qui s'ouvre en anneau pour révéler le jeu) */
+@property --wl-r { syntax: '<percentage>'; initial-value: 0%; inherits: false; }
+.wl-black { position: absolute; inset: 0; z-index: 1;
+  background: radial-gradient(70% 60% at 50% 45%, #2A1257 0%, #120826 45%, #05030B 100%);
+  -webkit-mask-image: radial-gradient(circle at 50% 52%, transparent calc(var(--wl-r) - 6%), #000 var(--wl-r));
+          mask-image: radial-gradient(circle at 50% 52%, transparent calc(var(--wl-r) - 6%), #000 var(--wl-r)); }
+.wl.reveal .wl-black { animation: wl-open 1.6s cubic-bezier(.7, 0, .25, 1) forwards; }
+@keyframes wl-open { from { --wl-r: 0%; } to { --wl-r: 120%; } }
+.wl-ring { position: absolute; z-index: 3; left: 50%; top: 52%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+  border: 3px solid rgba(233, 213, 255, .95); box-shadow: 0 0 40px 10px rgba(155, 92, 255, .8), inset 0 0 30px rgba(155, 92, 255, .8); opacity: 0; }
+.wl.reveal .wl-ring { animation: wl-ring 1.6s cubic-bezier(.7, 0, .25, 1) forwards; }
+@keyframes wl-ring { 0% { opacity: 1; transform: scale(.2); } 80% { opacity: .9; } 100% { opacity: 0; transform: scale(90); } }
+
+/* 1. Intro */
+.wl-intro { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.wl.reveal .wl-intro { animation: wl-intro-out 1s ease-in forwards; }
+@keyframes wl-intro-out { to { opacity: 0; transform: scale(1.15); filter: blur(6px); } }
+.wl-arc { position: absolute; inset: 0; }
+.wl-arc svg { width: 100%; height: 100%; }
+.wl-arc path { fill: none; stroke: url(#wlArcG); stroke-linecap: round; filter: drop-shadow(0 0 12px rgba(181, 123, 255, .9)); }
+.wl-arc .a1 { stroke-width: 7; stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: wl-draw 1.6s .2s cubic-bezier(.6, 0, .2, 1) forwards; }
+.wl-arc .a2 { stroke-width: 2; opacity: .7; stroke-dasharray: 1600; stroke-dashoffset: 1600; animation: wl-draw 1.4s .55s cubic-bezier(.6, 0, .2, 1) forwards; }
+@keyframes wl-draw { to { stroke-dashoffset: 0; } }
+.wl-mark { position: relative; opacity: 0; animation: wl-mark-in 1.2s 1.2s cubic-bezier(.2, .9, .25, 1) forwards; }
+.wl-mark .ely-mark { width: min(30vh, 340px); height: auto; filter: drop-shadow(0 0 40px rgba(155, 92, 255, .65)); }
+.wl-mark::after { content: ''; position: absolute; left: 50%; top: 50%; width: 140%; height: 140%; transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(155, 92, 255, .35), transparent); z-index: -1; animation: wl-breathe 3s 2s ease-in-out infinite; }
+@keyframes wl-mark-in { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes wl-breathe { 50% { opacity: .55; transform: translate(-50%, -50%) scale(1.15); } }
+.wl-title { margin-top: 3vh; font: 700 clamp(13px, 1.6vh, 18px) 'Manrope', sans-serif; letter-spacing: .6em; text-transform: uppercase; color: #C9A6FF;
+  opacity: 0; animation: wl-up .9s 2.3s ease-out forwards; }
+.wl-name { margin-top: .8vh; font: 900 italic clamp(44px, 9vh, 112px) 'Exo 2', sans-serif; letter-spacing: .08em; text-transform: uppercase; line-height: 1; }
+.wl-name span { display: inline-block; opacity: 0; transform: translateY(.35em) skewX(-10deg); animation: wl-letter .7s cubic-bezier(.2, .9, .25, 1) forwards; }
+.wl-name span.v { color: #9B5CFF; text-shadow: 0 0 24px rgba(155, 92, 255, .9), 0 0 60px rgba(123, 47, 247, .6); }
+@keyframes wl-letter { to { opacity: 1; transform: none; } }
+.wl-underline { width: min(44vw, 620px); height: 2px; margin-top: 2.2vh; background: linear-gradient(90deg, transparent, #C9A6FF, #fff, #C9A6FF, transparent);
+  transform: scaleX(0); animation: wl-line 1.2s 3.4s cubic-bezier(.6, 0, .2, 1) forwards; box-shadow: 0 0 18px rgba(155, 92, 255, .9); }
+@keyframes wl-line { to { transform: scaleX(1); } }
+.wl-city { position: absolute; left: 0; right: 0; bottom: 0; height: 32vh; transform: translateY(100%); animation: wl-city 2.4s 1.8s cubic-bezier(.2, .9, .25, 1) forwards; }
+.wl-city .ely-skyline { height: 100%; }
+.wl-city .ely-skyline .w { opacity: 0; }
+.wl-city .ely-skyline .w.on { opacity: 0; animation: wl-win .5s ease-out forwards; }
+.wl-city::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: radial-gradient(60% 80% at 50% 100%, rgba(155, 92, 255, .4), transparent 70%); }
+@keyframes wl-city { to { transform: none; } }
+@keyframes wl-win { to { opacity: .95; } }
+@keyframes wl-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* Bandes cinéma */
+.wl-bars i { position: absolute; left: 0; right: 0; height: 11vh; background: #05030B; z-index: 5; transform: scaleY(0); transition: transform 1s cubic-bezier(.7, 0, .25, 1); }
+.wl-bars i:first-child { top: 0; transform-origin: top; box-shadow: 0 1px 0 rgba(155, 92, 255, .5); }
+.wl-bars i:last-child { bottom: 0; transform-origin: bottom; box-shadow: 0 -1px 0 rgba(155, 92, 255, .5); }
+.wl.cinema .wl-bars i { transform: scaleY(1); }
+
+/* 3. Plan de la ville */
+.wl-scene { position: absolute; inset: 0; z-index: 6; }
+.wl-flare { position: absolute; top: 18vh; left: -40vw; width: 40vw; height: 60vh; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(201, 166, 255, .16), rgba(255, 255, 255, .22), rgba(201, 166, 255, .16), transparent);
+  filter: blur(8px); animation: wl-flare 3.2s .4s ease-in-out forwards; }
+@keyframes wl-flare { to { left: 120vw; } }
+.wl-loc { position: absolute; left: 6vw; bottom: calc(11vh + 4vh); display: flex; gap: 18px; align-items: center; }
+.wl-loc .ely-mark { width: 74px; height: auto; flex: none; filter: drop-shadow(0 0 14px rgba(155, 92, 255, .8)); }
+.wl-loc .bar { width: 3px; align-self: stretch; background: linear-gradient(#E9D5FF, #9B5CFF, #7B2FF7); box-shadow: 0 0 12px #9B5CFF; transform: scaleY(0); transform-origin: top; animation: wl-bar .6s .5s ease-out forwards; }
+@keyframes wl-bar { to { transform: none; } }
+.wl-loc .txt { overflow: hidden; }
+.wl-loc .city { font: 900 italic clamp(30px, 5vh, 58px) 'Exo 2', sans-serif; letter-spacing: .1em; text-transform: uppercase; line-height: 1;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, .8); transform: translateX(-110%); animation: wl-slide .9s .7s cubic-bezier(.2, .9, .25, 1) forwards; }
+.wl-loc .zone { margin-top: 6px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: #C9A6FF; font-size: clamp(12px, 1.5vh, 16px);
+  opacity: 0; animation: wl-up .7s 1.3s ease-out forwards; }
+.wl-loc .time { margin-top: 4px; font: 600 clamp(12px, 1.4vh, 15px) 'Courier New', monospace; letter-spacing: .2em; color: rgba(246, 242, 255, .75);
+  opacity: 0; animation: wl-up .7s 1.7s ease-out forwards; }
+@keyframes wl-slide { to { transform: none; } }
+.wl-who { position: absolute; right: 6vw; top: calc(11vh + 4vh); text-align: right; }
+.wl-who small { display: block; font-weight: 800; letter-spacing: .4em; text-transform: uppercase; color: #9B5CFF; font-size: 12px; opacity: 0; animation: wl-up .7s 2.2s ease-out forwards; }
+.wl-who b { display: block; margin-top: 6px; font: 800 italic clamp(22px, 3.4vh, 38px) 'Exo 2', sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .8); opacity: 0; animation: wl-up .8s 2.5s ease-out forwards; }
+
+/* 4. Message final */
+.wl-outro { position: absolute; left: 0; right: 0; bottom: calc(11vh + 6vh); z-index: 7; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.wl-msg { max-width: min(1000px, 86vw); text-align: center; font: 800 italic clamp(22px, 3.4vh, 40px) 'Exo 2', sans-serif; line-height: 1.35;
+  text-shadow: 0 4px 28px rgba(0, 0, 0, .85); }
+.wl-msg span { display: inline-block; opacity: 0; transform: translateY(10px); filter: blur(6px); animation: wl-word .7s cubic-bezier(.2, .9, .25, 1) forwards; }
+@keyframes wl-word { to { opacity: 1; transform: none; filter: none; } }
+.wl-sign { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: .32em; text-transform: uppercase; color: #C9A6FF; font-size: 14px; opacity: 0; animation: wl-up .8s 1.6s ease-out forwards; }
+.wl-sign::before, .wl-sign::after { content: ''; width: 60px; height: 1px; background: linear-gradient(90deg, transparent, #9B5CFF); }
+.wl-sign::after { transform: scaleX(-1); }
+.wl.out { animation: wl-out 1.4s ease-in forwards; }
+@keyframes wl-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .wl * { animation-duration: .01s !important; animation-delay: 0s !important; } }

@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <link rel="stylesheet" href="brand.css">
+    <!-- ely-theme -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bureau de change</title>
 <style>
-:root{--bg:rgba(8,12,24,.96);--bg2:rgba(16,24,46,.94);--text:#eef3ff;--muted:#8a98bb;--line:rgba(255,200,90,.22);--gold:#ffc85a;--gold2:#e2962c;--cy:#5ce1ff;--ok:#3fe0a0;--err:#ff4d6d}
+:root{--bg:rgba(15, 8, 24,.96);--bg2:rgba(30, 16, 46,.94);--text:#f6effe;--muted:#a082c3;--line:rgba(167, 97, 248,.22);--gold:#a761f8;--gold2:#812ce2;--cy:#a963f8;--ok:#3fe0a0;--err:#ff4d6d}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;font-family:"Segoe UI","Bahnschrift",system-ui,sans-serif;color:var(--text);background:transparent;overflow:hidden}
-body.demo{background:radial-gradient(60% 60% at 30% 40%,rgba(255,200,90,.12),transparent),linear-gradient(#0a1024,#04060c)}
+body.demo{background:radial-gradient(60% 60% at 30% 40%,rgba(167, 97, 248,.12),transparent),linear-gradient(#160a24,#08040c)}
 button,input{font:inherit;color:inherit}
 .panel{position:fixed;left:50%;top:50%;width:min(440px,calc(100vw - 24px));transform:translate(-50%,-50%) scale(.97);opacity:0;pointer-events:none;
   transition:opacity .18s,transform .22s;border-radius:18px;overflow:hidden;border:1px solid var(--line);
@@ -26,11 +28,11 @@ button,input{font:inherit;color:inherit}
 .bal b{font-size:18px}
 .dir{display:grid;grid-template-columns:1fr 1fr;margin:0 18px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .dir button{border:0;background:none;padding:11px 8px;cursor:pointer;color:var(--muted);font-weight:700}
-.dir button.on{background:linear-gradient(180deg,rgba(255,200,90,.2),rgba(255,200,90,.06));color:var(--gold)}
+.dir button.on{background:linear-gradient(180deg,rgba(167, 97, 248,.2),rgba(167, 97, 248,.06));color:var(--gold)}
 .box{padding:0 18px}
 label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
-.amt{display:flex;align-items:center;gap:8px;height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(2,5,12,.7)}
-.amt:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,200,90,.1)}
+.amt{display:flex;align-items:center;gap:8px;height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(7, 3, 11,.7)}
+.amt:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(167, 97, 248,.1)}
 .amt input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:22px;font-weight:700}
 .amt span{color:var(--muted);font-weight:700}
 .amt input::-webkit-inner-spin-button,.amt input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
@@ -42,10 +44,17 @@ label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
 .res b{font-size:22px;color:var(--gold)}
 .rate{margin:6px 18px 0;color:var(--muted);font-size:12.5px}
 .go{display:block;width:calc(100% - 36px);margin:14px 18px 18px;height:48px;border-radius:12px;border:0;cursor:pointer;font-weight:800;letter-spacing:.06em;
-  color:#1a1003;background:linear-gradient(180deg,#ffe29a,var(--gold2));box-shadow:0 6px 20px -8px var(--gold)}
+  color:#0e0716;background:linear-gradient(180deg,#c99efb,var(--gold2));box-shadow:0 6px 20px -8px var(--gold)}
 .go:disabled{opacity:.45;cursor:default}
 .msg{min-height:20px;margin:-8px 18px 14px;font-size:13.5px;text-align:center}
 .msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
+
+/* ely-theme v1 */
+/* Thème Elyzea FA : accents du logo (ajouté par elyzea_core/brand/retheme.py) */
+:root {
+  --cy: #C9A6FF;
+  --ok: #3EE6B0;
+}
 </style>
 </head>
 <body class="demo">

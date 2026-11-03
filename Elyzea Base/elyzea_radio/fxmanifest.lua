@@ -15,6 +15,7 @@ client_script 'client.lua'
 server_script 'server.lua'
 
 ui_page 'html/index.html'
-files { 'html/index.html', 'html/logo.png' }
+files {
+    'html/brand.css', 'html/index.html', 'html/logo.png' }
 
 dependencies { 'elyzea_core', 'elyzea_inventory', 'pma-voice' }
