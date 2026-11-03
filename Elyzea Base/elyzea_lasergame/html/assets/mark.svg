@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 160" width="250" height="160">
+  <defs>
+    <linearGradient id="ely-sw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9D5FF"/><stop offset=".45" stop-color="#B57BFF"/><stop offset="1" stop-color="#7B2FF7"/>
+    </linearGradient>
+    <linearGradient id="ely-e" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E7DEFF"/>
+    </linearGradient>
+    <filter id="ely-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path fill="url(#ely-e)" d="M88 10H236L221 38H118.5L108.7 66H192L181 90H100.3L89.8 120H206L191 148H40Z"/>
+  <path fill="url(#ely-sw)" filter="url(#ely-glow)" d="M132 18C52 22 14 78 52 112C84 140 150 134 190 124C140 126 92 122 70 104C40 80 66 34 132 18Z"/>
+  <path fill="none" stroke="#D8B4FE" stroke-width="1.4" stroke-linecap="round" opacity=".8" d="M118 12C46 22 8 70 36 104"/>
+</svg>

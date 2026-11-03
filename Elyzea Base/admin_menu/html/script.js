@@ -1213,6 +1213,7 @@ function npcSummary(n) {
         parts.push(`${CR[n.casino.role] || '🎰 Casino'} <b>${esc(n.casino.name || '')}</b>${wl}${n.casino.role !== 'cashier' ? (n.casino.table ? ' · posée' : ' · <b style="color:var(--danger)">table / roue à poser</b>') : ''}`);
     }
     if (n.pvp) parts.push(`⚔️ Arène PvP <b>${esc(n.pvp.name || '')}</b>`);
+    if (n.lasergame) parts.push(`🔫 LaserGame <b>${esc(n.lasergame.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}${n.clothing.currency === 'pesos' ? ' · 🪙 <b>pesos uniquement</b>' : ''}${n.clothing.bagColor ? ` · 🛍️ sacs ${esc(n.clothing.bagColor)}` : ''}`);
     if (n.exchange) parts.push(`🪙 Bureau de change <b>${esc(n.exchange.name)}</b> · 100 $ → ${n.exchange.toPesos} pesos · 100 pesos → ${n.exchange.toCash} $`);
@@ -1341,6 +1342,7 @@ function toPedEdit(r) {
         ...gunshopEdit(n.gunshop),
         ...casinoEdit(n.casino),
         pvpOn: !!n.pvp, pvpName: n.pvp ? (n.pvp.name || '') : 'Arène PvP',
+        lgOn: !!n.lasergame, lgName: n.lasergame ? (n.lasergame.name || '') : 'LaserGame ElyzeaFA',
         areaMode: n.area ? n.area.shape : 'default',
         areaRadius: n.area && n.area.shape === 'circle' ? n.area.radius : 4,
         areaPoly: n.area && n.area.shape === 'poly' ? clone(n.area) : null,
@@ -1687,7 +1689,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.impOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.exchangeOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.impOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.lgOn || p.exchangeOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         currency: p.currency === 'money' || p.currency === 'pesos' ? p.currency : '', currencyForce: !!p.currencyForce,
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
@@ -1743,6 +1745,7 @@ function pedEditPayload(p) {
         } : null,
         casino: p.casinoOn ? { role: p.csRole, name: String(p.csName || '').trim(), model: String(p.csModel || '').trim(), wheel: p.csWheel } : null,
         pvp: p.pvpOn ? { name: String(p.pvpName || '').trim() } : null,
+        lasergame: p.lgOn ? { name: String(p.lgName || '').trim() } : null,
         area: p.areaMode === 'circle' ? { shape: 'circle', radius: Math.max(1, Math.min(40, num(p.areaRadius, 4))) }
             : p.areaMode === 'poly' ? livePoly(p) : null,
         jobs: p.gJobsOn ? p.gJobs.filter((j) => String(j.job).trim()).map((j) => ({ job: String(j.job).trim().toLowerCase(), grade: num(j.grade, 0) })) : [],
@@ -2074,6 +2077,7 @@ function pedEditor() {
                 ${tog('gunshopOn', '🔫 Armurerie', 'Armes, munitions, accessoires, essai au stand de tir')}
                 ${tog('casinoOn', '🎰 Casino', 'Croupier (blackjack, roulette), roue de la fortune ou guichet des jetons')}
                 ${tog('pvpOn', '⚔️ Arène PvP', 'Parties en équipes avec mises et paris (ressource pvp_arena)')}
+                ${tog('lgOn', '🔫 LaserGame', 'PVP laser, mode Zombie, classements et rangs (ressource elyzea_lasergame)')}
                 ${tog('exchangeOn', '🪙 Bureau de change', 'Argent liquide ⇄ pesos (ressource elyzea_change)')}
             </div>
             ${p.exchangeOn ? exchangeCard(p) : ''}
@@ -2081,6 +2085,11 @@ function pedEditor() {
                 <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le menu des parties : créer, rejoindre, miser, parier.
                     Les arènes se règlent en jeu avec les commandes <b>/pvp_arena_*</b> (voir le README de pvp_arena). Nécessite la ressource <b>pvp_arena</b>.</p>
                 <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="pvpName" value="${esc(p.pvpName)}" placeholder="Arène PvP"></div>
+            </div>` : ''}
+            ${p.lgOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🔫 LaserGame</h3>
+                <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le LaserGame ElyzeaFA : PVP Arena, mode Zombie, classements, profil.
+                    Les réglages se font avec <b>/lgadmin</b> (permission « LaserGame »). Nécessite la ressource <b>elyzea_lasergame</b>.</p>
+                <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="lgName" value="${esc(p.lgName)}" placeholder="LaserGame ElyzeaFA"></div>
             </div>` : ''}
             ${p.barberOn ? barberCard(p, tog) : ''}
             ${p.tattooOn ? tattooCard(p, tog) : ''}

@@ -40,6 +40,7 @@ RegisterNetEvent('elyzea_lasergame:enterGame', function(d)
         if d.role == 'spectator' then
             C.StartSpectate('all')
             C.UI('hud', { mode = 'zombie', role = 'spectator' })
+            C.Fade(false, 500)
             return
         end
         C.PlaceAt(d.spawn, d.spawn.h)
@@ -123,6 +124,7 @@ local function aiLoop()
                             z.setup, z.owner = true, PlayerId()
                             z.target = nil
                         end
+                        SetPedMoveRateOverride(ped, z.s or 1.0)   -- à réappliquer régulièrement
                         local pos = GetEntityCoords(ped)
                         local target, d = nearestPlayerPed(pos)
                         local now = GetGameTimer()

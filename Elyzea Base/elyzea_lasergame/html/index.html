@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>LaserGame ElyzeaFA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800;1,900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Interface principale (menu) -->
+  <div id="app" class="hidden">
+    <div class="shell">
+      <aside class="side">
+        <div class="brandbox"><span id="mark"></span><div><div class="t1">LASER<b>GAME</b></div><div class="t2">ELYZEA FA</div></div></div>
+        <nav class="nav" id="nav"></nav>
+        <div class="mecard" id="mecard" data-go="profile"></div>
+        <div class="sky" id="sky"></div>
+      </aside>
+      <section class="main">
+        <header class="topbar">
+          <div class="title glitch" id="title" data-text=""></div>
+          <button class="x" data-act="close" title="Fermer (Échap)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </header>
+        <div class="page" id="page"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- HUD en partie -->
+  <div id="hud" class="hidden"><div class="scale" id="hudScale"></div></div>
+
+  <!-- Écran de chargement de la carte -->
+  <div id="loading" class="hidden"><div class="bg" id="loadingBg"></div><div class="box">
+    <div class="spinner"></div><div class="md" id="loadingMode"></div><div class="mn" id="loadingName"></div>
+    <div class="bar"><i id="loadingBar" style="width:0"></i></div><div class="tip" id="loadingTip"></div></div></div>
+
+  <!-- Résultats de fin de partie -->
+  <div id="results" class="hidden"></div>
+  <div class="confetti" id="confetti"></div>
+
+  <!-- Menu de partie (quitter) -->
+  <div id="gameMenu" class="hidden"></div>
+
+  <!-- Invite d'interaction, notifications, invitations -->
+  <div id="prompt" class="hidden"></div>
+  <div id="toasts"></div>
+  <div id="invites"></div>
+
+  <script src="brand.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

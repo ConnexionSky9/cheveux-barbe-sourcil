@@ -448,6 +448,11 @@ local function cleanNpc(n)
         local name = cleanName(n.pvp.name, 40)
         out.pvp = { name = name ~= '' and name or 'Arène PvP' }
     end
+    -- LaserGame (ressource elyzea_lasergame) : ouvre l'interface du LaserGame
+    if type(n.lasergame) == 'table' then
+        local name = cleanName(n.lasergame.name, 40)
+        out.lasergame = { name = name ~= '' and name or 'LaserGame ElyzeaFA' }
+    end
     -- Bureau de change (ressource elyzea_change) : argent liquide <-> pesos, taux pour 100
     if type(n.exchange) == 'table' then
         local name = cleanName(n.exchange.name, 40)
@@ -455,7 +460,7 @@ local function cleanNpc(n)
             toPesos = math.floor(num(n.exchange.toPesos, 1, 100000, 100)), toCash = math.floor(num(n.exchange.toCash, 1, 100000, 100)) }
     end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.impound and not out.dmv
-        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp
+        and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp and not out.lasergame
         and not out.exchange then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
@@ -2540,6 +2545,15 @@ exports('GetPropsByRole', function(role)
     local out = {}
     for _, r in ipairs(Data.props) do
         if r.role == role then out[#out + 1] = { id = r.id, model = r.model, x = r.x, y = r.y, z = r.z, h = r.h } end
+    end
+    return out
+end)
+
+-- PNJ ayant le rôle « LaserGame » (elyzea_lasergame vérifie qu'un joueur est près de l'un d'eux)
+exports('GetLaserGameNpcs', function()
+    local out = {}
+    for _, r in ipairs(Data.peds) do
+        if r.npc and r.npc.lasergame then out[#out + 1] = { id = r.id, x = r.x, y = r.y, z = r.z } end
     end
     return out
 end)

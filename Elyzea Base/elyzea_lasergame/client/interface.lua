@@ -81,9 +81,3 @@ RegisterNetEvent('elyzea_lasergame:invite', function(inv)
     C.UI('invite', inv)
     C.Sound('invite', 0.8)
 end)
-RegisterNUICallback('acceptInvite', function(d, cb)
-    cb(1)
-    if type(d) ~= 'table' or not d.uid then return end
-    if not C.uiOpen then C.OpenUI(d.mode == 'zombie' and 'zombie' or 'pvp') end
-    C.UI('acceptInvite', d)
-end)

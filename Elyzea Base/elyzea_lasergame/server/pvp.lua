@@ -521,8 +521,8 @@ function Pvp.Finish(g, winner, why)
     for _, l in ipairs(list) do
         if l.result ~= 'left' and (not mvp or l.kills > mvp.kills or (l.kills == mvp.kills and l.deaths < mvp.deaths)) then mvp = l end
     end
-    MySQL.update('UPDATE `lg_matches` SET `status` = \'finished\', `score_a` = ?, `score_b` = ?, `winner` = ?, `round` = ?, `pot` = ?, `ranked` = ?, `data` = ?, `ended_at` = NOW() WHERE `uid` = ?',
-        { g.score.A, g.score.B, winner, g.round, pot, ranked and 1 or 0, json.encode({ players = list, why = why }), g.uid })
+    MySQL.update('UPDATE `lg_matches` SET `status` = \'finished\', `score_a` = ?, `score_b` = ?, `winner` = NULLIF(?, \'\'), `round` = ?, `pot` = ?, `ranked` = ?, `data` = ?, `ended_at` = NOW() WHERE `uid` = ?',
+        { g.score.A, g.score.B, winner or '', g.round, pot or 0, ranked and 1 or 0, json.encode({ players = list, why = why }), g.uid })
     Logs.Add('pvp', ('partie %s terminée : %s (%d-%d), pot %d $'):format(g.uid, winner and ('victoire ' .. T[winner].name) or 'égalité', g.score.A, g.score.B, pot))
     -- écran de fin (chacun reçoit ses propres chiffres)
     local summary = {}

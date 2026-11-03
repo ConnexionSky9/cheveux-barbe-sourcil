@@ -47,8 +47,9 @@ function Logs.Add(cat, msg, data, src)
         print(('^5[LaserGame:%s]^0 %s%s'):format(cat, name and (name .. ' : ') or '', msg))
     end
     if Config.Logs.database and DB and DB.ready then
-        MySQL.insert('INSERT INTO `lg_logs` (`category`, `citizenid`, `name`, `message`, `data`) VALUES (?, ?, ?, ?, ?)',
-            { cat, cid, name and name:sub(1, 80) or nil, msg:sub(1, 255), data and json.encode(data) or nil })
+        -- jamais de nil dans un tableau de paramètres (il serait transmis comme un objet et la requête échouerait)
+        MySQL.insert('INSERT INTO `lg_logs` (`category`, `citizenid`, `name`, `message`, `data`) VALUES (?, NULLIF(?, \'\'), NULLIF(?, \'\'), ?, NULLIF(?, \'\'))',
+            { cat, cid or '', name and name:sub(1, 80) or '', msg:sub(1, 255), data and json.encode(data) or '' })
     end
     if Config.Logs.discord and webhook() ~= '' then
         queue[#queue + 1] = { cat = cat, msg = (name and (name .. ' : ') or '') .. msg, data = data }

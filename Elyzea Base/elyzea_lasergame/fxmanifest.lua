@@ -60,15 +60,17 @@ files {
     'html/style.css',
     'html/script.js',
     'html/brand.css',
+    'html/brand.js',
     'html/assets/*.svg',
     'html/assets/*.png',
+    'html/assets/*.jpg',
+    'html/assets/*.webp',
     'html/images/*.png',
     'html/images/*.svg',
     'html/images/maps/*.png',
     'html/sounds/*.ogg',
     'html/ranks/*.svg',
     'html/ranks/*.png',
-    'html/fonts/*.woff2',
     'maps/*/map.json',
 }
 

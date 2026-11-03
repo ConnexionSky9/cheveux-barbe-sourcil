@@ -92,6 +92,57 @@ local function preloadArea(d)
     Wait(600)
 end
 
+-- Découpe d'un mur en pièces (même algorithme que tools/mapgen/core.py › expand_wall) :
+--   * pièces entières du modèle principal depuis le point a (axe long aligné sur le segment) ;
+--   * le reste est comblé par le modèle « filler » (petits blocs), sans dépasser le point b ;
+--   * hauteur : « stack » pièces empilées, ou assez de pièces pour atteindre « stackTo » mètres.
+local function pieceAxis(md)
+    local alongY = md.y > md.x
+    return alongY, alongY and md.y or md.x
+end
+
+local function fillRun(out, hash, md, w, ax, ay, ux, uy, from, to, segHeading)
+    local alongY, len = pieceAxis(md)
+    local span = to - from
+    if span <= 0.15 then return end
+    local n = math.max(1, math.ceil(span / math.max(0.3, len) - 0.05))
+    local step = span / n
+    local stack = w.stackTo and math.max(1, math.ceil(w.stackTo / math.max(0.3, md.z) - 0.05)) or (w.stack or 1)
+    local heading = (alongY and segHeading or (segHeading + 90.0)) + (w.h or 0)
+    for i = 0, n - 1 do
+        local s = from + (i + 0.5) * step
+        for k = 0, stack - 1 do
+            out[#out + 1] = { hash = hash, x = ax + ux * s, y = ay + uy * s, z = (w.z or 0) + k * md.z - md.mn.z, h = heading }
+        end
+    end
+end
+
+function Map.ExpandWall(w, hashes)
+    local out = {}
+    local h = hashes[w.m]
+    if not h then return out end
+    local md = dims(h)
+    local dx, dy = w.b[1] - w.a[1], w.b[2] - w.a[2]
+    local segLen = math.sqrt(dx * dx + dy * dy)
+    if segLen < 0.05 then return out end
+    local ux, uy = dx / segLen, dy / segLen
+    local segHeading = math.deg(math.atan(dy, dx)) - 90.0      -- cap GTA du segment (repère local)
+    local filler = w.filler and hashes[w.filler]
+    if not filler then
+        fillRun(out, h, md, w, w.a[1], w.a[2], ux, uy, 0, segLen, segHeading)
+        return out
+    end
+    local _, len = pieceAxis(md)
+    local full = math.floor(segLen / len + 0.03)
+    if full > 0 then fillRun(out, h, md, w, w.a[1], w.a[2], ux, uy, 0, math.min(segLen, full * len), segHeading) end
+    local rest = segLen - full * len
+    if rest > 0.15 then
+        local fw = { stack = w.stack, stackTo = w.stackTo or (md.z * (w.stack or 1)), z = w.z, h = w.h }
+        fillRun(out, filler, dims(filler), fw, w.a[1], w.a[2], ux, uy, full * len, segLen, segHeading)
+    end
+    return out
+end
+
 -- Construction (progressive : quelques objets par image, pas de gel du jeu)
 function Map.Build(info, onProgress)
     Map.Unload()
@@ -101,7 +152,7 @@ function Map.Build(info, onProgress)
     preloadArea(d)
     local need = {}
     for _, o in ipairs(d.objects or {}) do need[o.m] = true end
-    for _, w in ipairs(d.walls or {}) do need[w.m] = true end
+    for _, w in ipairs(d.walls or {}) do need[w.m] = true if w.filler then need[w.filler] = true end end
     local hashes = loadModels(need)
     local total = #(d.objects or {}) + #(d.walls or {})
     local done, budget = 0, 0
@@ -117,28 +168,10 @@ function Map.Build(info, onProgress)
         if budget >= 20 then budget = 0 Wait(0) if onProgress then onProgress(done / math.max(1, total)) end end
     end
     for _, w in ipairs(d.walls or {}) do
-        local h = hashes[w.m]
-        if h then
-            local md = dims(h)
-            -- l'axe long du modèle est aligné sur le segment
-            local alongY = md.y > md.x
-            local len = alongY and md.y or md.x
-            local dx, dy = w.b[1] - w.a[1], w.b[2] - w.a[2]
-            local segLen = math.sqrt(dx * dx + dy * dy)
-            local n = math.max(1, math.floor(segLen / math.max(0.3, len) + 0.5))
-            local step = segLen / n
-            local segHeading = math.deg(math.atan(dy, dx)) - 90.0           -- cap GTA du segment (repère local)
-            local pieceHeading = alongY and (segHeading) or (segHeading + 90.0)
-            for i = 0, n - 1 do
-                local t = (i + 0.5) * step / math.max(0.001, segLen)
-                local lx, ly = w.a[1] + dx * t, w.a[2] + dy * t
-                for k = 0, (w.stack or 1) - 1 do
-                    local lz = (w.z or 0) + k * md.z
-                    local x, y, z = Map.World(lx, ly, lz)
-                    if w.snap then z = snapZ(x, y, z, lz) end
-                    place(h, x, y, z, ah + pieceHeading + (w.h or 0), w.door)
-                end
-            end
+        for _, piece in ipairs(Map.ExpandWall(w, hashes)) do
+            local x, y, z = Map.World(piece.x, piece.y, piece.z)
+            if w.snap then z = snapZ(x, y, z, piece.z) end
+            place(piece.hash, x, y, z, ah + piece.h, w.door)
         end
         done, budget = done + 1, budget + 4
         if budget >= 20 then budget = 0 Wait(0) if onProgress then onProgress(done / math.max(1, total)) end end

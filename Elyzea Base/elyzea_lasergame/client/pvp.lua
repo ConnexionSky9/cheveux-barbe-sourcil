@@ -24,6 +24,7 @@ RegisterNetEvent('elyzea_lasergame:enterGame', function(d)
         if d.role == 'spectator' then
             C.StartSpectate('all')
             C.UI('hud', { mode = 'pvp', role = 'spectator', rounds = d.rounds, teamNames = d.teamNames })
+            C.Fade(false, 500)
             return
         end
         C.CanFire = function() return C.alive and not C.frozen and P.phase == 'round' end

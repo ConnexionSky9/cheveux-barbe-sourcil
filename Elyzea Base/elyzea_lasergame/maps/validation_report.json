@@ -1,0 +1,110 @@
+{
+ "pvp_small": {
+  "map": "pvp_small",
+  "errors": [],
+  "warnings": [],
+  "info": {
+   "objects": 143,
+   "models": 13,
+   "zone_m2": 1936,
+   "walkable_m2": 1448,
+   "cover_ratio": 0.252,
+   "reachable_pct": 100.0,
+   "balance_center": 1.0,
+   "exposed_spawn_pairs": 0,
+   "spawns": {
+    "A": 3,
+    "B": 3
+   },
+   "narrow_gaps": 0,
+   "primitives": 49
+  },
+  "ok": true
+ },
+ "pvp_medium": {
+  "map": "pvp_medium",
+  "errors": [],
+  "warnings": [],
+  "info": {
+   "objects": 157,
+   "models": 16,
+   "zone_m2": 4032,
+   "walkable_m2": 3226,
+   "cover_ratio": 0.2,
+   "reachable_pct": 100.0,
+   "balance_center": 1.0,
+   "exposed_spawn_pairs": 0,
+   "spawns": {
+    "A": 5,
+    "B": 5
+   },
+   "narrow_gaps": 0,
+   "primitives": 73
+  },
+  "ok": true
+ },
+ "pvp_large": {
+  "map": "pvp_large",
+  "errors": [],
+  "warnings": [],
+  "info": {
+   "objects": 275,
+   "models": 22,
+   "zone_m2": 9900,
+   "walkable_m2": 8180,
+   "cover_ratio": 0.174,
+   "reachable_pct": 100.0,
+   "balance_center": 1.0,
+   "exposed_spawn_pairs": 0,
+   "spawns": {
+    "A": 6,
+    "B": 6
+   },
+   "narrow_gaps": 0,
+   "primitives": 137
+  },
+  "ok": true
+ },
+ "pvp_xlarge": {
+  "map": "pvp_xlarge",
+  "errors": [],
+  "warnings": [],
+  "info": {
+   "objects": 329,
+   "models": 21,
+   "zone_m2": 20800,
+   "walkable_m2": 18124,
+   "cover_ratio": 0.129,
+   "reachable_pct": 100.0,
+   "balance_center": 1.0,
+   "exposed_spawn_pairs": 0,
+   "spawns": {
+    "A": 6,
+    "B": 6
+   },
+   "narrow_gaps": 0,
+   "primitives": 149
+  },
+  "ok": true
+ },
+ "zombie_map": {
+  "map": "zombie_map",
+  "errors": [],
+  "warnings": [],
+  "info": {
+   "objects": 585,
+   "models": 26,
+   "zone_m2": 12544,
+   "walkable_m2": 9533,
+   "cover_ratio": 0.24,
+   "zombie_spawns": 38,
+   "sectors": 8,
+   "doors": 9,
+   "wallbuys": 13,
+   "perks": 8,
+   "narrow_gaps": 0,
+   "primitives": 163
+  },
+  "ok": true
+ }
+}
