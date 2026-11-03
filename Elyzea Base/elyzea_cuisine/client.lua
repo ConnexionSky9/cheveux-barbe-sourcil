@@ -43,6 +43,48 @@ local function resolve(r)
     return { anim = nil, props = {} }, 'aucun'
 end
 
+-- ---------------------------------------------------------------------
+-- Autres aliments du serveur (pas des recettes) : D.Items, sinon reconnaissance par le nom (D.Guess)
+-- ---------------------------------------------------------------------
+local ACCENTS = { ['à'] = 'a', ['â'] = 'a', ['ä'] = 'a', ['é'] = 'e', ['è'] = 'e', ['ê'] = 'e', ['ë'] = 'e', ['î'] = 'i', ['ï'] = 'i',
+    ['ô'] = 'o', ['ö'] = 'o', ['ù'] = 'u', ['û'] = 'u', ['ü'] = 'u', ['ç'] = 'c', ['œ'] = 'oe', ['À'] = 'a', ['É'] = 'e', ['È'] = 'e', ['Ê'] = 'e', ['Ç'] = 'c' }
+local function norm(t)
+    t = tostring(t or '')
+    for a, b in pairs(ACCENTS) do t = t:gsub(a, b) end
+    return ' ' .. t:lower():gsub('[%-_]', ' ') .. ' '
+end
+
+-- d = { name, label, status = { hunger, thirst } } → recette « virtuelle » { label, kind, anim, props, fb } ou nil
+local function itemSpec(d)
+    if type(d) ~= 'table' or not d.name then return nil end
+    local st = type(d.status) == 'table' and d.status or {}
+    local hunger, thirst = tonumber(st.hunger) or 0, tonumber(st.thirst) or 0
+    if hunger <= 0 and thirst <= 0 then return nil end      -- ni faim ni soif : pas un aliment (drogue, soin…)
+    local isDrink = thirst > hunger
+    local entry, how = (D.Items or {})[d.name], 'objet'
+    if not entry then
+        local text = norm((d.label or '') .. ' ' .. d.name)
+        for _, g in ipairs(D.Guess or {}) do
+            if (g.drink == true) == isDrink or (g.drink == nil and not isDrink) then
+                for _, w in ipairs(g.words) do
+                    if text:find(w, 1, true) then entry, how = g, 'nom' break end
+                end
+            end
+            if entry then break end
+        end
+    end
+    if not entry then
+        local def = D.Default or {}
+        entry = isDrink and def.drink or (hunger >= 250000 and def.meal or def.snack)
+        how = 'défaut'
+    end
+    if not entry or not entry.use then return nil end
+    -- Durée réaliste selon le geste (une assiette ne se mange pas en 2 s) ; jamais plus courte que celle de l'objet
+    local minTime = ({ plate = 7000, snack = 5000, bite = 4500, bite_fp = 4500, straw = 4500, cup = 4000, bottle = 4000 })[entry.use.anim] or 4000
+    return { id = d.name, label = d.label or d.name, kind = isDrink and 'boisson' or 'plat', anim = entry.use.anim, props = entry.use.props, fb = entry.fb, how = how,
+        time = math.max(minTime, tonumber(d.usetime) or 0) }
+end
+
 local function loadModel(h)
     RequestModel(h)
     local t = GetGameTimer() + 3000
@@ -86,8 +128,8 @@ local function cleanup()
 end
 
 -- Consommer une recette (bloquant). d = données envoyées par elyzea_inventory (d.cuisine = id de la recette)
-local function consume(d)
-    local r = BY_ID[type(d) == 'table' and d.cuisine or d]
+local function consume(d, spec)
+    local r = spec or BY_ID[type(d) == 'table' and d.cuisine or d]
     if not r then return false end
     if active then return false end
     local use = resolve(r)
@@ -97,7 +139,7 @@ local function consume(d)
     local ok, res = pcall(function()
         active.props = attachAll(ped, use.props or {})
         return exports.elyzea_core:ProgressBar({
-            duration = (type(d) == 'table' and tonumber(d.usetime)) or r.time or 5000,
+            duration = (spec and spec.time) or (type(d) == 'table' and tonumber(d.usetime)) or r.time or 5000,
             label = (r.kind == 'boisson' and 'Tu bois : %s' or 'Tu manges : %s'):format(r.label),
             canCancel = true,
             disable = { car = false, combat = true },
@@ -108,7 +150,14 @@ local function consume(d)
     if not ok then print('^1[elyzea_cuisine] ' .. tostring(res) .. '^0') return false end
     return res == true
 end
-exports('Consume', consume)
+exports('Consume', function(d) return consume(d) end)
+-- Aliment qui n'est pas une recette (burger, pizza, boissons du bar…) : true / false, ou nil si rien d'adapté
+exports('ConsumeItem', function(d)
+    local spec = itemSpec(d)
+    if not spec then return nil end
+    return consume(d, spec)
+end)
+exports('DescribeItem', function(d) return itemSpec(d) end)
 exports('GetRecipe', function(id) return BY_ID[id] end)
 exports('IsEating', function() return active ~= nil end)
 
@@ -126,8 +175,12 @@ RegisterNetEvent('elyzea_cuisine:check', function()
 end)
 
 RegisterNetEvent('elyzea_cuisine:preview', function(id)
-    if not BY_ID[id] then return print('[elyzea_cuisine] recette inconnue : ' .. tostring(id)) end
-    CreateThread(function() consume({ cuisine = id }) end)
+    if BY_ID[id] then return CreateThread(function() consume({ cuisine = id }) end) end
+    -- autre aliment du serveur (pizza, bs_frites, nc_mojito…) ou nom libre (« pâtes », « sushi »…)
+    local spec = itemSpec({ name = tostring(id), label = tostring(id), status = { hunger = 300000 } })
+    if not spec then return print('[elyzea_cuisine] aliment inconnu : ' .. tostring(id)) end
+    print(('[elyzea_cuisine] %s : %s + %s (%s)'):format(id, tostring(spec.anim), table.concat(spec.props or {}, ', '), spec.how))
+    CreateThread(function() consume({}, spec) end)
 end)
 
 AddEventHandler('onResourceStop', function(res) if res == RES then cleanup() end end)

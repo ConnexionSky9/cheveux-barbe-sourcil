@@ -830,6 +830,7 @@ function UseSlot(src, from)
                 anim = c.anim, prop = c.prop, usetime = c.usetime or 2500, notification = c.notification,
                 disable = c.disable, cancel = c.cancel ~= false, export = c.export,
                 cuisine = c.cuisine,   -- recette d'elyzea_cuisine : objets en main et animation propres au plat
+                status = c.status,     -- faim / soif rendues : elyzea_cuisine en déduit plat ou boisson (affichage seulement)
             })
             return true
         end

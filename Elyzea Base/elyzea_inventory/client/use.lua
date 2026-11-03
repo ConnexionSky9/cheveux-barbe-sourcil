@@ -21,11 +21,19 @@ RegisterNetEvent('elyzea_inv:consume', function(d)
     local prop = type(d.prop) == 'string' and PROPS[d.prop] or d.prop
     if anim and anim.clip and not anim.flag then anim.flag = 49 end
     local ok
-    if d.cuisine and GetResourceState('elyzea_cuisine') == 'started' then
+    local cuisineOn = GetResourceState('elyzea_cuisine') == 'started'
+    local handled = false
+    if d.cuisine and cuisineOn then
         -- Recette d'elyzea_cuisine : assiette + couvert, bol, gobelet à paille… et le geste adapté au plat
         local okCall, res = pcall(function() return exports.elyzea_cuisine:Consume(d) end)
-        ok = okCall and res == true
-    else
+        ok, handled = okCall and res == true, true
+    elseif cuisineOn and type(d.status) == 'table' and ((tonumber(d.status.hunger) or 0) > 0 or (tonumber(d.status.thirst) or 0) > 0) then
+        -- Autre aliment (burger, pizza, boissons du bar…) : objets en main et geste choisis par elyzea_cuisine
+        -- (liste des aliments du serveur, sinon reconnaissance par le nom). nil = rien d'adapté → affichage d'origine
+        local okCall, res = pcall(function() return exports.elyzea_cuisine:ConsumeItem(d) end)
+        if okCall and res ~= nil then ok, handled = res == true, true end
+    end
+    if not handled then
         ok = exports.elyzea_core:ProgressBar({
             duration = d.usetime or 2500,
             label = ('Utilisation : %s'):format(d.label or d.name),

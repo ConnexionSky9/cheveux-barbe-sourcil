@@ -169,3 +169,32 @@ Tout est dans **un seul fichier** : `data/recipes.lua`.
 | `mx_tres_leches` | Tres Leches | 16 | 2 | 5 s | croquer (variante) | `bzzz_food_dessert_a` | objet rpemotes (stream) | manger à l'assiette / au bol avec un couvert : `prop_cs_plate_01` + `h4_prop_h4_caviar_spoon_01a` |
 | `mx_horchata` | Horchata | 4 | 28 | 4.5 s | boire (tasse, verre, gobelet) | `prop_plastic_cup_02` | jeu de base, réglage rpemotes | — |
 | `mx_agua_fresca` | Agua Fresca | 0 | 32 | 4.5 s | boire (tasse, verre, gobelet) | `scully_boba` | objet rpemotes (stream) | boire : `prop_plastic_cup_02` |
+
+## Animations de tous les aliments du serveur (v2)
+
+Chaque aliment se mange avec **ses objets en main** et **son geste**, plus jamais le « burger » générique :
+
+| Aliment | Ce qu'on voit |
+|---|---|
+| Pâtes (spaghetti, carbonara, tagliatelles, penne…) | assiette creuse de nouilles dans la main gauche + **fourchette** dans la main droite |
+| Lasagnes, raviolis, gnocchis, gyozas, tempura, enchiladas… | assiette + **fourchette** |
+| Escalope, fajitas, steak… | assiette **avec la viande dessus** + fourchette |
+| Makis, california, sashimi | assiette **avec le poisson dessus** + fourchette |
+| Sushi (nigiri) | le sushi dans la main, on croque |
+| Pizza (recettes + « Part de pizza » de l'inventaire) | **part de pizza** dans la main, on croque |
+| Burger Shot | burger, cornet de frites, gobelet à paille (on sirote), milkshake, café, sundae à la cuillère… |
+| Boîte de nuit | verre de mojito, verre à cocktail, shot, coupe de champagne, canette, boisson énergisante |
+| Supérette | canette eCola / Sprunk, paquet de chips, barres chocolatées, donut, pain, croque-monsieur |
+
+- **Fourchette** : `prop_cs_fork` (objet du jeu de base). Il n'existe **aucun modèle de spaghetti** dans GTA V :
+  les pâtes utilisent le bol de nouilles de rpemotes (`scully_pho`) ; sans rpemotes → assiette + fourchette.
+- **Pizza sans rpemotes** : part de pizza du jeu de base (`ng_proc_pizza01a`) au lieu du pain d'avant.
+- **Aliments ajoutés plus tard** : reconnus **par leur nom** (« Assiette de pâtes », « Sushi saumon », « Steak frites »,
+  « Salade César », « Pisswasser », « Café »…) sans rien configurer. Règles : `D.Guess` dans `data/recipes.lua`.
+  Un plat inconnu consistant se mange à l'assiette + fourchette, un petit en-cas se croque, une boisson se boit.
+- Liste des aliments existants : `D.Items` dans `data/recipes.lua` (modifiable).
+- Durée réaliste selon le geste (assiette ≥ 7 s, en-cas ≥ 4,5 s, boisson ≥ 4 s).
+- Seuls les objets qui **rendent de la faim ou de la soif** sont concernés : drogues, soins, etc. gardent leur animation.
+- `/cuisine_essai pizza`, `/cuisine_essai bs_frites`, `/cuisine_essai "pâtes"`… : aperçu staff (affiche dans F8 le geste et les objets choisis).
+- Positions marquées `posSrc = 'estime'` dans `D.Props` (fourchette, viande / poisson sur l'assiette, verres du bar…) :
+  réglées à la main, à ajuster en jeu avec `/cuisine_essai` si un objet est mal placé.
