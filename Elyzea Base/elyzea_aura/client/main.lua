@@ -582,6 +582,11 @@ CreateThread(function()
 end)
 
 -- Étincelle : nouveau message dans une conversation ouverte
+-- ElyPick : messages privés, pastilles, stories (envoyés par server/elypick.lua)
+RegisterNetEvent('elyzea_aura:client:elypick', function(data)
+    SendNUIMessage({ action = 'elypick', data = data })
+end)
+
 RegisterNetEvent('elyzea_aura:client:datingMessage', function(data)
     SendNUIMessage({ action = 'datingMessage', data = data })
 end)

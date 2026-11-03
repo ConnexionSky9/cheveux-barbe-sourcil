@@ -2526,3 +2526,11 @@ Register('idSuspend', function(src, me, args)
     if doc then sh.doc = doc end
     return { ok = true, doc = sh.doc, message = b }
 end)
+
+-- ---------------------------------------------------------
+--  Accès interne pour les modules du téléphone (server/elypick.lua)
+-- ---------------------------------------------------------
+AuraCore = {
+    Register = Register, Notify = Notify, Players = Players, trim = trim, HasApp = HasApp,
+    GetCharName = GetCharName, IsSchemaReady = function() return SchemaReady end,
+}

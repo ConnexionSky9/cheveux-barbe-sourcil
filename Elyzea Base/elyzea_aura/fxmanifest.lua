@@ -8,7 +8,8 @@ description 'Elyzea Aura 5 - Téléphone complet pour FiveM (Elyzea / QBCore / E
 version '5.2.0'
 
 shared_scripts {
-    'config.lua'
+    'config.lua',
+    'config_elypick.lua'
 }
 
 client_scripts {
@@ -17,7 +18,8 @@ client_scripts {
 
 server_scripts {
     '@elyzea_core/lib/MySQL.lua',
-    'server/main.lua'
+    'server/main.lua',
+    'server/elypick.lua'
 }
 
 ui_page 'html/index.html'
@@ -29,7 +31,8 @@ files {
     'html/brand.js',
     'html/cards.css',
     'html/cards.js',
-    'html/js/*.js'
+    'html/js/*.js',
+    'html/elypick.css'
 }
 
 dependencies {
