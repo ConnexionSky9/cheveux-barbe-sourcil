@@ -39,4 +39,22 @@ fire('garage:server:store', 1, NetworkGetNetworkIdFromEntity(boat), { engineHeal
 local b = py_single("SELECT state, vclass FROM player_vehicles WHERE plate = 'BOAT01'")
 check(b.state == 1 and b.vclass == 'boat' and not DoesEntityExist(boat), 'bateau rangé, catégorie relevée sur le véhicule')
 print(('\ngarage : %d ok, %d échec(s)'):format(Oks, Fails))
+-- Véhicule avec des données abîmées (mods vide ou illisible) : le garage et la fourrière s'ouvrent quand même
+print('\n— Données de véhicule abîmées')
+py_insert("INSERT INTO player_vehicles (citizenid, vehicle, plate, mods, state) VALUES ('CID_A', 'blista', 'BAD001', '', 1), ('CID_A', 'panto', 'BAD002', '{abîmé', 2)")
+Sent = {}
+local okg = pcall(Registry.elyzea_garage.OpenFor, 1, { name = 'Garage public', spots = {}, npc = npc })
+local og = lastSent('garage:client:open', 1)
+local seen = false
+for _, v in ipairs(og and og.args[1].list or {}) do if v.plate == 'BAD001' then seen = true end end
+check(okg and og and seen, 'garage public : s\'ouvre malgré un véhicule sans données (mods vide)')
+if not (Registry.elyzea_fourriere and Registry.elyzea_fourriere.OpenFor) then
+    loadResource('elyzea_change', { 'elyzea_change/config.lua', 'elyzea_change/server_payment.lua' })
+    loadResource('elyzea_fourriere', { 'elyzea_fourriere/config.lua', 'elyzea_fourriere/server/main.lua' })
+    Wait(0)
+end
+local okf, errf = pcall(Registry.elyzea_fourriere.OpenFor, 1, { kind = 'land', name = 'Fourrière', spots = {}, npc = npc })
+if not okf then print('   erreur : ' .. tostring(errf)) end
+check(okf and lastSent('fourriere:client:open', 1) ~= nil, 'fourrière : s\'ouvre malgré un véhicule aux données illisibles')
+
 return Fails

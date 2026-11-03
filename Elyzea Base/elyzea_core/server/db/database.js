@@ -19866,9 +19866,40 @@ function resolveType(type, result) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Collation commune : toutes les tables utf8mb4 doivent avoir la MÊME collation que `players`
+// (sinon MariaDB refuse de comparer leurs colonnes : « Illegal mix of collations », par exemple
+// une fourrière jointe à player_vehicles). Une table créée sans collation précise reçoit celle-ci.
+// ---------------------------------------------------------------------------------------------
+let refCollation = null;
+async function referenceCollation() {
+  if (refCollation) return refCollation;
+  try {
+    const [rows] = await pool.query("SELECT TABLE_COLLATION AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'players'");
+    const c = rows && rows[0] && rows[0].c;
+    refCollation = typeof c === 'string' && /^utf8mb4_/.test(c) ? c : 'utf8mb4_unicode_ci';
+  } catch (e) { refCollation = 'utf8mb4_unicode_ci'; }
+  return refCollation;
+}
+async function withCollation(sql) {
+  if (typeof sql !== 'string' || !/^\s*CREATE\s+TABLE/i.test(sql) || /\bLIKE\b|\bSELECT\b/i.test(sql)) return sql;
+  const end = sql.lastIndexOf(')');
+  if (end < 0) return sql;
+  const head = sql.slice(0, end + 1);
+  let tail = sql.slice(end + 1).replace(/;\s*$/, '');
+  if (/COLLATE/i.test(tail)) return sql;                          // collation choisie par la ressource : gardée
+  const coll = await referenceCollation();
+  if (/CHARSET\s*=?\s*(\w+)/i.test(tail)) {
+    if (!/CHARSET\s*=?\s*utf8mb4\b/i.test(tail)) return sql;     // autre jeu de caractères : on ne touche pas
+    tail += ` COLLATE=${coll}`;
+  } else tail += ` DEFAULT CHARSET=utf8mb4 COLLATE=${coll}`;
+  return head + tail;
+}
+
 async function run(invoking, type, sql, params) {
   await waitReady();
   [sql, params] = normalize(sql, params);
+  sql = await withCollation(sql);
   const start = Date.now();
   try {
     const [result] = await pool.query(sql, params);
@@ -19940,6 +19971,7 @@ exports('db_transaction', (queries, shared, cb) => {
   });
 });
 exports('db_isReady', () => ready);
+exports('db_collation', (cb) => { referenceCollation().then((c) => cb && cb(c)).catch(() => cb && cb('utf8mb4_unicode_ci')); });
 exports('db_status', () => ({ ready, disabled: disabled !== null, reason: disabled }));
 // Sans délai : attend la vraie connexion (ne répond pas si la base est désactivée)
 exports('db_awaitReady', (cb) => { waitReady(0).then(() => cb && cb(true)).catch(() => {}); });

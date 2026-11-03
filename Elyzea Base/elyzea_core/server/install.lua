@@ -126,6 +126,35 @@ function ToUtf8mb4(names)
     return done
 end
 
+-- ---------------------------------------------------------------------
+-- Collation commune à toutes les tables utf8mb4 (celle de `players`).
+-- Deux collations différentes = MariaDB refuse de comparer les colonnes (« Illegal mix of
+-- collations ») : jointures fourrière / garage / concession…, la requête échoue et le service
+-- devient « indisponible ». Les tables déjà créées sont alignées (données conservées).
+-- ---------------------------------------------------------------------
+function AlignCollations()
+    local ref = MySQL.scalar.await([[SELECT TABLE_COLLATION FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'players']])
+    if type(ref) ~= 'string' or not ref:match('^utf8mb4_') then ref = 'utf8mb4_unicode_ci' end
+    local rows = MySQL.query.await([[SELECT TABLE_NAME AS t, TABLE_COLLATION AS c FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' AND TABLE_COLLATION LIKE 'utf8mb4%' AND TABLE_COLLATION <> ?]], { ref }) or {}
+    local done = 0
+    for _, r in ipairs(rows) do
+        local name = tostring(r.t or ''):gsub('[^%w_]', '')
+        if name ~= '' then
+            local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` CONVERT TO CHARACTER SET utf8mb4 COLLATE %s'):format(name, ref))
+            if ok then
+                done = done + 1
+                print(('^2[elyzea_core] Table « %s » alignée sur la collation %s (était %s).^0'):format(name, ref, tostring(r.c)))
+            else
+                print(('^1[elyzea_core] Collation de « %s » non alignée : %s^0'):format(name, tostring(err)))
+            end
+        end
+    end
+    return done
+end
+exports('AlignCollations', function() local ok, n = pcall(AlignCollations) return ok and n or 0 end)
+
 -- Appelé par les ressources Elyzea juste après la création de leurs tables
 exports('ToUtf8mb4', function(names)
     local ok, n = pcall(ToUtf8mb4, names)
@@ -143,9 +172,11 @@ CreateThread(function()
     DatabaseReady = true
     TriggerEvent('elyzea:server:databaseReady')
     -- Tables créées avant cette correction : vérifiées maintenant, puis après le démarrage des autres ressources
-    for _, delay in ipairs({ 0, 30000, 90000 }) do
+    -- (puis collation commune : les autres ressources créent leurs tables pendant les premières minutes)
+    for _, delay in ipairs({ 0, 30000, 60000, 180000 }) do
         Wait(delay)
         pcall(ToUtf8mb4, UTF8MB4_TABLES)
+        pcall(AlignCollations)
     end
 end)
 

@@ -12,6 +12,12 @@ local function Cid(src) local p = GetPlayer(src) return p and p.PlayerData.citiz
 local function Notify(src, msg, kind) TriggerClientEvent('garage:client:notify', src, msg, kind or 'inform') end
 local function Coords(src) return GetEntityCoords(GetPlayerPed(src)) end
 local function PlateOf(veh) local p = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', '') return p end
+-- mods vide ou abîmé (certains scripts enregistrent '') : json.decode planterait tout le garage
+local function decode(s)
+    if type(s) ~= 'string' or s == '' then return {} end
+    local ok, v = pcall(json.decode, s)
+    return ok and type(v) == 'table' and v or {}
+end
 
 local function Log(src, action, details)
     if GetResourceState('admin_menu') == 'started' then
@@ -64,17 +70,24 @@ local function List(src)
     local s = Sessions[src]
     local rows
     if FourriereOn() and ClassCol() then
-        rows = MySQL.query.await([[SELECT pv.plate, pv.vehicle, pv.mods, pv.state, pv.garage, pv.vclass,
+        -- jointure avec la fourrière (temps de réparation) ; si elle échoue (tables de collations différentes,
+        -- fourrière pas encore prête), le garage s'ouvre quand même, sans le temps restant
+        local ok, res = pcall(MySQL.query.await, [[SELECT pv.plate, pv.vehicle, pv.mods, pv.state, pv.garage, pv.vclass,
                 TIMESTAMPDIFF(SECOND, NOW(), f.repair_until) AS remain
             FROM player_vehicles pv LEFT JOIN elyzea_fourriere f ON f.plate = pv.plate
-            WHERE pv.citizenid = ? ORDER BY pv.vehicle]], { Cid(src) }) or {}
+            WHERE pv.citizenid = ? ORDER BY pv.vehicle]], { Cid(src) })
+        if ok then rows = res or {}
+        else
+            print(('^3[elyzea_garage] Temps de réparation indisponible (%s). Redémarre elyzea_core puis elyzea_fourriere.^0'):format(tostring(res)))
+            rows = MySQL.query.await('SELECT plate, vehicle, mods, state, garage, vclass FROM player_vehicles WHERE citizenid = ? ORDER BY vehicle', { Cid(src) }) or {}
+        end
     else
         rows = MySQL.query.await('SELECT plate, vehicle, mods, state, garage' .. (ClassCol() and ', vclass' or '') .. ' FROM player_vehicles WHERE citizenid = ? ORDER BY vehicle', { Cid(src) }) or {}
     end
     local list = {}
     local out = nil   -- plaques des véhicules en circulation, calculées une seule fois
     for _, r in ipairs(rows) do
-        local props = json.decode(r.mods or '{}') or {}
+        local props = decode(r.mods)
         local status
         if r.state == 1 then status = 'stored'
         elseif r.state == 2 then status = 'impound'
@@ -213,13 +226,13 @@ local function takeOut(src, plate, vtype)
 
     SetVehicleNumberPlateText(veh, plate)
     MySQL.update('UPDATE player_vehicles SET state = 0 WHERE plate = ?', { plate })
-    local saved = json.decode(row.mods or '{}') or {}
+    local saved = decode(row.mods)
     if saved._neonFx then Entity(veh).state:set('neonFx', saved._neonFx, true) end
     -- Clés : démarrage (elyzea_core) et clé d'inventaire de la concession si elle manque
     pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
     if GetResourceState('elyzea_concess') == 'started' then pcall(function() exports.elyzea_concess:EnsureKey(src, plate, row.vehicle) end) end
 
-    TriggerClientEvent('garage:client:spawned', src, NetworkGetNetworkIdFromEntity(veh), json.decode(row.mods or '{}') or {})
+    TriggerClientEvent('garage:client:spawned', src, NetworkGetNetworkIdFromEntity(veh), decode(row.mods))
     Log(src, 'Sortie', ('%s (%s) · %s'):format(row.vehicle, plate, s.name))
     Sessions[src] = nil
 end

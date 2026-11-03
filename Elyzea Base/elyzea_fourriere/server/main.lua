@@ -19,6 +19,14 @@ local function Notify(src, msg, kind) TriggerClientEvent('fourriere:client:notif
 local function clean(p) return (tostring(p or ''):gsub('^%s+', ''):gsub('%s+$', '')) end
 local function PlateOf(veh) return clean(GetVehicleNumberPlateText(veh)) end
 local function int(v) return math.floor(tonumber(v) or 0) end
+-- TINYINT(1) arrive en booléen avec elyzea_core (true/false), en 0/1 avec d'autres bibliothèques
+local function truthy(v) return v == true or v == 1 or v == '1' end
+-- mods vide ou abîmé (certains scripts enregistrent '') : json.decode planterait l'ouverture
+local function decode(s)
+    if type(s) ~= 'string' or s == '' then return {} end
+    local ok, v = pcall(json.decode, s)
+    return ok and type(v) == 'table' and v or {}
+end
 
 local function Log(src, action, details)
     print(('[elyzea_fourriere] %s : %s'):format(action, details or ''))
@@ -51,6 +59,17 @@ function F.setup()
         `repair_until` DATETIME NULL DEFAULT NULL,
         PRIMARY KEY (`plate`), KEY `citizenid` (`citizenid`), KEY `status` (`status`, `repair_until`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4]])
+    -- Même collation que player_vehicles, sinon MariaDB refuse les jointures (« Illegal mix of collations »)
+    -- et la fourrière comme le garage public affichent « service indisponible ». Données conservées.
+    local ref = MySQL.scalar.await([[SELECT TABLE_COLLATION FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'player_vehicles']])
+    local cur = MySQL.scalar.await([[SELECT TABLE_COLLATION FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elyzea_fourriere']])
+    if type(ref) == 'string' and ref:match('^utf8mb4_') and cur ~= ref then
+        local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `elyzea_fourriere` CONVERT TO CHARACTER SET utf8mb4 COLLATE %s'):format(ref))
+        print(ok and ('^2[elyzea_fourriere] Table alignée sur la collation de player_vehicles (%s).^0'):format(ref)
+            or ('^1[elyzea_fourriere] Alignement de collation impossible : %s^0'):format(tostring(err)))
+    end
 end
 
 -- ---------------------------------------------------------------------
@@ -143,7 +162,7 @@ function F.repairDue(cid)
     local done = 0
     for _, r in ipairs(rows) do
         local cls = r.pvclass or r.vclass
-        local props = repaired(json.decode(r.mods or '{}') or {}, cls)
+        local props = repaired(decode(r.mods), cls)
         props.plate = r.plate
         local n = MySQL.update.await([[UPDATE `player_vehicles` SET `mods` = ?, `state` = 1, `garage` = ?, `engine` = 1000, `body` = 1000, `fuel` = 100
             WHERE `plate` = ? AND `state` = 4]], { json.encode(props), Config.ReturnGarage, r.plate })
@@ -174,7 +193,7 @@ function F.list(cid)
     local list = {}
     for _, r in ipairs(rows) do
         local cls = validClass(r.vclass) and r.vclass or (validClass(r.fclass) and r.fclass or nil)
-        local destroyed = int(r.destroyed) == 1
+        local destroyed = truthy(r.destroyed)
         local repairing = int(r.state) == 4
         list[#list + 1] = {
             plate = r.plate, model = r.vehicle, cls = cls, kind = kindOf(cls),
@@ -364,7 +383,7 @@ function F.spawn(src, r, cls, spot)
         return nil, 'class', real
     end
     SetVehicleNumberPlateText(veh, r.plate)
-    local props = json.decode(r.mods or '{}') or {}
+    local props = decode(r.mods)
     if props._neonFx then Entity(veh).state:set('neonFx', props._neonFx, true) end
     pcall(function() core():GiveKeys(src, veh) end)
     if GetResourceState('elyzea_concess') == 'started' then pcall(function() exports.elyzea_concess:EnsureKey(src, r.plate, r.vehicle) end) end
@@ -398,7 +417,7 @@ function F.retrieve(src, plate, method)
     if Config.Classes[cls].kind ~= s.kind then
         return false, ('Ce véhicule (%s) n\'est pas ici : va à la %s.'):format(Config.Classes[cls].label:lower(), Config.Kinds[Config.Classes[cls].kind].label:lower())
     end
-    local destroyed = int(r.destroyed) == 1
+    local destroyed = truthy(r.destroyed)
     local spot
     if not destroyed then
         if findOut(plate) then return false, 'Ce véhicule est déjà en circulation.' end

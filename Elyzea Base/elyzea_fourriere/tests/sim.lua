@@ -36,7 +36,7 @@ check(q1('SELECT vclass FROM player_vehicles WHERE plate = ?', { 'CAR001' }).vcl
 local e2 = spawnWorld('bati', 'MOTO01', vector3(10, 20, 0)) F.impound(e2, nil, 'police') DeleteEntity(e2)
 local e3 = spawnWorld('frogger', 'HELI01', vector3(10, 30, 0), -4000.0, 0.0)
 local _, d3 = F.impound(e3, nil, 'police') DeleteEntity(e3)
-check(d3 == true and q1('SELECT destroyed FROM elyzea_fourriere WHERE plate = ?', { 'HELI01' }).destroyed == 1, 'hélico explosé : marqué détruit')
+check(d3 == true and (function(v) return v == 1 or v == true end)(q1('SELECT destroyed FROM elyzea_fourriere WHERE plate = ?', { 'HELI01' }).destroyed), 'hélico explosé : marqué détruit')
 check(lastSent('fourriere:client:notify', 1) and lastSent('fourriere:client:notify', 1).args[1]:find('aérienne'), 'propriétaire prévenu (fourrière aérienne)')
 
 -- Épave dans le monde : bateau sorti, détruit

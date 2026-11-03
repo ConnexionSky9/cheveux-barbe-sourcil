@@ -19,12 +19,30 @@ db = pymysql.connect(unix_socket=sock, user='root', database=dbname, autocommit=
 # Table player_vehicles comme sur le serveur (QBCore / elyzea_core), SANS la colonne vclass : la ressource doit l'ajouter
 db.cursor().execute("""CREATE TABLE `player_vehicles` (
   `id` int(11) NOT NULL AUTO_INCREMENT, `license` varchar(50) DEFAULT NULL, `citizenid` varchar(50) DEFAULT NULL,
-  `vehicle` varchar(50) DEFAULT NULL, `hash` varchar(50) DEFAULT NULL, `mods` longtext DEFAULT NULL,
+  `vehicle` varchar(50) DEFAULT NULL, `hash` varchar(50) DEFAULT NULL, `mods` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `plate` varchar(15) NOT NULL, `fakeplate` varchar(50) DEFAULT NULL, `garage` varchar(50) DEFAULT NULL,
   `fuel` int(11) DEFAULT 100, `engine` float DEFAULT 1000, `body` float DEFAULT 1000, `state` int(11) DEFAULT 1,
-  `depotprice` int(11) NOT NULL DEFAULT 0, PRIMARY KEY (`id`), UNIQUE KEY `plate` (`plate`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
+  `depotprice` int(11) NOT NULL DEFAULT 0, PRIMARY KEY (`id`), UNIQUE KEY `plate` (`plate`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""")
+# Comme sur un vrai serveur : la table de la fourrière existait déjà, créée avec la collation par défaut du serveur
+db.cursor().execute("""CREATE TABLE `elyzea_fourriere` (`plate` VARCHAR(16) NOT NULL, `citizenid` VARCHAR(64) NOT NULL, `model` VARCHAR(64) NULL,
+  `vclass` VARCHAR(10) NULL, `destroyed` TINYINT(1) NOT NULL DEFAULT 0, `reason` VARCHAR(20) NOT NULL DEFAULT 'police',
+  `status` VARCHAR(10) NOT NULL DEFAULT 'impound', `impounded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, `paid_amount` INT NULL,
+  `paid_currency` VARCHAR(10) NULL, `paid_at` DATETIME NULL, `repair_until` DATETIME NULL, PRIMARY KEY (`plate`), KEY `citizenid` (`citizenid`),
+  KEY `status` (`status`, `repair_until`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci""")
 
-def val(v):
+# ELY_TYPES=1 : valeurs renvoyées EXACTEMENT comme elyzea_core (mysql2 + typeCast) :
+#   TINYINT(1) -> booléen · DECIMAL -> texte · DATETIME / TIMESTAMP / DATE -> millisecondes
+ELY = os.environ.get('ELY_TYPES') == '1'
+from pymysql.constants import FIELD_TYPE
+CUR_DESC = {}
+def val(v, name=None):
+    if ELY and name in CUR_DESC:
+        t, ln = CUR_DESC[name]
+        if v is None: return None
+        if t == FIELD_TYPE.TINY and ln == 1: return bool(v)
+        if isinstance(v, decimal.Decimal): return str(v)
+        if isinstance(v, datetime.datetime): return int(v.timestamp() * 1000)
+        if isinstance(v, datetime.date): return int(datetime.datetime(v.year, v.month, v.day).timestamp() * 1000)
     if isinstance(v, decimal.Decimal): return int(v) if v == int(v) else float(v)
     if isinstance(v, (datetime.datetime, datetime.date)): return str(v)
     if isinstance(v, bytes): return v.decode('utf-8')
@@ -35,8 +53,11 @@ def mk_runtime():
     def run(sql, a):
         p = args(a, sql.count('?'))
         if p: sql = sql.replace('%', '%%').replace('?', '%s')
-        c = db.cursor(pymysql.cursors.DictCursor); c.execute(sql, p if p else None); return c
-    def row(r): return lua.table_from({k: val(v) for k, v in r.items() if v is not None})
+        c = db.cursor(pymysql.cursors.DictCursor); c.execute(sql, p if p else None)
+        CUR_DESC.clear()
+        for d in (c.description or []): CUR_DESC[d[0]] = (d[1], d[3])
+        return c
+    def row(r): return lua.table_from({k: val(v, k) for k, v in r.items() if v is not None and val(v, k) is not None})
     def to_py(t):
         if lua_type(t) != 'table': return t
         keys = list(t.keys())
@@ -49,7 +70,7 @@ def mk_runtime():
     G = lua.globals()
     G.py_query = lambda s, a=None: lua.table_from([row(r) for r in (run(s, a).fetchall() or [])])
     G.py_single = lambda s, a=None: (lambda r: row(r) if r else None)(run(s, a).fetchone())
-    G.py_scalar = lambda s, a=None: (lambda r: None if not r else val(list(r.values())[0]))(run(s, a).fetchone())
+    G.py_scalar = lambda s, a=None: (lambda r: None if not r else val(list(r.values())[0], list(r.keys())[0]))(run(s, a).fetchone())
     G.py_update = lambda s, a=None: run(s, a).rowcount
     G.py_insert = lambda s, a=None: (lambda c: c.lastrowid)(run(s, a))
     G.py_json_encode = lambda t: json.dumps(to_py(t))
