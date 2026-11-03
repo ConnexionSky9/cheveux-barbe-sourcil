@@ -133,7 +133,64 @@ def run(kind, sql, params):
     return cur.rowcount   # update
 
 
-g.py_sql = run
+# ---------------------------------------------------------------- vraie MariaDB (option)
+# LG_MARIADB=<socket> : les MÊMES requêtes partent sur une vraie base MariaDB, sans traduction, et les
+# valeurs reviennent typées comme avec elyzea_core (mysql2 + typeCast) :
+#   TINYINT(1) -> booléen · DECIMAL -> texte · DATETIME / TIMESTAMP -> millisecondes · DATE -> millisecondes
+MARIA = None
+if os.environ.get('LG_MARIADB'):
+    import datetime as _dt, decimal as _dec
+    import pymysql
+    from pymysql.constants import FIELD_TYPE
+    _boot = pymysql.connect(unix_socket=os.environ['LG_MARIADB'], user='root', autocommit=True, charset='utf8mb4')
+    _boot.cursor().execute('DROP DATABASE IF EXISTS `lg_sim`')
+    _boot.cursor().execute('CREATE DATABASE `lg_sim`')
+    MARIA = pymysql.connect(unix_socket=os.environ['LG_MARIADB'], user='root', database='lg_sim', autocommit=True, charset='utf8mb4')
+
+    def _cast(v, desc):
+        if v is None:
+            return None
+        t, length = desc[1], desc[3]
+        if t == FIELD_TYPE.TINY and length == 1:
+            return bool(v)
+        if isinstance(v, _dec.Decimal):
+            return str(v)
+        if isinstance(v, _dt.datetime):
+            return int(v.timestamp() * 1000)
+        if isinstance(v, _dt.date):
+            return int(_dt.datetime(v.year, v.month, v.day).timestamp() * 1000)
+        if isinstance(v, bytes):
+            return v.decode('utf8')
+        return v
+
+    def run_maria(kind, sql, params):
+        pl = params_list(params)
+        SQL_LOG.append(sql)
+        q = sql
+        if pl:
+            q = q.replace('%', '%%').replace('?', '%s')
+        cur = MARIA.cursor()
+        try:
+            cur.execute(q, pl or None)
+        except Exception as e:
+            raise RuntimeError(f'SQL (MariaDB): {e}\n{sql}\n{pl}')
+        if cur.description is None:
+            if kind == 'insert':
+                return cur.lastrowid
+            return cur.rowcount
+        rows = [{d[0]: _cast(v, d) for v, d in zip(r, cur.description)} for r in cur.fetchall()]
+        rows = [{k: v for k, v in r.items() if v is not None} for r in rows]
+        if kind == 'single':
+            return to_lua(rows[0]) if rows else None
+        if kind == 'scalar':
+            if not rows:
+                return None
+            vals = [_cast(v, d) for v, d in zip(cur._rows[0] if hasattr(cur, '_rows') and cur._rows else [], cur.description)] if False else None
+            first = rows[0]
+            return first[cur.description[0][0]] if cur.description[0][0] in first else None
+        return to_lua(rows)
+
+g.py_sql = run_maria if MARIA else run
 g.py_json_encode = json_encode
 g.py_json_decode = json_decode
 
@@ -161,7 +218,7 @@ def main():
     g.SIM_FILES = to_lua(files)
     scenario = read_file('tests/server_sim.lua')
     fails = lua.execute(scenario, ROOT)
-    print(f'\nRequêtes SQL exécutées : {len(SQL_LOG)}')
+    print(f'\nRequêtes SQL exécutées : {len(SQL_LOG)}' + (' (vraie MariaDB, types elyzea_core)' if MARIA else ' (SQLite)'))
     sys.exit(1 if fails else 0)
 
 

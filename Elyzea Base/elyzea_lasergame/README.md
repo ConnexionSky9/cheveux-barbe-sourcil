@@ -31,8 +31,11 @@ touché, état RP sauvegardé en base et restauré même après un crash.
 - **Zombie** : 5 types (classique, rapide, résistant, spécial, cracheur d'acide), difficulté progressive, argent Zombie séparé du RP,
   9 portes payantes, 13 armes murales, 8 atouts (Mastodonte, Rapidité, Rechargement rapide, Double dégâts, Résistance acide,
   Réanimation rapide, Régénération, Protection), mise à terre, réanimation, mort et retour à la manche suivante.
-- **Cartes** : ELYSIUM COMBAT (S), NEON DISTRICT (M), BLACKSITE (L), LAST STAND (XL), COMPLEXE ELYZEA-7 (Zombie) ; 1 489 objets,
-  validées automatiquement (accessibilité, apparitions protégées, équilibre, aucune fente où se coincer, secteurs étanches).
+- **Cartes** : 5 **complexes souterrains** construits 45 m sous le désert de Grand Senora, chacun à son emplacement :
+  ELYSIUM COMBAT (S), NEON DISTRICT (M), BLACKSITE (L), LAST STAND (XL), COMPLEXE ELYZEA-7 (Zombie).
+  - Chaque complexe a une dalle de sol, un plafond, des murs jusqu'au plafond, des piliers porteurs et un éclairage sur toute la surface.
+  - Aucun élément du décor GTA ne peut gêner, et personne en RP ne les voit.
+  - Validées automatiquement : accessibilité, apparitions protégées, équilibre, aucune fente où se coincer, secteurs étanches, rien à travers le plafond.
 - **Rangs** : ELYZEA BRONZE, SILVER, GOLD, PLATINUM, DIAMOND, MASTER, GRANDMASTER, LEGEND, chacun avec son emblème (`html/ranks/`).
 - **Classements** : PVP (points, ratio, victoires, rangs, séries), Zombie (manches, zombies tués, solo, équipes, performances),
   pagination, actualisation automatique ; profil ; historique.

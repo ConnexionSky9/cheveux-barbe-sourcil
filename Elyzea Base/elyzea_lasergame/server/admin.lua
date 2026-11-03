@@ -193,7 +193,9 @@ adminRPC('map', function(src, id, action)
         -- l'ancre devient la position et l'orientation du staff (pieds au sol)
         local ped = GetPlayerPed(src)
         local c = GetEntityCoords(ped)
-        dm.anchor = { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor((c.z - 1.0) * 100) / 100,
+        -- complexe souterrain : recréé à la même profondeur SOUS la position du staff (pas à ses pieds)
+        local depth = m.underground and (tonumber(m.depth) or 60) or 0
+        dm.anchor = { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor((c.z - 1.0 - depth) * 100) / 100,
             h = math.floor(GetEntityHeading(ped) * 10) / 10 }
     elseif action == 'reset' then
         dm.anchor = nil
@@ -337,8 +339,8 @@ adminRPC('stats', function(src)
         (SELECT COUNT(*) FROM `lg_matches` WHERE `mode` = 'pvp' AND `status` = 'finished') AS pvp,
         (SELECT COUNT(*) FROM `lg_matches` WHERE `mode` = 'zombie' AND `status` = 'finished') AS zombie,
         (SELECT COUNT(*) FROM `lg_players`) AS players,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `lg_ledger` WHERE `status` IN ('paid', 'lost', 'refunded')) AS staked,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `lg_ledger` WHERE `status` = 'held') AS held,
+        (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` IN ('paid', 'lost', 'refunded')) AS staked,
+        (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` = 'held') AS held,
         (SELECT COALESCE(MAX(`round`), 0) FROM `lg_zombie_runs`) AS bestRound]]) or {}
     return true, s
 end)
@@ -368,7 +370,7 @@ end, false)
 exports('AdminSummary', function()
     local s = MySQL.single.await([[SELECT (SELECT COUNT(*) FROM `lg_players`) AS players,
         (SELECT COUNT(*) FROM `lg_matches` WHERE `status` = 'finished') AS matches,
-        (SELECT COALESCE(SUM(`amount`), 0) FROM `lg_ledger` WHERE `status` = 'held') AS held]]) or {}
+        (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` = 'held') AS held]]) or {}
     return { games = gamesView(), stats = s, framework = Bridge.Name(), command = Config.AdminCommand }
 end)
 

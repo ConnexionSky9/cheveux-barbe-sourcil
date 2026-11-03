@@ -4,11 +4,12 @@
   "errors": [],
   "warnings": [],
   "info": {
-   "objects": 143,
+   "objects": 187,
    "models": 13,
+   "ceiling_m": 7.5,
    "zone_m2": 1936,
-   "walkable_m2": 1448,
-   "cover_ratio": 0.252,
+   "walkable_m2": 1435,
+   "cover_ratio": 0.259,
    "reachable_pct": 100.0,
    "balance_center": 1.0,
    "exposed_spawn_pairs": 0,
@@ -17,7 +18,7 @@
     "B": 3
    },
    "narrow_gaps": 0,
-   "primitives": 49
+   "primitives": 51
   },
   "ok": true
  },
@@ -26,11 +27,12 @@
   "errors": [],
   "warnings": [],
   "info": {
-   "objects": 157,
+   "objects": 261,
    "models": 16,
+   "ceiling_m": 8.0,
    "zone_m2": 4032,
-   "walkable_m2": 3226,
-   "cover_ratio": 0.2,
+   "walkable_m2": 3176,
+   "cover_ratio": 0.212,
    "reachable_pct": 100.0,
    "balance_center": 1.0,
    "exposed_spawn_pairs": 0,
@@ -39,7 +41,7 @@
     "B": 5
    },
    "narrow_gaps": 0,
-   "primitives": 73
+   "primitives": 81
   },
   "ok": true
  },
@@ -48,11 +50,12 @@
   "errors": [],
   "warnings": [],
   "info": {
-   "objects": 275,
+   "objects": 563,
    "models": 22,
+   "ceiling_m": 13.0,
    "zone_m2": 9900,
-   "walkable_m2": 8180,
-   "cover_ratio": 0.174,
+   "walkable_m2": 8080,
+   "cover_ratio": 0.184,
    "reachable_pct": 100.0,
    "balance_center": 1.0,
    "exposed_spawn_pairs": 0,
@@ -61,7 +64,7 @@
     "B": 6
    },
    "narrow_gaps": 0,
-   "primitives": 137
+   "primitives": 153
   },
   "ok": true
  },
@@ -70,11 +73,12 @@
   "errors": [],
   "warnings": [],
   "info": {
-   "objects": 329,
+   "objects": 859,
    "models": 21,
+   "ceiling_m": 14.0,
    "zone_m2": 20800,
-   "walkable_m2": 18124,
-   "cover_ratio": 0.129,
+   "walkable_m2": 17924,
+   "cover_ratio": 0.138,
    "reachable_pct": 100.0,
    "balance_center": 1.0,
    "exposed_spawn_pairs": 0,
@@ -83,7 +87,7 @@
     "B": 6
    },
    "narrow_gaps": 0,
-   "primitives": 149
+   "primitives": 181
   },
   "ok": true
  },
@@ -92,8 +96,9 @@
   "errors": [],
   "warnings": [],
   "info": {
-   "objects": 585,
+   "objects": 877,
    "models": 26,
+   "ceiling_m": 7.0,
    "zone_m2": 12544,
    "walkable_m2": 9533,
    "cover_ratio": 0.24,

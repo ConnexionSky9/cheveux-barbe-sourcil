@@ -93,6 +93,11 @@ local function setupZombie(ped, info)
     if info.t == 'spitter' then SetPedComponentVariation(ped, 0, 0, 1, 0) end
     -- pas sous le sol (terrain irrégulier)
     local c = GetEntityCoords(ped)
+    if Map.underground and Map.anchor and c.z < Map.anchor.z - 1.5 then
+        -- complexe souterrain : un zombie passé sous la dalle (créé avant qu'elle soit chargée) remonte dessus
+        SetEntityCoordsNoOffset(ped, c.x, c.y, Map.anchor.z + 0.3, false, false, false)
+        c = GetEntityCoords(ped)
+    end
     local gz = C.GroundZ(c.x, c.y, c.z)
     if gz and c.z < gz then SetEntityCoordsNoOffset(ped, c.x, c.y, gz + 0.1, false, false, false) end
 end

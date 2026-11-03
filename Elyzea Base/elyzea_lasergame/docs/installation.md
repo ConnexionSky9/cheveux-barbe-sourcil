@@ -49,13 +49,19 @@ et `client/main.lua` (armes rendues après la partie).
 3. QBCore / Qbox : les armes sont des objets d'inventaire, rien n'est retiré de l'inventaire.
 4. Permissions : ACE `elyzea_lasergame.admin` (§4).
 
-## 6. Placer les cartes (à faire une fois, 2 minutes)
-Les cartes sont construites à des emplacements par défaut (tarmac de l'aéroport pour les arènes PVP, aérodrome de Sandy Shores pour le Zombie).
-Comme personne ne les a encore vues en jeu, **vérifie-les une fois** :
-1. `/lgadmin` › **Cartes** › « Aperçu en jeu » : la carte apparaît autour de son emplacement, **pour toi seul**, pendant 3 minutes
-   (contour violet = limites, flèches = apparitions).
-2. Si l'endroit ne convient pas (relief, bâtiment), va sur une zone plate et dégagée, oriente-toi, puis **« Placer ici »**.
-   La carte entière suit ta position et ton orientation.
+## 6. Les cartes : des complexes souterrains (rien à placer)
+Chaque carte est un complexe fermé construit **sous la map**, 45 m sous le désert de Grand Senora, à son propre emplacement :
+- dalle de sol, plafond, murs jusqu'au plafond, piliers et éclairage ;
+- le relief et le décor GTA ne gênent plus, et personne en RP ne voit le complexe.
+
+Pour le vérifier une fois :
+1. `/lgadmin` › **Cartes** › « Aperçu en jeu ».
+   - Tu es emmené **dans** le complexe pendant 3 minutes, toi seul (contour violet = limites, flèches = apparitions).
+   - Tu remontes ensuite à ta position.
+2. **« Placer ici »** déplace le complexe sous ta position, à la même profondeur (60 m sous tes pieds).
+3. La notification d'aperçu indique le modèle utilisé pour le sol et le plafond :
+   - normalement un grand bloc Cunning Stunts ;
+   - à défaut, des conteneurs (plus d'objets).
 3. Si la console F8 indique « modèle(s) absent(s) », note-les : ces objets sont ignorés (ta version du jeu ne les a pas).
 
 Chaque partie se joue dans sa propre instance : plusieurs parties peuvent utiliser la même carte en même temps,

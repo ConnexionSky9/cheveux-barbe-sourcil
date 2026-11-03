@@ -23,7 +23,26 @@ RegisterNetEvent('elyzea_lasergame:adminPreview', function(info)
     C.CloseUI()
     C.Notify('Aperçu de la carte pendant 3 minutes (visible par toi seul).', 'info')
     CreateThread(function()
+        local back
+        if (Map.Read(info.id) or {}).underground then
+            -- complexe sous la map : le staff est figé au-dessus de l'ancre pendant la construction, puis posé dedans
+            local ped = PlayerPedId()
+            local c = GetEntityCoords(ped)
+            back = { x = c.x, y = c.y, z = c.z, h = GetEntityHeading(ped) }
+            C.Fade(true, 300)
+            SetEntityCoordsNoOffset(ped, info.anchor.x, info.anchor.y, info.anchor.z + 2.0, false, false, false)
+            FreezeEntityPosition(ped, true)
+        end
         Map.Build(info)
+        if back then
+            local d = Map.data or {}
+            local s = (d.spawns and d.spawns.A and d.spawns.A[1]) or (d.start and d.start.spawns and d.start.spawns[1]) or { x = 0, y = 0, z = 0 }
+            local x, y, z = Map.World(s.x, s.y, s.z or 0)
+            FreezeEntityPosition(PlayerPedId(), false)
+            C.PlaceAt({ x = x, y = y, z = z }, (Map.anchor.h or 0) + (s.h or 0))
+            C.Fade(false, 400)
+            C.Notify(('Complexe souterrain : sol et plafond en « %s ». Tu remontes à la fin de l\'aperçu.'):format(Map.slabModel or '?'), 'info')
+        end
         if #Map.missing > 0 then C.Notify(('%d modèle(s) absent(s) : voir la console F8.'):format(#Map.missing), 'error') end
         local stop = GetGameTimer() + 180000
         while GetGameTimer() < stop and not C.inGame do
@@ -48,7 +67,14 @@ RegisterNetEvent('elyzea_lasergame:adminPreview', function(info)
             end
             Wait(0)
         end
-        if not C.inGame then Map.Unload() end
+        if not C.inGame then
+            if back then C.Fade(true, 300) end
+            Map.Unload()
+            if back then
+                C.PlaceAt(back, back.h)
+                C.Fade(false, 400)
+            end
+        end
         previewing = false
         C.Notify('Fin de l\'aperçu.', 'info')
     end)

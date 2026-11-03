@@ -5,6 +5,7 @@ Construction automatique des murs à partir des rectangles des secteurs :
   * un bord extérieur = enceinte (2 conteneurs de haut, infranchissable) ;
   * une porte = ouverture de 4 m fermée par des blocs, qui s'enfoncent dans le sol à l'achat.
 Le secteur souterrain est un vrai tunnel : des conteneurs posés en travers forment le plafond.
+Tout le complexe est enterré (dalle de sol, plafond, cloisons et portes jusqu'au plafond).
 Plan (y vers le nord) :
 
                  [ SALLE FINALE ]
@@ -16,7 +17,9 @@ Plan (y vers le nord) :
 """
 from core import MapDef
 
-SANDY = {'x': 1720.0, 'y': 3260.0, 'z': 41.2, 'h': 105.0}
+# Complexe enterré à 45 m sous le désert de Grand Senora (son propre emplacement)
+UNDER = {'x': 2550.0, 'y': 2850.0, 'z': -45.0, 'h': 0.0}
+CEILING = 7.0
 C1, C3 = 'prop_container_01a', 'prop_container_03a'
 BLK = 'stt_prop_stunt_bblock_sml1'
 
@@ -135,7 +138,7 @@ def perk(m, pid, perk_id, sec, mx, my, mh, model):
 def build():
     m = MapDef('zombie_map', 'COMPLEXE ELYZEA-7', 'zombie', 'XL', 'research_facility',
                'Complexe de recherche abandonné : 8 secteurs, portes payantes, armes murales et atouts. Survie de 1 à 4 joueurs.',
-               dict(SANDY), time=0, weather='FOGGY', max_per_team=4)
+               dict(UNDER), time=0, weather='FOGGY', max_per_team=4)
     m.zone = {'points': [{'x': -52, 'y': -60}, {'x': 46, 'y': -60}, {'x': 46, 'y': 68}, {'x': -52, 'y': 68}], 'minZ': -4, 'maxZ': 14}
     build_walls(m)
     m.start = {'sector': 'start', 'spawns': [{'x': -4, 'y': -44, 'z': 0, 'h': 0}, {'x': 4, 'y': -44, 'z': 0, 'h': 0},
@@ -255,4 +258,16 @@ def build():
     perk(m, 'pk_regen', 'regen', 'final', 24.3, 52.0, 90, 'prop_vend_soda_02')
     perk(m, 'pk_armor', 'armor', 'final', 24.3, 60.0, 90, 'prop_vend_soda_01')
     m.light(0, 55, 6.0, (170, 90, 255), 24, 3.5)
+
+    # ---------------------------------------------------------------- complexe souterrain
+    # Toutes les cloisons, l'enceinte et les portes montent jusqu'au plafond : de vraies salles fermées,
+    # impossible de passer par-dessus un mur ou une porte. Le tunnel garde son plafond bas de conteneurs.
+    m.complex(CEILING, light_every=12.0, colors=((235, 240, 255), (120, 255, 150)), light_i=1.6)
+    for w in m.walls:
+        if w.get('z', 0) == 0 and not w.get('tunnel'):
+            w.pop('stack', None)
+            w['stackTo'] = CEILING + 0.4
+            w['full'] = True
+    # les lumières dynamiques au plafond ne passent pas dans le tunnel (son plafond est plus bas)
+    m.lights = [l for l in m.lights if not (l.get('ceil') and 14 < l['y'] < 22)]
     return m

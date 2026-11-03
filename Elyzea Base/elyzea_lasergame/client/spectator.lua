@@ -70,7 +70,8 @@ function C.StartSpectate(scope)
                 end
             elseif Map.built and Map.anchor then
                 local a = Map.anchor
-                SetCamCoord(S.cam, a.x, a.y - 25.0, a.z + 22.0)
+                local hz = Map.underground and math.max(3.0, ((Map.data and Map.data.ceiling) or 8.0) - 1.5) or 22.0
+                SetCamCoord(S.cam, a.x, a.y - 25.0, a.z + hz)
                 PointCamAtCoord(S.cam, a.x, a.y, a.z)
             end
             Wait(0)

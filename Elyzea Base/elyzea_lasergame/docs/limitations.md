@@ -18,8 +18,13 @@ Si un point ne fonctionne pas, les journaux (`/lgadmin › Journaux › Erreurs`
 - Les 5 cartes sont **réellement construites** (1 489 objets GTA V du jeu de base, validées automatiquement) mais **personne ne les a vues
   en jeu**. Les dimensions des objets utilisées pour la validation sont des estimations. En jeu, les murs utilisent les vraies dimensions
   mesurées, donc ni trou ni chevauchement dans les murs. Un objet isolé peut toutefois être un peu plus grand ou plus petit que prévu.
-- Les emplacements par défaut (tarmac de l'aéroport de Los Santos, aérodrome de Sandy Shores) n'ont pas pu être vérifiés : des éléments
-  du décor GTA (lampadaires, panneaux) peuvent se trouver dans une arène. **Solution en 1 clic** : `/lgadmin › Cartes › Placer ici`.
+- **Complexes souterrains** : le sol et le plafond sont pavés **en jeu** avec le premier modèle disponible, avec ses vraies dimensions.
+  - Ordre : `stt_prop_stunt_bblock_xl3`, `xl1`, `lrg3`, `lrg1`, puis `prop_container_01a`.
+  - La couverture sans trou est vérifiée hors jeu pour un grand bloc et pour les conteneurs.
+  - Avec des conteneurs, une carte XL compte environ 3 500 pièces de sol et de plafond, ce qui est plus lourd mais fonctionne.
+- L'emplacement (45 m sous le désert de Grand Senora, loin de l'eau) n'a pas pu être vu en jeu. S'il ne convient pas : `/lgadmin › Cartes › Placer ici`
+  (le complexe est recréé à la même profondeur sous toi).
+- Sous la map, on est « dehors » pour GTA : l'heure de la carte est forcée (nuit) et l'éclairage vient des lumières du plafond.
 - Un modèle absent de ta version du jeu est ignoré (la console F8 le liste) ; tous les modèles utilisés font partie du jeu de base
   ou du DLC Cunning Stunts (`stt_prop_stunt_bblock_*`), inclus dans les versions de jeu habituelles de FiveM.
 

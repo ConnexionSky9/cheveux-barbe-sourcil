@@ -4,13 +4,20 @@ Toutes les arènes sont SYMÉTRIQUES PAR RAPPORT AU CENTRE : chaque élément du
 recopié par symétrie centrale côté B (nord) → équilibre parfait (mirror=True). Les éléments centraux
 symétriques par eux-mêmes sont posés une seule fois.
 
-Ancre par défaut : tarmac de l'aéroport de Los Santos (sol plat). Toutes les parties se jouent dans leur
-propre instance : plusieurs arènes peuvent partager le même emplacement sans jamais se voir.
-Le staff peut déplacer une arène en un clic (/lgadmin › Cartes › « Placer ici ») puis la prévisualiser.
+COMPLEXES SOUTERRAINS : chaque arène est un complexe fermé construit SOUS la map (dalle de sol, plafond, murs
+jusqu'au plafond, piliers porteurs, éclairage sur toute la surface), à 45 m sous le désert de Grand Senora : aucun
+élément du décor GTA (lampadaires, pentes, bâtiments, PNJ, circulation) ne peut gêner, et personne en RP ne la voit.
+Chaque arène a son propre emplacement. Le staff peut la déplacer (/lgadmin › Cartes › « Placer ici ») : elle est
+alors recréée à la même profondeur sous sa position.
 """
 from core import MapDef
 
-LSIA = {'x': -1336.0, 'y': -3044.0, 'z': 13.94, 'h': 150.0}
+UNDER = {
+    'pvp_small':  {'x': 1900.0, 'y': 2850.0, 'z': -45.0, 'h': 0.0},
+    'pvp_medium': {'x': 2200.0, 'y': 2850.0, 'z': -45.0, 'h': 0.0},
+    'pvp_large':  {'x': 1900.0, 'y': 2550.0, 'z': -45.0, 'h': 0.0},
+    'pvp_xlarge': {'x': 2250.0, 'y': 2520.0, 'z': -45.0, 'h': 0.0},
+}
 
 C1, C3, C5 = 'prop_container_01a', 'prop_container_03a', 'prop_container_05a'
 BLK, BLKM = 'stt_prop_stunt_bblock_sml1', 'stt_prop_stunt_bblock_mdm1'
@@ -25,8 +32,8 @@ def pillar(m, x, y, height=4.0, mirror=True, model=BLK):
 # ==================================================================== 1. ELYSIUM COMBAT (petite)
 def elysium():
     m = MapDef('pvp_small', 'ELYSIUM COMBAT', 'pvp', 'S', 'industrial',
-               'Petite arène industrielle : conteneurs, barricades, couloirs serrés. Combat rapproché.',
-               dict(LSIA), time=23, weather='CLEAR', max_per_team=3, recommended=('1v1', '2v2', '3v3'))
+               'Petit hangar souterrain industriel : conteneurs, barricades, couloirs serrés sous un plafond bas. Combat rapproché.',
+               dict(UNDER['pvp_small']), time=23, weather='CLEAR', max_per_team=3, recommended=('1v1', '2v2', '3v3'))
     m.boundary_rect(44, 44, max_z=12)
     # zone d'apparition A : mur de conteneurs qui coupe toute vue vers le centre
     m.obj(C3, 0, -14.5, h=90, mirror=True)
@@ -61,14 +68,16 @@ def elysium():
     m.light(0, 0, 5.5, VIOLET, 16, 3.0)
     m.light(0, -18.5, 3.5, RED, 10, 3.0, mirror=True, mirror_color=BLUE)
     m.light(-13.5, -1.0, 3.5, WARM, 9, 2.0, mirror=True)
+    m.complex(7.5, light_every=9.0, colors=(WARM, VIOLET))
+    m.support_columns(9.0, clearance=2.6)
     return m
 
 
 # ==================================================================== 2. NEON DISTRICT (moyenne)
 def neon():
     m = MapDef('pvp_medium', 'NEON DISTRICT', 'pvp', 'M', 'futuristic',
-               'Parking futuriste sous les néons : épaves, piliers, couloirs et passages multiples. Courte et moyenne distance.',
-               dict(LSIA), time=1, weather='CLEAR', max_per_team=5, recommended=('3v3', '4v4', '5v5'))
+               'Parking souterrain futuriste sous les néons : épaves, piliers porteurs, couloirs et passages multiples. Courte et moyenne distance.',
+               dict(UNDER['pvp_medium']), time=1, weather='CLEAR', max_per_team=5, recommended=('3v3', '4v4', '5v5'))
     m.boundary_rect(72, 56, max_z=14)
     # apparition A : deux conteneurs qui ferment la vue
     m.obj(C3, -6.1, -20.0, h=90, mirror=True)
@@ -111,14 +120,16 @@ def neon():
     m.light(-27.0, 0.0, 3.5, CYAN, 12, 3.0, mirror=True, mirror_color=PINK)
     for x in (-30, -15, 15, 30):
         m.light(x, -26.0, 3.0, VIOLET, 10, 2.5, mirror=True)
+    m.complex(8.0, light_every=10.0, colors=(PINK, CYAN, VIOLET))
+    m.support_columns(10.0, clearance=2.6)
     return m
 
 
 # ==================================================================== 3. BLACKSITE (grande)
 def blacksite():
     m = MapDef('pvp_large', 'BLACKSITE', 'pvp', 'L', 'military_lab',
-               'Laboratoire militaire secret : bâtiments, laboratoires, passerelles, salles de contrôle et zones ouvertes. Combat stratégique.',
-               dict(LSIA), time=22, weather='OVERCAST', max_per_team=6, recommended=('4v4', '5v5', '6v6'))
+               'Laboratoire militaire secret enterré : bâtiments, laboratoires, passerelles, salles de contrôle et grande salle voûtée. Combat stratégique.',
+               dict(UNDER['pvp_large']), time=22, weather='OVERCAST', max_per_team=6, recommended=('4v4', '5v5', '6v6'))
     m.boundary_rect(110, 90, max_z=18)
     # garage d'apparition A
     m.obj(C3, -6.1, -34.0, h=90, mirror=True)
@@ -202,14 +213,16 @@ def blacksite():
     m.light(19.0, -14.0, 7.0, VIOLET, 10, 3.0, mirror=True)
     for x in (-45, 45):
         m.obj('prop_worklight_03b', x, -41.5, h=0, mirror=True)
+    m.complex(13.0, light_every=12.0, colors=((235, 240, 255), (255, 70, 70)), light_i=2.2)
+    m.support_columns(12.0, clearance=2.8)
     return m
 
 
 # ==================================================================== 4. LAST STAND (très grande)
 def last_stand():
     m = MapDef('pvp_xlarge', 'LAST STAND', 'pvp', 'XL', 'abandoned_industrial',
-               'Complexe industriel abandonné sur plusieurs niveaux : entrepôts, tours de tir, passerelles, grands espaces. Stratégie et longue distance.',
-               dict(LSIA), time=19, weather='CLOUDS', max_per_team=6, recommended=('5v5', '6v6'))
+               'Complexe industriel souterrain abandonné sur plusieurs niveaux : entrepôts, tours de tir, passerelles, immense salle à piliers. Stratégie et longue distance.',
+               dict(UNDER['pvp_xlarge']), time=19, weather='CLOUDS', max_per_team=6, recommended=('5v5', '6v6'))
     m.boundary_rect(160, 130, max_z=22)
     # bunker d'apparition A : mur de conteneurs sur deux niveaux
     m.wall(C3, (-18.3, -52.0), (18.3, -52.0), stack=2, mirror=True)
@@ -291,6 +304,8 @@ def last_stand():
     for x, y in ((-76.0, -62.0), (76.0, -62.0)):
         m.obj('prop_worklight_03b', x, y, h=45, mirror=True)
         m.light(x * 0.95, y * 0.95, 4.0, WARM, 16, 3.0, mirror=True)
+    m.complex(14.0, light_every=14.0, colors=(WARM, (235, 240, 255)), light_i=2.4)
+    m.support_columns(16.0, clearance=3.0)
     return m
 
 

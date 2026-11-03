@@ -500,8 +500,14 @@ SIM.rpc(10, 'admin:set', 'reset', {}, 'weapons')
 check(LGU.Weapon('nova_ar').damage == 20, 'réinitialisation des armes')
 SIM.rpc(10, 'admin:map', 'pvp_small', 'here')
 check(Maps.Get('pvp_small').anchor.x == 800.0, 'carte déplacée sur la position du staff')
+local staffZ = GetEntityCoords(GetPlayerPed(10)).z
+check(math.abs(Maps.Get('pvp_small').anchor.z - (staffZ - 1.0 - Maps.Get('pvp_small').depth)) < 0.02, 'complexe souterrain : recréé à la même profondeur sous le staff')
 SIM.rpc(10, 'admin:map', 'pvp_small', 'reset')
-check(Maps.Get('pvp_small').anchor.x == -1336.0, 'carte remise à sa position d\'origine')
+check(Maps.Get('pvp_small').anchor.x == 1900.0 and Maps.Get('pvp_small').anchor.z == -45.0, 'carte remise à sa position d\'origine (complexe souterrain)')
+for _, id in ipairs(Maps.order) do
+    local mm = Maps.Get(id)
+    check(mm.underground == true and mm.slabs and #mm.slabs == 2 and mm.ceiling > 3.2, ('%s : complexe souterrain (sol + plafond à %s m)'):format(id, tostring(mm.ceiling)))
+end
 SIM.rpc(10, 'admin:npc', 'add', { label = 'Accueil 2' })
 check(#GlobalState.lgPublic.npcs == 2, 'PNJ ajouté en jeu et publié')
 SIM.rpc(10, 'admin:players.set', 'CID6', 'exclude', nil, { reason = 'triche', hours = 0 })

@@ -285,9 +285,14 @@ const LB = {
   pvp: [['pvp_points', 'Meilleurs joueurs', 'Points'], ['pvp_ratio', 'Meilleurs ratios', 'Ratio'], ['pvp_wins', 'Plus de victoires', 'Victoires'], ['pvp_rank', 'Meilleurs rangs', 'Pic'], ['pvp_streak', 'Plus longues séries', 'Série']],
   zombie: [['zb_round', 'Plus grandes manches', 'Manche'], ['zb_kills', 'Plus de zombies tués', 'Zombies'], ['zb_solo', 'Meilleurs joueurs solo', 'Manche solo'], ['zb_teams', 'Meilleures équipes', 'Manche'], ['zb_global', 'Meilleures performances', 'Manche']],
 };
+// Une liste vide envoyée par le jeu peut arriver comme un objet {} : toujours la remettre en tableau
+const asList = (x) => (Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.values(x) : []));
 async function loadBoard() {
+  const want = S.lb.kind;
   const r = await rpc('lb:get', S.lb.kind, S.lb.page);
-  if (r.ok) { S.lb.data = r.data; if (S.tab === 'ranks') drawBoard(); }
+  if (want !== S.lb.kind || S.tab !== 'ranks') return;            // l'onglet a changé pendant le chargement
+  if (r.ok && r.data) { S.lb.data = r.data; drawBoard(); }
+  else if (!S.lb.data || S.lb.data.kind !== want) { const b = $('#board'); if (b) b.innerHTML = `<div class="empty">Classement indisponible pour le moment.<br><button class="btn sm ghost" data-lbp="0" style="margin-top:10px">Réessayer</button></div>`; }
 }
 function pageRanks(p) {
   const g = S.lb.group;
@@ -299,6 +304,9 @@ function pageRanks(p) {
 }
 function drawBoard() {
   const d = S.lb.data;
+  if (!d || !$('#board')) return;
+  d.rows = asList(d.rows);
+  d.page = Number(d.page) || 1; d.pages = Math.max(1, Number(d.pages) || 1); d.total = Number(d.total) || 0;
   const def = [...LB.pvp, ...LB.zombie].find((x) => x[0] === d.kind) || [];
   const team = d.kind === 'zb_teams' || d.kind === 'zb_global';
   const zb = d.kind.startsWith('zb');
@@ -336,7 +344,7 @@ async function pageProfile(p) {
 async function pageHistory(p) {
   p.innerHTML = '<div class="empty">Chargement…</div>';
   const r = await rpc('history:get');
-  const rows = r.ok ? r.data : [];
+  const rows = r.ok ? asList(r.data) : [];
   const res = { win: ['VICTOIRE', 'ok'], loss: ['DÉFAITE', 'red'], draw: ['ÉGALITÉ', ''], left: ['ABANDON', 'warn'] };
   p.innerHTML = `<div class="card holo"><h3>Dernières parties</h3>${rows.length ? `<table class="lb"><tr><th>Date</th><th>Mode</th><th>Carte</th><th>Résultat</th><th>Score / manche</th><th>É / M</th><th>Points</th><th>Gain</th></tr>
     ${rows.map((h) => { const rr = h.mode === 'zombie' ? [`MANCHE ${h.round}`, 'ok'] : (res[h.result] || [h.result, '']);
@@ -476,7 +484,7 @@ document.addEventListener('click', async (e) => {
   if (d.invite) { const r = await rpc(S.lobby?.mode === 'zombie' ? 'zb:invite' : 'pvp:invite', Number(d.invite)); if (r.ok) toast('Invitation envoyée.', 'success'); return; }
   if (d.lbg) { S.lb.group = d.lbg; S.lb.kind = LB[d.lbg][0][0]; S.lb.page = 1; return render(); }
   if (d.lbk) { S.lb.kind = d.lbk; S.lb.page = 1; return render(); }
-  if (d.lbp) { S.lb.page = Math.max(1, S.lb.page + Number(d.lbp)); return loadBoard(); }
+  if (d.lbp !== undefined) { S.lb.page = Math.max(1, Math.min((S.lb.data && S.lb.data.pages) || 999, S.lb.page + Number(d.lbp))); return loadBoard(); }
   if (d.setb) { S.settings[d.setb] = !S.settings[d.setb]; saveSettings(); return render(); }
   // staff
   if (d.atab) { S.adminTab = d.atab; return pageAdmin($('#page')); }

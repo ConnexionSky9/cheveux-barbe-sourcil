@@ -8,6 +8,8 @@
 --    snap    : l'objet est posé sur le sol réel (terrain légèrement irrégulier)
 --    lights  : lumières dynamiques (néons, projecteurs) · pads : tremplins vers les étages
 --    zone    : limites (mur invisible + contrôle serveur)
+--    slabs   : complexe souterrain : dalles de sol et de plafond pavées avec le PREMIER modèle disponible
+--              de la liste, avec ses vraies dimensions (aucun trou, quel que soit le modèle)
 -- =====================================================================
 Map = { data = nil, anchor = nil, objects = {}, doorObjects = {}, lights = {}, pads = {}, missing = {}, built = false }
 
@@ -143,13 +145,59 @@ function Map.ExpandWall(w, hashes)
     return out
 end
 
+-- Dalles du complexe souterrain : premier modèle de la liste présent dans cette version du jeu
+local function slabModel(list)
+    for _, name in ipairs(list or {}) do
+        local h = GetHashKey(name)
+        if IsModelInCdimage(h) then
+            RequestModel(h)
+            local t = GetGameTimer() + 8000
+            while not HasModelLoaded(h) and GetGameTimer() < t do Wait(0) end
+            if HasModelLoaded(h) then return h, name end
+        end
+    end
+end
+
+-- Pave le rectangle local x0..x1 × y0..y1 : sol = dessus des pièces à z, plafond = dessous des pièces à z.
+-- Pas légèrement inférieur à la taille réelle : les pièces se recouvrent de quelques centimètres (aucune fente).
+local function buildSlab(s, onPiece)
+    local h, name = slabModel(s.m)
+    if not h then
+        Map.missing[#Map.missing + 1] = ('dalle %s (%s)'):format(s.kind, table.concat(s.m or {}, ', '))
+        return 0
+    end
+    local md = dims(h)
+    local sx, sy = math.max(0.6, md.x), math.max(0.6, md.y)
+    local cx, cy = (md.mn.x + md.mx.x) / 2, (md.mn.y + md.mx.y) / 2
+    local nx = math.max(1, math.ceil((s.x1 - s.x0) / (sx * 0.98)))
+    local ny = math.max(1, math.ceil((s.y1 - s.y0) / (sy * 0.98)))
+    local stx, sty = (s.x1 - s.x0) / nx, (s.y1 - s.y0) / ny
+    local lz = s.kind == 'ceiling' and (s.z - md.mn.z) or (s.z - md.mx.z)
+    local ah = Map.anchor.h or 0
+    local n = 0
+    for i = 0, nx - 1 do
+        for j = 0, ny - 1 do
+            local x, y, z = Map.World(s.x0 + (i + 0.5) * stx - cx, s.y0 + (j + 0.5) * sty - cy, lz)
+            place(h, x, y, z, ah, nil)
+            n = n + 1
+            if onPiece and n % 15 == 0 then onPiece() end
+        end
+    end
+    SetModelAsNoLongerNeeded(h)
+    Map.slabModel = name
+    return n
+end
+
 -- Construction (progressive : quelques objets par image, pas de gel du jeu)
 function Map.Build(info, onProgress)
     Map.Unload()
     local d = readMap(info.id)
     if not d then C.Notify('Carte introuvable : ' .. tostring(info.id), 'error') return false end
     Map.data, Map.anchor, Map.missing = d, info.anchor or d.anchor, {}
+    Map.underground = d.underground == true
     preloadArea(d)
+    -- complexe souterrain : sol, puis plafond, avant tout le reste
+    for _, s in ipairs(d.slabs or {}) do buildSlab(s, function() Wait(0) end) end
     local need = {}
     for _, o in ipairs(d.objects or {}) do need[o.m] = true end
     for _, w in ipairs(d.walls or {}) do need[w.m] = true if w.filler then need[w.filler] = true end end
@@ -161,7 +209,7 @@ function Map.Build(info, onProgress)
         local h = hashes[o.m]
         if h then
             local x, y, z = Map.World(o.x, o.y, o.z or 0)
-            if o.snap then z = snapZ(x, y, z, o.z or 0) end
+            if o.snap and not Map.underground then z = snapZ(x, y, z, o.z or 0) end
             place(h, x, y, z, ah + (o.h or 0), o.door)
         end
         done, budget = done + 1, budget + 1
@@ -170,7 +218,7 @@ function Map.Build(info, onProgress)
     for _, w in ipairs(d.walls or {}) do
         for _, piece in ipairs(Map.ExpandWall(w, hashes)) do
             local x, y, z = Map.World(piece.x, piece.y, piece.z)
-            if w.snap then z = snapZ(x, y, z, piece.z) end
+            if w.snap and not Map.underground then z = snapZ(x, y, z, piece.z) end
             place(piece.hash, x, y, z, ah + piece.h, w.door)
         end
         done, budget = done + 1, budget + 4
@@ -217,7 +265,7 @@ function Map.Unload()
         ClearOverrideWeather()
         ClearWeatherTypePersist()
     end
-    Map.built, Map.data, Map.zone = false, nil, nil
+    Map.built, Map.data, Map.zone, Map.underground = false, nil, nil, false
 end
 
 -- Retire les objets d'une porte (Zombie) avec une animation de glissement vers le bas

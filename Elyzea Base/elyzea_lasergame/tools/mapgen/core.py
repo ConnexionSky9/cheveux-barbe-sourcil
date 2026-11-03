@@ -22,6 +22,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from catalog import dims, long_axis
 
 PLAYER_RADIUS = 0.38
+# Dalles de sol / plafond : le jeu prend le PREMIER modèle disponible et le pave avec ses vraies dimensions
+FLOOR_MODELS = ['stt_prop_stunt_bblock_xl3', 'stt_prop_stunt_bblock_xl1', 'stt_prop_stunt_bblock_lrg3', 'stt_prop_stunt_bblock_lrg1', 'prop_container_01a']
 CELL = 0.5
 
 
@@ -42,6 +44,8 @@ class MapDef:
         self.spawns = {'A': [], 'B': []}
         self.sectors, self.doors, self.wallbuys, self.perks = [], [], [], []
         self.start = None
+        # Complexe souterrain : dalles de sol / plafond (pavées en jeu avec les vraies dimensions des modèles)
+        self.underground, self.depth, self.ceiling, self.slabs = False, 0, None, []
 
     # ------------------------------------------------------------------ primitives
     def obj(self, m, x, y, h=0.0, z=0.0, snap=True, door=None, mirror=False):
@@ -101,6 +105,76 @@ class MapDef:
         for i in range(4):
             self.wall(wall_model, corners[i], corners[(i + 1) % 4], stack=stack, filler=filler, boundary=True)
 
+    # ------------------------------------------------------------------ complexe souterrain
+    def complex(self, height, depth=60.0, margin=6.0, light_every=10.0, colors=((170, 90, 255),), light_i=1.8):
+        """Transforme la carte en complexe fermé sous la map :
+          * dalle de sol (z = 0) et dalle de plafond (z = height) sur toute la zone + « margin » m ;
+          * murs d'enceinte montés jusqu'au plafond (aucune ouverture vers le vide) ;
+          * éclairage au plafond sur toute la surface (lumières dynamiques en quinconce) ;
+          * l'ancre est sous le terrain : « depth » = profondeur sous le staff quand il la replace en jeu.
+        Les dalles sont pavées EN JEU avec le premier modèle disponible de FLOOR_MODELS (vraies dimensions)."""
+        self.underground, self.depth, self.ceiling = True, depth, height
+        pts = self.zone['points']
+        x0, x1 = min(p['x'] for p in pts) - margin, max(p['x'] for p in pts) + margin
+        y0, y1 = min(p['y'] for p in pts) - margin, max(p['y'] for p in pts) + margin
+        self.slabs = [
+            {'kind': 'floor', 'x0': round(x0, 2), 'y0': round(y0, 2), 'x1': round(x1, 2), 'y1': round(y1, 2), 'z': 0.0, 'm': FLOOR_MODELS},
+            {'kind': 'ceiling', 'x0': round(x0, 2), 'y0': round(y0, 2), 'x1': round(x1, 2), 'y1': round(y1, 2), 'z': float(height), 'm': FLOOR_MODELS},
+        ]
+        self.zone['maxZ'] = height
+        self.zone['minZ'] = -3
+        for w in self.walls:
+            if w.get('boundary'):
+                w.pop('stack', None)
+                w['stackTo'] = round(height + 0.4, 2)
+                w['full'] = True
+        zx0, zx1 = min(p['x'] for p in pts), max(p['x'] for p in pts)
+        zy0, zy1 = min(p['y'] for p in pts), max(p['y'] for p in pts)
+        nx = max(1, int((zx1 - zx0) // light_every))
+        ny = max(1, int((zy1 - zy0) // light_every))
+        k = 0
+        for i in range(nx + 1):
+            for j in range(ny + 1):
+                if (i + j) % 2:
+                    continue          # quinconce : moitié moins de lumières pour le même éclairage
+                x = zx0 + (zx1 - zx0) * i / nx
+                y = zy0 + (zy1 - zy0) * j / ny
+                c = colors[k % len(colors)]
+                k += 1
+                self.lights.append({'x': round(x, 2), 'y': round(y, 2), 'z': round(height - 0.8, 2), 'c': list(c),
+                                    'r': round(light_every * 1.5, 1), 'i': light_i, 'ceil': True})
+
+    def support_columns(self, spacing, clearance=3.2, model='stt_prop_stunt_bblock_sml1', symmetric=True, avoid=()):
+        """Piliers porteurs du plafond (blocs empilés du sol au plafond), posés en grille là où il y a de la place :
+        à plus de « clearance » m de tout objet, apparition ou point à éviter. Symétrie centrale en PVP (équilibre)."""
+        assert self.underground, 'complex() d\'abord'
+        pts = self.zone['points']
+        x0, x1 = min(p['x'] for p in pts) + 4, max(p['x'] for p in pts) - 4
+        y0, y1 = min(p['y'] for p in pts) + 4, max(p['y'] for p in pts) - 4
+        fps = [footprint(q, 0.0) for q in self.all_pieces()]
+        spots = [(sp['x'], sp['y']) for lst in self.spawns.values() for sp in lst] + [(sp['x'], -sp['y']) for sp in self.spawns.get('A', [])] + list(avoid)
+        for pd in self.pads:
+            spots += [(pd['x'], pd['y']), (pd['tx'], pd['ty'])]
+        placed = 0
+        y = y0
+        while y <= (0 if symmetric else y1) + 0.01:
+            x = x0
+            while x <= x1 + 0.01:
+                ok = point_in_poly(pts, x, y) and all(dist_to_obb(x, y, f) > clearance for f in fps)
+                ok = ok and all(math.hypot(x - a, y - b) > clearance + 2.5 for a, b in spots)
+                if symmetric and abs(y) < 1.5 and x < 0:
+                    ok = False      # sur l'axe central, un seul côté (le symétrique est le même point)
+                if ok:
+                    mirror = symmetric and not (abs(x) < 0.01 and abs(y) < 0.01)
+                    self.wall(model, (x - 1.0, y), (x + 1.0, y), stack_to=self.ceiling + 0.4, snap=False, mirror=mirror)
+                    self.walls[-1]['full'] = True
+                    if mirror:
+                        self.walls[-2]['full'] = True
+                    placed += 2 if mirror else 1
+                x += spacing
+            y += spacing
+        return placed
+
     # ------------------------------------------------------------------ expansion (même algorithme que client/maps.lua)
     def expand_wall(self, w):
         pieces = []
@@ -126,7 +200,7 @@ class MapDef:
                 s = frm + (i + 0.5) * step
                 for k in range(st):
                     pieces.append({'m': model, 'x': ax + ux * s, 'y': ay + uy * s, 'z': w.get('z', 0) + k * d['z'], 'h': heading,
-                                   'door': w.get('door'), 'boundary': w.get('boundary', False)})
+                                   'door': w.get('door'), 'boundary': w.get('boundary', False), 'full': w.get('full', False)})
 
         main = w['m']
         filler = w.get('filler')
@@ -160,13 +234,19 @@ class MapDef:
             'description': self.description, 'anchor': self.anchor, 'time': self.time, 'weather': self.weather,
             'maxPerTeam': self.max_per_team, 'recommended': {r: True for r in self.recommended},
             'zone': self.zone, 'spawns': self.spawns,
-            'objects': self.objects, 'walls': [{k: v for k, v in w.items() if k != 'boundary'} for w in self.walls],
+            'objects': self.objects, 'walls': [{k: v for k, v in w.items() if k not in ('boundary', 'full')} for w in self.walls],
             'lights': self.lights, 'pads': self.pads,
             'stats': {'objects': len(pieces), 'primitives': len(self.objects) + len(self.walls), 'models': models,
                       'lights': len(self.lights), 'pads': len(self.pads)},
         }
         if self.mode == 'zombie':
             d.update({'start': self.start, 'sectors': self.sectors, 'doors': self.doors, 'wallbuys': self.wallbuys, 'perks': self.perks})
+        if self.underground:
+            # sous terre, rien n'est « posé sur le terrain » : le sol est la dalle (z = 0)
+            d['underground'], d['depth'], d['ceiling'], d['slabs'] = True, self.depth, self.ceiling, self.slabs
+            d['objects'] = [{k: v for k, v in o.items() if k != 'snap'} for o in d['objects']]
+            d['walls'] = [{k: v for k, v in w.items() if k != 'snap'} for w in d['walls']]
+            d['stats']['slabs'] = len(self.slabs)
         return d
 
     def to_ymap_xml(self):
@@ -428,6 +508,22 @@ def validate(m):
             out += 1
     if out:
         rep['errors'].append(f'{out} objet(s) hors des limites')
+
+    # 1 bis) complexe souterrain : plafond et dalles
+    if m.underground:
+        rep['info']['ceiling_m'] = m.ceiling
+        through = [p['m'] for p in pieces if not p.get('full') and p['z'] + dims(p['m'])['z'] > m.ceiling - 0.2]
+        if through:
+            rep['errors'].append(f'{len(through)} objet(s) traversent le plafond ({", ".join(sorted(set(through))[:4])})')
+        for pd in m.pads:
+            if pd['tz'] + 2.2 > m.ceiling:
+                rep['errors'].append(f'tremplin vers {pd["tz"]} m : plafond trop bas ({m.ceiling} m)')
+        for t, lst in m.spawns.items():
+            for sp in lst:
+                if sp['z'] > m.ceiling - 3.2:
+                    rep['errors'].append(f'apparition {t} trop près du plafond')
+        if not m.slabs or m.slabs[0]['kind'] != 'floor':
+            rep['errors'].append('complexe sans dalle de sol')
 
     # 2) grille de navigation
     g = Grid(m, pieces, closed_doors=True)

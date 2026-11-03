@@ -137,6 +137,8 @@ function Ranking.Board(kind, page)
     local total = MySQL.scalar.await(b.count) or 0
     for i, r in ipairs(rows) do
         r.pos = (page - 1) * size + i
+        -- MySQL renvoie les ratios (DECIMAL) en texte avec elyzea_core / oxmysql : valeur numérique pour l'affichage
+        r.v = tonumber(r.v) or r.v
         if r.points or kind:sub(1, 3) == 'pvp' then
             local rk = LGU.RankFor(r.points or r.v)
             r.rank = rk.id
