@@ -1,0 +1,81 @@
+/* =====================================================================
+   ELYZEA PIER · PARC DE DEL PERRO
+   Thème Elyzea FA (nuit, violet néon) + ambiance fête foraine (ampoules, bois du ponton, néons).
+   ===================================================================== */
+:root { --gold: #FFC94A; --wheel: #5FD3FF; --coaster: #FF4D8D; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: var(--ely-font); color: var(--ely-white); user-select: none; }
+body.demo { background: #0b0718 url('') center/cover; }
+.hidden { display: none !important; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+
+/* ---------------------------------------------------------------- billetterie */
+#menu { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(900px 600px at 50% 30%, rgba(123, 47, 247, .25), transparent 65%), rgba(4, 2, 10, .55); animation: fade .3s; }
+.booth { position: relative; width: min(980px, 94vw); border-radius: 24px; overflow: hidden; background: linear-gradient(170deg, rgba(30, 16, 62, .95), rgba(10, 5, 24, .96));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 1px rgba(190, 150, 255, .2), var(--ely-glow); animation: pop .45s var(--ely-ease); }
+.lights { display: flex; justify-content: space-between; padding: 10px 22px 0; }
+.lights i { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold), 0 0 22px rgba(255, 201, 74, .6); animation: bulb 1.6s infinite; }
+.lights i:nth-child(odd) { animation-delay: .8s; background: #fff3c4; }
+@keyframes bulb { 50% { opacity: .25; box-shadow: none; } }
+.head { padding: 18px 34px 8px; display: flex; align-items: center; gap: 18px; }
+.head .t { font: 900 italic 34px/1.05 var(--ely-font-display); letter-spacing: .02em; }
+.head .t b { color: var(--ely-violet); text-shadow: 0 0 18px rgba(155, 92, 255, .8); }
+.head .s { color: var(--ely-muted); font-size: 14px; margin-top: 6px; }
+.head .x { margin-left: auto; width: 42px; height: 42px; border-radius: 12px; background: rgba(255, 255, 255, .06); border: 1px solid var(--ely-line); font-size: 18px; }
+.head .x:hover { background: rgba(255, 77, 109, .25); }
+.tabs { display: flex; gap: 8px; padding: 6px 34px 0; }
+.tabs button { padding: 11px 18px; border-radius: 12px 12px 0 0; font: 800 13px var(--ely-font); letter-spacing: .1em; color: var(--ely-muted); background: rgba(255, 255, 255, .03); }
+.tabs button .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; margin-right: 8px; background: rgba(255, 255, 255, .08); font-size: 12px; }
+.tabs button.on { color: #fff; background: rgba(155, 92, 255, .22); box-shadow: inset 0 -2px 0 var(--ely-violet); }
+.body { padding: 22px 34px 30px; min-height: 360px; border-top: 1px solid var(--ely-line); }
+.ride { display: grid; grid-template-columns: 300px 1fr; gap: 26px; align-items: center; animation: fade .3s; }
+.art { position: relative; height: 270px; border-radius: 18px; overflow: hidden; background: linear-gradient(180deg, #1a0f3d, #08040f); border: 1px solid var(--ely-line); }
+.art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ride h2 { margin: 0 0 6px; font: 900 italic 32px var(--ely-font-display); }
+.ride.wheel h2 { color: var(--wheel); text-shadow: 0 0 18px rgba(95, 211, 255, .5); } .ride.coaster h2 { color: var(--coaster); text-shadow: 0 0 18px rgba(255, 77, 141, .5); }
+.desc { color: #d6cbef; line-height: 1.5; font-size: 14px; margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat { padding: 12px; border-radius: 12px; background: rgba(0, 0, 0, .3); border: 1px solid var(--ely-line); }
+.stat .v { font: 900 italic 22px var(--ely-font-display); } .stat .l { font: 700 10px var(--ely-font); letter-spacing: .16em; color: var(--ely-muted); text-transform: uppercase; margin-top: 3px; }
+.stat.price .v { color: var(--gold); text-shadow: 0 0 12px rgba(255, 201, 74, .5); }
+.buy { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.qty { display: flex; align-items: center; border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid var(--ely-line); }
+.qty button { width: 42px; height: 46px; font-size: 20px; font-weight: 800; } .qty span { min-width: 40px; text-align: center; font: 900 italic 20px var(--ely-font-display); }
+.pay { padding: 13px 20px; border-radius: 12px; font: 800 13px var(--ely-font); letter-spacing: .1em; background: linear-gradient(135deg, #9B5CFF, #6D28D9); box-shadow: 0 8px 22px rgba(123, 47, 247, .35); transition: .15s; }
+.pay.bank { background: linear-gradient(135deg, #3FA2FF, #1C5FD6); box-shadow: 0 8px 22px rgba(40, 140, 255, .35); }
+.pay:hover { transform: translateY(-2px); } .pay[disabled] { opacity: .4; pointer-events: none; }
+.total { margin-left: auto; text-align: right; } .total .v { font: 900 italic 26px var(--ely-font-display); color: var(--gold); } .total .l { font-size: 11px; color: var(--ely-muted); letter-spacing: .14em; }
+.wallet { font-size: 12px; color: var(--ely-muted); margin-top: 10px; }
+.mine { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; animation: fade .3s; }
+.ticket { position: relative; display: flex; gap: 18px; align-items: center; padding: 22px; border-radius: 16px; background: linear-gradient(120deg, #fff6d9, #ffe39a); color: #2a1a00;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .4); clip-path: polygon(0 0, 100% 0, 100% 40%, 97% 50%, 100% 60%, 100% 100%, 0 100%, 0 60%, 3% 50%, 0 40%); }
+.ticket.coaster { background: linear-gradient(120deg, #ffe1ee, #ffb3cf); }
+.ticket .big { font: 900 italic 54px var(--ely-font-display); min-width: 70px; text-align: center; }
+.ticket .nm { font: 900 italic 20px var(--ely-font-display); letter-spacing: .04em; } .ticket .sm { font-size: 12px; opacity: .75; margin-top: 4px; }
+.ticket .stub { margin-left: auto; padding-left: 18px; border-left: 2px dashed rgba(0, 0, 0, .25); font: 800 11px var(--ely-font); letter-spacing: .2em; writing-mode: vertical-rl; transform: rotate(180deg); }
+.hint { grid-column: 1 / -1; color: var(--ely-muted); font-size: 13px; line-height: 1.6; }
+
+/* ---------------------------------------------------------------- panneau de file / trajet */
+#hud { position: fixed; right: 26px; top: 34%; width: 300px; padding: 18px; border-radius: 18px; background: rgba(10, 5, 24, .86); border: 1px solid var(--ely-line-hi);
+  box-shadow: var(--ely-glow); animation: slide .35s var(--ely-ease); }
+#hud .k { font: 700 10px var(--ely-font); letter-spacing: .3em; color: var(--ely-muted); }
+#hud .n { font: 900 italic 24px var(--ely-font-display); margin: 4px 0 10px; }
+#hud.wheel .n { color: var(--wheel); } #hud.coaster .n { color: var(--coaster); }
+#hud .row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
+#hud .row b { font: 800 italic 15px var(--ely-font-display); }
+#hud .bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .08); overflow: hidden; margin-top: 10px; }
+#hud .bar i { display: block; height: 100%; background: var(--ely-grad); box-shadow: 0 0 12px rgba(181, 123, 255, .8); transition: width .9s linear; }
+#hud .tip { font-size: 11px; color: var(--ely-muted); margin-top: 10px; }
+
+/* ---------------------------------------------------------------- notifications */
+#toasts { position: fixed; top: 26px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 9; }
+.toast { display: flex; gap: 10px; align-items: center; padding: 12px 18px; border-radius: 12px; max-width: 520px; background: rgba(12, 6, 28, .94); border: 1px solid var(--ely-line-hi);
+  font-weight: 700; font-size: 14px; animation: drop .35s var(--ely-ease), fade-out .4s 4.6s forwards; }
+.toast i { width: 4px; align-self: stretch; border-radius: 2px; background: var(--ely-violet); }
+.toast.success i { background: var(--ely-ok); } .toast.error i { background: var(--ely-danger); }
+@keyframes fade { from { opacity: 0; } } @keyframes fade-out { to { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.95) translateY(10px); } }
+@keyframes slide { from { opacity: 0; transform: translateX(30px); } }
+@keyframes drop { from { opacity: 0; transform: translateY(-12px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { transform-origin: 150px 120px; animation: spin 40s linear infinite; }

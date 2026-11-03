@@ -258,6 +258,12 @@ Items.markedbills = { label = 'Billets marqués', weight = 0, perGram = 1000, st
 Items.jetons_casino = { label = 'Jetons de casino', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'jetons_casino.png', icon = '🎰',
     description = 'Jetons du casino. S\'achètent et se revendent au guichet, se misent au blackjack, à la roulette et à la roue de la fortune.' }
 
+-- Parc de Del Perro (elyzea_pier) : tickets achetés à la billetterie du ponton, utilisés à l'entrée de l'attraction
+Items.ticket_grande_roue = { label = 'Ticket grande roue', weight = 2, stack = true, max = 50, image = 'ticket_grande_roue.png', icon = '🎡',
+    description = 'Ticket du parc de Del Perro, valable pour un tour de grande roue. Présente-toi à l\'entrée de la grande roue et appuie sur E.' }
+Items.ticket_montagnes_russes = { label = 'Ticket montagnes russes', weight = 2, stack = true, max = 50, image = 'ticket_montagnes_russes.png', icon = '🎢',
+    description = 'Ticket du parc de Del Perro, valable pour un tour de montagnes russes. Présente-toi sur le quai et appuie sur E.' }
+
 -- Pesos de Cayo Perico (elyzea_change) : changés au bureau de change, acceptés par certaines boutiques. 1 000 pesos = 1 g
 Items.pesos = { label = 'Pesos', weight = 0, perGram = 1000, stack = true, max = 999999999, image = 'pesos.png', icon = '🪙',
     description = 'Pesos de Cayo Perico. S\'échangent contre de l\'argent liquide au bureau de change. Certaines boutiques n\'acceptent que les pesos.' }
