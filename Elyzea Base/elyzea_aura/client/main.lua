@@ -154,6 +154,7 @@ local function OpenPhone()
     if not profile or not profile.ok then return end
 
     isOpen = true
+    TriggerServerEvent('elyzea_aura:server:phoneOut', true)   -- téléphone sorti : visible pour AuraDrop et l'appli Identité
     typing, looking = false, false
     moveEnabled = Config.MoveWhileOpen and (profile.settings == nil or profile.settings.moveWithPhone ~= false)
     SetNuiFocus(true, true)
@@ -186,6 +187,7 @@ local function ClosePhone()
         DestroyMobilePhone(); CellCamActivate(false, false); SetNuiFocusKeepInput(false)
     end
     isOpen = false
+    TriggerServerEvent('elyzea_aura:server:phoneOut', false)
     typing, looking = false, false
     SetNuiFocusKeepInput(false)
     SetNuiFocus(false, false)
@@ -345,6 +347,32 @@ end)
 RegisterNetEvent('elyzea_aura:client:auraDrop', function(data)
     PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
     SendNUIMessage({ action = 'auraDrop', data = data })
+end)
+
+-- ---------------------------------------------------------
+--  Identité : photo du titulaire (portrait du personnage, s'il est à portée)
+-- ---------------------------------------------------------
+local function Headshot(ped)
+    if not ped or ped == 0 or not DoesEntityExist(ped) then return nil end
+    local h = RegisterPedheadshot(ped)
+    local t = GetGameTimer()
+    while not IsPedheadshotReady(h) and GetGameTimer() - t < 2500 do Wait(50) end
+    if not IsPedheadshotReady(h) then UnregisterPedheadshot(h) return nil end
+    local txd = GetPedheadshotTxdString(h)
+    SetTimeout(120000, function() UnregisterPedheadshot(h) end)
+    return ('https://nui-img/%s/%s'):format(txd, txd)
+end
+local myShot, myShotAt = nil, 0
+RegisterNUICallback('idPhoto', function(_, cb)
+    if not myShot or GetGameTimer() - myShotAt > 100000 then myShot, myShotAt = Headshot(PlayerPedId()), GetGameTimer() end
+    cb({ url = myShot })
+end)
+RegisterNetEvent('elyzea_aura:client:idCard', function(data)
+    if type(data) ~= 'table' then return end
+    local pl = GetPlayerFromServerId(tonumber(data.from) or -1)
+    data.photo = pl ~= -1 and Headshot(GetPlayerPed(pl)) or nil
+    PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
+    SendNUIMessage({ action = 'idCard', data = data })
 end)
 
 RegisterNetEvent('elyzea_aura:client:alert', function(data)

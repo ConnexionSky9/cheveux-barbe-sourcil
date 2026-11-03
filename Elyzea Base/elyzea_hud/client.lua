@@ -45,7 +45,7 @@ local function SharpMask(on)
 end
 
 local function sendRect()
-    SendNUIMessage({ action = 'rect', rect = rect })
+    SendNUIMessage({ action = 'rect', rect = rect, frame = Config.Frame })
 end
 
 -- Placement autonome (sans admin_menu, ou pendant son redémarrage) : exactement la même disposition
@@ -68,9 +68,25 @@ local function nativeRect()
     return { x = margin, y = 1.0 - margin - h, w = w, h = h, align = 'LB', native = true }
 end
 
+-- Composants d'origine de GTA, avec le flou ramené sur la carte (le halo d'origine dépasse du cadre)
+local nativePlaced = false
+local function nativeComponents()
+    SetMinimapClipType(0)
+    SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, 0.002, 0.150, 0.188888)
+    SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.020, 0.032, 0.111, 0.159)
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.0045, 0.002, 0.150, 0.188888)
+    if not nativePlaced and not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
+        nativePlaced = true
+        SetBigmapActive(true, false)
+        Wait(0)
+        SetBigmapActive(false, false)
+    end
+end
+
 local function setupMinimap()
     if Config.MinimapNative ~= false then
         SharpMask(false)
+        nativeComponents()
         rect = nativeRect()
         sendRect()
         return

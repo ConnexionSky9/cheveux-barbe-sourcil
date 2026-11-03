@@ -25,6 +25,10 @@ ui_page 'html/index.html'
 files {
     'html/index.html',
     'html/style.css',
+    'html/brand.css',
+    'html/brand.js',
+    'html/cards.css',
+    'html/cards.js',
     'html/js/*.js'
 }
 

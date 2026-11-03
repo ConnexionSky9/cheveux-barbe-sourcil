@@ -220,6 +220,7 @@ function showLock() {
 function renderLock() {
   const face = S.settings.faceid;
   lockView.innerHTML = `<div class="lock">
+    <div class="lock__brand">${Ely.mark({ size: 58, live: true })}</div>
     <p class="lock__date" id="lock-date"></p>
     <p class="lock__time" id="lock-time">00:00</p>
     <div class="lock__notifs">${S.lockNotifs.map(n => `<div class="lock__notif"><div class="island__icon">${solidTile(n.app, 34)}</div>
@@ -334,10 +335,8 @@ function startSetup() {
   screenEl.classList.add('in-setup');
   setupView.classList.add('active'); setupView.setAttribute('aria-hidden', 'false');
   setupView.innerHTML = `<div class="boot" id="boot">
-    <svg class="boot__mark" viewBox="0 0 128 128" aria-hidden="true">
-      <circle class="r1" cx="64" cy="64" r="46"/><circle class="r2" cx="64" cy="64" r="34" transform="rotate(120 64 64)"/>
-      <circle class="r3" cx="64" cy="64" r="22" transform="rotate(240 64 64)"/><circle class="core" cx="64" cy="64" r="6"/></svg>
-    <p class="boot__word">Elyzea <b>Aura 5</b></p>
+    <div class="boot__ely">${Ely.mark({ size: 170, anim: true, live: true })}</div>
+    <p class="boot__word">Elyzea <b>Aura</b></p>
     <p class="boot__hello" id="boot-hello"></p></div>
     <div class="wizard" id="wizard"></div>`;
   Sound.boot();
@@ -447,7 +446,7 @@ async function finishSetup() {
 function openAuraDrop() {
   const myName = S.settings.cardName || S.profile.name;
   let timer;
-  const sh = openSheet('AuraDrop', `<p class="sheet__text">${t('Approchez-vous d\'une personne pour lui envoyer votre fiche contact.')}</p>
+  const sh = openSheet('AuraDrop', `<p class="sheet__text">${t('Approchez-vous d\'une personne qui a son téléphone sorti pour lui envoyer votre fiche contact.')}</p>
     <div class="drop-card">${avatar(myName, S.profile.number)}<div class="row__main"><div class="row__title">${esc(myName)}</div><div class="row__sub">${esc(S.profile.number)}</div></div>
       <button class="icon-btn" id="drop-copy" aria-label="${t('Copier le numéro')}">${icon('copy')}</button></div>
     <div class="radar"><i></i><i></i><i></i><div class="radar__me">${icon('drop')}</div></div>
@@ -463,7 +462,7 @@ function openAuraDrop() {
       <span class="chip-ic" style="--c:${avColor(d.device)}">${icon('user')}</span>
       <div class="row__main"><div class="row__title">${esc(d.device)}</div><div class="row__sub">${t('à {d} m', { d: d.distance })}</div></div>
       <span class="chip ${sent.has(d.id) ? '' : 'chip--accent'}">${sent.has(d.id) ? t('Envoyé') : t('Envoyer')}</span></button>`).join('')}</div>`
-      : `<p class="row__sub row__sub--wrap" style="text-align:center">${t('Aucun appareil à proximité. Rapprochez-vous à moins de quelques mètres.')}</p>`;
+      : `<p class="row__sub row__sub--wrap" style="text-align:center">${t('Aucun téléphone sorti à proximité. La personne doit avoir son téléphone en main, à quelques mètres.')}</p>`;
     $$('[data-dev]', list).forEach(b => b.onclick = async () => {
       if (sent.has(+b.dataset.dev)) return;
       const res = await api('auraDropSend', { id: +b.dataset.dev });

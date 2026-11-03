@@ -70,10 +70,10 @@ const S = {
 const nameFor = (number) => S.contacts.find(c => c.number === number)?.name || (S.bizNames && S.bizNames[number]) || number;
 
 // ---------- Apparence ----------
-const WALLPAPERS = ['halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni'];
-const WP_NAMES = { halo: 'Halo', aube: 'Aube', nebuleuse: 'Nébuleuse', glacier: 'Glacier', braise: 'Braise', foret: 'Forêt', uni: 'Uni' };
-const ACCENTS = { plasma: '#7C6CFF', glace: '#2FC9D9', rose: '#FF6F9E', ambre: '#F5A524', cobalt: '#4C8DFF', lime: '#7FCB3A' };
-const FRAMES = { titane: 'linear-gradient(150deg,#A3A9B9,#5E6372)', graphite: 'linear-gradient(150deg,#474B5A,#1B1D26)', nacre: 'linear-gradient(150deg,#FFFFFF,#CFCAD9)', aurore: 'linear-gradient(150deg,#E6C4F5,#7F95EE)' };
+const WALLPAPERS = ['elyzea', 'halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni'];
+const WP_NAMES = { elyzea: 'Elyzea', halo: 'Halo', aube: 'Aube', nebuleuse: 'Nébuleuse', glacier: 'Glacier', braise: 'Braise', foret: 'Forêt', uni: 'Uni' };
+const ACCENTS = { elyzea: '#9B5CFF', plasma: '#7C6CFF', glace: '#2FC9D9', rose: '#FF6F9E', ambre: '#F5A524', cobalt: '#4C8DFF', lime: '#7FCB3A' };
+const FRAMES = { elyzea: 'linear-gradient(150deg,#4A3478,#140A28)', titane: 'linear-gradient(150deg,#A3A9B9,#5E6372)', graphite: 'linear-gradient(150deg,#474B5A,#1B1D26)', nacre: 'linear-gradient(150deg,#FFFFFF,#CFCAD9)', aurore: 'linear-gradient(150deg,#E6C4F5,#7F95EE)' };
 const RINGTONES = { cristal: 'Cristal', onde: 'Onde', classique: 'Classique', orbite: 'Orbite' };
 
 const screenEl = $('#screen'), phoneEl = $('#phone'), stage = $('#stage');
@@ -87,7 +87,7 @@ function resolvedTheme() {
 }
 function accentHex() {
   const a = S.settings.accent;
-  return /^#[0-9a-f]{6}$/i.test(a) ? a : (ACCENTS[a] || ACCENTS.plasma);
+  return /^#[0-9a-f]{6}$/i.test(a) ? a : (ACCENTS[a] || ACCENTS.elyzea);
 }
 function inkFor(hex) {
   const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
@@ -105,7 +105,7 @@ function applySettings() {
     screenEl.classList.add('no-halo');
   } else {
     wp.style.removeProperty('--wp');
-    wp.dataset.wp = WALLPAPERS.includes(s.wallpaper) ? s.wallpaper : 'halo';
+    wp.dataset.wp = WALLPAPERS.includes(s.wallpaper) ? s.wallpaper : 'elyzea';
     screenEl.classList.toggle('no-halo', s.wallpaper === 'uni');
   }
   const acc = accentHex();
@@ -113,12 +113,34 @@ function applySettings() {
   root.setProperty('--accent-ink', inkFor(acc));
   root.setProperty('--accent-soft', acc + '2E');
   root.setProperty('--zoom', (Number(s.zoom) || 100) / 100);
-  phoneEl.dataset.frame = FRAMES[s.frame] ? s.frame : 'titane';
+  phoneEl.dataset.frame = FRAMES[s.frame] ? s.frame : 'elyzea';
   phoneEl.classList.toggle('no-edge', s.edgeLight === false);
   $('#sb-plane').classList.toggle('hidden', !s.airplane);
   $('#sb-signal').classList.toggle('hidden', !!s.airplane);
   document.documentElement.lang = s.lang || 'fr';
   $('#home-bar').setAttribute('aria-label', t('Accueil'));
+  elyDecor();
+}
+// Décor du fond « Elyzea » (créé une seule fois)
+function elyDecor() {
+  const el = $('#ely-wp');
+  if (!el || el.dataset.ready || typeof Ely === 'undefined') return;
+  el.dataset.ready = '1';
+  el.innerHTML = `<div class="aur"></div><div class="mk">${Ely.mark({ size: 230, live: true })}</div>
+    <div class="sky">${Ely.skyline({ w: 420, h: 240, seed: 23, lit: 0.16 })}</div>`;
+}
+// Nouveau design : les téléphones restés sur l'apparence d'origine passent une fois au thème Elyzea
+function elyMigrate() {
+  const s = S.settings;
+  if (!s || !S.profile || !s.setup) return;
+  let done = false;
+  try { done = localStorage.getItem('ely_theme_v6_' + S.profile.number) === '1'; localStorage.setItem('ely_theme_v6_' + S.profile.number, '1'); } catch (e) { done = true; }
+  if (done) return;
+  const patch = {};
+  if (!s.wallpaper || s.wallpaper === 'halo') patch.wallpaper = 'elyzea';
+  if (!s.frame || s.frame === 'titane') patch.frame = 'elyzea';
+  if (!s.accent || s.accent === 'plasma') patch.accent = 'elyzea';
+  if (Object.keys(patch).length) saveSettings(patch);
 }
 async function saveSettings(patch) {
   Object.assign(S.settings, patch);

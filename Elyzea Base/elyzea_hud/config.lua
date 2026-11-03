@@ -27,3 +27,9 @@ Config.Minimap = {
 
 -- Portées de pma-voice (affichées si l'état ne remonte pas la distance)
 Config.VoiceRanges = { [1] = 3.0, [2] = 8.0, [3] = 15.0 }
+
+-- Cadre de la mini-carte (pixels pour un écran 1080p, mis à l'échelle sur les autres résolutions).
+-- La bordure du cadre est opaque : elle recouvre le bord de la carte (inner) et déborde vers l'extérieur (outer).
+-- Si un bout de carte dépasse encore chez toi, augmente « outer » ; si le cadre mange trop la carte, baisse « inner ».
+-- Décalage fin du cadre si besoin : dx, dy (px), dw, dh (px en plus / en moins).
+Config.Frame = { inner = 8, outer = 12, dx = 0, dy = 0, dw = 0, dh = 0 }

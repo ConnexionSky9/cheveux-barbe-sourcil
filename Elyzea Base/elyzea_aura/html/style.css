@@ -1177,3 +1177,76 @@ body.looking #stage { opacity: .55; transition: opacity .2s; }
 .svc-card__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .svc-card__actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px; }
 .svc-card__actions .btn svg { width: 16px; height: 16px; }
+
+/* =====================================================================
+   THÈME ELYZEA FA (logo : nuit, violet néon, E blanc, arc, skyline)
+   ===================================================================== */
+[data-theme="dark"] {
+  --bg: #0B0619;
+  --bg-2: #150C2C;
+  --text: #F3EEFF;
+  --text-dim: rgba(243, 238, 255, .62);
+  --text-faint: rgba(243, 238, 255, .38);
+  --surface: rgba(181, 123, 255, .07);
+  --surface-2: rgba(181, 123, 255, .13);
+  --surface-press: rgba(181, 123, 255, .2);
+  --glass: rgba(22, 12, 44, .7);
+  --glass-strong: rgba(16, 9, 32, .92);
+  --line: rgba(201, 166, 255, .12);
+}
+#phone[data-frame="elyzea"] { --f1: #5A3F8E; --f2: #150A2A; --f3: #3A2766; }
+#phone[data-frame="elyzea"] .edge-light {
+  background: conic-gradient(from var(--edge, 0deg), transparent 0deg, transparent 290deg, #7B2FF7 320deg, #E9D5FF 345deg, #9B5CFF 360deg);
+}
+/* Fond d'écran « Elyzea » : aurore violette, emblème, ville de nuit */
+[data-wp="elyzea"] { --wp: radial-gradient(90% 55% at 50% 0%, rgba(155, 92, 255, .55), transparent 70%), radial-gradient(70% 45% at 100% 75%, rgba(123, 47, 247, .35), transparent 70%), linear-gradient(180deg, #120A26, #07040F); }
+.ely-wp { position: absolute; inset: 0; display: none; overflow: hidden; }
+[data-wp="elyzea"] .ely-wp { display: block; }
+[data-wp="elyzea"] ~ .halo, #wp[data-wp="elyzea"] .halo { opacity: .35; }
+.ely-wp .aur { position: absolute; left: -30%; right: -30%; height: 46%; top: 6%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(181, 123, 255, .35), transparent); filter: blur(10px); animation: ely-aur 14s ease-in-out infinite alternate; }
+@keyframes ely-aur { from { transform: translateX(-8%) scaleY(.8); } to { transform: translateX(8%) scaleY(1.1); } }
+.ely-wp .mk { position: absolute; left: 50%; top: 31%; transform: translateX(-50%); opacity: .2; }
+.ely-wp .mk .ely-mark { width: 230px; height: auto; }
+.ely-wp .sky { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; }
+.ely-wp .sky .ely-skyline { height: 100%; }
+.ely-wp .sky::before { content: ''; position: absolute; left: 0; right: 0; top: -40%; height: 60%; background: radial-gradient(60% 100% at 50% 100%, rgba(155, 92, 255, .35), transparent); }
+#screen.in-app .ely-wp, #screen.in-setup .ely-wp { opacity: .6; }
+.swatch[data-wp="elyzea"] { background: radial-gradient(60% 50% at 50% 10%, #9B5CFF, transparent), linear-gradient(180deg, #1A0F33, #07040F); }
+
+/* Écran verrouillé et démarrage : emblème du logo */
+.lock__brand { margin-bottom: 4px; filter: drop-shadow(0 0 14px rgba(155, 92, 255, .6)); }
+.boot { background: radial-gradient(70% 50% at 50% 45%, #2A1257, #07040F 70%); }
+.boot__ely { position: absolute; top: calc(50% - 70px); left: 50%; transform: translateX(-50%); }
+.boot__ely .ely-mark { width: 170px; height: auto; }
+.boot__word { font-family: 'Exo 2', var(--font-display); font-style: italic; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.boot__word b { background: var(--ely-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Titres d'applications et boutons dans l'esprit du logo */
+.app__title { font-family: 'Exo 2', var(--font-display); font-style: italic; font-weight: 800; letter-spacing: .02em; }
+
+/* ---------- Appli Identité ---------- */
+.app.idt .app__body { padding-bottom: 28px; }
+.idt-stage { display: flex; flex-direction: column; align-items: center; min-height: 236px; touch-action: pan-y; }
+.idt-label { align-self: flex-start; }
+.idt-card { transition: transform .2s; }
+.idt-card .ely-card { transition: transform .15s ease-out; }
+.idt-card.from-r { animation: idt-r .45s var(--ease); }
+.idt-card.from-l { animation: idt-l .45s var(--ease); }
+@keyframes idt-r { from { opacity: 0; transform: translateX(60px) rotateY(-25deg); } }
+@keyframes idt-l { from { opacity: 0; transform: translateX(-60px) rotateY(25deg); } }
+.idt-dots { display: flex; justify-content: center; gap: 7px; margin: 14px 0 12px; }
+.idt-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--surface-2); transition: width .3s var(--ease), background .3s; }
+.idt-dot.on { width: 24px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.idt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.idt-actions .btn { justify-content: center; }
+.idt-hint { margin: 12px 4px 0; font-size: 12.5px; color: var(--text-dim); text-align: center; line-height: 1.45; }
+.idt-missing { margin: 8px 4px 0; font-size: 12px; color: var(--text-faint); text-align: center; }
+.idt-rec { margin-bottom: 14px; }
+.idt-rec__card { display: block; width: 100%; padding: 0; background: none; border-radius: 14px; }
+.idt-rec__card .ely-card { margin: 0 auto; }
+.idt-sheet-card { display: flex; justify-content: center; margin: 6px 0 2px; }
+.gallery .gal-card { position: relative; aspect-ratio: auto !important; padding: 6px 0; background: none !important; display: grid; place-items: center; grid-column: span 2; }
+/* Performances : le décor animé ne tourne que sur l'accueil et l'écran verrouillé visibles
+   (sous une appli, le fond est flouté : l'animer forcerait à recalculer le flou à chaque image) */
+#screen.in-app .ely-wp *, #screen.in-setup .ely-wp *, #stage.hidden .ely-wp *, #stage.ghost .ely-wp * { animation-play-state: paused !important; }
+#stage.hidden .ely-card::before, .gal-card .ely-card::before { animation: none; }

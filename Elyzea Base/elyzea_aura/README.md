@@ -57,3 +57,39 @@ exports.elyzea_aura:IsOpen()
 `/elyzea_resetcode [id]` supprime le code d'un joueur qui l'a oublié (permission `command.elyzea_resetcode`).
 
 Voir `INSTALLATION.md` pour l'installation pas à pas.
+
+## Nouveautés : thème Elyzea FA, appli Identité, AuraDrop
+### Thème Elyzea FA
+- Fond d'écran « Elyzea » animé : aurore violette, emblème E, ville de nuit dont les fenêtres s'allument.
+- Cadre et couleur d'accent « Elyzea ».
+- Emblème animé au démarrage et sur l'écran verrouillé.
+
+Les téléphones restés sur l'apparence d'origine (Halo, Titane, Plasma) passent une fois au thème Elyzea. Le joueur peut toujours changer dans Réglages.
+
+Les animations du fond se mettent en pause sous une appli et téléphone rangé.
+
+### Appli « Identité »
+L'appli est sur l'accueil.
+
+**Mes cartes** : carte d'identité, permis de conduire (B voiture, A moto, C poids lourd) et PPA, au design du logo.
+- **Montrer** : la carte part sur le téléphone d'une personne proche, seulement si son téléphone est **sorti**.
+- **Enregistrer** : une copie de la carte arrive dans la galerie, onglet « Cartes ».
+
+**Reçues** : les cartes qu'on vous montre.
+- Vous pouvez les enregistrer dans votre galerie.
+- Le propriétaire est alors prévenu : « … a enregistré votre carte ».
+
+**Police en service** : sur un permis ou un PPA reçu, le policier peut :
+- suspendre ou rétablir une catégorie du permis (B, A ou C), tout le permis, ou le PPA ;
+- indiquer un motif (facultatif).
+
+Une carte suspendue ne disparaît pas : « SUSPENDU » est écrit dessus. C'est vrai partout : dans le téléphone, quand on la montre, et quand on la sort de l'inventaire.
+
+Données et règles : `elyzea_papiers` (table `elyzea_doc_suspensions`, créée toute seule).
+
+### AuraDrop
+On ne voit, et on ne peut envoyer sa fiche qu'aux personnes proches qui ont leur **téléphone sorti**. Le serveur le vérifie. Un téléphone rangé est invisible.
+
+### Tests hors jeu
+- `python3 tests/run_identity_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base ; 38 vérifications.
+- `NODE_PATH=$(npm root -g) node tests/ui_identite.cjs` : téléphone dans Chromium ; 18 vérifications.

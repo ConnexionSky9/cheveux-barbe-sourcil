@@ -143,3 +143,23 @@ select.input option { background: #0d1528; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .dialog .crest { display: block; margin: 0 auto 10px; }
 .dialog .eyebrow { display: block; }
+
+/* =====================================================================
+   THÈME ELYZEA FA : violet néon (les noms « gold » sont gardés, les couleurs suivent le logo)
+   ===================================================================== */
+:root {
+    --night: #07040F; --panel: rgba(22, 12, 44, .78); --panel-2: rgba(30, 18, 58, .86);
+    --line: rgba(190, 150, 255, .16); --line-strong: rgba(201, 166, 255, .4);
+    --text: #F6F2FF; --muted: #A99BC9; --gold: #B57BFF; --gold-hi: #E9D5FF; --gold-lo: #7B2FF7;
+    --legal: #7B2FF7; --illegal: #C065FF; --ok: #3EE6B0;
+    --gold-grad: linear-gradient(120deg, #E9D5FF 0%, #B57BFF 45%, #7B2FF7 100%);
+    --edge: linear-gradient(90deg, #7B2FF7 0%, #B57BFF 50%, #E9D5FF 100%);
+    --brand: 'Exo 2', 'Segoe UI', sans-serif; --display: 'Exo 2', 'Barlow Condensed', sans-serif; --body: 'Manrope', 'Barlow', 'Segoe UI', sans-serif;
+}
+.layer { background: radial-gradient(ellipse at center, rgba(59, 15, 134, .28), rgba(7, 4, 15, .82)); }
+.eyebrow, h1, h2 { font-style: italic; }
+.btn.primary { background: linear-gradient(120deg, #B57BFF, #7B2FF7) !important; color: #fff !important; border-color: transparent !important; box-shadow: 0 8px 22px rgba(123, 47, 247, .35); }
+
+.doc.ely { width: auto; height: auto; padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; box-shadow: none; }
+.doc.ely::before, .doc.ely::after { display: none; }
+.doc-actions .ely-btn { min-width: 160px; }

@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <title>Elyzea HUD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Exo+2:ital,wght@1,700;1,800&display=swap">
+<link rel="stylesheet" href="brand.css">
 <style>
   /* =================================================================
      ELYZEA HUD — futuriste. Mini-carte en bas à gauche (cadre ci-dessous),
@@ -14,14 +15,17 @@
   :root{
     --u:calc(100vh/1080);
     --mx:1.4vw;--my:78vh;--mw:15vw;--mh:18.5vh;   /* rectangle de la carte (remplacé par le jeu) */
-    --cyan:#22d3ee;--blue:#3b82f6;--text:#e8f1ff;--muted:#8fa3bf;--line:rgba(120,190,255,.18);
-    --panel:rgba(6,11,20,.78);--panel2:rgba(10,17,30,.86);
+    /* Thème Elyzea FA : violet néon (les noms --cyan / --blue sont gardés, les couleurs suivent le logo) */
+    --cyan:#B57BFF;--blue:#7B2FF7;--text:#F6F2FF;--muted:#A99BC9;--line:rgba(190,150,255,.2);
+    --panel:rgba(12,7,26,.8);--panel2:rgba(22,13,44,.88);--fi:8;--fo:12;
     --hp:#ff3b5c;--hp2:#a3122f;--ar:#3b9bff;--ar2:#1d3f8f;--food:#ffb547;--water:#3fd5ff;--voice:#a78bfa;--ok:#34d399;--warn:#fbbf24;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-family:"Rajdhani","Segoe UI",Arial,sans-serif;color:var(--text);user-select:none}
   #hud{position:fixed;inset:0;transition:opacity .35s ease;pointer-events:none}
   #hud.hidden{opacity:0}
+  .player .card{animation:hudIn .6s cubic-bezier(.2,.9,.25,1) both}.player .card:nth-child(2){animation-delay:.08s}.player .card:nth-child(3){animation-delay:.16s}
+  @keyframes hudIn{from{opacity:0;transform:translateX(calc(var(--u)*-18))}}
   .num{font-family:"Chakra Petch","Rajdhani",sans-serif;font-variant-numeric:tabular-nums}
 
   /* ================= CADRE DE LA MINI-CARTE ================= */
@@ -29,19 +33,31 @@
   .frame.off{opacity:0}
   .frame::before{content:"";position:absolute;inset:calc(var(--u)*-4);border:calc(var(--u)*1) solid var(--line);
     clip-path:polygon(0 0,calc(100% - var(--u)*16) 0,100% calc(var(--u)*16),100% 100%,calc(var(--u)*16) 100%,0 calc(100% - var(--u)*16));
-    box-shadow:0 0 calc(var(--u)*18) rgba(34,211,238,.12),inset 0 0 calc(var(--u)*20) rgba(4,8,16,.55)}
+    box-shadow:0 0 calc(var(--u)*22) rgba(155,92,255,.22),inset 0 0 calc(var(--u)*20) rgba(4,2,12,.55)}
   .frame.round::before{border-radius:50%;clip-path:none}
   .br{position:absolute;width:calc(var(--u)*18);height:calc(var(--u)*18);border:calc(var(--u)*2) solid var(--cyan);filter:drop-shadow(0 0 calc(var(--u)*4) var(--cyan))}
   .b1{left:calc(var(--u)*-6);top:calc(var(--u)*-6);border-right:none;border-bottom:none}
   .b2{right:calc(var(--u)*-6);bottom:calc(var(--u)*-6);border-left:none;border-top:none}
-  .frame .tag{position:absolute;left:calc(var(--u)*10);top:calc(var(--u)*-15);font-size:calc(var(--u)*10);letter-spacing:.35em;color:var(--cyan);font-weight:700;
+  .frame .tag{display:none;position:absolute;left:calc(var(--u)*10);top:calc(var(--u)*-15);font-size:calc(var(--u)*10);letter-spacing:.35em;color:var(--cyan);font-weight:700;
     text-shadow:0 0 calc(var(--u)*6) rgba(34,211,238,.6)}
   .frame.round .br,.frame.round .tag{display:none}
   /* Contour net : bande opaque posée sur le bord de la carte (cache le fondu flou de GTA, 4 px à l'intérieur,
      10 px à l'extérieur), même teinte que les cartes du HUD ; fin liseré cyan à l'intérieur */
-  .frame .edge{position:absolute;inset:calc(var(--u)*-10);border:calc(var(--u)*14) solid rgba(6,11,20,.94);
-    clip-path:polygon(0 0,calc(100% - var(--u)*20) 0,100% calc(var(--u)*20),100% 100%,calc(var(--u)*20) 100%,0 calc(100% - var(--u)*20));
-    box-shadow:inset 0 0 0 calc(var(--u)*1) rgba(120,190,255,.35)}
+  .frame .edge{position:absolute;inset:calc(var(--u)*var(--fo)*-1);border:calc(var(--u)*(var(--fo) + var(--fi))) solid #0C071A;
+    clip-path:polygon(0 0,calc(100% - var(--u)*22) 0,100% calc(var(--u)*22),100% 100%,calc(var(--u)*22) 100%,0 calc(100% - var(--u)*22));
+    box-shadow:inset 0 0 0 calc(var(--u)*1.5) rgba(181,123,255,.55)}
+  /* liseré lumineux qui fait le tour du cadre (rappel de l'arc du logo) */
+  .frame .glow{position:absolute;inset:calc(var(--u)*var(--fo)*-1);pointer-events:none;
+    clip-path:polygon(0 0,calc(100% - var(--u)*22) 0,100% calc(var(--u)*22),100% 100%,calc(var(--u)*22) 100%,0 calc(100% - var(--u)*22));
+    background:conic-gradient(from var(--a,0deg),transparent 0 70%,rgba(201,166,255,.95) 82%,transparent 92%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;padding:calc(var(--u)*2);animation:frameglow 8s linear infinite}
+  @property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+  @keyframes frameglow{to{--a:360deg}}
+  .frame .emb{position:absolute;left:calc(var(--u)*var(--fo)*-1 + var(--u)*6);top:calc(var(--u)*var(--fo)*-1 - var(--u)*26);display:flex;align-items:center;gap:calc(var(--u)*6)}
+  .frame .emb .ely-mark{width:calc(var(--u)*34);height:auto}
+  .frame .emb span{font:800 italic calc(var(--u)*12) 'Exo 2',sans-serif;letter-spacing:.2em;color:#F6F2FF;text-shadow:0 0 calc(var(--u)*8) rgba(155,92,255,.8)}
+  .frame .emb span b{color:#B57BFF}
+  .frame.round .glow,.frame.round .emb{display:none}
   .frame.round .edge{border-radius:50%;clip-path:none}
 
   /* ================= JOUEUR (à droite de la carte) ================= */
@@ -50,25 +66,25 @@
   #hud.map-right .player{left:auto;right:calc(100vw - var(--mx) + var(--u)*18)}
   .card{position:relative;background:linear-gradient(135deg,var(--panel2),var(--panel));border:calc(var(--u)*1) solid var(--line);
     clip-path:polygon(0 0,calc(100% - var(--u)*12) 0,100% calc(var(--u)*12),100% 100%,0 100%);padding:calc(var(--u)*9) calc(var(--u)*12)}
-  .card::after{content:"";position:absolute;left:0;top:0;width:calc(var(--u)*3);height:100%;background:linear-gradient(var(--cyan),var(--blue));box-shadow:0 0 calc(var(--u)*8) var(--cyan)}
+  .card::after{content:"";position:absolute;left:0;top:0;width:calc(var(--u)*3);height:100%;background:linear-gradient(#E9D5FF,#B57BFF,#7B2FF7);box-shadow:0 0 calc(var(--u)*8) var(--cyan)}
   .ident{display:flex;align-items:center;gap:calc(var(--u)*10)}
   .ident .who{flex:1;min-width:0}
   .ident small{display:block;font-size:calc(var(--u)*9.5);letter-spacing:.32em;color:var(--muted);font-weight:700}
-  .ident b{display:block;font-family:"Chakra Petch","Rajdhani",sans-serif;font-size:calc(var(--u)*17);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ident b{display:block;font-family:"Exo 2","Chakra Petch",sans-serif;font-style:italic;font-weight:800;font-size:calc(var(--u)*17);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ident b em{font-style:normal;color:var(--cyan)}
   .pid{flex:none;font-family:"Chakra Petch","Rajdhani",sans-serif;font-size:calc(var(--u)*12);font-weight:700;color:var(--cyan);
-    border:calc(var(--u)*1) solid rgba(34,211,238,.45);padding:calc(var(--u)*2) calc(var(--u)*8);background:rgba(34,211,238,.08);
+    border:calc(var(--u)*1) solid rgba(181,123,255,.5);padding:calc(var(--u)*2) calc(var(--u)*8);background:rgba(155,92,255,.12);
     clip-path:polygon(calc(var(--u)*6) 0,100% 0,calc(100% - var(--u)*6) 100%,0 100%)}
 
   .bars{display:flex;flex-direction:column;gap:calc(var(--u)*7)}
   .bar{display:grid;grid-template-columns:calc(var(--u)*18) 1fr calc(var(--u)*30);align-items:center;gap:calc(var(--u)*8);transition:opacity .3s}
   .bar.off{opacity:.35}
   .bar svg{width:calc(var(--u)*17);height:calc(var(--u)*17);fill:var(--c);filter:drop-shadow(0 0 calc(var(--u)*3) var(--c))}
-  .track{position:relative;height:calc(var(--u)*9);background:rgba(4,8,16,.75);border:calc(var(--u)*1) solid rgba(120,190,255,.14);overflow:hidden;
+  .track{position:relative;height:calc(var(--u)*9);background:rgba(8,4,18,.78);border:calc(var(--u)*1) solid rgba(190,150,255,.16);overflow:hidden;
     clip-path:polygon(calc(var(--u)*4) 0,100% 0,calc(100% - var(--u)*4) 100%,0 100%)}
   .fill{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(90deg,var(--c2),var(--c));box-shadow:0 0 calc(var(--u)*8) var(--c);
     transition:width .45s cubic-bezier(.2,.8,.2,1)}
-  .track::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*13),rgba(4,8,16,.85) calc(var(--u)*13) calc(var(--u)*15))}
+  .track::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*13),rgba(8,4,18,.85) calc(var(--u)*13) calc(var(--u)*15))}
   .val{text-align:right;font-weight:700;font-size:calc(var(--u)*13)}
   .bar.low .fill{animation:pulse 1s infinite}
   @keyframes pulse{50%{opacity:.4}}
@@ -76,7 +92,7 @@
   .needs{display:flex;align-items:center;gap:calc(var(--u)*10)}
   .ring{position:relative;width:calc(var(--u)*40);height:calc(var(--u)*40);flex:none}
   .ring svg.r{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
-  .ring .bg{fill:rgba(4,8,16,.8);stroke:rgba(120,190,255,.14);stroke-width:3}
+  .ring .bg{fill:rgba(8,4,18,.82);stroke:rgba(190,150,255,.16);stroke-width:3}
   .ring .fg{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;stroke-dasharray:100.5;stroke-dashoffset:0;filter:drop-shadow(0 0 2px var(--c));transition:stroke-dashoffset .45s}
   .ring .ic{position:absolute;inset:0;display:grid;place-items:center}
   .ring .ic svg{width:calc(var(--u)*17);height:calc(var(--u)*17);fill:var(--c)}
@@ -88,7 +104,7 @@
   .vtxt b{font-size:calc(var(--u)*13);letter-spacing:.06em}
   .vtxt span{font-size:calc(var(--u)*11);color:var(--muted)}
   .pips{display:flex;gap:calc(var(--u)*3);margin-top:calc(var(--u)*3)}
-  .pip{width:calc(var(--u)*12);height:calc(var(--u)*4);background:rgba(120,190,255,.18);transform:skewX(-20deg)}
+  .pip{width:calc(var(--u)*12);height:calc(var(--u)*4);background:rgba(190,150,255,.2);transform:skewX(-20deg)}
   .pip.on{background:var(--voice);box-shadow:0 0 calc(var(--u)*5) var(--voice)}
 
   /* ================= VÉHICULE (bas droite) ================= */
@@ -100,17 +116,17 @@
   .where .street{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
   .dial{position:relative;width:calc(var(--u)*230);height:calc(var(--u)*230)}
   .arcs{position:absolute;inset:0;width:100%;height:100%}
-  .arc-bg{fill:none;stroke:rgba(120,190,255,.12)}
-  .arc-speed{fill:none;stroke:url(#gSpeed);stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(34,211,238,.6));transition:stroke-dashoffset .15s linear}
+  .arc-bg{fill:none;stroke:rgba(190,150,255,.14)}
+  .arc-speed{fill:none;stroke:url(#gSpeed);stroke-linecap:round;filter:drop-shadow(0 0 5px rgba(155,92,255,.75));transition:stroke-dashoffset .15s linear}
   .arc-rpm{fill:none;stroke:var(--blue);transition:stroke-dashoffset .15s linear}
   .arc-rpm.red{stroke:var(--hp)}
   .tick{stroke:rgba(200,225,255,.35)} .tick.major{stroke:rgba(220,240,255,.8)}
   .tlabel{fill:var(--muted);font-size:11px;font-family:"Chakra Petch",sans-serif;text-anchor:middle;dominant-baseline:middle}
   .center{position:absolute;left:0;right:0;top:calc(var(--u)*70);display:flex;flex-direction:column;align-items:center}
-  .speed{font-family:"Chakra Petch",sans-serif;font-size:calc(var(--u)*50);font-weight:700;line-height:1;text-shadow:0 0 calc(var(--u)*14) rgba(34,211,238,.45)}
+  .speed{font-family:"Chakra Petch",sans-serif;font-size:calc(var(--u)*50);font-weight:700;line-height:1;text-shadow:0 0 calc(var(--u)*14) rgba(155,92,255,.6)}
   .unit{font-size:calc(var(--u)*11);letter-spacing:.3em;color:var(--muted)}
   .gear{margin-top:calc(var(--u)*8);min-width:calc(var(--u)*34);text-align:center;font-weight:700;font-size:calc(var(--u)*17);font-family:"Chakra Petch",sans-serif;
-    border:calc(var(--u)*1) solid rgba(34,211,238,.45);color:var(--cyan);padding:0 calc(var(--u)*6)}
+    border:calc(var(--u)*1) solid rgba(181,123,255,.5);color:var(--cyan);padding:0 calc(var(--u)*6)}
   .gear.r{color:var(--hp);border-color:var(--hp)}
   .altitude{display:none;margin-top:calc(var(--u)*8);font-weight:700;font-size:calc(var(--u)*15)}
   .altitude.on{display:block} .altitude small{margin-left:calc(var(--u)*4);color:var(--muted);font-size:calc(var(--u)*10)}
@@ -124,7 +140,7 @@
   .fuel.hide{display:none}
   .fuel svg{width:calc(var(--u)*16);height:calc(var(--u)*16);fill:var(--c)}
   .segs{flex:1;display:flex;gap:calc(var(--u)*3)}
-  .seg{flex:1;height:calc(var(--u)*7);background:rgba(120,190,255,.14);transform:skewX(-20deg)}
+  .seg{flex:1;height:calc(var(--u)*7);background:rgba(190,150,255,.16);transform:skewX(-20deg)}
   .seg.on{background:var(--c);box-shadow:0 0 calc(var(--u)*4) var(--c)}
   .fuel.low .seg.on{animation:pulse 1s infinite}
   .fuel .val{width:calc(var(--u)*40)}
@@ -136,7 +152,7 @@
 </head>
 <body>
 <div id="hud">
-  <div class="frame" id="frame"><i class="edge"></i><i class="br b1"></i><i class="br b2"></i><span class="tag">GPS</span></div>
+  <div class="frame" id="frame"><i class="edge"></i><i class="glow"></i><i class="br b1"></i><i class="br b2"></i><div class="emb" id="emb"><span>ELYZEA <b>FA</b></span></div></div>
 
   <!-- Joueur : identité, vie, bouclier, faim, soif, voix -->
   <div class="player">
@@ -177,7 +193,7 @@
     <div class="where"><span class="dir" id="dir">N</span><span class="street" id="street"></span></div>
     <div class="dial">
       <svg class="arcs" viewBox="0 0 230 230" aria-hidden="true">
-        <defs><linearGradient id="gSpeed" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3b82f6"/><stop offset=".65" stop-color="#22d3ee"/><stop offset="1" stop-color="#ff3b5c"/></linearGradient></defs>
+        <defs><linearGradient id="gSpeed" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7B2FF7"/><stop offset=".6" stop-color="#C9A6FF"/><stop offset="1" stop-color="#ff3b5c"/></linearGradient></defs>
         <g id="ticks"></g>
         <circle class="arc-bg" cx="115" cy="115" r="96" stroke-width="8"/>
         <circle class="arc-speed" id="arcSpeed" cx="115" cy="115" r="96" stroke-width="8"/>
@@ -206,6 +222,7 @@
   </div>
 </div>
 
+<script src="brand.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -247,12 +264,18 @@
     if (!first && !last) n.textContent = '—';
     $('pid').textContent = d.id != null ? `ID ${d.id}` : 'ID —';
   }
-  function setRect(r) {
+  // Emblème du logo sur le cadre (SVG : net à toutes les résolutions)
+  if (window.Ely) $('emb').insertAdjacentHTML('afterbegin', Ely.mark({ size: 34, live: true }));
+  function setRect(r, f) {
     if (!r || !(r.w > 0)) return;
-    root.setProperty('--mx', (r.x * 100) + 'vw');
-    root.setProperty('--my', (r.y * 100) + 'vh');
-    root.setProperty('--mw', (r.w * 100) + 'vw');
-    root.setProperty('--mh', (r.h * 100) + 'vh');
+    f = f || {};
+    const px = (v) => `calc(100vh/1080*${Number(v) || 0})`;
+    root.setProperty('--mx', `calc(${r.x * 100}vw + ${px(f.dx)})`);
+    root.setProperty('--my', `calc(${r.y * 100}vh + ${px(f.dy)})`);
+    root.setProperty('--mw', `calc(${r.w * 100}vw + ${px(f.dw)})`);
+    root.setProperty('--mh', `calc(${r.h * 100}vh + ${px(f.dh)})`);
+    if (f.inner != null) root.setProperty('--fi', Math.max(0, Math.min(40, Number(f.inner) || 0)));
+    if (f.outer != null) root.setProperty('--fo', Math.max(0, Math.min(60, Number(f.outer) || 0)));
     frame.classList.toggle('round', !!r.round);
     hud.classList.toggle('map-right', String(r.align || '').charAt(0) === 'R');
   }
@@ -351,7 +374,7 @@
     const d = e.data || {};
     if (d.action === 'update') update(d);
     else if (d.action === 'vehicle') vehicle(d.vehicle);
-    else if (d.action === 'rect') setRect(d.rect);
+    else if (d.action === 'rect') setRect(d.rect, d.frame);
     else if (d.action === 'ident') ident(d);
   });
 })();

@@ -13,8 +13,10 @@ shared_scripts {
 }
 client_script 'client.lua'
 server_scripts {
+    '@elyzea_core/lib/MySQL.lua',
     'questions.lua',
     'server.lua',
+    'server_identity.lua',
 }
 
 ui_page 'html/index.html'
@@ -23,6 +25,10 @@ files {
     'html/style.css',
     'html/app.js',
     'html/logo.png',
+    'html/brand.css',
+    'html/brand.js',
+    'html/cards.css',
+    'html/cards.js',
 }
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }

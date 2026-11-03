@@ -172,6 +172,7 @@ local function Headshot(ped)
     return ('https://nui-img/%s/%s'):format(txd, txd)
 end
 
+local reqN = 0
 local function ShowCard(meta, ownerSrc, slot)
     local ped = PlayerPedId()
     if ownerSrc then
@@ -179,8 +180,15 @@ local function ShowCard(meta, ownerSrc, slot)
         ped = pl ~= -1 and GetPlayerPed(pl) or 0   -- hors de portée : pas de photo plutôt que la sienne
     end
     Focus(true)
-    SendNUIMessage({ action = 'card', meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot })
+    reqN = (reqN or 0) + 1
+    local reqId = 'permis:' .. reqN
+    SendNUIMessage({ action = 'card', meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot, reqId = reqId })
+    -- Catégories suspendues par la police (elyzea_papiers) : « SUSPENDU » sur la carte
+    if GetResourceState('elyzea_papiers') == 'started' then TriggerServerEvent('elyzea_papiers:docState', reqId, meta.citizenid, meta.number) end
 end
+RegisterNetEvent('elyzea_papiers:docStateReply', function(reqId, state)
+    if type(reqId) == 'string' and reqId:sub(1, 7) == 'permis:' then SendNUIMessage({ action = 'cardState', reqId = reqId, state = state }) end
+end)
 
 -- Utilisation de l'objet (elyzea_inventory › client.export)
 exports('useLicense', function(data, slot)

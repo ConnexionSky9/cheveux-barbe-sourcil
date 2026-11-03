@@ -220,7 +220,7 @@ local function GiveLicense(src, cat)
         local shorts = {}
         for _, c in ipairs(cats) do shorts[#shorts + 1] = c.short end
         local meta = {
-            label = 'Permis de conduire', number = d.number, firstname = ci.firstname, lastname = ci.lastname,
+            label = 'Permis de conduire', number = d.number, citizenid = cid, firstname = ci.firstname, lastname = ci.lastname,
             birthdate = ci.birthdate, gender = ci.gender, categories = cats,
             description = ('%s %s · catégories %s · n° %s'):format(ci.firstname or '', ci.lastname or '', table.concat(shorts, ', '), d.number),
         }
@@ -331,6 +331,14 @@ end)
 local function Str(v, max) return (tostring(v or ''):gsub('^%s+', ''):gsub('%s+$', '')):sub(1, max or 200) end
 local VALID = { common = true }
 for key in pairs(Config.Categories) do VALID[key] = true end
+
+-- Permis d'un personnage (pour elyzea_papiers / appli Identité du téléphone) :
+-- { number = 'EL-…', licenses = { car = '03/10/2026', moto = …, truck = … } }
+exports('GetLicenses', function(cid)
+    if type(cid) ~= 'string' or cid == '' then return nil end
+    local d = Load(cid)
+    return { number = d.number, licenses = d.licenses }
+end)
 
 exports('AdminData', function()
     local counts = MySQL.single.await('SELECT COUNT(*) AS n FROM elyzea_permis WHERE licenses IS NOT NULL AND licenses <> "{}"') or {}

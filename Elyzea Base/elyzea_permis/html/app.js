@@ -165,34 +165,31 @@ function fault(text) {
     setTimeout(() => el.remove(), 3500);
 }
 
-/* ---------- Permis de conduire ---------- */
+/* ---------- Permis de conduire (design Elyzea, ElyCards) ---------- */
+const CAT_KEY = { B: 'car', A: 'moto', C: 'truck' };
+let CardM = null;
+function drawLicence(state) {
+    const m = CardM; if (!m) return;
+    const d = Object.assign({}, m.meta || {});
+    d.categories = (d.categories || []).map((c) => {
+        const key = c.key || CAT_KEY[c.short];
+        return Object.assign({}, c, { key, suspended: !!(state && state[key]) });
+    });
+    $('#license').innerHTML = ElyCards.render({ type: 'licence', data: d, photo: m.photo }, { width: Math.min(560, innerWidth * .42), enter: !state });
+}
 function openCard(m) {
-    const d = m.meta || {};
-    const have = {};
-    (d.categories || []).forEach((c) => { have[c.short] = c.date; });
-    const sex = d.gender === 1 || d.gender === '1' ? 'F' : 'M';
-    $('#license').innerHTML = `
-        <div class="lc-head"><img src="logo.png" alt=""><div><h2>PERMIS DE CONDUIRE</h2><small>État de San Andreas · Elyzea</small></div></div>
-        <div class="lc-body">
-            <div class="photo">${m.photo ? `<img src="${esc(m.photo)}" alt="">` : '👤'}</div>
-            <div class="fields">
-                <div class="field"><small>Nom</small><b>${esc((d.lastname || '').toUpperCase())}</b></div>
-                <div class="field"><small>Prénom</small><b>${esc(d.firstname || '')}</b></div>
-                <div class="field"><small>Né(e) le</small><b>${esc(frDate(d.birthdate))}</b></div>
-                <div class="field"><small>Sexe</small><b>${sex}</b></div>
-                <div class="field wide"><small>N° de permis</small><b class="num">${esc(d.number || '')}</b></div>
-            </div>
-        </div>
-        <div class="lc-cats">${[['B', 'Voiture', '🚗'], ['A', 'Moto', '🏍️'], ['C', 'Poids lourd', '🚚']].map(([k, l, ico]) => `<div class="lc-cat ${have[k] ? 'on' : ''}">
-            <span class="lc-check">${have[k] ? '✓' : ''}</span>
-            <span class="lc-name"><b>${ico} ${l}</b><small>${have[k] ? `Obtenu le ${esc(have[k])}` : 'Non obtenu'}</small></span>
-            <span class="lc-letter ${have[k] ? 'gold-text' : ''}">${k}</span></div>`).join('')}</div>`;
+    CardM = m;
+    drawLicence(null);
     $('#licenseActions').innerHTML = m.own
-        ? `<button class="btn" data-card="close">Ranger</button><button class="btn primary" data-card="show" data-slot="${m.slot}">Montrer à la personne la plus proche</button>`
-        : '<button class="btn primary" data-card="close">Rendre le permis</button>';
+        ? `<button class="ely-btn ghost" data-card="close">Ranger</button><button class="ely-btn" data-card="show" data-slot="${m.slot}">Montrer à la personne la plus proche</button>`
+        : '<button class="ely-btn" data-card="close">Rendre le permis</button>';
     $('#app').classList.add('hidden');
     $('#card').classList.remove('hidden');
 }
+window.addEventListener('message', (e) => {
+    const m = e.data || {};
+    if (m.action === 'cardState' && CardM && m.reqId === CardM.reqId) drawLicence(m.state || {});
+});
 $('#licenseActions').addEventListener('click', (e) => {
     const b = e.target.closest('[data-card]');
     if (!b) return;

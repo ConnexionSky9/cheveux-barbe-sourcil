@@ -22,6 +22,10 @@ files {
     'html/style.css',
     'html/app.js',
     'html/logo.png',
+    'html/brand.css',
+    'html/brand.js',
+    'html/cards.css',
+    'html/cards.js',
 }
 
 dependencies { 'elyzea_core', 'elyzea_inventory' }

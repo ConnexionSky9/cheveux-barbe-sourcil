@@ -72,7 +72,9 @@ local function NativeComponents()
     SetMinimapClipType(0)
     SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, 0.002, 0.150, 0.188888)
     SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.020, 0.032, 0.111, 0.159)
-    SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.03, 0.022, 0.266, 0.237)
+    -- Le flou d'origine (-0.03, 0.022, 0.266, 0.237) est bien plus grand que la carte : c'est le halo sombre
+    -- qui dépasse du cadre du HUD. Il est ramené exactement sur la carte : rien ne sort du rectangle.
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.0045, 0.002, 0.150, 0.188888)
 end
 
 -- Rectangle réellement occupé à l'écran (fractions 0..1 depuis le coin haut gauche), pour le cadre du HUD
@@ -137,10 +139,9 @@ local function place(relayout)
         MinimapRect = rect
         if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
         -- Une seule fois par session : remettre la carte à sa place d'origine si un ancien réglage l'avait déplacée
-        if not nativeDone and not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
-            nativeDone = true
-            NativeComponents()
-            RefreshGta()
+        if not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
+            NativeComponents()   -- sans effet visible s'ils sont déjà en place (aucun clignotement)
+            if not nativeDone or relayout then nativeDone = true RefreshGta() end
         end
         return
     end

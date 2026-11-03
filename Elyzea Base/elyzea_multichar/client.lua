@@ -143,7 +143,7 @@ local function openUI(skipIntro)
         }
     end
     uiOpen = true
-    SendNUIMessage({ action = 'openSelect', characters = clean, skipIntro = skipIntro })
+    SendNUIMessage({ action = 'openSelect', characters = clean, skipIntro = skipIntro, slots = Config.Slots })
     SetNuiFocus(true, true)
     SetNuiFocusKeepInput(false)
 end

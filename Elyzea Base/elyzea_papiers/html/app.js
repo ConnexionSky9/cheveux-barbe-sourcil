@@ -74,16 +74,31 @@ function ppaCard(m) {
         </div>`;
 }
 
+// Carte au design Elyzea (ElyCards) ; PPA suspendu par la police : « SUSPENDU »
+let CardM = null;
+function drawCard(state) {
+    const m = CardM; if (!m) return;
+    const w = Math.min(560, innerWidth * .42);
+    const doc = m.kind === 'ppa'
+        ? { type: 'ppa', sub: m.sub, data: m.meta || {}, photo: m.photo, now: m.now, suspended: !!(state && state.ppa), suspendedReason: state && state.ppaReason }
+        : { type: 'id', data: m.meta || {}, photo: m.photo };
+    $('#doc').innerHTML = ElyCards.render(doc, { width: w, enter: !state });
+}
 function openCard(m) {
+    CardM = m;
     const doc = $('#doc');
-    doc.className = `doc ${m.kind} ${m.sub || ''}`;
-    doc.innerHTML = m.kind === 'ppa' ? ppaCard(m) : idCard(m);
+    doc.className = 'doc ely';
+    drawCard(null);
     const what = m.kind === 'ppa' ? 'le permis' : 'la carte';
     $('#actions').innerHTML = m.own
-        ? `<button class="btn" data-a="close">Ranger</button><button class="btn primary" data-a="show" data-slot="${Number(m.slot)}">Montrer à la personne la plus proche</button>`
-        : `<button class="btn primary" data-a="close">Rendre ${what}</button>`;
+        ? `<button class="ely-btn ghost" data-a="close">Ranger</button><button class="ely-btn" data-a="show" data-slot="${Number(m.slot)}">Montrer à la personne la plus proche</button>`
+        : `<button class="ely-btn" data-a="close">Rendre ${what}</button>`;
     $('#card').classList.remove('hidden');
 }
+window.addEventListener('message', (e) => {
+    const m = e.data || {};
+    if (m.action === 'cardState' && CardM && m.reqId === CardM.reqId) drawCard(m.state || {});
+});
 $('#actions').addEventListener('click', (e) => {
     const b = e.target.closest('[data-a]');
     if (!b) return;

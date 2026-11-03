@@ -40,6 +40,7 @@ local COLUMNS = { -- colonnes ajoutées au fil des versions
     { 'elyzea_phones', 'passcode', 'VARCHAR(40) NULL' },
     { 'elyzea_gallery', 'type', "VARCHAR(10) NOT NULL DEFAULT 'photo'" },
     { 'elyzea_gallery', 'duration', 'INT NOT NULL DEFAULT 0' },
+    { 'elyzea_gallery', 'data', 'LONGTEXT NULL' },          -- cartes (identité, permis, PPA) enregistrées
     { 'elyzea_tracks', 'thumb', 'VARCHAR(500) NULL' },
     { 'elyzea_tracks', 'source', "VARCHAR(12) NOT NULL DEFAULT 'direct'" },
 }
@@ -957,8 +958,12 @@ end)
 --  Galerie
 -- ---------------------------------------------------------
 Register('getGallery', function(src, me)
-    local rows = MySQL.query.await('SELECT id, url, type, duration, UNIX_TIMESTAMP(created_at) AS ts FROM elyzea_gallery WHERE owner = ? ORDER BY id DESC', { me.identifier })
-    return { ok = true, photos = rows or {} }
+    local rows = MySQL.query.await('SELECT id, url, type, duration, data, UNIX_TIMESTAMP(created_at) AS ts FROM elyzea_gallery WHERE owner = ? ORDER BY id DESC', { me.identifier }) or {}
+    for _, r in ipairs(rows) do
+        if r.type == 'card' then r.card = json.decode(r.data or 'null') end
+        r.data = nil
+    end
+    return { ok = true, photos = rows }
 end)
 
 Register('savePhoto', function(src, me, args)
@@ -1169,12 +1174,19 @@ local function DeviceName(src, p)
     return 'Aura ' .. (GetCharName(src):match('^(%S+)') or '')
 end
 
+-- Téléphone sorti (ouvert en main) : seuls ces téléphones se voient et s'échangent leurs fiches et leurs cartes
+local PhoneOut = {}
+RegisterNetEvent('elyzea_aura:server:phoneOut', function(on) PhoneOut[source] = on == true or nil end)
+AddEventHandler('playerDropped', function() PhoneOut[source] = nil end)
+local function IsOut(s) return PhoneOut[s] == true end
+
 Register('getNearby', function(src, me)
     if not Config.AuraDrop.Enabled then return { ok = false } end
+    if not IsOut(src) then return { ok = true, devices = {} } end
     local myCoords = GetEntityCoords(GetPlayerPed(src))
     local out = {}
     for s, p in pairs(Players) do
-        if s ~= src and GetPlayerPing(s) > 0 and not p.settings.airplane and p.settings.auraDrop ~= false then
+        if s ~= src and IsOut(s) and GetPlayerPing(s) > 0 and not p.settings.airplane and p.settings.auraDrop ~= false then
             local dist = #(myCoords - GetEntityCoords(GetPlayerPed(s)))
             if dist <= Config.AuraDrop.Distance then
                 out[#out + 1] = { id = s, device = DeviceName(s, p), distance = math.floor(dist * 10) / 10 }
@@ -1189,6 +1201,7 @@ Register('auraDropSend', function(src, me, args)
     local target = tonumber(args.id)
     local tp = target and Players[target]
     if not tp then return { ok = false, error = 'Appareil hors de portée' } end
+    if not IsOut(target) then return { ok = false, error = 'Le téléphone de cette personne est rangé' } end
     if #(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(GetPlayerPed(target))) > Config.AuraDrop.Distance + 2.0 then
         return { ok = false, error = 'Appareil hors de portée' }
     end
@@ -2406,4 +2419,110 @@ exports('BizCallEnd', function(callId, reason)
     if not call or not call.biz then return end
     call.endedByBiz = true
     EndCall(tonumber(callId), call.state == 'active' and 'hangup' or ((reason == 'refusé') and 'declined' or 'timeout'))
+end)
+
+-- =========================================================
+--  IDENTITÉ : carte d'identité, permis, PPA (données : elyzea_papiers)
+--  · montrer une carte à un téléphone SORTI à proximité ;
+--  · celui qui la reçoit peut l'enregistrer dans sa galerie (le propriétaire est prévenu) ;
+--  · un policier en service qui reçoit un permis / PPA peut le suspendre ou le rétablir.
+-- =========================================================
+local ID_DISTANCE = (Config.Identity and Config.Identity.Distance) or 3.5
+local Shares, shareCounter = {}, 0
+local function PapiersOn() return GetResourceState('elyzea_papiers') == 'started' end
+local function DocsOf(src)
+    if not PapiersOn() then return nil end
+    local ok, d = pcall(function() return exports.elyzea_papiers:GetIdentityDocs(src) end)
+    return ok and type(d) == 'table' and d or nil
+end
+local function CanSuspend(src)
+    if not PapiersOn() then return false end
+    local ok, r = pcall(function() return exports.elyzea_papiers:CanSuspend(src) end)
+    return ok and r == true
+end
+local function Near(a, b, max)
+    local pa, pb = GetPlayerPed(a), GetPlayerPed(b)
+    if pa == 0 or pb == 0 then return false end
+    return #(GetEntityCoords(pa) - GetEntityCoords(pb)) <= max
+end
+local DOC_KINDS = { id = true, licence = true, ppa = true }
+
+Register('idDocs', function(src)
+    if not PapiersOn() then return { ok = false, error = 'Papiers indisponibles (elyzea_papiers non démarrée)' } end
+    return { ok = true, docs = DocsOf(src) or {}, police = CanSuspend(src) }
+end)
+
+-- Téléphones sortis à proximité
+Register('idNearby', function(src, me)
+    if not IsOut(src) then return { ok = true, devices = {} } end
+    local out = {}
+    for s, p in pairs(Players) do
+        if s ~= src and IsOut(s) and GetPlayerPing(s) > 0 and not p.settings.airplane and Near(src, s, ID_DISTANCE) then
+            out[#out + 1] = { id = s, device = DeviceName(s, p), distance = math.floor(#(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(GetPlayerPed(s))) * 10) / 10 }
+        end
+    end
+    table.sort(out, function(a, b) return a.distance < b.distance end)
+    return { ok = true, devices = out }
+end)
+
+-- Montrer une carte : le document est relu ici (jamais envoyé par le téléphone qui le montre)
+Register('idShow', function(src, me, args)
+    local target, kind = tonumber(args.id), tostring(args.kind or '')
+    if not DOC_KINDS[kind] then return { ok = false, error = 'Document inconnu' } end
+    local tp = target and Players[target]
+    if not tp or target == src then return { ok = false, error = 'Appareil hors de portée' } end
+    if not IsOut(src) then return { ok = false, error = 'Sortez votre téléphone' } end
+    if not IsOut(target) then return { ok = false, error = 'Le téléphone de cette personne est rangé' } end
+    if not Near(src, target, ID_DISTANCE + 1.5) then return { ok = false, error = 'Appareil hors de portée' } end
+    local doc = (DocsOf(src) or {})[kind]
+    if not doc then return { ok = false, error = 'Vous n\'avez pas ce document' } end
+    shareCounter = shareCounter + 1
+    local id = shareCounter
+    Shares[id] = { from = src, to = target, kind = kind, doc = doc, fromDevice = DeviceName(src, me), at = os.time() }
+    TriggerClientEvent('elyzea_aura:client:idCard', target, { shareId = id, doc = doc, kind = kind, from = src, device = Shares[id].fromDevice, police = CanSuspend(target) })
+    SetTimeout(30 * 60000, function() Shares[id] = nil end)
+    return { ok = true, device = DeviceName(target, tp) }
+end)
+
+local function SaveCard(owner, doc)
+    return MySQL.insert.await('INSERT INTO elyzea_gallery (owner, url, type, data) VALUES (?, ?, ?, ?)', { owner, 'card', 'card', json.encode(doc) })
+end
+
+-- Enregistrer dans la galerie une carte reçue : le propriétaire est prévenu
+Register('idSave', function(src, me, args)
+    local sh = Shares[tonumber(args.shareId) or -1]
+    if not sh or sh.to ~= src then return { ok = false, error = 'Cette carte n\'est plus disponible' } end
+    if sh.saved then return { ok = false, error = 'Carte déjà enregistrée' } end
+    sh.saved = true
+    SaveCard(me.identifier, sh.doc)
+    if Players[sh.from] then
+        Notify(sh.from, { app = 'identite', key = 'idSaved', params = { device = DeviceName(src, me), card = ({ id = 'carte d\'identité', licence = 'permis', ppa = 'PPA' })[sh.kind] } })
+    end
+    return { ok = true }
+end)
+
+-- Enregistrer sa propre carte dans sa galerie
+Register('idSaveOwn', function(src, me, args)
+    local kind = tostring(args.kind or '')
+    local doc = DOC_KINDS[kind] and (DocsOf(src) or {})[kind]
+    if not doc then return { ok = false, error = 'Vous n\'avez pas ce document' } end
+    SaveCard(me.identifier, doc)
+    return { ok = true }
+end)
+
+-- Police : suspendre / rétablir le permis (une catégorie ou tout) ou le PPA de la personne qui a montré sa carte
+Register('idSuspend', function(src, me, args)
+    local sh = Shares[tonumber(args.shareId) or -1]
+    if not sh or sh.to ~= src then return { ok = false, error = 'Cette carte n\'est plus disponible' } end
+    local what = tostring(args.what or '')
+    if sh.kind == 'ppa' then what = 'ppa'
+    elseif sh.kind ~= 'licence' or not ({ car = true, moto = true, truck = true, licence = true })[what] then return { ok = false, error = 'Action impossible' } end
+    if not Players[sh.from] then return { ok = false, error = 'La personne n\'est plus là' } end
+    local ok, a, b = pcall(function() return exports.elyzea_papiers:SetSuspension(src, sh.from, what, args.on == true, args.reason) end)
+    if not ok then return { ok = false, error = 'Papiers indisponibles' } end
+    if not a then return { ok = false, error = b or 'Refusé' } end
+    -- La carte affichée chez le policier est mise à jour
+    local doc = (DocsOf(sh.from) or {})[sh.kind]
+    if doc then sh.doc = doc end
+    return { ok = true, doc = sh.doc, message = b }
 end)

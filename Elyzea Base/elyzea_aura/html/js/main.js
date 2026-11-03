@@ -119,6 +119,7 @@ const handlers = {
     S.gameTime = time || null;
     S.open = true;
     applySettings(); setVisibility();
+    elyMigrate();
     loadContacts().then(() => { if (S.currentApp && !S.locked) refreshCurrent(); });
     if (typeof svcLoadNames === 'function') svcLoadNames();   // noms des entreprises (numéros publics)
     api('getConversations').then(r => {
@@ -212,6 +213,7 @@ const handlers = {
       appendBubble({ mine: false, message: d.message, ts: d.ts }); Sound.ping();
     }
   },
+  idCard(d) { idtOnCard(d); },
   auraDrop(d) {
     S.pendingDrops.push(d);
     if (S.open && !S.locked) showDropPrompt(d);
@@ -290,12 +292,32 @@ const Mock = {
     { netId: 3, name: 'Bati 801', plate: 'MOTO01', distance: 2300, locked: true, engine: false, neon: false, lights: false, doorsOpen: 0, occupied: true }] }; },
   carState() { return { ok: true, state: JSON.parse(JSON.stringify(this.car)), colors: [[124, 108, 255], [111, 231, 242], [255, 111, 158], [255, 181, 71], [79, 224, 176], [255, 255, 255]], x: 1, y: 2, distance: 40 }; },
   saveMedia(kind, url, secs) { this.gallery.unshift({ id: Date.now(), url, type: kind, duration: secs, ts: Math.floor(Date.now() / 1000) }); return { ok: true }; },
+  susp: { car: false, moto: true, truck: false, ppa: false },
+  idDocs() {
+    const base = { firstname: 'Léna', lastname: 'Duval', birthdate: '1998-04-12', gender: 1, nationality: 'Elyzéenne', citizenid: 'ABC12345' };
+    return {
+      id: { type: 'id', data: Object.assign({ number: 'ID-482913', issued: '02/11/2026' }, base) },
+      licence: { type: 'licence', data: Object.assign({ number: 'EL-104223', categories: [{ key: 'car', short: 'B', label: 'Voiture', date: '03/10/2026', suspended: this.susp.car }, { key: 'moto', short: 'A', label: 'Moto', date: '05/10/2026', suspended: this.susp.moto }] }, base) },
+      ppa: { type: 'ppa', sub: 'civil', suspended: this.susp.ppa, data: Object.assign({ number: 'PPA-551204', issued: '01/11/2026', expires: '30/01/2027', expiresAt: Math.floor(Date.now() / 1000) + 9e6, doctor: 'Dr Morel', categories: ['Pistolet'] }, base) },
+    };
+  },
   handle(endpoint, d) {
     const n = Math.floor(Date.now() / 1000);
     if (endpoint === 'carplayAction') return this.carAction(d.action, d.value);
     if (endpoint === 'getLocation') return { x: 215.4, y: -810.2, street: 'Vespucci Boulevard', zone: 'Pillbox Hill' };
+    if (endpoint === 'idPhoto') return { url: null };
     if (endpoint !== 'request') return { ok: true };
     const a = d.args || {};
+    // Identité (aperçu)
+    if (d.name === 'idDocs') return { ok: true, police: true, docs: this.idDocs() };
+    if (d.name === 'idNearby') return { ok: true, devices: [{ id: 4, device: 'Aura Inès', distance: 1.8 }] };
+    if (d.name === 'idShow') return { ok: true, device: 'Aura Inès' };
+    if (d.name === 'idSaveOwn') { this.gallery.unshift({ id: Date.now(), type: 'card', card: this.idDocs()[a.kind], ts: n }); return { ok: true }; }
+    if (d.name === 'idSave') return { ok: true };
+    if (d.name === 'idSuspend') {
+      if (a.what === 'ppa') this.susp.ppa = a.on; else if (a.what === 'licence') ['car', 'moto'].forEach(k => this.susp[k] = a.on); else this.susp[a.what] = a.on;
+      return { ok: true, doc: this.idDocs()[a.what === 'ppa' ? 'ppa' : 'licence'] };
+    }
     if (d.name === 'createAccount') { this.accounts[a.app] = { username: a.username || 'lena', display_name: a.display || 'Lena Duval' }; return { ok: true, account: this.accounts[a.app] }; }
     if (d.name === 'setPasscode') { this.code = a.code; return { ok: true, length: a.code.length }; }
     if (d.name === 'unlock') return { ok: !this.code || a.code === this.code };
@@ -373,7 +395,7 @@ if (IS_BROWSER) {
     number: '555-0142', name: 'Lena Duval', bank: 48250, bankEnabled: true, auraDrop: true, cameraEnabled: true,
     camera: { method: 'server', maxVideo: 20, bitrate: 1500000 }, itoune: { spotify: true, distance: 12, maxVolume: .6 }, dating: { minAge: 18, maxPhotos: 4 },
     passcode: { set: false },
-    settings: { setup: false, lang: 'fr', theme: 'dark', wallpaper: 'halo', accent: 'plasma', iconStyle: 'prisme', clockStyle: 'stack', frame: 'titane', edgeLight: true, faceid: false, lockOnClose: true, showBankWidget: true, auraDrop: true, deviceName: '', cardName: '', ringtone: 'cristal', silent: true, airplane: false, notifications: true, zoom: 100, installed: [] },
+    settings: { setup: false, lang: 'fr', theme: 'dark', wallpaper: 'elyzea', accent: 'elyzea', iconStyle: 'prisme', clockStyle: 'stack', frame: 'elyzea', edgeLight: true, faceid: false, lockOnClose: true, showBankWidget: true, auraDrop: true, deviceName: '', cardName: '', ringtone: 'cristal', silent: true, airplane: false, notifications: true, zoom: 100, installed: [] },
     services: [{ id: 'police', label: 'Police', color: '#9C8CFF', icon: 'shield' }, { id: 'ambulance', label: 'Secours', color: '#FF8FA3', icon: 'cross' }, { id: 'mechanic', label: 'Dépannage', color: '#F5C77E', icon: 'wrench' }, { id: 'taxi', label: 'Taxi', color: '#7ED6C1', icon: 'car' }],
     places: [{ id: 1, label: 'Commissariat de Mission Row' }, { id: 2, label: 'Hôpital Pillbox Hill' }]
   } });

@@ -99,3 +99,22 @@ Config.PPA = {
 }
 
 -- Les questions du test PPA sont dans questions.lua (fichier lu seulement par le serveur : les joueurs ne voient pas les réponses).
+
+-- =====================================================================
+--  IDENTITÉ (appli « Identité » du téléphone Elyzea Aura)
+--  Carte d'identité, permis de conduire (B / A / C) et PPA, montrés de
+--  téléphone à téléphone. La police (en service) peut suspendre un permis
+--  (une catégorie ou tout le permis) ou le PPA : la carte reste, avec
+--  « SUSPENDU » écrit dessus. Les suspensions sont enregistrées en base.
+-- =====================================================================
+Config.Identity = {
+    -- Métiers qui peuvent suspendre / rétablir (si elyzea_police n'est pas démarrée) ; il faut être en service
+    policeJobs = { 'police', 'sheriff', 'gendarmerie', 'lspd', 'bcso' },
+    suspendDistance = 10.0,     -- distance max entre le policier et la personne
+    -- Catégories du permis (clé elyzea_permis → lettre, nom, permis enregistré dans le personnage)
+    licence = {
+        { key = 'car',   short = 'B', label = 'Voiture',     license = 'driver' },
+        { key = 'moto',  short = 'A', label = 'Moto',        license = 'moto' },
+        { key = 'truck', short = 'C', label = 'Poids lourd', license = 'truck' },
+    },
+}

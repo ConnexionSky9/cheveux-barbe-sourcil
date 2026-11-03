@@ -16,5 +16,7 @@ client_scripts {
 
 files {
     'html/index.html',
+    'html/brand.css',
+    'html/brand.js',
     'minimap/radarmask.png',
 }

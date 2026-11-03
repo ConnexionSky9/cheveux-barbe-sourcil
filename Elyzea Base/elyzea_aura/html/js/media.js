@@ -202,21 +202,25 @@ async function uploadMedia(kind, blob, secs) {
 Views.gallery = async ({ filter = 'all' } = {}) => {
   frame({ title: t('Galerie'),
     action: S.profile?.cameraEnabled ? `<button class="icon-btn icon-btn--accent" data-cam aria-label="${t('Prendre une photo')}">${icon('camera')}</button>` : '',
-    tabs: tabsHtml([['all', t('Tout')], ['photo', t('Photos')], ['video', t('Vidéos')]], filter, 'data-gf'), body: loading() });
+    tabs: tabsHtml([['all', t('Tout')], ['photo', t('Photos')], ['video', t('Vidéos')], ['card', t('Cartes')]], filter, 'data-gf'), body: loading() });
   $('[data-cam]', appView)?.addEventListener('click', () => openApp('camera'));
   $$('[data-gf]', appView).forEach(b => b.onclick = () => { setParams({ filter: b.dataset.gf }); Views.gallery({ filter: b.dataset.gf }); });
   const res = await api('getGallery');
   if (S.currentApp !== 'gallery') return;
   const items = (res.photos || []).filter(p => filter === 'all' || (p.type || 'photo') === filter);
   $('.app__body', appView).innerHTML = items.length
-    ? `<div class="gallery">${items.map(p => p.type === 'video'
+    ? `<div class="gallery">${items.map(p => p.type === 'card' ? galleryCardTile(p) : p.type === 'video'
         ? `<button class="gal-video" data-item="${p.id}" aria-label="${t('Vidéo')}"><video src="${esc(p.url)}" muted preload="metadata" playsinline></video>
             <span class="gal-play">${icon('play')}</span>${p.duration ? `<span class="gal-dur">${duration(p.duration)}</span>` : ''}</button>`
         : `<button data-item="${p.id}" style="background-image:url('${esc(p.url)}')" aria-label="${t('Photo')}"></button>`).join('')}</div>`
+    : filter === 'card' ? empty(t('Aucune carte'), t('Les cartes d\'identité, permis et PPA que vous enregistrez arrivent ici.'))
     : empty(filter === 'video' ? t('Aucune vidéo') : t('Aucune photo'), t('Ce que vous filmez ou photographiez avec l\'appareil photo arrive ici.'),
         S.profile?.cameraEnabled ? `<button class="btn" data-cam2>${icon('camera')}${t('Ouvrir l\'appareil photo')}</button>` : '');
   $('[data-cam2]', appView)?.addEventListener('click', () => openApp('camera'));
-  $$('[data-item]', appView).forEach(b => b.onclick = () => openMedia(items.find(x => x.id == b.dataset.item), filter));
+  $$('[data-item]', appView).forEach(b => b.onclick = () => {
+    const it = items.find(x => x.id == b.dataset.item);
+    if (it && it.type === 'card') openGalleryCard(it, filter); else openMedia(it, filter);
+  });
 };
 function openMedia(p, filter) {
   const video = p.type === 'video';

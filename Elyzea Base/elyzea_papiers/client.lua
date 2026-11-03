@@ -22,6 +22,7 @@ local function Kind(item, meta)
     return 'id'
 end
 
+local reqN = 0
 local function ShowCard(item, meta, ownerSrc, slot)
     local ped = PlayerPedId()
     if ownerSrc then
@@ -30,9 +31,16 @@ local function ShowCard(item, meta, ownerSrc, slot)
     end
     local kind, sub = Kind(item, meta)
     Focus(true)
+    reqN = reqN + 1
+    local reqId = 'papiers:' .. reqN
     SendNUIMessage({ action = 'card', kind = kind, sub = sub, meta = meta, photo = Headshot(ped), own = slot ~= nil, slot = slot,
-        now = GetCloudTimeAsInt() })
+        now = GetCloudTimeAsInt(), reqId = reqId })
+    -- PPA suspendu par la police : « SUSPENDU » sur la carte
+    if kind == 'ppa' then TriggerServerEvent('elyzea_papiers:docState', reqId, meta.citizenid) end
 end
+RegisterNetEvent('elyzea_papiers:docStateReply', function(reqId, state)
+    if type(reqId) == 'string' and reqId:sub(1, 8) == 'papiers:' then SendNUIMessage({ action = 'cardState', reqId = reqId, state = state }) end
+end)
 
 -- Utilisation de l'objet (elyzea_inventory › client.export)
 exports('useDocument', function(data, slot)

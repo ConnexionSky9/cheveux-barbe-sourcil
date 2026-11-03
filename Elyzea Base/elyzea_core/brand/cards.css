@@ -1,0 +1,88 @@
+/* =====================================================================
+   ELYZEA FA · CARTES OFFICIELLES (identité, permis, PPA)
+   Format carte bancaire (85,6 × 54 mm). Taille : style="--cw: 340px".
+   Tout est en « em » : la carte reste identique à toutes les tailles.
+   ===================================================================== */
+.ely-card {
+  --cw: 340px; --acc: #9B5CFF; --acc2: #6D28D9; --acc-soft: rgba(155, 92, 255, .22);
+  position: relative; width: var(--cw); aspect-ratio: 85.6 / 54; font-size: calc(var(--cw) / 34);
+  border-radius: 1.05em; overflow: hidden; color: #F6F2FF; font-family: 'Manrope', 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--acc-soft), transparent 60%),
+    radial-gradient(90% 80% at 0% 100%, rgba(59, 15, 134, .55), transparent 70%),
+    linear-gradient(150deg, #1A0F33 0%, #0D0820 60%, #07040F 100%);
+  box-shadow: 0 1.6em 3em rgba(0, 0, 0, .55), inset 0 0 0 .08em rgba(214, 190, 255, .28), 0 0 2.2em rgba(123, 47, 247, .18);
+  isolation: isolate; user-select: none; transform-style: preserve-3d;
+}
+.ely-card.enter { animation: ely-card-in .7s cubic-bezier(.2, .9, .25, 1) both; }
+@keyframes ely-card-in { from { opacity: 0; transform: perspective(900px) rotateY(-28deg) rotateX(8deg) translateY(1.2em) scale(.92); } }
+/* Hologramme qui glisse sur la carte */
+.ely-card::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: screen; opacity: .55;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .0) 38%, rgba(201, 166, 255, .35) 45%, rgba(111, 231, 242, .25) 50%, rgba(255, 255, 255, 0) 58%, transparent 66%);
+  background-size: 250% 100%; animation: ely-holo 6s ease-in-out infinite;
+}
+@keyframes ely-holo { 0%, 100% { background-position: 120% 0; } 50% { background-position: -20% 0; } }
+/* Arc du logo en filigrane */
+.ely-card .c-arc { position: absolute; z-index: 0; width: 15em; height: 15em; right: -4.2em; top: -3.6em; border-radius: 50%;
+  border: .35em solid transparent; border-left-color: rgba(181, 123, 255, .35); border-bottom-color: rgba(181, 123, 255, .12); transform: rotate(18deg); }
+.ely-card .c-wm { position: absolute; z-index: 0; right: 1.2em; bottom: 2.4em; opacity: .1; }
+.ely-card .c-sky { position: absolute; z-index: 0; left: 0; right: 0; bottom: 0; height: 2.6em; opacity: .9; }
+.ely-card .c-sky .ely-skyline { height: 100%; }
+.ely-card .c-band { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: .32em; background: linear-gradient(90deg, var(--acc2), var(--acc), #E9D5FF); }
+
+.ely-card .c-head { position: relative; z-index: 2; display: flex; align-items: center; gap: .6em; padding: .9em 1.1em .3em; }
+.ely-card .c-head .ely-mark { width: 3em; height: auto; flex: none; }
+.ely-card .c-titles { flex: 1; min-width: 0; line-height: 1.05; }
+.ely-card .c-titles b { display: block; font: 800 italic 1.12em 'Exo 2', sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.ely-card .c-titles small { display: block; font-size: .62em; letter-spacing: .14em; text-transform: uppercase; color: #B9A8E0; margin-top: .25em; }
+.ely-card .c-chip { width: 2.3em; height: 1.7em; border-radius: .35em; flex: none;
+  background: linear-gradient(135deg, #F5E2A8, #C9A04F 55%, #8E6A24); box-shadow: inset 0 0 0 .07em rgba(0, 0, 0, .35); position: relative; }
+.ely-card .c-chip::after { content: ''; position: absolute; inset: .3em .5em; border: .07em solid rgba(60, 40, 0, .45); border-radius: .15em; }
+
+.ely-card .c-body { position: relative; z-index: 2; display: flex; gap: .9em; padding: .35em 1.1em 0; }
+.ely-card .c-photo { width: 6.3em; height: 7.6em; flex: none; border-radius: .6em; overflow: hidden; position: relative;
+  background: linear-gradient(160deg, #2A1A52, #120A26); box-shadow: inset 0 0 0 .08em rgba(214, 190, 255, .35); display: grid; place-items: center; }
+.ely-card .c-photo img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.95) contrast(1.05); }
+.ely-card .c-photo svg { width: 60%; opacity: .45; }
+.ely-card .c-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, rgba(123, 47, 247, .35)); }
+.ely-card .c-fields { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .38em .8em; align-content: start; }
+.ely-card .c-f small { display: block; font-size: .56em; letter-spacing: .12em; text-transform: uppercase; color: #A99BC9; }
+.ely-card .c-f b { display: block; font-size: .86em; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ely-card .c-f.w2 { grid-column: span 2; }
+.ely-card .c-num { font-family: 'Courier New', monospace; letter-spacing: .1em; color: #E9D5FF; }
+.ely-card .c-sign { font: italic 1.05em 'Brush Script MT', 'Segoe Script', cursive; color: #D8C6FF; opacity: .85; }
+
+/* Catégories du permis et du PPA */
+.ely-card .c-cats { position: relative; z-index: 2; display: flex; gap: .45em; padding: .55em 1.1em 0; flex-wrap: wrap; }
+.ely-card .c-cat { display: flex; align-items: center; gap: .4em; padding: .28em .6em .28em .3em; border-radius: .55em;
+  background: rgba(155, 92, 255, .14); box-shadow: inset 0 0 0 .07em rgba(201, 166, 255, .3); font-size: .74em; }
+.ely-card .c-cat i { font-style: normal; display: grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: .45em;
+  font: 800 italic 1em 'Exo 2', sans-serif; background: linear-gradient(135deg, var(--acc), var(--acc2)); }
+.ely-card .c-cat.off { background: rgba(255, 77, 109, .12); box-shadow: inset 0 0 0 .07em rgba(255, 77, 109, .5); color: #FFB3C1; }
+.ely-card .c-cat.off i { background: linear-gradient(135deg, #FF6B85, #B3122F); }
+.ely-card .c-cat.off em { font-style: normal; font-weight: 800; letter-spacing: .08em; font-size: .85em; color: #FF6B85; }
+.ely-card .c-cat.none { opacity: .35; }
+
+/* Tampon SUSPENDU */
+.ely-card .c-stamp { position: absolute; z-index: 4; left: 50%; top: 52%; transform: translate(-50%, -50%) rotate(-14deg);
+  padding: .25em .8em; border: .22em solid #FF3B5C; border-radius: .4em; color: #FF3B5C; background: rgba(40, 0, 10, .35);
+  font: 900 italic 2.4em 'Exo 2', sans-serif; letter-spacing: .14em; text-shadow: 0 0 .35em rgba(255, 59, 92, .6);
+  box-shadow: 0 0 .7em rgba(255, 59, 92, .45), inset 0 0 .5em rgba(255, 59, 92, .3); mix-blend-mode: normal; }
+.ely-card .c-stamp small { display: block; font: 700 .28em 'Manrope', sans-serif; letter-spacing: .16em; text-align: center; margin-top: .1em; }
+.ely-card.enter .c-stamp { animation: ely-stamp .55s .45s cubic-bezier(.3, 1.5, .5, 1) both; }
+@keyframes ely-stamp { from { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scale(2.2); } }
+.ely-card.is-suspended .c-photo img { filter: grayscale(.8) contrast(1.05); }
+
+/* Variantes */
+.ely-card--id { --acc: #9B5CFF; --acc2: #6D28D9; }
+.ely-card--licence { --acc: #7C8CFF; --acc2: #4C2FD9; --acc-soft: rgba(111, 140, 255, .22); }
+.ely-card--ppa { --acc: #C065FF; --acc2: #8B1FD0; --acc-soft: rgba(255, 90, 140, .16); }
+.ely-card--ppa.fdo { --acc: #5B8CFF; --acc2: #2142B8; --acc-soft: rgba(91, 140, 255, .24); }
+.ely-card .c-mrz { position: relative; z-index: 2; margin: .45em 1.1em 0; font: 600 .6em 'Courier New', monospace; letter-spacing: .18em;
+  color: rgba(233, 213, 255, .65); line-height: 1.35; white-space: nowrap; overflow: hidden; }
+.ely-card .c-badge { position: absolute; z-index: 2; right: 1.1em; bottom: .9em; font: 800 italic .7em 'Exo 2', sans-serif; letter-spacing: .12em;
+  padding: .3em .7em; border-radius: 99em; background: rgba(62, 230, 176, .15); color: #7FF5CF; box-shadow: inset 0 0 0 .1em rgba(62, 230, 176, .45); }
+.ely-card .c-badge.bad { background: rgba(255, 77, 109, .15); color: #FF8DA2; box-shadow: inset 0 0 0 .1em rgba(255, 77, 109, .5); }
+
+@media (prefers-reduced-motion: reduce) { .ely-card::before, .ely-card.enter, .ely-card.enter .c-stamp { animation: none; } }

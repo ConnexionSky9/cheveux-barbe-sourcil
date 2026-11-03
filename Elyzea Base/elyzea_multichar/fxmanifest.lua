@@ -16,6 +16,8 @@ server_scripts {
 ui_page 'html/index.html'
 files {
     'html/index.html',
+    'html/brand.css',
+    'html/brand.js',
     'html/logo.webp'
 }
 
