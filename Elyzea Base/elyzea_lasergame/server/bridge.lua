@@ -176,12 +176,13 @@ function Bridge.SourceByCid(cid)
     return nil
 end
 
--- Permission staff : admin_menu si présent, sinon ACE
+-- Permission staff : c'est admin_menu qui décide (case « LaserGame » dans Staff › Rangs).
+-- L'ACE ne sert que si admin_menu n'est pas démarré (serveur sans menu staff).
 function Bridge.IsAdmin(src)
     if src == 0 then return true end
     if started('admin_menu') then
         local ok, r = pcall(function() return exports.admin_menu:HasPermission(src, Config.Permission) end)
-        if ok and r == true then return true end
+        return ok and r == true
     end
     return IsPlayerAceAllowed(src, Config.AcePermission) == true
 end

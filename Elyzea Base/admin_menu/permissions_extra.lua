@@ -41,6 +41,7 @@ local EXTRA = {
     { key = 'builder_delete', label = 'Builder Studio : supprimer des éléments et des projets', cat = 'Gestion' },
     { key = 'builder_import', label = 'Builder Studio : importer des objets et des textures (image du PC ou lien)', cat = 'Gestion' },
     { key = 'builder_export', label = 'Builder Studio : exporter un projet en ressource FiveM', cat = 'Gestion' },
+    { key = 'lasergame_manage', label = 'LaserGame : onglet LaserGame et panneau staff /lgadmin (parties, PVP, armes, Zombie, prix, cartes, PNJ, joueurs, journaux) (elyzea_lasergame)', cat = 'Joueurs' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

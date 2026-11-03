@@ -362,3 +362,22 @@ RegisterCommand(Config.AdminCommand, function(src)
     if not Bridge.IsAdmin(src) then return Games.Notify(src, 'Permission refusée.', 'error') end
     TriggerClientEvent('elyzea_lasergame:openAdmin', src)
 end, false)
+
+-- ---------------------------------------------------------------- admin_menu (onglet « LaserGame »)
+-- Vue d'ensemble lue par admin_menu pour le staff qui a la permission « lasergame_manage ».
+exports('AdminSummary', function()
+    local s = MySQL.single.await([[SELECT (SELECT COUNT(*) FROM `lg_players`) AS players,
+        (SELECT COUNT(*) FROM `lg_matches` WHERE `status` = 'finished') AS matches,
+        (SELECT COALESCE(SUM(`amount`), 0) FROM `lg_ledger` WHERE `status` = 'held') AS held]]) or {}
+    return { games = gamesView(), stats = s, framework = Bridge.Name(), command = Config.AdminCommand }
+end)
+
+-- Arrêt d'une partie depuis admin_menu (la permission est revérifiée ici)
+exports('AdminStopGame', function(src, uid)
+    if not Bridge.IsAdmin(src) then return false, 'Permission refusée.' end
+    local g = Games.list[tostring(uid or '')]
+    if not g then return false, 'Partie introuvable.' end
+    log(src, ('partie %s arrêtée (admin_menu)'):format(g.uid))
+    if g.mode == 'pvp' then Pvp.Stop(g, 'arrêt staff') else CreateThread(function() Zombie.Stop(g, 'arrêt staff') end) end
+    return true, 'Partie arrêtée.'
+end)

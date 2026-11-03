@@ -33,11 +33,13 @@ Un PNJ d'exemple est posé à Vespucci (`config.lua › Config.Npcs`). Pour le p
 Les joueurs s'approchent et appuient sur **E**.
 
 ## 4. Donner l'accès staff
-- **admin_menu** : Staff › Rangs › coche **« LaserGame : /lgadmin … »** pour les rangs voulus (déjà inclus dans le rang SuperAdmin par défaut,
-  mais si tes rangs sont déjà enregistrés, coche-la à la main).
-- **Sans admin_menu** : dans `permissions.cfg` → `add_ace group.admin elyzea_lasergame.admin allow`.
+- **admin_menu** (c'est lui qui décide dès qu'il est démarré) : Staff › Rangs › coche **« LaserGame »** pour les rangs voulus.
+  Le SuperAdmin la reçoit automatiquement au premier démarrage, même si tes rangs sont déjà enregistrés.
+  Une ACE seule ne donne plus l'accès quand admin_menu tourne : tout se règle dans les rangs du menu.
+- **Sans admin_menu** seulement : dans `permissions.cfg` → `add_ace group.admin elyzea_lasergame.admin allow`.
 
-Puis en jeu : **`/lgadmin`**.
+Puis en jeu : menu staff › Économie et services › **LaserGame** (parties en cours, arrêter une partie, « Ouvrir le panneau LaserGame »),
+ou directement **`/lgadmin`**.
 
 ## 5. ESX ou QBCore (autres serveurs)
 La ressource détecte seule le framework (`Config.Framework = 'auto'`). Adaptateurs fournis : `server/bridge.lua` (identité, argent)

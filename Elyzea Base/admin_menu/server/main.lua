@@ -277,6 +277,18 @@ do
         meta.pvp1 = true
         Storage.save('meta', meta)
     end
+    if not meta.lasergame1 then
+        -- LaserGame (elyzea_lasergame) : onglet et panneau staff /lgadmin pour le SuperAdmin
+        if Ranks.superadmin then Ranks.superadmin.perms.lasergame_manage = true end
+        meta.lasergame1 = true
+        Storage.save('meta', meta)
+    end
+    if not meta.lasergame1 then
+        -- LaserGame (elyzea_lasergame) : panneau staff /lgadmin pour le SuperAdmin
+        if Ranks.superadmin then Ranks.superadmin.perms.lasergame_manage = true end
+        meta.lasergame1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.tv1 then
         -- Onglet Écrans / TV (elyzea_tv) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.tv_manage = true end

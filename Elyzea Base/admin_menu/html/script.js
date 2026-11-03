@@ -58,7 +58,7 @@ const CATS = [
     { id: 'mod',     ico: '🛡️', label: 'Modération',         tabs: ['players', 'reports', 'bans', 'debts'] },
     { id: 'tools',   ico: '🧰', label: 'Mes outils',         tabs: ['self', 'items', 'vehicles', 'staffjob'] },
     { id: 'server',  ico: '🌍', label: 'Serveur et monde',   tabs: ['announce', 'world', 'events', 'map', 'tv', 'respawn', 'welcome'] },
-    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis', 'sante', 'animaux', 'casino', 'loisirs', 'pvp'] },
+    { id: 'eco',     ico: '💼', label: 'Économie et services', tabs: ['fuel', 'trunks', 'permis', 'sante', 'animaux', 'casino', 'loisirs', 'pvp', 'lasergame'] },
     { id: 'illegal', ico: '🩸', label: 'Illégal',            tabs: ['illegal', 'drugsale', 'drogues', 'labs', 'tags', 'jewelry', 'bankheist', 'noirx'] },
     { id: 'build',   ico: '🏗️', label: 'Construction',       tabs: ['editor'] },
     { id: 'admin',   ico: '⚙️', label: 'Administration',     tabs: ['staff', 'ranks', 'logs', 'wipe', 'keys'] },
@@ -2088,7 +2088,7 @@ function pedEditor() {
             </div>` : ''}
             ${p.lgOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">🔫 LaserGame</h3>
                 <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le LaserGame ElyzeaFA : PVP Arena, mode Zombie, classements, profil.
-                    Les réglages se font avec <b>/lgadmin</b> (permission « LaserGame »). Nécessite la ressource <b>elyzea_lasergame</b>.</p>
+                    Les réglages se font dans l'onglet <b>LaserGame</b> du menu ou avec <b>/lgadmin</b> (permission « LaserGame »). Nécessite la ressource <b>elyzea_lasergame</b>.</p>
                 <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="lgName" value="${esc(p.lgName)}" placeholder="LaserGame ElyzeaFA"></div>
             </div>` : ''}
             ${p.barberOn ? barberCard(p, tog) : ''}

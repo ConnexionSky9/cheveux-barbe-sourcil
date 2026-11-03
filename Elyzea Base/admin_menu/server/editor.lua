@@ -450,7 +450,7 @@ local function cleanNpc(n)
     end
     -- LaserGame (ressource elyzea_lasergame) : ouvre l'interface du LaserGame
     if type(n.lasergame) == 'table' then
-        local name = cleanName(n.lasergame.name, 40)
+        local name = cleanName(n.lasergame.name, 40):gsub('^%s+', ''):gsub('%s+$', '')
         out.lasergame = { name = name ~= '' and name or 'LaserGame ElyzeaFA' }
     end
     -- Bureau de change (ressource elyzea_change) : argent liquide <-> pesos, taux pour 100
@@ -2553,7 +2553,7 @@ end)
 exports('GetLaserGameNpcs', function()
     local out = {}
     for _, r in ipairs(Data.peds) do
-        if r.npc and r.npc.lasergame then out[#out + 1] = { id = r.id, x = r.x, y = r.y, z = r.z } end
+        if r.npc and r.npc.lasergame then out[#out + 1] = { id = r.id, x = r.x, y = r.y, z = r.z, h = r.h, name = r.npc.lasergame.name } end
     end
     return out
 end)
