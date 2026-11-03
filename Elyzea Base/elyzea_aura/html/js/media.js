@@ -228,7 +228,7 @@ function openMedia(p, filter) {
       : `<img src="${esc(p.url)}" alt="" style="width:100%;border-radius:22px;display:block">`}
     <p class="row__sub" style="margin:10px 6px 0">${timeAgo(p.ts)}${video && p.duration ? `, ${duration(p.duration)}` : ''}</p>
     <div class="form" style="margin-top:12px">
-      ${video ? '' : `<button class="btn btn--block" data-insta>${t('Publier sur InstaPick')}</button>`}
+      ${video ? '' : `<button class="btn btn--block" data-insta>${t('Publier sur ElyPick')}</button>`}
       <div class="grid-2">
         ${video ? `<button class="btn btn--ghost" data-copy>${icon('copy')}${t('Copier le lien')}</button>` : `<button class="btn btn--ghost" data-wall>${t('Fond d\'écran')}</button>`}
         <button class="btn btn--danger" data-del>${t('Supprimer')}</button></div></div>`, (sh) => {

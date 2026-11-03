@@ -39,7 +39,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, InstaPick, Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
@@ -93,3 +93,75 @@ On ne voit, et on ne peut envoyer sa fiche qu'aux personnes proches qui ont leur
 ### Tests hors jeu
 - `python3 tests/run_identity_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base ; 38 vérifications.
 - `NODE_PATH=$(npm root -g) node tests/ui_identite.cjs` : téléphone dans Chromium ; 18 vérifications.
+
+## ElyPick (ex-InstaPick) : réseau social photo
+InstaPick est devenu **ElyPick**, directement dans le téléphone (aucune ressource à ajouter).
+L'identifiant interne reste `instapick` : les joueurs qui l'avaient installé le gardent, et leurs anciens comptes, publications, j'aime et commentaires apparaissent dans ElyPick.
+
+### Fonctionnalités
+- **Navigation** (barre du bas) : Accueil, Recherche, Créer, Messages, Profil. L'appli s'ouvre et se ferme comme les autres (barre d'accueil, bouton retour).
+- **Compte** : nom d'utilisateur unique, nom affiché, photo de profil, biographie, tout modifiable. Le compte est lié au personnage (citizenid), pas au pseudo.
+- **Abonnements** : s'abonner / se désabonner, listes d'abonnés et d'abonnements, « Vous suit ». Pas de doublon, pas d'abonnement à soi-même.
+- **Accueil** : stories des comptes suivis, puis le fil (mes photos et celles des comptes suivis, des plus récentes aux plus anciennes, chargées par pages).
+- **Publications** : photo de la galerie (ou de l'appareil photo, ou un lien d'hébergeur autorisé), description, musique facultative, aperçu, puis partage.
+  - Chaque publication affiche j'aime, commentaires, partage en message privé et date.
+  - Double-tap pour aimer. Seul l'auteur peut supprimer sa publication.
+  - Profil en grille de 3 colonnes ; un tap ouvre la photo en grand.
+- **Musique** : choisie dans les musiques du serveur (`Config.ElyPick.Music`) ou dans la bibliothèque **Itoune** du joueur. Lecture / arrêt sur la photo, avec le même lecteur qu'Itoune (YouTube ou lien audio).
+- **Stories (24 h)** : visibles par les abonnés. La date d'expiration est enregistrée en base, et une story expirée n'est plus jamais renvoyée. La visionneuse plein écran propose :
+  - une barre de progression, story suivante / précédente, pause en maintenant ;
+  - les stories du compte suivant à la fin ;
+  - pour l'auteur, le nombre de vues ;
+  - pour les autres, un bouton « Répondre » qui ouvre les messages privés.
+- **Stories à la une** : ajouter une story à une catégorie (créée à la volée), renommer, choisir la couverture, retirer une story, supprimer une catégorie.
+  - Une **copie** est enregistrée : la story reste à la une après ses 24 h et après le nettoyage automatique.
+- **Recherche** : par nom d'utilisateur ou nom affiché. En dessous, **Explorer** affiche toutes les photos du serveur en grille, chargées par pages au fil du défilement.
+- **Messages privés** :
+  - fonctions : conversations, non lus, dernier message, date, chargement des anciens messages, partage d'une publication ;
+  - en direct : réception immédiate, pastille sur l'icône de l'appli et sur l'onglet Messages, bouton Actualiser.
+- **Activité** (cœur en haut de l'accueil) : nouveaux abonnés, j'aime, nouvelles stories.
+  - Ces notifications sont enregistrées en base, sans doublon grâce à une clé unique.
+  - Une alerte s'affiche en direct si le joueur est connecté.
+
+### Base de données
+Les tables sont créées au démarrage (`sql/elypick.sql`, rien à importer) :
+- `elyzea_ep_profiles`
+- `elyzea_ep_follows`
+- `elyzea_ep_stories`
+- `elyzea_ep_story_views`
+- `elyzea_ep_highlights`
+- `elyzea_ep_highlight_items`
+- `elyzea_ep_conversations`
+- `elyzea_ep_messages`
+- `elyzea_ep_notifications`
+
+Ajouts aux tables existantes, sans rien supprimer :
+- colonnes `music_*` sur `elyzea_social_posts` ;
+- index pour le fil, les profils et la recherche.
+
+Les images sont des **liens** (photos de la galerie envoyées par l'appareil photo via l'hébergeur), jamais des fichiers en base.
+
+Nettoyage toutes les 10 minutes :
+- stories expirées (les copies à la une restent) ;
+- notifications plus vieilles que `NotificationDays`.
+
+### Sécurité
+- Tout est vérifié par le serveur : le compte utilisé est celui du personnage, jamais une valeur envoyée par le téléphone.
+- On ne peut supprimer ou modifier que ses propres publications, stories, catégories et commentaires.
+- On ne peut lire et écrire que ses propres conversations.
+- Images acceptées : photo de la galerie du joueur, ou lien d'un hébergeur listé dans `Config.ElyPick.ImageHosts` ; formats JPG, PNG, WEBP ou GIF.
+- Musique : uniquement une musique du serveur ou de la bibliothèque Itoune du joueur.
+- Requêtes SQL paramétrées, pages limitées, anti-spam (publication, story, message, j'aime, abonnement).
+
+### Réglages
+Tous les réglages sont dans `config_elypick.lua`, fichier séparé : ton `config.lua` n'est pas touché :
+- durée des stories ;
+- tailles des pages ;
+- longueurs ;
+- hébergeurs d'images autorisés ;
+- musiques du serveur ;
+- durée de conservation de l'activité.
+
+### Tests hors jeu
+- `python3 tests/run_elypick_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base MariaDB, 3 joueurs, puis redémarrage simulé ; 91 vérifications.
+- `NODE_PATH=$(npm root -g) node tests/ui_elypick.cjs` : l'interface complète dans le navigateur, avec des données de démonstration.

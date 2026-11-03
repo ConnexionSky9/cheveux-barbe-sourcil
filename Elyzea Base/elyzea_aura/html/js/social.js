@@ -1,6 +1,6 @@
 'use strict';
 /* =========================================================
-   BIRDY · INSTAPICK · ITOUNE
+   BIRDY · ITOUNE (ElyPick : js/elypick.js)
    ========================================================= */
 const Accounts = {};
 async function ensureAccount(app, render) {
@@ -113,76 +113,7 @@ Views.birdy = async ({ tab = 'feed' } = {}) => {
   }));
 };
 
-/* ---------- InstaPick ---------- */
-Views.instapick = async ({ tab = 'feed' } = {}) => {
-  frame({ title: 'InstaPick', body: loading() });
-  const acc = await ensureAccount('instapick', () => Views.instapick({ tab }));
-  if (!acc || S.currentApp !== 'instapick') return;
-  frame({ title: 'InstaPick', tabs: tabsHtml([['feed', t('Fil')], ['me', t('Mon profil')]], tab, 'data-itab'),
-    action: `<button class="icon-btn icon-btn--accent" data-new aria-label="${t('Nouvelle publication')}">${icon('plus')}</button>`, body: loading() });
-  $$('[data-itab]', appView).forEach(b => b.onclick = () => { setParams({ tab: b.dataset.itab }); Views.instapick({ tab: b.dataset.itab }); });
-  $('[data-new]', appView).onclick = () => instaComposer();
-  const res = await api('getFeed', { app: 'instapick', username: tab === 'me' ? acc.username : undefined });
-  if (S.currentApp !== 'instapick') return;
-  const posts = res.posts || [];
-  const body = $('.app__body', appView);
-  const newBtn = `<button class="btn" data-new2>${t('Publier une photo')}</button>`;
-  if (tab === 'me') {
-    const likes = posts.reduce((a, p) => a + p.likes, 0);
-    body.innerHTML = `<div class="profile-head">${avatar(acc.display_name, acc.username, 'avatar--lg')}
-      <div><h2 class="profile-head__name">${esc(acc.display_name)}</h2><p class="row__sub">@${esc(acc.username)}</p>
-      <div class="stats"><span><b>${posts.length}</b> ${t('publications')}</span><span><b>${likes}</b> ${t('j\'aime')}</span></div></div></div>
-      ${posts.length ? `<div class="gallery">${posts.map(p => `<button data-open-post="${p.id}" style="background-image:url('${esc(p.image)}')" aria-label="${t('Publication')}"></button>`).join('')}</div>`
-        : empty(t('Votre profil est vide'), t('Publiez une photo de votre galerie pour commencer.'), newBtn)}`;
-    $$('[data-open-post]', appView).forEach(b => b.onclick = () => openSheet('', instaCard(posts.find(x => x.id == b.dataset.openPost)), wireInsta));
-  } else {
-    body.innerHTML = posts.length ? posts.map(instaCard).join('') : empty(t('Aucune photo'), t('Soyez le premier à partager un instant de la ville.'), newBtn);
-    wireInsta(appView);
-  }
-  $('[data-new2]', appView)?.addEventListener('click', () => instaComposer());
-};
-function instaCard(p) {
-  return `<article class="insta">
-    <div class="post__head" style="padding:12px 14px">${avatar(p.display_name, p.username)}
-      <div style="flex:1"><div class="post__name">${esc(p.username)}</div><div class="post__time">${timeAgo(p.ts)}</div></div>
-      ${p.mine ? `<button class="icon-btn" data-del="${p.id}" aria-label="${t('Supprimer')}">${icon('trash')}</button>` : ''}</div>
-    <div class="insta__photo" data-dbl="${p.id}"><img src="${esc(p.image)}" alt="" loading="lazy"><span class="insta__burst">${icon('heart')}</span></div>
-    <div class="post__actions" style="padding:10px 14px 0">
-      <button class="${p.liked ? 'liked' : ''}" data-like="${p.id}" aria-pressed="${p.liked}" aria-label="${t('J\'aime')}">${icon('heart')}<span>${p.likes}</span></button>
-      <button data-comment="${p.id}" aria-label="${t('Commenter')}">${icon('comment')}<span>${p.comments}</span></button></div>
-    ${p.content ? `<p class="insta__caption"><b>${esc(p.username)}</b> ${richText(p.content)}</p>` : '<div style="height:12px"></div>'}</article>`;
-}
-function wireInsta(root) {
-  wireLikes(root);
-  $$('[data-dbl]', root).forEach(el => el.ondblclick = () => {
-    const burst = el.querySelector('.insta__burst');
-    burst.classList.remove('pop'); void burst.offsetWidth; burst.classList.add('pop');
-    const btn = $(`[data-like="${el.dataset.dbl}"]`, root);
-    if (btn && !btn.classList.contains('liked')) btn.click();
-  });
-  $$('[data-comment]', root).forEach(b => b.onclick = () => commentsSheet(+b.dataset.comment, () => { const x = b.querySelector('span'); x.textContent = +x.textContent + 1; }));
-  $$('[data-del]', root).forEach(b => b.onclick = () => confirmSheet(t('Supprimer cette photo ?'), t('Elle sera retirée d\'InstaPick avec ses commentaires.'), t('Supprimer'), async () => {
-    await api('deletePost', { id: +b.dataset.del }); Views.instapick({ tab: S.stack[S.stack.length - 1]?.params?.tab || 'feed' });
-  }));
-}
-async function instaComposer(prefill = '') {
-  const g = await api('getGallery');
-  const photos = (g.photos || []).filter(p => (p.type || 'photo') === 'photo');
-  openSheet(t('Nouvelle publication'), `<div class="form">
-    ${photos.length ? `<div class="picker">${photos.slice(0, 12).map(p => `<button data-pick="${esc(p.url)}" class="${p.url === prefill ? 'picked' : ''}" style="background-image:url('${esc(p.url)}')" aria-label="${t('Choisir cette photo')}"></button>`).join('')}</div>`
-      : `<p class="sheet__text" style="margin:0 6px">${t('Votre galerie est vide : prenez une photo ou collez un lien ci-dessous.')}</p>`}
-    <input class="field" id="i-url" placeholder="${t('Ou collez le lien d\'une image')}" value="${esc(prefill)}">
-    <textarea class="field" id="i-caption" rows="2" maxlength="280" placeholder="${t('Écrire une légende')}"></textarea>
-    <p class="error-text" id="i-err"></p>
-    <button class="btn btn--block" id="i-go">${t('Partager')}</button></div>`, (sh) => {
-    $$('[data-pick]', sh).forEach(b => b.onclick = () => { $('#i-url', sh).value = b.dataset.pick; $$('[data-pick]', sh).forEach(x => x.classList.toggle('picked', x === b)); });
-    $('#i-go', sh).onclick = async () => {
-      const r = await api('createPost', { app: 'instapick', image: $('#i-url', sh).value.trim(), content: $('#i-caption', sh).value });
-      if (!r.ok) { $('#i-err', sh).textContent = t(r.error || 'Publication impossible.'); return; }
-      closeSheet(); if (S.currentApp === 'instapick') Views.instapick({ tab: 'feed' });
-    };
-  });
-}
+/* ---------- ElyPick (ex-InstaPick) : voir js/elypick.js ---------- */
 
 /* ---------- Itoune ---------- */
 // Moteur audio intégré : lecteur YouTube officiel (invisible) ou lecteur audio pour les liens directs.

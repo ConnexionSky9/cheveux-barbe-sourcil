@@ -18,7 +18,7 @@ const APPS = {
   calc:      { label: 'Calcul' },
   settings:  { label: 'Réglages' },
   birdy:     { label: 'Birdy', store: true },
-  instapick: { label: 'InstaPick', store: true },
+  instapick: { label: 'ElyPick', store: true },
   itoune:    { label: 'Itoune', store: true },
   etincelle: { label: 'Étincelle', store: true },
   livrezy:   { label: 'Livrézy', store: true },
@@ -50,7 +50,8 @@ function renderHome() {
   const digits = cs === 'stack' ? '<span id="clock-h">00</span><span id="clock-m">00</span>' : '<span id="clock-hm">00:00</span>';
   const tile = (id) => {
     const badge = id === 'messages' && S.unread > 0 ? `<span class="badge">${S.unread}</span>`
-      : id === 'bank' && S.bankPending > 0 ? `<span class="badge">${S.bankPending}</span>` : '';
+      : id === 'bank' && S.bankPending > 0 ? `<span class="badge">${S.bankPending}</span>`
+      : id === 'instapick' && S.epBadge > 0 ? `<span class="badge">${S.epBadge > 99 ? '99+' : S.epBadge}</span>` : '';
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };
   const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(Object.keys(STORE).filter(isInstalled));
