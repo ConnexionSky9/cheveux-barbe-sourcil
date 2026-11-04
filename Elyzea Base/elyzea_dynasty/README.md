@@ -92,3 +92,10 @@ Intérieurs : onglet **Intérieurs** → « + Nouveau à ma position » (MLO ou 
 - **Tablette** : nouvelle page « Tous les biens » avec filtres (maisons, appartements, villas, garages, disponibles, vendus, loués).
 - Tables ajoutées automatiquement : `d8_upgrades`, `d8_cameras`, `d8_cam_spots`, `d8_plants` (+ 4 colonnes dans `d8_access`).
 - Tests hors jeu : `tests/run_server_sim.py <socket MariaDB>` (110 vérifications, redémarrage compris), `tests/run_client_sim.py` (19).
+
+## Décoration : tous les objets du jeu + danseuse placée comme un objet
+- `Config.Deco.allProps = true` : en plus du catalogue, le mode éditeur propose **tous les objets du jeu** (`html/allprops.txt`, ~21 000 modèles).
+  Chip « 🌐 Tous les objets », recherche (plusieurs mots), 240 résultats affichés à la fois. Survol : image (`Config.Deco.imageUrl`) + objet 3D devant la caméra.
+  Le serveur vérifie chaque modèle contre la même liste. `Config.Deco.blocked` : modèles interdits.
+- Danseuse : une fois payée, elle s'ouvre dans le mode éditeur comme un objet (elle suit la souris, molette = tourner, clic = poser).
+  « 📍 La placer / déplacer » ou clic sur elle dans le mode éditeur. Avec le seul droit « Danseuse », l'éditeur sert uniquement à la placer.

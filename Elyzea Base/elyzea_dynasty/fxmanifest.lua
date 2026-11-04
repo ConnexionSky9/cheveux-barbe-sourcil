@@ -55,6 +55,7 @@ files {
     'html/admin.js',
     'html/editor.js',
     'html/editor.css',
+    'html/allprops.txt',
     'html/map.js',
     'html/img/*',
 }

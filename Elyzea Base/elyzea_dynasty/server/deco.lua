@@ -16,9 +16,23 @@ function P.DecoCatalog()
     end
     return list
 end
+-- Tous les objets du jeu (html/allprops.txt, ~21 000 modèles) quand Config.Deco.allProps = true
+local ALL = nil
+local function AllProps()
+    if ALL then return ALL end
+    ALL = {}
+    local txt = LoadResourceFile(GetCurrentResourceName(), 'html/allprops.txt') or ''
+    for name in txt:gmatch('[%w_%-]+') do ALL[name:lower()] = true end
+    for _, m in ipairs(Config.Deco.blocked or {}) do ALL[tostring(m):lower()] = nil end
+    return ALL
+end
+P.DecoAllProps = AllProps
 local function Allowed(model)
     model = tostring(model or ''):lower()
     for _, c in ipairs(P.DecoCatalog()) do if c.model:lower() == model then return c end end
+    if Config.Deco.allProps and model:match('^[%w_%-]+$') and #model <= 64 and AllProps()[model] then
+        return { model = model, label = model, cat = 'Tous les objets' }
+    end
 end
 
 function P.DecoSummary(pid, contractId)
@@ -120,13 +134,24 @@ P.Admin.decoModel = { fn = function(src, d)
 end }
 
 -- Mode éditeur (vol libre dans le logement) : catalogue, limite et repère du logement
+-- d.dancer : ouvert pour placer la danseuse (accessible aussi avec le seul droit « Danseuse »)
 P.Pub.decoEditor = { fn = function(src, d)
     local pr, c = DecoCheck(src, d.pid)
+    local dancerOnly = false
+    if not pr and d.dancer then
+        local p2 = P.props[tonumber(d.pid) or 0]
+        local i = P.inside[src]
+        if p2 and i and i.pid == p2.id and i.area == 'home' then
+            local role, rights = P.RoleOf(src, p2.id)
+            if role and rights.dancer then pr, c, dancerOnly = p2, P.Contract(p2.id), true end
+        end
+    end
     if not pr then return { error = c } end
     if not c then return { error = 'Aucun contrat actif.' } end
     local anchor = pr.points.exit or P.interiors[pr.interiorId or 0]
-    local sum = P.DecoSummary(pr.id, c.id)
+    local sum = dancerOnly and { catalog = {}, placed = 0, limit = 0, reserve = {} } or P.DecoSummary(pr.id, c.id)
     return { ok = true, pid = pr.id, name = pr.name, catalog = sum.catalog, placed = sum.placed, limit = sum.limit, reserve = sum.reserve,
+        dancerOnly = dancerOnly or nil, allProps = (not dancerOnly and Config.Deco.allProps) or nil, imageUrl = Config.Deco.imageUrl,
         anchor = anchor and { x = anchor.x, y = anchor.y, z = anchor.z } or nil, radius = Config.Deco.maxDistance,
         speed = (Config.Deco.editor or {}).flySpeed or 3.0, step = (Config.Deco.editor or {}).rotateStep or 15.0 }
 end }

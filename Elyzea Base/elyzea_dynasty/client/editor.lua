@@ -32,7 +32,7 @@ function C.EditorActive() return E ~= nil end
 local function DelEnt(e) if e and DoesEntityExist(e) then DeleteEntity(e) end end
 local function Ghost(model, alpha)
     local h = LoadModel(model)
-    if not h then return nil end
+    if not h or not E then return nil end
     local o = CreateObjectNoOffset(h, E.pos.x, E.pos.y, E.pos.z, false, false, false)
     SetEntityCollision(o, false, false)
     FreezeEntityPosition(o, true)
@@ -43,7 +43,8 @@ end
 
 local function Ui(msg) msg.action = 'hedit' SendNUIMessage(msg) end
 local function State()
-    Ui({ state = true, snap = E.snap, model = E.model, moving = E.moveId ~= nil, sel = E.sel and { id = E.sel.id, model = E.sel.model } or nil,
+    Ui({ state = true, snap = E.snap, model = E.model, moving = E.moveId ~= nil, dancer = E.dancer ~= nil,
+        sel = E.sel and { id = E.sel.id, model = E.sel.model, dancer = E.sel.dancer } or nil,
         placed = E.data.placed, limit = E.data.limit, valid = E.valid ~= false })
 end
 
@@ -58,14 +59,28 @@ local function CursorRay()
     local t = math.tan(math.rad(E.fov) / 2.0)
     return Norm(f + r * (nx * t * (w / h)) + u * (ny * t))
 end
-local function Raycast(dir, ignore)
+local function Raycast(dir, ignore, flags)
     local to = E.pos + dir * 25.0
-    local ray = StartExpensiveSynchronousShapeTestLosProbe(E.pos.x, E.pos.y, E.pos.z, to.x, to.y, to.z, 1 + 16, ignore or 0, 7)
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(E.pos.x, E.pos.y, E.pos.z, to.x, to.y, to.z, flags or (1 + 16), ignore or 0, 7)
     local _, hit, at, _, ent = GetShapeTestResult(ray)
     return hit == 1, at, ent
 end
 
 local function ClearHand()
+    if E.dancer then
+        -- La danseuse n'est pas supprimée : remise à sa place si on annule
+        local d = E.dancer.d
+        if DoesEntityExist(d.ent) then
+            if not E.dancer.placed and d.x then
+                SetEntityCoordsNoOffset(d.ent, d.x + 0.0, d.y + 0.0, d.z + 0.0, false, false, false)
+                SetEntityHeading(d.ent, (d.h or 0) + 0.0)
+            end
+            ResetEntityAlpha(d.ent)
+        end
+        d.placingHere = nil
+        E.dancer, E.ghost, E.model = nil, nil, nil
+        return
+    end
     DelEnt(E.ghost) E.ghost = nil
     if E.hidden and DoesEntityExist(E.hidden) then SetEntityVisible(E.hidden, true, false) end
     E.hidden, E.model, E.moveId = nil, nil, nil
@@ -86,9 +101,10 @@ local function Close()
 end
 C.ui.hedit = { close = Close }
 
-function C.EditorOpen(pid)
+function C.EditorOpen(pid, opts)
     if E then return end
-    local r = C.Pub('decoEditor', { pid = pid })
+    opts = opts or {}
+    local r = C.Pub('decoEditor', { pid = pid, dancer = opts.dancer and true or nil })
     if r.error then return C.Notify(r.error, 'error') end
     local ped = PlayerPedId()
     local pc = GetEntityCoords(ped)
@@ -103,6 +119,7 @@ function C.EditorOpen(pid)
     C.Focus('hedit', true, true)
     Ui({ show = true, data = r })
     State()
+    if opts.dancer then C.EditorDancer(opts.dancer) end
     local looking = false
     CreateThread(function()
         while E do
@@ -133,7 +150,7 @@ function C.EditorOpen(pid)
                 if IsDisabledControlJustPressed(0, 47) then E.snap = not E.snap State() end
                 if IsDisabledControlPressed(0, 10) then E.dist = Clamp(E.dist + 2.0 * dt, 0.8, 12.0) end
                 if IsDisabledControlPressed(0, 11) then E.dist = Clamp(E.dist - 2.0 * dt, 0.8, 12.0) end
-                if IsDisabledControlJustPressed(0, 178) and E.sel and not E.model then C.EditorDelete() end
+                if IsDisabledControlJustPressed(0, 178) and E.sel and not E.sel.dancer and not E.model then C.EditorDelete() end
             end
             if IsDisabledControlJustPressed(0, 241) then E.rot = (E.rot + (E.data.step or 15.0)) % 360 end
             if IsDisabledControlJustPressed(0, 242) then E.rot = (E.rot - (E.data.step or 15.0)) % 360 end
@@ -154,14 +171,18 @@ function C.EditorOpen(pid)
                 p = p or (E.pos + dir * E.dist)
                 E.at = p
                 SetEntityCoordsNoOffset(E.ghost, p.x, p.y, p.z, false, false, false)
-                SetEntityRotation(E.ghost, 0.0, 0.0, E.rot, 2, true)
+                if E.dancer then SetEntityHeading(E.ghost, E.rot) else SetEntityRotation(E.ghost, 0.0, 0.0, E.rot, 2, true) end
                 local valid = #(p - E.anchor) <= (E.data.radius or 30.0)
                 if valid ~= E.valid then E.valid = valid SetEntityAlpha(E.ghost, valid and 190 or 90, false) State() end
             end
             -- Aperçu (survol d'un objet dans la liste) : il tourne devant la caméra
             if E.preview and DoesEntityExist(E.preview) then
-                local p = E.pos + Fwd(E.pitch, E.yaw) * 2.6 - vector3(0.0, 0.0, 0.4)
-                SetEntityCoordsNoOffset(E.preview, p.x, p.y, p.z, false, false, false)
+                -- distance adaptée à la taille de l'objet (tous les objets du jeu : du verre au camion)
+                local mn, mx = GetModelDimensions(GetEntityModel(E.preview))
+                local rad = math.max(0.35, #(mx - mn) / 2)
+                local c = (mn + mx) / 2
+                local p = E.pos + Fwd(E.pitch, E.yaw) * math.max(2.6, rad * 2.6 + 0.5) - vector3(0.0, 0.0, 0.25)
+                SetEntityCoordsNoOffset(E.preview, p.x - c.x, p.y - c.y, p.z - c.z, false, false, false)
                 SetEntityRotation(E.preview, 0.0, 0.0, (GetGameTimer() / 20.0) % 360, 2, true)
             end
             if IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 202) then
@@ -175,6 +196,17 @@ end
 -- Clic dans la pièce : poser l'objet en main, ou sélectionner un objet déjà posé
 function C.EditorClick()
     if not E then return end
+    if E.dancer and E.at then
+        local r = C.Pub('dancerMove', { pid = E.pid, n = E.dancer.n, x = E.at.x, y = E.at.y, z = E.at.z, h = E.rot })
+        C.Show(r)
+        if r.ok then
+            E.dancer.placed = true
+            ClearHand()
+            if E.data.dancerOnly then return Close() end
+        end
+        State()
+        return
+    end
     if E.ghost and E.at then
         if E.valid == false then return C.Notify('Trop loin : l\'objet doit rester dans le logement.', 'error') end
         local d = { pid = E.pid, model = E.model, id = E.moveId, x = E.at.x, y = E.at.y, z = E.at.z, rx = 0.0, ry = 0.0, rz = E.rot }
@@ -191,18 +223,37 @@ function C.EditorClick()
         State()
         return
     end
-    local hit, _, ent = Raycast(CursorRay(), 0)
+    local hit, _, ent = Raycast(CursorRay(), 0, 1 + 8 + 16)
     E.sel = nil
     if hit and ent and ent ~= 0 then
         for _, o in ipairs(C.DecoShown and C.DecoShown() or {}) do
             if o.ent == ent then E.sel = { id = o.id, model = o.model, ent = o.ent } end
         end
+        for n, d in pairs(C.DancerList and C.DancerList() or {}) do
+            if d.ent == ent then E.sel = { dancer = n, model = 'Danseuse', ent = d.ent } end
+        end
     end
     State()
 end
 
+-- Danseuse en main (comme un objet) : elle suit la souris, molette = tourner, clic = la poser
+function C.EditorDancer(n)
+    if not E then return end
+    local d = C.DancerGet and C.DancerGet(n)
+    if not d or not DoesEntityExist(d.ent) then return C.Notify('La danseuse n\'est pas encore arrivée.', 'error') end
+    ClearHand() ClearPreview()
+    E.sel = nil
+    E.dancer = { n = n, d = d }
+    E.model = 'Danseuse'
+    E.ghost = d.ent
+    E.rot = d.h or GetEntityHeading(d.ent)
+    d.placingHere = true
+    SetEntityAlpha(d.ent, 200, false)
+    State()
+end
+
 function C.EditorPick(model)
-    if not E or not model then return end
+    if not E or not model or E.data.dancerOnly then return end
     ClearHand() ClearPreview()
     if (E.data.placed or 0) >= (E.data.limit or 0) then return C.Notify('Limite d\'objets atteinte.', 'error') end
     E.model = model
@@ -214,6 +265,8 @@ end
 
 function C.EditorMoveSel()
     if not E or not E.sel then return end
+    if E.sel.dancer then return C.EditorDancer(E.sel.dancer) end
+    if E.data.dancerOnly then return end
     local s = E.sel
     ClearHand() ClearPreview()
     E.model, E.moveId = s.model, s.id
@@ -228,7 +281,7 @@ function C.EditorMoveSel()
 end
 
 function C.EditorDelete()
-    if not E or not E.sel then return end
+    if not E or not E.sel or E.sel.dancer then return end
     local r = C.Pub('decoDelete', { pid = E.pid, id = E.sel.id })
     C.Show(r)
     if r.ok then E.data.placed = math.max(0, (E.data.placed or 1) - 1) E.sel = nil end
@@ -241,7 +294,10 @@ function C.EditorPreview(model)
     ClearPreview()
     if model and not E.ghost then
         E.previewModel = model
-        E.preview = Ghost(model, 235)
+        local o = Ghost(model, 235)
+        -- la souris est peut-être déjà sur un autre objet pendant le chargement du modèle
+        if not E or E.previewModel ~= model or E.ghost then DelEnt(o) return end
+        E.preview = o
     end
 end
 
@@ -255,6 +311,7 @@ RegisterNUICallback('he', function(body, cb)
     elseif a == 'preview' then C.EditorPreview(body.model and tostring(body.model) or nil)
     elseif a == 'snap' then E.snap = body.on == true State()
     elseif a == 'move' then C.EditorMoveSel()
+    elseif a == 'dancer' then C.EditorDancer(tonumber(body.n) or 1)
     elseif a == 'delete' then C.EditorDelete()
     elseif a == 'rotate' then E.rot = (E.rot + (tonumber(body.deg) or 15)) % 360
     elseif a == 'drop' then ClearHand() State()

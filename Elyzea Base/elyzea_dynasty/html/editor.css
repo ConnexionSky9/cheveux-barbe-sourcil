@@ -43,3 +43,9 @@
 .he-hint { color: #9F96BE; font-size: 11.5px; }
 .he-bar button { padding: 7px 11px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, .1); color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
 .he-bar button.danger { background: rgba(255, 90, 110, .25); color: #FFB3BD; }
+
+/* Tous les objets du jeu + aperçu image */
+.he-item.raw .he-item__tx b { font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600; font-size: 11px; }
+.he-pv { flex: none; min-height: 64px; max-height: 150px; border-radius: 14px; background: rgba(255, 255, 255, .05); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px; overflow: hidden; text-align: center; }
+.he-pv img { max-width: 100%; max-height: 92px; object-fit: contain; }
+.he-pv b { font-size: 12px; } .he-pv small { font-size: 10.5px; color: #9F96BE; word-break: break-all; }

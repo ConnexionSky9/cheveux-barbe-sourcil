@@ -1216,6 +1216,9 @@ RegisterNUICallback('editor', function(body, cb)
     elseif n == 'prop_select' and canEdit('editor_props') then
         CloseMenu()
         StartPropSelect()
+    elseif n == 'edit_mode' and canEdit('editor_props') then
+        CloseMenu()
+        OpenEditMode(tonumber(d.folder))
     elseif n == 'prop_show' and canEdit('editor_props') then
         CloseMenu()
         ShowPropsInWorld(d.ids, d.label)

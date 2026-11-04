@@ -160,6 +160,9 @@ Config.Deco = {
     defaultLimit = 40, maxLimit = 200,
     maxDistance = 30.0,                            -- distance max d'un objet par rapport à l'entrée intérieure
     editor = { flySpeed = 3.0, rotateStep = 15.0 }, -- mode éditeur (vol libre dans le logement)
+    allProps = true,                               -- true : tous les objets du jeu (html/allprops.txt) en plus du catalogue ci-dessous
+    blocked = {},                                  -- modèles interdits même avec allProps (ex : { 'prop_huge_thing' })
+    imageUrl = 'https://gta-objects.xyz/gallery/objects/{name}.jpg', -- image d'aperçu au survol ('' = aucune)
     -- Modèles autorisés (l'administration peut en ajouter dans la tablette › Décoration)
     catalog = {
         { model = 'prop_couch_01', label = 'Canapé', cat = 'Salon' },

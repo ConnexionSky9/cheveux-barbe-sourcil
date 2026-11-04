@@ -53,6 +53,10 @@ def runtime():
         return c.lastrowid if c.rowcount else 0
     G.py_insert = insert
     lua.execute(open(os.path.join(HERE, 'server_mocks.lua'), encoding='utf-8').read())
+    def _lrf(res, path):
+        f = os.path.join(RES, str(path))
+        return open(f, encoding='utf-8').read() if os.path.isfile(f) else None
+    G.LoadResourceFile = _lrf
     lua.execute("""
     local function wrap(f) return setmetatable({ await = f }, { __call = function(_, s, a, cb) local r = f(s, a) if cb then cb(r) end return r end }) end
     MySQL = { query = wrap(function(s, a) return py_query(s, a) end), scalar = wrap(function(s, a) return py_scalar(s, a) end),
@@ -84,4 +88,8 @@ if part in ('all', '3'):
     lua = runtime()
     lua.execute(open(os.path.join(HERE, 'server_sim.lua'), encoding='utf-8').read())
     lua.execute('Part3()')
+if part in ('all', '4'):
+    lua = runtime()
+    lua.execute(open(os.path.join(HERE, 'server_sim.lua'), encoding='utf-8').read())
+    lua.execute('Part4()')
 print('TOUS LES TESTS SERVEUR SONT PASSÉS')

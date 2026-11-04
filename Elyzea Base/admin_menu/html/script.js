@@ -1119,6 +1119,7 @@ function edProps() {
             <span class="keycap">M</span> active / coupe l'aimant pendant le placement.</p>` : ''}
         <div class="chips">${cfg.quickProps.map((m) => `<button class="chip" data-ed="place_prop" data-model="${esc(m)}">${esc(m)}</button>`).join('')}</div>
         <div class="btn-row" style="margin-top:10px">
+            <button class="btn primary" data-ed="edit_mode" title="Caméra libre, tous les props du jeu, aperçu au survol, rotation libre">🛠️ Mode édition (tous les props)</button>
             <button class="btn" data-opencat="props">📚 Parcourir tout le catalogue des props</button>
             <button class="btn" data-ed="prop_select">🎯 Viser un prop en jeu (contour + nom)</button>
         </div>
@@ -2518,6 +2519,7 @@ function edCatalog() {
                 ${canPeds ? `<button class="seg ${catState.mode === 'peds' ? 'active' : ''}" data-catmode="peds">🧑 Personnages (${CAT.peds.reduce((n, g) => n + g.items.length, 0)})</button>` : ''}
             </div>
             <input class="input" id="cat-search" placeholder="Rechercher un modèle (ex : bench, cone, dealer)…" value="${esc(catState.search)}">
+            ${catState.mode === 'props' && canProps ? '<button class="btn primary" data-ed="edit_mode">🛠️ Mode édition</button>' : ''}
             ${catState.mode === 'props' && canProps ? '<button class="btn" data-ppall title="Prend en jeu la photo de chaque prop qui n\'a pas encore d\'image">📸 Générer les images manquantes</button>' : ''}
         </div>
         <div class="cat-layout">
@@ -2858,6 +2860,7 @@ async function handleEditor(n) {
         case 'move': return editorPost('move', { kind, id });
         case 'dup_ped': return editorPost('dup_ped', { id });
         case 'prop_select': return editorPost('prop_select', {});
+        case 'edit_mode': return editorPost('edit_mode', { folder: Number(draft('propFolder', 0)) || 0 });
         case 'prop_show': return editorPost('prop_show', { ids: [id], label: `Prop #${id}` });
         case 'folder_new': {
             const v = await formModal('Nouveau dossier', [{ name: 'name', label: 'Nom du dossier', placeholder: 'ex : Garage central, Mairie, Event Halloween' }], 'Créer');

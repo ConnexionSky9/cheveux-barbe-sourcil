@@ -982,3 +982,11 @@ Requins agressifs dans des zones que tu dessines en jeu. Le Fondateur a la permi
 **Réglages avancés** (facultatif, dans `config.lua`) : `Config.Sharks = { biteDamage = 40, biteInterval = 1200, activateDistance = 350.0 }`. Toutes les valeurs sont dans `sharks_shared.lua`.
 
 **Tests hors jeu** : `python3 tests/run_sharks_sim.py` (59/59 : serveur et client avec un FiveM simulé, dont une physique d'eau simplifiée pour vérifier la nage et la poursuite) et `node tests/sharks_ui.js . <dossier>` (13/13 : onglet dans Chromium). Le rendu réel dans GTA (animation de nage, collisions) n'est pas simulé : à vérifier en jeu. Vitesses réglables : `Config.Sharks = { chaseSpeed = 7.5, patrolSpeed = 2.0 }`.
+
+## Éditeur de map : mode édition (tous les props)
+Bouton **🛠️ Mode édition** (onglet Éditeur › Props ou catalogue), permission `editor_props`.
+- Caméra libre (ZQSD, Espace/Ctrl, Maj, clic droit maintenu = regarder), le personnage ne bouge pas.
+- Liste de **tous les props du jeu** (`html/allprops.txt`, ~21 000) + catalogue classé, recherche, 300 résultats à la fois.
+- Survol : image (photo enregistrée `html/props/`, sinon site de référence) + aperçu 3D devant la caméra.
+- Clic : le prop suit la souris (collé aux surfaces ou flottant), rotation libre X / Y / Z (molette, flèches, curseurs, R = droit), clic = posé (persistant, dossier au choix). Le prop reste en main pour en poser d'autres.
+- Clic sur un prop posé : déplacer / tourner, dupliquer, supprimer.

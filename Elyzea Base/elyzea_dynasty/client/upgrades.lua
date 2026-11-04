@@ -318,50 +318,15 @@ CreateThread(function()
     end
 end)
 
--- Placement de la danseuse (à son arrivée, ou « Déplacer ») : elle suit le point visé au sol
--- Souris = viser · Molette / Q-E = tourner · Entrée / clic gauche = valider · Retour arrière = garder sa place
-local function AimGround()
-    local cr = GetGameplayCamRot(2)
-    local cp = GetGameplayCamCoord()
-    local p, y = math.rad(cr.x), math.rad(cr.z)
-    local dir = vector3(-math.sin(y) * math.cos(p), math.cos(y) * math.cos(p), math.sin(p))
-    local to = cp + dir * 12.0
-    local ray = StartExpensiveSynchronousShapeTestLosProbe(cp.x, cp.y, cp.z, to.x, to.y, to.z, 1, PlayerPedId(), 7)
-    local _, hit, pos = GetShapeTestResult(ray)
-    if hit == 1 then return pos end
-    return nil
-end
-
+-- Placement de la danseuse (à son arrivée, ou « Déplacer ») : comme un objet de décoration,
+-- dans le mode éditeur (caméra libre, elle suit la souris, molette = tourner, clic = poser)
+function C.DancerGet(n) return dancers[n] end
+function C.DancerList() return dancers end
 function C.DancerPlace(pid, n)
     local d = dancers[n]
-    if not d or not DoesEntityExist(d.ent) or C.dancerPlacing then return end
-    C.dancerPlacing = true
-    d.placingHere = true
-    local h = d.h or GetEntityHeading(PlayerPedId())
-    SetEntityAlpha(d.ent, 190, false)
-    CreateThread(function()
-        while C.dancerPlacing and DoesEntityExist(d.ent) and here == pid do
-            for _, k in ipairs({ 24, 25, 44, 38, 14, 15, 16, 17, 191, 194, 177, 200 }) do DisableControlAction(0, k, true) end
-            local pos = AimGround()
-            if pos then SetEntityCoordsNoOffset(d.ent, pos.x, pos.y, pos.z, false, false, false) end
-            if IsDisabledControlPressed(0, 44) or IsDisabledControlJustPressed(0, 15) then h = (h + (IsDisabledControlJustPressed(0, 15) and 15.0 or 2.0)) % 360 end
-            if IsDisabledControlPressed(0, 38) or IsDisabledControlJustPressed(0, 14) then h = (h - (IsDisabledControlJustPressed(0, 14) and 15.0 or 2.0)) % 360 end
-            SetEntityHeading(d.ent, h)
-            Help('Placez la danseuse : visez le sol~n~Molette / ~INPUT_COVER~ ~INPUT_PICKUP~ : tourner~n~~INPUT_ATTACK~ / Entrée : valider · Retour arrière : garder sa place')
-            if (IsDisabledControlJustPressed(0, 24) or IsDisabledControlJustPressed(0, 191)) and pos then
-                local r = C.Pub('dancerMove', { pid = pid, n = n, x = pos.x, y = pos.y, z = pos.z, h = h })
-                C.Show(r)
-                if r.ok then break end
-            elseif IsDisabledControlJustPressed(0, 194) or IsDisabledControlJustPressed(0, 177) then
-                C.Pub('dancerMove', { pid = pid, n = n, x = d.x, y = d.y, z = d.z, h = d.h })
-                break
-            end
-            Wait(0)
-        end
-        C.dancerPlacing = nil
-        if DoesEntityExist(d.ent) then ResetEntityAlpha(d.ent) end
-        d.placingHere = nil
-    end)
+    if not d or not DoesEntityExist(d.ent) then return C.Notify('La danseuse n\'est pas encore arrivée.', 'error') end
+    if C.EditorActive and C.EditorActive() then return C.EditorDancer(n) end
+    C.EditorOpen(pid, { dancer = n })
 end
 RegisterNetEvent('d8:client:dancerPlace', function(pid, n)
     if here ~= pid then return end

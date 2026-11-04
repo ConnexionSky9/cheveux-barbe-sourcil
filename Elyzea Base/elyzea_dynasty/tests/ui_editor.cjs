@@ -35,6 +35,29 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   check(await p.evaluate(() => calls.some((c) => c.d && c.d.a === 'snap' && c.d.on === false)), 'coller au sol : interrupteur');
   await p.evaluate(() => window.postMessage({ action: 'hedit', state: true, snap: true, sel: { id: 4, model: 'prop_tv_flat_01' }, placed: 12, limit: 40 }, '*')); await p.waitForTimeout(150);
   check(await p.$('[data-he="move"]') !== null && await p.$('[data-he="delete"]') !== null, 'objet posé sélectionné : déplacer / retirer');
+  // Tous les objets du jeu (allprops.txt) + image d'aperçu
+  const allTxt = require('fs').readFileSync(path.join(__dirname, '..', 'html', 'allprops.txt'), 'utf-8');
+  await p.evaluate((t) => { const f = window.fetch; window.fetch = (u, o) => (String(u).endsWith('allprops.txt') ? Promise.resolve(new Response(t)) : f(u, o)); }, allTxt);
+  await p.evaluate((catalog) => window.postMessage({ action: 'hedit', show: true, data: { name: 'Villa Vinewood', catalog, placed: 12, limit: 40, allProps: true, imageUrl: 'https://img.test/{name}.jpg' } }, '*'), cat);
+  await p.waitForTimeout(400);
+  check(await p.$('[data-he-cat="__all"]') !== null && (await p.textContent('[data-he-cat="__all"]')).includes('21'), 'chip « Tous les objets » (~21 000)');
+  await p.click('[data-he-cat="__all"]'); await p.waitForTimeout(200);
+  check(await p.$$eval('#hedit .he-item', (x) => x.length) === 240 && (await p.textContent('#he-list')).includes('autres objets'), 'tous les objets : affichage limité + « précisez la recherche »');
+  await p.fill('#he-q', 'bench_01a'); await p.waitForTimeout(150);
+  check(await p.$('[data-he-pick="prop_bench_01a"]') !== null, 'recherche dans tous les objets du jeu');
+  await p.hover('[data-he-pick="prop_bench_01a"]'); await p.waitForTimeout(250);
+  check((await p.textContent('#he-pv')).includes('prop_bench_01a'), 'survol : aperçu (image si disponible + nom)');
+  check(await p.evaluate(() => calls.some((c) => c.d && c.d.a === 'preview' && c.d.model === 'prop_bench_01a')), 'survol : aperçu 3D demandé au jeu');
+  await p.fill('#he-q', ''); await p.click('[data-he-cat=""]'); await p.fill('#he-q', 'prop_bench_01'); await p.waitForTimeout(150);
+  check(await p.$$eval('#hedit .he-item.raw', (x) => x.length) > 1, '« Tout » + recherche : cherche aussi dans tous les objets');
+  await p.screenshot({ path: path.join(out, 'editeur_tous_objets.png') });
+  // Danseuse en main
+  await p.evaluate(() => window.postMessage({ action: 'hedit', state: true, snap: true, model: 'Danseuse', dancer: true, placed: 12, limit: 40, valid: true }, '*')); await p.waitForTimeout(150);
+  check((await p.textContent('.he-bar')).includes('Danseuse') && (await p.textContent('.he-bar')).includes('Annuler'), 'danseuse en main : barre « Placement : Danseuse »');
+  await p.evaluate(() => window.postMessage({ action: 'hedit', state: true, snap: true, sel: { dancer: 1, model: 'Danseuse' }, placed: 12, limit: 40 }, '*')); await p.waitForTimeout(150);
+  check(await p.$('[data-he="move"]') !== null && await p.$('[data-he="delete"]') === null, 'danseuse sélectionnée : déplacer (pas de retrait)');
+  await p.evaluate(() => window.postMessage({ action: 'hedit', show: true, data: { name: 'Villa', catalog: [], placed: 0, limit: 0, dancerOnly: true } }, '*')); await p.waitForTimeout(150);
+  check(await p.$('#he-q') === null && (await p.textContent('#he-list')).includes('danseuse'), 'droit « Danseuse » seul : éditeur limité à la danseuse');
   await p.evaluate(() => window.postMessage({ action: 'hedit', show: false }, '*'));
   // Danseuse dans la gestion du logement
   const d = { prop: { id: 1, name: 'Villa', address: 'Hillcrest', category: 'Villa' }, contract: { kind: 'sale', holder: 'Alice', starts: 1, paid: 0, uid: 'X' }, role: 'holder',

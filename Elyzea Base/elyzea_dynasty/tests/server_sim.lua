@@ -247,3 +247,44 @@ function Part3()
     ok(admin(1, 'clearOwner', { pid = pid }) == true and P.Contract(pid) == nil and P.props[pid].status == 'available', 'libérer le logement')
     print(('Partie 3 : %d vérifications OK'):format(n))
 end
+
+function Part4()
+    print('== Partie 4 : décoration avec tous les objets du jeu + danseuse placée comme un objet ==')
+    AddPlayer(1, 'STAFF1', 'Admin', 'Staff', ENTRY)
+    AddPlayer(5, 'CIDE', 'Eva', 'Noir', ENTRY)
+    STAFF[1] = true
+    boot()
+    local pid = MySQL.scalar.await("SELECT id FROM d8_properties WHERE name = 'Villa Test'")
+    ok(admin(1, 'setOwner', { pid = pid, replace = true }) == true, 'staff propriétaire de test')
+    ok(pub(1, 'enter', { pid = pid, area = 'home' }).ok, 'entrée dans le logement')
+    local pr = P.props[pid]
+    local X = pr.points.exit
+    PLAYERS[1].coords = vector3(X.x + 1, X.y, X.z)
+    local ed = pub(1, 'decoEditor', { pid = pid })
+    ok(ed.ok and ed.allProps == true and ed.imageUrl and ed.imageUrl:find('{name}'), 'mode éditeur : accès à tous les objets du jeu (+ image d\'aperçu)')
+    local all = P.DecoAllProps()
+    local count = 0 for _ in pairs(all) do count = count + 1 end
+    ok(count > 20000, ('liste complète chargée côté serveur (%d modèles)'):format(count))
+    local inCat = false for _, c in ipairs(Config.Deco.catalog) do if c.model == 'prop_bench_01a' then inCat = true end end
+    ok(not inCat and all['prop_bench_01a'], 'modèle hors catalogue présent dans la liste complète')
+    local r = pub(1, 'decoPlace', { pid = pid, model = 'prop_bench_01a', x = X.x + 2, y = X.y, z = X.z, rz = 45 })
+    ok(r.ok, 'objet hors catalogue posé (tous les objets) : ' .. tostring(r.message or r.error))
+    ok(pub(1, 'decoPlace', { pid = pid, model = 'zz_pas_un_objet', x = X.x + 2, y = X.y, z = X.z }).ok ~= true, 'modèle inexistant refusé')
+    ok(pub(1, 'decoPlace', { pid = pid, model = 'prop_bench_01a lod', x = X.x + 2, y = X.y, z = X.z }).ok ~= true, 'nom invalide refusé')
+    Config.Deco.allProps = false
+    ok(pub(1, 'decoPlace', { pid = pid, model = 'prop_bench_01b', x = X.x + 2, y = X.y, z = X.z }).ok ~= true, 'allProps = false : seulement le catalogue')
+    ok(pub(1, 'decoEditor', { pid = pid }).allProps == nil, 'allProps = false : l\'interface ne propose plus tous les objets')
+    Config.Deco.allProps = true
+    -- Joueur avec le seul droit « Danseuse » : éditeur limité à la danseuse
+    local realRole = P.RoleOf
+    P.RoleOf = function(src, id) if src == 5 then return 'resident', { dancer = true } end return realRole(src, id) end
+    P.inside[5] = { pid = pid, area = 'home' }
+    ok(pub(5, 'decoEditor', { pid = pid }).ok ~= true, 'sans droit de gestion : pas de décoration')
+    local de = pub(5, 'decoEditor', { pid = pid, dancer = true })
+    ok(de.ok and de.dancerOnly == true and #de.catalog == 0 and de.limit == 0, 'droit « Danseuse » : éditeur ouvert pour la placer seulement')
+    ok(pub(5, 'decoPlace', { pid = pid, model = 'prop_bench_01a', x = X.x + 2, y = X.y, z = X.z }).ok ~= true, 'droit « Danseuse » : pose d\'objets refusée')
+    P.RoleOf = realRole
+    P.inside[5] = nil
+    ok(admin(1, 'clearOwner', { pid = pid }) == true, 'logement libéré')
+    print(('Partie 4 : %d vérifications OK'):format(n))
+end

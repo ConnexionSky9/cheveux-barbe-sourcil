@@ -88,5 +88,32 @@ NUI.he({ a = 'click' }, function() end)
 ok(sent.z > 29.3, 'sans coller au sol : l\'objet flotte à la distance choisie')
 NUI.he({ a = 'close' }, function() end)
 ok(not C.EditorActive() and camRender == false, 'éditeur fermé : caméra rendue')
+-- Danseuse placée comme un objet (mode éditeur, droit « Danseuse » seul)
+NET['d8:client:dancer'](7, RESP.dancerState.list)
+RunFor(100)
+RESP.decoEditor = { ok = true, pid = 7, name = 'Villa Test', catalog = {}, placed = 0, limit = 0, dancerOnly = true, anchor = { x = 150.0, y = 199.0, z = 30.0 }, radius = 30.0 }
+local dmove = nil
+RESP.dancerMove = function(d) dmove = d return { ok = true, message = 'Danseuse placée.' } end
+C.DancerPlace(7, 1)
+RunFor(100)
+ok(C.EditorActive() and NUIMSG[#NUIMSG].dancer == true, 'danseuse : en main dans le mode éditeur (suit la souris)')
+NUI.he({ a = 'rotate', deg = 30 }, function() end)
+NUI.he({ a = 'pick', model = 'prop_couch_01' }, function() end)
+ok(NUIMSG[#NUIMSG].dancer == true, 'danseuse seule : pas d\'objet de décoration sans le droit de gestion')
+RunFor(100)
+NUI.he({ a = 'click' }, function() end)
+ok(dmove and dmove.n == 1 and dmove.pid == 7 and dmove.z and dmove.h, 'danseuse : clic = posée là où vise la souris (avec sa rotation)')
+peds = 0 for _, k in pairs(ALIVE) do if k == 'ped' then peds = peds + 1 end end
+ok(peds == 1, 'danseuse toujours là après le placement (non supprimée)')
+ok(not C.EditorActive() and camRender == false, 'placement terminé : mode éditeur refermé')
+-- Annuler : elle reprend sa place
+RESP.decoEditor.dancerOnly = nil
+RESP.decoEditor.catalog = { { model = 'prop_couch_01', label = 'Canapé', cat = 'Salon' } }
+dmove = nil
+C.DancerPlace(7, 1)
+RunFor(100)
+NUI.he({ a = 'drop' }, function() end)
+ok(dmove == nil and NUIMSG[#NUIMSG].dancer == false and C.EditorActive(), 'annuler : la danseuse reste à sa place, l\'éditeur reste ouvert')
+NUI.he({ a = 'close' }, function() end)
 ok(#ERR == 0, 'aucune erreur dans les boucles client')
 print(('Client : %d vérifications OK'):format(n))
