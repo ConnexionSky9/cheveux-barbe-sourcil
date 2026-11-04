@@ -1,6 +1,6 @@
 # Test hors jeu du mode édition (client/editmode.lua) avec des natives simulées. python3 tests/editmode_sim.py
 import os
-from lupa import LuaRuntime
+from lupa.lua54 import LuaRuntime
 HERE = os.path.dirname(os.path.abspath(__file__))
 lua = LuaRuntime(unpack_returned_tuples=True)
 lua.execute(r'''
@@ -65,6 +65,14 @@ function GetShapeTestResult() return 2, 1, vector3(0.0, 2.0, 30.0), vector3(0, 0
 function GetEntityRotation() return vector3(10.0, 0.0, 45.0) end
 function SetEntityVisible() end
 function GetCurrentResourceName() return 'admin_menu' end
+function GetResourceState(r) return r == 'elyzea_tags' and 'started' or 'missing' end
+function GetShapeTestResultIncludingMaterial() return 2, 1, vector3(0.0, 5.0, 31.0), vector3(0.0, -1.0, 0.0), 123, 0 end
+PREV, WHY = {}, nil
+exports = { elyzea_tags = {
+  StaffOptions = function() return { fonts = { { key = 'graff', label = 'Graff', family = 'X' } }, colors = { '#ffffff' }, maxLength = 20, size = { min = 0.8, max = 8.0, default = 1.6 } } end,
+  StaffCheck = function(_, x, y, z, nx, ny, nz, mat, ent, size, rot) CHECKED = { x = x, nx = nx, ny = ny, size = size, rot = rot } return WHY end,
+  StaffPreview = function(_, d) PREV[#PREV + 1] = d or false end,
+  TagNear = function(_, x, y, z, r) return { id = 55, text = 'VAGOS', permanent = true } end } }
 LOOK = {}
 function EditorLookup(e) return LOOK[e] end
 DELETED = nil
@@ -124,6 +132,44 @@ call('delete')
 ok(G.DELETED and G.DELETED.id == 12, 'supprimer')
 call('pick', model='abc')
 ok(list(G.NUIMSG.values())[-1].model is None, 'modèle inexistant : refusé')
+# ---- Tag permanent
+ok(list(G.NUIMSG.values())[0].tags.size.max == 8.0, 'options des tags envoyées à l\'interface')
+call('tagStart', text='   ')
+ok(list(G.NUIMSG.values())[-1].tag is None, 'tag sans texte refusé')
+call('tagStart', text='BALLAS', color='#9b4de0', font='graff', size=3, rot=0)
+G.RunFor(3)
+st = list(G.NUIMSG.values())[-1]
+ok(st.tag and st.tag.text == 'BALLAS' and st.tag.ok is True, 'tag en main : suit le mur visé, possible (blanc)')
+pv = [x for x in G.PREV.values() if x][-1]
+ok(pv.text == 'BALLAS' and pv.ny == -1.0 and abs(pv.z - 31.0) < 0.01, 'aperçu du tag collé au mur (normale du mur)')
+G.PRESS[241] = 'once'; G.RunFor(1); G.PRESS[241] = None
+ok(abs(list(G.NUIMSG.values())[-1].tag.size - 3.2) < 0.001, 'molette : tag plus grand')
+G.PRESS[174] = True; G.RunFor(20); G.PRESS[174] = None
+G.RunFor(8)
+ok(G.CHECKED.rot > 5, 'flèche ← : rotation du tag')
+G.WHY = 'Le tag dépasse du mur : réduis la taille.'
+G.RunFor(10)
+ok(list(G.NUIMSG.values())[-1].tag.ok is False, 'mur trop petit : rouge + raison affichée')
+nsent = len(list(G.SENT.values()))
+call('click')
+ok(len(list(G.SENT.values())) == nsent, 'clic refusé tant que le tag ne tient pas sur le mur')
+G.WHY = None
+G.RunFor(10)
+call('click')
+s2 = list(G.SENT.values())[-1]
+ok(s2.a == 'editor_tag_place' and s2.d.text == 'BALLAS' and s2.d.color == '#9b4de0' and s2.d.ny == -1.0 and abs(s2.d.size - 3.2) < 0.001, 'clic : tag permanent envoyé au serveur')
+call('tagSet', size=5)
+G.RunFor(3)
+ok(abs(G.CHECKED.size - 5) < 0.001, 'curseur de l\'interface : taille changée')
+call('drop')
+ok(list(G.PREV.values())[-1] is False and list(G.NUIMSG.values())[-1].tag is None, 'arrêter : aperçu retiré')
+G.HITENT = 0
+call('click')
+sel = list(G.NUIMSG.values())[-1].sel
+ok(sel and sel.kind == 'tag' and sel.id == 55, 'clic sur un tag (sans outil) : sélectionné')
+call('delete')
+s3 = list(G.SENT.values())[-1]
+ok(s3.a == 'editor_tag_delete' and s3.d.id == 55, 'supprimer le tag')
 call('close')
 ok(not G.IsEditMode() and G.CAMR == False and len([k for k in G.ALIVE.keys() if k != 777]) == 0, 'fermeture : caméra rendue, rien ne reste')
 ok(len(list(G.ERR.values())) == 0, 'aucune erreur')

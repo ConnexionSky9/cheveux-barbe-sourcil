@@ -990,3 +990,4 @@ Bouton **🛠️ Mode édition** (onglet Éditeur › Props ou catalogue), permi
 - Survol : image (photo enregistrée `html/props/`, sinon site de référence) + aperçu 3D devant la caméra.
 - Clic : le prop suit la souris (collé aux surfaces ou flottant), rotation libre X / Y / Z (molette, flèches, curseurs, R = droit), clic = posé (persistant, dossier au choix). Le prop reste en main pour en poser d'autres.
 - Clic sur un prop posé : déplacer / tourner, dupliquer, supprimer.
+- Onglet **🎨 Tag permanent** : peindre des tags permanents (elyzea_tags) sur les murs depuis la caméra libre — voir elyzea_tags/README.md.

@@ -30,7 +30,7 @@
         (d.tags || []).forEach((t) => { const k = t.zoneId == null ? 'none' : t.zoneId; zones[k] = zones[k] || { id: t.zoneId, name: t.zone || 'Hors territoire', n: 0 }; zones[k].n++; });
         const rows = list.map((t) => `<tr>
             <td><span style="display:inline-flex;align-items:center;gap:8px"><i style="width:12px;height:12px;border-radius:3px;background:${esc(t.color)};display:inline-block;border:1px solid #0006"></i><strong>${esc(t.text)}</strong></span></td>
-            <td>${esc(t.author || '?')} <span class="muted">${esc(t.cid || '')}</span></td>
+            <td>${esc(t.author || '?')} <span class="muted">${esc(t.cid || '')}</span>${t.permanent ? ' <span class="badge" title="Posé dans le mode édition : jamais effacé automatiquement">📌 permanent</span>' : ''}</td>
             <td>${t.group ? esc(t.group) : '<span class="muted">—</span>'}</td>
             <td>${t.zone ? esc(t.zone) : '<span class="muted">Hors territoire</span>'}</td>
             <td class="muted">${date(t.created)}</td>
@@ -118,7 +118,7 @@
             case 'goto': send('goto', { id: Number(n.dataset.id) }); post('close'); return;
             case 'delete': if (await confirmBox('Supprimer ce tag ?', 'Il disparaît pour tout le monde.')) send('delete', { id: Number(n.dataset.id) }); return;
             case 'deleteAuthor': if (await confirmBox(`Supprimer tous les tags de ${n.dataset.name} ?`, 'Tous les tags de ce personnage disparaissent pour tout le monde.')) send('deleteAuthor', { cid: n.dataset.cid }); return;
-            case 'deleteAll': if (await confirmBox('Supprimer TOUS les tags ?', 'Toutes les maps sont nettoyées. Impossible de revenir en arrière.')) send('deleteAll'); return;
+            case 'deleteAll': if (await confirmBox('Supprimer TOUS les tags ?', 'Toutes les maps sont nettoyées (les tags permanents du mode édition restent). Impossible de revenir en arrière.')) send('deleteAll'); return;
         }
     });
 })();

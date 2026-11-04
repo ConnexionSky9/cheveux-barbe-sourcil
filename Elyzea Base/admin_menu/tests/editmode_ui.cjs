@@ -21,7 +21,9 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     const allTxt = fs.readFileSync(path.join(__dirname, '..', 'html', 'allprops.txt'), 'utf-8');
     await page.evaluate((t) => { const f = window.fetch; window.fetch = (u, o) => (String(u).endsWith('allprops.txt') ? Promise.resolve(new Response(t)) : f(u, o)); document.body.style.background = 'linear-gradient(135deg,#3a3550,#1c1a26)'; }, allTxt);
     const em = () => posts.filter((p) => p.ep === 'emode').map((p) => p.body);
-    await page.evaluate(() => window.postMessage({ action: 'emode', show: true, folders: [{ id: 3, name: 'Mairie' }], folder: null }, '*'));
+    await page.evaluate(() => window.postMessage({ action: 'emode', show: true, folders: [{ id: 3, name: 'Mairie' }], folder: null,
+        tags: { maxLength: 20, size: { min: 0.8, max: 8, default: 1.6 }, colors: ['#f2f2f2', '#e0433b', '#9b4de0'],
+            fonts: [{ key: 'graff', label: 'Graff', family: 'Sedgwick Ave Display' }, { key: 'drip', label: 'Coulures', family: 'Rubik Wet Paint' }] } }, '*'));
     await page.waitForTimeout(500);
     check(await page.$('#emode:not(.hidden)') !== null, 'mode édition ouvert');
     const n = Number((await page.textContent('#em-n')).replace(/\s/g, ''));
@@ -52,6 +54,27 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     check(em().some((b) => b.a === 'click'), 'clic dans le monde : poser');
     await page.evaluate(() => window.postMessage({ action: 'emode', state: true, snap: true, sel: { id: 12, model: 'prop_bench_01a', kind: 'prop' }, rx: 0, ry: 0, rz: 0, count: 1 }, '*')); await page.waitForTimeout(150);
     check(await page.$('[data-em="move"]') !== null && await page.$('[data-em="dup"]') !== null && await page.$('[data-em="delete"]') !== null, 'prop posé sélectionné : déplacer, dupliquer, supprimer');
+    // Onglet « Tag permanent »
+    await page.click('[data-em-tab="tag"]'); await page.waitForTimeout(100);
+    check(await page.$('#em-tagtext') !== null && await page.$$eval('[data-em-color]', (x) => x.length) === 3 && await page.$$eval('[data-em-font]', (x) => x.length) === 2, 'onglet tag : texte, couleurs, styles');
+    await page.click('[data-em="tagStart"]'); await page.waitForTimeout(100);
+    check(!em().some((b) => b.a === 'tagStart'), 'sans texte : rien n\'est envoyé');
+    await page.fill('#em-tagtext', 'BALLAS'); await page.click('[data-em-color="#9b4de0"]'); await page.click('[data-em-font="drip"]');
+    await page.$eval('#em-tagsize', (el) => { el.value = '4.5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    check((await page.textContent('.em-tagpv')) === 'BALLAS', 'aperçu du texte dans le panneau');
+    await page.click('[data-em="tagStart"]'); await page.waitForTimeout(100);
+    const ts = em().filter((b) => b.a === 'tagStart').pop();
+    check(ts && ts.text === 'BALLAS' && ts.color === '#9b4de0' && ts.font === 'drip' && ts.size === 4.5, 'peindre : texte, couleur, style et taille envoyés');
+    await page.evaluate(() => window.postMessage({ action: 'emode', state: true, snap: true, count: 1, tag: { text: 'BALLAS', color: '#9b4de0', font: 'drip', size: 4.5, rot: 0, ok: false, why: 'Le tag dépasse du mur : réduis la taille.' } }, '*')); await page.waitForTimeout(150);
+    check((await page.textContent('.em-bar')).includes('dépasse du mur'), 'barre : raison affichée quand le mur ne convient pas');
+    await page.evaluate(() => window.postMessage({ action: 'emode', state: true, snap: true, count: 1, tag: { text: 'BALLAS', color: '#9b4de0', font: 'drip', size: 4.5, rot: 0, ok: true } }, '*')); await page.waitForTimeout(150);
+    await page.screenshot({ path: path.join(out, 'mode_edition_tag.png') });
+    await page.$eval('[data-em-tag="rot"]', (el) => { el.value = '-30'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.waitForTimeout(150);
+    check(em().some((b) => b.a === 'tagSet' && b.rot === -30), 'barre : rotation du tag');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+    check(em().filter((b) => b.a === 'drop').length >= 1, 'Échap : arrêter le tag');
+    await page.evaluate(() => window.postMessage({ action: 'emode', state: true, snap: true, count: 1 }, '*')); await page.waitForTimeout(100);
     await page.keyboard.press('Escape'); await page.waitForTimeout(100);
     check(em().some((b) => b.a === 'close'), 'Échap : quitter');
     await page.evaluate(() => window.postMessage({ action: 'emode', show: false }, '*')); await page.waitForTimeout(100);

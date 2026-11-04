@@ -27,3 +27,19 @@ table.insert(AM.DataHooks, function(src, data)
     local ok, d = pcall(function() return exports[RES]:TagsAdminData() end)
     data.tags = ok and d or { available = false, resource = RES, error = true }
 end)
+
+-- Tags PERMANENTS posés dans l'éditeur de map (Mode édition) : permission « editor_props »
+AM.Actions.editor_tag_place = { perm = 'editor_props', noRefresh = true, fn = function(src, d)
+    if not available() then return AM.notify(src, ('La ressource « %s » n\'est pas démarrée.'):format(RES), 'error') end
+    local ok, success, msg = pcall(function() return exports[RES]:StaffPlaceTag(src, d) end)
+    if not ok then return AM.notify(src, 'Les tags ne répondent pas (redémarre elyzea_tags).', 'error') end
+    AM.notify(src, msg or (success and 'Tag posé.' or 'Tag refusé.'), success and 'success' or 'error')
+    if success then AM.addLog(src, 'Tag permanent', tostring(msg)) end
+end }
+AM.Actions.editor_tag_delete = { perm = 'editor_props', noRefresh = true, fn = function(src, d)
+    if not available() then return end
+    local ok, success, msg = pcall(function() return exports[RES]:TagsAdminAction(src, 'delete', { id = tonumber(d.id) }) end)
+    if not ok then return AM.notify(src, 'Les tags ne répondent pas (redémarre elyzea_tags).', 'error') end
+    AM.notify(src, msg or '', success and 'success' or 'error')
+    if success then AM.addLog(src, 'Tag supprimé (éditeur)', tostring(msg)) end
+end }

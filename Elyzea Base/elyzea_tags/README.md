@@ -85,3 +85,10 @@ Les polices viennent de Google Fonts (chargées par le jeu) ; sans Internet, le 
 | `admin_menu/fxmanifest.lua`, `html/index.html`, `html/script.js` | chargement de l'onglet (catégorie Illégal) |
 | `admin_menu/config.lua`, `server/main.lua` | permission `tags_manage` (Modérateur et au-dessus) |
 | `Serveur cfg/server.cfg` | `ensure elyzea_tags` |
+
+## Tags permanents (staff, éditeur de map)
+admin_menu › Éditeur › 🛠️ Mode édition › onglet **🎨 Tag permanent** (permission `editor_props`) :
+texte, couleur (ou couleur libre), style, taille jusqu'à `Config.Size.staffMax` (8 m). Le tag suit la souris sur les murs
+(blanc = possible, rouge = raison affichée) ; molette = taille, ← → = rotation libre, R = droit, clic = peint. On peut en peindre plusieurs à la suite.
+Un tag permanent n'est jamais effacé par l'expiration, les limites par joueur / territoire, une repasse ou un solvant ; « Tout supprimer » le garde.
+Le staff le retire un par un (onglet Tags, ou clic dessus dans le mode édition › Supprimer). Colonne `permanent` ajoutée automatiquement.

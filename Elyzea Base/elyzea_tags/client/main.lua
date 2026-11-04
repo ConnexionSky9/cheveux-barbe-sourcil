@@ -43,7 +43,7 @@ end
 local function addTag(t)
     local pos, n = vector3(t.x + 0.0, t.y + 0.0, t.z + 0.0), norm(vector3(t.nx + 0.0, t.ny + 0.0, t.nz + 0.0))
     local rot = (tonumber(t.rot) or 0) + 0.0
-    Tags[t.id] = { id = t.id, text = t.text, color = t.color, font = t.font, size = t.size + 0.0, rot = rot, pos = pos, n = n,
+    Tags[t.id] = { id = t.id, text = t.text, color = t.color, font = t.font, size = t.size + 0.0, rot = rot, pos = pos, n = n, permanent = t.permanent == true,
         corners = corners(pos, n, t.size + 0.0, rot) }
 end
 
@@ -93,7 +93,7 @@ end
 CreateThread(function()
     local maxD = Config.Render.distance
     while true do
-        local me = GetEntityCoords(PlayerPedId())
+        local me = GetFinalRenderedCamCoord()   -- autour de la caméra (suit aussi une caméra libre)
         local near = {}
         for _, t in pairs(Tags) do
             local d = #(t.pos - me)
@@ -130,7 +130,7 @@ CreateThread(function()
         if #Visible == 0 then
             Wait(500)
         else
-            local now, me, k = GetGameTimer(), GetEntityCoords(PlayerPedId()), brightness()
+            local now, me, k = GetGameTimer(), GetFinalRenderedCamCoord(), brightness()
             local c = math.floor(255 * k)
             for _, v in ipairs(Visible) do
                 local s = v.slot
@@ -442,4 +442,61 @@ RegisterNetEvent('elyzea_tags:client:material', function()
     if not at then return notify('Vise une surface.', 'error') end
     notify(('Matière : %s · pente %.2f · %s'):format(tostring(mat), math.abs(n.z), (ent and ent ~= 0) and ('objet ' .. tostring(GetEntityModel(ent))) or 'décor de la map'), 'inform')
     print(('[TAGS] matière visée : %s'):format(tostring(mat)))
+end)
+
+-- ---------------------------------------------------------
+--  Staff : tags PERMANENTS posés dans l'éditeur de map (admin_menu › Mode édition)
+--  admin_menu vise le mur avec sa caméra libre ; ici : options, vérification du mur, aperçu.
+-- ---------------------------------------------------------
+exports('StaffOptions', function()
+    return { fonts = Config.Fonts, colors = Config.Colors, maxLength = Config.MaxLength,
+        size = { min = Config.Size.min, max = Config.Size.staffMax or 8.0, default = Config.Size.default } }
+end)
+
+-- Le tag tient-il sur ce mur ? nil = oui, sinon la raison
+exports('StaffCheck', function(x, y, z, nx, ny, nz, mat, ent, size, rot)
+    local pos, n = vector3(x + 0.0, y + 0.0, z + 0.0), norm(vector3(nx + 0.0, ny + 0.0, nz + 0.0))
+    local why = surfaceProblem(n, mat, ent)
+    if not why and not fits(pos, n, (tonumber(size) or Config.Size.default) + 0.0, (tonumber(rot) or 0) + 0.0) then
+        why = 'Le tag dépasse du mur : réduis la taille.'
+    end
+    return why
+end)
+
+-- Tag le plus proche d'un point (clic sur un tag dans le mode édition)
+exports('TagNear', function(x, y, z, radius)
+    local p, best, bd = vector3(x + 0.0, y + 0.0, z + 0.0), nil, (tonumber(radius) or 1.0) + 0.0
+    for _, t in pairs(Tags) do
+        local d = #(t.pos - p)
+        if d <= math.max(bd, t.size / 2) and (not best or d < #(best.pos - p)) then best = t end
+    end
+    return best and { id = best.id, text = best.text, permanent = best.permanent == true } or nil
+end)
+
+-- Aperçu (d = nil : arrêt) : d = { text, color, font, size, rot, x, y, z, nx, ny, nz, ok }
+local StaffPrev = nil
+exports('StaffPreview', function(d)
+    if type(d) ~= 'table' or not d.x then
+        StaffPrev = nil
+        if Preview then Preview.tagId, Preview.showAt = nil, nil end
+        return
+    end
+    Preview = Preview or newSlot(0)
+    local key = ('%s|%s|%s'):format(d.text, d.color, d.font)
+    if not StaffPrev or StaffPrev.key ~= key then paint(Preview, { id = -2, text = d.text, color = d.color, font = d.font }) end
+    local first = StaffPrev == nil
+    StaffPrev = { key = key, ok = d.ok ~= false,
+        corners = corners(vector3(d.x + 0.0, d.y + 0.0, d.z + 0.0), norm(vector3(d.nx + 0.0, d.ny + 0.0, d.nz + 0.0)), (tonumber(d.size) or 1.6) + 0.0, (tonumber(d.rot) or 0) + 0.0) }
+    if first then
+        CreateThread(function()
+            while StaffPrev do
+                local c, ok = StaffPrev.corners, StaffPrev.ok
+                if Preview.showAt and GetGameTimer() >= Preview.showAt then
+                    drawQuad(c, Preview.txd, 255, ok and 255 or 70, ok and 255 or 70, ok and 215 or 130)
+                end
+                if ok then drawFrame(c, 255, 255, 255) else drawFrame(c, 255, 60, 60) end
+                Wait(0)
+            end
+        end)
+    end
 end)

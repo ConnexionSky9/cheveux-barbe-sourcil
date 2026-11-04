@@ -8,6 +8,9 @@
 --  · Rotation libre : molette = cap (Z) · flèches ↑ ↓ = tangage (X) · flèches ← → = roulis (Y)
 --    · R = remise à zéro · curseurs dans l'interface pour un réglage précis.
 --  · Clic sur un prop déjà posé avec l'éditeur : déplacer, dupliquer ou supprimer.
+--  · Onglet « Tag permanent » (elyzea_tags) : texte, couleur, style, taille ; le tag suit la souris sur
+--    les murs (blanc = possible, rouge = non) ; molette = taille, ← → = rotation, clic = peint pour toujours
+--    (jamais effacé par l'expiration, les limites, une repasse ou un solvant). Clic sur un tag : le supprimer.
 --  Touches : Z Q S D voler · Espace / Ctrl monter / descendre · Maj plus vite · clic droit maintenu = regarder
 --            G = coller aux surfaces oui / non · Pg.Préc / Pg.Suiv = distance (sans collage) · Suppr = supprimer
 -- =========================================================
@@ -20,6 +23,14 @@ local function Norm(v) local l = #v if l < 1e-6 then return v end return v / l e
 local function Wrap(v) v = (v + 180.0) % 360.0 - 180.0 return v end
 
 function IsEditMode() return M ~= nil end
+local TAGS = 'elyzea_tags'
+local function tagsOn() return GetResourceState(TAGS) == 'started' end
+local function tagExport(name, ...)
+    if not tagsOn() then return nil end
+    local ok, a = pcall(function(...) return exports[TAGS][name](exports[TAGS], ...) end, ...)
+    if ok then return a end
+    return nil
+end
 
 local function LoadModel(model)
     local h = GetHashKey(model)
@@ -45,7 +56,8 @@ local function Ui(msg) msg.action = 'emode' SendNUIMessage(msg) end
 local function State()
     if not M then return end
     Ui({ state = true, snap = M.snap, model = M.model, moving = M.moveId ~= nil, rx = M.rx, ry = M.ry, rz = M.rz,
-        sel = M.sel and { id = M.sel.id, model = M.sel.model, kind = M.sel.kind } or nil, folder = M.folder, count = M.count })
+        sel = M.sel and { id = M.sel.id, model = M.sel.model, kind = M.sel.kind } or nil, folder = M.folder, count = M.count,
+        tag = M.tag and { text = M.tag.text, color = M.tag.color, font = M.tag.font, size = M.tag.size, rot = M.tag.rot, ok = M.tagOk, why = M.tagWhy } or nil })
 end
 
 local function CursorRay()
@@ -65,8 +77,20 @@ local function Raycast(dir, ignore, flags)
     return hit == 1, at, ent
 end
 
+local function StopTag()
+    if M and M.tag then M.tag, M.tagAt, M.tagOk, M.tagWhy = nil, nil, nil, nil tagExport('StaffPreview', nil) end
+end
+-- Mur visé par la souris : point, normale, matière, entité
+local function WallRay(dir)
+    local to = M.pos + dir * 120.0
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(M.pos.x, M.pos.y, M.pos.z, to.x, to.y, to.z, 1 + 16, 0, 7)
+    local _, hit, at, n, mat, ent = GetShapeTestResultIncludingMaterial(ray)
+    if hit ~= 1 and hit ~= true then return nil end
+    return at, n, mat, ent
+end
 local function ClearHand()
     if not M then return end
+    StopTag()
     DelEnt(M.ghost) M.ghost = nil
     if M.hidden and DoesEntityExist(M.hidden) then SetEntityVisible(M.hidden, true, false) end
     M.hidden, M.model, M.moveId = nil, nil, nil
@@ -104,7 +128,8 @@ function OpenEditMode(folder)
     SetNuiFocusKeepInput(true)
     local folders = {}
     for _, f in ipairs(Editor.propFolders or {}) do folders[#folders + 1] = { id = f.id, name = f.name } end
-    Ui({ show = true, folders = folders, folder = M.folder })
+    M.tagOpts = tagExport('StaffOptions')
+    Ui({ show = true, folders = folders, folder = M.folder, tags = M.tagOpts })
     State()
     local looking = false
     CreateThread(function()
@@ -148,8 +173,21 @@ function OpenEditMode(folder)
                 end
             end
             local step = IsDisabledControlPressed(0, 21) and 1.0 or 15.0
-            if IsDisabledControlJustPressed(0, 241) then M.rz = (M.rz + step) % 360 State() end
-            if IsDisabledControlJustPressed(0, 242) then M.rz = (M.rz - step) % 360 State() end
+            if M.tag then
+                local t, fine = M.tag, IsDisabledControlPressed(0, 21)
+                local sz = M.tagOpts and M.tagOpts.size or { min = 0.8, max = 8.0 }
+                if IsDisabledControlJustPressed(0, 241) then t.size = math.min(sz.max, t.size + (fine and 0.05 or 0.2)) M.tagCheck = 0 State() end
+                if IsDisabledControlJustPressed(0, 242) then t.size = math.max(sz.min, t.size - (fine and 0.05 or 0.2)) M.tagCheck = 0 State() end
+                if not M.typing then
+                    local rs = 60.0 * dt * (fine and 0.25 or 1.0)
+                    if IsDisabledControlPressed(0, 174) then t.rot = Wrap(t.rot + rs) M.tagCheck = 0 end
+                    if IsDisabledControlPressed(0, 175) then t.rot = Wrap(t.rot - rs) M.tagCheck = 0 end
+                    if IsDisabledControlJustPressed(0, 45) then t.rot = 0.0 M.tagCheck = 0 end
+                end
+            else
+                if IsDisabledControlJustPressed(0, 241) then M.rz = (M.rz + step) % 360 State() end
+                if IsDisabledControlJustPressed(0, 242) then M.rz = (M.rz - step) % 360 State() end
+            end
             SetCamCoord(M.cam, M.pos.x, M.pos.y, M.pos.z)
             SetCamRot(M.cam, M.pitch, 0.0, M.yaw, 2)
             SetFocusPosAndVel(M.pos.x, M.pos.y, M.pos.z, 0.0, 0.0, 0.0)
@@ -169,6 +207,27 @@ function OpenEditMode(folder)
                 SetEntityCoordsNoOffset(M.ghost, p.x, p.y, p.z, false, false, false)
                 SetEntityRotation(M.ghost, M.rx, M.ry, M.rz, 2, true)
             end
+            -- Tag en main : collé au mur visé par la souris (vérifié 10 fois par seconde)
+            if M.tag and not looking then
+                local at, n, mat, ent = WallRay(CursorRay())
+                if at then
+                    local l = #n
+                    if l > 0.0001 then n = n / l end
+                    local now = GetGameTimer()
+                    if now >= (M.tagCheck or 0) or not M.tagAt or #(at - M.tagAt.at) > 0.25 then
+                        M.tagCheck = now + 100
+                        local why = tagExport('StaffCheck', at.x, at.y, at.z, n.x, n.y, n.z, mat, ent, M.tag.size, M.tag.rot)
+                        local ok = why == nil
+                        if ok ~= M.tagOk or why ~= M.tagWhy then M.tagOk, M.tagWhy = ok, why State() end
+                    end
+                    M.tagAt = { at = at, n = n }
+                    tagExport('StaffPreview', { text = M.tag.text, color = M.tag.color, font = M.tag.font, size = M.tag.size, rot = M.tag.rot,
+                        x = at.x, y = at.y, z = at.z, nx = n.x, ny = n.y, nz = n.z, ok = M.tagOk })
+                else
+                    if M.tagAt then M.tagAt = nil tagExport('StaffPreview', nil) end
+                    if M.tagOk ~= false or M.tagWhy ~= 'Vise un mur.' then M.tagOk, M.tagWhy = false, 'Vise un mur.' State() end
+                end
+            end
             -- Aperçu 3D (survol dans la liste) : il tourne devant la caméra, à une distance adaptée à sa taille
             if M.preview and DoesEntityExist(M.preview) then
                 local mn, mx = GetModelDimensions(GetEntityModel(M.preview))
@@ -179,7 +238,7 @@ function OpenEditMode(folder)
                 SetEntityRotation(M.preview, 0.0, 0.0, (GetGameTimer() / 20.0) % 360, 2, true)
             end
             if IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 202) then
-                if M.ghost then ClearHand() State() else Close() end
+                if M.ghost or M.tag then ClearHand() State() else Close() end
             end
             Wait(0)
         end
@@ -189,6 +248,15 @@ end
 -- Clic dans le monde : poser l'objet en main, ou sélectionner un prop posé avec l'éditeur
 function EditModeClick()
     if not M then return end
+    if M.tag then
+        if not M.tagAt or not M.tagOk then return Notify(M.tagWhy or 'Vise un mur.', 'error') end
+        local a, n, t = M.tagAt.at, M.tagAt.n, M.tag
+        TriggerServerEvent('adminmenu:action', 'editor_tag_place', { text = t.text, color = t.color, font = t.font, size = t.size, rot = t.rot,
+            x = a.x, y = a.y, z = a.z, nx = n.x, ny = n.y, nz = n.z })
+        M.count = M.count + 1
+        State()
+        return
+    end
     if M.ghost and M.at then
         local d = { id = M.moveId, model = M.model, x = M.at.x, y = M.at.y, z = M.at.z, h = M.rz % 360, rx = M.rx, ry = M.ry, folder = M.folder }
         TriggerServerEvent('adminmenu:action', 'editor_save_prop', d)
@@ -205,6 +273,12 @@ function EditModeClick()
     if hit and ent and ent ~= 0 then
         local info = EditorLookup and EditorLookup(ent)
         if info then M.sel = { id = info.id, model = info.model, kind = info.kind, info = info, ent = ent } end
+    end
+    -- Pas d'objet : un tag sur ce mur ?
+    if not M.sel and hit then
+        local at = select(2, Raycast(CursorRay(), 0, 1 + 16))
+        local t = at and tagExport('TagNear', at.x, at.y, at.z, 1.0)
+        if t then M.sel = { id = t.id, model = ('Tag « %s »%s'):format(t.text, t.permanent and ' (permanent)' or ''), kind = 'tag' } end
     end
     if not M.sel and hit then Notify('Ce n\'est pas un objet posé avec l\'éditeur.', 'info') end
     State()
@@ -238,7 +312,8 @@ end
 
 function EditModeDelete()
     if not M or not M.sel then return end
-    if EditorDelete then EditorDelete(M.sel.info) end
+    if M.sel.kind == 'tag' then TriggerServerEvent('adminmenu:action', 'editor_tag_delete', { id = M.sel.id })
+    elseif EditorDelete then EditorDelete(M.sel.info) end
     M.sel = nil
     State()
 end
@@ -271,6 +346,21 @@ RegisterNUICallback('emode', function(body, cb)
     elseif a == 'rotReset' then M.rx, M.ry = 0.0, 0.0 State()
     elseif a == 'folder' then M.folder = tonumber(body.id) or nil State()
     elseif a == 'drop' then ClearHand() State()
+    elseif a == 'tagStart' then
+        if not M.tagOpts then return Notify('La ressource elyzea_tags n\'est pas démarrée.', 'error') end
+        local text = tostring(body.text or ''):sub(1, 120)
+        if text:gsub('%s', '') == '' then return Notify('Écris le texte du tag.', 'error') end
+        ClearHand() ClearPreview()
+        M.sel = nil
+        M.tag = { text = text, color = tostring(body.color or '#f2f2f2'), font = tostring(body.font or ''),
+            size = math.max(M.tagOpts.size.min, math.min(M.tagOpts.size.max, tonumber(body.size) or M.tagOpts.size.default)), rot = Wrap(tonumber(body.rot) or 0.0) }
+        M.tagCheck = 0
+        State()
+    elseif a == 'tagSet' and M.tag then
+        local sz = M.tagOpts.size
+        if body.size then M.tag.size = math.max(sz.min, math.min(sz.max, tonumber(body.size) or M.tag.size)) end
+        if body.rot then M.tag.rot = Wrap(tonumber(body.rot) or M.tag.rot) end
+        M.tagCheck = 0
     elseif a == 'typing' then M.typing = body.on == true SetNuiFocusKeepInput(not M.typing)
     elseif a == 'close' then Close() end
 end)

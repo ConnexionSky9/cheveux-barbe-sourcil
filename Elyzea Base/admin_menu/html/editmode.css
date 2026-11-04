@@ -67,3 +67,25 @@
 .em-bar em { font-style: normal; color: #CFC6EA; min-width: 34px; font-size: 11.5px; }
 .em-bar button { padding: 7px 11px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, .1); color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
 .em-bar button.danger { background: rgba(255, 90, 110, .25); color: #FFB3BD; }
+
+/* Onglet « Tag permanent » */
+.em-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.em-tabs button { padding: 8px; border-radius: 11px; border: 0; background: rgba(255, 255, 255, .06); color: #CFC6EA; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.em-tabs button.on { background: rgba(155, 92, 255, .45); color: #fff; box-shadow: 0 0 14px rgba(155, 92, 255, .4); }
+.em-tag { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.em-tag > label { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #B57BFF; }
+.em-tag > label small, .em-tag > label b { text-transform: none; color: #CFC6EA; font-weight: 600; }
+.em-colors { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.em-colors button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .18); cursor: pointer; }
+.em-colors button.on { border-color: #fff; box-shadow: 0 0 0 2px #9B5CFF, 0 0 12px #9B5CFF; }
+.em-colors input[type=color] { width: 30px; height: 28px; border: 0; background: none; padding: 0; cursor: pointer; }
+.em-fonts { display: flex; flex-wrap: wrap; gap: 5px; }
+.em-fonts button { padding: 6px 10px; border-radius: 9px; border: 0; background: rgba(255, 255, 255, .06); color: #fff; font-size: 14px; cursor: pointer; }
+.em-fonts button.on { background: rgba(155, 92, 255, .45); box-shadow: 0 0 0 1.5px #B57BFF; }
+.em-tag input[type=range] { accent-color: #9B5CFF; }
+.em-tagpv { min-height: 70px; border-radius: 14px; background: repeating-linear-gradient(45deg, #4a4352, #4a4352 10px, #3f3946 10px, #3f3946 20px);
+  display: flex; align-items: center; justify-content: center; font-size: 30px; padding: 8px; text-align: center; word-break: break-all;
+  -webkit-text-stroke: 1.5px rgba(10, 10, 10, .85); paint-order: stroke fill; text-shadow: 2px 3px 0 rgba(10, 10, 10, .7); }
+.em-go { padding: 11px; border-radius: 12px; border: 0; background: linear-gradient(135deg, #7B2FF7, #B57BFF); color: #fff; font: inherit; font-weight: 800; font-size: 13.5px; cursor: pointer; box-shadow: 0 0 18px rgba(155, 92, 255, .5); }
+.em-ok { color: #7CF0B5; font-size: 12px; font-weight: 700; }
+.em-ko { color: #FF8A8A; font-size: 12px; font-weight: 700; }

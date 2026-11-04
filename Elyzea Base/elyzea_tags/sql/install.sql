@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `elyzea_tags` (
     `group_label` VARCHAR(100) NULL,
     `zone_id` INT NULL,
     `zone_name` VARCHAR(100) NULL,
+    `permanent` TINYINT(1) NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY `citizenid` (`citizenid`),
     KEY `zone_id` (`zone_id`)
@@ -22,3 +23,4 @@ CREATE TABLE IF NOT EXISTS `elyzea_tags` (
 
 -- Mise à jour d'une installation existante (fait automatiquement au démarrage) :
 -- ALTER TABLE `elyzea_tags` ADD COLUMN `rot` FLOAT NOT NULL DEFAULT 0 AFTER `size`;
+-- ALTER TABLE `elyzea_tags` ADD COLUMN `permanent` TINYINT(1) NOT NULL DEFAULT 0 AFTER `zone_name`;

@@ -153,7 +153,8 @@ local function saveSettings() SetResourceKvp(KVP, json.encode(S)) end
 --  Base de données
 -- ---------------------------------------------------------
 local function public(t)
-    return { id = t.id, x = t.x, y = t.y, z = t.z, nx = t.nx, ny = t.ny, nz = t.nz, size = t.size, rot = t.rot or 0.0, text = t.text, color = t.color, font = t.font }
+    return { id = t.id, x = t.x, y = t.y, z = t.z, nx = t.nx, ny = t.ny, nz = t.nz, size = t.size, rot = t.rot or 0.0, text = t.text, color = t.color, font = t.font,
+        permanent = t.permanent or nil }
 end
 
 local function broadcastRemove(ids)
@@ -174,7 +175,7 @@ end
 local function expire()
     if S.expireDays <= 0 then return end
     local limit, ids = os.time() - S.expireDays * 86400, {}
-    for id, t in pairs(Tags) do if t.created < limit then ids[#ids + 1] = id end end
+    for id, t in pairs(Tags) do if t.created < limit and not t.permanent then ids[#ids + 1] = id end end
     if #ids > 0 then
         deleteTags(ids)
         log(0, 'Tags expirés', ('%d tag(s) de plus de %d jour(s) effacé(s)'):format(#ids, S.expireDays))
@@ -206,12 +207,17 @@ CreateThread(function()
     local hasRot = MySQL.scalar.await([[SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
         AND TABLE_NAME = 'elyzea_tags' AND COLUMN_NAME = 'rot']])
     if not hasRot then MySQL.query.await('ALTER TABLE `elyzea_tags` ADD COLUMN `rot` FLOAT NOT NULL DEFAULT 0 AFTER `size`') end
+    -- Tags permanents (posés par le staff dans l'éditeur de map) : colonne ajoutée si elle manque
+    local hasPerm = MySQL.scalar.await([[SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'elyzea_tags' AND COLUMN_NAME = 'permanent']])
+    if not hasPerm then MySQL.query.await('ALTER TABLE `elyzea_tags` ADD COLUMN `permanent` TINYINT(1) NOT NULL DEFAULT 0 AFTER `zone_name`') end
     local rows = MySQL.query.await([[SELECT id, x, y, z, nx, ny, nz, size, rot, text, color, font, citizenid, author, license, group_id, group_label,
-        zone_id, zone_name, UNIX_TIMESTAMP(created_at) AS created FROM `elyzea_tags`]]) or {}
+        zone_id, zone_name, permanent, UNIX_TIMESTAMP(created_at) AS created FROM `elyzea_tags`]]) or {}
     for _, r in ipairs(rows) do
         Tags[r.id] = { id = r.id, x = r.x, y = r.y, z = r.z, nx = r.nx, ny = r.ny, nz = r.nz, size = r.size, rot = tonumber(r.rot) or 0.0, text = r.text, color = r.color,
             font = r.font, cid = r.citizenid, author = r.author, license = r.license, groupId = r.group_id, groupLabel = r.group_label,
-            zoneId = r.zone_id, zoneName = r.zone_name, created = tonumber(r.created) or os.time() }
+            zoneId = r.zone_id, zoneName = r.zone_name, created = tonumber(r.created) or os.time(),
+            permanent = (r.permanent == 1 or r.permanent == true) or nil }
     end
     Ready = true
     expire()
@@ -353,7 +359,10 @@ local function validate(src, d)
     -- Tags superposés : remplacés (repasse) ou refus
     local under = {}
     for id, t in pairs(Tags) do
-        if #(vector3(t.x, t.y, t.z) - pos) < Config.Spray.minSpacing then under[#under + 1] = id end
+        if #(vector3(t.x, t.y, t.z) - pos) < Config.Spray.minSpacing then
+            if t.permanent then return nil, 'Un tag permanent est peint ici : choisis un autre endroit.' end
+            under[#under + 1] = id
+        end
     end
     if #under > 0 and not S.overwrite then return nil, 'Il y a déjà un tag ici : efface-le d\'abord.' end
 
@@ -399,7 +408,7 @@ RegisterNetEvent('elyzea_tags:server:place', function(d)
     for tid, t in pairs(Tags) do
         local replaced = false
         for _, uid in ipairs(under) do if uid == tid then replaced = true break end end
-        if not replaced then
+        if not replaced and not t.permanent then
             if t.cid == c then mine[#mine + 1] = t end
             if tag.zoneId and t.zoneId == tag.zoneId then inZone[#inZone + 1] = t end
         end
@@ -432,6 +441,7 @@ RegisterNetEvent('elyzea_tags:server:clean', function(id)
     if not takePending(src, 'clean') then return end
     local t = Tags[tonumber(id) or -1]
     if not t then return notify(src, 'Ce tag a déjà disparu.', 'error') end
+    if t.permanent then return notify(src, 'Ce tag est permanent : seul le staff peut le retirer.', 'error') end
     if not canClean(src) then return notify(src, 'Tu n\'as pas le droit d\'effacer les tags.', 'error') end
     local ped = GetPlayerPed(src)
     if ped == 0 or #(GetEntityCoords(ped) - vector3(t.x, t.y, t.z)) > Config.Clean.reach + 2.0 then return notify(src, 'Tu es trop loin du tag.', 'error') end
@@ -499,7 +509,7 @@ exports('TagsAdminData', function()
     local list, authors, zones = {}, {}, {}
     for _, t in pairs(Tags) do
         list[#list + 1] = { id = t.id, text = t.text, color = t.color, font = t.font, author = t.author, cid = t.cid, group = t.groupLabel,
-            zone = t.zoneName, zoneId = t.zoneId, created = t.created }
+            zone = t.zoneName, zoneId = t.zoneId, created = t.created, permanent = t.permanent or nil }
         if t.cid then authors[t.cid] = true end
         if t.zoneId then zones[t.zoneId] = true end
     end
@@ -543,10 +553,11 @@ exports('TagsAdminAction', function(src, name, d)
         deleteTags(ids)
         return true, ('%d tag(s) supprimé(s).'):format(#ids)
     elseif name == 'deleteAll' then
+        -- Les tags permanents restent (sauf d.permanent = true)
         local ids = {}
-        for id in pairs(Tags) do ids[#ids + 1] = id end
+        for id, t in pairs(Tags) do if not t.permanent or d.permanent == true then ids[#ids + 1] = id end end
         deleteTags(ids)
-        return true, ('Tous les tags supprimés (%d).'):format(#ids)
+        return true, ('Tous les tags supprimés (%d)%s.'):format(#ids, d.permanent == true and '' or ', les tags permanents restent')
     elseif name == 'goto' then
         local t = Tags[tonumber(d.id) or -1]
         if not t then return false, 'Ce tag n\'existe plus.' end
@@ -556,6 +567,45 @@ exports('TagsAdminAction', function(src, name, d)
         return true, ('Téléporté devant le tag « %s ».'):format(t.text)
     end
     return false, 'Action inconnue.'
+end)
+
+-- ---------------------------------------------------------
+--  Tags PERMANENTS : posés par le staff dans l'éditeur de map (admin_menu › Mode édition)
+--  Pas de bombe, pas de limite, jamais effacés par l'expiration, les limites, une repasse
+--  ou un solvant : seul le staff les retire. admin_menu vérifie la permission avant d'appeler.
+-- ---------------------------------------------------------
+exports('StaffPlaceTag', function(src, d)
+    if not Ready then return false, 'Les tags démarrent encore.' end
+    if type(d) ~= 'table' then return false, 'Demande invalide.' end
+    local text, why = Filter.check(d.text, S.blacklist)
+    if not text then return false, why end
+    local color = type(d.color) == 'string' and d.color:match('^#%x%x%x%x%x%x$') and d.color:lower() or nil
+    if not color then return false, 'Couleur invalide.' end
+    local font = fontOk(d.font) and d.font or Config.Fonts[1].key
+    local smax = Config.Size.staffMax or 8.0
+    local size = math.max(Config.Size.min, math.min(smax, num(d.size) or Config.Size.default))
+    local rot = num(d.rot) or 0.0
+    rot = ((rot + 180.0) % 360.0) - 180.0
+    local x, y, z, nx, ny, nz = num(d.x), num(d.y), num(d.z), num(d.nx), num(d.ny), num(d.nz)
+    if not (x and y and z and nx and ny and nz) then return false, 'Position invalide.' end
+    local len = math.sqrt(nx * nx + ny * ny + nz * nz)
+    if len < 0.5 or len > 1.5 then return false, 'Position invalide.' end
+    nx, ny, nz = nx / len, ny / len, nz / len
+    if math.abs(nz) > Config.Spray.maxSlope then return false, 'Il faut viser un mur.' end
+    local pos = vector3(x, y, z)
+    local zone = territoryAt(pos)
+    local author = GetPlayerName(src) or 'Staff'
+    local id = MySQL.insert.await([[INSERT INTO `elyzea_tags` (x, y, z, nx, ny, nz, size, rot, text, color, font, citizenid, author, license,
+        group_id, group_label, zone_id, zone_name, permanent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)]],
+        { x, y, z, nx, ny, nz, size, rot, text, color, font, nil, author .. ' (staff)', license(src), nil, nil, zone and zone.id or nil, zone and zone.name or nil })
+    if not id then return false, 'Le tag n\'a pas pu être enregistré.' end
+    local tag = { id = id, x = x, y = y, z = z, nx = nx, ny = ny, nz = nz, size = size, rot = rot, text = text, color = color, font = font,
+        author = author .. ' (staff)', license = license(src), zoneId = zone and zone.id or nil, zoneName = zone and zone.name or nil,
+        created = os.time(), permanent = true }
+    Tags[id] = tag
+    TriggerClientEvent('elyzea_tags:client:add', -1, public(tag))
+    log(src, 'Tag permanent posé', ('%s a posé le tag permanent « %s » (tag #%d, %.1f, %.1f, %.1f)'):format(author, text, id, x, y, z))
+    return true, ('Tag permanent « %s » posé (#%d).'):format(text, id), id
 end)
 
 exports('GetTagCount', function() local n = 0 for _ in pairs(Tags) do n = n + 1 end return n end)

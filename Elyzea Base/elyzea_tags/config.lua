@@ -57,7 +57,7 @@ Config.CleanJobs = {}
 --  Texte et apparence
 -- ---------------------------------------------------------
 Config.MaxLength = 20         -- caractères par tag
-Config.Size = { min = 0.8, max = 3.0, default = 1.6, step = 0.1 }   -- largeur du tag (mètres)
+Config.Size = { min = 0.8, max = 3.0, default = 1.6, step = 0.1, staffMax = 8.0 }   -- largeur du tag (mètres) ; staffMax : tags permanents du staff
 Config.Colors = { '#f2f2f2', '#111111', '#e0433b', '#ff8a1f', '#f5d000', '#46c35a', '#1fb5c9', '#3b6fe0', '#9b4de0', '#ff5fb4' }
 -- Styles d'écriture (polices Google Fonts, chargées par le jeu)
 Config.Fonts = {
