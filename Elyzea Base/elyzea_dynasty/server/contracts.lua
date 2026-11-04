@@ -22,8 +22,10 @@ local function LoadContract(pid)
     c.starts, c.ends = ts(c.s), ts(c.e)
     c.access = {}
     for _, a in ipairs(MySQL.query.await('SELECT * FROM `d8_access` WHERE `contract_id` = ?', { c.id }) or {}) do
-        c.access[a.cid] = { name = a.name, can_stash = a.can_stash == 1 or a.can_stash == true, can_manage = a.can_manage == 1 or a.can_manage == true,
-            can_garage = a.can_garage == 1 or a.can_garage == true }
+        local function b(k) return a[k] == 1 or a[k] == true end
+        c.access[a.cid] = { name = a.name, can_stash = b('can_stash'), can_manage = b('can_manage'), can_garage = b('can_garage'),
+            can_upgrades = b('can_upgrades'), can_cameras = b('can_cameras'), can_dancer = b('can_dancer'), can_code = b('can_code'),
+            added_by = a.added_by }
     end
     P.contracts[pid] = c
     return c
@@ -70,6 +72,7 @@ function P.EndContract(pid, status, reason, actor)
     if P.ReleaseVehicles then P.ReleaseVehicles(pid, reason) end
     P.EvictAll(pid, ('Le contrat de « %s » est terminé.'):format(pr.name))
     for _, g in pairs(P.grants[pid] or {}) do g.expires = 0 end
+    if P.OnContractEnded then pcall(P.OnContractEnded, pid, c) end
     P.PropLog(pid, status == 'expired' and 'Location expirée' or 'Contrat terminé', ('%s · %s'):format(c.holder_name or '?', reason or ''), actor or 'Système')
     local hs = core:GetSourceByCitizenId(c.holder_cid)
     if hs then P.Notify(hs, ('Votre contrat pour « %s » est terminé : %s.'):format(pr.name, reason or status), 'inform') end
@@ -323,6 +326,13 @@ P.Actions.propInfo = { perm = 'tablet', fn = function(src, d)
         local c = P.Contract(pr.id)
         v.tenants = {}
         for cid, a in pairs(c and c.access or {}) do v.tenants[#v.tenants + 1] = { name = a.name } end
+        if P.Ups then
+            -- La culture (illégale) n'apparaît jamais dans la tablette de l'agence
+            local LBL = { cameras = 'Caméras', dancer = 'Danseuse privée' }
+            v.upgrades = {}
+            for k in pairs(P.Ups(pr.id)) do if LBL[k] then v.upgrades[#v.upgrades + 1] = LBL[k] end end
+            table.sort(v.upgrades)
+        end
     end
     if full then
         v.history = MySQL.query.await([[SELECT `uid`, `kind`, `holder_name`, `price`, `status`, UNIX_TIMESTAMP(`started_at`) AS s, UNIX_TIMESTAMP(`ended_at`) AS e, `end_reason`
@@ -411,7 +421,7 @@ P.Pub.manage = { fn = function(src, d)
     if not pr then return { error = role } end
     local c = P.Contract(pr.id)
     local tenants = {}
-    for cid, a in pairs(c.access) do tenants[#tenants + 1] = { cid = cid, name = a.name, stash = a.can_stash, manage = a.can_manage, garage = a.can_garage } end
+    for cid, a in pairs(c.access) do tenants[#tenants + 1] = P.TenantView(cid, a) end
     table.sort(tenants, function(a, b) return (a.name or '') < (b.name or '') end)
     local near = {}
     if rights.holder then
@@ -424,15 +434,22 @@ P.Pub.manage = { fn = function(src, d)
     return { prop = { id = pr.id, name = pr.name, address = pr.address, category = Config.Categories[pr.category] },
         contract = { kind = c.kind, holder = c.holder_name, starts = c.starts, ends = c.ends, remaining = Remaining(c), days = c.days, paid = c.paid_total,
             rate = c.rate, extendRate = rate, uid = c.uid, status = c.status },
-        role = role, rights = rights, code = (rights.manage and pr.code) or nil, hasCode = pr.code ~= nil, tenants = tenants, near = near,
+        role = role, rights = rights, code = ((rights.manage or rights.code) and pr.code) or nil, hasCode = pr.code ~= nil, tenants = tenants, near = near,
+        upgrades = P.UpgradesView and P.UpgradesView(src, pr.id) or nil, grants = P.GrantsView and P.GrantsView(pr.id) or nil,
         rent = { maxDays = Config.Rent.extendMaxDays, graceHours = Config.Rent.graceHours },
         deco = P.DecoSummary and P.DecoSummary(pr.id, c.id) or nil }
 end }
 
 P.Pub.setCode = { fn = function(src, d)
-    local pr, err = ManageCheck(src, d.pid, 'manage')
+    local pr, err, rights = ManageCheck(src, d.pid)
     if not pr then return { error = err } end
-    local code = tostring(d.code or '')
+    if not (rights.manage or rights.code) then return { error = 'Le titulaire ne vous a pas donné ce droit.' } end
+    return P.SetCode(src, pr, d.code)
+end }
+
+-- Code de la porte (zone de gestion ou téléphone) : les droits sont vérifiés par l'appelant
+function P.SetCode(src, pr, code)
+    code = tostring(code or '')
     if code == '' then pr.code = nil
     else
         if not code:match('^%d+$') or #code < Config.CodeLength.min or #code > Config.CodeLength.max then
@@ -443,32 +460,60 @@ P.Pub.setCode = { fn = function(src, d)
     P.SaveProp(pr)
     P.PropLog(pr.id, pr.code and 'Code changé' or 'Code supprimé', nil, src)
     return { ok = true, message = pr.code and 'Code de la porte changé (les résidents entrent toujours sans code).' or 'Code supprimé : seuls les résidents et les invités entrent.' }
-end }
+end
 
 P.Pub.addTenant = { fn = function(src, d)
     local pr, err, rights = ManageCheck(src, d.pid)
     if not pr then return { error = err } end
     if not rights.holder then return { error = 'Seul le titulaire du contrat ajoute des locataires.' } end
+    return P.AddTenant(src, pr, d)
+end }
+
+-- Droits d'un locataire ajouté (le titulaire garde toujours tous les droits : un locataire ne peut
+-- ni modifier le bien, ni retirer les droits du titulaire, ni ajouter d'autres locataires)
+P.TenantRights = { 'stash', 'manage', 'garage', 'upgrades', 'cameras', 'dancer', 'code' }
+function P.TenantView(cid, a)
+    local v = { cid = cid, name = a.name }
+    for _, k in ipairs(P.TenantRights) do v[k] = a['can_' .. k] == true end
+    return v
+end
+local function RightsArgs(d)
+    local out = {}
+    for _, k in ipairs(P.TenantRights) do out[#out + 1] = d[k] == true and 1 or 0 end
+    return out
+end
+
+function P.AddTenant(src, pr, d)
     local t = tonumber(d.target)
-    if not t or t == src or not P.GetPlayer(t) or P.Dist(src, t) > 5.0 then return { error = 'La personne doit être à côté de vous.' } end
+    if not t or t == src or not P.GetPlayer(t) or P.Dist(src, t) > 5.0 then return { error = 'La personne doit être à côté de vous (5 m).' } end
     local c = P.Contract(pr.id)
+    if not c then return { error = 'Aucun contrat actif.' } end
     local cid = P.Cid(t)
     if c.access[cid] or cid == c.holder_cid then return { error = 'Cette personne a déjà accès.' } end
     local n = 0 for _ in pairs(c.access) do n = n + 1 end
-    if n >= 10 then return { error = '10 locataires maximum.' } end
-    MySQL.insert.await('INSERT INTO `d8_access` (`contract_id`, `property_id`, `cid`, `name`, `can_stash`, `can_manage`, `can_garage`, `added_by`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        { c.id, pr.id, cid, P.Name(t), d.stash and 1 or 0, d.manage and 1 or 0, d.garage and 1 or 0, P.Name(src) })
+    local max = (Config.Access and Config.Access.maxTenants) or 10
+    if n >= max then return { error = ('%d locataires maximum.'):format(max) } end
+    local args = { c.id, pr.id, cid, P.Name(t) }
+    for _, v in ipairs(RightsArgs(d)) do args[#args + 1] = v end
+    args[#args + 1] = P.Name(src)
+    MySQL.insert.await('INSERT INTO `d8_access` (`contract_id`, `property_id`, `cid`, `name`, `can_stash`, `can_manage`, `can_garage`, `can_upgrades`, `can_cameras`, `can_dancer`, `can_code`, `added_by`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', args)
     LoadContract(pr.id)
     P.PropLog(pr.id, 'Locataire ajouté', P.Name(t), src)
     P.Notify(t, ('Vous avez maintenant accès à « %s » (entrée sans code).'):format(pr.name), 'success')
+    P.Touch()
     return { ok = true, message = ('%s a maintenant accès au logement.'):format(P.Name(t)) }
-end }
+end
 
 P.Pub.tenantRights = { fn = function(src, d)
     local pr, err, rights = ManageCheck(src, d.pid)
     if not pr then return { error = err } end
     if not rights.holder then return { error = 'Seul le titulaire du contrat règle les droits.' } end
+    return P.SetTenant(src, pr, d)
+end }
+
+function P.SetTenant(src, pr, d)
     local c = P.Contract(pr.id)
+    if not c then return { error = 'Aucun contrat actif.' } end
     local cid = tostring(d.cid or '')
     if not c.access[cid] then return { error = 'Locataire introuvable.' } end
     if d.remove == true then
@@ -481,13 +526,17 @@ P.Pub.tenantRights = { fn = function(src, d)
             local i = P.inside[ts_]
             if i and i.pid == pr.id and (i.kind == 'tenant') then P.PutOutside(ts_, 'Accès retiré') end
         end
+        P.Touch()
         return { ok = true, message = 'Accès retiré.' }
     end
-    MySQL.update.await('UPDATE `d8_access` SET `can_stash` = ?, `can_manage` = ?, `can_garage` = ? WHERE `contract_id` = ? AND `cid` = ?',
-        { d.stash and 1 or 0, d.manage and 1 or 0, d.garage and 1 or 0, c.id, cid })
+    local args = RightsArgs(d)
+    args[#args + 1] = c.id
+    args[#args + 1] = cid
+    MySQL.update.await('UPDATE `d8_access` SET `can_stash` = ?, `can_manage` = ?, `can_garage` = ?, `can_upgrades` = ?, `can_cameras` = ?, `can_dancer` = ?, `can_code` = ? WHERE `contract_id` = ? AND `cid` = ?', args)
     LoadContract(pr.id)
+    P.PropLog(pr.id, 'Droits modifiés', c.access[cid] and c.access[cid].name or cid, src)
     return { ok = true, message = 'Droits mis à jour.' }
-end }
+end
 
 -- Prolongation (titulaire d'une location) : prix au tarif du bien pour la prolongation, sinon au tarif du contrat
 P.Pub.extend = { fn = function(src, d)
@@ -540,7 +589,8 @@ function P.PropertiesOf(cid)
     for pid, c in pairs(P.contracts) do
         local pr = P.props[pid]
         if pr and (c.holder_cid == cid or c.access[cid]) then
-            list[#list + 1] = { id = pid, name = pr.name, address = pr.address, role = c.holder_cid == cid and 'holder' or 'tenant', kind = c.kind, ends = c.ends }
+            list[#list + 1] = { id = pid, name = pr.name, address = pr.address, role = c.holder_cid == cid and 'holder' or 'tenant', kind = c.kind, ends = c.ends,
+                category = pr.category }
         end
     end
     return list

@@ -275,6 +275,8 @@ local function InitDb()
     -- Base d'avant les agences : tout ce qui existe appartient à la première agence
     P.AddJobColumns({ 'd8_grades', 'd8_employees' }, { 'd8_admin_log', 'd8_transactions', 'd8_contracts', 'd8_properties' }, 'd8_grades')
     pcall(function() core:ToUtf8mb4(P.TableOrder) end)
+    -- Colonnes ajoutées par les modules (améliorations, droits des locataires…)
+    for _, fn in ipairs(P.Migrations or {}) do local ok, err = pcall(fn) if not ok then print(('^1[D8] Migration : %s^0'):format(tostring(err))) end end
 end
 
 -- ---------------------------------------------------------------------

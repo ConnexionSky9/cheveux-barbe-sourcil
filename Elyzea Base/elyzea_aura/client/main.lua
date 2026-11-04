@@ -181,6 +181,8 @@ end
 
 local function ClosePhone()
     if not isOpen then return end
+    -- Appli MAISON : une caméra de surveillance regardée dans le téléphone est coupée
+    if GetResourceState('elyzea_dynasty') == 'started' then pcall(function() exports.elyzea_dynasty:PhoneCamStop() end) end
     if cameraActive then
         cameraActive = false
         if selfieCam then RenderScriptCams(false, false, 0, true, true); DestroyCam(selfieCam, false); selfieCam = nil end
@@ -1658,4 +1660,29 @@ AddEventHandler('onResourceStop', function(res)
     CleanupValet(false)
     RemoveProp()
     for _, b in ipairs(alertBlips) do if DoesBlipExist(b) then RemoveBlip(b) end end
+end)
+
+-- ---------------------------------------------------------
+--  Appli MAISON (elyzea_dynasty) : caméras de surveillance en direct
+--  Le serveur vérifie les droits (maisonCall › camView) ; ici on ne fait qu'afficher :
+--  la vue de la caméra est rendue par le jeu et l'écran du téléphone la montre en direct.
+-- ---------------------------------------------------------
+RegisterNUICallback('maisonCam', function(data, cb)
+    if GetResourceState('elyzea_dynasty') ~= 'started' then return cb({ ok = false, error = 'Dynasty 8 indisponible.' }) end
+    local op = data and data.op
+    local ok, r = pcall(function()
+        if op == 'start' then return exports.elyzea_dynasty:PhoneCamStart(data.view, data.idx) end
+        if op == 'set' then return exports.elyzea_dynasty:PhoneCamSet(data.idx) end
+        return exports.elyzea_dynasty:PhoneCamStop()
+    end)
+    cb({ ok = ok and r == true })
+end)
+
+-- Poser une caméra : le téléphone se range, la pose se fait avec l'aperçu de la caméra
+RegisterNUICallback('maisonPlaceCam', function(data, cb)
+    cb({ ok = true })
+    if GetResourceState('elyzea_dynasty') ~= 'started' then return end
+    ClosePhone()
+    Wait(250)
+    pcall(function() exports.elyzea_dynasty:CamPlaceStart(tonumber(data and data.pid)) end)
 end)

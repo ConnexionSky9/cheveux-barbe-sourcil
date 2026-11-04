@@ -528,3 +528,44 @@ P.Admin.interiorTest = { fn = function(src, d)
     P.EnterTest(src, i)
     return { ok = true, message = ('Test de « %s » : tapez /d8sortir pour revenir.'):format(i.label) }
 end }
+
+-- ---------------------------------------------------------------------
+-- Création rapide en jeu : le staff se place devant la porte, la position devient l'entrée.
+-- Ensuite : sortie / gestion / coffre à l'intérieur, garage éventuel, puis « Valider » (activation).
+P.Admin.quickCreate = { fn = function(src, d)
+    if P.inside and P.inside[src] then return { error = 'Sortez de l\'intérieur : placez-vous devant la porte du logement.' } end
+    local cat = tostring(d.category or 'house')
+    if not CATS[cat] then return { error = 'Catégorie inconnue.' } end
+    if cat ~= 'garage' and not ValidInterior(d.interiorId, { apartment = true, house = true, villa = true }) then
+        return { error = 'Choisissez un intérieur pour ce logement.' }
+    end
+    local r = P.Admin.propSave.fn(src, { name = d.name, address = d.address, category = cat, interiorId = cat ~= 'garage' and d.interiorId or nil,
+        salePrice = d.salePrice, rentPrice = d.rentPrice, forSale = d.forSale ~= false, forRent = d.forRent ~= false, job = d.job })
+    if not r.ok then return r end
+    local pr = P.props[r.id]
+    local p = StaffPos(src)
+    p.r, p.on = Config.Points.defaultRadius, true
+    if cat == 'garage' then
+        pr.garage = { enabled = false, points = {}, slots = {} }
+    else
+        pr.points.enter = p
+    end
+    -- Adresse automatique (rue) si elle n'est pas donnée : envoyée par le client
+    if (pr.address or '') == '' and d.street then pr.address = P.Clean(d.street, 120) end
+    P.SaveProp(pr)
+    -- Garage lié (facultatif)
+    if d.garage == true or cat == 'garage' then
+        local g = P.Admin.garageSave.fn(src, { id = pr.id, enabled = true, size = d.garageSize, capacity = d.garageCapacity, interiorId = d.garageInterior })
+        if g.error then
+            P.Touch()
+            return { ok = true, id = pr.id, warning = true, message = ('Logement #%d créé, entrée placée. Garage non créé : %s'):format(pr.id, g.error) }
+        end
+        if cat == 'garage' then
+            pr.garage.points.enter = { x = p.x, y = p.y, z = p.z, h = p.h, r = 3.0, on = true }
+            P.SaveProp(pr)
+        end
+    end
+    P.PropLog(pr.id, 'Création rapide', ('Entrée placée par %s'):format(P.Name(src)), src)
+    P.Touch()
+    return { ok = true, id = pr.id, message = ('Logement #%d « %s » créé : l\'entrée est à ta position. Place maintenant les autres points puis valide.'):format(pr.id, pr.name) }
+end }

@@ -1,7 +1,8 @@
 -- =====================================================================
 --  ELYZEA DYNASTY 8 - client : intérieur des biens
 --  · Entrée / sortie (fondu, IPL de l'intérieur, sol).
---  · Cercles : ROUGE sortie, BLEU gestion, ORANGE coffre ; garage : places et véhicules.
+--  · Invites discrètes (plus de cercles) : « [E] Sortir », « [E] Gérer mon logement », « [E] Coffre » ;
+--    le staff (mode administration) voit encore les cercles colorés et les noms des points.
 --  · Véhicules du garage et décoration : objets locaux recréés à chaque entrée à partir
 --    des données du serveur (rien n'est gardé côté client).
 --  · Sonnette, invitation de visite, offre de vente / location : fenêtres d'acceptation.
@@ -98,7 +99,7 @@ RegisterNetEvent('d8:client:enter', function(d)
     Teleport(d.spawn)
     I = { pid = d.pid, area = d.area, kind = d.kind, points = d.points or {}, rights = d.rights or {}, role = d.role, name = d.name, admin = d.admin }
     C.insideData = I
-    if d.area == 'garage' then ShowVehicles() elseif d.area == 'home' then ShowDeco() end
+    if d.area == 'garage' then ShowVehicles() elseif d.area == 'home' then ShowDeco() if C.UpEnter then C.UpEnter(d.pid) end end
     Fade(false)
     C.Notify(d.area == 'garage' and ('Garage · %s'):format(d.name) or d.area == 'test' and ('Test de l\'intérieur « %s » : /d8sortir pour revenir.'):format(d.name)
         or ('Bienvenue · %s'):format(d.name), 'inform')
@@ -106,6 +107,8 @@ end)
 
 RegisterNetEvent('d8:client:exit', function(p, reason)
     if C.DecoCancel then C.DecoCancel() end
+    if C.UpExit then C.UpExit() end
+    if C.HidePrompt then C.HidePrompt() end
     Fade(true)
     Clear(shown.vehicles) Clear(shown.deco)
     shown = { vehicles = {}, deco = {} }
@@ -121,6 +124,7 @@ RegisterNetEvent('d8:client:garageOut', function(netId, props, sp)
     Fade(true)
     Clear(shown.vehicles) Clear(shown.deco)
     shown = { vehicles = {}, deco = {} }
+    if C.UpExit then C.UpExit() end
     I = nil
     C.insideData = nil
     Teleport({ x = sp.x, y = sp.y, z = sp.z + 1.0, h = sp.h })
@@ -157,24 +161,42 @@ local function Label3D(p, text)
     ClearDrawOrigin()
 end
 
+local textShown = nil
+local function Prompt(text)
+    if text == textShown then return end
+    textShown = text
+    if text then core:ShowTextUI(text) else core:HideTextUI() end
+end
+
 CreateThread(function()
+    local ACC = Config.Access or {}
     while true do
-        if not I or C.AnyOpen() or (C.DecoEditing and C.DecoEditing()) then Wait(300) else
+        if not I or C.AnyOpen() or (C.DecoEditing and C.DecoEditing()) or (C.CamBusy and C.CamBusy()) then Prompt(nil) Wait(300) else
             local pc = GetEntityCoords(PlayerPedId())
             local prompt, action
             local pts = I.points
-            local function circle(p, color, label, fn, allowed)
+            -- Point d'intérieur : invite discrète ; cercles colorés seulement pour le staff
+            local function point(p, color, label, fn, allowed)
                 if not p or p.on == false then return end
-                C.Circle(p, color, p.r)
-                if I.admin then Label3D(p, label) end
-                if allowed ~= false and #(pc - C.Vec(p)) <= (p.r or 1.2) + 0.3 then prompt, action = '~INPUT_CONTEXT~ ' .. label, fn end
+                local d = #(pc - C.Vec(p))
+                if I.admin then C.Circle(p, color, p.r) Label3D(p, label)
+                elseif d < (ACC.markerDistance or 6.0) and ACC.marker ~= false then
+                    local c = ACC.markerColor or { 181, 123, 255, 120 }
+                    DrawMarker(20, p.x + 0.0, p.y + 0.0, p.z + 0.15, 0, 0, 0, 0, 180.0, 0, 0.16, 0.16, 0.1, c[1], c[2], c[3], c[4] or 120, true, true, 2, false, nil, nil, false)
+                end
+                if allowed ~= false and d <= math.max(1.2, (p.r or 1.2)) + 0.3 then prompt, action = '[E] ' .. label, fn end
             end
             if I.area == 'home' then
-                circle(pts.exit, COL.exit, 'Sortir', function() C.Show(C.Pub('exit')) end)
-                circle(pts.manage, COL.manage, 'Gestion du logement', function() if C.OpenManage then C.OpenManage(I.pid) end end, I.role ~= nil or I.admin)
-                circle(pts.stash, COL.stash, 'Coffre', function() C.Show(C.Pub('stash', { pid = I.pid })) end, (I.rights and I.rights.stash) == true)
+                point(pts.exit, COL.exit, 'Sortir', function() C.Show(C.Pub('exit')) end)
+                point(pts.manage, COL.manage, I.role == 'holder' and 'Gérer mon logement' or 'Gestion du logement', function() if C.OpenManage then C.OpenManage(I.pid) end end, I.role ~= nil or I.admin)
+                point(pts.stash, COL.stash, 'Coffre', function() C.Show(C.Pub('stash', { pid = I.pid })) end, (I.rights and I.rights.stash) == true)
+                -- Pots de cannabis (amélioration)
+                if not prompt and C.NearPlant then
+                    local pl = C.NearPlant(pc)
+                    if pl then prompt, action = ('[E] %s'):format(pl.label), function() C.OpenPlant(pl.id) end end
+                end
             elseif I.area == 'garage' then
-                circle(pts.exit, COL.garage_exit, 'Sortir du garage', function() C.Show(C.Pub('exit')) end)
+                point(pts.exit, COL.garage_exit, 'Sortir du garage', function() C.Show(C.Pub('exit')) end)
                 if I.admin then
                     for i, s in ipairs(I.slots or pts.slots or {}) do
                         DrawMarker(43, s.x, s.y, s.z - 0.95, 0, 0, 0, 0, 0, (s.h or 0.0) + 0.0, 2.4, 5.0, 0.2, 59, 130, 246, 60, false, false, 2, false, nil, nil, false)
@@ -184,18 +206,16 @@ CreateThread(function()
                 local v = NearVehicle(pc)
                 if v then
                     Label3D(GetEntityCoords(v.ent) + vector3(0, 0, 1.0), ('%s · %s'):format(v.model, v.plate or ''))
-                    if v.mine then prompt, action = ('~INPUT_CONTEXT~ Sortir ce véhicule (%s)'):format(v.plate or ''), function()
+                    if v.mine then prompt, action = ('[E] Sortir ce véhicule (%s)'):format(v.plate or ''), function()
                         local vtype = v.bike and 'bike' or v.heli and 'heli' or v.boat and 'boat' or 'automobile'
                         C.Show(C.Pub('garageTake', { pid = I.pid, id = v.id, vtype = vtype }))
                     end end
                 end
             elseif I.area == 'test' then
-                C.Help('Test d\'intérieur : /d8sortir pour revenir.')
+                prompt = 'Test d\'intérieur : /d8sortir pour revenir.'
             end
-            if prompt then
-                C.Help(prompt)
-                if IsControlJustPressed(0, Config.Keys.interact) then action() end
-            end
+            Prompt(prompt)
+            if action and IsControlJustPressed(0, Config.Keys.interact) then Prompt(nil) action() end
             Wait(0)
         end
     end
@@ -209,7 +229,7 @@ RegisterNetEvent('d8:client:bell', function(b)
     SendNUIMessage({ action = 'bell', bell = b })
 end)
 RegisterNetEvent('d8:client:bellClosed', function(id) SendNUIMessage({ action = 'bellClosed', id = id }) end)
-RegisterNUICallback('bellAnswer', function(body, cb) cb({}) TriggerServerEvent('d8:server:bellAnswer', tonumber(body.id), body.accept == true) end)
+RegisterNUICallback('bellAnswer', function(body, cb) cb({}) TriggerServerEvent('d8:server:bellAnswer', tonumber(body.id), body.accept == true, tonumber(body.minutes)) end)
 
 local prompt = nil   -- fenêtre d'acceptation en cours : 'invite' | 'offer'
 local function ClosePrompt()
@@ -255,5 +275,6 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     Clear(shown.vehicles) Clear(shown.deco)
+    if textShown then core:HideTextUI() end
     if IsScreenFadedOut() then DoScreenFadeIn(0) end
 end)

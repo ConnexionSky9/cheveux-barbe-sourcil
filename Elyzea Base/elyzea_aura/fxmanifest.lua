@@ -20,7 +20,8 @@ server_scripts {
     '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/elypick.lua',
-    'server/lasergame.lua'
+    'server/lasergame.lua',
+    'server/maison.lua'
 }
 
 ui_page 'html/index.html'
@@ -34,7 +35,8 @@ files {
     'html/cards.js',
     'html/js/*.js',
     'html/elypick.css',
-    'html/lasergame.css'
+    'html/lasergame.css',
+    'html/maison.css'
 }
 
 dependencies {

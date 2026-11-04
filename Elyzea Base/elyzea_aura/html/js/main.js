@@ -122,6 +122,7 @@ const handlers = {
     elyMigrate();
     loadContacts().then(() => { if (S.currentApp && !S.locked) refreshCurrent(); });
     if (typeof svcLoadNames === 'function') svcLoadNames();   // noms des entreprises (numéros publics)
+    if (typeof mzCheckHas === 'function') mzCheckHas();       // appli Maison : visible si le joueur a un logement
     api('getConversations').then(r => {
       S.unread = (r.conversations || []).reduce((a, c) => a + c.unread, 0);
       if (!S.currentApp && !S.locked && !screenEl.classList.contains('in-setup')) renderHome();
@@ -341,6 +342,23 @@ const Mock = {
     if (action === 'send') { const tok = a.token; (L.msgs[tok] = L.msgs[tok] || []).push({ id: Date.now(), mine: true, body: a.body, at: Math.floor(Date.now() / 1000), post: a.post }); return { ok: true, token: tok, name: names[tok] }; }
     return { ok: false };
   },
+  // Appli Maison (aperçu navigateur)
+  mz(action, a, n) {
+    const ups = (cams) => ({ rights: {}, list: [{ kind: 'cameras', label: 'Caméras de surveillance', enabled: true, price: 15000, owned: true }, { kind: 'dancer', label: 'Danseuse privée', enabled: true, price: 25000, owned: true }, { kind: 'cannabis', label: 'Culture de cannabis', enabled: true, price: 20000, owned: false }],
+      cameras: { list: cams, max: 4, spots: 0 }, dancer: { active: null, spot: true, anims: [{ id: 'private1', label: 'Danse privée 1' }, { id: 'lapdance', label: 'Danse lascive' }], models: ['s_f_y_stripper_01', 's_f_y_stripper_02'], durations: [5, 10, 15, 30], maxMinutes: 30, max: 1 } });
+    const R = { stash: true, manage: true, garage: true, holder: true, upgrades: true, cameras: true, dancer: true, code: true };
+    const list = [{ id: 1, name: 'Villa Vinewood', address: '2862 Hillcrest Avenue', category: 'villa', catLabel: 'Villa', role: 'holder', rights: R, kind: 'sale', status: 'sold', upgrades: ['cameras', 'dancer'], hasCode: true, garage: 6, stash: 50, gps: { x: -676, y: 588 } },
+      { id: 2, name: 'Appartement Del Perro', address: 'Del Perro Heights · Apt 7', category: 'apartment', catLabel: 'Appartement', role: 'tenant', rights: { stash: true }, kind: 'rent', ends: n + 86400 * 5, status: 'rented', upgrades: [], hasCode: false, garage: 0, stash: 30 }];
+    if (action === 'home') return { ok: true, list, bells: [{ id: 7, pid: 1, visitor: 'Malik Benali', property: 'Villa Vinewood', t: n, left: 35 }] };
+    if (action === 'prop') { const p = Object.assign({}, list.find((x) => x.id === a.pid) || list[0]);
+      p.upgrades = ups([{ id: 1, label: 'Entrée', x: 0, y: 0, z: 0, rx: -10, rz: 90, fov: 60 }, { id: 2, label: 'Jardin', x: 0, y: 0, z: 0, rx: -20, rz: 180, fov: 70 }]);
+      p.upgrades.rights = p.rights; p.code = '4521'; p.grants = [{ src: 12, name: 'Inès Morel', kind: 'Sonnette', left: 1500 }];
+      p.tenants = [{ cid: 'AB1', name: 'Tom Garcia', stash: true, code: true }]; p.near = [{ id: 14, name: 'Sara Lind' }];
+      p.contract = { kind: p.kind, starts: n - 86400 * 9, ends: p.ends }; p.codeLength = { min: 4, max: 8 }; p.bellChoices = [10, 30, 60, 120];
+      return { ok: true, prop: p }; }
+    if (action === 'camView') return { ok: true, pid: 1, name: 'Villa Vinewood', cams: [{ id: 1, label: 'Entrée', x: 0, y: 0, z: 0, rx: -10, rz: 90, fov: 60 }, { id: 2, label: 'Jardin', x: 0, y: 0, z: 0, rx: -20, rz: 180, fov: 70 }] };
+    return { ok: true, message: 'Fait.' };
+  },
   handle(endpoint, d) {
     const n = Math.floor(Date.now() / 1000);
     if (endpoint === 'carplayAction') return this.carAction(d.action, d.value);
@@ -349,6 +367,8 @@ const Mock = {
     if (endpoint !== 'request') return { ok: true };
     const a = d.args || {};
     // Identité (aperçu)
+    if (d.name === 'maisonHas') return { ok: true, has: true };
+    if (d.name === 'maisonCall') return this.mz(a.action, a.data || {}, n);
     if (d.name === 'idDocs') return { ok: true, police: true, docs: this.idDocs() };
     if (d.name === 'idNearby') return { ok: true, devices: [{ id: 4, device: 'Aura Inès', distance: 1.8 }] };
     if (d.name === 'idShow') return { ok: true, device: 'Aura Inès' };

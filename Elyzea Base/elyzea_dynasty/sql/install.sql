@@ -201,3 +201,29 @@ CREATE TABLE IF NOT EXISTS `d8_property_log` (
         `actor_name` VARCHAR(100) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX (`property_id`) ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================================
+--  Refonte immobilière (v1.1) : créé AUTOMATIQUEMENT au démarrage de la ressource.
+--  Ce bloc n'est utile que pour une installation manuelle.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS `d8_upgrades` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `property_id` INT NOT NULL, `contract_id` INT NOT NULL, `kind` VARCHAR(16) NOT NULL,
+  `price` INT NOT NULL DEFAULT 0, `data` LONGTEXT NULL, `bought_by` VARCHAR(100) NULL, `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `prop_contract_kind` (`property_id`, `contract_id`, `kind`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `d8_cameras` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `property_id` INT NOT NULL, `contract_id` INT NOT NULL, `label` VARCHAR(40) NOT NULL,
+  `x` DOUBLE NOT NULL, `y` DOUBLE NOT NULL, `z` DOUBLE NOT NULL, `rx` DOUBLE NOT NULL DEFAULT 0, `rz` DOUBLE NOT NULL DEFAULT 0, `fov` DOUBLE NOT NULL DEFAULT 60,
+  `spot_id` INT NULL, `placed_by` VARCHAR(100) NULL, `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`property_id`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `d8_cam_spots` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `property_id` INT NOT NULL, `label` VARCHAR(40) NOT NULL,
+  `x` DOUBLE NOT NULL, `y` DOUBLE NOT NULL, `z` DOUBLE NOT NULL, `rx` DOUBLE NOT NULL DEFAULT -10, `rz` DOUBLE NOT NULL DEFAULT 0, `fov` DOUBLE NOT NULL DEFAULT 60,
+  `yaw_range` DOUBLE NOT NULL DEFAULT 45, `pitch_range` DOUBLE NOT NULL DEFAULT 20, `created_by` VARCHAR(100) NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`property_id`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `d8_plants` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `property_id` INT NOT NULL, `contract_id` INT NOT NULL,
+  `x` DOUBLE NOT NULL, `y` DOUBLE NOT NULL, `z` DOUBLE NOT NULL, `h` DOUBLE NOT NULL DEFAULT 0, `seed` VARCHAR(60) NULL,
+  `progress` DOUBLE NOT NULL DEFAULT 0, `water` DOUBLE NOT NULL DEFAULT 0, `health` DOUBLE NOT NULL DEFAULT 100, `fertilized` TINYINT(1) NOT NULL DEFAULT 0,
+  `planted_by` VARCHAR(100) NULL, `planted_at` INT NULL, `updated_at` INT NOT NULL, INDEX (`property_id`)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Nouveaux droits des locataires (ajoutés automatiquement s'ils manquent)
+ALTER TABLE `d8_access` ADD COLUMN IF NOT EXISTS `can_upgrades` TINYINT(1) NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS `can_cameras` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `can_dancer` TINYINT(1) NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS `can_code` TINYINT(1) NOT NULL DEFAULT 0;

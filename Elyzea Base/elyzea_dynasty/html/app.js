@@ -131,12 +131,13 @@ function showBell(b) {
   el.style.setProperty('--c', '#facc15');
   el.innerHTML = `<div class="lvl-tag">Sonnette · ${new Date(b.t * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
     <h3>${esc(b.visitor)} sonne</h3><div class="meta">${esc(b.property)}</div>
+    <div class="bell-dur"><span>Accès</span><select class="input" data-bell-min>${(b.choices || [10, 30, 60]).map((m) => `<option value="${m}" ${m === b.minutes ? 'selected' : ''}>${m} min</option>`).join('')}</select></div>
     <div class="acts"><button class="btn danger small" data-bell="no">Refuser</button><button class="btn primary small" data-bell="yes">Ouvrir</button></div><i class="bar"></i>`;
   el.querySelector('.bar').style.animationDuration = `${(b.timeout || 45) * 1000}ms`;
   el.addEventListener('click', (e) => {
     const x = e.target.closest('[data-bell]');
     if (!x) return;
-    post('bellAnswer', { id: b.id, accept: x.dataset.bell === 'yes' });
+    post('bellAnswer', { id: b.id, accept: x.dataset.bell === 'yes', minutes: Number((el.querySelector('[data-bell-min]') || {}).value) || b.minutes });
     closeBell(b.id);
   });
   $('#notifs').prepend(el);
@@ -153,9 +154,9 @@ function doorRender(d) {
   const occupied = d.occupied;
   $('.modal', w).innerHTML = `<div class="prop-head"><span class="ico">${CAT_ICO[d.category] || '🏠'}</span><div><h2>${esc(d.name)}</h2><small>${esc(d.address || '')}${d.area === 'garage' ? ' · Garage' : ''}</small></div></div>
     <div class="door-actions">
-      ${d.canEnter ? '<button class="btn primary block" data-door="enter">🚪 Entrer</button>' : ''}
+      ${d.canEnter ? `<button class="btn primary block" data-door="enter">🚪 ${d.role === 'holder' ? 'Entrer dans mon logement' : 'Entrer'}</button>` : ''}
       ${d.area === 'home' && d.hasCode ? `<div class="code-row"><input class="input" id="doorCode" maxlength="8" inputmode="numeric" placeholder="Code de la porte"><button class="btn" data-door="code">Valider</button></div>` : ''}
-      ${d.area === 'home' && occupied ? '<button class="btn block" data-door="bell">🔔 Sonner à la porte</button>' : ''}
+      ${d.area === 'home' && occupied && !d.canEnter ? '<button class="btn block" data-door="bell">🔔 Sonner à la porte <small class="faint">(G)</small></button>' : ''}
       ${!d.canEnter && !occupied && d.area === 'home' ? `<p class="lead" style="margin:0">${d.status === 'available' ? 'Ce bien est disponible : contactez Dynasty 8 pour une visite.' : 'Porte fermée.'}</p>` : ''}
       ${d.canVisit ? '<p class="faint" style="font-size:.78rem">Agent : lancez une visite depuis la tablette pour entrer avec un client.</p>' : ''}
       ${d.staff ? '<button class="btn small" data-door="staff">🛠️ Entrer (staff)</button>' : ''}
@@ -206,13 +207,66 @@ $('#prompt').addEventListener('click', (e) => { const b = e.target.closest('[dat
    Zone de gestion (cercle bleu)
    ===================================================================== */
 const M = { d: null, tab: 'contract', ext: null };
+const RIGHTS = [['stash', 'Coffre'], ['manage', 'Gestion'], ['garage', 'Garage'], ['code', 'Code et visiteurs'], ['upgrades', 'Améliorations'], ['cameras', 'Caméras'], ['dancer', 'Danseuse']];
+const UP_ICO = { cameras: '📹', dancer: '💃', cannabis: '🌿' };
+function upgradesRender(d) {
+  const u = d.upgrades, r = u.rights || {};
+  const cards = u.list.map((x) => `<div class="up-card ${x.owned ? 'on' : ''}"><div class="up-ico">${UP_ICO[x.kind] || '✨'}</div><div class="main"><b>${esc(x.label)}</b>
+      <small>${x.owned ? `Installée${x.by ? ` par ${esc(x.by)}` : ''}` : (x.enabled ? money(x.price) : 'Indisponible')}</small></div>
+      ${!x.owned && x.enabled && r.upgrades ? `<select class="input small" data-up-method="${x.kind}"><option value="bank">Banque</option><option value="cash">Espèces</option></select><button class="btn small primary" data-up="buy" data-kind="${x.kind}">Acheter</button>` : (x.owned ? '<span class="pill ok">✓</span>' : '')}</div>`).join('');
+  let more = '';
+  if (u.cameras) {
+    more += `<h3 class="up-h">📹 Caméras · ${u.cameras.list.length} / ${u.cameras.max}</h3>
+      ${u.cameras.list.map((c, i) => `<div class="tenant"><div class="main"><b>${esc(c.label)}</b><br><small class="faint">angle ${Math.round(c.fov)}°${c.spot_id ? ' · emplacement prévu' : ''}</small></div>
+        ${r.cameras ? `<button class="btn small" data-up="camView" data-idx="${i + 1}">▶ Voir</button>` : ''}</div>`).join('') || '<p class="faint" style="font-size:.8rem">Aucune caméra posée.</p>'}
+      ${r.cameras ? `<div class="actions" style="justify-content:flex-start"><button class="btn small" data-up="camPlace">➕ Poser une caméra</button></div>
+        <p class="faint" style="font-size:.74rem">La pose se fait dehors, autour du logement (appli MAISON du téléphone ou /d8camera), avec un aperçu en direct.${u.cameras.spots ? ` Le staff a prévu ${u.cameras.spots} emplacement(s).` : ''}</p>` : ''}`;
+  }
+  if (u.dancer && r.dancer) {
+    const dc = u.dancer, act = dc.active;
+    more += `<h3 class="up-h">💃 Danseuse privée</h3>
+      <div class="actions" style="justify-content:flex-start"><button class="btn small" data-up="dancerSpot">📍 Elle danse ici (ma position)</button>${dc.spot ? '<span class="pill ok">Emplacement choisi</span>' : '<span class="pill">Emplacement à choisir</span>'}</div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;align-items:end;margin-top:.5rem">
+        <label class="field"><span>Animation</span><select class="input" id="upAnim">${dc.anims.map((a) => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select></label>
+        <label class="field"><span>Durée</span><select class="input" id="upDur">${dc.durations.filter((m) => m <= dc.maxMinutes).map((m) => `<option value="${m}">${m} min</option>`).join('')}</select></label>
+        <label class="field"><span>Tenue</span><select class="input" id="upModel">${dc.models.map((m, i) => `<option value="${esc(m)}">Danseuse ${i + 1}</option>`).join('')}</select></label></div>
+      <div class="actions" style="justify-content:flex-start">${dc.spot ? '<button class="btn small primary" data-up="dancerStart">▶ Faire venir</button>' : ''}
+        ${act ? '<button class="btn small" data-up="dancerAnim">🔁 Changer l\'animation</button><button class="btn small danger" data-up="dancerStop">■ Renvoyer</button>' : ''}</div>
+      ${act ? `<p class="faint" style="font-size:.78rem">${act.length} danseuse(s) · encore ${Math.ceil(Math.max(...act.map((x) => x.left)) / 60)} min.</p>` : ''}`;
+  }
+  if (u.cannabis && r.upgrades) {
+    const cn = u.cannabis;
+    more += `<h3 class="up-h">🌿 Culture · ${cn.plants.length} / ${cn.max} pots</h3>
+      ${cn.plants.map((p) => `<div class="tenant"><div class="main"><b>${p.seed ? esc(p.variety) : 'Pot vide'}</b><br><small class="faint">${p.seed ? `${esc(p.stage)} · ${Math.floor(p.progress)} % · eau ${p.water} % · santé ${p.health} %` : 'Plantez une graine (E près du pot)'}</small></div>
+        ${p.ready ? '<span class="pill ok">Prête</span>' : p.dead ? '<span class="pill err">Morte</span>' : ''}</div>`).join('') || '<p class="faint" style="font-size:.8rem">Aucun pot posé.</p>'}
+      ${cn.plants.length < cn.max ? '<div class="actions" style="justify-content:flex-start"><button class="btn small" data-up="placePot">🪴 Poser un pot devant moi</button></div>' : ''}
+      <p class="faint" style="font-size:.74rem">Entretien : E près d'un pot (graine, eau, engrais, récolte). La pousse continue même quand vous êtes absent.</p>`;
+  }
+  return `<p class="lead">Améliorations de ce logement : elles restent liées à votre contrat.</p><div class="up-grid">${cards}</div>${more}`;
+}
+async function upAction(b) {
+  const a = b.dataset.up, pid = M.d.prop.id;
+  const data = { pid };
+  if (a === 'buy') {
+    data.kind = b.dataset.kind; data.method = ($(`[data-up-method="${b.dataset.kind}"]`) || {}).value || 'bank';
+    const x = M.d.upgrades.list.find((y) => y.kind === data.kind);
+    if (!(await confirmBox(`Acheter : ${x.label} ?`, `<b>${money(x.price)}</b> prélevés (${data.method === 'cash' ? 'espèces' : 'banque'}).`, 'Acheter'))) return;
+  }
+  if (a === 'camView') data.idx = Number(b.dataset.idx);
+  if (a === 'dancerStart' || a === 'dancerAnim') { data.anim = ($('#upAnim') || {}).value; data.minutes = Number(($('#upDur') || {}).value); data.model = ($('#upModel') || {}).value; }
+  const r = await act(post('upAct', { action: a, data }), b);
+  if (['camView', 'placePot', 'camPlace'].includes(a)) return;
+  if (r.ok) return manageReload();
+}
+
 function manageRender() {
   const d = M.d;
   if (!d) return;
   const c = d.contract, r = d.rights || {};
   const tabs = [['contract', 'Contrat']];
-  if (r.manage) tabs.push(['access', 'Code et accès']);
+  if (r.manage || r.code) tabs.push(['access', 'Code et accès']);
   if (r.holder) tabs.push(['tenants', 'Locataires']);
+  if (d.upgrades) tabs.push(['upgrades', 'Améliorations']);
   if (r.manage && d.deco) tabs.push(['deco', 'Décoration']);
   if (!tabs.find((t) => t[0] === M.tab)) M.tab = 'contract';
   let main = '';
@@ -231,19 +285,20 @@ function manageRender() {
   } else if (M.tab === 'access') {
     main = `<p class="lead">Les résidents entrent toujours sans code. Le code donne seulement l'entrée (ni coffre, ni gestion).</p>
       <div class="code-row" style="max-width:24rem"><input class="input" id="mgCode" maxlength="8" inputmode="numeric" placeholder="${d.hasCode ? 'Nouveau code' : 'Aucun code'}" value="${esc(d.code || '')}">
-        <button class="btn primary" data-mg="setCode">Enregistrer</button>${d.hasCode ? '<button class="btn danger" data-mg="clearCode">Supprimer</button>' : ''}</div>`;
+        <button class="btn primary" data-mg="setCode">Enregistrer</button>${d.hasCode ? '<button class="btn danger" data-mg="clearCode">Supprimer</button>' : ''}</div>
+      <h3 style="margin:1rem 0 .5rem">Accès temporaires en cours</h3>
+      ${(d.grants || []).map((g) => `<div class="tenant"><div class="main"><b>${esc(g.name)}</b><br><small class="faint">${esc(g.kind)} · encore ${Math.ceil(g.left / 60)} min${g.by ? ` · ouvert par ${esc(g.by)}` : ''}</small></div></div>`).join('') || '<p class="faint" style="font-size:.8rem">Aucun visiteur autorisé en ce moment. Retirer un accès : appli MAISON du téléphone.</p>'}`;
   } else if (M.tab === 'tenants') {
     main = `${d.tenants.map((t) => `<div class="tenant"><div class="main"><b>${esc(t.name)}</b><br>
-        <label><input type="checkbox" class="check" data-tr="stash" data-cid="${esc(t.cid)}" ${t.stash ? 'checked' : ''}> Coffre</label>
-        <label><input type="checkbox" class="check" data-tr="manage" data-cid="${esc(t.cid)}" ${t.manage ? 'checked' : ''}> Gestion</label>
-        <label><input type="checkbox" class="check" data-tr="garage" data-cid="${esc(t.cid)}" ${t.garage ? 'checked' : ''}> Garage</label></div>
+        ${RIGHTS.map(([k, l]) => `<label><input type="checkbox" class="check" data-tr="${k}" data-cid="${esc(t.cid)}" ${t[k] ? 'checked' : ''}> ${l}</label>`).join(' ')}</div>
         <button class="btn small danger" data-mg="removeTenant" data-cid="${esc(t.cid)}">Retirer</button></div>`).join('') || '<div class="empty">Aucun locataire ajouté.</div>'}
       <h3 style="margin:1rem 0 .5rem">Ajouter une personne à côté de vous</h3>
       ${d.near.length ? `<div class="form-grid" style="grid-template-columns:1fr auto;align-items:end"><label class="field"><span>Personne</span><select class="input" id="mgNear">${d.near.map((n) => `<option value="${n.id}">${esc(n.name)} · ID ${n.id}</option>`).join('')}</select></label>
         <button class="btn primary" data-mg="addTenant">Ajouter</button></div>
-        <div style="margin-top:.5rem"><label class="extra"><input type="checkbox" class="check" id="mgStash"> Coffre</label><label class="extra"><input type="checkbox" class="check" id="mgManage"> Gestion</label>
-          <label class="extra"><input type="checkbox" class="check" id="mgGarage"> Garage</label></div>` : '<p class="faint">Aucune personne à moins de 5 m.</p>'}
-      <p class="faint" style="font-size:.76rem;margin-top:.6rem">Un locataire ajouté entre sans code. Coffre, gestion et garage ne sont donnés que si vous les cochez.</p>`;
+        <div style="margin-top:.5rem">${RIGHTS.map(([k, l]) => `<label class="extra"><input type="checkbox" class="check" data-new-right="${k}"> ${l}</label>`).join('')}</div>` : '<p class="faint">Aucune personne à moins de 5 m.</p>'}
+      <p class="faint" style="font-size:.76rem;margin-top:.6rem">Un locataire ajouté entre sans code. Chaque droit n'est donné que si vous le cochez. Un locataire ne peut jamais modifier le bien, ajouter d'autres locataires ni retirer vos droits.</p>`;
+  } else if (M.tab === 'upgrades') {
+    main = upgradesRender(d);
   } else if (M.tab === 'deco') {
     const dc = d.deco;
     const cats = [...new Set(dc.catalog.map((x) => x.cat))];
@@ -270,6 +325,7 @@ async function manageReload() { const r = await post('manageRefresh'); if (!r.er
 $('#manage').addEventListener('click', async (e) => {
   let b;
   if ((b = e.target.closest('[data-mgt]'))) { M.tab = b.dataset.mgt; return manageRender(); }
+  if ((b = e.target.closest('[data-up]'))) return upAction(b);
   if ((b = e.target.closest('[data-deco]'))) return post('decoStart', { model: b.dataset.deco });
   if ((b = e.target.closest('[data-deco-move]'))) return post('decoStart', { model: b.dataset.model, id: Number(b.dataset.decoMove) });
   if ((b = e.target.closest('[data-deco-del]'))) {
@@ -300,7 +356,8 @@ $('#manage').addEventListener('click', async (e) => {
   }
   if (a === 'addTenant') {
     const target = Number(($('#mgNear') || {}).value);
-    const r = await act(pub('addTenant', { pid, target, stash: $('#mgStash').checked, manage: $('#mgManage').checked, garage: $('#mgGarage').checked }), b);
+    const rights = {}; document.querySelectorAll('[data-new-right]').forEach((x) => { rights[x.dataset.newRight] = x.checked; });
+    const r = await act(pub('addTenant', { pid, target, ...rights }), b);
     if (r.ok) return manageReload();
     return;
   }
@@ -315,11 +372,43 @@ $('#manage').addEventListener('change', async (e) => {
   if (!t.dataset.tr) return;
   const cid = t.dataset.cid;
   const get = (k) => { const el = $(`[data-tr="${k}"][data-cid="${CSS.escape(cid)}"]`); return el ? el.checked : false; };
-  await act(pub('tenantRights', { pid: M.d.prop.id, cid, stash: get('stash'), manage: get('manage'), garage: get('garage') }));
+  const rights = {}; RIGHTS.forEach(([k]) => { rights[k] = get(k); });
+  await act(pub('tenantRights', { pid: M.d.prop.id, cid, ...rights }));
+});
+
+/* =====================================================================
+   Pot de cannabis (amélioration du logement)
+   ===================================================================== */
+function plantRender(p, varieties) {
+  const w = $('#plant');
+  const bar = (v, c) => `<div class="pbar"><i style="width:${Math.max(0, Math.min(100, v))}%;background:${c}"></i></div>`;
+  $('.modal', w).innerHTML = `<div class="prop-head"><span class="ico">🌿</span><div><h2>${p.seed ? esc(p.variety || 'Plante') : 'Pot vide'}</h2><small>${esc(p.stage)}</small></div>
+      <span style="flex:1"></span><button class="icon-btn" data-pl="close">✕</button></div>
+    ${p.seed ? `<div class="plant-stats"><span>Croissance</span>${bar(p.progress, '#22c55e')}<b>${Math.floor(p.progress)} %</b>
+      <span>Eau</span>${bar(p.water, '#38bdf8')}<b>${p.water} %</b><span>Santé</span>${bar(p.health, p.health > 40 ? '#a3e635' : '#ef4444')}<b>${p.health} %</b></div>
+      <p class="faint" style="font-size:.78rem">${p.fertilized ? 'Engrais ajouté.' : 'Sans engrais.'} ${p.dead ? 'La plante est morte : videz le pot.' : p.ready ? 'Prête à récolter.' : 'Arrosez quand l\'eau baisse : sans eau, la plante s\'abîme.'}</p>` :
+      `<p class="lead">Choisissez une graine que vous avez sur vous.</p><select class="input" id="plSeed">${(varieties || []).map((v) => `<option value="${esc(v.seed)}">${esc(v.label)}</option>`).join('')}</select>`}
+    <div class="actions" style="flex-wrap:wrap;justify-content:stretch">
+      ${!p.seed ? '<button class="btn primary block" data-pl="seed">🌱 Planter</button>' : ''}
+      ${p.seed && !p.dead && !p.ready ? '<button class="btn block" data-pl="water">💧 Arroser (bouteille d\'eau)</button>' : ''}
+      ${p.seed && !p.dead && !p.ready && !p.fertilized ? '<button class="btn block" data-pl="feed">🧴 Engrais</button>' : ''}
+      ${p.ready ? '<button class="btn primary block" data-pl="harvest">✂️ Récolter</button>' : ''}
+      ${p.seed ? '<button class="btn block" data-pl="clear">🗑️ Vider le pot</button>' : ''}
+      <button class="btn danger block" data-pl="remove">Retirer le pot</button></div>`;
+  w.classList.remove('hidden');
+}
+$('#plant').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-pl]');
+  if (!b) return;
+  const a = b.dataset.pl;
+  if (a === 'close') return post('close', { ui: 'plant' });
+  if (a === 'remove' && !(await confirmBox('Retirer le pot ?', 'La plante éventuelle est perdue.', 'Retirer', true))) return;
+  await post('plantAct', { action: a, seed: ($('#plSeed') || {}).value });
 });
 
 /* =====================================================================
    Recrutement
+
    ===================================================================== */
 let offerTimer = null;
 function showOffer(o) {
@@ -355,6 +444,7 @@ window.addEventListener('message', (e) => {
     case 'bellClosed': return closeBell(m.id);
     case 'door': if (m.show) doorRender(m.data); else show('#door', false); return;
     case 'prompt': if (m.show) promptRender(m.kind, m.data); else { show('#prompt', false); clearInterval(promptTimer); } return;
+    case 'plant': if (m.show) plantRender(m.data, m.varieties); else show('#plant', false); return;
     case 'manage': if (m.show) { M.d = m.data; M.ext = null; show('#manage', true); manageRender(); } else show('#manage', false); return;
     case 'visit': if (F6.data) { F6.data.visit = m.visit; if (!$('#f6').classList.contains('hidden')) f6Draw(); } return;
     case 'offer': if (m.show) showOffer(m.offer); else { show('#offer', false); clearInterval(offerTimer); } return;
@@ -362,7 +452,7 @@ window.addEventListener('message', (e) => {
     case 'tabletGo': if (window.Tablet) Tablet.goTo(m.opts); return;
     case 'admin': if (window.Admin) { if (m.show) Admin.open(m.data, m.preview); else Admin.hide(); } return;
     case 'closeAll':
-      ['#f6', '#door', '#manage', '#prompt', '#offer', '#confirm'].forEach((s) => show(s, false));
+      ['#f6', '#door', '#manage', '#plant', '#prompt', '#offer', '#confirm'].forEach((s) => show(s, false));
       if (window.Admin) Admin.hide(); if (window.Tablet) Tablet.hide(); return;
   }
 });
@@ -371,7 +461,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   e.preventDefault();
   if (!$('#confirm').classList.contains('hidden')) { show('#confirm', false); if (confirmResolve) { confirmResolve(null); confirmResolve = null; } return; }
-  for (const [sel, ui] of [['#door', 'door'], ['#manage', 'manage'], ['#prompt', 'prompt'], ['#offer', 'offer']]) {
+  for (const [sel, ui] of [['#plant', 'plant'], ['#door', 'door'], ['#manage', 'manage'], ['#prompt', 'prompt'], ['#offer', 'offer']]) {
     if (!$(sel).classList.contains('hidden')) return post('close', { ui });
   }
   if (window.Admin && Admin.isOpen()) return post('close', { ui: 'admin' });

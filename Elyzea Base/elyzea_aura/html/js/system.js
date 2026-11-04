@@ -28,6 +28,7 @@ const APPS = {
   grossesse: { label: 'Grossesse', store: true },
   sante:     { label: 'Santé', store: true },
   lasergame: { label: 'LaserGame', store: true },
+  maison:    { label: 'Maison' },
 };
 const DOCK = ['phone', 'messages', 'store', 'camera'];
 const GRID = ['contacts', 'bank', 'gallery', 'notes', 'ads', 'maps', 'alert', 'services', 'calc', 'settings'];
@@ -56,7 +57,8 @@ function renderHome() {
       : id === 'lasergame' && S.lgBadge > 0 ? `<span class="badge">${S.lgBadge > 99 ? '99+' : S.lgBadge}</span>` : '';
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };
-  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(Object.keys(STORE).filter(isInstalled));
+  // « Maison » : seulement pour les joueurs qui ont des droits sur un logement (Dynasty 8)
+  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(S.maisonHas ? ['maison'] : []).concat(Object.keys(STORE).filter(isInstalled));
   // Découpage en pages : accueil (horloge + widgets + 8 apps), puis 20 apps par page
   const pages = [apps.slice(0, FIRST_PAGE_APPS)];
   for (let i = FIRST_PAGE_APPS; i < apps.length; i += PAGE_APPS) pages.push(apps.slice(i, i + PAGE_APPS));

@@ -77,3 +77,18 @@ Intérieurs : onglet **Intérieurs** → « + Nouveau à ma position » (MLO ou 
 - Pas de remboursement automatique lors d'une résiliation (choix volontaire, à faire manuellement).
 - Les prix d'un contrat en cours ne changent pas quand on modifie les tarifs.
 - La carte de la tablette utilise l'image `html/img/map.jpg` existante (calibrage repris du métier Mécano).
+
+## Refonte 1.1 — accès discret, améliorations, appli MAISON
+
+- **Accès sans grands cercles** : près d'une porte, simple invite en bas de l'écran. Titulaire : « [E] Entrer dans mon logement ». Visiteur : « [E] Saisir le code · [G] Sonner ». Petit chevron discret (désactivable : `Config.Access.marker`). Les cercles ne s'affichent plus que pour le staff.
+- **Sonnette** : notification en jeu et sur le téléphone ; le résident choisit la durée de l'accès (10 à 120 min). L'accès est lié au visiteur (non transférable), perdu à la déconnexion, retirable à distance.
+- **Droits des locataires** : coffre, gestion, garage, code et visiteurs, améliorations, caméras, danseuse. Seul le titulaire ajoute ou retire des locataires ; un locataire ne peut jamais modifier le bien ni retirer les droits du titulaire.
+- **Améliorer mon logement** (Gérer mon logement › Améliorations, ou appli MAISON) :
+  - *Caméras* : pose autour du logement avec aperçu en direct (libre dans un rayon, ou sur les emplacements prévus par le staff), visionnage en direct en plein écran ou dans le téléphone. `/d8camera` près du logement.
+  - *Danseuse privée* : emplacement choisi dans le logement, animation, durée, venue / changement / renvoi à distance, départ automatique, jamais de PNJ en double.
+  - *Culture de cannabis* : 3 pots maximum (vérifié par le serveur), graine, eau, engrais, récolte (mêmes objets qu'elyzea_drogues), pousse calculée même hors ligne. N'apparaît jamais dans la tablette de l'agence.
+- **Appli téléphone MAISON** (elyzea_aura) : visible seulement pour qui a un logement. Accueil, surveillance en direct, services privés, gestion (code, visiteurs, locataires, achats).
+- **admin_menu › Gestion immobilière** : « Créer un logement à ma position », assistant de placement (entrée, sonnette, garage, sortie, gestion, coffre, places), validation, liste ; « Gestion des améliorations immobilières » (activer, prix, maximums, animations, emplacements de caméras avec aperçu, remise à zéro par logement).
+- **Tablette** : nouvelle page « Tous les biens » avec filtres (maisons, appartements, villas, garages, disponibles, vendus, loués).
+- Tables ajoutées automatiquement : `d8_upgrades`, `d8_cameras`, `d8_cam_spots`, `d8_plants` (+ 4 colonnes dans `d8_access`).
+- Tests hors jeu : `tests/run_server_sim.py <socket MariaDB>` (110 vérifications, redémarrage compris), `tests/run_client_sim.py` (19).

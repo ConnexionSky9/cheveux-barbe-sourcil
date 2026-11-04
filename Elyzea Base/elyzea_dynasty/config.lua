@@ -70,7 +70,83 @@ Config.OnContractEnd = {
 
 -- Visites commerciales et sonnette
 Config.Visit = { maxMinutes = 30, inviteDistance = 6.0 }
-Config.Bell = { timeout = 45, cooldown = 20, accessMinutes = 30 }
+-- Sonnette : le résident choisit la durée de l'accès donné (minutes proposées), accès lié au visiteur (non transférable)
+Config.Bell = { timeout = 45, cooldown = 20, accessMinutes = 30, choices = { 10, 30, 60, 120 }, maxAccessMinutes = 240 }
+
+-- ---------------------------------------------------------------------
+-- Accès discret aux logements (plus de grands cercles au sol)
+--  · près de la porte : simple invite en bas de l'écran (« [E] Entrer dans mon logement »,
+--    « [E] Saisir le code · [G] Sonner ») ;
+--  · marker : petit repère discret (chevron) visible de près ; false = aucun repère.
+--  · Les cercles colorés ne s'affichent plus que pour le staff (aperçu de l'administration).
+-- ---------------------------------------------------------------------
+Config.Access = {
+    promptDistance = 1.6,     -- distance de l'invite (m) si le point n'a pas de rayon
+    marker = true,            -- petit chevron discret au-dessus du point
+    markerDistance = 6.0,     -- visible à moins de X m
+    markerColor = { 181, 123, 255, 120 },
+    bellKey = 47,             -- G (code de contrôle GTA) : sonner directement
+    maxTenants = 10,
+}
+
+-- ---------------------------------------------------------------------
+-- Améliorations des logements (« Améliorer mon logement »)
+-- Valeurs de départ : le staff les change EN JEU (admin_menu › Gestion immobilière ›
+-- Améliorations) ; elles sont gardées en base (d8_settings, clé « upgrades »).
+-- Une amélioration est liée au contrat en cours (comme la décoration) : le résident suivant
+-- ne récupère pas celles de l'ancien (elles restent en base, le staff peut les réinitialiser).
+-- payTo : 'agency' = le prix est versé au compte de l'agence qui gère le bien ; 'none' = argent retiré.
+-- ---------------------------------------------------------------------
+Config.Upgrades = {
+    cameras = {
+        enabled = true, label = 'Caméras de surveillance', price = 15000, payTo = 'agency',
+        max = 4,                  -- caméras par logement
+        radius = 25.0,            -- placement libre : à X m max de l'entrée (si aucun emplacement imposé)
+        fovMin = 25, fovMax = 90, fovDefault = 60,
+        pitchMin = -70, pitchMax = 25,
+        modifier = 'CAMERA_secuirity', -- filtre d'image (nom réel du jeu) ; '' = aucun
+    },
+    dancer = {
+        enabled = true, label = 'Danseuse privée', price = 25000, payTo = 'agency',
+        max = 1,                  -- danseuses en même temps par logement
+        maxMinutes = 30,          -- durée maximale d'une danse
+        durations = { 5, 10, 15, 30 },
+        cooldownSeconds = 20,
+        models = { 's_f_y_stripper_01', 's_f_y_stripper_02', 'csb_stripper_01', 'csb_stripper_02' },
+        -- Animations du jeu (dictionnaire + clip). « on » = proposée aux joueurs.
+        anims = {
+            { id = 'private1', label = 'Danse privée 1', dict = 'mini@strip_club@private_dance@part1', clip = 'priv_dance_p1', on = true },
+            { id = 'private2', label = 'Danse privée 2', dict = 'mini@strip_club@private_dance@part2', clip = 'priv_dance_p2', on = true },
+            { id = 'private3', label = 'Danse privée 3', dict = 'mini@strip_club@private_dance@part3', clip = 'priv_dance_p3', on = true },
+            { id = 'lapdance', label = 'Danse lascive', dict = 'mini@strip_club@lap_dance@ld_girl_a_song_a_p1', clip = 'ld_girl_a_song_a_p1_f', on = true },
+            { id = 'idle', label = 'Attente', dict = 'mini@strip_club@idles@stripper', clip = 'stripper_idle_02', on = true },
+        },
+    },
+    cannabis = {
+        enabled = true, label = 'Culture de cannabis (illégal)', price = 20000, payTo = 'none',
+        maxPots = 3,              -- pots par logement (vérifié par le serveur)
+        minDistance = 0.9,        -- entre deux pots
+        water = { max = 100, perUse = 50, decayPerHour = 15, item = 'water' },
+        healthLossPerHourDry = 20,
+        fertilizer = { item = 'fertilizer', boost = 1.25 },
+        speed = 1.0,              -- vitesse de pousse (1 = durée de la variété)
+        potModel = 'bkr_prop_weed_bucket_open_01a',
+        stages = {
+            { pct = 0,   label = 'Germination', model = 'bkr_prop_weed_01_small_01b' },
+            { pct = 25,  label = 'Pousse',      model = 'bkr_prop_weed_01_small_01c' },
+            { pct = 55,  label = 'Croissance',  model = 'bkr_prop_weed_med_01a' },
+            { pct = 85,  label = 'Floraison',   model = 'bkr_prop_weed_lrg_01a' },
+            { pct = 100, label = 'Mature',      model = 'bkr_prop_weed_lrg_01b' },
+        },
+        -- Mêmes objets qu'elyzea_drogues (aucun nouvel objet) : graine → feuilles récoltées
+        varieties = {
+            { seed = 'weed_seed',                leaf = 'weed_leaf',        label = 'Weed',            minutes = 90,  yield = { 4, 6 } },
+            { seed = 'weed_white-widow_seed',    leaf = 'weed_leaf_ww',     label = 'White Widow',     minutes = 120, yield = { 4, 6 } },
+            { seed = 'weed_purple-haze_seed',    leaf = 'weed_leaf_ph',     label = 'Purple Haze',     minutes = 120, yield = { 3, 6 } },
+            { seed = 'weed_seed_custom',         leaf = 'weed_leaf_custom', label = 'Variété maison',  minutes = 110, yield = { 4, 6 } },
+        },
+    },
+}
 
 -- Coffre et décoration par défaut (réglables par bien dans l'administration)
 Config.Stash = { slots = 50, weight = 150 }      -- poids en kg

@@ -29,9 +29,14 @@ function P.RoleOf(src, pid)
     if not cid then return nil end
     local c = P.Contract and P.Contract(pid)
     if not c then return nil end
-    if c.holder_cid == cid then return 'holder', { stash = true, manage = true, garage = true, extend = true, holder = true } end
+    if c.holder_cid == cid then
+        return 'holder', { stash = true, manage = true, garage = true, extend = true, holder = true, upgrades = true, cameras = true, dancer = true, code = true }
+    end
     local a = c.access and c.access[cid]
-    if a then return 'tenant', { stash = a.can_stash, manage = a.can_manage, garage = a.can_garage } end
+    if a then
+        return 'tenant', { stash = a.can_stash == true, manage = a.can_manage == true, garage = a.can_garage == true, upgrades = a.can_upgrades == true,
+            cameras = a.can_cameras == true, dancer = a.can_dancer == true, code = a.can_code == true }
+    end
     return nil
 end
 
@@ -146,6 +151,7 @@ P.Pub.doorInfo = { fn = function(src, d)
         role = role, hasCode = pr.code ~= nil and area == 'home', occupied = pr.contractId ~= nil and area == 'home',
         visit = v and (v.agent == src and 'agent' or v.clients[src] and 'client') or nil,
         canVisit = agent and P.Can(src, 'visits') and pr.status == 'available' and not pr.contractId,
+        granted = GrantValid(pr.id, src) and area == 'home',
         staff = P.IsStaffAdmin(src),
     }
 end }
@@ -200,8 +206,7 @@ P.Pub.code = { fn = function(src, d)
         return { error = 'Code incorrect.' }
     end
     tries[src] = nil
-    P.grants[pr.id] = P.grants[pr.id] or {}
-    P.grants[pr.id][src] = { kind = 'code', expires = os.time() + 60 }
+    P.GiveGrant(pr.id, src, 'code', 1)
     local ok, why = P.PutInside(src, pr, 'home', 'guest')
     if not ok then return { error = why } end
     return { ok = true }
@@ -229,8 +234,11 @@ P.Pub.bell = { fn = function(src, d)
     bellSeq = bellSeq + 1
     local b = { id = bellSeq, pid = pr.id, visitor = src, expires = os.time() + Config.Bell.timeout, notified = residents }
     bells[b.id] = b
+    b.visitorName, b.pname, b.t = P.Name(src), pr.name, os.time()
     for _, s in ipairs(residents) do
-        TriggerClientEvent('d8:client:bell', s, { id = b.id, visitor = P.Name(src), property = pr.name, t = os.time(), timeout = Config.Bell.timeout })
+        TriggerClientEvent('d8:client:bell', s, { id = b.id, pid = pr.id, visitor = b.visitorName, property = pr.name, t = b.t, timeout = Config.Bell.timeout,
+            choices = Config.Bell.choices, minutes = Config.Bell.accessMinutes })
+        TriggerEvent('d8:server:bellRang', s, { id = b.id, pid = pr.id, visitor = b.visitorName, property = pr.name })
     end
     SetTimeout(Config.Bell.timeout * 1000, function()
         local x = bells[b.id]
@@ -243,31 +251,84 @@ P.Pub.bell = { fn = function(src, d)
     return { ok = true, message = 'Vous avez sonné : attendez la réponse des résidents.' }
 end }
 
-RegisterNetEvent('d8:server:bellAnswer', function(id, accept)
-    local src = source
+-- Sonnettes en attente pour un résident (téléphone : appli MAISON)
+function P.BellsFor(src)
+    local list = {}
+    for _, b in pairs(bells) do
+        if not b.answered and os.time() <= b.expires then
+            for _, s in ipairs(b.notified) do
+                if s == src then list[#list + 1] = { id = b.id, pid = b.pid, visitor = b.visitorName, property = b.pname, t = b.t, left = b.expires - os.time() } break end
+            end
+        end
+    end
+    table.sort(list, function(a, c) return a.t > c.t end)
+    return list
+end
+
+-- Réponse à la sonnette (fenêtre en jeu ou téléphone). minutes : durée de l'accès donné
+function P.BellAnswer(src, id, accept, minutes)
     local b = bells[tonumber(id) or 0]
-    if not b or b.answered or os.time() > b.expires then return end
-    if not P.RoleOf(src, b.pid) then return end
+    if not b or b.answered or os.time() > b.expires then return { error = 'Cette sonnette n\'attend plus de réponse.' } end
+    if not P.RoleOf(src, b.pid) then return { error = 'Vous n\'êtes pas résident de ce logement.' } end
     b.answered = true
     bells[b.id] = nil
     for _, s in ipairs(b.notified) do if s ~= src then TriggerClientEvent('d8:client:bellClosed', s, b.id) end end
     local pr = P.props[b.pid]
-    if not GetPlayerName(b.visitor) or not pr then return end
+    if not GetPlayerName(b.visitor) or not pr then return { error = 'Le visiteur est parti.' } end
     if accept ~= true then
         P.Notify(b.visitor, 'Le résident a refusé de vous ouvrir.', 'error')
-        P.Notify(src, 'Visiteur refusé.', 'inform')
-        return
+        P.PropLog(pr.id, 'Sonnette refusée', b.visitorName, src)
+        return { ok = true, message = 'Visiteur refusé.' }
     end
-    P.grants[b.pid] = P.grants[b.pid] or {}
-    P.grants[b.pid][b.visitor] = { kind = 'bell', expires = os.time() + Config.Bell.accessMinutes * 60 }
-    P.Notify(src, ('Vous avez ouvert à %s.'):format(P.Name(b.visitor)), 'success')
+    local mins = P.Int(minutes, 1, Config.Bell.maxAccessMinutes or 240, Config.Bell.accessMinutes)
+    P.GiveGrant(pr.id, b.visitor, 'bell', mins, src)
     if NearPoint(b.visitor, pr.points.enter, 4.0) or NearPoint(b.visitor, pr.points.bell, 4.0) then
         local ok = P.PutInside(b.visitor, pr, 'home', 'guest')
         if ok then P.Notify(b.visitor, ('%s vous a ouvert.'):format(P.Name(src)), 'success') end
     else
         P.Notify(b.visitor, 'Le résident vous a ouvert : revenez à la porte pour entrer.', 'success')
     end
+    return { ok = true, message = ('Vous avez ouvert à %s (accès %d min).'):format(b.visitorName, mins) }
+end
+
+RegisterNetEvent('d8:server:bellAnswer', function(id, accept, minutes)
+    local src = source
+    local r = P.BellAnswer(src, id, accept, minutes)
+    if r.error then P.Notify(src, r.error, 'error') elseif r.message then P.Notify(src, r.message, accept == true and 'success' or 'inform') end
 end)
+
+-- ---------------------------------------------------------------------
+-- Accès temporaires : liés au joueur (identifiant de connexion) : non transférables,
+-- perdus à la déconnexion, expirés automatiquement
+-- ---------------------------------------------------------------------
+local GRANT_KIND = { code = 'Code', bell = 'Sonnette', invite = 'Invitation' }
+function P.GiveGrant(pid, target, kind, minutes, by)
+    P.grants[pid] = P.grants[pid] or {}
+    P.grants[pid][target] = { kind = kind, expires = os.time() + math.floor(minutes * 60), name = P.Name(target), cid = P.Cid(target),
+        by = by and P.Name(by) or nil, since = os.time() }
+    local pr = P.props[pid]
+    if pr then P.PropLog(pid, 'Accès temporaire', ('%s · %s · %d min'):format(P.Name(target), GRANT_KIND[kind] or kind, minutes), by or 'Système') end
+end
+function P.GrantsView(pid)
+    local list = {}
+    for s, g in pairs(P.grants[pid] or {}) do
+        if os.time() <= g.expires and g.kind ~= 'code' then
+            list[#list + 1] = { src = s, name = g.name or P.Name(s), kind = GRANT_KIND[g.kind] or g.kind, left = g.expires - os.time(), by = g.by }
+        end
+    end
+    table.sort(list, function(a, b) return a.left > b.left end)
+    return list
+end
+function P.RevokeGrant(pid, target, by)
+    local g = P.grants[pid] and P.grants[pid][target]
+    if not g then return false end
+    P.grants[pid][target] = nil
+    local i = P.inside[target]
+    if i and i.pid == pid and i.kind == 'guest' then P.PutOutside(target, 'Votre accès a été retiré.') end
+    if GetPlayerName(target) then P.Notify(target, 'Votre accès temporaire a été retiré.', 'inform') end
+    P.PropLog(pid, 'Accès retiré', g.name or tostring(target), by or 'Système')
+    return true
+end
 
 -- ---------------------------------------------------------------------
 -- Visites commerciales (biens disponibles uniquement, aucun droit permanent)

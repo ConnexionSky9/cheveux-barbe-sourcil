@@ -33,6 +33,7 @@ const APP_ICONS = {
   services:  { c1: '#FFD36E', c2: '#E07B12', fill: '<path d="M3 9.5 5 4h14l2 5.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>', line: '<path d="M3 9.5h18M9 21v-6h6v6M7.5 13h.01M16.5 13h.01"/>' },
   sante:     { c1: '#7DF0C8', c2: '#0E9F8A', fill: '<rect x="4" y="4" width="16" height="16" rx="4"/>', line: '<path d="M12 8.2v7.6M8.2 12h7.6"/>' },
   lasergame: { c1: '#B57BFF', c2: '#FF2D46', fill: '<circle cx="12" cy="12" r="7.5"/>', line: '<circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>' },
+  maison:    { c1: '#F6D27A', c2: '#B5772A', fill: '<path d="M3.5 11 12 4l8.5 7v8.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/>', line: '<path d="M9.5 20.5v-5.5h5v5.5M12 8.2v.01"/>' },
   auradrop:  { c1: '#6FE7F2', c2: '#7C6CFF', fill: '<circle cx="12" cy="12" r="3.2"/>', line: '<path d="M7.5 16.5a6.4 6.4 0 0 1 0-9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 19.4a10.5 10.5 0 0 1 0-14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/>' },
   system:    { c1: '#9AA0B8', c2: '#4B5169', fill: '<circle cx="12" cy="12" r="8"/>', line: '<path d="M12 8v4.5M12 15.5v.3"/>' },
 };

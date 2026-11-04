@@ -1,15 +1,19 @@
 -- =====================================================================
 --  ELYZEA DYNASTY 8 - client : points extérieurs (entrées, sonnettes, garages)
 --  · La liste des biens est rechargée quand le serveur change sa version (GlobalState.d8Version).
---  · E devant une porte : menu (entrer, code, sonner, visite) ; E au volant devant un garage :
---    ranger le véhicule ; à pied devant un garage : entrer.
+--  · Accès discret (plus de grands cercles au sol) : une simple invite en bas de l'écran.
+--      résident : « [E] Entrer dans mon logement » ;
+--      visiteur : « [E] Saisir le code · [G] Sonner » (ou « [E] Sonner à la porte ») ;
+--      garage : « [E] Ranger le véhicule » au volant, « [E] Garage » à pied.
+--    Un petit chevron discret signale la porte de près (Config.Access.marker).
 --  · Tous les droits sont vérifiés par le serveur.
 -- =====================================================================
 local C = D8C
 local core = exports.elyzea_core
-local COL = Config.Points.colors
+local ACC = Config.Access or {}
 
 C.props = {}            -- liste publique des biens
+C.mine = {}             -- [pid] = 'holder' | 'tenant' (mes logements, pour l'invite)
 local version = -1
 C.insideData = nil      -- rempli par client/interior.lua
 
@@ -37,6 +41,9 @@ function C.RefreshBlips()
     for _, b in ipairs(blips) do if DoesBlipExist(b) then RemoveBlip(b) end end
     blips = {}
     local r = C.Pub('mine')
+    local mine = {}
+    for _, h in ipairs(r.list or {}) do mine[h.id] = h.role end
+    C.mine = mine
     for _, h in ipairs(r.list or {}) do
         if h.enter then
             local b = AddBlipForCoord(h.enter.x + 0.0, h.enter.y + 0.0, h.enter.z + 0.0)
@@ -97,63 +104,94 @@ local function Store(pr, veh)
 end
 
 -- ---------------------------------------------------------------------
--- Boucle : marqueurs proches et touche E
+-- Boucle : invite discrète près des portes (aucun cercle au sol)
 -- ---------------------------------------------------------------------
+local textShown = nil
+local function Prompt(text)
+    if text == textShown then return end
+    textShown = text
+    if text then core:ShowTextUI(text) else core:HideTextUI() end
+end
+C.HidePrompt = function() Prompt(nil) end
+
+local function Chevron(p)
+    if ACC.marker == false then return end
+    local c = ACC.markerColor or { 181, 123, 255, 120 }
+    DrawMarker(20, p.x + 0.0, p.y + 0.0, p.z + 0.15, 0, 0, 0, 0, 180.0, 0, 0.18, 0.18, 0.12, c[1], c[2], c[3], c[4] or 120, true, true, 2, false, nil, nil, false)
+end
+
+local function Bell(pr)
+    C.Show(C.Pub('bell', { pid = pr.id }))
+end
+
 CreateThread(function()
+    local markerDist = ACC.markerDistance or 6.0
     while true do
         local sleep = 800
-        if not C.insideData and not door and #C.props > 0 then
+        local text, action, alt
+        if not C.insideData and not door and #C.props > 0 and not C.AnyOpen() and not (C.CamBusy and C.CamBusy()) then
             local ped = PlayerPedId()
             local pc = GetEntityCoords(ped)
             local veh = GetVehiclePedIsIn(ped, false)
             local driver = veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped
-            local prompt, action
             for _, pr in ipairs(C.props) do
                 if pr.status ~= 'disabled' then
-                    -- Entrée et sonnette
-                    local e = pr.enter
-                    if e and e.on ~= false and pr.hasHome and veh == 0 then
-                        local d = #(pc - C.Vec(e))
-                        if d < Config.Points.drawDistance then
-                            sleep = 0
-                            C.Circle(e, COL.enter, e.r)
-                            if d <= (e.r or 1.2) + 0.4 then prompt, action = ('~INPUT_CONTEXT~ %s'):format(pr.name), function() OpenDoor(pr, 'home') end end
-                        end
-                    end
-                    local b = pr.bell
-                    if b and b.on ~= false and veh == 0 then
-                        local d = #(pc - C.Vec(b))
-                        if d < Config.Points.drawDistance then
-                            sleep = 0
-                            C.Circle(b, COL.bell, b.r)
-                            if d <= (b.r or 1.2) + 0.4 then prompt, action = ('~INPUT_CONTEXT~ Sonner · %s'):format(pr.name), function() OpenDoor(pr, 'home') end end
+                    -- Porte de l'habitation (et sonnette séparée si elle existe)
+                    for _, which in ipairs({ 'enter', 'bell' }) do
+                        local e = pr[which]
+                        if e and e.on ~= false and pr.hasHome and veh == 0 then
+                            local d = #(pc - C.Vec(e))
+                            if d < 25.0 then sleep = math.min(sleep, 250) end
+                            if d < markerDist then
+                                sleep = 0
+                                Chevron(e)
+                                if d <= math.max(ACC.promptDistance or 1.6, (e.r or 1.2)) then
+                                    local role = C.mine[pr.id]
+                                    if role then
+                                        text = role == 'holder' and '[E] Entrer dans mon logement' or ('[E] Entrer · %s'):format(pr.name)
+                                        action = function() OpenDoor(pr, 'home') end
+                                    elseif pr.status == 'rented' or pr.status == 'sold' then
+                                        text = ('[E] Saisir le code · [G] Sonner · %s'):format(pr.name)
+                                        action = function() OpenDoor(pr, 'home') end
+                                        alt = function() Bell(pr) end
+                                    else
+                                        text = ('[E] %s'):format(pr.name)
+                                        action = function() OpenDoor(pr, 'home') end
+                                    end
+                                end
+                            end
                         end
                     end
                     -- Garage
                     local g = pr.garage and pr.garage.enter
                     if g and g.on ~= false then
                         local d = #(pc - C.Vec(g))
-                        if d < Config.Points.drawDistance + 10.0 then
+                        if d < 30.0 then sleep = math.min(sleep, 250) end
+                        if d < markerDist + 4.0 then
                             sleep = 0
-                            C.Circle(g, COL.garage_enter, g.r or 3.0)
+                            if veh == 0 then Chevron(g) end
                             if d <= (g.r or 3.0) + 0.5 then
-                                if driver then prompt, action = ('~INPUT_CONTEXT~ Ranger le véhicule · %s'):format(pr.name), function() Store(pr, veh) end
-                                elseif veh == 0 then prompt, action = ('~INPUT_CONTEXT~ Garage · %s'):format(pr.name), function() OpenDoor(pr, 'garage') end end
+                                if driver then text, action = ('[E] Ranger le véhicule · %s'):format(pr.name), function() Store(pr, veh) end
+                                elseif veh == 0 then text, action = ('[E] Garage · %s'):format(pr.name), function() OpenDoor(pr, 'garage') end end
                             end
                         end
                     end
                 end
             end
-            if prompt then
-                C.Help(prompt)
+            if text then
                 if driver then DisableControlAction(0, 86, true) end
-                if IsControlJustPressed(0, Config.Keys.interact) or (driver and IsDisabledControlJustPressed(0, 86)) then action() end
+                if IsControlJustPressed(0, Config.Keys.interact) or (driver and IsDisabledControlJustPressed(0, 86)) then Prompt(nil) action()
+                elseif alt and IsControlJustPressed(0, ACC.bellKey or 47) then alt() end
             end
         end
+        Prompt(text)
         Wait(sleep)
     end
 end)
 
 AddEventHandler('onResourceStop', function(res)
-    if res == GetCurrentResourceName() then for _, b in ipairs(blips) do if DoesBlipExist(b) then RemoveBlip(b) end end end
+    if res == GetCurrentResourceName() then
+        for _, b in ipairs(blips) do if DoesBlipExist(b) then RemoveBlip(b) end end
+        if textShown then core:HideTextUI() end
+    end
 end)

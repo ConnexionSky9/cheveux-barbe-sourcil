@@ -375,3 +375,25 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #2c1d3d, #120b1b 70%
   --accent-2: #C9A6FF;
   --accent-soft: rgba(155, 92, 255, .16);
 }
+
+/* ---------- Refonte immobilière : sonnette, améliorations, plantes ---------- */
+.bell-dur { display: flex; align-items: center; gap: .5rem; margin: .4rem 0 .2rem; font-size: .78rem; color: var(--faint, #9aa3b5); }
+.bell-dur .input { padding: .25rem .5rem; font-size: .78rem; width: auto; }
+.up-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .6rem; margin: .4rem 0 .8rem; }
+.up-card { display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.up-card.on { border-color: rgba(181,123,255,.55); background: linear-gradient(135deg, rgba(181,123,255,.14), rgba(255,255,255,.03)); }
+.up-card .main { flex: 1; min-width: 0; }
+.up-card .main small { display: block; color: var(--faint, #9aa3b5); font-size: .74rem; }
+.up-card .input.small { padding: .25rem .4rem; font-size: .74rem; width: auto; }
+.up-ico { font-size: 1.4rem; width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border-radius: 12px; background: rgba(181,123,255,.15); }
+.up-h { margin: 1rem 0 .45rem; font-size: .9rem; letter-spacing: .02em; }
+.pill.ok { background: rgba(34,197,94,.18); color: #86efac; }
+.pill.err { background: rgba(239,68,68,.18); color: #fca5a5; }
+.plant-stats { display: grid; grid-template-columns: 6.5rem 1fr 3rem; gap: .45rem .6rem; align-items: center; margin: .6rem 0; font-size: .82rem; }
+.plant-stats b { text-align: right; font-variant-numeric: tabular-nums; }
+.pbar { height: .5rem; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.pbar i { display: block; height: 100%; border-radius: 99px; transition: width .4s; }
+.chips .chip { border: 1px solid rgba(186,148,230,.18); color: inherit; cursor: pointer; font: inherit; font-size: .8rem; }
+.chips .chip small { opacity: .65; font-size: .72rem; }
+.chips .chip.on { background: rgba(181,123,255,.32); border-color: rgba(181,123,255,.7); }
+.tab-body > .chips { margin-bottom: .7rem; }

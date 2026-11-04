@@ -22,6 +22,7 @@
 
   const NAV = [
     { id: 'dashboard', label: 'Tableau de bord', ico: '◈', perm: ['tablet'] },
+    { id: 'catalog', label: 'Tous les biens', ico: '🏘️', perm: ['tablet'] },
     { id: 'available', label: 'Habitations disponibles', ico: '🟢', perm: ['tablet'] },
     { id: 'unavailable', label: 'Habitations indisponibles', ico: '🟠', perm: ['tablet'] },
     { id: 'map', label: 'Carte', ico: '🗺️', perm: ['tablet'] },
@@ -120,7 +121,12 @@
   /* ------------------------------------------------------------------ */
   /* Biens : disponibles / indisponibles + fiche                          */
   /* ------------------------------------------------------------------ */
-  const PS_ = { list: null, full: false, f: { q: '', cat: '', garage: '' }, sel: null, info: null };
+  const PS_ = { list: null, full: false, f: { q: '', cat: '', garage: '', chip: 'all' }, sel: null, info: null };
+  const modeOf = () => (T.page === 'available' ? true : T.page === 'unavailable' ? false : 'all');
+  const CHIPS = [['all', 'Tous'], ['house', '🏠 Maisons'], ['apartment', '🏢 Appartements'], ['villa', '🏡 Villas'], ['garage', '🚗 Garages'],
+    ['available', '🟢 Disponibles'], ['sold', '🔴 Vendus'], ['rented', '🟠 Loués']];
+  const chipOk = (p) => { const c = PS_.f.chip; if (c === 'all') return true; if (APP.cats[c]) return p.category === c || (c === 'garage' && p.hasGarage);
+    if (c === 'available') return p.status === 'available' || p.status === 'reserved'; return p.status === c; };
   async function loadProps() { const d = await req('props'); if (!d.error) { PS_.list = d.list; PS_.full = d.full; } return d; }
   const matches = (p) => {
     const f = PS_.f, q = f.q.trim().toLowerCase();
@@ -132,6 +138,7 @@
       <select class="input" data-pf="garage"><option value="">Avec ou sans garage</option><option value="yes" ${PS_.f.garage === 'yes' ? 'selected' : ''}>Avec garage</option><option value="no" ${PS_.f.garage === 'no' ? 'selected' : ''}>Sans garage</option></select></div>`;
   function card(p, avail) {
     const c = p.contract;
+    if (avail === 'all') avail = p.status === 'available' || p.status === 'reserved';
     return `<div class="prop-card ${PS_.sel === p.id ? 'sel' : ''}"><div><h3>${CAT_ICO[p.category] || ''} ${esc(p.name)} ${propPill(p.status)}</h3>
         <div class="meta">${esc(p.address || '')} · ${esc(catLabel(p.category))}${p.interior ? ` · ${esc(p.interior)}` : ''}${p.hasGarage ? ` · garage ${p.garage.capacity} place(s)` : ' · sans garage'}${p.visit ? ` · 🔑 visite par ${esc(p.visit)}` : ''}${p.reservedBy ? ` · réservé par ${esc(p.reservedBy)}` : ''}</div>
         ${!avail && c ? `<div class="meta">${c.kind === 'sale' ? '<b style="color:#fca5a5">Vendu</b>' : `<b style="color:#fdba74">Location</b> · jusqu'au ${fmtTime(c.ends)} · reste ${left(c.remaining)}`}${c.holder ? ` · ${esc(c.holder)}${c.phone ? ` · 📞 ${esc(c.phone)}` : ''}` : ''}</div>` : ''}</div>
@@ -145,13 +152,18 @@
     if (stale(g)) return;
     if (d.error) { body().innerHTML = empty(d.error); return; }
     drawList(avail);
-    every(15000, async () => { if (!typing() && (T.page === 'available' || T.page === 'unavailable')) { await loadProps(); drawList(avail); } });
+    every(15000, async () => { if (!typing() && (T.page === 'available' || T.page === 'unavailable' || T.page === 'catalog')) { await loadProps(); drawList(modeOf()); } });
   }
   function drawList(avail) {
-    const list = (PS_.list || []).filter((p) => (avail ? (p.status === 'available' || p.status === 'reserved') : (p.status === 'rented' || p.status === 'sold')) && matches(p));
-    body().innerHTML = filters() + (avail ? '' : (PS_.full ? '' : '<div class="note">Les occupants et contrats sont visibles avec la permission « Voir les biens occupés ».</div>'))
-      + (list.map((p) => card(p, avail)).join('') || empty(avail ? 'Aucun bien disponible ne correspond.' : 'Aucun bien loué ou vendu ne correspond.'));
+    const all = avail === 'all';
+    const list = (PS_.list || []).filter((p) => (all ? chipOk(p) : avail ? (p.status === 'available' || p.status === 'reserved') : (p.status === 'rented' || p.status === 'sold')) && matches(p));
+    const counts = {};
+    if (all) CHIPS.forEach(([k]) => { const keep = PS_.f.chip; PS_.f.chip = k; counts[k] = (PS_.list || []).filter(chipOk).length; PS_.f.chip = keep; });
+    const chips = all ? `<div class="chips">${CHIPS.map(([k, l]) => `<button class="chip ${PS_.f.chip === k ? 'on' : ''}" data-chip="${k}">${l}<small>${counts[k]}</small></button>`).join('')}</div>` : '';
+    body().innerHTML = chips + filters() + (avail === true ? '' : (PS_.full ? '' : '<div class="note">Les occupants et contrats sont visibles avec la permission « Voir les biens occupés ».</div>'))
+      + (list.map((p) => card(p, avail)).join('') || empty(all ? 'Aucun bien ne correspond.' : avail ? 'Aucun bien disponible ne correspond.' : 'Aucun bien loué ou vendu ne correspond.'));
   }
+  PAGES.catalog = (g) => listPage(g, 'all');
   PAGES.available = (g) => listPage(g, true);
   PAGES.unavailable = (g) => listPage(g, false);
 
@@ -169,6 +181,7 @@
           <span>Début</span><b>${fmtTime(c.starts)}</b>${c.kind === 'rent' ? `<span>Fin</span><b>${fmtTime(c.ends)} · reste ${left(c.remaining)}</b><span>Durée payée</span><b>${c.days} j</b>` : ''}
           ${c.paid != null ? `<span>Payé</span><b>${money(c.paid)} (${c.method === 'cash' ? 'espèces' : 'banque'})</b><span>Agent</span><b>${esc(c.employee || '')}</b>` : ''}` : ''}</div>
       ${p.tenants && p.tenants.length ? `<p class="lead">Locataires ajoutés : ${p.tenants.map((t) => esc(t.name)).join(', ')}</p>` : ''}
+      ${p.upgrades && p.upgrades.length ? `<p class="lead">Améliorations : ${p.upgrades.map((u) => esc(u)).join(' · ')}</p>` : ''}
       ${p.payments && p.payments.length ? `<h3 style="font-size:.85rem;margin:.6rem 0 .3rem">Paiements</h3>${p.payments.map((x) => `<div class="list-row"><div class="main"><b class="mono" style="font-size:.78rem">${esc(x.txid)}</b><small>${esc(PKIND[x.kind] || x.kind)} · ${esc(x.payer_name || '')} · ${fmtTime(x.t)}${x.note ? ` · ${esc(x.note)}` : ''}</small></div><b class="mono">${money(x.amount)} · ${esc(PST[x.status] || x.status)}</b></div>`).join('')}` : ''}
       ${p.history && p.history.length ? `<h3 style="font-size:.85rem;margin:.6rem 0 .3rem">Historique des contrats</h3>${p.history.map((h) => `<div class="list-row"><div class="main"><b>${esc(KIND[h.kind] || h.kind)} · ${esc(h.holder_name || '')}</b><small>${fmtTime(h.s)} → ${h.e ? fmtTime(h.e) : '…'} · ${esc(CSTAT[h.status] || h.status)}${h.end_reason ? ` · ${esc(h.end_reason)}` : ''}</small></div><span class="mono">${money(h.price)}</span></div>`).join('')}` : ''}`,
       'Valider', false,
@@ -563,7 +576,7 @@
   });
   body().addEventListener('change', (e) => {
     const t = e.target;
-    if (t.dataset.pf && t.dataset.pf !== 'q') { PS_.f[t.dataset.pf] = t.value; return drawList(T.page === 'available'); }
+    if (t.dataset.pf && t.dataset.pf !== 'q') { PS_.f[t.dataset.pf] = t.value; return drawList(modeOf()); }
     if (t.dataset.cs) { CS_.status = t.value; CS_.q = ($('#cq') || {}).value || ''; return go('contracts'); }
     if (t.dataset.ef && t.dataset.ef !== 'q') { ES.f[t.dataset.ef] = t.value; return drawEmployees(); }
     if (t.dataset.tc !== undefined) { TS.category = t.value; TS.q = ($('#tq') || {}).value || ''; return go('transactions'); }
@@ -579,7 +592,7 @@
   body().addEventListener('input', (e) => {
     const t = e.target;
     const keep = (sel, fn) => { const pos = t.selectionStart; fn(); const n = body().querySelector(sel); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
-    if (t.dataset.pf === 'q') { PS_.f.q = t.value; return keep('[data-pf="q"]', () => drawList(T.page === 'available')); }
+    if (t.dataset.pf === 'q') { PS_.f.q = t.value; return keep('[data-pf="q"]', () => drawList(modeOf())); }
     if (t.dataset.ef === 'q') { ES.f.q = t.value; return keep('[data-ef="q"]', drawEmployees); }
   });
 
@@ -594,6 +607,7 @@
       if (r.ok) post('close', { ui: 'tablet' });
       return;
     }
+    if ((b = e.target.closest('[data-chip]'))) { PS_.f.chip = b.dataset.chip; return drawList('all'); }
     if ((b = e.target.closest('[data-prop]'))) return openProp(Number(b.dataset.prop));
     if ((b = e.target.closest('[data-mcat]'))) { MS.f.cat = b.dataset.mcat; return go('map'); }
     if ((b = e.target.closest('[data-mst]'))) { MS.f.st = b.dataset.mst; return go('map'); }
