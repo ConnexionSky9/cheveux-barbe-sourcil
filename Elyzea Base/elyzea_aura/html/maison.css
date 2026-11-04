@@ -89,3 +89,9 @@
 .mz-bell__tx { flex: 1 1 calc(100% - 36px); }
 .mz-bell .mz-sel { margin-left: 30px; }
 .mz-bell .mz-chip { flex: 1; }
+
+.mz-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.mz-opt { padding: 10px 8px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--mz-line); text-align: left; }
+.mz-opt b { display: block; font-size: 13px; }
+.mz-opt small { color: var(--text-dim); font-size: 10.5px; }
+.mz-opt.on { background: linear-gradient(135deg, rgba(246,210,122,.25), rgba(181,119,42,.12)); box-shadow: inset 0 0 0 1.5px var(--mz-gold); }

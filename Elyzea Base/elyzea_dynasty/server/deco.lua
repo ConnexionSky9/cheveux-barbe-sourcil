@@ -118,3 +118,15 @@ P.Admin.decoModel = { fn = function(src, d)
     P.AdminLog(src, d.remove and 'Modèle de décoration retiré' or 'Modèle de décoration ajouté', model)
     return { ok = true, message = d.remove and 'Modèle retiré (les objets déjà placés restent).' or 'Modèle ajouté au catalogue.' }
 end }
+
+-- Mode éditeur (vol libre dans le logement) : catalogue, limite et repère du logement
+P.Pub.decoEditor = { fn = function(src, d)
+    local pr, c = DecoCheck(src, d.pid)
+    if not pr then return { error = c } end
+    if not c then return { error = 'Aucun contrat actif.' } end
+    local anchor = pr.points.exit or P.interiors[pr.interiorId or 0]
+    local sum = P.DecoSummary(pr.id, c.id)
+    return { ok = true, pid = pr.id, name = pr.name, catalog = sum.catalog, placed = sum.placed, limit = sum.limit, reserve = sum.reserve,
+        anchor = anchor and { x = anchor.x, y = anchor.y, z = anchor.z } or nil, radius = Config.Deco.maxDistance,
+        speed = (Config.Deco.editor or {}).flySpeed or 3.0, step = (Config.Deco.editor or {}).rotateStep or 15.0 }
+end }

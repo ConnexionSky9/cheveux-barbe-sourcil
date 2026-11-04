@@ -22,11 +22,18 @@ end
 local V = {} V.__index = V
 V.__sub = function(a, b) return vector3(a.x - b.x, a.y - b.y, a.z - b.z) end
 V.__add = function(a, b) return vector3(a.x + b.x, a.y + b.y, a.z + b.z) end
+V.__mul = function(a, k) return vector3(a.x * k, a.y * k, a.z * k) end
+V.__div = function(a, k) return vector3(a.x / k, a.y / k, a.z / k) end
 V.__len = function(a) return math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) end
 function vector3(x, y, z) return setmetatable({ x = x, y = y, z = z }, V) end
 json = { encode = function() return '{}' end, decode = function() return {} end }
 NET, NUI, CMDS, NUIMSG, EXPORTS, HANDLERS = {}, {}, {}, {}, {}, {}
-function RegisterNetEvent(n, fn) if fn then NET[n] = fn end end
+-- Comme FiveM : plusieurs gestionnaires pour un même évènement s'exécutent tous
+function RegisterNetEvent(n, fn)
+    if not fn then return end
+    local prev = NET[n]
+    NET[n] = prev and function(...) prev(...) fn(...) end or fn
+end
 function AddEventHandler(n, fn) HANDLERS[n] = fn end
 function RegisterNUICallback(n, fn) NUI[n] = fn end
 function RegisterCommand(n, fn) CMDS[n] = fn end
@@ -93,5 +100,13 @@ function IsThisModelAHeli() return false end
 function IsThisModelABoat() return false end
 function GetActivePlayers() return {} end
 function GetGamePool() return {} end
+function GetNuiCursorPosition() return 960, 600 end
+function GetActiveScreenResolution() return 1920, 1080 end
+function StartExpensiveSynchronousShapeTestLosProbe() return 1 end
+rayHit = { 1, vector3(151.0, 201.0, 29.0), 0 }
+function GetShapeTestResult() return 1, rayHit[1], rayHit[2], vector3(0, 0, 1), rayHit[3] end
+function GetModelDimensions() return vector3(-0.5, -0.5, -0.2), vector3(0.5, 0.5, 0.8) end
+function GetEntityModel() return 1 end
+function GetEntityRotation() return vector3(0, 0, 45.0) end
 local NOT = { D8C = true, Config = true, D8Perms = true, D8PermSet = true, PoliceC = true, EmsC = true, MecaC = true, CDC = true }
 setmetatable(_G, { __index = function(_, k) if type(k) == 'string' and k:match('^%u') and not NOT[k] then return function() return nil end end end })

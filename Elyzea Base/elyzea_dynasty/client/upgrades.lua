@@ -243,7 +243,7 @@ end)
 -- Danseuse privée (PNJ locaux)
 -- =====================================================================
 local here = nil          -- identifiant du logement où se trouve le joueur
-local dancers = {}        -- [n] = { ent, model, anim, x, y, z, h }
+local dancers = {}        -- [n] = { ent, model, style, clips, ci, x, y, z, h }
 
 local function DeleteDancer(n)
     local d = dancers[n]
@@ -252,9 +252,12 @@ local function DeleteDancer(n)
 end
 local function ClearDancers() for n in pairs(dancers) do DeleteDancer(n) end dancers = {} end
 
-local function PlayAnim(d)
-    if not d.dict or not C.LoadDict(d.dict) then return end
-    TaskPlayAnim(d.ent, d.dict, d.clip, 4.0, -4.0, -1, 1, 0.0, false, false, false)
+-- Chaque style enchaîne SES lap dances en boucle (clip 1 → 2 → 3 → 1…)
+local function PlayClip(d)
+    local c = d.clips and d.clips[d.ci]
+    if not c or not C.LoadDict(c[1]) then return end
+    TaskPlayAnim(d.ent, c[1], c[2], 4.0, -4.0, -1, 0, 0.0, false, false, false)
+    d.playing = GetGameTimer()
 end
 
 local function SyncDancers(list)
@@ -262,7 +265,7 @@ local function SyncDancers(list)
     for _, x in ipairs(list or {}) do
         keep[x.n] = true
         local d = dancers[x.n]
-        if d and (d.model ~= x.model or #(vector3(d.x, d.y, d.z) - vector3(x.x, x.y, x.z)) > 0.05) then DeleteDancer(x.n) d = nil end
+        if d and d.model ~= x.model then DeleteDancer(x.n) d = nil end
         if not d then
             local m = LoadModel(x.model)
             if m then
@@ -274,11 +277,18 @@ local function SyncDancers(list)
                 SetPedFleeAttributes(ent, 0, false)
                 FreezeEntityPosition(ent, true)
                 SetModelAsNoLongerNeeded(m)
-                d = { ent = ent, model = x.model, x = x.x, y = x.y, z = x.z, h = x.h }
+                d = { ent = ent, model = x.model }
                 dancers[x.n] = d
             end
         end
-        if d and (d.anim ~= x.anim) then d.anim, d.dict, d.clip = x.anim, x.dict, x.clip PlayAnim(d) end
+        if d then
+            if not d.placingHere then
+                SetEntityCoordsNoOffset(d.ent, x.x + 0.0, x.y + 0.0, x.z + 0.0, false, false, false)
+                SetEntityHeading(d.ent, (x.h or 0) + 0.0)
+            end
+            d.x, d.y, d.z, d.h, d.placing = x.x, x.y, x.z, x.h, x.placing
+            if d.style ~= x.style then d.style, d.clips, d.ci = x.style, x.clips, 1 PlayClip(d) end
+        end
     end
     for n in pairs(dancers) do if not keep[n] then DeleteDancer(n) end end
 end
@@ -288,18 +298,76 @@ RegisterNetEvent('d8:client:dancer', function(pid, list)
     SyncDancers(list)
 end)
 
--- Animation relancée si le jeu l'interrompt
+-- Fin d'un clip : on passe au suivant du style (et on relance si le jeu l'interrompt)
 CreateThread(function()
     while true do
         if next(dancers) then
             for _, d in pairs(dancers) do
-                if DoesEntityExist(d.ent) and d.dict and not IsEntityPlayingAnim(d.ent, d.dict, d.clip, 3) then PlayAnim(d) end
+                local c = d.clips and d.clips[d.ci]
+                if DoesEntityExist(d.ent) and c and GetGameTimer() - (d.playing or 0) > 1500 then
+                    if not IsEntityPlayingAnim(d.ent, c[1], c[2], 3) or (GetEntityAnimCurrentTime(d.ent, c[1], c[2]) or 0) > 0.97 then
+                        d.ci = (d.ci % #d.clips) + 1
+                        PlayClip(d)
+                    end
+                end
             end
-            Wait(2000)
+            Wait(500)
         else
             Wait(3000)
         end
     end
+end)
+
+-- Placement de la danseuse (à son arrivée, ou « Déplacer ») : elle suit le point visé au sol
+-- Souris = viser · Molette / Q-E = tourner · Entrée / clic gauche = valider · Retour arrière = garder sa place
+local function AimGround()
+    local cr = GetGameplayCamRot(2)
+    local cp = GetGameplayCamCoord()
+    local p, y = math.rad(cr.x), math.rad(cr.z)
+    local dir = vector3(-math.sin(y) * math.cos(p), math.cos(y) * math.cos(p), math.sin(p))
+    local to = cp + dir * 12.0
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(cp.x, cp.y, cp.z, to.x, to.y, to.z, 1, PlayerPedId(), 7)
+    local _, hit, pos = GetShapeTestResult(ray)
+    if hit == 1 then return pos end
+    return nil
+end
+
+function C.DancerPlace(pid, n)
+    local d = dancers[n]
+    if not d or not DoesEntityExist(d.ent) or C.dancerPlacing then return end
+    C.dancerPlacing = true
+    d.placingHere = true
+    local h = d.h or GetEntityHeading(PlayerPedId())
+    SetEntityAlpha(d.ent, 190, false)
+    CreateThread(function()
+        while C.dancerPlacing and DoesEntityExist(d.ent) and here == pid do
+            for _, k in ipairs({ 24, 25, 44, 38, 14, 15, 16, 17, 191, 194, 177, 200 }) do DisableControlAction(0, k, true) end
+            local pos = AimGround()
+            if pos then SetEntityCoordsNoOffset(d.ent, pos.x, pos.y, pos.z, false, false, false) end
+            if IsDisabledControlPressed(0, 44) or IsDisabledControlJustPressed(0, 15) then h = (h + (IsDisabledControlJustPressed(0, 15) and 15.0 or 2.0)) % 360 end
+            if IsDisabledControlPressed(0, 38) or IsDisabledControlJustPressed(0, 14) then h = (h - (IsDisabledControlJustPressed(0, 14) and 15.0 or 2.0)) % 360 end
+            SetEntityHeading(d.ent, h)
+            Help('Placez la danseuse : visez le sol~n~Molette / ~INPUT_COVER~ ~INPUT_PICKUP~ : tourner~n~~INPUT_ATTACK~ / Entrée : valider · Retour arrière : garder sa place')
+            if (IsDisabledControlJustPressed(0, 24) or IsDisabledControlJustPressed(0, 191)) and pos then
+                local r = C.Pub('dancerMove', { pid = pid, n = n, x = pos.x, y = pos.y, z = pos.z, h = h })
+                C.Show(r)
+                if r.ok then break end
+            elseif IsDisabledControlJustPressed(0, 194) or IsDisabledControlJustPressed(0, 177) then
+                C.Pub('dancerMove', { pid = pid, n = n, x = d.x, y = d.y, z = d.z, h = d.h })
+                break
+            end
+            Wait(0)
+        end
+        C.dancerPlacing = nil
+        if DoesEntityExist(d.ent) then ResetEntityAlpha(d.ent) end
+        d.placingHere = nil
+    end)
+end
+RegisterNetEvent('d8:client:dancerPlace', function(pid, n)
+    if here ~= pid then return end
+    local t = GetGameTimer() + 4000
+    while not dancers[n] and GetGameTimer() < t do Wait(100) end
+    C.DancerPlace(pid, n)
 end)
 
 -- =====================================================================
@@ -439,7 +507,13 @@ RegisterNUICallback('upAct', function(body, cb)
         closeManage()
         return C.CamPlaceStart(pid)
     end
-    local MAP = { buy = 'upBuy', dancerSpot = 'dancerSpot', dancerStart = 'dancerStart', dancerAnim = 'dancerAnim', dancerStop = 'dancerStop', view = 'upView' }
+    if a == 'dancerStart' then
+        local r = C.Pub('dancerStart', d)
+        if r.ok then closeManage() end
+        return cb(r)
+    end
+    if a == 'dancerPlace' then cb({ ok = true }) closeManage() return C.DancerPlace(pid, tonumber(d.n) or 1) end
+    local MAP = { buy = 'upBuy', dancerStart = 'dancerStart', dancerStyle = 'dancerStyle', dancerStop = 'dancerStop', view = 'upView' }
     if not MAP[a] then return cb({ error = 'Action inconnue.' }) end
     local r = C.Pub(MAP[a], d)
     cb(r)

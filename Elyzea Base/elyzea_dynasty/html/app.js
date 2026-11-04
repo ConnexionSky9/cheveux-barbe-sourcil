@@ -224,15 +224,17 @@ function upgradesRender(d) {
   }
   if (u.dancer && r.dancer) {
     const dc = u.dancer, act = dc.active;
+    M.dn = M.dn || { style: (dc.styles[0] || {}).id, tariff: 1 };
     more += `<h3 class="up-h">💃 Danseuse privée</h3>
-      <div class="actions" style="justify-content:flex-start"><button class="btn small" data-up="dancerSpot">📍 Elle danse ici (ma position)</button>${dc.spot ? '<span class="pill ok">Emplacement choisi</span>' : '<span class="pill">Emplacement à choisir</span>'}</div>
-      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;align-items:end;margin-top:.5rem">
-        <label class="field"><span>Animation</span><select class="input" id="upAnim">${dc.anims.map((a) => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select></label>
-        <label class="field"><span>Durée</span><select class="input" id="upDur">${dc.durations.filter((m) => m <= dc.maxMinutes).map((m) => `<option value="${m}">${m} min</option>`).join('')}</select></label>
-        <label class="field"><span>Tenue</span><select class="input" id="upModel">${dc.models.map((m, i) => `<option value="${esc(m)}">Danseuse ${i + 1}</option>`).join('')}</select></label></div>
-      <div class="actions" style="justify-content:flex-start">${dc.spot ? '<button class="btn small primary" data-up="dancerStart">▶ Faire venir</button>' : ''}
-        ${act ? '<button class="btn small" data-up="dancerAnim">🔁 Changer l\'animation</button><button class="btn small danger" data-up="dancerStop">■ Renvoyer</button>' : ''}</div>
-      ${act ? `<p class="faint" style="font-size:.78rem">${act.length} danseuse(s) · encore ${Math.ceil(Math.max(...act.map((x) => x.left)) / 60)} min.</p>` : ''}`;
+      ${act ? `<div class="dn-live"><b>${esc(act[0].label || '')}</b> danse en ce moment · encore ${Math.ceil(Math.max(...act.map((x) => x.left)) / 60)} min${act.some((x) => x.placing) ? ' · <span class="pill">à placer</span>' : ''}</div>
+        <div class="actions" style="justify-content:flex-start"><button class="btn small primary" data-up="dancerPlace" data-n="1">📍 La placer / déplacer</button>
+          <select class="input small" id="upStyleNow">${dc.styles.map((x) => `<option value="${x.id}">${esc(x.label)}</option>`).join('')}</select><button class="btn small" data-up="dancerStyle">🔁 Changer de style</button>
+          <button class="btn small danger" data-up="dancerStop">■ Renvoyer</button></div>` : ''}
+      <p class="faint" style="font-size:.78rem;margin:.4rem 0">Choisissez un style et une durée : à son arrivée, vous la placez où vous voulez dans le logement.</p>
+      <div class="dn-styles">${dc.styles.map((x) => `<button class="dn-style ${M.dn.style === x.id ? 'on' : ''}" data-dn-style="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.desc || '')}</small></button>`).join('')}</div>
+      <div class="dn-tariffs">${dc.tariffs.map((x) => `<button class="dn-tariff ${M.dn.tariff === x.i ? 'on' : ''}" data-dn-tariff="${x.i}"><b>${x.minutes >= 60 ? `${x.minutes / 60} h` : `${x.minutes} min`}</b><small>${money(x.price)}</small></button>`).join('')}</div>
+      <div class="actions" style="justify-content:flex-start"><select class="input small" id="upDnMethod"><option value="bank">Banque</option><option value="cash">Espèces</option></select>
+        <button class="btn small primary" data-up="dancerStart" ${act && act.length >= dc.max ? 'disabled' : ''}>💃 Faire venir</button></div>`;
   }
   if (u.cannabis && r.upgrades) {
     const cn = u.cannabis;
@@ -253,9 +255,16 @@ async function upAction(b) {
     if (!(await confirmBox(`Acheter : ${x.label} ?`, `<b>${money(x.price)}</b> prélevés (${data.method === 'cash' ? 'espèces' : 'banque'}).`, 'Acheter'))) return;
   }
   if (a === 'camView') data.idx = Number(b.dataset.idx);
-  if (a === 'dancerStart' || a === 'dancerAnim') { data.anim = ($('#upAnim') || {}).value; data.minutes = Number(($('#upDur') || {}).value); data.model = ($('#upModel') || {}).value; }
+  if (a === 'dancerStart') {
+    data.style = M.dn.style; data.tariff = M.dn.tariff; data.method = ($('#upDnMethod') || {}).value || 'bank';
+    const t = M.d.upgrades.dancer.tariffs.find((x) => x.i === data.tariff);
+    if (!(await confirmBox('Faire venir la danseuse ?', `${t.minutes >= 60 ? `${t.minutes / 60} h` : `${t.minutes} min`} · <b>${money(t.price)}</b> (${data.method === 'cash' ? 'espèces' : 'banque'}).`, 'Payer'))) return;
+  }
+  if (a === 'dancerStyle') data.style = ($('#upStyleNow') || {}).value;
+  if (a === 'dancerPlace') data.n = Number(b.dataset.n) || 1;
   const r = await act(post('upAct', { action: a, data }), b);
-  if (['camView', 'placePot', 'camPlace'].includes(a)) return;
+  if (['camView', 'placePot', 'camPlace', 'dancerPlace'].includes(a)) return;
+  if (a === 'dancerStart' && r.ok) return;
   if (r.ok) return manageReload();
 }
 
@@ -302,7 +311,9 @@ function manageRender() {
   } else if (M.tab === 'deco') {
     const dc = d.deco;
     const cats = [...new Set(dc.catalog.map((x) => x.cat))];
-    main = `<p class="lead">${dc.placed} / ${dc.limit} objet(s) placés. Choisissez un objet : il apparaît devant vous, placez-le avec les flèches, Pg.Préc/Pg.Suiv, Q/E, G (au sol), Entrée pour valider.</p>
+    main = `<div class="he-cta"><div><b>🛠️ Mode éditeur</b><small>Volez dans votre logement, choisissez un objet (aperçu au survol) et posez-le où vous voulez, collé au sol ou non.</small></div>
+        <button class="btn primary" data-he-open>Décorer</button></div>
+      <p class="lead">${dc.placed} / ${dc.limit} objet(s) placés. Choisissez un objet : il apparaît devant vous, placez-le avec les flèches, Pg.Préc/Pg.Suiv, Q/E, G (au sol), Entrée pour valider.</p>
       ${dc.reserve.length ? `<h3 style="margin:.4rem 0">En réserve (à replacer)</h3><div class="deco-grid" style="margin-bottom:.8rem">${dc.reserve.map((o) => `<button class="deco-item" data-deco-move="${o.id}" data-model="${esc(o.model)}">${esc(o.model)}<small>Replacer</small></button>`).join('')}</div>` : ''}
       ${cats.map((cat) => `<h3 style="margin:.6rem 0 .4rem;font-size:.8rem;color:var(--faint);text-transform:uppercase;letter-spacing:.08em">${esc(cat)}</h3>
         <div class="deco-grid">${dc.catalog.filter((x) => x.cat === cat).map((x) => `<button class="deco-item" data-deco="${esc(x.model)}" ${dc.placed >= dc.limit ? 'disabled' : ''}>${esc(x.label)}<small class="mono">${esc(x.model)}</small></button>`).join('')}</div>`).join('')}
@@ -325,6 +336,9 @@ async function manageReload() { const r = await post('manageRefresh'); if (!r.er
 $('#manage').addEventListener('click', async (e) => {
   let b;
   if ((b = e.target.closest('[data-mgt]'))) { M.tab = b.dataset.mgt; return manageRender(); }
+  if ((b = e.target.closest('[data-he-open]'))) return post('heOpen');
+  if ((b = e.target.closest('[data-dn-style]'))) { M.dn.style = b.dataset.dnStyle; return manageRender(); }
+  if ((b = e.target.closest('[data-dn-tariff]'))) { M.dn.tariff = Number(b.dataset.dnTariff); return manageRender(); }
   if ((b = e.target.closest('[data-up]'))) return upAction(b);
   if ((b = e.target.closest('[data-deco]'))) return post('decoStart', { model: b.dataset.deco });
   if ((b = e.target.closest('[data-deco-move]'))) return post('decoStart', { model: b.dataset.model, id: Number(b.dataset.decoMove) });

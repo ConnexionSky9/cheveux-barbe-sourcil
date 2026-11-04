@@ -107,19 +107,25 @@ Config.Upgrades = {
         modifier = 'CAMERA_secuirity', -- filtre d'image (nom réel du jeu) ; '' = aucun
     },
     dancer = {
-        enabled = true, label = 'Danseuse privée', price = 25000, payTo = 'agency',
+        -- Service payé à chaque venue (pas d'achat d'amélioration) : 3 tarifs selon la durée
+        enabled = true, label = 'Danseuse privée', price = 0, payTo = 'agency', service = true,
+        tariffs = {
+            { minutes = 30,  price = 2500 },
+            { minutes = 60,  price = 4500 },
+            { minutes = 120, price = 8000 },
+        },
         max = 1,                  -- danseuses en même temps par logement
-        maxMinutes = 30,          -- durée maximale d'une danse
-        durations = { 5, 10, 15, 30 },
+        maxMinutes = 120,
         cooldownSeconds = 20,
-        models = { 's_f_y_stripper_01', 's_f_y_stripper_02', 'csb_stripper_01', 'csb_stripper_02' },
-        -- Animations du jeu (dictionnaire + clip). « on » = proposée aux joueurs.
-        anims = {
-            { id = 'private1', label = 'Danse privée 1', dict = 'mini@strip_club@private_dance@part1', clip = 'priv_dance_p1', on = true },
-            { id = 'private2', label = 'Danse privée 2', dict = 'mini@strip_club@private_dance@part2', clip = 'priv_dance_p2', on = true },
-            { id = 'private3', label = 'Danse privée 3', dict = 'mini@strip_club@private_dance@part3', clip = 'priv_dance_p3', on = true },
-            { id = 'lapdance', label = 'Danse lascive', dict = 'mini@strip_club@lap_dance@ld_girl_a_song_a_p1', clip = 'ld_girl_a_song_a_p1_f', on = true },
-            { id = 'idle', label = 'Attente', dict = 'mini@strip_club@idles@stripper', clip = 'stripper_idle_02', on = true },
+        placeDistance = 25.0,     -- elle se place à X m max de l'entrée intérieure
+        -- 3 styles, chacun son modèle et SA série de lap dances (animations du jeu, enchaînées en boucle)
+        styles = {
+            { id = 'glamour', label = 'Glamour', desc = 'Danse privée élégante', model = 's_f_y_stripper_01', on = true,
+              clips = { { 'mini@strip_club@private_dance@part1', 'priv_dance_p1' }, { 'mini@strip_club@private_dance@part2', 'priv_dance_p2' }, { 'mini@strip_club@private_dance@part3', 'priv_dance_p3' } } },
+            { id = 'sensuelle', label = 'Sensuelle', desc = 'Lap dance lascive', model = 's_f_y_stripper_02', on = true,
+              clips = { { 'mini@strip_club@lap_dance@ld_girl_a_song_a_p1', 'ld_girl_a_song_a_p1_f' }, { 'mini@strip_club@lap_dance@ld_girl_a_song_a_p2', 'ld_girl_a_song_a_p2_f' }, { 'mini@strip_club@lap_dance@ld_girl_a_song_a_p3', 'ld_girl_a_song_a_p3_f' } } },
+            { id = 'intense', label = 'Intense', desc = 'Lap dance très rythmée', model = 'csb_stripper_01', on = true,
+              clips = { { 'mini@strip_club@lap_dance_2g@ld_2g_p1', 'ld_2g_p1_s1' }, { 'mini@strip_club@lap_dance_2g@ld_2g_p2', 'ld_2g_p2_s1' }, { 'mini@strip_club@lap_dance_2g@ld_2g_p3', 'ld_2g_p3_s1' } } },
         },
     },
     cannabis = {
@@ -153,6 +159,7 @@ Config.Stash = { slots = 50, weight = 150 }      -- poids en kg
 Config.Deco = {
     defaultLimit = 40, maxLimit = 200,
     maxDistance = 30.0,                            -- distance max d'un objet par rapport à l'entrée intérieure
+    editor = { flySpeed = 3.0, rotateStep = 15.0 }, -- mode éditeur (vol libre dans le logement)
     -- Modèles autorisés (l'administration peut en ajouter dans la tablette › Décoration)
     catalog = {
         { model = 'prop_couch_01', label = 'Canapé', cat = 'Salon' },

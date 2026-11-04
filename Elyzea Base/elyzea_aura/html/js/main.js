@@ -344,8 +344,8 @@ const Mock = {
   },
   // Appli Maison (aperçu navigateur)
   mz(action, a, n) {
-    const ups = (cams) => ({ rights: {}, list: [{ kind: 'cameras', label: 'Caméras de surveillance', enabled: true, price: 15000, owned: true }, { kind: 'dancer', label: 'Danseuse privée', enabled: true, price: 25000, owned: true }, { kind: 'cannabis', label: 'Culture de cannabis', enabled: true, price: 20000, owned: false }],
-      cameras: { list: cams, max: 4, spots: 0 }, dancer: { active: null, spot: true, anims: [{ id: 'private1', label: 'Danse privée 1' }, { id: 'lapdance', label: 'Danse lascive' }], models: ['s_f_y_stripper_01', 's_f_y_stripper_02'], durations: [5, 10, 15, 30], maxMinutes: 30, max: 1 } });
+    const ups = (cams) => ({ rights: {}, list: [{ kind: 'cameras', label: 'Caméras de surveillance', enabled: true, price: 15000, owned: true }, { kind: 'cannabis', label: 'Culture de cannabis', enabled: true, price: 20000, owned: false }],
+      cameras: { list: cams, max: 4, spots: 0 }, dancer: { active: null, max: 1, styles: [{ id: 'glamour', label: 'Glamour', desc: 'Danse privée élégante' }, { id: 'sensuelle', label: 'Sensuelle', desc: 'Lap dance lascive' }, { id: 'intense', label: 'Intense', desc: 'Lap dance très rythmée' }], tariffs: [{ i: 1, minutes: 30, price: 2500 }, { i: 2, minutes: 60, price: 4500 }, { i: 3, minutes: 120, price: 8000 }] } });
     const R = { stash: true, manage: true, garage: true, holder: true, upgrades: true, cameras: true, dancer: true, code: true };
     const list = [{ id: 1, name: 'Villa Vinewood', address: '2862 Hillcrest Avenue', category: 'villa', catLabel: 'Villa', role: 'holder', rights: R, kind: 'sale', status: 'sold', upgrades: ['cameras', 'dancer'], hasCode: true, garage: 6, stash: 50, gps: { x: -676, y: 588 } },
       { id: 2, name: 'Appartement Del Perro', address: 'Del Perro Heights · Apt 7', category: 'apartment', catLabel: 'Appartement', role: 'tenant', rights: { stash: true }, kind: 'rent', ends: n + 86400 * 5, status: 'rented', upgrades: [], hasCode: false, garage: 0, stash: 30 }];

@@ -397,3 +397,13 @@ body.demo { background: radial-gradient(ellipse at 30% 40%, #2c1d3d, #120b1b 70%
 .chips .chip small { opacity: .65; font-size: .72rem; }
 .chips .chip.on { background: rgba(181,123,255,.32); border-color: rgba(181,123,255,.7); }
 .tab-body > .chips { margin-bottom: .7rem; }
+.dn-live { padding: .6rem .8rem; border-radius: 12px; background: linear-gradient(135deg, rgba(255,92,140,.18), rgba(181,123,255,.1)); font-size: .82rem; margin-bottom: .4rem; }
+.dn-styles, .dn-tariffs { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .4rem 0; }
+.dn-style, .dn-tariff { padding: .7rem .6rem; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); color: inherit; cursor: pointer; text-align: left; font: inherit; }
+.dn-style b, .dn-tariff b { display: block; font-size: .9rem; }
+.dn-style small, .dn-tariff small { color: var(--faint, #9aa3b5); font-size: .74rem; }
+.dn-style.on, .dn-tariff.on { border-color: rgba(181,123,255,.8); background: rgba(181,123,255,.18); box-shadow: 0 0 14px rgba(181,123,255,.35); }
+
+.he-cta { display: flex; align-items: center; gap: 1rem; padding: .9rem 1rem; margin-bottom: .8rem; border-radius: 16px;
+  background: linear-gradient(135deg, rgba(155,92,255,.25), rgba(255,255,255,.03)); box-shadow: inset 0 0 0 1px rgba(181,123,255,.4); }
+.he-cta > div { flex: 1; } .he-cta b { display: block; font-size: 1rem; } .he-cta small { color: var(--faint, #9aa3b5); font-size: .78rem; }

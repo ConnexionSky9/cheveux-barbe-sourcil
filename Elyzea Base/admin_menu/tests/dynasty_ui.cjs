@@ -21,7 +21,8 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
             points: { enter: true, bell: false, exit: false, manage: false, stash: false, garage: true, gEnter: false, gSpawn: false, gInside: false, gExit: false, slots: 0 } }],
         spots: [{ id: 3, pid: 7, label: 'Portail', x: 1, y: 2, z: 3, rx: -10, rz: 45, fov: 60, yaw: 30, pitch: 15 }],
         cfg: { cameras: { enabled: true, price: 15000, payTo: 'agency', max: 4, radius: 25, fovMin: 25, fovMax: 90 },
-            dancer: { enabled: true, price: 25000, payTo: 'agency', max: 1, maxMinutes: 30, cooldownSeconds: 20, anims: [{ id: 'private1', label: 'Danse privée 1', on: true }, { id: 'idle', label: 'Attente', on: false }] },
+            dancer: { enabled: true, payTo: 'agency', max: 1, cooldownSeconds: 20, tariffs: [{ minutes: 30, price: 2500 }, { minutes: 60, price: 4500 }, { minutes: 120, price: 8000 }],
+                styles: [{ id: 'glamour', label: 'Glamour', desc: 'Danse privée', on: true }, { id: 'intense', label: 'Intense', desc: 'Lap dance', on: false }] },
             cannabis: { enabled: true, price: 20000, payTo: 'none', maxPots: 3, speed: 1 } } };
     await page.evaluate((d8) => {
         window.postMessage({ action: 'open' }, '*');
@@ -47,8 +48,8 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     check(last().body.data.name === 'spotEdit' && last().body.data.data.yaw === 60, 'réglage d\'un emplacement');
     await page.fill('[data-d8cfg="cameras.max"]', '6'); await page.click('[data-d8save="cameras"]'); await page.waitForTimeout(100);
     check(last().body.data.name === 'upSettings' && last().body.data.data.patch.max === 6, 'réglages des caméras');
-    await page.check('[data-d8anim="idle"]'); await page.click('[data-d8save="dancer"]'); await page.waitForTimeout(100);
-    check(last().body.data.data.patch.animsOn.idle === true, 'animations de la danseuse');
+    await page.check('[data-d8style="intense"]'); await page.fill('[data-d8price="1"]', '5000'); await page.click('[data-d8save="dancer"]'); await page.waitForTimeout(100);
+    check(last().body.data.data.patch.stylesOn.intense === true && last().body.data.data.patch.prices[1] === 5000, 'danseuse : styles et tarifs');
     await page.click('[data-d8arm="reset:7:cameras"]'); await page.waitForTimeout(100);
     await page.click('[data-d8arm="reset:7:cameras"]'); await page.waitForTimeout(100);
     check(last().body.data.name === 'upReset' && last().body.data.data.kind === 'cameras', 'réinitialisation avec confirmation');

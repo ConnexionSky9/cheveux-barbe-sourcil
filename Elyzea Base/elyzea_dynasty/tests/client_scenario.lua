@@ -15,7 +15,7 @@ POS = vector3(150.0, 200.0, 30.0)
 RunFor(1500)
 ok(uiText == nil, 'invite cachée en s\'éloignant')
 -- Entrée dans le logement (événement serveur)
-RESP.dancerState = { list = { { n = 1, model = 's_f_y_stripper_01', anim = 'private1', dict = 'd', clip = 'c', x = 1.0, y = 2.0, z = 3.0, h = 0 } } }
+RESP.dancerState = { list = { { n = 1, model = 's_f_y_stripper_01', style = 'glamour', clips = { { 'd1', 'c1' }, { 'd2', 'c2' } }, x = 1.0, y = 2.0, z = 3.0, h = 0 } } }
 RESP.plantList = { list = { { id = 11, x = 150.0, y = 200.5, z = 30.0, h = 0, seed = 'weed_seed', variety = 'Weed', progress = 40, water = 50, health = 100, stage = 'Croissance', model = 'bkr_prop_weed_med_01a' },
     { id = 12, x = 160.0, y = 200.0, z = 30.0, h = 0, stage = 'Pot vide' } }, canCare = true }
 RESP.decoList = { list = {} }
@@ -63,5 +63,30 @@ ok(C.CamBusy() and camRender == true, 'pose : aperçu de la caméra affiché')
 pressKey = 191 RunFor(100) pressKey = nil
 ok(placed and placed.pid == 7 and placed.fov == 60, 'pose : position envoyée au serveur')
 ok(not C.CamBusy() and camRender == false, 'pose terminée, caméra rendue au joueur')
+-- Mode éditeur de décoration
+NET['d8:client:enter']({ pid = 7, name = 'Villa Test', area = 'home', kind = 'resident', spawn = { x = 150, y = 200, z = 30 }, points = { exit = { x = 150.0, y = 199.0, z = 30.0 } }, role = 'holder', rights = { stash = true, manage = true } })
+RunFor(500)
+RESP.decoEditor = { ok = true, pid = 7, name = 'Villa Test', catalog = { { model = 'prop_couch_01', label = 'Canapé', cat = 'Salon' } }, placed = 2, limit = 40, anchor = { x = 150.0, y = 199.0, z = 30.0 }, radius = 30.0 }
+local sent = nil
+RESP.decoPlace = function(d) sent = d return { ok = true, message = 'ok' } end
+NUIMSG = {}
+C.EditorOpen(7)
+RunFor(100)
+ok(C.EditorActive() and camRender == true, 'éditeur : caméra libre ouverte dans le logement')
+ok(NUIMSG[1] and NUIMSG[1].action == 'hedit' and NUIMSG[1].show == true, 'éditeur : interface avec les objets')
+NUI.he({ a = 'preview', model = 'prop_couch_01' }, function() end)
+local objs = 0 for _, k in pairs(ALIVE) do if k == 'obj' then objs = objs + 1 end end
+ok(objs >= 1, 'survol d\'un objet : aperçu 3D affiché')
+NUI.he({ a = 'preview' }, function() end)
+NUI.he({ a = 'pick', model = 'prop_couch_01' }, function() end)
+RunFor(100)
+NUI.he({ a = 'click' }, function() end)
+ok(sent and sent.model == 'prop_couch_01' and math.abs(sent.z - 29.2) < 0.01, 'coller au sol : posé sur la surface visée (base de l\'objet au sol)')
+NUI.he({ a = 'snap', on = false }, function() end)
+RunFor(100)
+NUI.he({ a = 'click' }, function() end)
+ok(sent.z > 29.3, 'sans coller au sol : l\'objet flotte à la distance choisie')
+NUI.he({ a = 'close' }, function() end)
+ok(not C.EditorActive() and camRender == false, 'éditeur fermé : caméra rendue')
 ok(#ERR == 0, 'aucune erreur dans les boucles client')
 print(('Client : %d vérifications OK'):format(n))

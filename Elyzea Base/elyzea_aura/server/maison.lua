@@ -12,7 +12,7 @@ local RES = 'elyzea_dynasty'
 
 local ACTIONS = { home = true, has = true, prop = true, buy = true, setCode = true, bellAnswer = true, grantRevoke = true, grantInvite = true,
     tenantAdd = true, tenantSet = true, camView = true, camRemove = true, camRename = true, camInfo = true,
-    dancerStart = true, dancerAnim = true, dancerStop = true }
+    dancerStart = true, dancerStyle = true, dancerStop = true }
 
 local function Call(src, action, data)
     if GetResourceState(RES) ~= 'started' then return { ok = false, offline = true, error = 'Dynasty 8 est indisponible pour le moment.' } end

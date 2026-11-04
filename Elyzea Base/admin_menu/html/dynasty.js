@@ -116,7 +116,7 @@
 
     function upgradesSettings(d) {
         const c = d.cfg;
-        const anims = c.dancer.anims || [];
+        const styles = c.dancer.styles || [], tariffs = c.dancer.tariffs || [];
         return `<div class="section"><h2>⚙️ Gestion des améliorations immobilières</h2>
             <p class="hint">Réglages appliqués tout de suite et gardés après un redémarrage. Les améliorations déjà achetées restent installées.</p>
             <h3 class="sub-h">📹 Caméras de surveillance</h3>
@@ -130,11 +130,11 @@
             <h3 class="sub-h">💃 Danseuse privée</h3>
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-bottom:10px">${tog('dancer.enabled', c.dancer.enabled, 'Proposée aux joueurs', 'Désactivé : les danseuses présentes repartent')}</div>
             <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));align-items:end">
-                ${num('dancer', 'price', 'Prix ($)', c.dancer.price, 0, 50000000)}${num('dancer', 'max', 'Danseuses max en même temps', c.dancer.max, 1, 12)}
-                ${num('dancer', 'maxMinutes', 'Durée max (min)', c.dancer.maxMinutes, 1, 240)}${num('dancer', 'cooldownSeconds', 'Attente entre deux (s)', c.dancer.cooldownSeconds, 0, 600)}
+                ${tariffs.map((t, i) => `<div><label>Tarif ${t.minutes >= 60 ? `${t.minutes / 60} h` : `${t.minutes} min`} ($)</label><input class="input" type="number" min="0" data-d8price="${i}" value="${t.price}"></div>`).join('')}
+                ${num('dancer', 'max', 'Danseuses max en même temps', c.dancer.max, 1, 12)}${num('dancer', 'cooldownSeconds', 'Attente entre deux (s)', c.dancer.cooldownSeconds, 0, 600)}
                 <div><label>Paiement</label><select class="input" data-d8cfg="dancer.payTo"><option value="agency" ${c.dancer.payTo !== 'none' ? 'selected' : ''}>Versé à l'agence</option><option value="none" ${c.dancer.payTo === 'none' ? 'selected' : ''}>Retiré du jeu</option></select></div></div>
-            <label class="hint">Animations proposées</label>
-            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin:6px 0 10px">${anims.map((a) => `<label class="tile" style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-d8anim="${a.id}" ${a.on ? 'checked' : ''}><span>${esc(a.label)}</span></label>`).join('')}</div>
+            <label class="hint">Styles proposés (chacun son modèle et ses lap dances)</label>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin:6px 0 10px">${styles.map((a) => `<label class="tile" style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-d8style="${a.id}" ${a.on ? 'checked' : ''}><span><b>${esc(a.label)}</b> · ${esc(a.desc || '')}</span></label>`).join('')}</div>
             <div class="btn-row"><button class="btn primary" data-d8save="dancer">💾 Enregistrer la danseuse</button></div>
 
             <h3 class="sub-h">🌿 Culture de cannabis</h3>
@@ -226,7 +226,10 @@
             const kind = t.dataset.d8save;
             const patch = {};
             document.querySelectorAll(`[data-d8cfg^="${kind}."]`).forEach((e) => { const k = e.dataset.d8cfg.split('.')[1]; patch[k] = e.tagName === 'SELECT' ? e.value : Number(e.value); });
-            if (kind === 'dancer') { patch.animsOn = {}; document.querySelectorAll('[data-d8anim]').forEach((e) => { patch.animsOn[e.dataset.d8anim] = e.checked; }); }
+            if (kind === 'dancer') {
+                patch.stylesOn = {}; document.querySelectorAll('[data-d8style]').forEach((e) => { patch.stylesOn[e.dataset.d8style] = e.checked; });
+                patch.prices = []; document.querySelectorAll('[data-d8price]').forEach((e) => { patch.prices[Number(e.dataset.d8price)] = Number(e.value); });
+            }
             return send('upSettings', { kind, patch });
         }
     });

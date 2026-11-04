@@ -100,7 +100,7 @@ function mzTabs() {
   const owned = (k) => up.some((x) => x.kind === k && x.owned);
   const tabs = [['home', t('Aperçu')]];
   if (r.cameras && owned('cameras')) tabs.push(['surv', t('Surveillance')]);
-  if (r.dancer && owned('dancer')) tabs.push(['svc', t('Services')]);
+  if (r.dancer && p.upgrades && p.upgrades.dancer) tabs.push(['svc', t('Services')]);
   if (r.code || r.holder || r.manage) tabs.push(['mng', t('Gestion')]);
   if (!tabs.find((x) => x[0] === MZ.tab)) MZ.tab = 'home';
   return tabs;
@@ -212,23 +212,30 @@ function mzWireSurv(main) {
   };
 }
 
-/* Services privés : danseuse */
+/* Services privés : danseuse (3 styles, 3 tarifs ; placée à son arrivée dans le logement) */
 function mzSvc() {
   const d = MZ.prop.upgrades.dancer || {};
   const act = d.active;
+  MZ.dn = MZ.dn || { style: (d.styles && d.styles[0] || {}).id, tariff: 1, method: 'bank' };
+  const dur = (m) => (m >= 60 ? `${m / 60} h` : `${m} min`);
   return `<div class="mz-svc ${act ? 'live' : ''}"><div class="mz-svc__ico">💃</div><div><b>${t('Danseuse privée')}</b>
-      <small>${act ? `${act.length} ${t('en ce moment')} · ${t('encore')} ${mzMin(Math.max(...act.map((x) => x.left)))}` : d.spot ? t('Prête à venir à l\'emplacement choisi.') : t('Choisissez d\'abord son emplacement dans le logement (Gérer mon logement).')}</small></div></div>
-    <label class="mz-lbl">${t('Animation')}</label><select class="field" id="mz-anim">${(d.anims || []).map((a) => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select>
-    <label class="mz-lbl">${t('Durée')}</label><select class="field" id="mz-dur">${(d.durations || []).filter((m) => m <= (d.maxMinutes || 30)).map((m) => `<option value="${m}">${m} min</option>`).join('')}</select>
-    <label class="mz-lbl">${t('Danseuse')}</label><select class="field" id="mz-model">${(d.models || []).map((m, i) => `<option value="${esc(m)}">${t('Danseuse')} ${i + 1}</option>`).join('')}</select>
-    <div class="mz-row">${d.spot ? `<button class="btn btn--block" data-dn="start">▶ ${t('Faire venir')}</button>` : ''}</div>
-    ${act ? `<div class="mz-row two"><button class="btn btn--ghost" data-dn="anim">🔁 ${t('Changer')}</button><button class="btn btn--danger" data-dn="stop">■ ${t('Renvoyer')}</button></div>` : ''}`;
+      <small>${act ? `${esc(act[0].label || '')} · ${t('encore')} ${mzMin(Math.max(...act.map((x) => x.left)))}${act.some((x) => x.placing) ? ' · ' + t('à placer dans le logement') : ''}` : t('Choisissez un style et une durée. À son arrivée, placez-la où vous voulez.')}</small></div></div>
+    <p class="mz-h">${t('Style')}</p>
+    <div class="mz-pick">${(d.styles || []).map((x) => `<button class="mz-opt ${MZ.dn.style === x.id ? 'on' : ''}" data-dn-style="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.desc || '')}</small></button>`).join('')}</div>
+    <p class="mz-h">${t('Durée')}</p>
+    <div class="mz-pick">${(d.tariffs || []).map((x) => `<button class="mz-opt ${MZ.dn.tariff === x.i ? 'on' : ''}" data-dn-tariff="${x.i}"><b>${dur(x.minutes)}</b><small>${money(x.price)}</small></button>`).join('')}</div>
+    <div class="mz-row two"><select class="field" id="mz-dnpay"><option value="bank" ${MZ.dn.method === 'bank' ? 'selected' : ''}>${t('Carte')}</option><option value="cash" ${MZ.dn.method === 'cash' ? 'selected' : ''}>${t('Espèces')}</option></select>
+      <button class="btn" data-dn="start" ${act && act.length >= (d.max || 1) ? 'disabled' : ''}>💃 ${t('Faire venir')}</button></div>
+    ${act ? `<div class="mz-row two"><button class="btn btn--ghost" data-dn="style">🔁 ${t('Style choisi')}</button><button class="btn btn--danger" data-dn="stop">■ ${t('Renvoyer')}</button></div>` : ''}`;
 }
 function mzWireSvc(main) {
+  $$('[data-dn-style]', main).forEach((b) => b.onclick = () => { MZ.dn.style = b.dataset.dnStyle; mzRenderProp(); });
+  $$('[data-dn-tariff]', main).forEach((b) => b.onclick = () => { MZ.dn.tariff = Number(b.dataset.dnTariff); mzRenderProp(); });
+  const pay = $('#mz-dnpay', main); if (pay) pay.onchange = () => { MZ.dn.method = pay.value; };
   $$('[data-dn]', main).forEach((b) => b.onclick = async () => {
     const a = b.dataset.dn;
-    const data = { pid: MZ.pid, anim: $('#mz-anim').value, minutes: Number($('#mz-dur').value), model: $('#mz-model').value };
-    const r = await mzCall(a === 'start' ? 'dancerStart' : a === 'anim' ? 'dancerAnim' : 'dancerStop', data);
+    const data = { pid: MZ.pid, style: MZ.dn.style, tariff: MZ.dn.tariff, method: MZ.dn.method };
+    const r = await mzCall(a === 'start' ? 'dancerStart' : a === 'style' ? 'dancerStyle' : 'dancerStop', data);
     mzToast(r);
     if (r && r.ok) mzOpenProp(MZ.pid, 'svc');
   });

@@ -55,9 +55,11 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   await p.click('[data-cam-place]'); await p.waitForTimeout(500);
   check(posts.some((x) => x.ep === 'maisonPlaceCam' && x.d.pid === 1), 'installer une caméra : le téléphone lance la pose');
   await p.click('[data-mz-tab="svc"]'); await p.waitForTimeout(600);
-  await p.selectOption('#mz-anim', 'lapdance'); await p.selectOption('#mz-dur', '15');
+  check(await p.$$eval('[data-dn-style]', (x) => x.length) === 3 && await p.$$eval('[data-dn-tariff]', (x) => x.length) === 3, 'danseuse : 3 styles et 3 tarifs');
+  await p.click('[data-dn-style="sensuelle"]'); await p.waitForTimeout(500);
+  await p.click('[data-dn-tariff="2"]'); await p.waitForTimeout(500);
   await p.click('[data-dn="start"]'); await p.waitForTimeout(500);
-  check(calls.some((c) => c.action === 'dancerStart' && c.data.anim === 'lapdance' && c.data.minutes === 15), 'danseuse : animation et durée envoyées');
+  check(calls.some((c) => c.action === 'dancerStart' && c.data.style === 'sensuelle' && c.data.tariff === 2), 'danseuse : style et tarif (1 h) envoyés');
   await shot('04_services');
   await p.click('[data-mz-tab="mng"]'); await p.waitForTimeout(600);
   check(await p.$('#mz-code') !== null && await p.$$eval('.mz-person', (x) => x.length) === 1 && await p.$$eval('.mz-tenant', (x) => x.length) === 1, 'gestion : code, visiteurs, locataires');

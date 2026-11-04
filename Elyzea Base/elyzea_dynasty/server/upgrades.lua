@@ -83,7 +83,7 @@ end
 -- ---------------------------------------------------------------------
 local EDIT = {
     cameras = { enabled = 'bool', price = 'int', payTo = 'pay', max = 'int', radius = 'num', fovMin = 'int', fovMax = 'int' },
-    dancer = { enabled = 'bool', price = 'int', payTo = 'pay', max = 'int', maxMinutes = 'int', cooldownSeconds = 'int', animsOn = 'map' },
+    dancer = { enabled = 'bool', payTo = 'pay', max = 'int', cooldownSeconds = 'int', stylesOn = 'map', prices = 'prices' },
     cannabis = { enabled = 'bool', price = 'int', payTo = 'pay', maxPots = 'int', speed = 'num' },
 }
 local LIMITS = {
@@ -106,9 +106,10 @@ function P.UpCfg()
             for k, v in pairs(over) do if EDIT[kind][k] then c[kind][k] = v end end
         end
     end
-    -- Animations : activées / désactivées par le staff
-    local on = c.dancer.animsOn or {}
-    for _, a in ipairs(c.dancer.anims) do if on[a.id] ~= nil then a.on = on[a.id] == true end end
+    -- Danseuse : styles activés et prix des 3 tarifs réglés par le staff
+    local on = c.dancer.stylesOn or {}
+    for _, st in ipairs(c.dancer.styles) do if on[st.id] ~= nil then st.on = on[st.id] == true end end
+    for i, pr in ipairs(c.dancer.prices or {}) do if c.dancer.tariffs[i] and tonumber(pr) then c.dancer.tariffs[i].price = math.max(0, math.floor(tonumber(pr))) end end
     if c.cameras.fovMin > c.cameras.fovMax then c.cameras.fovMin, c.cameras.fovMax = c.cameras.fovMax, c.cameras.fovMin end
     cfgCache = c
     return c
@@ -232,17 +233,18 @@ local function PlantsRefresh(pid) for _, s in ipairs(InsideList(pid)) do Trigger
 -- ---------------------------------------------------------------------
 -- Danseuse (état serveur ; PNJ local chez chaque joueur présent)
 -- ---------------------------------------------------------------------
-P.dancers = {}      -- [pid] = { list = { { n, model, anim, x, y, z, h, ends } }, by, last }
-local function AnimOf(id)
-    for _, a in ipairs(P.UpCfg().dancer.anims) do if a.id == id and a.on then return a end end
+P.dancers = {}      -- [pid] = { list = { { n, style, model, x, y, z, h, ends } }, by, last }
+local function StyleOf(id)
+    for _, st in ipairs(P.UpCfg().dancer.styles) do if st.id == id and st.on then return st end end
 end
 local function DancerView(pid)
     local d = P.dancers[pid]
     if not d or #d.list == 0 then return nil end
     local out = {}
     for _, x in ipairs(d.list) do
-        local a = AnimOf(x.anim) or {}
-        out[#out + 1] = { n = x.n, model = x.model, anim = x.anim, dict = a.dict, clip = a.clip, label = a.label, x = x.x, y = x.y, z = x.z, h = x.h, left = math.max(0, x.ends - os.time()) }
+        local st = StyleOf(x.style) or {}
+        out[#out + 1] = { n = x.n, model = st.model or x.model, style = x.style, label = st.label, clips = st.clips, x = x.x, y = x.y, z = x.z, h = x.h,
+            left = math.max(0, x.ends - os.time()), placing = x.placing == true }
     end
     return out
 end
@@ -271,17 +273,20 @@ function P.UpgradesView(src, pid)
     local out = { list = {}, rights = rights }
     for _, k in ipairs(KINDS) do
         local kc = cfg[k]
-        out.list[#out.list + 1] = { kind = k, label = KLABEL[k], enabled = kc.enabled, price = kc.price, owned = u[k] ~= nil, at = u[k] and u[k].at or nil, by = u[k] and u[k].by or nil }
+        if not kc.service then
+            out.list[#out.list + 1] = { kind = k, label = KLABEL[k], enabled = kc.enabled, price = kc.price, owned = u[k] ~= nil, at = u[k] and u[k].at or nil, by = u[k] and u[k].by or nil }
+        end
     end
     if u.cameras then
         local cams = CamRows(pid, c.id)
         out.cameras = { list = cams, max = cfg.cameras.max, spots = #SpotRows(pid) }
     end
-    if u.dancer then
-        local anims = {}
-        for _, a in ipairs(cfg.dancer.anims) do if a.on then anims[#anims + 1] = { id = a.id, label = a.label } end end
-        out.dancer = { active = DancerView(pid), spot = u.dancer.data and u.dancer.data.spot ~= nil, anims = anims, models = cfg.dancer.models,
-            durations = cfg.dancer.durations, maxMinutes = cfg.dancer.maxMinutes, max = cfg.dancer.max }
+    if cfg.dancer.enabled and (cfg.dancer.service or u.dancer) then
+        local styles = {}
+        for _, st in ipairs(cfg.dancer.styles) do if st.on then styles[#styles + 1] = { id = st.id, label = st.label, desc = st.desc } end end
+        local tariffs = {}
+        for i, t in ipairs(cfg.dancer.tariffs) do tariffs[i] = { i = i, minutes = t.minutes, price = t.price } end
+        out.dancer = { active = DancerView(pid), styles = styles, tariffs = tariffs, max = cfg.dancer.max }
     end
     if u.cannabis then
         local plants = {}
@@ -300,6 +305,7 @@ function P.BuyUpgrade(src, pid, kind, method)
     local kc = P.UpCfg()[kind or '']
     if not kc then return { error = 'Amélioration inconnue.' } end
     if not kc.enabled then return { error = 'Cette amélioration est désactivée par l\'administration.' } end
+    if kc.service then return { error = 'La danseuse se commande directement (sans achat).' } end
     if pr.category == 'garage' then return { error = 'Un garage ne peut pas recevoir d\'amélioration.' } end
     if Ups(pr.id)[kind] then return { error = 'Cette amélioration est déjà installée.' } end
     method = method == 'cash' and 'cash' or 'bank'
@@ -448,74 +454,93 @@ end
 local function DancerCheck(src, pid)
     local pr, err, c = Resident(src, pid, 'dancer')
     if not pr then return nil, err end
-    if not P.UpCfg().dancer.enabled then return nil, 'La danseuse privée est désactivée par l\'administration.' end
-    if not Ups(pr.id).dancer then return nil, 'Achetez d\'abord l\'amélioration « Danseuse privée ».' end
+    local cfg = P.UpCfg().dancer
+    if not cfg.enabled then return nil, 'La danseuse privée est désactivée par l\'administration.' end
+    if not cfg.service and not Ups(pr.id).dancer then return nil, 'Achetez d\'abord l\'amélioration « Danseuse privée ».' end
     return pr, c
 end
+local function Anchor(pr) return pr.points.exit or pr.points.manage end
 
-function P.DancerSpot(src, pid)
-    local pr, c = DancerCheck(src, pid)
-    if not pr then return { error = c } end
-    if not InsideHome(src, pr.id) then return { error = 'Entrez dans le logement pour choisir l\'emplacement.' } end
-    local ped = GetPlayerPed(src)
-    local pc = GetEntityCoords(ped)
-    local exit = pr.points.exit
-    if exit and #(pc - V3(exit)) > Config.Deco.maxDistance then return { error = 'Trop loin de l\'entrée du logement.' } end
-    local u = Ups(pr.id).dancer
-    u.data = u.data or {}
-    u.data.spot = { x = r2(pc.x), y = r2(pc.y), z = r2(pc.z - 1.0), h = r2(GetEntityHeading(ped)) }
-    SaveUpData(pr.id, 'dancer')
-    local d = P.dancers[pr.id]
-    if d then
-        for i, x in ipairs(d.list) do
-            local off = (i - 1) * 1.2
-            local rad = math.rad(u.data.spot.h + 90.0)
-            x.x, x.y, x.z, x.h = u.data.spot.x + math.cos(rad) * off, u.data.spot.y + math.sin(rad) * off, u.data.spot.z, u.data.spot.h
-        end
-        DancerBroadcast(pr.id)
-    end
-    P.PropLog(pr.id, 'Emplacement de la danseuse', nil, src)
-    return { ok = true, message = 'Emplacement de la danseuse enregistré (elle regardera dans la même direction que vous).' }
-end
-
+-- Commande : style + tarif (30 min / 1 h / 2 h), paiement, arrivée ; le joueur la place ensuite où il veut
 function P.DancerStart(src, pid, d)
     local pr, c = DancerCheck(src, pid)
     if not pr then return { error = c } end
     local cfg = P.UpCfg().dancer
-    local u = Ups(pr.id).dancer
-    local spot = u.data and u.data.spot
-    if not spot then return { error = 'Choisissez d\'abord l\'emplacement de la danseuse dans le logement.' } end
-    local anim = AnimOf(tostring(d.anim or ''))
-    if not anim then return { error = 'Animation indisponible.' } end
-    local model = tostring(d.model or cfg.models[1] or '')
-    local okModel = false
-    for _, m in ipairs(cfg.models) do if m == model then okModel = true end end
-    if not okModel then return { error = 'Modèle indisponible.' } end
-    local minutes = P.Int(d.minutes, 1, cfg.maxMinutes, math.min(10, cfg.maxMinutes))
+    local style = StyleOf(tostring(d.style or ''))
+    if not style then return { error = 'Choisissez un style de danseuse.' } end
+    local tariff = cfg.tariffs[tonumber(d.tariff) or 0]
+    if not tariff then return { error = 'Choisissez une durée.' } end
     local st = P.dancers[pr.id] or { list = {}, last = 0 }
     if #st.list >= math.max(1, cfg.max) then return { error = ('%d danseuse(s) maximum en même temps.'):format(math.max(1, cfg.max)) } end
     if os.time() - (st.last or 0) < cfg.cooldownSeconds then return { error = 'Patientez quelques secondes.' } end
+    local anchor = Anchor(pr)
+    if not anchor then return { error = 'Ce logement n\'a pas de sortie intérieure placée.' } end
+    local method = d.method == 'cash' and 'cash' or 'bank'
+    local price = math.max(0, math.floor(tariff.price or 0))
+    local reason = ('Danseuse privée · %s · %d min · %s'):format(style.label, tariff.minutes, pr.name)
+    if price > 0 then
+        if not P.ChargeWith(src, price, method, reason) then return { error = method == 'cash' and 'Espèces insuffisantes.' or 'Solde bancaire insuffisant.' } end
+        if cfg.payTo == 'agency' then
+            if not P.SocietyAdd(price, reason, pr.job) then P.Refund(P.Cid(src), price, method, 'Remboursement ' .. reason) return { error = 'Erreur de paiement : vous avez été remboursé.' } end
+            P.Tx({ job = pr.job, type = 'in', category = 'other', amount = price, reason = reason, actorCid = P.Cid(src), actorName = P.Name(src), targetCid = P.Cid(src), targetName = P.Name(src), ref = ('#%d'):format(pr.id) })
+        end
+    end
+    -- Arrivée : dernier emplacement choisi, sinon près de l'entrée intérieure ; à placer par le joueur
+    local u = Ups(pr.id).dancer
+    local spot = (u and u.data and u.data.spot) or { x = anchor.x, y = anchor.y + 1.0, z = anchor.z - 1.0, h = anchor.h or 0.0 }
     local n = #st.list + 1
     local off = (n - 1) * 1.2
-    local rad = math.rad(spot.h + 90.0)
-    st.list[n] = { n = n, model = model, anim = anim.id, x = spot.x + math.cos(rad) * off, y = spot.y + math.sin(rad) * off, z = spot.z, h = spot.h, ends = os.time() + minutes * 60 }
+    local rad = math.rad((spot.h or 0) + 90.0)
+    st.list[n] = { n = n, style = style.id, model = style.model, x = spot.x + math.cos(rad) * off, y = spot.y + math.sin(rad) * off, z = spot.z, h = spot.h or 0.0,
+        ends = os.time() + tariff.minutes * 60, placing = true, by = src }
     st.last, st.by = os.time(), P.Name(src)
     P.dancers[pr.id] = st
     DancerBroadcast(pr.id)
-    P.PropLog(pr.id, 'Danseuse arrivée', ('%s · %d min'):format(anim.label, minutes), src)
-    return { ok = true, message = ('La danseuse est arrivée (%d min).'):format(minutes) }
+    local i = P.inside[src]
+    if i and i.pid == pr.id and i.area == 'home' then TriggerClientEvent('d8:client:dancerPlace', src, pr.id, n) end
+    P.PropLog(pr.id, 'Danseuse arrivée', ('%s · %d min · %d $'):format(style.label, tariff.minutes, price), src)
+    return { ok = true, message = ('La danseuse « %s » est arrivée (%s). %s'):format(style.label, tariff.minutes >= 60 and ('%d h'):format(tariff.minutes // 60) or ('%d min'):format(tariff.minutes),
+        (i and i.pid == pr.id) and 'Placez-la où vous voulez.' or 'Placez-la en entrant dans le logement (Gérer mon logement › Danseuse › Déplacer).') }
 end
 
-function P.DancerAnim(src, pid, animId)
+-- Placement (où le joueur veut, dans le logement) ; l'emplacement est retenu pour la prochaine fois
+function P.DancerMove(src, pid, d)
+    local pr, c = DancerCheck(src, pid)
+    if not pr then return { error = c } end
+    if not InsideHome(src, pr.id) then return { error = 'Entrez dans le logement pour la placer.' } end
+    local st = P.dancers[pr.id]
+    local x = st and st.list[tonumber(d.n) or 1]
+    if not x then return { error = 'Aucune danseuse en ce moment.' } end
+    local pos = { x = tonumber(d.x), y = tonumber(d.y), z = tonumber(d.z), h = (tonumber(d.h) or 0) % 360 }
+    if not pos.x or not pos.y or not pos.z then return { error = 'Position invalide.' } end
+    local anchor = Anchor(pr)
+    local cfg = P.UpCfg().dancer
+    if anchor and #(V3(pos) - V3(anchor)) > (cfg.placeDistance or 25.0) then return { error = 'Trop loin : elle doit rester dans le logement.' } end
+    local pc = P.Coords(src)
+    if not pc or #(pc - V3(pos)) > 30.0 then return { error = 'Placez-la près de vous.' } end
+    x.x, x.y, x.z, x.h, x.placing = r2(pos.x), r2(pos.y), r2(pos.z), r2(pos.h), false
+    local spot = { x = x.x, y = x.y, z = x.z, h = x.h }
+    local u = Ups(pr.id).dancer
+    if u then u.data = u.data or {} u.data.spot = spot SaveUpData(pr.id, 'dancer')
+    else
+        MySQL.insert.await('INSERT IGNORE INTO `d8_upgrades` (`property_id`, `contract_id`, `kind`, `price`, `data`, `bought_by`) VALUES (?, ?, \'dancer\', 0, ?, ?)',
+            { pr.id, c.id, json.encode({ spot = spot }), P.Name(src) })
+        ups[pr.id] = nil
+    end
+    DancerBroadcast(pr.id)
+    return { ok = true, message = 'Danseuse placée.' }
+end
+
+function P.DancerStyle(src, pid, styleId)
     local pr, c = DancerCheck(src, pid)
     if not pr then return { error = c } end
     local d = P.dancers[pr.id]
     if not d then return { error = 'Aucune danseuse en ce moment.' } end
-    local anim = AnimOf(tostring(animId or ''))
-    if not anim then return { error = 'Animation indisponible.' } end
-    for _, x in ipairs(d.list) do x.anim = anim.id end
+    local st = StyleOf(tostring(styleId or ''))
+    if not st then return { error = 'Style indisponible.' } end
+    for _, x in ipairs(d.list) do x.style, x.model = st.id, st.model end
     DancerBroadcast(pr.id)
-    return { ok = true, message = ('Animation : %s.'):format(anim.label) }
+    return { ok = true, message = ('Style : %s.'):format(st.label) }
 end
 
 function P.DancerStop(src, pid)
@@ -661,9 +686,9 @@ end }
 P.Pub.camInfo = { fn = function(src, d) return P.CamPlaceInfo(src, d.pid) end }
 P.Pub.camPlace = { fn = function(src, d) return P.CamPlace(src, d) end }
 P.Pub.camView = { fn = function(src, d) return P.CamView(src, d.pid) end }
-P.Pub.dancerSpot = { fn = function(src, d) return P.DancerSpot(src, d.pid) end }
 P.Pub.dancerStart = { fn = function(src, d) return P.DancerStart(src, d.pid, d) end }
-P.Pub.dancerAnim = { fn = function(src, d) return P.DancerAnim(src, d.pid, d.anim) end }
+P.Pub.dancerMove = { fn = function(src, d) return P.DancerMove(src, d.pid, d) end }
+P.Pub.dancerStyle = { fn = function(src, d) return P.DancerStyle(src, d.pid, d.style) end }
 P.Pub.dancerStop = { fn = function(src, d) return P.DancerStop(src, d.pid) end }
 P.Pub.dancerState = { fn = function(src, d)
     local pid = tonumber(d.pid) or 0
@@ -785,7 +810,7 @@ function Phone.camRemove(src, d) return P.CamRemove(src, d.pid, d.id) end
 function Phone.camRename(src, d) return P.CamRename(src, d.pid, d.id, d.label) end
 function Phone.camInfo(src, d) return P.CamPlaceInfo(src, d.pid) end
 function Phone.dancerStart(src, d) return P.DancerStart(src, d.pid, d) end
-function Phone.dancerAnim(src, d) return P.DancerAnim(src, d.pid, d.anim) end
+function Phone.dancerStyle(src, d) return P.DancerStyle(src, d.pid, d.style) end
 function Phone.dancerStop(src, d) return P.DancerStop(src, d.pid) end
 
 local phoneRate = {}
@@ -867,7 +892,11 @@ local function SaveCfg(kind, patch)
         elseif t == 'pay' then saved[kind][k] = (v == 'none') and 'none' or 'agency'
         elseif t == 'map' and type(v) == 'table' then
             local m = {}
-            for _, a in ipairs(base.anims or {}) do if v[a.id] ~= nil then m[a.id] = v[a.id] == true end end
+            for _, a in ipairs(base.styles or {}) do if v[a.id] ~= nil then m[a.id] = v[a.id] == true end end
+            saved[kind][k] = m
+        elseif t == 'prices' and type(v) == 'table' then
+            local m = {}
+            for i = 1, #(base.tariffs or {}) do m[i] = math.max(0, math.min(Config.Prices.max, math.floor(tonumber(v[i]) or base.tariffs[i].price))) end
             saved[kind][k] = m
         end
     end

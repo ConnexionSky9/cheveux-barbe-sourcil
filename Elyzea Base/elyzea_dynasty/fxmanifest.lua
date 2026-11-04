@@ -37,6 +37,7 @@ client_scripts {
     'client/interior.lua',
     'client/deco.lua',
     'client/upgrades.lua',
+    'client/editor.lua',
     'client/f6.lua',
     'client/tablet.lua',
     'client/phone.lua',
@@ -52,6 +53,8 @@ files {
     'html/app.js',
     'html/tablet.js',
     'html/admin.js',
+    'html/editor.js',
+    'html/editor.css',
     'html/map.js',
     'html/img/*',
 }
