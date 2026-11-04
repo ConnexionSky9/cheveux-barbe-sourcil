@@ -208,22 +208,18 @@ local function leaveRide(seatIndex, playAnim)
     if not r or r.kind ~= 'coaster' then return end
     r.leaving = true
     local ped = PlayerPedId()
-    local car = seatCar(r.seat)
-    if playAnim and car and not IsEntityDead(ped) and P.LoadDict(CFG.animDict) then
-        TaskPlayAnim(ped, CFG.animDict, 'safety_bar_exit_player_' .. r.suffix, 8.0, -8.0, -1, 0, 0.0, false, false, false)
-        Wait(1500)
-        DetachEntity(ped, true, false)
-        local pos, rot = sceneAt(car, seatInfo(r.seat).origin)
-        P.PlayScene(ped, pos, rot, CFG.animDict, 'exit_player_' .. r.suffix, 7000)
-    end
+    -- descente directe (aucune animation) : fondu, puis posé debout sur le quai, au point de sortie de sa place
+    DoScreenFadeOut(150)
+    local tf = GetGameTimer() + 600
+    while not IsScreenFadedOut() and GetGameTimer() < tf do Wait(0) end
     DetachEntity(ped, true, true)
-    ClearPedTasks(ped)
-    -- sécurité : si l'animation ne l'a pas posé sur le quai, point de sortie original de sa place
+    ClearPedTasksImmediately(ped)
     local e = PierTrack.exit[r.seat]
-    if e and #(GetEntityCoords(ped) - vector3(e[1], e[2], e[3])) > 4.0 then
-        SetEntityCoords(ped, e[1], e[2], e[3], false, false, false, false)
-        SetEntityHeading(ped, CFG.exitPoint.w)
-    end
+    local x, y, z = CFG.exitPoint.x, CFG.exitPoint.y, CFG.exitPoint.z
+    if e then x, y, z = e[1], e[2], e[3] end
+    SetEntityCoords(ped, x, y, z, false, false, false, false)
+    SetEntityHeading(ped, CFG.exitPoint.w)
+    DoScreenFadeIn(250)
     P.riding = nil
     P.Hud(false)
 end

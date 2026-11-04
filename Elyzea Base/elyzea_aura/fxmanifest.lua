@@ -36,7 +36,8 @@ files {
     'html/js/*.js',
     'html/elypick.css',
     'html/lasergame.css',
-    'html/maison.css'
+    'html/maison.css',
+    'html/fold.css'
 }
 
 dependencies {

@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="elypick.css">
   <link rel="stylesheet" href="lasergame.css">
   <link rel="stylesheet" href="maison.css">
+  <link rel="stylesheet" href="fold.css">
 </head>
 <body>
   <div id="toasts" aria-live="polite"></div>
@@ -22,7 +23,9 @@
 
   <div id="stage" class="hidden">
     <div id="phone" data-frame="titane">
+      <div class="edge-glow" aria-hidden="true"></div>
       <div class="edge-light" aria-hidden="true"></div>
+      <button class="fold-btn" id="fold-btn" type="button" aria-label="Déplier le téléphone" title="Déplier / plier"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="2"/><path d="M14 6h5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5" stroke-dasharray="2 2.4"/></svg></button>
       <div class="side-btn side-btn--a" aria-hidden="true"></div>
       <div class="side-btn side-btn--b" aria-hidden="true"></div>
       <div class="side-btn side-btn--c" aria-hidden="true"></div>
@@ -51,6 +54,9 @@
 
         <button class="home-bar" id="home-bar" aria-label="Accueil"></button>
       </div>
+      <!-- Téléphone pliable : charnière + second écran (visible une fois déplié) -->
+      <div class="hinge" aria-hidden="true"><i></i></div>
+      <div id="screen2" class="screen2" data-theme="dark" data-icons="prisme" aria-hidden="true"></div>
     </div>
     <p class="peek-hint" id="peek-hint"></p>
   </div>
@@ -78,5 +84,6 @@
   <script src="js/services.js"></script>
   <script src="js/identite.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/fold.js"></script>
 </body>
 </html>

@@ -151,18 +151,16 @@ local function leaveRide(exitPos, playAnim)
     if not r or r.kind ~= 'wheel' then return end
     r.leaving = true
     local ped = PlayerPedId()
-    local cab = cabins[r.c]
-    if playAnim and cab and DoesEntityExist(cab) and not IsEntityDead(ped) and P.LoadDict(CFG.animDict) then
-        DetachEntity(ped, true, false)
-        P.PlayScene(ped, GetEntityCoords(cab), vector3(0.0, 0.0, 0.0), CFG.animDict, 'exit_player_' .. r.suffix, 7000)
-    end
+    -- descente directe (aucune animation) : fondu, puis posé debout au point de sortie
+    DoScreenFadeOut(150)
+    local tf = GetGameTimer() + 600
+    while not IsScreenFadedOut() and GetGameTimer() < tf do Wait(0) end
     DetachEntity(ped, true, true)
-    ClearPedTasks(ped)
-    -- sécurité : si l'animation ne l'a pas déposé sur le quai, on le pose au point de sortie
-    if exitPos and #(GetEntityCoords(ped) - vector3(exitPos.x, exitPos.y, exitPos.z)) > 6.0 then
-        SetEntityCoords(ped, exitPos.x, exitPos.y, exitPos.z, false, false, false, false)
-        SetEntityHeading(ped, exitPos.w or 0.0)
-    end
+    ClearPedTasksImmediately(ped)
+    local e = exitPos or CFG.exitPoint
+    SetEntityCoords(ped, e.x, e.y, e.z, false, false, false, false)
+    SetEntityHeading(ped, e.w or 0.0)
+    DoScreenFadeIn(250)
     P.riding = nil
     P.Hud(false)
 end

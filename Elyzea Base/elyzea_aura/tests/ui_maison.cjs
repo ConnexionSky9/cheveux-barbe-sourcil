@@ -20,7 +20,7 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     M.handle = (ep, d) => { if (ep !== 'request') window.__post(ep, d); else if (d.name === 'maisonCall') window.__call(d.args); return h(ep, d); }; });
   await p.evaluate(() => { const E = window.__elyzea; E.S.settings.setup = true; E.S.settings.theme = 'dark'; document.getElementById('screen').classList.remove('in-setup'); document.getElementById('setup').classList.remove('active'); E.applySettings(); E.S.locked = false; E.S.maisonHas = false; E.goHome(); });
   await p.waitForTimeout(300);
-  check(await p.$('[data-open="maison"]') === null, 'sans logement : pas d\'icône Maison');
+  check(await p.$('[data-open="maison"]') !== null, 'icône Maison toujours présente sur l\'accueil');
   await p.evaluate(() => mzCheckHas()); await p.waitForTimeout(400);
   check((await p.textContent('[data-open="maison"]')).includes('Maison'), 'avec un logement : icône « Maison » sur l\'accueil');
   await p.locator('#screen').screenshot({ path: path.join(out, 'maison_00_accueil_tel.png') });

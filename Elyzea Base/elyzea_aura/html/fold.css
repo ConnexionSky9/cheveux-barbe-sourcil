@@ -1,0 +1,98 @@
+/* =========================================================
+   TÉLÉPHONE PLIABLE — Elyzea Aura Fold
+   Plié : un écran. Déplié : charnière + second écran à droite
+   (bureau : heure, widgets, toutes les applis, notifications).
+   Bordure LED plus marquée : anneau lumineux continu + halo extérieur + reflet qui tourne.
+   ========================================================= */
+#phone {
+  display: flex; align-items: stretch; gap: 0;
+  width: 376px;
+  transition: width .6s var(--ease), border-radius .4s;
+}
+#phone > #screen { flex: 0 0 356px; width: 356px; }
+
+/* ---------- Charnière ---------- */
+.hinge {
+  flex: 0 0 0; width: 0; position: relative; overflow: hidden;
+  transition: flex-basis .6s var(--ease), width .6s var(--ease);
+}
+.hinge i {
+  position: absolute; inset: 18px 3px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(0,0,0,.55), var(--f1) 45%, var(--f3) 55%, rgba(0,0,0,.55));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 0 12px rgba(0,0,0,.6);
+}
+.hinge i::before, .hinge i::after {
+  content: ''; position: absolute; left: 50%; width: 2px; margin-left: -1px; height: 64px; border-radius: 2px;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent), 0 0 22px var(--accent);
+}
+.hinge i::before { top: 26%; }
+.hinge i::after { bottom: 26%; }
+
+/* ---------- Second écran ---------- */
+#screen2 {
+  flex: 0 0 0; width: 0; height: 100%; position: relative; overflow: hidden; isolation: isolate;
+  border-radius: 53px; clip-path: inset(0 round 53px);
+  background: var(--bg); color: var(--text);
+  opacity: 0; transform: perspective(1600px) rotateY(-85deg); transform-origin: left center;
+  transition: flex-basis .6s var(--ease), width .6s var(--ease), opacity .35s, transform .6s var(--ease);
+}
+
+#phone.unfolded { width: 760px; }
+#phone.unfolded .hinge { flex-basis: 28px; width: 28px; }
+#phone.unfolded #screen2 { flex-basis: 356px; width: 356px; opacity: 1; transform: none; }
+#phone.unfolded > #screen { border-top-right-radius: 26px; border-bottom-right-radius: 26px; clip-path: inset(0 round 53px 26px 26px 53px); }
+#phone.unfolded #screen2 { border-top-left-radius: 26px; border-bottom-left-radius: 26px; clip-path: inset(0 round 26px 53px 53px 26px); }
+
+/* ---------- Bouton plier / déplier ---------- */
+.fold-btn {
+  position: absolute; left: -54px; top: 96px; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff;
+  background: radial-gradient(circle at 30% 30%, var(--f1), var(--f2));
+  box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 0 16px var(--accent), 0 10px 24px -8px rgba(0,0,0,.7);
+  transition: transform .2s, box-shadow .2s;
+}
+.fold-btn:hover { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(255,255,255,.3), 0 0 26px var(--accent), 0 10px 24px -8px rgba(0,0,0,.7); }
+#phone.unfolded .fold-btn svg { transform: scaleX(-1); }
+
+/* ---------- Bordure LED plus marquée ---------- */
+.edge-light { padding: 3.5px; opacity: 1; }
+.edge-light::before {
+  /* anneau lumineux permanent (le reflet tourne par-dessus) */
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(150deg, var(--accent), var(--glace) 50%, var(--accent));
+  opacity: .55; z-index: -1;
+}
+.edge-glow {
+  position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; z-index: -1;
+  box-shadow: 0 0 18px 2px var(--accent), 0 0 46px 6px color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: edgePulse 3.2s ease-in-out infinite;
+}
+@keyframes edgePulse { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+#phone.no-edge .edge-glow { display: none; }
+#phone[data-state="ringing"] .edge-glow { animation-duration: .9s; }
+#phone[data-state="incall"] .edge-glow { box-shadow: 0 0 18px 2px var(--ok), 0 0 46px 6px color-mix(in srgb, var(--ok) 45%, transparent); }
+
+/* ---------- Contenu du second écran : bureau ---------- */
+.s2 { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 46px 22px 22px; gap: 14px; overflow-y: auto; scrollbar-width: none; }
+.s2::-webkit-scrollbar { display: none; }
+.s2__bg { position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(90% 50% at 100% 0%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%),
+              radial-gradient(80% 55% at 0% 100%, rgba(111,231,242,.22), transparent 70%), var(--bg); }
+.s2__clock { font-family: var(--font-display); font-weight: 300; font-size: 56px; line-height: 1; letter-spacing: -.02em; }
+.s2__date { color: var(--text-dim); font-size: 13px; font-weight: 600; text-transform: capitalize; margin-top: 4px; }
+.s2__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.s2__w { padding: 12px 14px; border-radius: 20px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); text-align: left; }
+.s2__w small { display: block; color: var(--text-faint); font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.s2__w b { font-size: 15px; }
+.s2__h { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin: 4px 2px -4px; }
+.s2__apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 6px; }
+.s2__apps .app-icon { font-size: 10.5px; }
+.s2__apps .app-icon.on .tile { box-shadow: 0 0 0 2px var(--accent), 0 0 18px var(--accent); }
+.s2__notifs { display: flex; flex-direction: column; gap: 8px; }
+.s2__n { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.s2__n .tile-wrap .tile { width: 34px; height: 34px; border-radius: 10px; }
+.s2__n div { min-width: 0; display: flex; flex-direction: column; }
+.s2__n b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s2__n span { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s2__empty { font-size: 12px; color: var(--text-faint); padding: 4px 2px; }
+.s2__hint { margin-top: auto; text-align: center; font-size: 11px; color: var(--text-faint); }

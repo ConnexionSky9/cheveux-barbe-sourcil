@@ -58,7 +58,8 @@ function renderHome() {
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };
   // « Maison » : seulement pour les joueurs qui ont des droits sur un logement (Dynasty 8)
-  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(S.maisonHas ? ['maison'] : []).concat(Object.keys(STORE).filter(isInstalled));
+  // « Maison » (Dynasty 8) : toujours présente ; sans logement, elle propose de contacter l'agence
+  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(['maison']).concat(Object.keys(STORE).filter(isInstalled));
   // Découpage en pages : accueil (horloge + widgets + 8 apps), puis 20 apps par page
   const pages = [apps.slice(0, FIRST_PAGE_APPS)];
   for (let i = FIRST_PAGE_APPS; i < apps.length; i += PAGE_APPS) pages.push(apps.slice(i, i + PAGE_APPS));

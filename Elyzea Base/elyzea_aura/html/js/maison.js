@@ -63,7 +63,11 @@ function mzHome() {
             ${h.dancer ? '<span class="mz-tag live">💃 ' + t('en cours') + '</span>' : ''}</div>
           <div class="mz-eq">${(h.upgrades || []).map((u) => `<span title="${esc((MZ_UP[u] || [])[1] || u)}">${(MZ_UP[u] || ['✨'])[0]}</span>`).join('')}
             ${h.garage ? `<span>🚗 ${h.garage}</span>` : ''}${h.stash ? `<span>📦 ${h.stash}</span>` : ''}${h.hasCode ? '<span>🔢</span>' : ''}</div></div>
-        <span class="mz-card__go">›</span></button>`).join('') : empty(t('Aucun logement'), t('Achetez ou louez un logement auprès de Dynasty 8.'))}`);
+        <span class="mz-card__go">›</span></button>`).join('') : `<div class="mz-welcome">
+          <div class="mz-welcome__ico">🏡</div><b>${t('Bienvenue dans Maison')}</b>
+          <p>${t('Achetez ou louez un logement auprès de Dynasty 8 : il apparaîtra ici automatiquement.')}</p>
+          <ul><li>📹 ${t('Caméras de surveillance en direct')}</li><li>🔔 ${t('Ouvrir la porte à distance quand on sonne')}</li>
+            <li>🔢 ${t('Code de la porte et visiteurs autorisés')}</li><li>👥 ${t('Locataires et leurs droits')}</li><li>💃 ${t('Services privés')}</li></ul></div>`}`);
   mzWireBells(main);
   $$('[data-prop]', main).forEach((b) => b.onclick = () => mzOpenProp(Number(b.dataset.prop), 'home'));
 }

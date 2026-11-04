@@ -1,0 +1,40 @@
+// Test du téléphone pliable (aperçu navigateur, Chromium headless)
+// NODE_PATH=$(npm root -g) node tests/ui_fold.cjs [dossier captures]
+const { chromium } = require('playwright');
+const path = require('path');
+const out = process.argv[2] || path.join(__dirname, 'shots');
+require('fs').mkdirSync(out, { recursive: true });
+let fails = 0;
+const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c) fails++; };
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 1300, height: 950 }, deviceScaleFactor: 1 });
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  await p.route(/^https?:/, (r) => r.abort());
+  await p.goto('file://' + path.join(__dirname, '..', 'html', 'index.html'));
+  await p.waitForTimeout(6000);
+  await p.evaluate(() => { const E = window.__elyzea; E.S.settings.setup = true; E.S.settings.theme = 'dark'; document.getElementById('screen').classList.remove('in-setup'); document.getElementById('setup').classList.remove('active'); E.applySettings(); E.S.locked = false; E.goHome(); Fold.set(false); });
+  await p.waitForTimeout(400);
+  check(await p.$('[data-open="maison"]') !== null, 'appli Maison sur l\'accueil');
+  check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) < 400, 'plié : un seul écran');
+  await p.screenshot({ path: path.join(out, 'fold_01_plie.png') });
+  await p.click('#fold-btn'); await p.waitForTimeout(900);
+  const w = await p.$eval('#phone', (e) => e.getBoundingClientRect().width);
+  check(w > 700, `déplié : deux écrans (${Math.round(w)} px)`);
+  check(await p.$$eval('#screen2 .s2__apps .app-icon', (x) => x.length) > 10, 'second écran : toutes les applications');
+  await p.screenshot({ path: path.join(out, 'fold_02_deplie.png') });
+  await p.click('#screen2 [data-open="maison"]'); await p.waitForTimeout(900);
+  check(await p.$('#screen .mz') !== null, 'appli touchée à droite : ouverte sur l\'écran de gauche');
+  check(await p.$('#screen2 .app-icon.on[data-open="maison"]') !== null, 'appli ouverte mise en avant à droite');
+  await p.evaluate(() => notify({ app: 'maison', title: 'On sonne chez vous', text: 'Malik · Villa Vinewood' })); await p.waitForTimeout(300);
+  check((await p.textContent('#screen2 .s2__notifs')).includes('On sonne'), 'notifications reprises sur le second écran');
+  await p.screenshot({ path: path.join(out, 'fold_03_maison.png') });
+  const saved = await p.evaluate(() => localStorage.getItem('aura_unfolded'));
+  check(saved === '1', 'état déplié mémorisé');
+  await p.dblclick('.hinge'); await p.waitForTimeout(800);
+  check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) < 400, 'double-clic sur la charnière : replié');
+  check(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' : ' + errs.join(' | ') : ''));
+  await b.close();
+  console.log(fails ? `${fails} ÉCHEC(S)` : 'TOUS LES TESTS PLIABLE SONT PASSÉS');
+  process.exit(fails ? 1 : 0);
+})();
