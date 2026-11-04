@@ -2489,10 +2489,11 @@ function catPreviewHTML(name, catName, pinned) {
     if (!name) {
         return `<div class="cat-empty"><div class="pi">👆</div><p>Passe ton curseur sur un modèle pour voir l'aperçu.<br><b>Clique</b> pour le sélectionner, <b>double-clic</b> pour ${catState.mode === 'props' ? 'le placer' : "l'utiliser"} directement.</p></div>`;
     }
-    const img = catImage(catState.mode, name);
     const isProp = catState.mode === 'props';
+    // Props : image prise en jeu (props/<modèle>.webp), sinon photo faite tout de suite (propphotos.js)
+    const img = isProp ? `props/${name}.webp` : catImage(catState.mode, name);
     return `<div class="cat-img">
-            ${img ? `<img src="${esc(img)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+            ${img ? `<img src="${esc(img)}" alt="" onerror="${isProp ? `window.ppFallback ? ppFallback(this, '${esc(name)}') : (this.style.display='none',this.nextElementSibling.style.display='flex')` : "this.style.display='none';this.nextElementSibling.style.display='flex'"}">` : ''}
             <div class="cat-noimg" style="${img ? 'display:none' : ''}"><span>${isProp ? '📦' : '🧑'}</span><small>Pas d'image pour ce modèle :<br>utilise « Voir en 3D »</small></div>
         </div>
         <div class="cat-name">${esc(name)}</div>
@@ -2517,6 +2518,7 @@ function edCatalog() {
                 ${canPeds ? `<button class="seg ${catState.mode === 'peds' ? 'active' : ''}" data-catmode="peds">🧑 Personnages (${CAT.peds.reduce((n, g) => n + g.items.length, 0)})</button>` : ''}
             </div>
             <input class="input" id="cat-search" placeholder="Rechercher un modèle (ex : bench, cone, dealer)…" value="${esc(catState.search)}">
+            ${catState.mode === 'props' && canProps ? '<button class="btn" data-ppall title="Prend en jeu la photo de chaque prop qui n\'a pas encore d\'image">📸 Générer les images manquantes</button>' : ''}
         </div>
         <div class="cat-layout">
             <div class="cat-cats">

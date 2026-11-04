@@ -1,0 +1,3 @@
+Images des props de l'éditeur de map, prises en jeu (studio photo).
+Elles sont créées automatiquement : survol d'un prop dans le catalogue, ou bouton « Générer les images manquantes ».
+Servies directement par le menu après un redémarrage d'admin_menu.

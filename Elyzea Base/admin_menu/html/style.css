@@ -891,3 +891,8 @@ body.quick-open #reporthud, #app:not(.hidden) ~ #reporthud { display: none; }
   --gold-hi: #E9D5FF;
   --ok: #3EE6B0;
 }
+
+/* Images des props prises en jeu */
+.pp-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid rgba(255,255,255,.15); border-top-color: var(--accent, #9B5CFF); animation: ppSpin .8s linear infinite; }
+@keyframes ppSpin { to { transform: rotate(360deg); } }
+.cat-img img { object-fit: contain; }
