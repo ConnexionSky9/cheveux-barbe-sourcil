@@ -42,6 +42,7 @@ local EXTRA = {
     { key = 'builder_import', label = 'Builder Studio : importer des objets et des textures (image du PC ou lien)', cat = 'Gestion' },
     { key = 'builder_export', label = 'Builder Studio : exporter un projet en ressource FiveM', cat = 'Gestion' },
     { key = 'lasergame_manage', label = 'LaserGame : onglet LaserGame et panneau staff /lgadmin (parties, PVP, armes, Zombie, prix, cartes, PNJ, joueurs, journaux) (elyzea_lasergame)', cat = 'Joueurs' },
+    { key = 'manut_manage',  label = 'Intérim manutentionnaire : TOUT (PNJ, points de cartons, palettes, spawns et réglages des Fenwick, livraisons, rémunérations, nombre de cartons, course avec un carton, tenue, sauvegardes, arrêter le travail d\'un joueur) (elyzea_manutention)', cat = 'Métiers' },
     { key = 'labs_manage',   label = 'Laboratoires : créer, modifier, propriétaire, niveau, intérieurs, horaires et réglages des attaques, annuler une attaque (elyzea_labs)', cat = 'Illégal' },
 }
 

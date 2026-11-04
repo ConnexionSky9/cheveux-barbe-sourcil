@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Intérim · Manutentionnaire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@1,700;1,800;1,900&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Suivi de mission -->
+  <section id="hud" class="hud hidden" aria-live="polite">
+    <header class="hud__head">
+      <span class="hud__logo">📦</span>
+      <div><b>MANUTENTIONNAIRE</b><small>Intérim</small></div>
+      <span class="hud__step" id="hud-step">1/3</span>
+    </header>
+    <p class="hud__stage" id="hud-stage">Constitution de la palette</p>
+    <div class="hud__steps"><i data-s="1"></i><i data-s="2"></i><i data-s="3"></i></div>
+    <div class="hud__count"><span>Cartons déposés</span><b id="hud-boxes">0/20</b></div>
+    <div class="hud__bar"><i id="hud-bar"></i></div>
+    <div class="hud__obj"><span>Objectif</span><p id="hud-obj">—</p></div>
+    <div class="hud__dest" id="hud-dest"><span>📍</span><p id="hud-dest-txt">—</p></div>
+    <footer class="hud__foot"><span id="hud-tip">[E] interagir</span><span id="hud-earn"></span></footer>
+  </section>
+
+  <!-- Annonce au centre (palette complète, livraison terminée…) -->
+  <div id="banner" class="banner hidden"><b id="banner-title"></b><p id="banner-text"></p></div>
+
+  <!-- Menu du responsable -->
+  <div id="menu" class="menu hidden" role="dialog" aria-modal="true">
+    <div class="menu__card">
+      <button class="menu__x" data-close aria-label="Fermer">✕</button>
+      <div class="menu__top">
+        <span class="menu__ico">📦</span>
+        <div><small>AGENCE D'INTÉRIM</small><h1>MANUTENTIONNAIRE</h1></div>
+      </div>
+      <div id="menu-body"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

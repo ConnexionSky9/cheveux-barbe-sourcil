@@ -1,0 +1,76 @@
+/* ELYZEA MANUTENTION · interface (thème Elyzea : nuit, violet néon) + touche « entrepôt » (ambre) */
+:root { --mt-amber: #FFB547; --mt-ok: #3EE6B0; --mt-card: linear-gradient(160deg, rgba(30, 18, 58, .9), rgba(10, 6, 22, .92)); }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: var(--ely-font); color: var(--ely-white); user-select: none; }
+body.demo { background: #2a2f38 url('') center/cover; }
+.hidden { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+
+/* ---------------- suivi de mission ---------------- */
+.hud { position: fixed; top: 26vh; right: 22px; width: 300px; padding: 14px 16px 12px; border-radius: 18px; background: var(--mt-card);
+  border: 1px solid var(--ely-line); box-shadow: 0 18px 40px rgba(0, 0, 0, .45), var(--ely-glow); backdrop-filter: blur(6px); animation: hudIn .4s var(--ely-ease); }
+@keyframes hudIn { from { opacity: 0; transform: translateX(30px); } }
+.hud__head { display: flex; align-items: center; gap: 10px; }
+.hud__logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 20px; background: linear-gradient(135deg, rgba(255, 181, 71, .35), rgba(155, 92, 255, .35)); }
+.hud__head b { display: block; font: 900 italic 15px var(--ely-font-display); letter-spacing: .1em; }
+.hud__head small { font-size: 10px; letter-spacing: .26em; color: var(--ely-muted); text-transform: uppercase; }
+.hud__step { margin-left: auto; font: 800 italic 13px var(--ely-font-display); padding: 3px 9px; border-radius: 8px; background: rgba(155, 92, 255, .25); }
+.hud__stage { margin: 10px 0 6px; font-weight: 800; font-size: 14px; color: var(--mt-amber); }
+.hud__steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 10px; }
+.hud__steps i { height: 4px; border-radius: 3px; background: rgba(255, 255, 255, .1); transition: .3s; }
+.hud__steps i.on { background: var(--ely-violet); box-shadow: 0 0 10px var(--ely-violet); }
+.hud__steps i.done { background: var(--mt-ok); }
+.hud__count { display: flex; justify-content: space-between; align-items: baseline; }
+.hud__count span { font-size: 11px; color: var(--ely-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.hud__count b { font: 900 italic 24px var(--ely-font-display); font-variant-numeric: tabular-nums; }
+.hud__count b.full { color: var(--mt-ok); text-shadow: 0 0 14px rgba(62, 230, 176, .6); }
+.hud__bar { height: 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); overflow: hidden; margin: 6px 0 12px; }
+.hud__bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--mt-amber), var(--ely-violet)); transition: width .35s var(--ely-ease); }
+.hud__bar i.full { background: linear-gradient(90deg, var(--mt-ok), #8BFFB0); }
+.hud__obj span { font-size: 10px; letter-spacing: .14em; color: var(--ely-muted); text-transform: uppercase; font-weight: 800; }
+.hud__obj p { margin: 3px 0 8px; font-weight: 700; font-size: 13.5px; line-height: 1.35; }
+.hud__dest { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 11px; background: rgba(255, 255, 255, .05); font-size: 12.5px; }
+.hud__dest p { margin: 0; font-weight: 700; }
+.hud__foot { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; color: var(--ely-muted); font-weight: 700; }
+.hud__foot #hud-earn { color: var(--mt-ok); }
+
+/* ---------------- annonce ---------------- */
+.banner { position: fixed; top: 14vh; left: 50%; transform: translateX(-50%); min-width: 420px; max-width: 560px; padding: 18px 26px; text-align: center; border-radius: 18px;
+  background: var(--mt-card); border: 1px solid var(--ely-line-hi); box-shadow: 0 20px 50px rgba(0, 0, 0, .5), var(--ely-glow); animation: banIn .5s var(--ely-ease); }
+.banner.out { animation: banOut .45s ease forwards; }
+@keyframes banIn { from { opacity: 0; transform: translate(-50%, -20px) scale(.96); } }
+@keyframes banOut { to { opacity: 0; transform: translate(-50%, -14px); } }
+.banner b { display: block; font: 900 italic 26px var(--ely-font-display); letter-spacing: .06em; }
+.banner p { margin: 8px 0 0; white-space: pre-line; font-weight: 600; color: #E6DDFF; line-height: 1.45; }
+.banner.ok b { color: var(--mt-ok); text-shadow: 0 0 18px rgba(62, 230, 176, .55); }
+.banner.info b { color: var(--mt-amber); }
+
+/* ---------------- menu du responsable ---------------- */
+.menu { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(4, 2, 10, .55); animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; } }
+.menu__card { position: relative; width: min(520px, 92vw); padding: 24px 26px 22px; border-radius: 22px; background: var(--mt-card); border: 1px solid var(--ely-line-hi);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), var(--ely-glow); animation: cardIn .4s var(--ely-ease); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(16px) scale(.97); } }
+.menu__x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, .06); }
+.menu__x:hover { background: rgba(255, 77, 109, .25); }
+.menu__top { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
+.menu__ico { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-size: 28px; background: linear-gradient(135deg, rgba(255, 181, 71, .4), rgba(155, 92, 255, .4)); }
+.menu__top small { font-size: 10px; letter-spacing: .3em; color: var(--ely-muted); font-weight: 800; }
+.menu__top h1 { margin: 2px 0 0; font: 900 italic 26px var(--ely-font-display); letter-spacing: .06em; }
+.menu p { color: #DCD2F5; line-height: 1.5; font-size: 13.5px; margin: 0 0 12px; }
+.steps { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 7px; }
+.steps li { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: rgba(255, 255, 255, .045); font-size: 13px; font-weight: 600; }
+.steps li b { width: 24px; height: 24px; flex: none; border-radius: 8px; display: grid; place-items: center; background: rgba(155, 92, 255, .3); font: 900 italic 12px var(--ely-font-display); }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.facts div { padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); text-align: center; }
+.facts b { display: block; font: 900 italic 19px var(--ely-font-display); color: var(--mt-amber); }
+.facts span { font-size: 10.5px; color: var(--ely-muted); font-weight: 700; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { flex: 1; min-height: 44px; padding: 0 16px; border-radius: 13px; font-weight: 800; font-size: 14px; letter-spacing: .02em; transition: transform .15s, filter .2s; }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: linear-gradient(135deg, #B57BFF, #7B2FF7); box-shadow: 0 8px 24px rgba(123, 47, 247, .45); }
+.btn.ok { background: linear-gradient(135deg, #8BFFB0, #22B07D); color: #052016; }
+.btn.danger { background: rgba(255, 77, 109, .18); color: #FF9AAD; box-shadow: inset 0 0 0 1px rgba(255, 77, 109, .45); }
+.btn.ghost { background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px var(--ely-line); }
+.btn:disabled { filter: grayscale(.9) brightness(.7); cursor: default; }
+.closed { padding: 12px; border-radius: 12px; background: rgba(255, 77, 109, .14); color: #FFB3C0; font-weight: 700; font-size: 13px; margin-bottom: 12px; }
