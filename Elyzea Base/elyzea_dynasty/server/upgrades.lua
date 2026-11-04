@@ -962,6 +962,47 @@ function AdminActs.spotTest(src, d)
     return true, nil
 end
 
+-- Staff : se mettre (ou mettre un joueur) titulaire d'un logement, sans paiement, pour tester.
+-- Contrat de vente à 0 $ marqué « Staff (test) » dans l'historique ; un contrat existant est d'abord terminé.
+function AdminActs.setOwner(src, d)
+    local pr = P.props[tonumber(d.pid) or 0]
+    if not pr then return false, 'Bien introuvable.' end
+    if not pr.enabled then return false, 'Activez d\'abord ce logement (Valider et activer).' end
+    local target = tonumber(d.target) or src
+    local cid = P.Cid(target)
+    if not cid then return false, 'Joueur introuvable (ID serveur).' end
+    local c = P.Contract(pr.id)
+    if c then
+        if c.holder_cid == cid then return false, ('%s est déjà titulaire de ce logement.'):format(P.Name(target)) end
+        if d.replace ~= true then return false, ('Ce logement appartient à %s : cochez « remplacer » pour terminer son contrat.'):format(c.holder_name or '?') end
+        P.EndContract(pr.id, 'ended', 'staff : remplacé pour test', src)
+    end
+    local uid = P.Uid('STF')
+    local ok, id = pcall(function()
+        return MySQL.insert.await([[INSERT INTO `d8_contracts` (`job`, `uid`, `property_id`, `kind`, `holder_cid`, `holder_name`, `price`, `rate`, `days`, `paid_total`, `method`,
+            `started_at`, `employee_name`) VALUES (?, ?, ?, 'sale', ?, ?, 0, 0, 0, 0, NULL, NOW(), ?)]], { pr.job or P.MainJob(), uid, pr.id, cid, P.Name(target), ('Staff (test) · %s'):format(P.Name(src)) })
+    end)
+    if not ok or not id then return false, 'Contrat non enregistré.' end
+    MySQL.update.await('UPDATE `d8_contracts` SET `stash_id` = ? WHERE `id` = ?', { P.StashId(pr.id, id), id })
+    pr.contractId, pr.status, pr.reservedBy = id, 'sold', nil
+    P.SaveProp(pr)
+    P.LoadContract(pr.id)
+    ups[pr.id] = nil
+    if P.EndVisit then P.EndVisit(pr.id, 'le bien vient d\'être attribué') end
+    P.PropLog(pr.id, 'Titulaire (staff, test)', P.Name(target), src)
+    P.AdminLog(src, 'Titulaire de test', ('#%d %s → %s'):format(pr.id, pr.name, P.Name(target)))
+    P.Touch()
+    if target ~= src then P.Notify(target, ('Le staff vous a donné « %s » (test).'):format(pr.name), 'success') end
+    return true, ('%s est titulaire de « %s » (test, 0 $). Appli Maison et toutes les fonctions disponibles.'):format(P.Name(target), pr.name)
+end
+function AdminActs.clearOwner(src, d)
+    local pr = P.props[tonumber(d.pid) or 0]
+    if not pr or not P.Contract(pr.id) then return false, 'Aucun contrat sur ce logement.' end
+    P.EndContract(pr.id, 'ended', 'staff : libéré', src)
+    P.AdminLog(src, 'Logement libéré', ('#%d %s'):format(pr.id, pr.name))
+    return true, ('« %s » est de nouveau disponible.'):format(pr.name)
+end
+
 -- Actions techniques existantes (création, points, garage, activation…) passées par l'export admin
 local PASS = { quickCreate = true, propSave = true, propEnable = true, propDelete = true, point = true, garageSave = true, slot = true, teleport = true, propInterior = true }
 

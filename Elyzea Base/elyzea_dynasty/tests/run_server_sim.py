@@ -80,4 +80,8 @@ if part in ('all', '2'):
     lua = runtime()
     lua.execute(open(os.path.join(HERE, 'server_sim.lua'), encoding='utf-8').read())
     lua.execute('Part2()')
+if part in ('all', '3'):
+    lua = runtime()
+    lua.execute(open(os.path.join(HERE, 'server_sim.lua'), encoding='utf-8').read())
+    lua.execute('Part3()')
 print('TOUS LES TESTS SERVEUR SONT PASSÉS')

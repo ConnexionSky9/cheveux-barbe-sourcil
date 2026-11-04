@@ -17,7 +17,7 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     const D8 = { available: true, categories: { apartment: 'Appartement', house: 'Maison', villa: 'Villa', garage: 'Garage' },
         sizes: { small: { label: 'Petit garage', capacity: 2 }, medium: { label: 'Garage moyen', capacity: 6 } },
         interiors: [{ id: 1, label: '3655 Wild Oats', kind: 'house' }, { id: 2, label: 'Garage 2 places', kind: 'garage' }], agencies: [],
-        props: [{ id: 7, name: 'Villa Test', address: 'Hillcrest', category: 'villa', enabled: false, salePrice: 500000, rentPrice: 900, holder: 'Alice Martin', kind: 'sale', upgrades: ['cameras', 'dancer'], cams: 3, pots: 0, dancer: true,
+        props: [{ id: 7, name: 'Villa Test', address: 'Hillcrest', category: 'villa', enabled: true, salePrice: 500000, rentPrice: 900, holder: 'Alice Martin', kind: 'sale', upgrades: ['cameras', 'dancer'], cams: 3, pots: 0, dancer: true,
             points: { enter: true, bell: false, exit: false, manage: false, stash: false, garage: true, gEnter: false, gSpawn: false, gInside: false, gExit: false, slots: 0 } }],
         spots: [{ id: 3, pid: 7, label: 'Portail', x: 1, y: 2, z: 3, rx: -10, rz: 45, fov: 60, yaw: 30, pitch: 15 }],
         cfg: { cameras: { enabled: true, price: 15000, payTo: 'agency', max: 4, radius: 25, fovMin: 25, fovMax: 90 },
@@ -52,6 +52,11 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     await page.click('[data-d8arm="reset:7:cameras"]'); await page.waitForTimeout(100);
     await page.click('[data-d8arm="reset:7:cameras"]'); await page.waitForTimeout(100);
     check(last().body.data.name === 'upReset' && last().body.data.data.kind === 'cameras', 'réinitialisation avec confirmation');
+    await page.click('[data-d8sel="7"]'); await page.waitForTimeout(150);
+    await page.click('[data-d8own="me"]'); await page.waitForTimeout(100);
+    check(last().body.data.name === 'setOwner' && last().body.data.data.pid === 7, 'me mettre propriétaire');
+    await page.check('[data-d8ownreplace]'); await page.fill('[data-d8owntarget]', '12'); await page.click('[data-d8own="target"]'); await page.waitForTimeout(100);
+    check(last().body.data.data.target === 12 && last().body.data.data.replace === true, 'donner le logement à un joueur (remplacer)');
     await browser.close();
     console.log(fails ? `${fails} ÉCHEC(S)` : 'TOUS LES TESTS ADMIN IMMOBILIER SONT PASSÉS');
     process.exit(fails ? 1 : 0);

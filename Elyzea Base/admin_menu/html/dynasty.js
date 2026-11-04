@@ -90,6 +90,13 @@
                 <button class="btn" data-d8go="${p.id}" data-area="outside">🧭 Y aller</button><button class="btn" data-d8open>🛠️ Panneau détaillé</button>
                 ${armBtn('del:' + p.id, '🗑️ Supprimer')}</div>
 
+            <h3 class="sub-h">🔑 Propriétaire (test staff)</h3>
+            <p class="hint">${p.holder ? `Titulaire actuel : <b>${esc(p.holder)}</b>.` : 'Aucun titulaire.'} Contrat à 0 $ marqué « Staff (test) », sans passer par l'agence.</p>
+            <div class="btn-row"><button class="btn primary" data-d8own="me" ${p.enabled ? '' : 'disabled'}>🔑 Me mettre propriétaire</button>
+                <input class="input" type="number" min="1" data-d8owntarget placeholder="ID joueur" style="max-width:120px"><button class="btn" data-d8own="target" ${p.enabled ? '' : 'disabled'}>Donner à ce joueur</button>
+                ${p.holder ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-d8ownreplace> remplacer le titulaire</label>${armBtn('free:' + p.id, '🚪 Libérer le logement')}` : ''}</div>
+            ${p.enabled ? '' : '<p class="hint">Activez d\'abord le logement.</p>'}
+
             <h3 class="sub-h">📹 Emplacements des caméras (${spots.length})</h3>
             <p class="hint">Facultatif : sans emplacement, le joueur pose ses caméras librement autour de l'entrée. Avec des emplacements, il choisit parmi eux et oriente la caméra dans la plage permise. Place-toi à l'endroit voulu, tourné vers ce qu'elle doit filmer.</p>
             ${spots.map((s) => `<div class="form-grid" data-spot="${s.id}" style="grid-template-columns:1.4fr repeat(5,minmax(70px,1fr)) auto;align-items:end">
@@ -167,7 +174,7 @@
     });
     document.addEventListener('click', async (ev) => {
         if (!isOpen || tab !== 'dynasty') return;
-        const t = ev.target.closest('[data-d8open],[data-d8street],[data-d8create],[data-d8tog],[data-d8sel],[data-d8go],[data-d8pt],[data-d8slot],[data-d8enable],[data-d8arm],[data-d8spot],[data-spotsave],[data-spottest],[data-spothere],[data-spotdel],[data-d8save],[data-d8dancerstop]');
+        const t = ev.target.closest('[data-d8open],[data-d8street],[data-d8create],[data-d8tog],[data-d8sel],[data-d8go],[data-d8pt],[data-d8slot],[data-d8enable],[data-d8arm],[data-d8spot],[data-spotsave],[data-spottest],[data-spothere],[data-spotdel],[data-d8save],[data-d8dancerstop],[data-d8own]');
         if (!t) return;
         ev.preventDefault();
         const d = D.d8 || {};
@@ -191,10 +198,16 @@
         if (t.dataset.d8slot !== undefined) return send('slot', { id: st.sel });
         if (t.dataset.d8enable) return send('propEnable', { id: st.sel, enabled: t.dataset.d8enable === '1' });
         if (t.dataset.d8dancerstop !== undefined) return send('dancerStop', { pid: st.sel });
+        if (t.dataset.d8own) {
+            const target = t.dataset.d8own === 'target' ? Number((document.querySelector('[data-d8owntarget]') || {}).value) || 0 : 0;
+            if (t.dataset.d8own === 'target' && !target) return;
+            return send('setOwner', { pid: st.sel, target: target || undefined, replace: !!(document.querySelector('[data-d8ownreplace]') || {}).checked });
+        }
         if (t.dataset.d8arm) {
             const k = t.dataset.d8arm;
             if (!arm(k)) return;
             if (k === 'defaults') return send('upDefaults');
+            if (k.startsWith('free:')) return send('clearOwner', { pid: Number(k.split(':')[1]) });
             if (k.startsWith('del:')) { st.sel = null; return send('propDelete', { id: Number(k.split(':')[1]) }); }
             if (k.startsWith('reset:')) { const [, pid, kind] = k.split(':'); return send('upReset', { pid: Number(pid), kind }); }
             return;
