@@ -102,6 +102,7 @@ server_scripts {
     'server/lasergame.lua',
     'server/manutention.lua',
     'server/pier.lua',
+    'server/dynasty.lua',
     'server/presse.lua',
     'server/guards.lua',
     'server/sharks.lua',
