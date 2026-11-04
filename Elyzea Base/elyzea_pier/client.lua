@@ -121,20 +121,43 @@ local function spawnNpc()
     end
 end
 
-CreateThread(function()
-    if not Config.Npc.enabled then return end
+local function refreshBlip()
+    if blip then RemoveBlip(blip) blip = nil end
     local b = Config.Npc.blip
-    if b and b.enabled then
+    if Config.Npc.enabled and b and b.enabled then
         local c = Config.Npc.coords
         blip = AddBlipForCoord(c.x, c.y, c.z)
         SetBlipSprite(blip, b.sprite) SetBlipColour(blip, b.color) SetBlipScale(blip, b.scale) SetBlipAsShortRange(blip, true)
         BeginTextCommandSetBlipName('STRING') AddTextComponentString(b.label) EndTextCommandSetBlipName(blip)
     end
+end
+
+-- Réglages du menu admin (admin_menu › Parc de Del Perro) : PNJ, blip, attractions ouvertes / fermées, appliqués en direct
+local function applyPublic(v)
+    if type(v) ~= 'table' then return end
+    local n = v.npc
+    if type(n) == 'table' then
+        Config.Npc.enabled = n.enabled ~= false
+        Config.Npc.coords = vector4(n.x + 0.0, n.y + 0.0, n.z + 0.0, n.h + 0.0)
+        if n.model and n.model ~= '' then Config.Npc.model = n.model end
+        Config.Npc.scenario = (n.scenario and n.scenario ~= '') and n.scenario or nil
+        Config.Npc.blip = Config.Npc.blip or {}
+        Config.Npc.blip.enabled = n.blip ~= false
+    end
+    if v.wheelEnabled ~= nil then Config.Wheel.enabled = v.wheelEnabled end
+    if v.coasterEnabled ~= nil then Config.Coaster.enabled = v.coasterEnabled end
+    if npc and DoesEntityExist(npc) then DeleteEntity(npc) npc = nil end   -- recréé à la nouvelle place / avec le nouveau modèle
+    refreshBlip()
+end
+AddStateBagChangeHandler('pierPublic', 'global', function(_, _, value) applyPublic(value) end)
+
+CreateThread(function()
+    if GlobalState.pierPublic then applyPublic(GlobalState.pierPublic) else refreshBlip() end
     while true do
         local c = Config.Npc.coords
         local d = #(GetEntityCoords(PlayerPedId()) - vector3(c.x, c.y, c.z))
-        if d < 80.0 and (not npc or not DoesEntityExist(npc)) then spawnNpc()
-        elseif d > 100.0 and npc and DoesEntityExist(npc) then DeleteEntity(npc) npc = nil end
+        if Config.Npc.enabled and d < 80.0 and (not npc or not DoesEntityExist(npc)) then spawnNpc()
+        elseif (d > 100.0 or not Config.Npc.enabled) and npc and DoesEntityExist(npc) then DeleteEntity(npc) npc = nil end
         Wait(1500)
     end
 end)

@@ -18,6 +18,7 @@ server_scripts {
     'server.lua',
     'server/wheel.lua',
     'server/coaster.lua',
+    'server/settings.lua',
 }
 
 client_scripts {

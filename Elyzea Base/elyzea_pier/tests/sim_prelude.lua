@@ -54,6 +54,9 @@ function GetResourceState(r) if r == 'elyzea_core' or r == 'elyzea_inventory' th
 function IsPlayerAceAllowed(src) return SIM.players[src] and SIM.players[src].admin == true end
 function RegisterCommand(name, fn) SIM.commands[name] = fn end
 GlobalState = {}
+local KVP = {}
+function GetResourceKvpString(k) return KVP[k] end
+function SetResourceKvp(k, v) KVP[k] = v end
 json = { encode = function() return '{}' end, decode = function() return {} end }
 
 -- événements

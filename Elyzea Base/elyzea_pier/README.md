@@ -50,8 +50,22 @@ Dépendances : `elyzea_core`, `elyzea_inventory`, OneSync. Aucune table SQL, auc
 | `Coaster` | modèles, wagons, **places par wagon**, **positions des places** (origine des animations), entrée, sortie, **temps d'embarquement**, départ anticipé quand le train est plein, barre de sécurité, descente, **durée du parcours** (nil = vitesse réelle ≈ 61 s) |
 | `Security` | limite de requêtes par seconde, distance maximale d'un passager à son attraction |
 
-Commandes staff (ACE `elyzea_pier.admin` ou permission admin_menu « editor_peds ») : `/pier_info`, `/pier_reset`,
+Commandes staff (ACE `elyzea_pier.admin` ou permission admin_menu « pier_manage » ou « editor_peds ») : `/pier_info`, `/pier_reset`,
 `/pier_here` (affiche ta position au format de la config).
+
+### Gestion depuis admin_menu (onglet « 🎡 Parc de Del Perro », catégorie Économie et services)
+Permission **« Parc de Del Perro »** (`pier_manage`, Staff › Rangs ; le Fondateur l'a d'office). Les réglages faits ici
+**remplacent ceux de `config.lua`**, s'appliquent tout de suite (sans redémarrage) et sont gardés après un redémarrage
+(stockage du serveur, KVP `pier_settings`) :
+- **En direct** : état de la grande roue et des montagnes russes, places occupées, file d'attente, passagers ; « Y aller » ;
+  remise à zéro d'une attraction ou des deux (les passagers redescendent, les tickets non consommés sont gardés).
+- **Ouverture et tickets** : ouvrir / fermer chaque attraction, prix de chaque ticket, liquide et/ou carte, tickets maximum par achat et par joueur.
+- **Durées** : tour complet de la roue, arrêt en gare, rotation à vide, temps d'embarquement, départ anticipé si le train est plein,
+  durée du parcours (0 = vitesse réelle du jeu). Une nouvelle durée de parcours attend que le train soit revenu en gare.
+- **Vendeur de tickets** : le placer à ta position (et ton orientation), modèle, animation, présent ou non, icône sur la carte.
+- **Offrir des tickets** à un joueur connecté ; **sauvegardes** : recharger, revenir aux réglages de `config.lua`.
+Chaque action est revérifiée par elyzea_pier (permission) et notée dans le journal du menu staff.
+Tests : `python3 tests/run_admin_sim.py` (30 vérifications, avec un redémarrage) et `admin_menu/tests/pier_ui.cjs`.
 
 ## 5. Fonctionnement multijoueur
 - **Une seule roue et un seul train pour tout le serveur, gérés par le serveur.** Le serveur décide de l'angle de la roue, des arrêts,

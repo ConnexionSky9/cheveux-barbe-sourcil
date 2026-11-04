@@ -196,7 +196,9 @@ local function isStaff(src)
     if src == 0 then return true end
     if IsPlayerAceAllowed(src, Config.AcePermission) then return true end
     if GetResourceState('admin_menu') == 'started' then
-        local ok, r = pcall(function() return exports.admin_menu:HasPermission(src, 'editor_peds') end)
+        local ok, r = pcall(function()
+            return exports.admin_menu:HasPermission(src, 'pier_manage') or exports.admin_menu:HasPermission(src, 'editor_peds')
+        end)
         return ok and r == true
     end
     return false
