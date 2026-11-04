@@ -139,18 +139,14 @@ RegisterNetEvent('elyzea_pier:coasterBoard', function(d)
     local car = seatCar(d.seat)
     if not P.LoadDict(CFG.animDict) then return end
     SetCurrentPedWeapon(ped, GetHashKey('WEAPON_UNARMED'), true)
-    -- marche jusqu'au point d'embarquement original de cette place
-    local b = PierTrack.board[d.seat]
-    if b then
-        TaskGoStraightToCoord(ped, b[1], b[2], b[3], 1.0, 6000, 139.96, 0.2)
-        local t = GetGameTimer() + 6000
-        while #(GetEntityCoords(ped) - vector3(b[1], b[2], b[3])) > 0.7 and GetGameTimer() < t do Wait(100) end
-    end
+    -- directement assis à sa place (2 par wagon, côte à côte ; le train se remplit de l'avant vers l'arrière)
+    DoScreenFadeOut(150)
+    local tf = GetGameTimer() + 600
+    while not IsScreenFadedOut() and GetGameTimer() < tf do Wait(0) end
     local pos, rot = sceneAt(car, seat.origin)
-    P.PlayScene(ped, pos, rot, CFG.animDict, 'enter_player_' .. seat.suffix, 8000)
-    local off, heading = P.AttachHere(ped, car)
+    local off, heading = P.SeatInstant(ped, car, pos, rot, CFG.animDict, 'idle_a_player_' .. seat.suffix)
     P.riding.off, P.riding.heading = off, heading
-    TaskPlayAnim(ped, CFG.animDict, 'idle_a_player_' .. seat.suffix, 8.0, -8.0, -1, 1, 0.0, false, false, false)
+    DoScreenFadeIn(250)
     Ely.callback.await('elyzea_pier:coasterSeated', false, off, heading)
     P.Notify(('Installé ! Départ imminent. [%s] pour lever les bras pendant le trajet.'):format(Config.HandsUpKey), 'success')
     P.RideLoop(function()

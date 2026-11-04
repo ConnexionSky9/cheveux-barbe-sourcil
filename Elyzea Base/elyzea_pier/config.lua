@@ -46,6 +46,7 @@ Config.Wheel = {
     radius = 15.3,
     cabins = 16,
     seatsPerCabin = 2,                   -- le jeu original anime 2 passagers par cabine (places « one » et « two »)
+    boardInterval = 1.5,                 -- les passagers montent un par un : X s entre deux embarquements
     animDict = 'anim@mp_ferris_wheel',
     boardAngleOffset = 1.0,              -- décalage de l'arrêt en gare (degrés), valeur du jeu : 22,5 × i − 21,5
     entry = vector3(-1661.95, -1127.011, 12.6973),     -- point d'embarquement original
@@ -66,7 +67,8 @@ Config.Coaster = {
     frontModel = 'ind_prop_dlc_roller_car',
     carModel = 'ind_prop_dlc_roller_car_02',
     cars = 4,                            -- 4 wagons comme dans le jeu
-    seatsPerCar = 2,                     -- 2 places par wagon (8 passagers)
+    seatsPerCar = 2,                     -- 2 places par wagon, côte à côte (8 passagers) ; le train se remplit de l'avant vers l'arrière
+    boardInterval = 1.5,                 -- les passagers montent un par un : X s entre deux embarquements
     carSpacing = 2.55,                   -- distance entre deux wagons sur le rail (m), valeur du jeu
     animDict = 'anim@mp_rollarcoaster',
     -- placement des passagers (repère du wagon), valeurs du jeu : la scène d'animation part de cette origine

@@ -76,6 +76,24 @@ function P.AttachHere(ped, obj)
     return { x = off.x, y = off.y, z = off.z }, heading
 end
 
+-- Assoit le joueur DIRECTEMENT à sa place (aucune marche, aucune animation d'entrée) :
+-- la position assise est celle de l'animation d'attente du jeu, calculée depuis l'origine de la scène
+-- (même procédé que le jeu original), puis le joueur est attaché à la cabine / au wagon.
+function P.SeatInstant(ped, obj, origin, rot, dict, idle)
+    local o = origin
+    local pos = GetAnimInitialOffsetPosition(dict, idle, o.x, o.y, o.z, rot.x, rot.y, rot.z, 0.0, 2)
+    local r = GetAnimInitialOffsetRotation(dict, idle, o.x, o.y, o.z, rot.x, rot.y, rot.z, 0.0, 2)
+    ClearPedTasksImmediately(ped)
+    SetEntityCoordsNoOffset(ped, pos.x, pos.y, pos.z, false, false, false)
+    SetEntityHeading(ped, r.z)
+    local off = GetOffsetFromEntityGivenWorldCoords(obj, pos.x, pos.y, pos.z)
+    local heading = (r.z - GetEntityHeading(obj)) % 360.0
+    AttachEntityToEntity(ped, obj, 0, off.x, off.y, off.z, 0.0, 0.0, heading, false, false, false, false, 2, true)
+    if NetworkAllowRemoteAttachmentModification then NetworkAllowRemoteAttachmentModification(ped, true) end
+    TaskPlayAnim(ped, dict, idle, 1000.0, -8.0, -1, 1, 0.0, false, false, false)
+    return { x = off.x, y = off.y, z = off.z }, heading
+end
+
 -- Pendant un trajet : le joueur ne peut ni marcher, ni tirer, ni sortir (la caméra reste libre)
 local RIDE_CONTROLS = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 37, 44, 45, 47, 58, 75, 140, 141, 142, 143, 257, 263, 264 }
 function P.RideLoop(check)

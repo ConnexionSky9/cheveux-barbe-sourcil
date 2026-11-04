@@ -20,6 +20,7 @@ local S = {
 for c = 1, CFG.cabins do S.cabins[c] = {} end
 
 local function speed() return 360 / math.max(20, CFG.turnDuration) end
+local lastBoard = -100000           -- embarquements un par un (Config.Wheel.boardInterval)
 local function now() return GetGameTimer() end
 local function rotNow() return W.RotAt(S, now()) end
 
@@ -120,7 +121,8 @@ local function boardQueue()
     local c = S.stopCabin
     if not c then return end
     -- pas de nouvel embarquement dans les 4 dernières secondes de l'arrêt (le temps de l'animation)
-    if S.stopUntil - now() < 4000 then return end
+    if S.stopUntil - now() < 3000 then return end
+    if now() - lastBoard < (CFG.boardInterval or 1.5) * 1000 then return end
     local i = 1
     while i <= #S.queue do
         local src = S.queue[i]
@@ -134,11 +136,13 @@ local function boardQueue()
             table.remove(S.queue, i)
             if Pier.TakeTicket(src, 'wheel') then
                 S.cabins[c][seat] = src
+                lastBoard = now()
                 S.riders[src] = { c = c, s = seat, state = 'boarding', done = S.rot + 360, since = now() }
                 Player(src).state:set('pierRide', 'wheel', true)
                 TriggerClientEvent('elyzea_pier:wheelBoard', src, { c = c, s = seat, suffix = seat == 1 and 'one' or 'two', duration = CFG.turnDuration })
                 Pier.Notify(src, ('Embarquement : cabine n°%d. Bon tour de grande roue !'):format(c), 'success')
                 publishSeats()
+                return   -- un seul passager à la fois : le suivant monte au prochain passage de la boucle
             else
                 Pier.busy[src] = nil
                 Player(src).state:set('pierRide', nil, true)

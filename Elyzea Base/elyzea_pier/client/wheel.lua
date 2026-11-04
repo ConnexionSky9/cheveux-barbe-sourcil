@@ -116,14 +116,12 @@ RegisterNetEvent('elyzea_pier:wheelBoard', function(d)
     local cab = cabins[d.c]
     if not P.LoadDict(CFG.animDict) then return end
     SetCurrentPedWeapon(ped, GetHashKey('WEAPON_UNARMED'), true)
-    -- marche jusqu'à la cabine en gare (point original), puis animation d'entrée
-    TaskGoStraightToCoord(ped, CFG.entry.x, CFG.entry.y, CFG.entry.z, 1.0, 6000, 98.6981, 0.2)
-    local t = GetGameTimer() + 6000
-    while #(GetEntityCoords(ped) - CFG.entry) > 0.6 and GetGameTimer() < t do Wait(100) end
-    local pos = GetEntityCoords(cab)
-    P.PlayScene(ped, pos, vector3(0.0, 0.0, 0.0), CFG.animDict, 'enter_player_' .. d.suffix, 8000)
-    local off, heading = P.AttachHere(ped, cab)
-    TaskPlayAnim(ped, CFG.animDict, 'idle_a_player_' .. d.suffix, 8.0, -8.0, -1, 1, 0.0, false, false, false)
+    -- directement assis à sa place dans la cabine (2 par cabine, côte à côte)
+    DoScreenFadeOut(150)
+    local tf = GetGameTimer() + 600
+    while not IsScreenFadedOut() and GetGameTimer() < tf do Wait(0) end
+    local off, heading = P.SeatInstant(ped, cab, GetEntityCoords(cab), vector3(0.0, 0.0, 0.0), CFG.animDict, 'idle_a_player_' .. d.suffix)
+    DoScreenFadeIn(250)
     Ely.callback.await('elyzea_pier:wheelSeated', false, off, heading)
     P.Notify('Installé dans la cabine : la roue va tourner. Bon voyage !', 'success')
     local startRot = currentRot()

@@ -18,6 +18,7 @@ local S = {
     departAt = 0, t0 = 0, endAt = 0, unloadAt = 0,
 }
 local function now() return GetGameTimer() end
+local lastBoard = -100000           -- embarquements un par un (Config.Coaster.boardInterval)
 local function duration() return C.Duration(CFG.duration) end
 
 function Coaster.Enabled() return CFG.enabled end
@@ -75,6 +76,7 @@ local function board(src)
     if not seat then return false, 'Le train est complet.' end
     if not Pier.TakeTicket(src, 'coaster') then return false, 'Il te faut un ticket « Montagnes russes » (billetterie).' end
     S.seats[seat] = src
+    lastBoard = now()
     local car = math.ceil(seat / CFG.seatsPerCar)
     local place = ((seat - 1) % CFG.seatsPerCar) + 1
     S.riders[src] = { seat = seat, state = 'boarding' }
@@ -99,7 +101,7 @@ Pier.Register('coasterJoin', function(src)
         local ok, err = Pier.CanRide(src)
         if not ok then return false, err end
         if Pier.TicketCount(src, 'coaster') < 1 then return false, 'Il te faut un ticket « Montagnes russes » (billetterie).' end
-        if (S.phase == 'idle' or S.phase == 'boarding') and #S.queue == 0 and freeSeatIndex() then
+        if (S.phase == 'idle' or S.phase == 'boarding') and #S.queue == 0 and freeSeatIndex() and now() - lastBoard >= (CFG.boardInterval or 1.5) * 1000 then
             local okb, res = board(src)
             if not okb then return false, res end
             return true, { boarded = true, seat = res.seat, car = res.car }
@@ -185,17 +187,19 @@ local function finishUnload()
     for src in pairs(S.riders) do removeRider(src) end
     S.phase, S.departAt, S.t0, S.endAt = 'idle', 0, 0, 0
     publishState()
-    -- train suivant : la file d'attente embarque dans l'ordre
-    local i = 1
-    while i <= #S.queue and freeSeatIndex() do
-        local src = S.queue[i]
+    -- train suivant : la file d'attente embarque dans l'ordre, un passager à la fois (boucle serveur)
+end
+
+-- Fait monter le premier passager prêt de la file (un seul à la fois)
+local function boardNext()
+    if not freeSeatIndex() or now() - lastBoard < (CFG.boardInterval or 1.5) * 1000 then return end
+    for i, src in ipairs(S.queue) do
         if GetPlayerName(src) and Pier.CanRide(src) and Pier.Near(src, CFG.entry, CFG.queueLeaveRadius) then
             table.remove(S.queue, i)
             Pier.busy[src] = nil
             local ok, err = board(src)
             if not ok then setBusy(src, nil) TriggerClientEvent('elyzea_pier:queueLeft', src, 'coaster', err) end
-        else
-            i = i + 1
+            return
         end
     end
 end
@@ -216,9 +220,8 @@ CreateThread(function()
                 if t >= S.endAt then arrive() end
             elseif S.phase == 'unloading' then
                 if t >= S.unloadAt then finishUnload() end
-            elseif S.phase == 'idle' and #S.queue > 0 then
-                finishUnload()
             end
+            if (S.phase == 'idle' or S.phase == 'boarding') and #S.queue > 0 then boardNext() end
             if t - lastCheck > 1000 then
                 lastCheck = t
                 for i = #S.queue, 1, -1 do
