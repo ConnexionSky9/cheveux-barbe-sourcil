@@ -151,7 +151,7 @@ end
 
 local function selfState()
     return {
-        noclip = IsNoclipActive(), godmode = State.godmode, invisible = State.invisible,
+        noclip = IsNoclipActive(), freecam = IsFreecamActive and IsFreecamActive() or false, godmode = State.godmode, invisible = State.invisible,
         showIds = State.showIds, wallhack = State.wallhack == true, showZones = State.showZones == true,
         duty = State.duty, transformed = TransformedInto and TransformedInto() or nil,
     }
@@ -177,7 +177,14 @@ function SelfAction(name, d)
 
     if name == 'noclip' and HasPerm('noclip') then
         if menuOpen then CloseMenu() end
+        if IsFreecamActive and IsFreecamActive() then ToggleFreecam(false) end
         ToggleNoclip()
+
+    elseif name == 'freecam' and HasPerm('freecam') then
+        if menuOpen then CloseMenu() end
+        local on = not IsFreecamActive()
+        ToggleFreecam(on)
+        TriggerServerEvent('adminmenu:logSelf', on and 'freecam_on' or 'freecam_off')
 
     elseif name == 'godmode' and HasPerm('godmode') then
         State.godmode = not State.godmode
@@ -258,6 +265,7 @@ function SetDuty(on, silent)
     SetResourceKvpInt('adminmenu_rp_mode', State.duty and 0 or 1)
     if not State.duty then
         if IsNoclipActive() then ToggleNoclip(false) end
+        if IsFreecamActive and IsFreecamActive() then ToggleFreecam(false) end
         if CancelStaffModes then CancelStaffModes() end
         if State.wallhack and SetWallhack then SetWallhack(false) end
         local ped = PlayerPedId()

@@ -1777,6 +1777,8 @@ end)
 local SELF_LOGS = {
     noclip_on   = { 'noclip', 'Noclip activé' },
     noclip_off  = { 'noclip', 'Noclip désactivé' },
+    freecam_on  = { 'freecam', 'Caméra libre activée' },
+    freecam_off = { 'freecam', 'Caméra libre désactivée' },
     godmode_on  = { 'godmode', 'Godmode activé' },
     godmode_off = { 'godmode', 'Godmode désactivé' },
     invisible_on  = { 'invisible', 'Invisibilité activée' },

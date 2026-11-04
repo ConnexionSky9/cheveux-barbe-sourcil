@@ -38,7 +38,7 @@ const TABS = [
     { id: 'players',  group: 1, label: 'Joueurs',        ico: '👥', sub: 'Choisis un joueur dans la liste pour agir sur lui.', show: () => true },
     { id: 'reports',  group: 1, label: 'Reports',        ico: '📨', sub: 'Demandes envoyées par les joueurs avec /report.', show: () => has('reports'), count: () => (D.reports || []).filter((r) => !r.claimedBy).length },
     { id: 'bans',     group: 1, label: 'Prison et bans',  ico: '⛓️', sub: 'Joueurs en prison et bannissements actifs.', show: () => any('ban', 'unban', 'jail') },
-    { id: 'self',     group: 2, label: 'Mes outils',     ico: '🧍', sub: 'Noclip, godmode, wallhack, téléportation…', show: () => any('noclip', 'godmode', 'invisible', 'tp_waypoint', 'tp_coords', 'player_ids', 'wallhack') },
+    { id: 'self',     group: 2, label: 'Mes outils',     ico: '🧍', sub: 'Noclip, godmode, wallhack, téléportation…', show: () => any('noclip', 'freecam', 'godmode', 'invisible', 'tp_waypoint', 'tp_coords', 'player_ids', 'wallhack') },
     { id: 'items',    group: 2, label: 'Objets',         ico: '🎁', sub: "Donne n'importe quel objet de l'inventaire (armes comprises), à toi ou à un joueur.", show: () => has('give_item') },
     { id: 'vehicles', group: 2, label: 'Véhicules',      ico: '🚗', sub: 'Fais apparaître, répare ou personnalise ton véhicule.', show: () => any('spawn_vehicle', 'vehicle_tools', 'vehicle_custom') },
     { id: 'announce', group: 2, label: 'Annonces',       ico: '📢', sub: 'Un bandeau en haut de l\'écran de tous les joueurs, avec une image si tu veux.', show: () => has('announce') },
@@ -511,6 +511,7 @@ VIEWS.self = () => {
             <h2>Modes</h2>
             <div class="grid">
                 ${tog('noclip', 'noclip', 'Noclip', `3e personne · touche ${D.config.noclipKey}`)}
+                ${tog('freecam', 'freecam', '🎥 Caméra libre', 'Regarde ton personnage sous l\'angle de ton choix')}
                 ${tog('godmode', 'godmode', 'Godmode', 'Aucun dégât')}
                 ${tog('invisible', 'invisible', 'Invisible', 'Caché aux joueurs')}
                 ${tog('wallhack', 'wallhack', 'Wallhack', 'Joueurs à travers les murs et sur la carte')}

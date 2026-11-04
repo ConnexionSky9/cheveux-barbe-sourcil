@@ -8,6 +8,7 @@
 --  Si la permission existe déjà dans config.lua, ton texte est gardé.
 -- =========================================================
 local EXTRA = {
+    { key = 'freecam',       label = 'Caméra libre : regarder son personnage (ou la scène) sous l\'angle de son choix, orbite autour du personnage (Mes outils)', cat = 'Personnel' },
     { key = 'health_manage', label = 'Santé : maladies (rhume, MST), blessures (chute, attelle), rendez-vous EMS, postes des dossiers médicaux, soigner / rendre malade un joueur (elyzea_ems)', cat = 'Joueurs' },
     { key = 'presse_manage', label = 'Presse : annonces commandées (réglages, durée d\'affichage, file d\'attente, commandes, remboursements) et retrait d\'articles du journal (elyzea_presse)', cat = 'Métiers' },
     { key = 'tags_manage',   label = 'Tags : graffitis des quartiers (réglages, mots interdits, voir l\'auteur, supprimer un tag / ceux d\'un joueur / tous), /taginfo et /tagclean', cat = 'Illégal' },
