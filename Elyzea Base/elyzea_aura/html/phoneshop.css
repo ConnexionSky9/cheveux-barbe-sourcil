@@ -46,9 +46,12 @@
 
 /* 5 : pliable (déplié dans la vitrine) */
 .pa[data-m="5"] .pa-body { background: linear-gradient(150deg, #c0c4cf, #5e6372 48%, #9aa0ad); }
-.pa[data-m="5"][data-open] { --w: 300px; }
-.pa[data-m="5"][data-open] .pa-scr:first-of-type { border-radius: 25px 12px 12px 25px; }
-.pa[data-m="5"][data-open] .pa-scr:last-of-type { border-radius: 12px 25px 25px 12px; }
+.pa[data-open] { --w: 300px; }
+.pa[data-open] .pa-scr:first-of-type { border-radius: 25px 12px 12px 25px; }
+.pa[data-open] .pa-scr:last-of-type { border-radius: 12px 25px 25px 12px; }
+.pa[data-m="6"][data-open] .pa-glow { border-radius: 36px; }
+.pa[data-m="6"] .pa-hinge { background: linear-gradient(90deg, rgba(0,0,0,.6), #3b2958 45%, #1f1530 55%, rgba(0,0,0,.6)); }
+.pa[data-m="6"] .pa-hinge::after { background: #C6A2FF; box-shadow: 0 0 8px #9EF7FF; }
 .pa-hinge { position: relative !important; flex: 0 0 9px; margin: 10px 0; border-radius: 4px; background: linear-gradient(90deg, rgba(0,0,0,.5), #9aa0ad 45%, #5e6372 55%, rgba(0,0,0,.5)); }
 .pa-hinge::after { content: ''; position: absolute; left: 50%; top: 30%; bottom: 30%; width: 2px; margin-left: -1px; background: #9b5cff; box-shadow: 0 0 8px #9b5cff; }
 .pa[data-m="5"] .pa-glow { box-shadow: 0 0 20px 3px #9b5cff, 0 0 52px 8px rgba(155,92,255,.45); }
@@ -85,7 +88,7 @@
 .ps-main { display: grid; grid-template-columns: 1.1fr 1fr; gap: 26px; align-items: center; min-height: 0; }
 .ps-stage { height: 470px; display: grid; place-items: center; border-radius: 26px; background: radial-gradient(60% 55% at 50% 45%, rgba(155,92,255,.22), transparent 70%), rgba(255,255,255,.025); }
 .ps-stage .pa { transform: scale(1.38); }
-.ps-stage[data-m="5"] .pa { transform: scale(1.18); }
+.ps-stage[data-m="5"] .pa, .ps-stage[data-m="6"] .pa { transform: scale(1.18); }
 .ps-gen { font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #B57BFF; }
 .ps-info h1 { font: 700 38px/1.05 'Unbounded', sans-serif; margin: 6px 0 8px; background: linear-gradient(110deg, #fff, #C9A6FF 60%, #6FE7F2); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .ps-tag { color: #CFC6EA; font-size: 15px; }

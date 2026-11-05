@@ -203,7 +203,7 @@ photos suivent le personnage. L'ancien objet `phone` compte comme un ElyAura 2.
 | ElyAura 3 | 6 000 $ | + Livrézy, HelpMécano | tous les fonds / couleurs / cadres, icônes, horloge | `prop_amb_phone` |
 | ElyAura 4 | 12 000 $ | + Itoune, LaserGame | effets animés, coques, couleur et image libres | `ch_prop_ch_phone_ing_01a` |
 | ElyAura 5 Fold | 25 000 $ | comme le 4 | pliable (2 écrans, tenu à 2 mains déplié), widgets, sonnerie personnalisée (lien https), écran verrouillé | `prop_phone_ing_03` (×2 déplié) |
-| ElyAura 6 Ultra | 60 000 $ | + CarPlay, Garage | LED couleur libre / arc-en-ciel / pulsation, cadres et fonds exclusifs, forme des icônes, police | `sf_prop_sf_npc_phone_01a` |
+| ElyAura 6 Ultra Fold | 60 000 $ | + CarPlay, Garage | pliable comme le 5 (2 écrans, 2 mains), LED couleur libre / arc-en-ciel / pulsation, cadres et fonds exclusifs, forme des icônes, police | `sf_prop_sf_npc_phone_01a` |
 
 - ElyAura 6 : achat réservé aux abonnés `vip_royale` ou `vip_divinity` (elyzea_shop, `Config.Phones.Model6Perks`).
 - Le serveur bloque les applications que le modèle n'a pas et n'enregistre que la personnalisation permise ;

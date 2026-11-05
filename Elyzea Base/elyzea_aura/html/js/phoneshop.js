@@ -14,7 +14,7 @@ const PhoneArt = (() => {
       ${n >= 5 ? '<div class="pa-wds"><s></s><s></s></div>' : ''}<div class="pa-grid">${ic}</div>${n === 1 ? '' : '<span class="pa-bar"></span>'}</div>`;
   }
   function render(n, opts = {}) {
-    const open = n === 5 && opts.open;
+    const open = (n === 5 || n === 6) && opts.open;
     return `<div class="pa" data-m="${n}" ${open ? 'data-open="1"' : ''}>
       <div class="pa-body">${n === 1 ? '<i class="pa-spk"></i><i class="pa-cam1"></i><em>ElyAura</em>' : ''}${n === 2 ? '<i class="pa-notch"></i><em>ElyAura</em>' : ''}${n === 3 ? '<i class="pa-hole"></i>' : ''}
         ${screen(n)}${open ? `<i class="pa-hinge"></i>${screen(n)}` : ''}${n === 1 ? '<i class="pa-home"></i>' : ''}</div>
@@ -29,7 +29,7 @@ const PHONE_FEATURES = {
   3: ['+ Livrézy et HelpMécano', 'Écran bord à bord, cadre aluminium', 'Tous les fonds, couleurs, cadres, icônes'],
   4: ['+ Itoune', 'Effets animés de l\'accueil', 'Coques, couleur et fond d\'écran libres'],
   5: ['Pliable : deux écrans, tenu à deux mains', 'Widgets de l\'accueil', 'Sonnerie personnalisée, écran verrouillé'],
-  6: ['+ CarPlay et Garage', 'Liseré arc-en-ciel, couleur libre', 'Cadres et fonds exclusifs, police, icônes'],
+  6: ['Pliable : deux écrans, tenu à deux mains', '+ CarPlay et Garage', 'Liseré arc-en-ciel, couleur libre', 'Cadres et fonds exclusifs, police, icônes'],
 };
 
 const PShop = (() => {

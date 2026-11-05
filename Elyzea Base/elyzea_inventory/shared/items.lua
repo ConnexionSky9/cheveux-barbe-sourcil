@@ -224,8 +224,8 @@ Items.elyaura_4 = { label = 'ElyAura 4', weight = 185, stack = false, image = 'e
     description = 'Itoune, effets animés, designs et coques à personnaliser.' }
 Items.elyaura_5 = { label = 'ElyAura 5 Fold', weight = 240, stack = false, image = 'elyaura_5.png', icon = '📱',
     description = 'Téléphone pliable à deux écrans, widgets et sonnerie personnalisée.' }
-Items.elyaura_6 = { label = 'ElyAura 6 Ultra', weight = 210, stack = false, image = 'elyaura_6.png', icon = '📱',
-    description = 'Le haut de gamme : CarPlay, Garage et personnalisation totale. Abonnés Royale.' }
+Items.elyaura_6 = { label = 'ElyAura 6 Ultra Fold', weight = 230, stack = false, image = 'elyaura_6.png', icon = '📱',
+    description = 'Le haut de gamme pliable : deux écrans, CarPlay, Garage et personnalisation totale. Abonnés Royale.' }
 
 -- Téléphone clandestin NOIR X (ressource noirx) · image : html/img/noirphone.png
 -- noirx l'enregistre lui-même comme utilisable ; il n'est jamais consommé.

@@ -65,47 +65,86 @@ local function CurrentAnim()
     return ANIM_DICT, inCall and 'cellphone_call_listen_base' or 'cellphone_text_read_base'
 end
 
-local function SpawnAttached(p)
+-- Tous les objets « téléphone » créés : jamais d'objet oublié dans la main
+-- (avant : deux créations en même temps pendant le chargement du modèle laissaient un téléphone collé à la main)
+local allProps = {}
+local propGen = 0            -- change à chaque retrait : une création en cours devenue inutile est annulée
+local function Wanted() return (isOpen or inCall) and not cameraActive end
+local animOn = false         -- l'animation téléphone vient de nous (on ne coupe jamais celle d'une autre ressource, ex. emote « phone »)
+
+local function SpawnAttached(p, gen)
     local model = type(p.model) == 'string' and joaat(p.model) or p.model
     if not IsModelInCdimage(model) then model = `prop_npc_phone_02` end
     RequestModel(model)
     local t = GetGameTimer()
     while not HasModelLoaded(model) and GetGameTimer() - t < 3000 do Wait(10) end
+    if gen ~= propGen or not Wanted() then SetModelAsNoLongerNeeded(model) return nil end   -- téléphone rangé entre-temps
     local ped = PlayerPedId()
     local o = CreateObject(model, 1.0, 1.0, 1.0, true, true, false)
     local pos, rot = p.pos or vector3(0.0, 0.0, 0.0), p.rot or vector3(0.0, 0.0, 0.0)
     AttachEntityToEntity(o, ped, GetPedBoneIndex(ped, p.bone or 28422), pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, true, true, false, true, 1, true)
     SetModelAsNoLongerNeeded(model)
+    allProps[o] = true
     return o
 end
 
 local function RemoveProp()
-    if phoneProp and DoesEntityExist(phoneProp) then DeleteEntity(phoneProp) end
-    for _, o in ipairs(extraProps) do if DoesEntityExist(o) then DeleteEntity(o) end end
+    propGen = propGen + 1
+    for o in pairs(allProps) do
+        if DoesEntityExist(o) then DetachEntity(o, true, false) DeleteEntity(o) end
+        allProps[o] = nil
+    end
     phoneProp, extraProps, propKey = nil, {}, nil
 end
 
+local attaching = false
 local function AttachProp()
     local m, u = DeviceCfg(), Unfolded()
     local key = ('%s|%s'):format(deviceN or 0, u and 'open' or 'closed')
     if phoneProp and propKey == key and DoesEntityExist(phoneProp) then return end
+    if attaching then return end   -- une création est déjà en cours
+    attaching = true
     RemoveProp()
+    local gen = propGen
     if u then
-        phoneProp = SpawnAttached(u.halves[1])
-        for i = 2, #u.halves do extraProps[#extraProps + 1] = SpawnAttached(u.halves[i]) end
+        phoneProp = SpawnAttached(u.halves[1], gen)
+        for i = 2, #u.halves do extraProps[#extraProps + 1] = SpawnAttached(u.halves[i], gen) end
     else
-        phoneProp = SpawnAttached(m and m.prop or { model = 'prop_npc_phone_02' })
+        phoneProp = SpawnAttached(m and m.prop or { model = 'prop_npc_phone_02' }, gen)
     end
-    propKey = key
+    propKey = phoneProp and key or nil
+    attaching = false
+    if gen ~= propGen or not Wanted() then RemoveProp() end
 end
+
+-- Filet de sécurité : téléphone rangé, mais un objet ou l'animation reste en main → on nettoie
+CreateThread(function()
+    while true do
+        Wait(600)
+        if not Wanted() and not attaching then
+            local ped = PlayerPedId()
+            if next(allProps) ~= nil then RemoveProp() end
+            if animOn and not cameraActive then
+                animOn = false
+                StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.5)
+                StopAnimTask(ped, ANIM_DICT, 'cellphone_call_listen_base', 2.5)
+                for _, mm in pairs(Config.Phones and Config.Phones.Models or {}) do
+                    if mm.unfolded then StopAnimTask(ped, mm.unfolded.dict, mm.unfolded.clip, 2.5) end
+                end
+            end
+        end
+    end
+end)
 
 local function PlayPhoneAnim()
     local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, false) then return end
+    if IsPedInAnyVehicle(ped, false) or not Wanted() then return end
     local dict, anim = CurrentAnim()
     LoadDict(dict)
+    if not Wanted() then return end   -- rangé pendant le chargement de l'animation
     if dict ~= ANIM_DICT then StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.0) end
     TaskPlayAnim(ped, dict, anim, 3.0, 3.0, -1, 49, 0, false, false, false) -- haut du corps : on peut marcher et courir
+    animOn = true
     AttachProp()
 end
 
@@ -117,8 +156,10 @@ local function StopPhoneAnim()
     local ped = PlayerPedId()
     StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.5)
     StopAnimTask(ped, ANIM_DICT, 'cellphone_call_listen_base', 2.5)
-    local m = DeviceCfg()
-    if m and m.unfolded then StopAnimTask(ped, m.unfolded.dict, m.unfolded.clip, 2.5) end
+    for _, mm in pairs(Config.Phones and Config.Phones.Models or {}) do
+        if mm.unfolded then StopAnimTask(ped, mm.unfolded.dict, mm.unfolded.clip, 2.5) end
+    end
+    animOn = false
     RemoveProp()
 end
 

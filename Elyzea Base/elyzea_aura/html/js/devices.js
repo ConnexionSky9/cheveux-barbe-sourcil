@@ -8,7 +8,7 @@
      3 : bord à bord (caméra perforée) : tous les fonds, couleurs, cadres, icônes, horloge.
      4 : verre premium : effets animés, coques, couleur et image libres.
      5 : pliable (deux écrans) : widgets, sonnerie personnalisée, styles d'écran verrouillé.
-     6 : ultra (titane, liseré holographique) : LED libre / arc-en-ciel, cadres et fonds
+     6 : ultra pliable (titane, liseré holographique) : LED libre / arc-en-ciel, cadres et fonds
          exclusifs, forme des icônes, police.
    · Les choix plus avancés restent enregistrés : ils reviennent avec un meilleur téléphone.
    ========================================================= */
@@ -66,6 +66,7 @@ function drawEffect(name) {
 function applyDevice() {
   const d = DEV(), s = effSettings(), root = document.documentElement.style;
   phoneEl.dataset.model = d.n || 0;
+  phoneEl.dataset.fold = d.fold === false ? '0' : '1';
   phoneEl.dataset.tier = devTier();
   phoneEl.dataset.case = s.case || 'none';
   phoneEl.dataset.edge = s.edgeMode || 'auto';
@@ -77,7 +78,7 @@ function applyDevice() {
   root.setProperty('--font-body', (FONTS[s.font] || FONTS.manrope)[1]);
   $('.hw__brand').textContent = d.label || 'ElyAura';
   drawEffect(EFFECTS[s.effect] ? s.effect : 'none');
-  // Seul l'ElyAura 5 Fold se déplie
+  // Seuls les modèles pliables (ElyAura 5 et 6) se déplient
   const fb = $('#fold-btn');
   if (fb) fb.hidden = d.fold === false;
   if (d.fold === false && typeof Fold !== 'undefined' && Fold.isOpen()) Fold.set(false, false);

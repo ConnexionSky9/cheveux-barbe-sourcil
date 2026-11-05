@@ -52,7 +52,7 @@ const Fold = (() => {
   }
 
   function set(v, save = true) {
-    open = !!v && DEV().fold !== false;   // seulement l'ElyAura 5 Fold se déplie
+    open = !!v && DEV().fold !== false;   // seulement les modèles pliables (ElyAura 5 et 6)
     if (typeof post === 'function' && S.open) post('setFold', { open });   // en jeu : tenu à deux mains une fois déplié
     phoneEl.classList.toggle('unfolded', open);
     s2.setAttribute('aria-hidden', open ? 'false' : 'true');

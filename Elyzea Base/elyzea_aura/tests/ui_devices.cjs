@@ -11,7 +11,7 @@ const DEVS = {
   3: { n: 3, label: 'ElyAura 3', tier: 3, exclude: ['lasergame', 'carplay', 'itoune', 'garage'], faceId: true, store: true, fold: false },
   4: { n: 4, label: 'ElyAura 4', tier: 4, exclude: ['carplay', 'garage'], faceId: true, store: true, fold: false },
   5: { n: 5, label: 'ElyAura 5 Fold', tier: 5, exclude: ['carplay', 'garage'], faceId: true, store: true, fold: true },
-  6: { n: 6, label: 'ElyAura 6 Ultra', tier: 6, exclude: [], faceId: true, store: true, fold: false },
+  6: { n: 6, label: 'ElyAura 6 Ultra Fold', tier: 6, exclude: [], faceId: true, store: true, fold: true },
 };
 const LOOKS = {
   1: { wallpaper: 'nebuleuse', accent: 'rose' },
@@ -55,10 +55,16 @@ const LOOKS = {
   await p.waitForTimeout(900);
   check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) > 700, 'ElyAura 5 : se déplie en deux écrans');
   await p.screenshot({ path: path.join(out, 'elyaura_5_deplie.png') });
-  // Seul le 5 se déplie
-  await p.evaluate((d) => { window.__elyzea.S.profile.device = d; applySettings(); Fold.set(true, false); }, DEVS[6]);
+  // 6 dépliable aussi
+  await p.evaluate(([d, look]) => { const E = window.__elyzea; E.S.profile.device = d; Object.assign(E.S.settings, look); applySettings(); E.goHome(); Fold.set(true, false); }, [DEVS[6], LOOKS[6]]);
+  await p.waitForTimeout(900);
+  check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) > 700 && await p.$eval('#fold-btn', (e) => getComputedStyle(e).display) !== 'none', 'ElyAura 6 : se déplie aussi (bouton visible)');
+  await p.screenshot({ path: path.join(out, 'elyaura_6_deplie.png') });
+  // Les autres (1 à 4) ne se déplient pas
+  await p.evaluate((d) => { window.__elyzea.S.profile.device = d; applySettings(); Fold.set(true, false); }, DEVS[4]);
   await p.waitForTimeout(500);
-  check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) < 420, 'les autres modèles ne se déplient pas');
+  check((await p.$eval('#phone', (e) => e.getBoundingClientRect().width)) < 420 && await p.$eval('#fold-btn', (e) => getComputedStyle(e).display) === 'none', 'ElyAura 1 à 4 : pas pliables');
+  await p.evaluate((d) => { window.__elyzea.S.profile.device = d; applySettings(); }, DEVS[6]);
   // Réglages : avancé sur le 6, rien sur le 1
   await p.evaluate(() => { window.__elyzea.openApp('settings', { page: 'device' }); });
   await p.waitForTimeout(500);
@@ -73,7 +79,7 @@ const LOOKS = {
   check(await p.evaluate(() => window.__elyzea.S.currentApp) !== 'store', 'ElyAura 1 : pas de magasin d\'applications');
   // Vendeur
   await p.evaluate(() => window.postMessage({ action: 'phoneShop', data: { name: 'ElyAura Store Vinewood', vip: false, cash: 25000, bank: 8000, allowBank: true,
-    list: [1, 2, 3, 4, 5, 6].map((n) => ({ n, label: ['ElyAura 1', 'ElyAura 2', 'ElyAura 3', 'ElyAura 4', 'ElyAura 5 Fold', 'ElyAura 6 Ultra'][n - 1], price: [500, 2500, 6000, 12000, 25000, 60000][n - 1], tagline: 'Démo', tier: n, vip: n === 6, fold: n === 5, owned: n === 1 })) } }, '*'));
+    list: [1, 2, 3, 4, 5, 6].map((n) => ({ n, label: ['ElyAura 1', 'ElyAura 2', 'ElyAura 3', 'ElyAura 4', 'ElyAura 5 Fold', 'ElyAura 6 Ultra Fold'][n - 1], price: [500, 2500, 6000, 12000, 25000, 60000][n - 1], tagline: 'Démo', tier: n, vip: n === 6, fold: n >= 5, owned: n === 1 })) } }, '*'));
   await p.waitForTimeout(500);
   check(await p.$$eval('#pshop .ps-range button', (x) => x.length) === 6, 'vendeur : les 6 téléphones');
   await p.screenshot({ path: path.join(out, 'vendeur_1.png') });

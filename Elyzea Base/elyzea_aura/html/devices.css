@@ -20,7 +20,7 @@
 #phone:not([data-case="none"]) .side-btn { opacity: 0; }
 
 /* Bouton plier / déplier : seulement l'ElyAura 5 Fold */
-#phone[data-model]:not([data-model="5"]):not([data-model="0"]) .fold-btn { display: none; }
+#phone[data-fold="0"] .fold-btn { display: none; }
 
 /* L'île n'existe qu'à partir du 4 : sur 1 à 3 elle n'apparaît que pour les appels et notifications */
 #phone[data-model="1"] #island:not(.expanded):not(.compact):not(.music),
@@ -80,6 +80,13 @@
   background: linear-gradient(150deg, var(--f1), var(--f2) 45%, var(--f3)), conic-gradient(from 0deg, #9EF7FF, #C6A2FF, #FFB3E4, #A2FFD0, #9EF7FF);
   box-shadow: 0 60px 100px -30px rgba(3,4,15,.85), inset 0 0 0 1px rgba(255,255,255,.4), inset 0 0 0 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08); }
 #phone[data-model="6"] > #screen { border-radius: 61px; clip-path: inset(0 round 61px); }
+/* ElyAura 6 déplié : deux écrans, charnière lumineuse holographique */
+#phone[data-model="6"].unfolded > #screen { clip-path: inset(0 round 61px 24px 24px 61px); }
+#phone[data-model="6"] #screen2 { border-radius: 61px; }
+#phone[data-model="6"].unfolded #screen2 { clip-path: inset(0 round 24px 61px 61px 24px); }
+#phone[data-model="6"] .hinge i { background: linear-gradient(90deg, rgba(0,0,0,.6), #3b2958 40%, #1f1530 60%, rgba(0,0,0,.6)); }
+#phone[data-model="6"] .hinge i::before, #phone[data-model="6"] .hinge i::after { background: conic-gradient(#9EF7FF, #C6A2FF, #FFB3E4, #A2FFD0); box-shadow: 0 0 12px #C6A2FF, 0 0 26px #9EF7FF; }
+#phone[data-model="6"] .fold-btn { background: radial-gradient(circle at 30% 30%, #3b2958, #050308); box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 0 18px #C6A2FF; }
 #phone[data-model="6"] .hw__sensor { display: block; top: 50%; right: -3px; width: 3px; height: 70px; margin-top: -35px; border-radius: 3px;
   background: linear-gradient(var(--accent), #fff, var(--accent)); box-shadow: 0 0 10px var(--accent); }
 #phone[data-model="6"] .edge-light { padding: 4px; }

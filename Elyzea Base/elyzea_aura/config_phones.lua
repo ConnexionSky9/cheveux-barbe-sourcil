@@ -62,11 +62,19 @@ Config.Phones = {
             },
         },
         [6] = {
-            item = 'elyaura_6', label = 'ElyAura 6 Ultra', price = 60000, tier = 6,
-            tagline = 'Réservé aux abonnés Royale : CarPlay, Garage, personnalisation totale.',
+            item = 'elyaura_6', label = 'ElyAura 6 Ultra Fold', price = 60000, tier = 6,
+            tagline = 'Réservé aux abonnés Royale : pliable, CarPlay, Garage, personnalisation totale.',
             apps = 'all', exclude = {},
-            faceId = true, store = true, vip = true,
+            faceId = true, store = true, vip = true, fold = true,
             prop = { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+            -- Déplié : tenu à deux mains, comme l'ElyAura 5
+            unfolded = {
+                dict = 'amb@world_human_tourist_map@male@base', clip = 'base',
+                halves = {
+                    { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(0.02, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+                    { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(-0.055, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+                },
+            },
         },
     },
 }
