@@ -25,7 +25,7 @@ const Fold = (() => {
 
   function appList() {
     const store_ = (typeof STORE === 'object' && STORE) ? Object.keys(STORE).filter(isInstalled) : [];
-    return DOCK.concat(GRID.filter((id) => id !== 'bank' || bankOn())).concat(['maison']).concat(store_).filter((id, i, a) => APPS[id] && a.indexOf(id) === i);
+    return DOCK.concat(GRID.filter((id) => id !== 'bank' || bankOn())).concat(['maison']).concat(store_).filter((id, i, a) => APPS[id] && a.indexOf(id) === i && appAllowed(id));
   }
 
   function render() {
@@ -52,7 +52,8 @@ const Fold = (() => {
   }
 
   function set(v, save = true) {
-    open = !!v;
+    open = !!v && DEV().fold !== false;   // seulement l'ElyAura 5 Fold se déplie
+    if (typeof post === 'function' && S.open) post('setFold', { open });   // en jeu : tenu à deux mains une fois déplié
     phoneEl.classList.toggle('unfolded', open);
     s2.setAttribute('aria-hidden', open ? 'false' : 'true');
     $('#fold-btn').setAttribute('aria-label', open ? t('Plier le téléphone') : t('Déplier le téléphone'));

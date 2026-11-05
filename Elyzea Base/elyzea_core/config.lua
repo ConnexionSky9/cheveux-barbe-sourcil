@@ -26,7 +26,7 @@ Config.Characters = {
 -- ─────────────────────────── Argent ───────────────────────────
 Config.Money = {
     -- Types d'argent et montant de départ
-    types = { cash = 500, bank = 5000, crypto = 0 },
+    types = { cash = 25000, bank = 5000, crypto = 0 },   -- nouveau personnage : 25 000 $ en liquide
     -- Ces comptes ne peuvent pas passer en négatif
     noNegative = { cash = true, crypto = true },
 }

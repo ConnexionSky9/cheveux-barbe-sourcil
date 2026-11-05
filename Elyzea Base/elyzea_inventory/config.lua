@@ -24,7 +24,9 @@ Config.RateLimit = { max = 14, window = 1000 }
 
 -- Objets donnés à un NOUVEAU personnage (ex. { name = 'phone', count = 1 })
 Config.StarterItems = {
-    { name = 'phone', count = 1 },
+    { name = 'elyaura_1', count = 1 },        -- téléphone ElyAura 1 (le plus simple, voir elyzea_aura/config_phones.lua)
+    { name = 'water', count = 5 },
+    { name = 'burger', count = 5 },
     { name = 'carte_identite', count = 1 },
 }
 

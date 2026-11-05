@@ -130,6 +130,16 @@ Config.DefaultSettings = {
     notifPreview = true,
     moveWithPhone = true, -- se déplacer avec le téléphone ouvert  -- le téléphone remonte en bas à droite pour afficher les notifications
     zoom = 100,
+    -- Personnalisation des ElyAura 4 à 6 (voir config_phones.lua)
+    effect = 'none',      -- effet animé de l'écran d'accueil (ElyAura 4+)
+    case = 'none',        -- coque (ElyAura 4+)
+    widgets = {},         -- widgets de l'accueil (ElyAura 5+)
+    ringtoneUrl = '',     -- sonnerie personnalisée : lien https vers un .mp3 / .ogg (ElyAura 5+)
+    lockStyle = 'classic',-- écran de verrouillage (ElyAura 5+)
+    edgeColor = '',       -- couleur du liseré lumineux (ElyAura 6)
+    edgeMode = 'auto',    -- 'auto' | 'rainbow' | 'pulse' (ElyAura 6)
+    iconShape = 'squircle', -- forme des icônes (ElyAura 6)
+    font = 'manrope',     -- police (ElyAura 6)
     installed = {}        -- applications téléchargées depuis Appli
 }
 

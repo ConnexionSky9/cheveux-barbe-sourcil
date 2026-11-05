@@ -1401,6 +1401,9 @@ CreateThread(function()
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.barber then
                     ShowPrompt('Appuyer pour entrer chez', best.ref.npc.barber.name or best.ref.name or 'le coiffeur')
                     if pressed then TriggerServerEvent('adminmenu:barber:request', best.ref.id) end
+                elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.phoneshop then
+                    ShowPrompt('Appuyer pour acheter un téléphone chez', best.ref.npc.phoneshop.name or 'le vendeur')
+                    if pressed then TriggerServerEvent('adminmenu:phoneshop:open', best.ref.id) end
                 elseif best.interact == 'npc' and best.ref.npc and best.ref.npc.exchange then
                     ShowPrompt('Appuyer pour changer de l\'argent à', best.ref.npc.exchange.name or 'au bureau de change')
                     if pressed then TriggerServerEvent('adminmenu:change:open', best.ref.id) end

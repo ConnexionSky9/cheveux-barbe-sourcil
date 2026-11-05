@@ -9,7 +9,8 @@ version '5.2.0'
 
 shared_scripts {
     'config.lua',
-    'config_elypick.lua'
+    'config_elypick.lua',
+    'config_phones.lua'
 }
 
 client_scripts {
@@ -21,7 +22,8 @@ server_scripts {
     'server/main.lua',
     'server/elypick.lua',
     'server/lasergame.lua',
-    'server/maison.lua'
+    'server/maison.lua',
+    'server/phones.lua'
 }
 
 ui_page 'html/index.html'
@@ -37,7 +39,9 @@ files {
     'html/elypick.css',
     'html/lasergame.css',
     'html/maison.css',
-    'html/fold.css'
+    'html/fold.css',
+    'html/devices.css',
+    'html/phoneshop.css'
 }
 
 dependencies {

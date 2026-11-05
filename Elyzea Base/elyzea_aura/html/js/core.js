@@ -70,23 +70,72 @@ const S = {
 const nameFor = (number) => S.contacts.find(c => c.number === number)?.name || (S.bizNames && S.bizNames[number]) || number;
 
 // ---------- Apparence ----------
-const WALLPAPERS = ['elyzea', 'halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni'];
-const WP_NAMES = { elyzea: 'Elyzea', halo: 'Halo', aube: 'Aube', nebuleuse: 'Nébuleuse', glacier: 'Glacier', braise: 'Braise', foret: 'Forêt', uni: 'Uni' };
+const WALLPAPERS = ['elyzea', 'halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni', 'galaxie', 'vague'];
+const WP_NAMES = { elyzea: 'Elyzea', halo: 'Halo', aube: 'Aube', nebuleuse: 'Nébuleuse', glacier: 'Glacier', braise: 'Braise', foret: 'Forêt', uni: 'Uni', galaxie: 'Galaxie', vague: 'Vague' };
 const ACCENTS = { elyzea: '#9B5CFF', plasma: '#7C6CFF', glace: '#2FC9D9', rose: '#FF6F9E', ambre: '#F5A524', cobalt: '#4C8DFF', lime: '#7FCB3A' };
-const FRAMES = { elyzea: 'linear-gradient(150deg,#4A3478,#140A28)', titane: 'linear-gradient(150deg,#A3A9B9,#5E6372)', graphite: 'linear-gradient(150deg,#474B5A,#1B1D26)', nacre: 'linear-gradient(150deg,#FFFFFF,#CFCAD9)', aurore: 'linear-gradient(150deg,#E6C4F5,#7F95EE)' };
+const FRAMES = { elyzea: 'linear-gradient(150deg,#4A3478,#140A28)', titane: 'linear-gradient(150deg,#A3A9B9,#5E6372)', graphite: 'linear-gradient(150deg,#474B5A,#1B1D26)', nacre: 'linear-gradient(150deg,#FFFFFF,#CFCAD9)', aurore: 'linear-gradient(150deg,#E6C4F5,#7F95EE)',
+  or_rose: 'linear-gradient(150deg,#F6D2C0,#B8775E)', carbone: 'repeating-linear-gradient(45deg,#2A2A30 0 4px,#16161A 4px 8px)', holo: 'linear-gradient(130deg,#9EF7FF,#C6A2FF,#FFB3E4,#A2FFD0)', obsidienne: 'linear-gradient(150deg,#2B1C3F,#050308)' };
 const RINGTONES = { cristal: 'Cristal', onde: 'Onde', classique: 'Classique', orbite: 'Orbite' };
+
+// ---------- Modèle de téléphone (ElyAura 1 à 6, envoyé par le serveur) ----------
+// Sans information du serveur : tout est permis (ancien comportement).
+const DEV = () => S.profile?.device || { n: 0, tier: 6, faceId: true, store: true, fold: true, exclude: [] };
+const devTier = () => DEV().tier || 6;
+const devFace = () => DEV().faceId !== false;
+function appAllowed(id) {
+  const d = DEV();
+  if (id === 'system' || id === 'auradrop') return true;
+  if (Array.isArray(d.apps)) return d.apps.includes(id);
+  return !(d.exclude || []).includes(id);
+}
+const TIER_WP = { 2: ['elyzea', 'uni', 'halo'], 3: ['elyzea', 'halo', 'aube', 'nebuleuse', 'glacier', 'braise', 'foret', 'uni'] };
+const TIER_ACC = { 2: ['elyzea', 'plasma', 'glace'] };
+const TIER_RING = { 2: ['cristal', 'classique'] };
+const T6_FRAMES = ['or_rose', 'carbone', 'holo', 'obsidienne'];
+const wpList = () => { const t = devTier(); return t >= 6 ? WALLPAPERS : (TIER_WP[t] || TIER_WP[3]); };
+const accList = () => { const t = devTier(); return Object.entries(ACCENTS).filter(([k]) => t >= 3 || (TIER_ACC[2]).includes(k)); };
+const frameList = () => Object.entries(FRAMES).filter(([k]) => devTier() >= 6 || !T6_FRAMES.includes(k));
+const ringList = () => Object.entries(RINGTONES).filter(([k]) => devTier() >= 3 || TIER_RING[2].includes(k));
+// Réglages réellement appliqués : ce que le téléphone utilisé sait faire (les choix plus avancés restent enregistrés)
+function effSettings() {
+  const s = Object.assign({}, S.settings), t = devTier();
+  if (t < 2) Object.assign(s, { theme: 'dark', wallpaper: 'uni', accent: 'elyzea', iconStyle: 'prisme', clockStyle: 'stack', edgeLight: false });
+  if (t < 3) {
+    if (!TIER_WP[2].includes(s.wallpaper)) s.wallpaper = 'elyzea';
+    if (!TIER_ACC[2].includes(s.accent)) s.accent = 'elyzea';
+    s.iconStyle = 'prisme'; s.clockStyle = 'stack';
+  }
+  if (t < 4) {
+    if (/^#/.test(s.accent || '')) s.accent = 'elyzea';
+    if (/^https:/.test(s.wallpaper || '')) s.wallpaper = 'elyzea';
+    s.effect = 'none'; s.case = 'none';
+  }
+  if (t < 5) {
+    if (['feux', 'matrice'].includes(s.effect)) s.effect = 'none';
+    if (['cuir', 'neon'].includes(s.case)) s.case = 'none';
+    s.widgets = []; s.ringtoneUrl = ''; s.lockStyle = 'classic';
+  }
+  if (t < 6) {
+    if (s.effect === 'holo') s.effect = 'none';
+    if (T6_FRAMES.includes(s.frame)) s.frame = 'elyzea';
+    if (['galaxie', 'vague'].includes(s.wallpaper)) s.wallpaper = 'elyzea';
+    s.edgeColor = ''; s.edgeMode = 'auto'; s.iconShape = 'squircle'; s.font = 'manrope';
+  }
+  if (!devFace()) s.faceid = false;
+  return s;
+}
 
 const screenEl = $('#screen'), phoneEl = $('#phone'), stage = $('#stage');
 const appView = $('#app'), callView = $('#call'), island = $('#island'), lockView = $('#lock'), setupView = $('#setup');
 
 function resolvedTheme() {
-  const th = S.settings.theme;
+  const th = devTier() < 2 ? 'dark' : S.settings.theme;
   if (th === 'light' || th === 'dark') return th;
   const h = S.gameTime ? S.gameTime.h : new Date().getHours();
   return (h >= 7 && h < 20) ? 'light' : 'dark';
 }
 function accentHex() {
-  const a = S.settings.accent;
+  const a = effSettings().accent;
   return /^#[0-9a-f]{6}$/i.test(a) ? a : (ACCENTS[a] || ACCENTS.elyzea);
 }
 function inkFor(hex) {
@@ -94,7 +143,7 @@ function inkFor(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#151833' : '#FFFFFF';
 }
 function applySettings() {
-  const s = S.settings, root = document.documentElement.style;
+  const s = effSettings(), root = document.documentElement.style;
   screenEl.dataset.theme = resolvedTheme();
   document.body.dataset.theme = resolvedTheme();
   screenEl.dataset.icons = ['prisme', 'verre', 'mono'].includes(s.iconStyle) ? s.iconStyle : 'prisme';
@@ -153,7 +202,7 @@ const hasSecurity = () => !!(S.profile?.passcode?.set);
 
 // ---------- Sons (Web Audio, aucun fichier requis) ----------
 const Sound = (() => {
-  let ctx, loop;
+  let ctx, loop, custom;
   const ac = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
   function note(freq, start, len, type = 'sine', vol = .16) {
     try {
@@ -175,12 +224,18 @@ const Sound = (() => {
   return {
     ring(name, force) {
       this.stop(); if (S.settings.silent && !force) return;
+      // Sonnerie personnalisée (ElyAura 5 et 6) : lien https vers un fichier audio
+      const url = typeof effSettings === 'function' ? effSettings().ringtoneUrl : '';
+      if (url && /^https:\/\//.test(url)) {
+        try { custom = new Audio(url); custom.loop = true; custom.volume = .6; custom.play().catch(() => { custom = null; (patterns[name] || patterns.cristal)(); }); return; } catch (e) { custom = null; }
+      }
       const p = patterns[name] || patterns.cristal; p();
       loop = setInterval(p, 1900);
     },
     preview(name) { this.stop(); (patterns[name] || patterns.cristal)(); },
     ringback() { this.stop(); const p = () => note(425, 0, 1.2, 'sine', .07); p(); loop = setInterval(p, 4000); },
-    stop() { clearInterval(loop); loop = null; },
+    stop() { clearInterval(loop); loop = null; if (custom) { try { custom.pause(); } catch (e) { /* rien */ } custom = null; } },
+    previewUrl(url) { this.stop(); try { custom = new Audio(url); custom.volume = .6; custom.play().catch(() => {}); setTimeout(() => this.stop(), 6000); } catch (e) { /* rien */ } },
     ping() { if (S.settings.silent) return; note(1568, 0, .25, 'triangle', .12); note(2093, .09, .35, 'triangle', .1); },
     unlock() { if (S.settings.silent) return; note(880, 0, .12, 'sine', .08); note(1318, .07, .2, 'sine', .08); },
     error() { if (S.settings.silent) return; note(220, 0, .18, 'square', .05); note(196, .12, .22, 'square', .05); },

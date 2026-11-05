@@ -190,3 +190,24 @@ que si `elyzea_lasergame` est démarré (sinon : « Le LaserGame est fermé pour
   créées automatiquement.
 - Tests hors jeu : `elyzea_lasergame/tests/run_server_sim.py` (serveur, SQLite ou MariaDB) et
   `NODE_PATH=$(npm root -g) node tests/ui_lasergame.cjs` (interface, aperçu navigateur).
+
+## Les 6 téléphones ElyAura (`config_phones.lua`)
+Chaque modèle est un objet (`elyaura_1` … `elyaura_6`). Le téléphone utilisé est celui choisi avec « Utiliser » dans
+l'inventaire, sinon le meilleur que le joueur a sur lui. Sans téléphone, F1 ne fait rien. Numéro, contacts, messages et
+photos suivent le personnage. L'ancien objet `phone` compte comme un ElyAura 2.
+
+| Modèle | Prix | Applications | Personnalisation | En main |
+|---|---|---|---|---|
+| ElyAura 1 | 500 $ | Téléphone, Messages, Contacts, Banque, Identité (carte, permis, PPA), Réglages | aucune · code seulement (pas de Face ID) | `prop_npc_phone` |
+| ElyAura 2 | 2 500 $ | toutes sauf Livrézy, HelpMécano, LaserGame, CarPlay, Itoune, Garage | thème, 3 fonds, 3 couleurs · Face ID | `prop_npc_phone_02` |
+| ElyAura 3 | 6 000 $ | + Livrézy, HelpMécano | tous les fonds / couleurs / cadres, icônes, horloge | `prop_amb_phone` |
+| ElyAura 4 | 12 000 $ | + Itoune, LaserGame | effets animés, coques, couleur et image libres | `ch_prop_ch_phone_ing_01a` |
+| ElyAura 5 Fold | 25 000 $ | comme le 4 | pliable (2 écrans, tenu à 2 mains déplié), widgets, sonnerie personnalisée (lien https), écran verrouillé | `prop_phone_ing_03` (×2 déplié) |
+| ElyAura 6 Ultra | 60 000 $ | + CarPlay, Garage | LED couleur libre / arc-en-ciel / pulsation, cadres et fonds exclusifs, forme des icônes, police | `sf_prop_sf_npc_phone_01a` |
+
+- ElyAura 6 : achat réservé aux abonnés `vip_royale` ou `vip_divinity` (elyzea_shop, `Config.Phones.Model6Perks`).
+- Le serveur bloque les applications que le modèle n'a pas et n'enregistre que la personnalisation permise ;
+  les réglages plus avancés restent gardés pour un meilleur téléphone.
+- Vendeur : PNJ de l'éditeur de map (admin_menu › PNJ › rôle « 📱 Vendeur de téléphones »), liquide ou carte.
+- Objets en main et pose à deux mains : modèles et décalages réglables dans `config_phones.lua` (`prop`, `unfolded`).
+- Tests : `python3 tests/phones_sim.py` (serveur) · `NODE_PATH=$(npm root -g) node tests/ui_devices.cjs` (interface, aperçus).

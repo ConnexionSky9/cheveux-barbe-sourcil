@@ -47,7 +47,7 @@ const FIRST_PAGE_APPS = 8;
 const PAGE_APPS = 20;
 
 function renderHome() {
-  const s = S.settings;
+  const s = effSettings();
   const cs = ['stack', 'line', 'minimal'].includes(s.clockStyle) ? s.clockStyle : 'stack';
   const digits = cs === 'stack' ? '<span id="clock-h">00</span><span id="clock-m">00</span>' : '<span id="clock-hm">00:00</span>';
   const tile = (id) => {
@@ -59,10 +59,13 @@ function renderHome() {
   };
   // « Maison » : seulement pour les joueurs qui ont des droits sur un logement (Dynasty 8)
   // « Maison » (Dynasty 8) : toujours présente ; sans logement, elle propose de contacter l'agence
-  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(['maison']).concat(Object.keys(STORE).filter(isInstalled));
+  // Seulement les applications du téléphone utilisé (ElyAura 1 à 6)
+  const apps = GRID.filter(id => id !== 'bank' || bankOn()).concat(['maison']).concat(Object.keys(STORE).filter(isInstalled)).filter(appAllowed);
+  const dock = DOCK.filter(appAllowed);
   // Découpage en pages : accueil (horloge + widgets + 8 apps), puis 20 apps par page
-  const pages = [apps.slice(0, FIRST_PAGE_APPS)];
-  for (let i = FIRST_PAGE_APPS; i < apps.length; i += PAGE_APPS) pages.push(apps.slice(i, i + PAGE_APPS));
+  const first = typeof firstPageApps === 'function' ? firstPageApps() : FIRST_PAGE_APPS;
+  const pages = [apps.slice(0, first)];
+  for (let i = first; i < apps.length; i += PAGE_APPS) pages.push(apps.slice(i, i + PAGE_APPS));
   // Une app qui vient d'être installée : on ouvre directement sa page
   if (S.freshApp) { const p = pages.findIndex(pg => pg.includes(S.freshApp)); if (p >= 0) S.homePage = p; }
   S.homePage = Math.min(S.homePage || 0, pages.length - 1);
@@ -86,8 +89,9 @@ function renderHome() {
       ${pages.slice(1).map((pg, i) => `<section class="page" aria-label="${t('Page {n}', { n: i + 2 })}"><div class="app-grid app-grid--full">${pg.map(tile).join('')}</div></section>`).join('')}
     </div></div>
     ${pages.length > 1 ? `<div class="pager__dots" role="tablist">${pages.map((_, i) => `<button data-page-dot="${i}" class="${i === S.homePage ? 'active' : ''}" aria-label="${t('Page {n}', { n: i + 1 })}"></button>`).join('')}</div>` : ''}
-    <nav class="dock">${DOCK.map(tile).join('')}</nav>`;
+    <nav class="dock">${dock.map(tile).join('')}</nav>`;
   S.freshApp = null;
+  if (typeof afterHome === 'function') afterHome();
   $('#widget-number').onclick = () => { if (S.dragged) return; S.profile?.auraDrop ? openAuraDrop() : (copyText(S.profile.number), notify({ app: 'contacts', title: t('Numéro copié'), text: S.profile.number })); };
   setupPager(pages.length);
   updateClock();
@@ -171,6 +175,8 @@ function leaveApp() {
 }
 function openApp(id, params = {}, push = true) {
   if (S.locked) return;
+  // Application absente de ce téléphone (ElyAura 1 à 6)
+  if (!appAllowed(id)) { notify({ app: 'system', title: DEV().label || 'ElyAura', text: t('Cette application n\'est pas disponible sur ce téléphone.') }); return; }
   if (APPS[id]?.store && !isInstalled(id)) { params = { detail: id }; id = 'store'; }
   if (!Views[id]) return;
   leaveApp();
@@ -224,7 +230,7 @@ function showLock() {
   renderLock();
 }
 function renderLock() {
-  const face = S.settings.faceid;
+  const face = S.settings.faceid && devFace();
   lockView.innerHTML = `<div class="lock">
     <div class="lock__brand">${Ely.mark({ size: 58, live: true })}</div>
     <p class="lock__date" id="lock-date"></p>
@@ -252,7 +258,7 @@ function runFaceUnlock() {
 function askUnlockCode() {
   passcodePad({
     title: t('Saisissez votre code'), length: S.profile.passcode.length || 4, root: lockView,
-    allowFace: S.settings.faceid,
+    allowFace: S.settings.faceid && devFace(),
     onComplete: async (code) => {
       const r = await api('unlock', { code });
       if (r.ok) { unlockSuccess(); return true; }
@@ -358,9 +364,10 @@ function startSetup() {
 }
 
 function wizardSteps() {
-  const steps = ['lang', 'theme', 'code'];
-  if (hasSecurity()) steps.push('faceid');
-  steps.push('style', 'done');
+  const steps = devTier() >= 2 ? ['lang', 'theme', 'code'] : ['lang', 'code'];
+  if (hasSecurity() && devFace()) steps.push('faceid');
+  if (devTier() >= 2) steps.push('style');
+  steps.push('done');
   return steps;
 }
 function renderWizard() {
@@ -422,8 +429,8 @@ function renderWizard() {
   }
   if (step === 'style') {
     view(t('Votre style'), t('Choisissez un fond d\'écran et une couleur. Tout le reste se règle dans Réglages.'),
-      `<div class="list" style="margin-bottom:10px"><div class="swatches">${WALLPAPERS.map(w => `<button class="swatch ${S.settings.wallpaper === w ? 'active' : ''}" data-wp="${w}" data-pick-wp="${w}" aria-label="${t(WP_NAMES[w])}"></button>`).join('')}</div></div>
-       <div class="list"><div class="accents">${Object.entries(ACCENTS).map(([k, c]) => `<button class="accent-dot ${S.settings.accent === k ? 'active' : ''}" data-pick-accent="${k}" style="background:${c}" aria-label="${k}"></button>`).join('')}</div></div>`,
+      `<div class="list" style="margin-bottom:10px"><div class="swatches">${wpList().map(w => `<button class="swatch ${S.settings.wallpaper === w ? 'active' : ''}" data-wp="${w}" data-pick-wp="${w}" aria-label="${t(WP_NAMES[w])}"></button>`).join('')}</div></div>
+       <div class="list"><div class="accents">${accList().map(([k, c]) => `<button class="accent-dot ${S.settings.accent === k ? 'active' : ''}" data-pick-accent="${k}" style="background:${c}" aria-label="${k}"></button>`).join('')}</div></div>`,
       `<button class="btn btn--block" data-next>${t('Continuer')}</button>`);
     $$('[data-pick-wp]', wiz).forEach(b => b.onclick = () => { S.settings.wallpaper = b.dataset.pickWp; applySettings(); renderWizard(); });
     $$('[data-pick-accent]', wiz).forEach(b => b.onclick = () => { S.settings.accent = b.dataset.pickAccent; applySettings(); renderWizard(); });
@@ -538,13 +545,14 @@ Views.settings = ({ page = 'root' } = {}) => {
           <button data-me="drop" ${S.profile.auraDrop ? '' : 'disabled'}>${icon('drop')}AuraDrop</button>
           <button data-me="card">${icon('edit')}${t('Ma fiche')}</button></div></div>
       <div class="list" style="margin-top:14px">${toggleRow(t('Mode avion'), 'airplane', 'plane', '#F5A524')}</div>
-      <p class="section-label">${t('Personnalisation')}</p>
-      <div class="list">${linkRow(t('Apparence'), 'look', 'palette', '#7C6CFF', themeLabel)}${linkRow(t('Fond d\'écran'), 'wallpaper', 'wallpaper', '#2FC9D9')}${linkRow(t('Icônes et horloge'), 'icons', 'grid', '#FF6F9E')}</div>
+      ${typeof deviceCard === 'function' ? deviceCard() : ''}
+      ${devTier() >= 2 ? `<p class="section-label">${t('Personnalisation')}</p>
+      <div class="list">${linkRow(t('Apparence'), 'look', 'palette', '#7C6CFF', themeLabel)}${linkRow(t('Fond d\'écran'), 'wallpaper', 'wallpaper', '#2FC9D9')}${devTier() >= 3 ? linkRow(t('Icônes et horloge'), 'icons', 'grid', '#FF6F9E') : ''}${devTier() >= 4 ? linkRow(t('Effets, coques et designs'), 'device', 'sparkle', '#FFB547', DEV().label || '') : ''}</div>` : ''}
       <p class="section-label">${t('Sécurité')}</p>
-      <div class="list">${linkRow(t('Face ID et code'), 'security', 'face', '#3FBF8E', hasSecurity() ? t('Activé') : t('Désactivé'))}</div>
+      <div class="list">${linkRow(devFace() ? t('Face ID et code') : t('Code'), 'security', devFace() ? 'face' : 'lock', '#3FBF8E', hasSecurity() ? t('Activé') : t('Désactivé'))}</div>
       <p class="section-label">${t('Général')}</p>
       <div class="list">${linkRow(t('Sons'), 'sounds', 'bell', '#FF6B7A')}${linkRow(t('Langue'), 'lang', 'globe', '#4C8DFF', LANGS.find(l => l[0] === s.lang)?.[1] || 'Français')}${linkRow(t('Général'), 'general', 'settings', '#8A90A8')}</div>
-      <div class="about"><b>Elyzea Aura 5</b>${t('Version {v}', { v: '5.2' })}</div>` });
+      <div class="about"><b>${esc(DEV().label || 'Elyzea Aura')}</b>${t('Version {v}', { v: '6.0' })}</div>` });
     $$('[data-me]', appView).forEach(b => b.onclick = () => {
       if (b.dataset.me === 'copy') { copyText(S.profile.number); notify({ app: 'contacts', title: t('Numéro copié'), text: S.profile.number }); }
       if (b.dataset.me === 'drop') openAuraDrop();
@@ -559,14 +567,15 @@ Views.settings = ({ page = 'root' } = {}) => {
         ${[['dark', t('Sombre'), 'tc-dark'], ['light', t('Clair'), 'tc-light'], ['auto', t('Auto'), 'tc-auto']].map(([k, l, c]) => `<button class="theme-card ${s.theme === k ? 'active' : ''}" data-th="${k}">
           <span class="theme-card__phone ${c}"><i style="width:40%"></i><i style="width:65%"></i><b></b><span class="mini-grid">${'<span></span>'.repeat(8)}</span></span>${l}</button>`).join('')}</div></div>
       <p class="section-label">${t('Couleur d\'accent')}</p>
-      <div class="list"><div class="accents">${Object.entries(ACCENTS).map(([k, c]) => `<button class="accent-dot ${s.accent === k ? 'active' : ''}" data-acc="${k}" style="background:${c}" aria-label="${k}"></button>`).join('')}
-        <label class="accent-dot accent-dot--custom ${/^#/.test(s.accent) ? 'active' : ''}" aria-label="${t('Couleur personnalisée')}"><input type="color" id="acc-custom" value="${accentHex()}"></label></div></div>
-      <p class="section-label">${t('Cadre du téléphone')}</p>
-      <div class="list"><div class="frames">${Object.entries(FRAMES).map(([k, g]) => `<button class="frame-dot ${s.frame === k ? 'active' : ''}" data-frame="${k}" style="background:${g}" aria-label="${k}"></button>`).join('')}</div>
-        ${toggleRow(t('Liseré lumineux'), 'edgeLight', 'sparkle', '#2FC9D9')}</div>` });
+      <div class="list"><div class="accents">${accList().map(([k, c]) => `<button class="accent-dot ${s.accent === k ? 'active' : ''}" data-acc="${k}" style="background:${c}" aria-label="${k}"></button>`).join('')}
+        ${devTier() >= 4 ? `<label class="accent-dot accent-dot--custom ${/^#/.test(s.accent) ? 'active' : ''}" aria-label="${t('Couleur personnalisée')}"><input type="color" id="acc-custom" value="${accentHex()}"></label>` : ''}</div></div>
+      ${devTier() >= 3 ? `<p class="section-label">${t('Cadre du téléphone')}</p>
+      <div class="list"><div class="frames">${frameList().map(([k, g]) => `<button class="frame-dot ${s.frame === k ? 'active' : ''}" data-frame="${k}" style="background:${g}" aria-label="${k}"></button>`).join('')}</div>
+        ${devTier() >= 4 ? toggleRow(t('Liseré lumineux'), 'edgeLight', 'sparkle', '#2FC9D9') : ''}</div>` : ''}
+      ${devTier() < 4 ? `<p class="row__sub row__sub--wrap" style="margin:12px 8px">${t('Plus de couleurs, de cadres et d\'effets sur les ElyAura plus récents.')}</p>` : ''}` });
     $$('[data-th]', appView).forEach(b => b.onclick = () => { saveSettings({ theme: b.dataset.th }); $$('[data-th]', appView).forEach(x => x.classList.toggle('active', x === b)); });
     $$('[data-acc]', appView).forEach(b => b.onclick = () => { saveSettings({ accent: b.dataset.acc }); Views.settings({ page }); });
-    $('#acc-custom').onchange = (e) => { saveSettings({ accent: e.target.value }); Views.settings({ page }); };
+    if ($('#acc-custom')) $('#acc-custom').onchange = (e) => { saveSettings({ accent: e.target.value }); Views.settings({ page }); };
     $$('[data-frame]', appView).forEach(b => b.onclick = () => { saveSettings({ frame: b.dataset.frame }); $$('[data-frame]', appView).forEach(x => x.classList.toggle('active', x === b)); });
     wire(); return;
   }
@@ -574,11 +583,11 @@ Views.settings = ({ page = 'root' } = {}) => {
   if (page === 'wallpaper') {
     const custom = /^https:\/\//.test(s.wallpaper || '');
     frame({ title: t('Fond d\'écran'), small: true, body: `
-      <div class="list"><div class="swatches" style="flex-wrap:wrap">${WALLPAPERS.map(w => `<button class="swatch ${s.wallpaper === w ? 'active' : ''}" data-wp="${w}" data-set-wp="${w}" aria-label="${t(WP_NAMES[w])}" title="${t(WP_NAMES[w])}"></button>`).join('')}
-        <button class="swatch swatch--add ${custom ? 'active' : ''}" id="wp-custom" aria-label="${t('Image personnalisée')}" ${custom ? `style="--wp:url('${esc(s.wallpaper)}')"` : ''}>${custom ? '' : icon('plus')}</button></div></div>
-      <p class="row__sub row__sub--wrap" style="margin:12px 8px">${t('Le bouton + permet d\'utiliser n\'importe quelle image en ligne (lien https).')}</p>` });
+      <div class="list"><div class="swatches" style="flex-wrap:wrap">${wpList().map(w => `<button class="swatch ${s.wallpaper === w ? 'active' : ''}" data-wp="${w}" data-set-wp="${w}" aria-label="${t(WP_NAMES[w])}" title="${t(WP_NAMES[w])}"></button>`).join('')}
+        ${devTier() >= 4 ? `<button class="swatch swatch--add ${custom ? 'active' : ''}" id="wp-custom" aria-label="${t('Image personnalisée')}" ${custom ? `style="--wp:url('${esc(s.wallpaper)}')"` : ''}>${custom ? '' : icon('plus')}</button>` : ''}</div></div>
+      <p class="row__sub row__sub--wrap" style="margin:12px 8px">${devTier() >= 4 ? t('Le bouton + permet d\'utiliser n\'importe quelle image en ligne (lien https).') : t('Fonds d\'écran animés et images personnelles sur les ElyAura plus récents.')}</p>` });
     $$('[data-set-wp]', appView).forEach(b => b.onclick = () => { saveSettings({ wallpaper: b.dataset.setWp }); Views.settings({ page }); });
-    $('#wp-custom').onclick = () => openSheet(t('Image personnalisée'), `<div class="form">
+    if ($('#wp-custom')) $('#wp-custom').onclick = () => openSheet(t('Image personnalisée'), `<div class="form">
       <input class="field" id="wp-url" placeholder="https://…" value="${custom ? esc(s.wallpaper) : ''}">
       <p class="error-text" id="wp-err"></p><button class="btn btn--block" id="wp-save">${t('Appliquer')}</button></div>`, (sh) => {
       $('#wp-save', sh).onclick = () => {
@@ -606,9 +615,9 @@ Views.settings = ({ page = 'root' } = {}) => {
 
   if (page === 'security') {
     const on = hasSecurity();
-    frame({ title: t('Face ID et code'), small: true, body: `
-      <div class="setup-illus" style="margin-top:0">${faceEl(on ? 'ok' : 'idle')}</div>
-      ${on ? `<div class="list">${toggleRow(t('Face ID'), 'faceid', 'face', '#3FBF8E')}${toggleRow(t('Verrouiller à la fermeture'), 'lockOnClose', 'lock', '#7C6CFF')}</div>
+    frame({ title: devFace() ? t('Face ID et code') : t('Code'), small: true, body: `
+      ${devFace() ? `<div class="setup-illus" style="margin-top:0">${faceEl(on ? 'ok' : 'idle')}</div>` : `<p class="row__sub row__sub--wrap" style="margin:4px 8px 14px;text-align:center">${t('Ce téléphone n\'a pas la reconnaissance faciale : il se déverrouille avec le code.')}</p>`}
+      ${on ? `<div class="list">${devFace() ? toggleRow(t('Face ID'), 'faceid', 'face', '#3FBF8E') : ''}${toggleRow(t('Verrouiller à la fermeture'), 'lockOnClose', 'lock', '#7C6CFF')}</div>
         <div class="list" style="margin-top:12px">
           <button class="row" id="code-change"><span class="row__main row__title row__title--light">${t('Modifier le code')}</span><span class="row__chev">${icon('chev')}</span></button>
           <button class="row" id="code-off"><span class="row__main row__title row__title--light" style="color:var(--danger)">${t('Désactiver le code')}</span></button></div>
@@ -645,7 +654,7 @@ Views.settings = ({ page = 'root' } = {}) => {
     frame({ title: t('Sons'), small: true, body: `
       <div class="list">${toggleRow(t('Mode silencieux'), 'silent', 'bell', '#FF6B7A')}</div>
       <p class="section-label">${t('Sonnerie')}</p>
-      <div class="list">${Object.entries(RINGTONES).map(([k, l]) => `<button class="row" data-ring="${k}"><span class="chip-ic" style="--c:#7C6CFF">${icon('music')}</span>
+      <div class="list">${ringList().map(([k, l]) => `<button class="row" data-ring="${k}"><span class="chip-ic" style="--c:#7C6CFF">${icon('music')}</span>
         <span class="row__main row__title row__title--light">${l}</span>${s.ringtone === k ? `<span style="width:20px;color:var(--accent)">${icon('check')}</span>` : ''}</button>`).join('')}</div>` });
     $$('[data-ring]', appView).forEach(b => b.onclick = () => { Sound.preview(b.dataset.ring); saveSettings({ ringtone: b.dataset.ring }); Views.settings({ page }); });
     wire(); return;

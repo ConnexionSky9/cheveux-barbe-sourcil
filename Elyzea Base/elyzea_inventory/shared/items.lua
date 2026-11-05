@@ -211,6 +211,22 @@ Items.bank_bag    = { label = 'Sac de braqueur', weight = 800, stack = true, max
 Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5, image = 'bank_c4.png', icon = '🧨',
     description = 'Charge explosive pour forcer un coffre quand le piratage a échoué.' }
 
+-- ───────── Téléphones ElyAura 1 à 6 (elyzea_aura/config_phones.lua) ─────────
+-- « Utiliser » : ce téléphone devient celui du joueur (numéro, contacts et messages suivent le personnage).
+-- Images : html/img/elyaura_1.png … elyaura_6.png (256 × 256)
+Items.elyaura_1 = { label = 'ElyAura 1', weight = 220, stack = false, image = 'elyaura_1.png', icon = '📱',
+    description = 'Téléphone d\'entrée de gamme : appels, messages, contacts, banque et papiers. Code uniquement.' }
+Items.elyaura_2 = { label = 'ElyAura 2', weight = 200, stack = false, image = 'elyaura_2.png', icon = '📱',
+    description = 'Smartphone : toutes les applications du quotidien et Face ID.' }
+Items.elyaura_3 = { label = 'ElyAura 3', weight = 190, stack = false, image = 'elyaura_3.png', icon = '📱',
+    description = 'Écran bord à bord, Livrézy et HelpMécano.' }
+Items.elyaura_4 = { label = 'ElyAura 4', weight = 185, stack = false, image = 'elyaura_4.png', icon = '📱',
+    description = 'Itoune, effets animés, designs et coques à personnaliser.' }
+Items.elyaura_5 = { label = 'ElyAura 5 Fold', weight = 240, stack = false, image = 'elyaura_5.png', icon = '📱',
+    description = 'Téléphone pliable à deux écrans, widgets et sonnerie personnalisée.' }
+Items.elyaura_6 = { label = 'ElyAura 6 Ultra', weight = 210, stack = false, image = 'elyaura_6.png', icon = '📱',
+    description = 'Le haut de gamme : CarPlay, Garage et personnalisation totale. Abonnés Royale.' }
+
 -- Téléphone clandestin NOIR X (ressource noirx) · image : html/img/noirphone.png
 -- noirx l'enregistre lui-même comme utilisable ; il n'est jamais consommé.
 Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noirphone.png', icon = '📱',

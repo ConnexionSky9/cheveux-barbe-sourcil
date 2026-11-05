@@ -1,0 +1,181 @@
+/* =========================================================
+   LES 6 TÉLÉPHONES ELYAURA — un design qui évolue à chaque version
+   1 bloc plastique · 2 smartphone à encoche · 3 bord à bord aluminium
+   4 verre premium + coques · 5 pliable titane · 6 ultra holographique
+   ========================================================= */
+.hw, .case { position: absolute; pointer-events: none; }
+.hw { inset: 0; z-index: 3; border-radius: inherit; }
+.hw > * { position: absolute; display: none; }
+.case { inset: -11px; z-index: -2; border-radius: calc(var(--r, 62px) + 11px); background: var(--case, transparent); display: none;
+  box-shadow: 0 30px 60px -25px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.12), inset 0 2px 6px rgba(255,255,255,.12); }
+#phone:not([data-case="none"]) .case { display: block; }
+#phone[data-case="transparente"] .case { backdrop-filter: blur(2px);
+  background-image: radial-gradient(circle at 20% 30%, rgba(255,255,255,.7) 0 1px, transparent 2px), radial-gradient(circle at 70% 60%, rgba(255,220,255,.7) 0 1px, transparent 2px),
+    radial-gradient(circle at 40% 80%, rgba(200,240,255,.7) 0 1px, transparent 2px), linear-gradient(135deg, rgba(255,255,255,.25), rgba(255,255,255,.05));
+  background-size: 23px 23px, 31px 31px, 17px 17px, 100% 100%; }
+#phone[data-case="cuir"] .case { background-image: radial-gradient(rgba(0,0,0,.18) 1px, transparent 1.5px), linear-gradient(150deg, #8a5a3c, #4a2c1a); background-size: 5px 5px, 100% 100%;
+  box-shadow: 0 30px 60px -25px rgba(0,0,0,.8), inset 0 0 0 3px rgba(0,0,0,.25), inset 0 0 0 4px rgba(255,220,180,.25); }
+#phone[data-case="neon"] .case { box-shadow: 0 0 0 2px var(--accent), 0 0 22px var(--accent), 0 0 44px color-mix(in srgb, var(--accent) 50%, transparent), inset 0 0 14px var(--accent); animation: caseNeon 2.4s ease-in-out infinite; }
+@keyframes caseNeon { 50% { box-shadow: 0 0 0 2px var(--accent), 0 0 34px var(--accent), 0 0 64px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 0 20px var(--accent); } }
+#phone:not([data-case="none"]) .side-btn { opacity: 0; }
+
+/* Bouton plier / déplier : seulement l'ElyAura 5 Fold */
+#phone[data-model]:not([data-model="5"]):not([data-model="0"]) .fold-btn { display: none; }
+
+/* L'île n'existe qu'à partir du 4 : sur 1 à 3 elle n'apparaît que pour les appels et notifications */
+#phone[data-model="1"] #island:not(.expanded):not(.compact):not(.music),
+#phone[data-model="2"] #island:not(.expanded):not(.compact):not(.music),
+#phone[data-model="3"] #island:not(.expanded):not(.compact):not(.music) { opacity: 0; }
+
+/* ---------------------------------------------------------------- ElyAura 1 : bloc plastique */
+#phone[data-model="1"] { --r: 34px; width: 360px !important; padding: 62px 18px 92px; border-radius: 34px;
+  background: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1.4px) 0 0 / 4px 4px, linear-gradient(160deg, #3a3b40, #1d1e22 55%, #2a2b30);
+  box-shadow: 0 40px 70px -30px rgba(0,0,0,.85), inset 0 0 0 2px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.12), inset 0 -3px 0 rgba(0,0,0,.4); }
+#phone[data-model="1"] > #screen { flex-basis: 324px !important; width: 324px !important; border-radius: 6px; clip-path: inset(0 round 6px);
+  box-shadow: inset 0 0 0 2px #000; }
+#phone[data-model="1"] #screen::after { content: ''; position: absolute; inset: 0; z-index: 200; pointer-events: none; border-radius: 6px;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 1px, transparent 1px 3px), linear-gradient(160deg, rgba(255,255,255,.07), transparent 40%); }
+#phone[data-model="1"] .edge-light, #phone[data-model="1"] .edge-glow, #phone[data-model="2"] .edge-light, #phone[data-model="2"] .edge-glow { display: none; }
+#phone[data-model="1"] .hw__speaker { display: block; top: 26px; left: 50%; width: 74px; height: 8px; margin-left: -37px; border-radius: 4px;
+  background: repeating-linear-gradient(90deg, #0b0b0d 0 3px, #2a2b2f 3px 5px); box-shadow: inset 0 1px 2px #000; }
+#phone[data-model="1"] .hw__cam { display: block; top: 23px; left: calc(50% - 72px); width: 13px; height: 13px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #4b5a7a, #0a0c12 60%); box-shadow: 0 0 0 2px #111; }
+#phone[data-model="1"] .hw__brand { display: block; top: 42px; left: 0; right: 0; text-align: center; font: 700 9px/1 'Manrope', sans-serif; letter-spacing: .25em; text-transform: uppercase; color: #8d8f96; }
+#phone[data-model="1"] .hw__home { display: block; bottom: 20px; left: 50%; width: 54px; height: 54px; margin-left: -27px; border-radius: 50%;
+  background: linear-gradient(160deg, #2c2d31, #17181b); box-shadow: inset 0 0 0 2px #0c0c0e, inset 0 2px 0 rgba(255,255,255,.08), 0 1px 0 rgba(255,255,255,.06); }
+#phone[data-model="1"] .hw__home::after { content: ''; position: absolute; inset: 18px; border: 2px solid #5a5c63; border-radius: 4px; }
+#phone[data-model="1"] .hw__antenna { display: block; top: 120px; bottom: 120px; left: -1px; width: 3px; background: repeating-linear-gradient(#55565c 0 40px, transparent 40px 46px); opacity: .6; }
+#phone[data-model="1"] .side-btn { background: #26272b; width: 6px; }
+#phone[data-model="1"] .home-bar { display: none; }
+#phone[data-model="1"] #screen { --font-display: 'Manrope', sans-serif; }
+
+/* ---------------------------------------------------------------- ElyAura 2 : premier smartphone (encoche goutte, menton) */
+#phone[data-model="2"] { --r: 46px; width: 368px !important; padding: 14px 12px 44px; border-radius: 46px;
+  background: linear-gradient(155deg, #6f86c9, #2d3f7d 50%, #4b62a8); box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.3), inset 0 0 0 4px rgba(0,0,0,.25); }
+#phone[data-model="2"] > #screen { flex-basis: 344px !important; width: 344px !important; border-radius: 32px; clip-path: inset(0 round 32px); }
+#phone[data-model="2"] .hw__cam { display: block; top: 14px; left: 50%; width: 30px; height: 24px; margin-left: -15px; background: #05060a; border-radius: 0 0 15px 15px; z-index: 5; }
+#phone[data-model="2"] .hw__cam::after { content: ''; position: absolute; left: 50%; top: 7px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #3a4a6a, #000 60%); }
+#phone[data-model="2"] .hw__brand { display: block; bottom: 14px; left: 0; right: 0; text-align: center; font: 800 10px/1 'Manrope', sans-serif; letter-spacing: .32em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+#phone[data-model="2"] .side-btn { background: #2d3f7d; }
+
+/* ---------------------------------------------------------------- ElyAura 3 : bord à bord, aluminium, caméra perforée */
+#phone[data-model="3"] { --r: 56px; padding: 8px; border-radius: 56px;
+  background: linear-gradient(150deg, #e3e6ec, #8c929e 45%, #cfd3da 60%, #7b818c); box-shadow: 0 46px 86px -30px rgba(3,4,15,.78), inset 0 0 0 1px rgba(255,255,255,.6), inset 0 0 0 3px rgba(0,0,0,.18); }
+#phone[data-model="3"] > #screen { border-radius: 48px; clip-path: inset(0 round 48px); }
+#phone[data-model="3"] .hw__cam { display: block; top: 22px; left: 50%; width: 13px; height: 13px; margin-left: -6.5px; border-radius: 50%; z-index: 5;
+  background: radial-gradient(circle at 35% 35%, #2c3550, #000 62%); box-shadow: 0 0 0 2px #000; }
+#phone[data-model="3"] .edge-light { padding: 1.5px; opacity: .55; }
+#phone[data-model="3"] .edge-light::before { opacity: .25; }
+#phone[data-model="3"] .edge-glow { display: none; }
+
+/* ---------------------------------------------------------------- ElyAura 4 : verre premium (île, coques, effets) */
+#phone[data-model="4"] { --r: 60px; background: linear-gradient(150deg, var(--f1), var(--f2) 48%, var(--f3)); }
+#phone[data-model="4"] .edge-glow { opacity: .55; }
+
+/* ---------------------------------------------------------------- ElyAura 5 Fold : voir fold.css (charnière, 2 écrans, LED marquée) */
+#phone[data-model="5"] { --r: 62px; }
+
+/* ---------------------------------------------------------------- ElyAura 6 Ultra : titane, bords quasi nuls, liseré holographique */
+#phone[data-model="6"] { --r: 66px; padding: 6px; border-radius: 66px;
+  background: linear-gradient(150deg, var(--f1), var(--f2) 45%, var(--f3)), conic-gradient(from 0deg, #9EF7FF, #C6A2FF, #FFB3E4, #A2FFD0, #9EF7FF);
+  box-shadow: 0 60px 100px -30px rgba(3,4,15,.85), inset 0 0 0 1px rgba(255,255,255,.4), inset 0 0 0 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08); }
+#phone[data-model="6"] > #screen { border-radius: 61px; clip-path: inset(0 round 61px); }
+#phone[data-model="6"] .hw__sensor { display: block; top: 50%; right: -3px; width: 3px; height: 70px; margin-top: -35px; border-radius: 3px;
+  background: linear-gradient(var(--accent), #fff, var(--accent)); box-shadow: 0 0 10px var(--accent); }
+#phone[data-model="6"] .edge-light { padding: 4px; }
+#phone[data-model="6"] .edge-light::before { opacity: .75; background: conic-gradient(from var(--edge, 0deg), var(--accent), #9EF7FF, #FFB3E4, var(--accent)); }
+#phone[data-model="6"] .edge-glow { box-shadow: 0 0 22px 3px var(--accent), 0 0 70px 10px color-mix(in srgb, var(--accent) 40%, transparent); }
+#phone[data-model="6"] .island { box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 16px color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* Liseré : couleur libre, arc-en-ciel, pulsation (ElyAura 6) */
+#phone[style*="--edge-c"] .edge-glow { box-shadow: 0 0 22px 3px var(--edge-c), 0 0 70px 10px color-mix(in srgb, var(--edge-c) 40%, transparent); }
+#phone[style*="--edge-c"] .edge-light::before { background: linear-gradient(150deg, var(--edge-c), #fff 50%, var(--edge-c)); }
+#phone[data-edge="rainbow"] .edge-light::before { background: conic-gradient(from var(--edge, 0deg), #ff3d6e, #ffb547, #f5ff6a, #4fe0b0, #4c8dff, #b45cff, #ff3d6e); opacity: .9; }
+#phone[data-edge="rainbow"] .edge-glow { box-shadow: 0 0 24px 4px #ff3d6e; animation: rainbowGlow 4s linear infinite; }
+@keyframes rainbowGlow { to { filter: hue-rotate(360deg); } }
+#phone[data-edge="pulse"] .edge-glow { animation: edgePulse .9s ease-in-out infinite; }
+
+/* Cadres exclusifs (ElyAura 6) */
+#phone[data-frame="or_rose"]    { --f1: #F6D2C0; --f2: #B8775E; --f3: #E8B49C; }
+#phone[data-frame="obsidienne"] { --f1: #3B2958; --f2: #050308; --f3: #1F1530; }
+#phone[data-frame="carbone"]    { --f1: #2A2A30; --f2: #0E0E12; --f3: #1D1D22; }
+#phone[data-frame="carbone"][data-model="6"] { background: repeating-linear-gradient(45deg, #2A2A30 0 4px, #141418 4px 8px); }
+#phone[data-frame="holo"]       { --f1: #9EF7FF; --f2: #C6A2FF; --f3: #FFB3E4; }
+#phone[data-frame="holo"][data-model="6"] { background: linear-gradient(130deg, #9EF7FF, #C6A2FF, #FFB3E4, #A2FFD0); background-size: 300% 300%; animation: holoFrame 6s ease-in-out infinite; }
+@keyframes holoFrame { 50% { background-position: 100% 100%; } }
+
+/* ---------------------------------------------------------------- Fonds exclusifs animés (ElyAura 6) */
+[data-wp="galaxie"] { --wp: radial-gradient(1.5px 1.5px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 20%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 75%, #fff, transparent),
+  radial-gradient(1px 1px at 85% 65%, #fff, transparent), radial-gradient(60% 40% at 30% 40%, rgba(124,108,255,.65), transparent 70%), radial-gradient(60% 45% at 80% 80%, rgba(255,122,168,.55), transparent 70%), #05040f; }
+[data-wp="vague"] { --wp: linear-gradient(200deg, rgba(111,231,242,.55), transparent 45%), linear-gradient(20deg, rgba(124,108,255,.65), transparent 55%), #0a0b22; }
+#wp[data-wp="galaxie"], #wp[data-wp="vague"] { background-size: 140% 140%; animation: wpDrift 18s ease-in-out infinite alternate; }
+@keyframes wpDrift { to { background-position: 100% 100%; } }
+
+/* ---------------------------------------------------------------- Effets animés de l'accueil (ElyAura 4+) */
+#fx { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; transition: opacity .4s; }
+#screen.in-app #fx, #screen.in-setup #fx, #screen.locked #fx { opacity: 0; }
+#fx[data-fx="etoiles"] i { position: absolute; width: calc(3px * var(--s)); height: calc(3px * var(--s)); border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff, 0 0 12px var(--accent); animation: twinkle ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .1; transform: scale(.6); } 50% { opacity: 1; transform: scale(1.2); } }
+#fx[data-fx="aurore"] { background: linear-gradient(120deg, transparent 20%, color-mix(in srgb, var(--accent) 45%, transparent), rgba(111,231,242,.35), transparent 80%); background-size: 300% 300%; animation: aurora 9s ease-in-out infinite; filter: blur(18px); }
+@keyframes aurora { 50% { background-position: 100% 50%; } }
+#fx[data-fx="pluie"] i { position: absolute; top: -20%; width: 2px; height: 70px; background: linear-gradient(transparent, var(--accent)); box-shadow: 0 0 8px var(--accent); animation: rain linear infinite; opacity: .7; }
+@keyframes rain { to { transform: translateY(1000px); } }
+#fx[data-fx="bulles"] i { position: absolute; top: auto; bottom: -40px; width: calc(22px * var(--s)); height: calc(22px * var(--s)); border-radius: 50%; border: 1.5px solid rgba(255,255,255,.5); background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.4), transparent 60%); animation: bubble linear infinite; }
+@keyframes bubble { to { transform: translateY(-900px) translateX(20px); opacity: 0; } }
+#fx[data-fx="feux"] i { position: absolute; width: 6px; height: 6px; border-radius: 50%; animation: firework 3s ease-out infinite; box-shadow: 0 0 0 0 hsl(var(--h) 100% 65%); }
+@keyframes firework { 0% { box-shadow: 0 0 0 0 hsl(var(--h) 100% 65%), 0 0 0 0 hsl(var(--h) 100% 75%); opacity: 1; } 70% { opacity: 1; }
+  100% { box-shadow: 40px -30px 0 -2px hsl(var(--h) 100% 65%), -40px -30px 0 -2px hsl(var(--h) 100% 65%), 0 45px 0 -2px hsl(var(--h) 100% 65%), 45px 20px 0 -2px hsl(var(--h) 100% 75%), -45px 20px 0 -2px hsl(var(--h) 100% 75%), 0 -50px 0 -2px hsl(var(--h) 100% 75%); opacity: 0; } }
+#fx[data-fx="matrice"] i { position: absolute; top: -60%; font: 700 12px/1.15 monospace; color: var(--accent); text-shadow: 0 0 6px var(--accent); font-style: normal; opacity: .55; animation: rain linear infinite; }
+#fx[data-fx="holo"] { background: linear-gradient(115deg, transparent 30%, rgba(158,247,255,.35), rgba(198,162,255,.35), rgba(255,179,228,.35), transparent 70%); background-size: 250% 250%; animation: holoSweep 5s linear infinite; mix-blend-mode: screen; }
+@keyframes holoSweep { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+
+/* ---------------------------------------------------------------- Formes d'icônes (ElyAura 6) */
+#screen[data-shape="cercle"] .tile { border-radius: 50% !important; }
+#screen[data-shape="carre"] .tile { border-radius: 8px !important; }
+#screen[data-shape="goutte"] .tile { border-radius: 50% 50% 50% 14px !important; }
+
+/* ---------------------------------------------------------------- Écran verrouillé (ElyAura 5+) */
+#screen[data-lockstyle="grand"] .lock__time { font-size: 112px !important; line-height: .9; letter-spacing: -.04em; }
+#screen[data-lockstyle="minimal"] .lock__time { font-size: 44px !important; font-weight: 300; }
+#screen[data-lockstyle="minimal"] .lock__brand { display: none; }
+
+/* ---------------------------------------------------------------- Widgets (ElyAura 5+) */
+.wd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 4px; }
+.wd { min-height: 84px; padding: 12px 14px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px var(--line), var(--shadow); text-align: left; display: flex; flex-direction: column; gap: 3px; overflow: hidden; color: var(--text); }
+.wd small { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.wd b { font-size: 15px; }
+.wd span { font-size: 12px; color: var(--text-dim); }
+.wd--analog { align-items: center; justify-content: center; }
+.wd-clock { position: relative; width: 66px; height: 66px; border-radius: 50%; background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--accent); }
+.wd-clock i { position: absolute; left: 50%; bottom: 50%; width: 3px; margin-left: -1.5px; border-radius: 2px; transform-origin: 50% 100%; background: var(--text); }
+.wd-clock i.h { height: 18px; } .wd-clock i.m { height: 26px; background: var(--accent); }
+.wd-clock b { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--accent); }
+.wd--cal b { font: 300 34px/1 var(--font-display); }
+.wd--cal span { text-transform: capitalize; }
+.wd--favs div { display: flex; gap: 4px; margin-top: 4px; }
+.wd--favs .avatar { width: 30px; height: 30px; font-size: 11px; }
+
+/* ---------------------------------------------------------------- Réglages : fiche du téléphone, choix */
+.dev-card { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 14px; border-radius: 22px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.dev-card small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.dev-card b { display: block; font-size: 16px; margin: 2px 0 3px; }
+.dev-card span { display: block; font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
+.dev-mini { display: block; width: 34px; height: 64px; border-radius: 8px; background: #222; box-shadow: inset 0 0 0 3px #555; position: relative; }
+.dev-mini::after { content: ''; position: absolute; inset: 4px; border-radius: 5px; background: linear-gradient(160deg, var(--accent), #0e1022); }
+.dev-mini[data-m="1"] { border-radius: 6px; background: #2a2b30; box-shadow: none; } .dev-mini[data-m="1"]::after { inset: 9px 3px 14px; border-radius: 1px; background: #1a2240; }
+.dev-mini[data-m="2"] { background: #3d5296; } .dev-mini[data-m="2"]::after { inset: 3px 3px 7px; border-radius: 4px; }
+.dev-mini[data-m="3"] { background: #b9bec7; box-shadow: none; } .dev-mini[data-m="3"]::after { inset: 2px; }
+.dev-mini[data-m="5"] { width: 52px; }
+.dev-mini[data-m="6"] { background: conic-gradient(#9EF7FF, #C6A2FF, #FFB3E4, #A2FFD0, #9EF7FF); box-shadow: 0 0 10px var(--accent); } .dev-mini[data-m="6"]::after { inset: 2px; }
+.dev-picks { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px; }
+.dev-pick { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 14px; font-size: 12.5px; font-weight: 700; background: var(--surface-2); color: var(--text); }
+.dev-pick.active { background: var(--accent); color: var(--accent-ink); }
+.dev-pick i { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+
+/* ElyAura 1 : écran basique (heure simple, pas d'effets de verre) */
+#phone[data-model="1"] .clock--stack .clock__digits { font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 66px; letter-spacing: -1px; }
+#phone[data-model="1"] .clock--stack .clock__digits span:last-child { background: none; color: var(--text); }
+#phone[data-model="1"] .halo { display: none; }
+#phone[data-model="1"] .widget, #phone[data-model="1"] .dock { backdrop-filter: none; border-radius: 8px; }
+#phone[data-model="1"] .tile { border-radius: 9px !important; box-shadow: none !important; }
+#phone[data-model="1"] #wp { background: linear-gradient(#18203d, #0b0e1c) !important; }

@@ -459,9 +459,14 @@ local function cleanNpc(n)
         out.exchange = { name = name ~= '' and name or 'Bureau de change',
             toPesos = math.floor(num(n.exchange.toPesos, 1, 100000, 100)), toCash = math.floor(num(n.exchange.toCash, 1, 100000, 100)) }
     end
+    -- Vendeur de téléphones (ressource elyzea_aura) : vitrine des 6 ElyAura
+    if type(n.phoneshop) == 'table' then
+        local name = cleanName(n.phoneshop.name, 40)
+        out.phoneshop = { name = name ~= '' and name or 'ElyAura Store' }
+    end
     if not out.shop and not out.buyer and not out.garage and not out.clothing and not out.catalog and not out.pubgarage and not out.impound and not out.dmv
         and not out.gov and not out.farm and not out.barber and not out.tattoo and not out.market and not out.gunshop and not out.casino and not out.pvp and not out.lasergame
-        and not out.exchange then return nil end
+        and not out.exchange and not out.phoneshop then return nil end
     -- Zone pour parler au PNJ (cercle ou zone dessinée, voir npc_area.lua)
     out.area = NpcArea and NpcArea.clean(n.area) or nil
     return out
@@ -1530,6 +1535,18 @@ RegisterNetEvent('adminmenu:change:open', function(id)
     end
     local x = r.npc.exchange
     CallExport(src, 'elyzea_change', 'OpenFor', src, { name = x.name, toPesos = x.toPesos, toCash = x.toCash, coords = { x = r.x, y = r.y, z = r.z } })
+end)
+
+-- Vendeur de téléphones : ouvre la vitrine des ElyAura (elyzea_aura vérifie l'argent, l'abonnement et la distance)
+RegisterNetEvent('adminmenu:phoneshop:open', function(id)
+    local src = source
+    if not AM.rateLimit(src, 'npc', 4, 1000) then return end
+    local r = checkNpc(src, tonumber(id))
+    if not r or not r.npc.phoneshop then return end
+    if GetResourceState('elyzea_aura') ~= 'started' then
+        return AM.notify(src, 'La boutique est fermée (ressource elyzea_aura non démarrée).', 'error')
+    end
+    CallExport(src, 'elyzea_aura', 'OpenPhoneShop', src, { name = r.npc.phoneshop.name })
 end)
 
 RegisterNetEvent('adminmenu:npc:open', function(id)

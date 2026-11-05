@@ -1218,6 +1218,7 @@ function npcSummary(n) {
     if (n.lasergame) parts.push(`🔫 LaserGame <b>${esc(n.lasergame.name || '')}</b>`);
     if (n.market) parts.push(`🏪 Supérette <b>${esc(n.market.name)}</b> · ${(n.market.items || []).length} produit(s)${n.market.blip ? ' · 🗺️ sur la carte' : ''}`);
     if (n.clothing) parts.push(`👕 Boutique <b>${esc(n.clothing.name)}</b> · prix ${n.clothing.multiplier} % · ${n.clothing.categories && n.clothing.categories.length ? `${n.clothing.categories.length} rayons` : 'tous les rayons'}${n.clothing.currency === 'pesos' ? ' · 🪙 <b>pesos uniquement</b>' : ''}${n.clothing.bagColor ? ` · 🛍️ sacs ${esc(n.clothing.bagColor)}` : ''}`);
+    if (n.phoneshop) parts.push(`📱 Vendeur de téléphones <b>${esc(n.phoneshop.name)}</b> · ElyAura 1 à 6`);
     if (n.exchange) parts.push(`🪙 Bureau de change <b>${esc(n.exchange.name)}</b> · 100 $ → ${n.exchange.toPesos} pesos · 100 pesos → ${n.exchange.toCash} $`);
     if (n.hours) parts.push(`🕘 ${n.hours.from}h → ${n.hours.to}h`);
     const jl = (n.jobs && n.jobs.length ? n.jobs : (n.garage && n.garage.jobs)) || [];
@@ -1334,6 +1335,8 @@ function toPedEdit(r) {
         clCats: clone(n.clothing && n.clothing.categories && n.clothing.categories.length ? n.clothing.categories : CLOTHING_CATS.map((c) => c.id)),
         clPesos: !!(n.clothing && n.clothing.currency === 'pesos'),
         clBag: (n.clothing && n.clothing.bagColor) || 'auto',
+        phoneOn: !!n.phoneshop,
+        phName: n.phoneshop ? n.phoneshop.name : 'ElyAura Store',
         exchangeOn: !!n.exchange,
         xName: n.exchange ? n.exchange.name : 'Bureau de change',
         xToPesos: n.exchange ? n.exchange.toPesos : 100,
@@ -1691,7 +1694,7 @@ function applyPresetToPedEdit(id) {
 }
 function pedEditPayload(p) {
     const num = (v, d) => (v === '' || v === undefined || isNaN(Number(v)) ? d : Number(v));
-    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.impOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.lgOn || p.exchangeOn) ? {
+    const npc = (p.shopOn || p.buyerOn || p.garageOn || p.clothingOn || p.catalogOn || p.pubOn || p.impOn || p.dmvOn || p.govOn || p.farmOn || p.barberOn || p.tattooOn || p.marketOn || p.gunshopOn || p.casinoOn || p.pvpOn || p.lgOn || p.exchangeOn || p.phoneOn) ? {
         payment: p.payment, paymentItem: String(p.paymentItem || '').trim(),
         currency: p.currency === 'money' || p.currency === 'pesos' ? p.currency : '', currencyForce: !!p.currencyForce,
         shop: p.shopOn ? { items: p.shop.filter((i) => String(i.item).trim()).map((i) => ({ item: String(i.item).trim(), price: num(i.price, 0) })) } : null,
@@ -1713,6 +1716,7 @@ function pedEditPayload(p) {
             categories: p.clCats.length === CLOTHING_CATS.length ? [] : p.clCats.slice(), currency: p.clPesos ? 'pesos' : 'normal',
             bagColor: p.clBag && p.clBag !== 'auto' ? p.clBag : null } : null,
         exchange: p.exchangeOn ? { name: String(p.xName || '').trim(), toPesos: num(p.xToPesos, 100), toCash: num(p.xToCash, 100) } : null,
+        phoneshop: p.phoneOn ? { name: String(p.phName || '').trim() } : null,
         barber: p.barberOn ? {
             name: String(p.bbName || '').trim(),
             prices: Object.fromEntries(BARBER_PRICES_GET().map((x) => [x.k, Math.max(0, Math.floor(num(p.bbPrices[x.k], 0)))])),
@@ -2081,7 +2085,13 @@ function pedEditor() {
                 ${tog('pvpOn', '⚔️ Arène PvP', 'Parties en équipes avec mises et paris (ressource pvp_arena)')}
                 ${tog('lgOn', '🔫 LaserGame', 'PVP laser, mode Zombie, classements et rangs (ressource elyzea_lasergame)')}
                 ${tog('exchangeOn', '🪙 Bureau de change', 'Argent liquide ⇄ pesos (ressource elyzea_change)')}
+                ${tog('phoneOn', '📱 Vendeur de téléphones', 'Les 6 ElyAura : vitrine, liquide ou carte (ElyAura 6 : abonnés Royale)')}
             </div>
+            ${p.phoneOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">📱 Vendeur de téléphones</h3>
+                <p class="hint">En parlant à ce PNJ (E), les joueurs voient les 6 ElyAura (rendu, prix, ce que chaque modèle apporte) et achètent en liquide ou par carte.
+                    L'ElyAura 6 Ultra est réservé aux abonnés <b>Elyzea Royale</b> ou supérieur. Prix et modèles : <b>elyzea_aura/config_phones.lua</b>.</p>
+                <div style="max-width:360px"><label>Nom affiché</label><input class="input" data-pe="phName" value="${esc(p.phName)}" placeholder="ElyAura Store"></div>
+            </div>` : ''}
             ${p.exchangeOn ? exchangeCard(p) : ''}
             ${p.pvpOn ? `<div class="card recipe"><h3 class="sub-h" style="font-size:17px">⚔️ Arène PvP</h3>
                 <p class="hint">En parlant à ce PNJ (E), les joueurs ouvrent le menu des parties : créer, rejoindre, miser, parier.

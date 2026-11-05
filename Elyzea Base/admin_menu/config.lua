@@ -1212,7 +1212,7 @@ Config.Market = {
         { item = 'preservatif',          price = 15,  cat = 'Santé', max = 10 },
         { item = 'pilule_contraceptive', price = 40,  cat = 'Santé', max = 5 },
         { item = 'test_grossesse',       price = 25,  cat = 'Santé', max = 3 },
-        { item = 'phone',    price = 450, cat = 'Utilitaires' },
+        { item = 'elyaura_1', price = 500, cat = 'Utilitaires' },   -- les autres modèles : PNJ « Vendeur de téléphones »
         { item = 'radio',    price = 250, cat = 'Utilitaires' },
     },
 }

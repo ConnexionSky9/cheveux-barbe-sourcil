@@ -181,6 +181,8 @@ local function Ox(fn, ...)
 end
 
 local function HasPhoneItem(src)
+    -- 6 téléphones ElyAura (config_phones.lua) : il faut en avoir un sur soi
+    if Devices and Config.Phones then return Devices.ModelOf(src) ~= nil end
     if not Config.RequireItem then return true end
     local count = Ox('Search', src, 'count', Config.ItemName)
     if count ~= nil then
@@ -298,6 +300,8 @@ for _, id in ipairs({ 'grossesse', 'sante', 'lasergame' }) do StoreApps[id] = tr
 local SocialApps = { birdy = true, instapick = true }
 
 local function HasApp(player, app)
+    -- Le téléphone utilisé doit avoir cette application (ElyAura 1 à 6)
+    if Devices and not Devices.Allows(player, app) then return false end
     for _, id in ipairs(player.settings.installed or {}) do
         if id == app then return true end
     end
@@ -316,6 +320,7 @@ Register('getProfile', function(src, me)
         ok = true,
         number = me.number,
         name = GetCharName(src),
+        device = Devices and Devices.Info(src, me) or nil,
         settings = me.settings,
         bank = (Config.Bank.Enabled and Framework ~= 'standalone') and GetBank(src) or nil,
         services = Config.Services,
@@ -367,6 +372,7 @@ Register('saveSettings', function(src, me, args)
     s.deviceName = trim(s.deviceName, 30)
     if type(s.cardName) ~= 'string' then s.cardName = '' end
     s.cardName = trim(s.cardName, 40)
+    if Devices then Devices.Clamp(me) end   -- seulement ce que permet le téléphone utilisé
     MySQL.update.await('UPDATE elyzea_phones SET settings = ? WHERE identifier = ?', { json.encode(me.settings), me.identifier })
     return { ok = true, settings = me.settings }
 end)
@@ -2532,5 +2538,5 @@ end)
 -- ---------------------------------------------------------
 AuraCore = {
     Register = Register, Notify = Notify, Players = Players, trim = trim, HasApp = HasApp,
-    GetCharName = GetCharName, IsSchemaReady = function() return SchemaReady end,
+    GetCharName = GetCharName, IsSchemaReady = function() return SchemaReady end, EnsurePlayer = EnsurePlayer,
 }

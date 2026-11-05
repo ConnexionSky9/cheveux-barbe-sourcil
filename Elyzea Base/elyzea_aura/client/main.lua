@@ -46,29 +46,66 @@ local function LoadDict(dict)
     while not HasAnimDictLoaded(dict) and GetGameTimer() - t < 3000 do Wait(10) end
 end
 
-local function AttachProp()
-    if phoneProp then return end
-    local model = `prop_npc_phone_02`
+-- Téléphone en main : l'objet dépend du modèle utilisé (ElyAura 1 à 6, config_phones.lua) ;
+-- l'ElyAura 5 Fold déplié se tient à deux mains (deux moitiés côte à côte).
+local deviceN = nil          -- modèle utilisé (envoyé par le serveur à l'ouverture)
+local foldOpen = false       -- ElyAura 5 déplié (envoyé par le téléphone)
+local propKey = nil
+local extraProps = {}
+
+local function DeviceCfg() return Config.Phones and Config.Phones.Models[deviceN or 0] or nil end
+local function Unfolded()
+    local m = DeviceCfg()
+    return foldOpen and not inCall and m and m.unfolded or nil
+end
+-- Animation à jouer : appel, lecture, ou deux mains (déplié)
+local function CurrentAnim()
+    local u = Unfolded()
+    if u then return u.dict, u.clip end
+    return ANIM_DICT, inCall and 'cellphone_call_listen_base' or 'cellphone_text_read_base'
+end
+
+local function SpawnAttached(p)
+    local model = type(p.model) == 'string' and joaat(p.model) or p.model
+    if not IsModelInCdimage(model) then model = `prop_npc_phone_02` end
     RequestModel(model)
     local t = GetGameTimer()
     while not HasModelLoaded(model) and GetGameTimer() - t < 3000 do Wait(10) end
     local ped = PlayerPedId()
-    phoneProp = CreateObject(model, 1.0, 1.0, 1.0, true, true, false)
-    AttachEntityToEntity(phoneProp, ped, GetPedBoneIndex(ped, 28422), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, false, true, 1, true)
+    local o = CreateObject(model, 1.0, 1.0, 1.0, true, true, false)
+    local pos, rot = p.pos or vector3(0.0, 0.0, 0.0), p.rot or vector3(0.0, 0.0, 0.0)
+    AttachEntityToEntity(o, ped, GetPedBoneIndex(ped, p.bone or 28422), pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, true, true, false, true, 1, true)
     SetModelAsNoLongerNeeded(model)
+    return o
 end
 
 local function RemoveProp()
     if phoneProp and DoesEntityExist(phoneProp) then DeleteEntity(phoneProp) end
-    phoneProp = nil
+    for _, o in ipairs(extraProps) do if DoesEntityExist(o) then DeleteEntity(o) end end
+    phoneProp, extraProps, propKey = nil, {}, nil
+end
+
+local function AttachProp()
+    local m, u = DeviceCfg(), Unfolded()
+    local key = ('%s|%s'):format(deviceN or 0, u and 'open' or 'closed')
+    if phoneProp and propKey == key and DoesEntityExist(phoneProp) then return end
+    RemoveProp()
+    if u then
+        phoneProp = SpawnAttached(u.halves[1])
+        for i = 2, #u.halves do extraProps[#extraProps + 1] = SpawnAttached(u.halves[i]) end
+    else
+        phoneProp = SpawnAttached(m and m.prop or { model = 'prop_npc_phone_02' })
+    end
+    propKey = key
 end
 
 local function PlayPhoneAnim()
     local ped = PlayerPedId()
     if IsPedInAnyVehicle(ped, false) then return end
-    LoadDict(ANIM_DICT)
-    local anim = inCall and 'cellphone_call_listen_base' or 'cellphone_text_read_base'
-    TaskPlayAnim(ped, ANIM_DICT, anim, 3.0, 3.0, -1, 49, 0, false, false, false) -- haut du corps : on peut marcher et courir
+    local dict, anim = CurrentAnim()
+    LoadDict(dict)
+    if dict ~= ANIM_DICT then StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.0) end
+    TaskPlayAnim(ped, dict, anim, 3.0, 3.0, -1, 49, 0, false, false, false) -- haut du corps : on peut marcher et courir
     AttachProp()
 end
 
@@ -77,10 +114,32 @@ local function StopPhoneAnim()
         PlayPhoneAnim() -- on garde le téléphone à l'oreille pendant l'appel
         return
     end
-    StopAnimTask(PlayerPedId(), ANIM_DICT, 'cellphone_text_read_base', 2.5)
-    StopAnimTask(PlayerPedId(), ANIM_DICT, 'cellphone_call_listen_base', 2.5)
+    local ped = PlayerPedId()
+    StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.5)
+    StopAnimTask(ped, ANIM_DICT, 'cellphone_call_listen_base', 2.5)
+    local m = DeviceCfg()
+    if m and m.unfolded then StopAnimTask(ped, m.unfolded.dict, m.unfolded.clip, 2.5) end
     RemoveProp()
 end
+
+-- ElyAura 5 : plié / déplié (le téléphone le signale)
+RegisterNUICallback('setFold', function(data, cb)
+    cb({})
+    local v = data and data.open == true
+    if v == foldOpen then return end
+    foldOpen = v
+    if isOpen then
+        local ped = PlayerPedId()
+        StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.0)
+        local m = DeviceCfg()
+        if m and m.unfolded then StopAnimTask(ped, m.unfolded.dict, m.unfolded.clip, 2.0) end
+        PlayPhoneAnim()
+    end
+end)
+RegisterNetEvent('elyzea_aura:client:deviceChanged', function(n)
+    deviceN = tonumber(n)
+    if isOpen then RemoveProp() PlayPhoneAnim() end
+end)
 
 -- ---------------------------------------------------------
 --  Ouverture / fermeture
@@ -130,8 +189,8 @@ function StartMoveLoop()
                 lastAnimCheck = GetGameTimer()
                 local ped = PlayerPedId()
                 if not cameraActive and not IsPedInAnyVehicle(ped, false) and not IsPedRagdoll(ped) and not IsPedFalling(ped) then
-                    local anim = inCall and 'cellphone_call_listen_base' or 'cellphone_text_read_base'
-                    if not IsEntityPlayingAnim(ped, ANIM_DICT, anim, 3) then PlayPhoneAnim() end
+                    local dict, anim = CurrentAnim()
+                    if not IsEntityPlayingAnim(ped, dict, anim, 3) then PlayPhoneAnim() end
                 end
             end
             Wait(0)
@@ -154,6 +213,8 @@ local function OpenPhone()
     if not profile or not profile.ok then return end
 
     isOpen = true
+    deviceN = profile.device and tonumber(profile.device.n) or nil
+    if not (profile.device and profile.device.fold) then foldOpen = false end
     TriggerServerEvent('elyzea_aura:server:phoneOut', true)   -- téléphone sorti : visible pour AuraDrop et l'appli Identité
     typing, looking = false, false
     moveEnabled = Config.MoveWhileOpen and (profile.settings == nil or profile.settings.moveWithPhone ~= false)
@@ -1685,4 +1746,31 @@ RegisterNUICallback('maisonPlaceCam', function(data, cb)
     ClosePhone()
     Wait(250)
     pcall(function() exports.elyzea_dynasty:CamPlaceStart(tonumber(data and data.pid)) end)
+end)
+
+-- ---------------------------------------------------------
+--  Vendeur de téléphones (PNJ de l'éditeur de map) : vitrine des 6 ElyAura
+-- ---------------------------------------------------------
+local shopOpen = false
+RegisterNetEvent('elyzea_aura:client:phoneShop', function(data)
+    if isOpen then ClosePhone() end
+    shopOpen = true
+    SetNuiFocus(true, true)
+    SetNuiFocusKeepInput(false)
+    SendNUIMessage({ action = 'phoneShop', data = data })
+end)
+RegisterNetEvent('elyzea_aura:client:phoneShopResult', function(data)
+    SendNUIMessage({ action = 'phoneShopResult', data = data })
+end)
+RegisterNUICallback('phoneShopBuy', function(data, cb)
+    cb({})
+    if not shopOpen then return end
+    TriggerServerEvent('elyzea_aura:server:phoneShopBuy', tonumber(data and data.n), data and data.method == 'bank' and 'bank' or 'cash')
+end)
+RegisterNUICallback('phoneShopClose', function(_, cb)
+    cb({})
+    if not shopOpen then return end
+    shopOpen = false
+    if not isOpen then SetNuiFocus(false, false) end
+    TriggerServerEvent('elyzea_aura:server:phoneShopClose')
 end)

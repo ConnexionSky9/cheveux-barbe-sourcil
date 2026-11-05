@@ -547,7 +547,7 @@ function download(btn, id, after) {
   requestAnimationFrame(step);
 }
 Views.store = ({ detail } = {}) => {
-  const ids = Object.keys(STORE);
+  const ids = Object.keys(STORE).filter(appAllowed);   // seulement les applications de ce téléphone
   const featured = ids.find(id => !isInstalled(id)) || ids[0];
   const ic = APP_ICONS[featured];
   frame({ title: t('Appli'), body: `
