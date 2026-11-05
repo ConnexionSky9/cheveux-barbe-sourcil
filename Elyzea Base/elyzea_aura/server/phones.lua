@@ -251,3 +251,35 @@ RegisterNetEvent('elyzea_aura:server:phoneShopBuy', function(n, method)
 end)
 
 AddEventHandler('playerDropped', function() ShopOpen[source], buying[source] = nil, nil end)
+
+-- ---------------------------------------------------------
+--  /elyaura_main : position du téléphone dans la main, réglée en jeu par le staff (pour tout le serveur)
+-- ---------------------------------------------------------
+local ALIGN_KVP = 'elyzea_aura:propAlign'
+local function alignList()
+    local raw = GetResourceKvpString(ALIGN_KVP)
+    local ok, t = pcall(json.decode, raw or '{}')
+    return ok and type(t) == 'table' and t or {}
+end
+local function canAlign(src)
+    if GetResourceState('admin_menu') ~= 'started' then return IsPlayerAceAllowed(src, 'command') end
+    local ok, r = pcall(function() return exports.admin_menu:HasPermission(src, 'editor_props') end)
+    return ok and r == true
+end
+RegisterNetEvent('elyzea_aura:server:propAlignGet', function()
+    TriggerClientEvent('elyzea_aura:client:propAlign', source, alignList())
+end)
+RegisterNetEvent('elyzea_aura:server:propAlignSave', function(n, pos, rot)
+    local src = source
+    n = tonumber(n)
+    if not n or not CFG.Models[n] or type(pos) ~= 'table' or type(rot) ~= 'table' then return end
+    if not canAlign(src) then
+        return A.Notify(src, { app = 'settings', title = 'ElyAura', text = 'Réservé au staff (permission editor_props).' })
+    end
+    local function c(v, lim) v = tonumber(v) or 0.0 return math.max(-lim, math.min(lim, v)) end
+    local list = alignList()
+    list[tostring(n)] = { pos = { x = c(pos.x, 0.3), y = c(pos.y, 0.3), z = c(pos.z, 0.3) }, rot = { x = c(rot.x, 360), y = c(rot.y, 360), z = c(rot.z, 360) } }
+    SetResourceKvp(ALIGN_KVP, json.encode(list))
+    TriggerClientEvent('elyzea_aura:client:propAlign', -1, list)
+    A.Notify(src, { app = 'settings', title = CFG.Models[n].label, text = 'Position dans la main enregistrée pour tout le serveur.' })
+end)

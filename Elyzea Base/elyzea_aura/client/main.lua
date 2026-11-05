@@ -54,6 +54,14 @@ local propKey = nil
 local extraProps = {}
 
 local function DeviceCfg() return Config.Phones and Config.Phones.Models[deviceN or 0] or nil end
+-- Réglage fin de l'objet en main (/elyaura_main, enregistré par le serveur pour tous)
+local PropAlign = {}         -- [n] = { pos = {x,y,z}, rot = {x,y,z} }
+local function PropFor(m, n)
+    local base = m and m.prop or { model = 'prop_npc_phone_02', bone = 28422 }
+    local a = PropAlign[n or deviceN or 0]
+    if not a then return base end
+    return { model = base.model, bone = base.bone, pos = vector3(a.pos.x + 0.0, a.pos.y + 0.0, a.pos.z + 0.0), rot = vector3(a.rot.x + 0.0, a.rot.y + 0.0, a.rot.z + 0.0) }
+end
 local function Unfolded()
     local m = DeviceCfg()
     return foldOpen and not inCall and m and m.unfolded or nil
@@ -110,7 +118,7 @@ local function AttachProp()
         phoneProp = SpawnAttached(u.halves[1], gen)
         for i = 2, #u.halves do extraProps[#extraProps + 1] = SpawnAttached(u.halves[i], gen) end
     else
-        phoneProp = SpawnAttached(m and m.prop or { model = 'prop_npc_phone_02' }, gen)
+        phoneProp = SpawnAttached(PropFor(m), gen)
     end
     propKey = phoneProp and key or nil
     attaching = false
@@ -1815,3 +1823,70 @@ RegisterNUICallback('phoneShopClose', function(_, cb)
     if not isOpen then SetNuiFocus(false, false) end
     TriggerServerEvent('elyzea_aura:server:phoneShopClose')
 end)
+
+
+-- ---------------------------------------------------------
+--  /elyaura_main : caler le téléphone dans la main (staff « editor_props »)
+--  Le téléphone utilisé s'affiche en main ; ← → ↑ ↓ Pg.Préc / Pg.Suiv : déplacer
+--  (Maj maintenu : tourner) · Ctrl : pas fin · Entrée : enregistrer pour tout le serveur · Retour : annuler
+-- ---------------------------------------------------------
+RegisterNetEvent('elyzea_aura:client:propAlign', function(list)
+    PropAlign = {}
+    for k, v in pairs(type(list) == 'table' and list or {}) do PropAlign[tonumber(k)] = v end
+    if isOpen then RemoveProp() PlayPhoneAnim() end
+end)
+CreateThread(function() Wait(4000) TriggerServerEvent('elyzea_aura:server:propAlignGet') end)
+
+local aligning = false
+RegisterCommand('elyaura_main', function()
+    if aligning then return end
+    local profile = ServerCallback('getProfile')
+    local n = profile and profile.device and tonumber(profile.device.n)
+    local m = n and Config.Phones.Models[n]
+    if not m then return SendNUIMessage({ action = 'toast', data = { app = 'system', title = 'ElyAura', text = 'Aucun téléphone sur vous.' } }) end
+    if isOpen then ClosePhone() end
+    aligning = true
+    local cur = PropFor(m, n)
+    local pos = { x = cur.pos and cur.pos.x or 0.0, y = cur.pos and cur.pos.y or 0.0, z = cur.pos and cur.pos.z or 0.0 }
+    local rot = { x = cur.rot and cur.rot.x or 0.0, y = cur.rot and cur.rot.y or 0.0, z = cur.rot and cur.rot.z or 0.0 }
+    CreateThread(function()
+        local ped = PlayerPedId()
+        LoadDict(ANIM_DICT)
+        TaskPlayAnim(ped, ANIM_DICT, 'cellphone_text_read_base', 3.0, 3.0, -1, 49, 0, false, false, false)
+        local model = joaat(m.prop.model)
+        RequestModel(model)
+        local t = GetGameTimer()
+        while not HasModelLoaded(model) and GetGameTimer() - t < 3000 do Wait(10) end
+        local o = CreateObject(model, 1.0, 1.0, 1.0, false, false, false)
+        SetModelAsNoLongerNeeded(model)
+        local save = false
+        while aligning do
+            for _, k in ipairs({ 172, 173, 174, 175, 10, 11, 21, 36, 191, 194, 177, 200, 202 }) do DisableControlAction(0, k, true) end
+            local fine = IsDisabledControlPressed(0, 36)
+            local turn = IsDisabledControlPressed(0, 21)
+            local d, r = fine and 0.001 or 0.004, fine and 0.5 or 2.0
+            local function key(c) return IsDisabledControlPressed(0, c) end
+            if turn then
+                if key(174) then rot.z = rot.z + r end if key(175) then rot.z = rot.z - r end
+                if key(172) then rot.x = rot.x + r end if key(173) then rot.x = rot.x - r end
+                if key(10) then rot.y = rot.y + r end if key(11) then rot.y = rot.y - r end
+            else
+                if key(174) then pos.x = pos.x - d end if key(175) then pos.x = pos.x + d end
+                if key(172) then pos.y = pos.y + d end if key(173) then pos.y = pos.y - d end
+                if key(10) then pos.z = pos.z + d end if key(11) then pos.z = pos.z - d end
+            end
+            AttachEntityToEntity(o, ped, GetPedBoneIndex(ped, m.prop.bone or 28422), pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, true, true, false, true, 1, true)
+            if not IsEntityPlayingAnim(ped, ANIM_DICT, 'cellphone_text_read_base', 3) then TaskPlayAnim(ped, ANIM_DICT, 'cellphone_text_read_base', 3.0, 3.0, -1, 49, 0, false, false, false) end
+            BeginTextCommandDisplayHelp('STRING')
+            AddTextComponentSubstringPlayerName(('%s~n~Flèches / Pg.Préc Pg.Suiv : déplacer · Maj : tourner · Ctrl : fin~n~Entrée : enregistrer · Retour : annuler~n~pos %.3f %.3f %.3f · rot %.0f %.0f %.0f')
+                :format(m.label, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z))
+            EndTextCommandDisplayHelp(0, false, false, -1)
+            if IsDisabledControlJustPressed(0, 191) then save = true aligning = false end
+            if IsDisabledControlJustPressed(0, 194) or IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 200) then aligning = false end
+            Wait(0)
+        end
+        if DoesEntityExist(o) then DeleteEntity(o) end
+        StopAnimTask(ped, ANIM_DICT, 'cellphone_text_read_base', 2.5)
+        if save then TriggerServerEvent('elyzea_aura:server:propAlignSave', n, pos, rot) end
+    end)
+end, false)

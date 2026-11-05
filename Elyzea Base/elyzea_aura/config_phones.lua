@@ -5,7 +5,8 @@
 --  Numéro, contacts, messages et photos suivent le personnage, pas l'appareil.
 --  Applications : 'all' = toutes, sauf celles de « exclude ».
 --  Personnalisation : niveau 1 (rien) à 6 (tout), voir html/js/devices.js.
---  Objet en main (prop) : modèle GTA visible par tous ; offsets réglables si besoin.
+--  Objet en main (prop) : modèles GTA faits pour l'animation téléphone (bien droits dans la main).
+--  Réglage fin en jeu (staff « editor_props ») : /elyaura_main — enregistré pour tout le serveur.
 -- =========================================================
 Config.Phones = {
     -- Ancien objet « phone » : quel modèle il représente
@@ -37,14 +38,14 @@ Config.Phones = {
             tagline = 'Livrézy et HelpMécano inclus, écran bord à bord.',
             apps = 'all', exclude = { 'lasergame', 'carplay', 'itoune', 'garage' },
             faceId = true, store = true,
-            prop = { model = 'prop_amb_phone', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+            prop = { model = 'prop_phone_ing_02', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
         },
         [4] = {
             item = 'elyaura_4', label = 'ElyAura 4', price = 12000, tier = 4,
             tagline = 'Itoune, effets animés, designs et coques à personnaliser.',
             apps = 'all', exclude = { 'carplay', 'garage' },
             faceId = true, store = true,
-            prop = { model = 'ch_prop_ch_phone_ing_01a', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+            prop = { model = 'prop_phone_ing', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
         },
         [5] = {
             item = 'elyaura_5', label = 'ElyAura 5 Fold', price = 25000, tier = 5,
@@ -66,13 +67,13 @@ Config.Phones = {
             tagline = 'Réservé aux abonnés Royale : pliable, CarPlay, Garage, personnalisation totale.',
             apps = 'all', exclude = {},
             faceId = true, store = true, vip = true, fold = true,
-            prop = { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+            prop = { model = 'prop_phone_ing', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
             -- Déplié : tenu à deux mains, comme l'ElyAura 5
             unfolded = {
                 dict = 'amb@world_human_tourist_map@male@base', clip = 'base',
                 halves = {
-                    { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(0.02, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
-                    { model = 'sf_prop_sf_npc_phone_01a', bone = 28422, pos = vec3(-0.055, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+                    { model = 'prop_phone_ing', bone = 28422, pos = vec3(0.02, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
+                    { model = 'prop_phone_ing', bone = 28422, pos = vec3(-0.055, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
                 },
             },
         },
