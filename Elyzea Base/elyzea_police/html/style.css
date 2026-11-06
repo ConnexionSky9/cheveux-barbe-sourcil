@@ -59,43 +59,61 @@ select.input { cursor: pointer; }
 .kbd { display: inline-grid; place-items: center; min-width: 1.4rem; height: 1.4rem; padding: 0 .3rem; border-radius: .3rem; border: 1px solid var(--line-2);
   background: rgba(255, 255, 255, .06); font-size: .72rem; font-weight: 700; color: var(--text); }
 
-/* ---------- Menu ALT (ALT + clic gauche sur la cible) ---------- */
-#alt { --k: 96, 165, 250; position: fixed; width: 18.5rem; z-index: 40; padding: 0; overflow: hidden;
-  background: linear-gradient(180deg, rgba(26, 14, 40, .98), rgba(17, 9, 26, .98));
-  border: 1px solid rgba(var(--k), .38); border-radius: .95rem;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 1.2rem 3rem rgba(0, 0, 0, .6), 0 0 2.2rem rgba(var(--k), .16);
-  animation: altIn .16s cubic-bezier(.2, .9, .3, 1.2); transform-origin: top left; }
-#alt[data-kind="vehicle"], #alt[data-kind="trunk"] { --k: 245, 158, 11; }
-#alt[data-kind="ext"] { --k: 167, 139, 250; }
-#alt[data-kind="npc"] { --k: 239, 68, 68; }
-#alt::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, rgba(var(--k), 1), rgba(var(--k), .15)); }
-#alt .head { display: flex; align-items: center; gap: .65rem; padding: .8rem .85rem .7rem; border-bottom: 1px solid rgba(255, 255, 255, .06);
-  background: radial-gradient(120% 140% at 0% 0%, rgba(var(--k), .18), transparent 60%); }
-#alt .head .badge { flex: none; width: 2.1rem; height: 2.1rem; border-radius: .6rem; display: grid; place-items: center; font-size: 1.05rem;
-  background: rgba(var(--k), .16); border: 1px solid rgba(var(--k), .45); box-shadow: inset 0 0 .8rem rgba(var(--k), .25); }
-#alt .head .tt { min-width: 0; }
-#alt .head b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#alt .head small { display: block; font-size: .7rem; color: rgba(var(--k), .95); letter-spacing: .06em; text-transform: uppercase; margin-top: .1rem; }
-#alt .list { padding: .35rem; max-height: 60vh; overflow-y: auto; }
-#alt button { position: relative; display: flex; align-items: center; gap: .65rem; width: 100%; text-align: left; border: 1px solid transparent; background: none;
-  padding: .5rem .55rem; border-radius: .6rem; cursor: pointer; font-size: .88rem; color: var(--text);
-  opacity: 0; animation: altItem .22s ease-out forwards; transition: background .12s, border-color .12s, transform .12s; }
-#alt button:hover:not(:disabled), #alt button:focus-visible { background: rgba(var(--k), .13); border-color: rgba(var(--k), .35); outline: none; transform: translateX(2px); }
-#alt button:hover:not(:disabled) .ico, #alt button:focus-visible .ico { background: rgba(var(--k), .28); border-color: rgba(var(--k), .6); }
+/* ---------- Menu ALT (ALT + clic gauche sur la cible) · DA du logo Elyzea FA : nuit, violet néon ---------- */
+#alt { --k: 155, 92, 255; position: fixed; width: 19.5rem; z-index: 40; overflow: hidden; border-radius: 1.05rem;
+  background: linear-gradient(165deg, rgba(30, 16, 62, .96), rgba(10, 5, 24, .97));
+  border: 1px solid rgba(200, 160, 255, .34);
+  box-shadow: 0 1.6rem 3.4rem rgba(0, 0, 0, .55), 0 0 0 1px rgba(155, 92, 255, .08) inset, 0 0 1.4rem rgba(155, 92, 255, .35), 0 0 3rem rgba(123, 47, 247, .15);
+  font-family: Manrope, Inter, 'Segoe UI', sans-serif; color: #F6F2FF;
+  animation: altIn .2s cubic-bezier(.2, .9, .25, 1.15); transform-origin: left top; }
+#alt[data-kind="npc"] { --k: 255, 77, 109; }
+#alt[data-kind="vehicle"], #alt[data-kind="trunk"] { --k: 181, 123, 255; }
+#alt[data-kind="ext"] { --k: 201, 166, 255; }
+#alt::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; z-index: 2;
+  background: linear-gradient(90deg, #E9D5FF, rgb(var(--k)) 45%, #7B2FF7 100%); }
+#alt .glow { position: absolute; inset: -40% -20% auto auto; width: 14rem; height: 14rem; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(var(--k), .22), transparent 65%); }
+#alt .head { position: relative; display: flex; align-items: center; gap: .75rem; padding: .95rem 1rem .8rem; }
+#alt .head::after { content: ''; position: absolute; left: 1rem; right: 1rem; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(var(--k), .45), rgba(255, 255, 255, .04)); }
+#alt .badge { flex: none; width: 2.5rem; height: 2.5rem; display: grid; place-items: center; font-size: 1.15rem;
+  clip-path: polygon(25% 4%, 75% 4%, 98% 50%, 75% 96%, 25% 96%, 2% 50%);
+  background: linear-gradient(150deg, rgba(var(--k), .95), #6D28D9); box-shadow: 0 0 1rem rgba(var(--k), .6); }
+#alt .badge i { font-style: normal; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+#alt .tt { min-width: 0; }
+#alt .tt b { display: block; font: 800 italic 1.02rem 'Exo 2', 'Segoe UI', sans-serif; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#alt .tt small { display: flex; align-items: center; gap: .45rem; margin-top: .18rem; font-size: .66rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: #A99BC9; }
+#alt .tt small em { font-style: normal; letter-spacing: .06em; padding: .08rem .45rem; border-radius: 1rem; color: #fff;
+  background: rgba(var(--k), .22); border: 1px solid rgba(var(--k), .45); }
+#alt .list { position: relative; padding: .45rem; max-height: 58vh; overflow-y: auto; }
+#alt button { position: relative; display: flex; align-items: center; gap: .7rem; width: 100%; text-align: left; cursor: pointer;
+  padding: .5rem .55rem; margin: .12rem 0; border-radius: .7rem; border: 1px solid transparent; background: none; color: inherit; font: inherit;
+  opacity: 0; animation: altItem .24s ease-out forwards; transition: background .12s, border-color .12s, transform .12s, box-shadow .12s; }
+#alt button::before { content: ''; position: absolute; left: -.45rem; top: 22%; bottom: 22%; width: 3px; border-radius: 0 3px 3px 0;
+  background: rgb(var(--k)); box-shadow: 0 0 .7rem rgb(var(--k)); opacity: 0; transition: opacity .12s; }
+#alt button.on:not(:disabled), #alt button:focus-visible { outline: none; transform: translateX(3px);
+  background: linear-gradient(90deg, rgba(var(--k), .2), rgba(var(--k), .04)); border-color: rgba(var(--k), .4); box-shadow: 0 0 1rem rgba(var(--k), .15); }
+#alt button.on:not(:disabled)::before { opacity: 1; }
+#alt button .ico { flex: none; width: 2.15rem; height: 2.15rem; display: grid; place-items: center; border-radius: .65rem; font-size: 1rem;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(200, 160, 255, .16); transition: background .12s, border-color .12s, box-shadow .12s; }
+#alt button.on:not(:disabled) .ico { background: rgba(var(--k), .3); border-color: rgba(var(--k), .7); box-shadow: 0 0 .8rem rgba(var(--k), .45); }
+#alt button .lbl { flex: 1; min-width: 0; font-weight: 700; font-size: .9rem; line-height: 1.2; }
+#alt button small { display: block; color: #A99BC9; font-size: .72rem; font-weight: 600; margin-top: .14rem; }
 #alt button:disabled { cursor: not-allowed; }
-#alt button:disabled .lbl, #alt button:disabled .ico { opacity: .4; }
-#alt button .ico { flex: none; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: .55rem; font-size: .95rem;
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08); transition: background .12s, border-color .12s; }
-#alt button .lbl { flex: 1; min-width: 0; line-height: 1.2; }
-#alt button small { display: block; color: var(--faint); font-size: .72rem; margin-top: .12rem; }
-#alt button:disabled small { opacity: 1; color: #f59e0b; }
-#alt button kbd { flex: none; font: 600 .66rem 'JetBrains Mono', ui-monospace, monospace; color: var(--muted); padding: .1rem .35rem; border-radius: .3rem;
-  border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .04); }
-#alt .empty { padding: .9rem; color: var(--faint); font-size: .85rem; text-align: center; }
-#alt .foot { display: flex; gap: .8rem; justify-content: center; font-size: .66rem; color: var(--faint); padding: .45rem .6rem .55rem; border-top: 1px solid rgba(255, 255, 255, .05); }
-#alt .foot kbd { font: 600 .62rem 'JetBrains Mono', ui-monospace, monospace; padding: .05rem .3rem; border-radius: .25rem; border: 1px solid rgba(255, 255, 255, .14); margin-right: .2rem; }
-@keyframes altIn { from { opacity: 0; transform: scale(.92) translateY(-4px); } to { opacity: 1; transform: none; } }
-@keyframes altItem { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+#alt button:disabled .lbl, #alt button:disabled .ico { opacity: .38; }
+#alt button:disabled small { opacity: 1; color: #FFB547; }
+#alt button kbd { flex: none; min-width: 1.35rem; text-align: center; font: 800 .66rem 'Exo 2', sans-serif; color: #E9D5FF;
+  padding: .14rem .38rem; border-radius: .4rem; background: rgba(155, 92, 255, .16); border: 1px solid rgba(155, 92, 255, .38); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .35); }
+#alt button.picked { background: rgba(var(--k), .35); border-color: rgb(var(--k)); }
+#alt.closing { animation: altOut .12s ease-in forwards; }
+#alt .empty { padding: 1rem; color: #A99BC9; font-size: .85rem; text-align: center; }
+#alt .foot { display: flex; flex-wrap: wrap; gap: .35rem .8rem; justify-content: center; font-size: .64rem; font-weight: 700; color: #8E7FB0;
+  padding: .5rem .7rem .6rem; border-top: 1px solid rgba(200, 160, 255, .1); background: rgba(0, 0, 0, .18); }
+#alt .foot kbd { font: 800 .6rem 'Exo 2', sans-serif; padding: .05rem .32rem; border-radius: .3rem; color: #E9D5FF;
+  border: 1px solid rgba(155, 92, 255, .35); background: rgba(155, 92, 255, .12); margin-right: .25rem; }
+#alt .list::-webkit-scrollbar-thumb { background: rgba(155, 92, 255, .35); }
+@keyframes altIn { from { opacity: 0; transform: scale(.9) translateY(-6px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes altOut { to { opacity: 0; transform: scale(.96); } }
+@keyframes altItem { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 
 /* ---------- Menu F6 ---------- */

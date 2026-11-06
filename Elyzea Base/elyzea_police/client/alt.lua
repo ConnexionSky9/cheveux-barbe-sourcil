@@ -1,8 +1,10 @@
 -- =====================================================================
 --  ELYZEA POLICE - client : menu ALT (pour tout le monde)
---  ALT maintenu : curseur ; le CONTOUR exact de la cible survolée qui a des actions s'illumine (contour natif
---  pour véhicules et objets ; contour calculé membre par membre pour les personnes, car le contour natif fait
---  planter le jeu sur les personnages) ; ALT + clic gauche : actions possibles.
+--  ALT maintenu : curseur ; la cible survolée qui a des actions s'allume aux couleurs Elyzea (violet néon) :
+--  contour natif pour les véhicules et objets, cadre de visée lumineux pour les personnes et les animaux
+--  (le contour natif fait planter le jeu sur les personnages) ; ALT + clic gauche : actions possibles.
+--  Optimisé : la cible est recherchée ~11 fois par seconde (rayons + ressources), pas à chaque image ;
+--  les réponses des ressources sont mises en cache ; le dessin par image ne coûte que quelques appels.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
 --  Agents en service avec la permission « alt » : menottes, escorte, véhicule, amende, fourrière.
 --  EMS en service (elyzea_ems) : examen, soins, réanimation, ambulance, facture, PPA.
@@ -66,16 +68,28 @@ local ALT_PROVIDERS = {
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre
+-- Réponse mise en cache 800 ms par entité : survoler la même cible ne rappelle pas les ressources
+local extCache = {}
+local nearbyCache = { t = -1e9 }
 local function ExtTarget(ent)
+    local now = GetGameTimer()
+    local c = extCache[ent]
+    if c and now - c.t < 800 then return c.res, c.title end
+    local fres, ftitle
     for _, prov in ipairs(ALT_PROVIDERS) do
         if prov.target and GetResourceState(prov.res) == 'started' then
             local ok, title = pcall(function() return exports[prov.res]:AltTarget(ent) end)
-            if ok and title then return prov.res, title end
+            if ok and title then fres, ftitle = prov.res, title break end
         end
     end
+    extCache[ent] = { t = now, res = fres, title = ftitle }
+    return fres, ftitle
 end
+local function ClearExtCache() extCache = {} nearbyCache = { t = -1e9 } end
 -- Cible proche la plus proche, toutes ressources confondues (le bébé porté ou la poussette poussée gagnent : ils sont collés au joueur)
 local function ExtNearby()
+    local now = GetGameTimer()
+    if now - nearbyCache.t < 300 then return nearbyCache[1], nearbyCache[2], nearbyCache[3], nearbyCache[4] end
     local me = GetEntityCoords(PlayerPedId())
     local bRes, bEnt, bTitle, bD
     for _, prov in ipairs(ALT_PROVIDERS) do
@@ -87,6 +101,7 @@ local function ExtNearby()
             end
         end
     end
+    nearbyCache = { bRes, bEnt, bTitle, bD, t = now }   -- 300 ms : les ressources ne sont pas rappelées à chaque recherche
     return bRes, bEnt, bTitle, bD
 end
 
@@ -225,15 +240,16 @@ local function Title(ctx)
 end
 
 -- ---------------------------------------------------------------------
--- Surbrillance de la cible survolée : son CONTOUR exact s'illumine (pas de boîte, pas de faces, pas de cercle).
+-- Surbrillance de la cible survolée, aux couleurs du logo Elyzea FA (violet néon) :
 --   · véhicules et objets : contour natif du jeu (SetEntityDrawOutline), pile sur la forme réelle ;
---   · personnes et animaux : JAMAIS le contour natif (il fait planter le jeu sur les personnages :
---     https://github.com/citizenfx/fivem/issues/1425) ; leur contour est calculé membre par membre
---     (tête, buste, bras, mains, jambes, pieds) et tracé en traits lumineux autour du corps.
+--   · personnes et animaux : JAMAIS le contour natif (plantage du jeu sur les personnages :
+--     https://github.com/citizenfx/fivem/issues/1425) ; un cadre de visée lumineux (4 coins) les entoure,
+--     calculé avec 7 os (tête, mains, bassin, pieds) : quelques appels par image, aucun calcul lourd.
+--   · étiquette : nom de la cible et nombre d'actions, panneau sombre souligné de violet.
 -- ---------------------------------------------------------------------
-local KIND_COLOR = {
-    player = { 96, 165, 250 }, carry = { 96, 165, 250 }, npc = { 239, 68, 68 },
-    vehicle = { 245, 158, 11 }, ext = { 167, 139, 250 }, trunk = { 245, 158, 11 },
+local KIND_COLOR = {   -- teinte d'accent par type (le violet Elyzea reste la couleur principale)
+    player = { 155, 92, 255 }, carry = { 155, 92, 255 }, npc = { 255, 77, 109 },
+    vehicle = { 181, 123, 255 }, ext = { 201, 166, 255 }, trunk = { 181, 123, 255 },
 }
 local boxCache = {}   -- [modèle] = { min, max } (GetModelDimensions n'est appelé qu'une fois par modèle)
 local function dims(ent)
@@ -247,15 +263,16 @@ local function dims(ent)
     return b[1], b[2]
 end
 
-local function label3D(x, y, z, text, r, g, b)
-    local onScreen, sx, sy = GetScreenCoordFromWorldCoord(x, y, z)
-    if not onScreen then return end
-    SetTextFont(4) SetTextScale(0.0, 0.36) SetTextCentre(true) SetTextOutline()
-    SetTextColour(255, 255, 255, 235)
+-- Étiquette au-dessus de la cible (coordonnées écran)
+local function label2D(sx, sy, text, r, g, b)
+    local w = math.min(0.3, 0.0052 * #text + 0.02)
+    DrawRect(sx, sy + 0.0135, w + 0.004, 0.034, 155, 92, 255, 40)        -- halo
+    DrawRect(sx, sy + 0.0135, w, 0.03, 13, 8, 32, 225)                  -- panneau nuit
+    DrawRect(sx, sy + 0.0295, w, 0.0024, r, g, b, 255)                  -- trait néon
+    DrawRect(sx - w / 2 + 0.0012, sy + 0.0135, 0.0024, 0.03, r, g, b, 255)
+    SetTextFont(4) SetTextScale(0.0, 0.35) SetTextCentre(true) SetTextOutline()
+    SetTextColour(246, 242, 255, 240)
     BeginTextCommandDisplayText('STRING') AddTextComponentSubstringPlayerName(text) EndTextCommandDisplayText(sx, sy)
-    local w = math.min(0.3, 0.0055 * #text + 0.012)
-    DrawRect(sx, sy + 0.0135, w, 0.03, 8, 14, 26, 190)
-    DrawRect(sx, sy + 0.0295, w, 0.0022, r, g, b, 230)
 end
 
 -- Contour natif : une seule entité à la fois, jamais un personnage, toujours retiré proprement
@@ -273,156 +290,76 @@ local function Outline(ent, c)
 end
 C.ClearOutline = function() Outline(nil) end
 
--- Corps d'une personne : capsules entre os (os A, os B, rayon en mètres)
-local BODY = {
-    { 31086, 31086, 0.115, 0.07 },            -- tête (centrée un peu au-dessus de l'os)
-    { 39317, 24818, 0.075 },                  -- cou → haut du buste
-    { 24818, 11816, 0.155 },                  -- buste
-    { 64729, 10706, 0.08 },                   -- épaules
-    { 64729, 45509, 0.07 }, { 10706, 40269, 0.07 },
-    { 45509, 61163, 0.062 }, { 40269, 28252, 0.062 },   -- bras
-    { 61163, 18905, 0.05 }, { 28252, 57005, 0.05 },     -- avant-bras
-    { 18905, 18905, 0.06 }, { 57005, 57005, 0.06 },     -- mains
-    { 11816, 58271, 0.13 }, { 11816, 51826, 0.13 },     -- bassin
-    { 58271, 63931, 0.09 }, { 51826, 36864, 0.09 },     -- cuisses
-    { 63931, 14201, 0.066 }, { 36864, 52301, 0.066 },   -- mollets
-    { 14201, 20781, 0.055 }, { 52301, 35502, 0.055 },   -- pieds
-}
-
--- distance d'un point au segment [a, b] (coordonnées écran corrigées de l'aspect)
-local function segDist(px, py, ax, ay, bx, by)
-    local dx, dy = bx - ax, by - ay
-    local l = dx * dx + dy * dy
-    local t = l > 0 and ((px - ax) * dx + (py - ay) * dy) / l or 0
-    if t < 0 then t = 0 elseif t > 1 then t = 1 end
-    local qx, qy = ax + t * dx - px, ay + t * dy - py
-    return math.sqrt(qx * qx + qy * qy)
-end
-
--- Contour d'un corps fait de capsules (monde : point A, point B, rayon en mètres) :
--- champ de distance sur une grille à l'écran puis « marching squares » (lignes de niveau interpolées).
--- La ligne suit la silhouette : bras et jambes séparés, tête, mains, pieds.
-local function capsuleContour(world, r, g, b, pulse)
-    local cam = GetGameplayCamCoord()
-    local aspect = GetAspectRatio(false)
-    local tanH = math.tan(math.rad(GetGameplayCamFov()) / 2)
-    local caps, minD, maxR = {}, 1e9, 0
-    local x0, y0, x1, y1 = 1e9, 1e9, -1e9, -1e9
-    local function proj(w)
+-- Points qui délimitent un personnage (tête, mains, bassin, pieds) ; un animal : coins de son modèle
+local PED_BONES = { 31086, 18905, 57005, 11816, 14201, 52301, 24818 }
+local function screenBox(ent)
+    local x0, y0, x1, y1, n = 1, 1, 0, 0, 0
+    local function add(w)
         local on, sx, sy = GetScreenCoordFromWorldCoord(w.x, w.y, w.z)
-        local d = #(w - cam)
-        if d < minD then minD = d end
-        return on and { sx * aspect, sy, d } or nil
-    end
-    for _, c in ipairs(world) do
-        local A, B = proj(c[1]), proj(c[2])
-        if A and B then
-            local rs = c[3] / (2 * ((A[3] + B[3]) / 2) * tanH)
-            caps[#caps + 1] = { A[1], A[2], B[1], B[2], rs }
-            if rs > maxR then maxR = rs end
-            x0, y0 = math.min(x0, A[1], B[1]), math.min(y0, A[2], B[2])
-            x1, y1 = math.max(x1, A[1], B[1]), math.max(y1, A[2], B[2])
+        if on then
+            n = n + 1
+            if sx < x0 then x0 = sx end if sx > x1 then x1 = sx end
+            if sy < y0 then y0 = sy end if sy > y1 then y1 = sy end
         end
     end
-    if #caps == 0 or minD < 0.4 then return nil end
-    local glow = 0.0028                                   -- épaisseur du halo (hauteur d'écran)
-    local m = maxR + glow * 2 + 0.004
-    x0, y0, x1, y1 = x0 - m, y0 - m, x1 + m, y1 + m
-    local rows = 56
-    local h = (y1 - y0) / rows
-    local cols = math.max(8, math.min(56, math.ceil((x1 - x0) / h)))
-    local wcell = (x1 - x0) / cols
-    local F = {}
-    for j = 0, rows do
-        local py = y0 + j * h
-        local row = {}
-        for i = 0, cols do
-            local px = x0 + i * wcell
-            local best = 1e9
-            for k = 1, #caps do
-                local c = caps[k]
-                local d = segDist(px, py, c[1], c[2], c[3], c[4]) - c[5]
-                if d < best then best = d end
-            end
-            row[i] = best
-        end
-        F[j] = row
-    end
-    local depth = math.max(0.4, minD - 0.12)
-    local lines = 0
-    local function toWorld(x, y)
-        local from, dir = CursorRay(x / aspect, y)
-        return from + dir * depth
-    end
-    local function iso(level, alpha)
-        local function lerp(va, vb) return (level - va) / (vb - va) end
-        for j = 0, rows - 1 do
-            local ya, yb = y0 + j * h, y0 + (j + 1) * h
-            local r0, r1 = F[j], F[j + 1]
-            for i = 0, cols - 1 do
-                local a, bb, c, d = r0[i], r0[i + 1], r1[i + 1], r1[i]   -- haut-gauche, haut-droit, bas-droit, bas-gauche
-                local idx = (a < level and 1 or 0) + (bb < level and 2 or 0) + (c < level and 4 or 0) + (d < level and 8 or 0)
-                if idx ~= 0 and idx ~= 15 then
-                    local xa, xb = x0 + i * wcell, x0 + (i + 1) * wcell
-                    local P = {}
-                    if (a < level) ~= (bb < level) then P[#P + 1] = { xa + lerp(a, bb) * wcell, ya } end
-                    if (bb < level) ~= (c < level) then P[#P + 1] = { xb, ya + lerp(bb, c) * h } end
-                    if (d < level) ~= (c < level) then P[#P + 1] = { xa + lerp(d, c) * wcell, yb } end
-                    if (a < level) ~= (d < level) then P[#P + 1] = { xa, ya + lerp(a, d) * h } end
-                    for k = 1, #P - 1, 2 do
-                        local p, q = toWorld(P[k][1], P[k][2]), toWorld(P[k + 1][1], P[k + 1][2])
-                        DrawLine(p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, alpha)
-                        lines = lines + 1
-                    end
-                end
-            end
+    if IsPedHuman(ent) then
+        for i = 1, #PED_BONES do add(GetPedBoneCoords(ent, PED_BONES[i], 0.0, 0.0, 0.0)) end
+        local head = GetPedBoneCoords(ent, 31086, 0.0, 0.0, 0.0)
+        add(vector3(head.x, head.y, head.z + 0.2))                       -- haut du crâne
+    else
+        local mn, mx = dims(ent)
+        for _, c in ipairs({ { mn.x, mn.y, mn.z }, { mx.x, mx.y, mx.z }, { mn.x, mx.y, mx.z }, { mx.x, mn.y, mn.z } }) do
+            add(GetOffsetFromEntityInWorldCoords(ent, c[1], c[2], c[3]))
         end
     end
-    iso(0.0, math.floor(255 * pulse))
-    iso(glow, math.floor(90 * pulse))
-    return { top = y0 + m, cx = (x0 + x1) / 2, depth = depth, aspect = aspect, lines = lines }
+    if n < 2 then return nil end
+    return x0, y0, x1, y1
 end
 
-local function pedContour(ent, r, g, b, pulse)
-    local world = {}
-    if IsPedHuman(ent) then
-        for _, c in ipairs(BODY) do
-            local A = GetPedBoneCoords(ent, c[1], 0.0, 0.0, 0.0)
-            local B = c[2] == c[1] and A or GetPedBoneCoords(ent, c[2], 0.0, 0.0, 0.0)
-            if c[4] then A, B = vector3(A.x, A.y, A.z + c[4]), vector3(B.x, B.y, B.z + c[4]) end
-            world[#world + 1] = { A, B, c[3] }
-        end
-    else
-        -- animal : pas d'os humains ; corps = capsule le long du modèle (avant → arrière-train)
-        local mn, mx = dims(ent)
-        local rr = math.min(mx.x - mn.x, mx.z - mn.z) * 0.45
-        local cz = (mn.z + mx.z) / 2
-        world[1] = { GetOffsetFromEntityInWorldCoords(ent, 0.0, mx.y - rr, cz), GetOffsetFromEntityInWorldCoords(ent, 0.0, mn.y + rr, cz), rr }
-    end
-    return capsuleContour(world, r, g, b, pulse)
+-- Cadre de visée : 4 coins lumineux qui « respirent », léger voile violet à l'intérieur
+local function reticle(x0, y0, x1, y1, r, g, b, pulse)
+    local aspect = GetAspectRatio(false)
+    local pad = 0.012
+    x0, x1, y0, y1 = x0 - pad / aspect, x1 + pad / aspect, y0 - pad, y1 + pad
+    local w, h = x1 - x0, y1 - y0
+    if w <= 0 or h <= 0 or w > 0.9 or h > 0.95 then return end
+    local t = 0.0026                                 -- épaisseur (hauteur d'écran)
+    local tx = t / aspect
+    local lx, ly = math.min(w * 0.3, 0.035 / aspect), math.min(h * 0.22, 0.035)
+    local a = math.floor(255 * pulse)
+    DrawRect((x0 + x1) / 2, (y0 + y1) / 2, w, h, r, g, b, 14)    -- voile
+    -- coins (horizontal + vertical)
+    DrawRect(x0 + lx / 2, y0, lx, t, r, g, b, a) DrawRect(x0, y0 + ly / 2, tx, ly, r, g, b, a)
+    DrawRect(x1 - lx / 2, y0, lx, t, r, g, b, a) DrawRect(x1, y0 + ly / 2, tx, ly, r, g, b, a)
+    DrawRect(x0 + lx / 2, y1, lx, t, r, g, b, a) DrawRect(x0, y1 - ly / 2, tx, ly, r, g, b, a)
+    DrawRect(x1 - lx / 2, y1, lx, t, r, g, b, a) DrawRect(x1, y1 - ly / 2, tx, ly, r, g, b, a)
+    -- halo des coins
+    local ha = math.floor(70 * pulse)
+    DrawRect(x0 + lx / 2, y0, lx, t * 3, r, g, b, ha) DrawRect(x1 - lx / 2, y1, lx, t * 3, r, g, b, ha)
+    DrawRect(x1 - lx / 2, y0, lx, t * 3, r, g, b, ha) DrawRect(x0 + lx / 2, y1, lx, t * 3, r, g, b, ha)
+    return (x0 + x1) / 2, y0
 end
 
 local function Highlight(ent, kind, text)
     if not ent or ent == 0 or not DoesEntityExist(ent) then Outline(nil) return end
     local c = KIND_COLOR[kind] or KIND_COLOR.player
     local r, g, b = c[1], c[2], c[3]
-    local labelPos
+    local pulse = 0.72 + 0.28 * math.abs(math.sin(GetGameTimer() / 320))
+    local lx, ly
     if IsEntityAPed(ent) then
         Outline(nil)
-        local pulse = 0.75 + 0.25 * math.abs(math.sin(GetGameTimer() / 280))
-        local res = pedContour(ent, r, g, b, pulse)
-        if res and text then
-            local from, dir = CursorRay(res.cx / res.aspect, math.max(0.02, res.top - 0.03))
-            labelPos = from + dir * res.depth
-        end
+        local x0, y0, x1, y1 = screenBox(ent)
+        if x0 then lx, ly = reticle(x0, y0, x1, y1, r, g, b, pulse) end
     else
         Outline(ent, c)
         if text then
             local _, mx = dims(ent)
-            labelPos = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, mx.z + 0.25)
+            local p = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, mx.z + 0.25)
+            local on, sx, sy = GetScreenCoordFromWorldCoord(p.x, p.y, p.z)
+            if on then lx, ly = sx, sy + 0.04 end
         end
     end
-    if labelPos then label3D(labelPos.x, labelPos.y, labelPos.z, text, r, g, b) end
+    if lx and text then label2D(lx, math.max(0.01, ly - 0.045), text, r, g, b) end
 end
 
 local function CloseMenu()
@@ -436,6 +373,25 @@ C.ui.alt = { close = CloseMenu }
 
 local function Stop() active = false end
 
+
+-- Touche ALT réellement tenue ? (le jeu peut perdre le relâchement, par exemple après Alt+Tab)
+local ALT_CONTROL = 19   -- INPUT_CHARACTER_WHEEL = ALT gauche par défaut
+local function AltHeld() return IsControlPressed(0, ALT_CONTROL) or IsDisabledControlPressed(0, ALT_CONTROL) end
+
+local SCAN_MS = 90          -- recherche de la cible (rayons, ressources) ~11 fois par seconde
+local OPTIONS_MS = 1000     -- actions de la cible relues chaque seconde (menottes posées entre-temps…)
+
+local function OpenMenu(ctx, x, y)
+    menuCtx, menuOpts = ctx, Options(ctx)
+    if #menuOpts == 0 then menuCtx, menuOpts = nil, nil return false end
+    menuOpen = true
+    C.Focus('alt', true)
+    local ui = {}
+    for i, o in ipairs(menuOpts) do ui[i] = { key = i, label = o.label, desc = o.desc, disabled = o.disabled, icon = o.icon } end
+    SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), kind = ctx.kind, options = ui, x = x, y = y })
+    return true
+end
+
 -- Ouvre directement le menu ALT sur l'objet d'une ressource (ex. four à gâteaux avec E : elyzea_drogues)
 exports('OpenFor', function(ent)
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return false end
@@ -443,52 +399,56 @@ exports('OpenFor', function(ent)
     if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy or LocalPlayer.state.emsDown then return false end
     local res, title = ExtTarget(ent)
     if not res then return false end
-    local ctx = { kind = 'ext', entity = ent, provider = res, title = title }
-    local opts = Options(ctx)
-    if #opts == 0 then return false end
-    menuCtx, menuOpts = ctx, opts
-    menuOpen = true
-    C.Focus('alt', true)
-    local ui = {}
-    for i, o in ipairs(opts) do ui[i] = { key = i, label = o.label, desc = o.desc, disabled = o.disabled, icon = o.icon } end
-    SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), kind = ctx.kind, options = ui, x = 0.55, y = 0.45 })
-    return true
+    return OpenMenu({ kind = 'ext', entity = ent, provider = res, title = title }, 0.55, 0.45)
 end)
 
 local function Start()
     if active or menuOpen or IsPauseMenuActive() or C.AnyOpen() then return end
     if (C.IsCuffed and C.IsCuffed()) or IsEntityDead(PlayerPedId()) or LocalPlayer.state.carriedBy or LocalPlayer.state.emsDown then return end
     active = true
+    ClearExtCache()
     CreateThread(function()
-        local ctx, opts, lastKey = nil, {}, nil
+        local ctx, opts, lastKey = { kind = 'none' }, {}, nil
+        local nextScan, nextOpts, released = 0, 0, 0
+        -- si le joueur a gardé ALT, on surveille la touche elle-même ; s'il l'a changée, on se fie à la commande
+        local seenAlt, frames = false, 0
         while active do
             SetMouseCursorActiveThisFrame()
             DisableControlAction(0, 1, true) DisableControlAction(0, 2, true)
             DisableControlAction(0, 24, true) DisableControlAction(0, 25, true)
             DisableControlAction(0, 140, true) DisableControlAction(0, 141, true) DisableControlAction(0, 142, true)
             DisableControlAction(0, 257, true) DisableControlAction(0, 263, true)
-            ctx = Context()
-            local key = ctx.kind .. ':' .. tostring(ctx.entity or '')
-            if key ~= lastKey then opts, lastKey = Options(ctx), key end
-            -- plus de message en haut à gauche : la cible qui a des actions s'allume, ALT + clic gauche ouvre le menu
-            if #opts > 0 and ctx.entity then
+            -- sécurités : relâchement perdu (Alt+Tab), menu pause, joueur à terre / menotté
+            frames = frames + 1
+            if AltHeld() then seenAlt, released = true, 0
+            elseif seenAlt then released = released + 1 end
+            if seenAlt and released > 3 then break end
+            if IsPauseMenuActive() or IsEntityDead(PlayerPedId()) or (C.IsCuffed and C.IsCuffed()) then break end
+            local now = GetGameTimer()
+            if now >= nextScan then
+                nextScan = now + SCAN_MS
+                ctx = Context()
+                local key = ctx.kind .. ':' .. tostring(ctx.entity or '')
+                if key ~= lastKey or now >= nextOpts then
+                    opts, lastKey, nextOpts = Options(ctx), key, now + OPTIONS_MS
+                end
+            end
+            if #opts > 0 and ctx.entity and DoesEntityExist(ctx.entity) then
                 Highlight(ctx.entity, ctx.kind, ('%s  ·  %d action%s'):format(Title(ctx), #opts, #opts > 1 and 's' or ''))
             else
                 Outline(nil)
             end
-            if IsDisabledControlJustPressed(0, 24) and #opts > 0 then
-                menuCtx, menuOpts = ctx, Options(ctx)
-                Stop()
-                menuOpen = true
-                C.Focus('alt', true)
-                local ui = {}
-                for i, o in ipairs(menuOpts) do ui[i] = { key = i, label = o.label, desc = o.desc, disabled = o.disabled, icon = o.icon } end
-                SendNUIMessage({ action = 'altMenu', show = true, title = Title(ctx), kind = ctx.kind, options = ui, x = GetControlNormal(0, 239), y = GetControlNormal(0, 240) })
-                return
+            if IsDisabledControlJustPressed(0, 24) then
+                -- le clic vise ce qui est sous le curseur à cet instant
+                ctx = Context()
+                if OpenMenu(ctx, GetControlNormal(0, 239), GetControlNormal(0, 240)) then
+                    active = false
+                    return
+                end
             end
             Wait(0)
         end
-        Stop()
+        active = false
         Outline(nil)
     end)
 end

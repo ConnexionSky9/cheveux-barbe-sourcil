@@ -56,47 +56,79 @@ const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '
   examine: '🩺', blood: '🩸', heal: '💊', stabilize: '🩹', revive: '❤️', record: '📋', ppa: '📜', repair: '🔧', clean: '🧽', flip: '🔄', engine: '⚙️', body: '🚗', tyres: '🛞',
   bag: '🎒', open: '👜', buy: '🛒', sell: '💰', rob: '🔫', hack: '💻', c4: '🧨', cash: '💵',
   anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️', mic: '🎤', press: '📰', break: '💥' };
-let altOpenedAt = 0;
+let altOpenedAt = 0, altSent = false, altIdx = -1;
 const KIND_ICON = { player: '🧍', carry: '🧍', vehicle: '🚗', trunk: '🧳', npc: '⚠️', ext: '✦' };
 const KIND_LABEL = { player: 'Personne', carry: 'Personne portée', vehicle: 'Véhicule', trunk: 'Coffre', npc: 'PNJ', ext: 'Élément' };
+const altButtons = () => [...$('#alt').querySelectorAll('button[data-key]')];
+function altFocus(i) {
+  const list = altButtons();
+  if (!list.length) return;
+  altIdx = (i + list.length) % list.length;
+  list.forEach((b, k) => b.classList.toggle('on', k === altIdx));
+  list[altIdx].focus({ preventScroll: true });
+  list[altIdx].scrollIntoView({ block: 'nearest' });
+}
+function altPick(b) {
+  if (!b || b.disabled || altSent) return;
+  altSent = true;                                   // jamais deux actions pour un seul menu (double clic, touche + clic)
+  b.classList.add('picked');
+  $('#alt').classList.add('closing');
+  post('altSelect', { key: Number(b.dataset.key) });
+  setTimeout(() => { $('#alt').classList.add('hidden'); $('#alt').classList.remove('closing'); }, 120);
+}
+function altClose() {
+  const alt = $('#alt');
+  if (alt.classList.contains('hidden') || altSent) return;
+  altSent = true;
+  alt.classList.add('hidden');
+  post('altClose');
+}
 function showAlt(m) {
   const alt = $('#alt');
+  altSent = false; altIdx = -1;
+  alt.classList.remove('closing');
   alt.dataset.kind = m.kind || 'player';
   const n = m.options.filter((o) => !o.disabled).length;
-  alt.innerHTML = `<div class="head"><span class="badge">${KIND_ICON[m.kind] || '◎'}</span><div class="tt"><b>${esc(m.title)}</b>
-      <small>${esc(KIND_LABEL[m.kind] || 'Actions')} · ${n} action${n > 1 ? 's' : ''}</small></div></div>` +
-    '<div class="list">' + (m.options.length ? m.options.map((o, i) => `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''} style="animation-delay:${Math.min(i, 10) * 22}ms">
+  alt.innerHTML = `<div class="glow"></div><div class="head"><span class="badge"><i>${KIND_ICON[m.kind] || '◎'}</i></span><div class="tt"><b>${esc(m.title)}</b>
+      <small>${esc(KIND_LABEL[m.kind] || 'Actions')}<em>${n} action${n > 1 ? 's' : ''}</em></small></div></div>` +
+    '<div class="list">' + (m.options.length ? m.options.map((o, i) => `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''} style="animation-delay:${Math.min(i, 10) * 26}ms">
       <span class="ico">${ICONS[o.icon] || '•'}</span><span class="lbl">${esc(o.label)}${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span>${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('') : '<div class="empty">Aucune action</div>') + '</div>' +
-    '<div class="foot"><span><kbd>1-9</kbd>choisir</span><span><kbd>Échap</kbd>fermer</span></div>';
+    '<div class="foot"><span><kbd>↑↓</kbd>choisir</span><span><kbd>Entrée</kbd>valider</span><span><kbd>1-9</kbd>direct</span><span><kbd>Échap</kbd>fermer</span></div>';
   alt.classList.remove('hidden');
   altOpenedAt = Date.now();
-  const w = innerWidth, h = innerHeight, r = alt.getBoundingClientRect();
-  alt.style.left = `${Math.min(Math.max(8, m.x * w + 16), w - r.width - 8)}px`;
-  alt.style.top = `${Math.min(Math.max(8, m.y * h - 12), h - r.height - 8)}px`;
-  const first = alt.querySelector('button:not(:disabled)');
-  if (first) first.focus();
+  // taille réelle (offsetWidth ignore l'animation d'ouverture qui réduit le menu) : il reste toujours entier à l'écran
+  const w = innerWidth, h = innerHeight, rw = alt.offsetWidth, rh = alt.offsetHeight;
+  const left = Math.min(Math.max(10, m.x * w + 18), w - rw - 10);
+  const top = Math.min(Math.max(10, m.y * h - 16), h - rh - 10);
+  alt.style.left = `${left}px`;
+  alt.style.top = `${top}px`;
+  alt.style.transformOrigin = `${m.x * w < left ? 'left' : 'right'} top`;
+  const first = altButtons().findIndex((b) => !b.disabled);
+  if (first >= 0) altFocus(first);
 }
-// Raccourcis 1-9 quand le menu est ouvert
+// Clavier : 1-9 direct, ↑ ↓ (ou molette) pour choisir, Entrée pour valider
 document.addEventListener('keydown', (e) => {
   const alt = $('#alt');
-  if (alt.classList.contains('hidden') || !/^[1-9]$/.test(e.key)) return;
-  const b = alt.querySelectorAll('button[data-key]')[Number(e.key) - 1];
-  if (!b || b.disabled) return;
-  e.preventDefault();
-  alt.classList.add('hidden');
-  post('altSelect', { key: Number(b.dataset.key) });
+  if (alt.classList.contains('hidden')) return;
+  if (/^[1-9]$/.test(e.key)) { e.preventDefault(); return altPick(altButtons()[Number(e.key) - 1]); }
+  const list = altButtons();
+  if (!list.length) return;
+  const step = (d) => { let i = altIdx; for (let k = 0; k < list.length; k++) { i = (i + d + list.length) % list.length; if (!list[i].disabled) return altFocus(i); } };
+  if (e.key === 'ArrowDown' || e.key === 'Tab') { e.preventDefault(); step(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); altPick(list[altIdx]); }
 });
-$('#alt').addEventListener('click', (e) => {
+$('#alt').addEventListener('click', (e) => altPick(e.target.closest('button[data-key]')));
+$('#alt').addEventListener('mousemove', (e) => {
   const b = e.target.closest('button[data-key]');
   if (!b || b.disabled) return;
-  $('#alt').classList.add('hidden');
-  post('altSelect', { key: Number(b.dataset.key) });
+  const i = altButtons().indexOf(b);
+  if (i !== altIdx) altFocus(i);
 });
 document.addEventListener('mousedown', (e) => {
   const alt = $('#alt');
   if (alt.classList.contains('hidden') || alt.contains(e.target) || Date.now() - altOpenedAt < 400) return;
-  alt.classList.add('hidden');
-  post('altClose');
+  altClose();
 });
 
 /* =====================================================================
@@ -367,7 +399,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   e.preventDefault();
   if (!$('#confirm').classList.contains('hidden')) { $('#confirm').classList.add('hidden'); if (confirmResolve) { confirmResolve(null); confirmResolve = null; } return; }
-  if (!$('#alt').classList.contains('hidden')) { $('#alt').classList.add('hidden'); return post('altClose'); }
+  if (!$('#alt').classList.contains('hidden')) return altClose();
   if (!$('#fine').classList.contains('hidden')) return post('close', { ui: 'fine' });
   if (!$('#myfines').classList.contains('hidden')) return post('close', { ui: 'fines' });
   if (!$('#offer').classList.contains('hidden')) return post('close', { ui: 'offer' });
