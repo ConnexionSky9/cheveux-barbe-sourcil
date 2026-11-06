@@ -3,32 +3,28 @@
 --  · Le conducteur consomme l'essence selon le régime moteur (niveau partagé
 --    dans l'état du véhicule : Entity(veh).state.fuel, lu par le HUD et le garage).
 --  · À 0 % : le moteur s'arrête et ne redémarre plus.
---  · Station : à pied près du véhicule (ou au volant), E pour faire le plein (payé par le serveur).
+--  · Station : le plein se fait au pistolet de la pompe (client/pump.lua).
 -- =====================================================================
-local S = { enabled = true, consumption = 1.0, showBlips = true, refuelTime = 120, stations = {} }
+local S = { enabled = true, consumption = 1.0, showBlips = true, flowRate = 1.2, chargeSpill = true, stations = {} }
 local blips = {}
 local electric = {}
 for _, m in ipairs(Config.Electric) do electric[joaat(m)] = true end
-local refueling = false
+
+-- Réglages reçus du serveur (lus par client/pump.lua)
+function FuelSettings() return S end
 
 local function Notify(msg, kind)
     if Ely and Ely.notify then return Ely.notify({ description = msg, type = kind or 'inform' }) end
     BeginTextCommandThefeedPost('STRING') AddTextComponentSubstringPlayerName(msg) EndTextCommandThefeedPostTicker(false, false)
 end
 
-local function Help(text)
-    BeginTextCommandDisplayHelp('STRING')
-    AddTextComponentSubstringPlayerName(text)
-    EndTextCommandDisplayHelp(0, false, false, -1)
-end
-
 -- Le véhicule utilise-t-il de l'essence ?
-local function UsesFuel(veh)
+function UsesFuel(veh)
     local class = GetVehicleClass(veh)
     return (Config.ClassMultiplier[class] or 1.0) > 0 and not electric[GetEntityModel(veh)]
 end
 
-local function GetFuel(veh)
+function GetFuel(veh)
     local f = tonumber(Entity(veh).state.fuel)
     if f then return f end
     -- Véhicule jamais suivi : niveau du jeu, ou un niveau au hasard s'il est vide
@@ -43,7 +39,8 @@ local function SetFuel(veh, value, replicate)
     if replicate then Entity(veh).state:set('fuel', value, true) end
 end
 
-local function TankOf(veh)
+-- Contenance du réservoir (litres pour 100 %)
+function TankOf(veh)
     local t = GetVehicleHandlingFloat(veh, 'CHandlingData', 'fPetrolTankVolume')
     if not t or t < 1 then return Config.DefaultTank end
     return math.max(Config.TankMin, math.min(Config.TankMax, t))
@@ -153,91 +150,15 @@ CreateThread(function()
     end
 end)
 
--- ---------------------------------------------------------------------
--- Faire le plein
--- ---------------------------------------------------------------------
-local function StationNear(pos)
-    for _, st in ipairs(S.stations) do
-        if #(pos - vector3(st.x, st.y, st.z)) <= (st.radius or Config.DefaultRadius) then return st end
-    end
-end
-
--- Véhicule à remplir : celui où l'on est, sinon le plus proche à pied
-local function TargetVehicle(ped)
-    local veh = GetVehiclePedIsIn(ped, false)
-    if veh ~= 0 then return veh, true end
-    local pos = GetEntityCoords(ped)
+-- Station la plus proche qui contient ce point (rayon de la station + marge)
+function FuelStationNear(pos, extra)
     local best, bestD
-    for _, v in ipairs(GetGamePool('CVehicle')) do
-        local d = #(GetEntityCoords(v) - pos)
-        if d <= Config.VehicleDistance and (not bestD or d < bestD) then best, bestD = v, d end
+    for _, st in ipairs(S.stations) do
+        local d = #(pos - vector3(st.x, st.y, st.z))
+        if d <= (st.radius or Config.DefaultRadius) + (extra or 0.0) and (not bestD or d < bestD) then best, bestD = st, d end
     end
-    return best, false
+    return best
 end
-
-local function Refuel(veh, st, inside)
-    refueling = true
-    local ped = PlayerPedId()
-    local fuel = GetFuel(veh)
-    local tank = TankOf(veh)
-    local liters = (100 - fuel) / 100 * tank
-    if inside and GetIsVehicleEngineRunning(veh) then SetVehicleEngineOn(veh, false, true, true) end
-    if not inside then TaskTurnPedToFaceEntity(ped, veh, 800) Wait(800) end
-    local duration = math.floor(math.max(1500, liters * (S.refuelTime or 120)))
-    local ok, done = pcall(function()
-        return exports.elyzea_core:ProgressBar({ duration = duration,
-            label = ('Plein en cours : %.0f L à %s $/L (X pour annuler)'):format(liters, tostring(st.price)), canCancel = true,
-            anim = not inside and { dict = 'timetable@gardener@filling_can', clip = 'gar_ig_5_filling_can', flag = 49 } or nil,
-            disable = { move = true, car = true, combat = true } })
-    end)
-    if not ok then Wait(duration) done = true end
-    refueling = false
-    if not done then return Notify('Plein annulé : rien n\'a été payé.', 'error') end
-    TriggerServerEvent('elyzea_fuel:refuel', VehToNet(veh), fuel, tank)
-end
-
-CreateThread(function()
-    -- Cible recalculée toutes les 250 ms (scan des véhicules) ; seule l'aide est affichée à chaque image
-    local cur, curAt = nil, 0
-    while true do
-        local sleep = 800
-        if not refueling and #S.stations > 0 then
-            local ped = PlayerPedId()
-            local now = GetGameTimer()
-            if not cur or now - curAt >= 250 or not DoesEntityExist(cur.veh) then
-                curAt, cur = now, nil
-                local pos = GetEntityCoords(ped)
-                local st = StationNear(pos)
-                if st then
-                    sleep = 250
-                    local veh, inside = TargetVehicle(ped)
-                    if veh and UsesFuel(veh) and (not inside or GetPedInVehicleSeat(veh, -1) == ped) then
-                        local fuel = GetFuel(veh)
-                        if fuel < 99 then
-                            local liters = (100 - fuel) / 100 * TankOf(veh)
-                            local cost = math.ceil(liters * (st.price or 0))
-                            cur = { st = st, veh = veh, inside = inside,
-                                text = ('~INPUT_CONTEXT~ Faire le plein · %.0f L · ~g~%d $~s~ (%s $/L)'):format(liters, cost, tostring(st.price)) }
-                        end
-                    end
-                end
-            end
-            if cur then
-                sleep = 0
-                Help(cur.text)
-                if IsControlJustPressed(0, 38) then
-                    local veh, st, inside = cur.veh, cur.st, cur.inside
-                    if inside and GetVehiclePedIsIn(ped, false) ~= veh then cur = nil   -- sorti du véhicule depuis le dernier calcul
-                    elseif inside and GetEntitySpeed(veh) > 1.0 then Notify('Arrêtez-vous pour faire le plein.', 'error')
-                    elseif NetworkGetEntityIsNetworked(veh) then cur = nil Refuel(veh, st, inside) end
-                end
-            end
-        else
-            cur = nil
-        end
-        Wait(sleep)
-    end
-end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end

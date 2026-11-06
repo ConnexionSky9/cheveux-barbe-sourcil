@@ -1,0 +1,106 @@
+/* =====================================================================
+   ELYZEA FUEL · ÉCRAN DE LA POMPE
+   Thème du logo Elyzea FA : nuit, violet néon, chiffres lumineux de pompe.
+   ===================================================================== */
+:root { --fuel: #B57BFF; --fuel-hi: #E9D5FF; --spill: #FF4D6D; --amber: #FFB547; --s: 1; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: var(--ely-font); color: var(--ely-white); user-select: none; }
+body.demo { background: radial-gradient(1000px 600px at 70% 70%, #2a2240, #0b0816 70%); }
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------- invite */
+#prompt { position: fixed; left: 50%; bottom: 13%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px 10px 10px; border-radius: 14px; background: rgba(12, 6, 28, .88); border: 1px solid var(--ely-line-hi);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45), var(--ely-glow); font: 700 15px var(--ely-font); letter-spacing: .01em; animation: rise .25s var(--ely-ease); }
+#prompt .key { min-width: 34px; height: 34px; padding: 0 8px; border-radius: 9px; display: grid; place-items: center; font: 800 15px var(--ely-font-display);
+  background: linear-gradient(160deg, #B57BFF, #6D28D9); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .35), 0 0 14px rgba(155, 92, 255, .6); }
+#prompt .key:empty { display: none; }
+#prompt.nokey { padding-left: 18px; }
+
+/* ---------------------------------------------------------------- écran de la pompe */
+#pump { position: fixed; right: 28px; bottom: 26%; width: 318px; padding: 16px 16px 14px; border-radius: 20px;
+  background: linear-gradient(165deg, rgba(30, 16, 62, .93), rgba(9, 5, 22, .95)); border: 1px solid var(--ely-line-hi);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .55), 0 0 0 1px rgba(155, 92, 255, .08) inset, var(--ely-glow);
+  transform-origin: right center; transform: scale(var(--s)); animation: slide .35s var(--ely-ease); overflow: hidden; }
+#pump::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--ely-grad); opacity: .9; }
+#pump header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+#pump header #mark svg { display: block; }
+#pump .st { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+#pump .st b { font: 800 italic 15px var(--ely-font-display); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pump .st small { font: 700 11px var(--ely-font); color: var(--ely-muted); letter-spacing: .08em; margin-top: 2px; }
+.live { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font: 800 9px var(--ely-font); letter-spacing: .22em;
+  color: var(--ely-muted); background: rgba(255, 255, 255, .05); border: 1px solid var(--ely-line); }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: #5b4a7d; }
+#pump.pumping .live { color: #fff; border-color: rgba(155, 92, 255, .55); }
+#pump.pumping .live i { background: var(--ely-ok); box-shadow: 0 0 10px var(--ely-ok); animation: blink .8s infinite; }
+#pump.spilling .live i { background: var(--spill); box-shadow: 0 0 10px var(--spill); }
+
+.money { padding: 10px 14px 8px; border-radius: 14px; background: rgba(0, 0, 0, .38); border: 1px solid var(--ely-line); position: relative; overflow: hidden; }
+.money::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px); pointer-events: none; }
+.money small, .liters small, .tank-head small { font: 800 9px var(--ely-font); letter-spacing: .26em; color: var(--ely-muted); }
+.amount { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; font: 900 italic 44px/1.05 var(--ely-font-display);
+  font-variant-numeric: tabular-nums; letter-spacing: .02em; color: #fff; text-shadow: 0 0 18px rgba(181, 123, 255, .75), 0 0 2px #fff; }
+.amount em { font-style: italic; font-size: 24px; color: var(--fuel); text-shadow: 0 0 12px rgba(181, 123, 255, .8); }
+#pump.pumping .amount { animation: hum 1.2s ease-in-out infinite; }
+
+.row { display: flex; gap: 8px; margin-top: 8px; }
+.liters { flex: 1; display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 12px; border-radius: 12px;
+  background: rgba(0, 0, 0, .3); border: 1px solid var(--ely-line); }
+.liters small { grid-column: 1 / -1; }
+.liters b { font: 900 italic 24px var(--ely-font-display); font-variant-numeric: tabular-nums; }
+.liters span { font: 800 12px var(--ely-font); color: var(--ely-muted); margin-left: 4px; }
+.liters.spill { border-color: rgba(255, 77, 109, .45); background: rgba(255, 77, 109, .08); animation: fadein .3s; }
+.liters.spill b { color: var(--spill); text-shadow: 0 0 12px rgba(255, 77, 109, .6); }
+
+/* jauge du réservoir */
+.tank { margin-top: 10px; }
+.tank-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.tank-head b { font: 900 italic 18px var(--ely-font-display); font-variant-numeric: tabular-nums; }
+.gauge { position: relative; height: 26px; border-radius: 9px; overflow: hidden; background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--ely-line); box-shadow: inset 0 2px 8px rgba(0, 0, 0, .5); }
+.fill { position: absolute; inset: 0 auto 0 0; width: 0%; overflow: hidden;
+  background: linear-gradient(90deg, #6D28D9, #9B5CFF 55%, #C9A6FF); box-shadow: 0 0 18px rgba(155, 92, 255, .65); }
+.fill .wave { position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .18) 0 6px, transparent 6px 18px);
+  opacity: 0; transition: opacity .3s; }
+#pump.pumping .fill .wave { opacity: 1; animation: flow .6s linear infinite; }
+.fill::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: #fff; opacity: .85; box-shadow: 0 0 10px #fff; }
+.start { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(255, 255, 255, .55); left: 0%; }
+.start::before { content: ''; position: absolute; top: -1px; left: -3px; border: 4px solid transparent; border-top-color: rgba(255, 255, 255, .7); }
+.ticks { position: absolute; inset: 0; display: flex; justify-content: space-evenly; pointer-events: none; }
+.ticks i { width: 1px; background: rgba(255, 255, 255, .12); }
+.cap { display: flex; justify-content: space-between; margin-top: 5px; font: 700 11px var(--ely-font); color: var(--ely-muted); }
+#pump.full .fill { background: linear-gradient(90deg, #6D28D9, #B57BFF 55%, #F2E8FF); }
+#pump.spilling .gauge { border-color: rgba(255, 77, 109, .6); box-shadow: inset 0 2px 8px rgba(0, 0, 0, .5), 0 0 16px rgba(255, 77, 109, .45); animation: shake .25s linear infinite; }
+
+.status { margin-top: 10px; min-height: 34px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px 10px; border-radius: 10px;
+  font: 700 12.5px var(--ely-font); color: #DCCFF5; background: rgba(155, 92, 255, .08); border: 1px solid rgba(155, 92, 255, .18); }
+.status.go { color: #fff; background: rgba(62, 230, 176, .1); border-color: rgba(62, 230, 176, .35); }
+.status.warn { color: #fff; background: rgba(255, 181, 71, .12); border-color: rgba(255, 181, 71, .45); }
+.status.bad { color: #fff; background: rgba(255, 77, 109, .16); border-color: rgba(255, 77, 109, .55); animation: alarm .7s ease-in-out infinite; }
+
+footer { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center; margin-top: 10px; font: 700 11px var(--ely-font); color: var(--ely-muted); }
+footer span { display: inline-flex; align-items: center; gap: 6px; }
+footer kbd { font: 800 10px var(--ely-font-display); letter-spacing: .06em; padding: 3px 7px; border-radius: 6px; color: #fff;
+  background: rgba(155, 92, 255, .22); border: 1px solid rgba(155, 92, 255, .45); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .35); }
+footer kbd.mouse { padding: 3px 6px; }
+
+/* ticket de fin */
+.receipt { position: absolute; inset: 0; padding: 18px; display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  background: linear-gradient(165deg, #1e103e, #090516); animation: fadein .25s; z-index: 2; }
+.receipt h3 { margin: 0 0 4px; font: 900 italic 18px var(--ely-font-display); letter-spacing: .08em; }
+.receipt h3 b { color: var(--ely-violet); }
+.receipt .line { display: flex; justify-content: space-between; font: 700 13px var(--ely-font); color: #DCCFF5; padding: 6px 0; border-bottom: 1px dashed rgba(190, 150, 255, .2); }
+.receipt .line b { color: #fff; font-variant-numeric: tabular-nums; }
+.receipt .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font: 900 italic 30px var(--ely-font-display); text-shadow: 0 0 16px rgba(181, 123, 255, .7); }
+.receipt .total small { font: 800 10px var(--ely-font); letter-spacing: .24em; color: var(--ely-muted); text-shadow: none; font-style: normal; }
+.receipt .note { font: 600 11px var(--ely-font); color: var(--ely-muted); text-align: center; margin-top: 4px; }
+.receipt.ko .total { color: var(--spill); text-shadow: 0 0 16px rgba(255, 77, 109, .6); }
+
+@keyframes slide { from { opacity: 0; transform: translateX(40px) scale(var(--s)); } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 10px); } }
+@keyframes fadein { from { opacity: 0; } }
+@keyframes blink { 50% { opacity: .35; } }
+@keyframes flow { to { background-position: 36px 0; } }
+@keyframes hum { 50% { text-shadow: 0 0 26px rgba(181, 123, 255, .95), 0 0 2px #fff; } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1px); } 75% { transform: translateX(1px); } }
+@keyframes alarm { 50% { background: rgba(255, 77, 109, .3); } }

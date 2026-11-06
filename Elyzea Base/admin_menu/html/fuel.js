@@ -38,15 +38,17 @@
             </div>
             <div class="section"><h2>⛽ Réglages</h2>
                 <p class="hint">Le conducteur consomme l'essence selon le régime moteur. <b>À 0 %, le moteur s'arrête et ne redémarre plus</b> tant que le plein n'est pas fait.
-                    Dans une station, à pied près du véhicule (ou au volant, à l'arrêt) : <span class="keycap">E</span> pour faire le plein, payé au litre.</p>
+                    À la pompe : <span class="keycap">E</span> prendre le pistolet, <span class="keycap">E</span> l'insérer dans la trappe (moteur coupé),
+                    <span class="keycap">clic droit</span> maintenu pour remplir. Réservoir plein : l'essence déborde au sol. Payé au litre en reprenant le pistolet.</p>
                 <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-bottom:12px">
                     ${tog('enabled', s.enabled ? 'Consommation active' : 'Consommation coupée', 'Coupée : les réservoirs ne baissent plus.')}
                     ${tog('showBlips', 'Stations sur la carte', 'Icône de pompe à essence pour tous les joueurs.')}
+                    ${tog('chargeSpill', s.chargeSpill !== false ? 'Essence renversée payée' : 'Essence renversée offerte', 'Comme une vraie pompe : ce qui déborde passe au compteur.')}
                 </div>
                 <div class="form-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1100px">
                     ${num('consumption', 'Vitesse de consommation (1 = normal, 2 = deux fois plus vite)', 'min="0" max="10" step="0.1"')}
                     ${num('price', 'Prix du litre pour une nouvelle station ($)', 'min="0" step="0.1"')}
-                    ${num('refuelTime', 'Durée du plein (millisecondes par litre)', 'min="0" max="2000"')}
+                    ${num('flowRate', 'Débit de la pompe (litres par seconde)', 'min="0.2" max="10" step="0.1"')}
                     <div class="field"><label>Paiement du plein</label><select class="input" data-fuf="payWith">
                         ${Object.entries(PAY).map(([k, v]) => `<option value="${k}" ${s.payWith === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
                 </div>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Elyzea Fuel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,600;0,700;0,800;1,700;1,800;1,900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- invite d'interaction (prendre / insérer / raccrocher le pistolet) -->
+  <div id="prompt" class="hidden"><span class="key" id="pkey">E</span><span id="ptext"></span></div>
+
+  <!-- écran de la pompe -->
+  <section id="pump" class="hidden" aria-live="polite">
+    <header>
+      <span id="mark"></span>
+      <div class="st"><b id="station">Station-service</b><small id="price">0,00 $ / L</small></div>
+      <span class="live" id="live"><i></i>POMPE</span>
+    </header>
+
+    <div class="money">
+      <small>À PAYER</small>
+      <div class="amount"><span id="cost">0,00</span><em>$</em></div>
+    </div>
+
+    <div class="row">
+      <div class="liters"><small>LITRES</small><b id="liters">0,00</b><span>L</span></div>
+      <div class="liters spill hidden" id="spillBox"><small>RENVERSÉS</small><b id="spilled">0,00</b><span>L</span></div>
+    </div>
+
+    <div class="tank" id="tank">
+      <div class="tank-head"><small>RÉSERVOIR</small><b id="pct">0 %</b></div>
+      <div class="gauge">
+        <div class="fill" id="fill"><i class="wave"></i></div>
+        <div class="start" id="startMark"></div>
+        <div class="ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="cap"><span id="tankL">0 L</span><span id="free">0 L libres</span></div>
+    </div>
+
+    <div class="status" id="status">Insère le pistolet dans la trappe du véhicule</div>
+
+    <footer id="keys"></footer>
+
+    <div class="receipt hidden" id="receipt"></div>
+  </section>
+
+  <script src="brand.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

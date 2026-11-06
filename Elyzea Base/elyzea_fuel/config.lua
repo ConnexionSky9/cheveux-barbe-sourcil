@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA FUEL - réglages par défaut
---  Tout ce qui suit se change ensuite en jeu : admin_menu › Stations essence
+--  Config.Defaults se change ensuite en jeu : admin_menu › Stations essence
 --  (permission « fuel_manage »). Ces valeurs ne servent qu'au premier démarrage.
 -- =====================================================================
 Config = {}
@@ -11,7 +11,33 @@ Config.Defaults = {
     price       = 3,        -- prix par litre proposé pour une nouvelle station ($)
     payWith     = 'auto',   -- 'auto' (liquide puis banque), 'cash' ou 'bank'
     showBlips   = true,     -- stations sur la carte
-    refuelTime  = 120,      -- millisecondes par litre ajouté (animation du plein)
+    flowRate    = 1.2,      -- débit de la pompe (litres par seconde) : 60 L en 50 s
+    chargeSpill = true,     -- l'essence qui déborde (réservoir plein) est comptée, comme sur une vraie pompe
+}
+
+-- ---------------------------------------------------------------------
+-- Pompe : pistolet, tuyau, remplissage au clic droit
+-- ---------------------------------------------------------------------
+Config.Pump = {
+    -- pompes du jeu reconnues (le pistolet se prend à la pompe la plus proche)
+    models = { 'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d',
+               'prop_gas_pump_old2', 'prop_gas_pump_old3', 'prop_vintage_pump' },
+    nozzle = 'prop_cs_fuel_nozle',   -- pistolet tenu en main puis posé dans la trappe
+    reach = 1.6,             -- distance pour prendre / raccrocher le pistolet (m)
+    hoseLength = 6.0,        -- longueur du tuyau : au-delà, le pistolet est arraché et revient à la pompe
+    insertDistance = 1.4,    -- distance de la trappe pour insérer le pistolet (m)
+    pumpDistance = 2.6,      -- il faut rester à côté du véhicule pour pomper (m)
+    hoseHeight = 1.25,       -- hauteur de départ du tuyau sur la pompe (m)
+    maxMinutes = 10,         -- une session de pompe est fermée (et payée) au bout de N minutes
+    spillDecalEvery = 450,   -- ms entre deux taches d'essence au sol pendant le débordement
+    -- Station ajoutée en jeu sans pompe du jeu à côté : une petite pompe (prop_vintage_pump) est posée
+    -- au point de la station, chez chaque joueur proche, pour y prendre le pistolet.
+    -- Pistolet planté dans la trappe : décalage vers l'extérieur, hauteur, inclinaison (à ajuster en jeu si besoin)
+    inCar = { out = 0.08, up = 0.06, pitch = -35.0 },
+}
+Config.Controls = {
+    interact = 38,           -- E : prendre / insérer / reprendre / raccrocher le pistolet
+    pump = 25,               -- clic droit maintenu : pomper
 }
 
 -- Consommation (pourcentage du réservoir par seconde) : ralenti + part liée au régime moteur.
@@ -57,7 +83,7 @@ Config.TankMin, Config.TankMax = 20, 120
 
 -- Distance autour d'une station pour faire le plein (mètres), si la station n'a pas son propre rayon
 Config.DefaultRadius = 12.0
--- Distance max entre le joueur et le véhicule pour faire le plein à pied
+-- Distance max entre le joueur et le véhicule (vérifiée par le serveur pendant tout le plein)
 Config.VehicleDistance = 5.0
 
 -- Niveau d'un véhicule qui n'a encore jamais été suivi (voiture sortie par le staff, PNJ volé…)
