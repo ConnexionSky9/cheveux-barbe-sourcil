@@ -84,6 +84,12 @@ local function nativeComponents()
 end
 
 local function setupMinimap()
+    -- Mini-carte de GTA supprimée : le cadre reste au même endroit, la carte Elyzea y est dessinée
+    if Config.HideMinimap then
+        rect = nativeRect()
+        sendRect()
+        return
+    end
     if Config.MinimapNative ~= false then
         SharpMask(false)
         nativeComponents()
@@ -136,7 +142,6 @@ CreateThread(function()
 end)
 
 CreateThread(function()
-    if Config.HideMinimap then return end
     Wait(1000)
     ownsMinimap = not adminMap()
     if ownsMinimap then
@@ -326,7 +331,13 @@ CreateThread(function()
         end
 
         local mode, dist = getVoice()
-        local map     = show and not IsRadarHidden() and not IsBigmapActive()
+        local map
+        if Config.HideMinimap then
+            local cm = Config.CustomMap or {}
+            map = show and cm.enabled ~= false and (not cm.onlyInVehicle or IsPedInAnyVehicle(ped, false))
+        else
+            map = show and not IsRadarHidden() and not IsBigmapActive()
+        end
         local health  = maxHp > 0 and (hp / maxHp * 100) or 0
         local armor   = GetPedArmour(ped)
         local talking = NetworkIsPlayerTalking(PlayerId())
@@ -371,5 +382,61 @@ AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() and maskOn then
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmasksm')
         RemoveReplaceTexture('platform:/textures/graphics', 'radarmask1g')
+    end
+end)
+
+
+------------------------------------------------------------
+-- Carte Elyzea (remplace la mini-carte de GTA, dessinée dans le cadre du HUD)
+-- Position, cap et zoom envoyés ~30 fois / s ; les points de la carte toutes les 2,5 s.
+------------------------------------------------------------
+local BLIP_SKIP = { [6] = true, [1] = false }   -- 6 = le joueur lui-même
+CreateThread(function()
+    local cm = Config.CustomMap or {}
+    if not Config.HideMinimap or cm.enabled == false then return end
+    SendNUIMessage({ action = 'mapcfg', cfg = { image = cm.image, bounds = cm.bounds, rotate = cm.rotate ~= false } })
+    local zoom = (cm.zoom and cm.zoom.foot) or 480
+    while true do
+        local ped = PlayerPedId()
+        local veh = GetVehiclePedIsIn(ped, false)
+        local c = GetEntityCoords(ped)
+        local want = (cm.zoom and cm.zoom.foot) or 480
+        if veh ~= 0 then
+            local sp = GetEntitySpeed(veh) * 3.6
+            local zv, zf = (cm.zoom and cm.zoom.vehicle) or 720, (cm.zoom and cm.zoom.fast) or 1200
+            want = zv + (zf - zv) * math.min(1.0, math.max(0.0, (sp - 60) / 120))
+        end
+        zoom = zoom + (want - zoom) * 0.08   -- zoom progressif
+        local cam = GetGameplayCamRot(2)
+        SendNUIMessage({ action = 'map', x = c.x, y = c.y, cam = cam.z, ped = GetEntityHeading(ped), zoom = zoom, veh = veh ~= 0 })
+        Wait(33)
+    end
+end)
+
+-- Points de la carte (lus dans GTA : commerces, métiers, missions, GPS) et point d'arrivée du GPS
+CreateThread(function()
+    local cm = Config.CustomMap or {}
+    if not Config.HideMinimap or cm.enabled == false or cm.blips == false then return end
+    while true do
+        local list = {}
+        for sprite = 1, 900 do
+            if not BLIP_SKIP[sprite] then
+                local b = GetFirstBlipInfoId(sprite)
+                local guard = 0
+                while DoesBlipExist(b) and guard < 200 do
+                    guard = guard + 1
+                    if GetBlipInfoIdDisplay(b) ~= 0 then
+                        local p = GetBlipInfoIdCoord(b)
+                        list[#list + 1] = { x = math.floor(p.x * 10) / 10, y = math.floor(p.y * 10) / 10, s = sprite, c = GetBlipColour(b), r = IsBlipShortRange(b) and 1 or 0 }
+                    end
+                    b = GetNextBlipInfoId(sprite)
+                end
+            end
+            if sprite % 150 == 0 then Wait(0) end
+        end
+        local wp = GetFirstBlipInfoId(8)
+        local w = DoesBlipExist(wp) and GetBlipInfoIdCoord(wp) or nil
+        SendNUIMessage({ action = 'blips', list = list, wp = w and { x = w.x, y = w.y } or false })
+        Wait(cm.blipRefresh or 2500)
     end
 end)

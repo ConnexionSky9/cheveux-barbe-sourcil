@@ -18,6 +18,9 @@ local ALIGN = {
 -- La mini-carte est fixée par le code (Config.Minimap) : aucun réglage du menu, aucun aperçu,
 -- aucun autre script ne peut la déplacer.
 local function current() return Config.Minimap end
+-- Mini-carte de GTA supprimée par elyzea_hud (carte Elyzea dans le cadre du HUD) : on ne la réaffiche jamais
+-- et on ne la replace plus ; seul le rectangle du cadre est encore calculé.
+local function gtaMapOff() return GetResourceState('elyzea_hud') == 'started' end
 
 -- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
@@ -139,7 +142,7 @@ local function place(relayout)
         MinimapRect = rect
         if changed or relayout then TriggerEvent('elyzea:minimapRect', MinimapRect) end
         -- Une seule fois par session : remettre la carte à sa place d'origine si un ancien réglage l'avait déplacée
-        if not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
+        if not gtaMapOff() and not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive() then
             NativeComponents()   -- sans effet visible s'ils sont déjà en place (aucun clignotement)
             if not nativeDone or relayout then nativeDone = true RefreshGta() end
         end
@@ -186,7 +189,9 @@ CreateThread(function()
         local s = current()
         if s and s.enabled ~= false then
             if s.hideHealthBars then hideHealthBars() end
-            if s.onlyInVehicle then
+            if gtaMapOff() then
+                -- rien : elyzea_hud cache la mini-carte de GTA
+            elseif s.onlyInVehicle then
                 local inVeh = IsPedInAnyVehicle(PlayerPedId(), false)
                 if inVeh ~= lastVeh then DisplayRadar(inVeh) lastVeh = inVeh end
             elseif lastVeh == false then

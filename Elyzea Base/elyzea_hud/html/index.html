@@ -59,6 +59,17 @@
   .frame .emb span b{color:#B57BFF}
   .frame.round .glow,.frame.round .emb{display:none}
   .frame.round .edge{border-radius:50%;clip-path:none}
+  /* Carte Elyzea : dessinée dans le cadre (remplace la mini-carte de GTA) */
+  .mm{position:absolute;inset:0;overflow:hidden;background:#0b0718;
+    clip-path:polygon(0 0,calc(100% - var(--u)*10) 0,100% calc(var(--u)*10),100% 100%,calc(var(--u)*10) 100%,0 calc(100% - var(--u)*10))}
+  .frame.round .mm{border-radius:50%;clip-path:none}
+  .mm canvas{position:absolute;inset:0;width:100%;height:100%}
+  .mm-n{position:absolute;left:50%;top:50%;width:calc(var(--u)*16);height:calc(var(--u)*16);margin:calc(var(--u)*-8);display:grid;place-items:center;
+    font:700 calc(var(--u)*10)/1 "Chakra Petch",sans-serif;color:#fff;background:rgba(12,7,26,.85);border:calc(var(--u)*1) solid var(--cyan);border-radius:50%;
+    box-shadow:0 0 calc(var(--u)*6) rgba(181,123,255,.7)}
+  .mm-wp{position:absolute;right:calc(var(--u)*6);bottom:calc(var(--u)*5);font:700 calc(var(--u)*11)/1 "Chakra Petch",sans-serif;color:#E9D5FF;
+    text-shadow:0 0 calc(var(--u)*4) #000,0 0 calc(var(--u)*6) rgba(155,92,255,.9)}
+  .mm-wp:empty{display:none}
 
   /* ================= JOUEUR (à droite de la carte) ================= */
   .player{position:absolute;left:calc(var(--mx) + var(--mw) + var(--u)*18);bottom:calc(100vh - var(--my) - var(--mh) - var(--u)*4);
@@ -147,12 +158,11 @@
 
   /* aperçu hors jeu */
   body.demo{background:#3d4a46}
-  body.demo .frame::after{content:"";position:absolute;inset:0;background:linear-gradient(35deg,transparent 46%,#cfd8dc 46% 49%,transparent 49%),#8a9aa0}
 </style>
 </head>
 <body>
 <div id="hud">
-  <div class="frame" id="frame"><i class="edge"></i><i class="glow"></i><i class="br b1"></i><i class="br b2"></i><div class="emb" id="emb"><span>ELYZEA <b>FA</b></span></div></div>
+  <div class="frame" id="frame"><div class="mm" id="mm"><canvas id="mm-c"></canvas><b class="mm-n" id="mm-n">N</b><span class="mm-wp" id="mm-wp"></span></div><i class="edge"></i><i class="glow"></i><i class="br b1"></i><i class="br b2"></i><div class="emb" id="emb"><span>ELYZEA <b>FA</b></span></div></div>
 
   <!-- Joueur : identité, vie, bouclier, faim, soif, voix -->
   <div class="player">
@@ -223,6 +233,7 @@
 </div>
 
 <script src="brand.js"></script>
+<script src="minimap.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);

@@ -19,4 +19,8 @@ files {
     'html/brand.css',
     'html/brand.js',
     'minimap/radarmask.png',
+    'html/minimap.js',
+    'html/img/*.jpg',
+    'html/img/*.png',
+    'html/img/*.webp',
 }

@@ -1,0 +1,35 @@
+// Carte Elyzea dans le cadre du HUD (remplace la mini-carte de GTA). NODE_PATH=$(npm root -g) node tests/ui_minimap.cjs [captures]
+const { chromium } = require('playwright');
+const path = require('path');
+const out = process.argv[2] || __dirname;
+let fails = 0;
+const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c) fails++; };
+(async () => {
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  await p.route(/^https?:/, (r) => r.abort());
+  await p.goto('file://' + path.join(__dirname, '..', 'html', 'index.html')); await p.waitForTimeout(300);
+  const send = (m) => p.evaluate((m) => window.postMessage(m, '*'), m);
+  const h = 1 / 5.674, w = 1 / (4 * 16 / 9);
+  await send({ action: 'rect', rect: { x: 0.0125, y: 1 - 0.0125 - h, w, h, align: 'LB' }, frame: { inner: 8, outer: 12 } });
+  await send({ action: 'ident', firstname: 'Léna', lastname: 'Duval', id: 12 });
+  await send({ action: 'update', show: true, map: true, health: 74, armor: 40, hunger: 62, thirst: 48, voice: { mode: 2, distance: 8 }, talking: false });
+  await send({ action: 'mapcfg', cfg: { image: { path: 'img/map.jpg', cols: 1, rows: 1 }, bounds: { minX: -5661.2, maxX: 6694.0, minY: -4058.5, maxY: 8429.3 }, rotate: true } });
+  await send({ action: 'map', x: 195, y: -934, cam: 20, ped: 40, zoom: 420, veh: false });
+  await send({ action: 'blips', list: [{ x: 250, y: -900, s: 52, c: 2 }, { x: 120, y: -1000, s: 61, c: 1 }, { x: 300, y: -1100, s: 110, c: 5 }, { x: 260, y: -980, s: 8, c: 83 }], wp: { x: 900, y: -200 } });
+  await p.waitForTimeout(900);
+  check(await p.$eval('#mm-c', (c) => c.width > 100 && c.height > 80), 'carte dessinée dans le cadre (canvas à la taille du cadre)');
+  const box = await p.$eval('#mm', (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
+  const fr = await p.$eval('#frame', (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
+  check(JSON.stringify(box) === JSON.stringify(fr), 'carte exactement dans le rectangle du cadre');
+  check((await p.textContent('#mm-wp')).includes('km'), 'distance au point GPS affichée');
+  await p.screenshot({ path: path.join(out, 'minimap_pied.png'), clip: { x: 0, y: 900 - 300, width: 760, height: 300 } });
+  await send({ action: 'vehicle', vehicle: { speed: 128, max: 240, rpm: .72, gear: '4', fuel: 46, engine: 88, engineOn: true, lights: true, dir: 'NO', street: 'Vinewood Blvd · Downtown' } });
+  await send({ action: 'map', x: -1200, y: -500, cam: 135, ped: 135, zoom: 800, veh: true });
+  await p.waitForTimeout(1200);
+  await p.screenshot({ path: path.join(out, 'minimap_vehicule.png') });
+  check(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' : ' + errs.join(' | ') : ''));
+  await b.close();
+  console.log(fails ? `${fails} ÉCHEC(S)` : 'TOUS LES TESTS CARTE SONT PASSÉS');
+  process.exit(fails ? 1 : 0);
+})();
