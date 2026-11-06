@@ -72,17 +72,13 @@ function Weapons.Reload()
     end)
 end
 
--- Classement de l'entité touchée : joueur de la partie ou zombie
+-- Classement de l'entité touchée : joueur de la partie
 local function classify(ent)
     if not ent or ent == 0 or not DoesEntityExist(ent) or GetEntityType(ent) ~= 1 then return nil end
     if IsPedAPlayer(ent) then
         local idx = NetworkGetPlayerIndexFromPed(ent)
         if idx and idx ~= -1 then return { k = 'p', id = GetPlayerServerId(idx) } end
         return nil
-    end
-    if NetworkGetEntityIsNetworked(ent) then
-        local st = Entity(ent).state.lgZombie
-        if st and st.uid == C.uid then return { k = 'z', id = NetworkGetNetworkIdFromEntity(ent) } end
     end
     return nil
 end
@@ -118,7 +114,7 @@ local function muzzle(ped)
     return GetPedBoneCoords(ped, 57005, 0.1, 0.0, 0.0)
 end
 
--- Cibles de mêlée possibles (fournies par le mode : joueurs adverses ou zombies)
+-- Cibles de mêlée possibles (fournies par le mode : joueurs adverses)
 Weapons.MeleeTargets = function() return {} end
 
 local function melee(w, ped)

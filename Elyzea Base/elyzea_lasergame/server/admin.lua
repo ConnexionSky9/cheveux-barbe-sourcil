@@ -32,13 +32,14 @@ local function gamesView()
         local players = {}
         for _, s in ipairs(Games.PlayerList(g)) do
             local p = g.players[s]
-            players[#players + 1] = { id = s, name = p.name, team = p.team, alive = p.alive, state = p.state, kills = p.kills, money = p.money }
+            players[#players + 1] = { id = s, name = p.name, team = p.team, alive = p.alive, kills = p.kills }
         end
         local spect = 0
         for _ in pairs(g.spectators or {}) do spect = spect + 1 end
-        out[#out + 1] = { uid = g.uid, mode = g.mode, name = g.name, host = g.hostName, phase = g.phase, map = g.map, format = g.format,
+        local m = g.arena or Maps.Get(g.map)
+        out[#out + 1] = { uid = g.uid, mode = g.mode, name = g.name, host = g.hostName, phase = g.phase, map = m and m.label or g.map, format = g.format,
             stake = g.stake, round = g.round, score = g.score, private = g.private, players = players, spectators = spect,
-            createdAt = g.createdAt, zombies = g.alive }
+            createdAt = g.createdAt }
     end
     table.sort(out, function(a, b) return (a.createdAt or 0) > (b.createdAt or 0) end)
     return out
@@ -48,30 +49,8 @@ Admin.GamesView = gamesView
 local function settingsView()
     local weapons = {}
     for _, w in ipairs(LG.Weapons) do
-        weapons[#weapons + 1] = { id = w.id, label = w.label, cat = w.cat, damage = w.damage, zDamage = w.zDamage, range = w.range, rpm = w.rpm,
-            spread = w.spread, mag = w.mag, reload = w.reload, disabled = w.disabled == true, zombieOnly = w.zombieOnly == true }
-    end
-    local zm = Maps.Get('zombie_map')
-    local doors, wallbuys = {}, {}
-    if zm then
-        for _, d in ipairs(zm.doors or {}) do doors[#doors + 1] = { id = d.id, label = d.label, price = Settings.DoorPrice(d), default = d.price } end
-        for _, wb in ipairs(zm.wallbuys or {}) do
-            wallbuys[#wallbuys + 1] = { id = wb.id, label = wb.label, sector = wb.sector, price = Settings.WallbuyPrice(wb), weapon = Settings.WallbuyWeapon(wb), default = wb.price }
-        end
-    end
-    local types = {}
-    for id, t in pairs(LG.Zombie.types) do
-        types[#types + 1] = { id = id, label = t.label, hp = t.hp, damage = t.damage, speed = t.speed, reward = t.reward, weight = t.weight, minRound = t.minRound }
-    end
-    table.sort(types, function(a, b) return a.minRound < b.minRound end)
-    local perks = {}
-    for id, p in pairs(LG.Zombie.perks) do perks[#perks + 1] = { id = id, label = p.label, price = p.price, disabled = p.disabled == true } end
-    table.sort(perks, function(a, b) return a.price < b.price end)
-    local maps = {}
-    for _, id in ipairs(Maps.order) do
-        local m = Maps.Get(id)
-        maps[#maps + 1] = { id = id, label = m.label, mode = m.mode, size = m.size, enabled = m.enabled, anchor = m.anchor,
-            defaultAnchor = m.defaultAnchor, objects = m.stats and m.stats.objects or 0, moved = ((Settings.data.maps or {})[id] or {}).anchor ~= nil }
+        weapons[#weapons + 1] = { id = w.id, label = w.label, cat = w.cat, damage = w.damage, range = w.range, rpm = w.rpm,
+            spread = w.spread, mag = w.mag, reload = w.reload, disabled = w.disabled == true }
     end
     local formats = {}
     for _, f in ipairs(Config.PvP.formats) do formats[#formats + 1] = { id = f.id, label = f.label, enabled = not (Config.PvP.disabledFormats or {})[f.id] } end
@@ -83,9 +62,8 @@ local function settingsView()
             minRankedDuration = Config.PvP.minRankedDuration, lobbyIdleTimeout = Config.PvP.lobbyIdleTimeout,
             defaultRoundTime = Config.PvP.defaultRoundTime, defaultRounds = Config.PvP.defaultRounds },
         stake = { enabled = Config.Stake.enabled, min = Config.Stake.min, max = Config.Stake.max, step = Config.Stake.step, houseFeePct = Config.Stake.houseFeePct },
-        formats = formats, weapons = weapons, maps = maps, ranks = ranks,
-        zombie = { enabled = LG.Zombie.enabled, rounds = LG.Zombie.rounds, money = LG.Zombie.money, player = LG.Zombie.player,
-            types = types, perks = perks, maxPerks = LG.Zombie.maxPerks, doors = doors, wallbuys = wallbuys },
+        formats = formats, weapons = weapons, arenas = Maps.AdminView(), ranks = ranks, teams = { A = Config.Teams.A.name, B = Config.Teams.B.name },
+        adminMenu = GetResourceState('admin_menu') == 'started',
         npcs = Settings.Npcs(),
         framework = Bridge.Name(),
         categories = LG.WeaponCategories,
@@ -124,41 +102,6 @@ adminRPC('set', function(src, section, payload, key)
         local c = Settings.Clean(S.weapon, payload)
         local dw = ensure(ensure(d, 'weapons'), w.id)
         for k, v in pairs(c) do dw[k] = v end
-    elseif section == 'zombieEnabled' then
-        ensure(d, 'zombie').enabled = payload.enabled == true
-    elseif section == 'zombieRounds' then
-        for k, v in pairs(Settings.Clean(S.zombieRounds, payload)) do ensure(ensure(d, 'zombie'), 'rounds')[k] = v end
-    elseif section == 'zombieMoney' then
-        for k, v in pairs(Settings.Clean(S.zombieMoney, payload)) do ensure(ensure(d, 'zombie'), 'money')[k] = v end
-    elseif section == 'zombiePlayer' then
-        for k, v in pairs(Settings.Clean(S.zombiePlayer, payload)) do ensure(ensure(d, 'zombie'), 'player')[k] = v end
-    elseif section == 'zombieType' then
-        local id = tostring(key or '')
-        if not LG.Zombie.types[id] then return false, 'Type inconnu.' end
-        local dt = ensure(ensure(ensure(d, 'zombie'), 'types'), id)
-        for k, v in pairs(Settings.Clean(S.zombieType, payload)) do dt[k] = v end
-    elseif section == 'perk' then
-        local id = tostring(key or '')
-        if not LG.Zombie.perks[id] then return false, 'Atout inconnu.' end
-        local dp = ensure(ensure(ensure(d, 'zombie'), 'perks'), id)
-        if payload.price then dp.price = LGU.Int(payload.price, 0, 1000000, LG.Zombie.perks[id].price) end
-        if payload.disabled ~= nil then dp.disabled = payload.disabled == true end
-    elseif section == 'maxPerks' then
-        ensure(d, 'zombie').maxPerks = LGU.Int(payload.value, 1, 8, 4)
-    elseif section == 'door' then
-        local zm = Maps.Get('zombie_map')
-        local ok = false
-        for _, x in ipairs(zm and zm.doors or {}) do if x.id == key then ok = true end end
-        if not ok then return false, 'Porte inconnue.' end
-        ensure(ensure(d, 'zombie'), 'doors')[key] = LGU.Int(payload.price, 0, 1000000, 0)
-    elseif section == 'wallbuy' then
-        local zm = Maps.Get('zombie_map')
-        local ok = false
-        for _, x in ipairs(zm and zm.wallbuys or {}) do if x.id == key then ok = true end end
-        if not ok then return false, 'Emplacement inconnu.' end
-        local wb = ensure(ensure(ensure(d, 'zombie'), 'wallbuys'), key)
-        if payload.price then wb.price = LGU.Int(payload.price, 0, 1000000, 0) end
-        if payload.weapon and LGU.Weapon(payload.weapon) then wb.weapon = payload.weapon end
     elseif section == 'rank' then
         local id = tostring(key or '')
         local found
@@ -167,7 +110,7 @@ adminRPC('set', function(src, section, payload, key)
         ensure(ensure(d, 'ranks'), id).min = LGU.Int(payload.min, 1, 100000, LG.Ranks[found].min)
     elseif section == 'reset' then
         local what = tostring(key or '')
-        if what == 'all' then Settings.data = { maps = d.maps, npcs = d.npcs, npcRemoved = d.npcRemoved }
+        if what == 'all' then Settings.data = { npcs = d.npcs, npcRemoved = d.npcRemoved }
         elseif d[what] ~= nil then d[what] = nil
         else return false, 'Rien à réinitialiser.' end
     else
@@ -179,42 +122,22 @@ adminRPC('set', function(src, section, payload, key)
     return true, settingsView()
 end)
 
--- ---------------------------------------------------------------- cartes
-adminRPC('map', function(src, id, action)
-    local m = Maps.Get(tostring(id or ''))
-    if not m then return false, 'Carte inconnue.' end
-    local dm = ensure(ensure(Settings.data, 'maps'), m.id)
-    if action == 'enable' or action == 'disable' then
-        dm.enabled = action == 'enable'
-    elseif action == 'here' then
-        for _, g in pairs(Games.list) do
-            if g.map == m.id and g.phase ~= LG.Phase.LOBBY then return false, 'Une partie utilise cette carte : attends la fin.' end
-        end
-        -- l'ancre devient la position et l'orientation du staff (pieds au sol)
-        local ped = GetPlayerPed(src)
-        local c = GetEntityCoords(ped)
-        -- complexe souterrain : recréé à la même profondeur SOUS la position du staff (pas à ses pieds)
-        local depth = m.underground and (tonumber(m.depth) or 60) or 0
-        dm.anchor = { x = math.floor(c.x * 100) / 100, y = math.floor(c.y * 100) / 100, z = math.floor((c.z - 1.0 - depth) * 100) / 100,
-            h = math.floor(GetEntityHeading(ped) * 10) / 10 }
-    elseif action == 'reset' then
-        dm.anchor = nil
-    elseif action == 'tp' then
-        local w = Maps.World(m, (m.spawns and m.spawns.A and m.spawns.A[1]) or (m.start and m.start.spawns[1]) or { x = 0, y = 0, z = 1 })
-        TriggerClientEvent('elyzea_lasergame:adminTeleport', src, w)
-        return true
-    elseif action == 'preview' then
-        -- aperçu : la carte est construite autour du staff dans le monde normal, pour lui seul, pendant 3 minutes
-        TriggerClientEvent('elyzea_lasergame:adminPreview', src, Maps.ClientInfo(m))
-        return true
-    else
-        return false, 'Action inconnue.'
+-- ---------------------------------------------------------------- arènes (créées en jeu)
+-- Même fonction que l'onglet LaserGame d'admin_menu (export AdminArena) : voir server/maps.lua › Maps.Action
+function Admin.Arena(src, action, data)
+    local ok, msg, view, id = Maps.Action(src, action, data)
+    if ok and action ~= 'list' and action ~= 'tp' and action ~= 'show' then
+        Settings.Publish()
+        Lobby.PushList()
+        log(src, ('arène %s : %s'):format(tostring(id or (type(data) == 'table' and data.id) or '?'), action))
     end
-    Settings.Save()
-    Maps.Load()
-    Settings.Publish()
-    log(src, ('carte %s : %s'):format(m.id, action), dm.anchor)
-    return true, settingsView()
+    return ok, msg, view, id
+end
+
+adminRPC('arena', function(src, action, data)
+    local ok, msg, view = Admin.Arena(src, action, data)
+    if not ok then return false, msg end
+    return true, { message = msg, arenas = view or Maps.AdminView() }
 end)
 
 -- ---------------------------------------------------------------- PNJ
@@ -259,7 +182,7 @@ adminRPC('game', function(src, uid, action, target)
     if not g then return false, 'Partie introuvable.' end
     if action == 'stop' then
         log(src, ('partie %s arrêtée'):format(g.uid))
-        if g.mode == 'pvp' then Pvp.Stop(g, 'arrêt staff') else CreateThread(function() Zombie.Stop(g, 'arrêt staff') end) end
+        Pvp.Stop(g, 'arrêt staff')
     elseif action == 'kick' then
         target = tonumber(target)
         if not target or not (g.players[target] or (g.spectators or {})[target]) then return false, 'Joueur introuvable.' end
@@ -279,7 +202,7 @@ adminRPC('players.search', function(src, query)
     query = LGU.CleanText(query, 40)
     if #query < 2 then return false, 'Au moins 2 caractères.' end
     local like = '%' .. query:gsub('[%%_]', '') .. '%'
-    local rows = MySQL.query.await([[SELECT `citizenid`, `firstname`, `lastname`, `points`, `wins`, `losses`, `matches`, `zb_best_round`, `banned`
+    local rows = MySQL.query.await([[SELECT `citizenid`, `firstname`, `lastname`, `points`, `wins`, `losses`, `matches`, `banned`
         FROM `lg_players` WHERE `citizenid` LIKE ? OR CONCAT(`firstname`, ' ', `lastname`) LIKE ? ORDER BY `points` DESC LIMIT 25]], { like, like }) or {}
     for _, r in ipairs(rows) do r.rank = LGU.RankFor(r.points).id end
     return true, rows
@@ -310,12 +233,9 @@ adminRPC('players.set', function(src, cid, action, value, extra)
         MySQL.update.await('UPDATE `lg_players` SET `points` = ?, `peak_points` = GREATEST(`peak_points`, ?) WHERE `citizenid` = ?', { target.min, target.min, cid })
         log(src, ('rang de %s fixé à %s (%d points)'):format(cid, target.label, target.min))
     elseif action == 'reset' then
-        if value == 'pvp' or value == 'all' then
+        if value == 'pvp' or value == 'all' or value == nil then
             MySQL.update.await('UPDATE `lg_players` SET `points` = ?, `peak_points` = ?, `wins` = 0, `losses` = 0, `draws` = 0, `kills` = 0, `deaths` = 0, `matches` = 0, `streak` = 0, `best_streak` = 0 WHERE `citizenid` = ?',
                 { LG.Ranking.start, LG.Ranking.start, cid })
-        end
-        if value == 'zombie' or value == 'all' then
-            MySQL.update.await('UPDATE `lg_players` SET `zb_best_round` = 0, `zb_best_round_solo` = 0, `zb_best_date` = NULL, `zb_kills` = 0, `zb_money` = 0, `zb_games` = 0, `zb_downs` = 0, `zb_revives` = 0 WHERE `citizenid` = ?', { cid })
         end
         log(src, ('statistiques réinitialisées (%s) : %s'):format(tostring(value), cid))
     elseif action == 'exclude' then
@@ -337,17 +257,15 @@ end)
 adminRPC('stats', function(src)
     local s = MySQL.single.await([[SELECT
         (SELECT COUNT(*) FROM `lg_matches` WHERE `mode` = 'pvp' AND `status` = 'finished') AS pvp,
-        (SELECT COUNT(*) FROM `lg_matches` WHERE `mode` = 'zombie' AND `status` = 'finished') AS zombie,
         (SELECT COUNT(*) FROM `lg_players`) AS players,
         (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` IN ('paid', 'lost', 'refunded')) AS staked,
-        (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` = 'held') AS held,
-        (SELECT COALESCE(MAX(`round`), 0) FROM `lg_zombie_runs`) AS bestRound]]) or {}
+        (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` = 'held') AS held]]) or {}
     return true, s
 end)
 
 adminRPC('logs', function(src, category, page)
     page = LGU.Int(page, 1, 500, 1)
-    local cats = { admin = 1, money = 1, pvp = 1, zombie = 1, security = 1, error = 1 }
+    local cats = { admin = 1, money = 1, pvp = 1, security = 1, error = 1 }
     local rows
     if cats[category] then
         rows = MySQL.query.await('SELECT `id`, `category`, `name`, `message`, `data`, `created_at` FROM `lg_logs` WHERE `category` = ? ORDER BY `id` DESC LIMIT 50 OFFSET ?', { category, (page - 1) * 50 })
@@ -371,7 +289,8 @@ exports('AdminSummary', function()
     local s = MySQL.single.await([[SELECT (SELECT COUNT(*) FROM `lg_players`) AS players,
         (SELECT COUNT(*) FROM `lg_matches` WHERE `status` = 'finished') AS matches,
         (SELECT CAST(COALESCE(SUM(`amount`), 0) AS SIGNED) FROM `lg_ledger` WHERE `status` = 'held') AS held]]) or {}
-    return { games = gamesView(), stats = s, framework = Bridge.Name(), command = Config.AdminCommand }
+    return { games = gamesView(), stats = s, framework = Bridge.Name(), command = Config.AdminCommand, arenas = Maps.AdminView(),
+        teams = { A = Config.Teams.A.name, B = Config.Teams.B.name }, limits = Maps.LIMITS }
 end)
 
 -- Arrêt d'une partie depuis admin_menu (la permission est revérifiée ici)
@@ -380,6 +299,15 @@ exports('AdminStopGame', function(src, uid)
     local g = Games.list[tostring(uid or '')]
     if not g then return false, 'Partie introuvable.' end
     log(src, ('partie %s arrêtée (admin_menu)'):format(g.uid))
-    if g.mode == 'pvp' then Pvp.Stop(g, 'arrêt staff') else CreateThread(function() Zombie.Stop(g, 'arrêt staff') end) end
+    Pvp.Stop(g, 'arrêt staff')
     return true, 'Partie arrêtée.'
+end)
+
+-- Arènes depuis admin_menu (onglet LaserGame › Arènes ; outils de dessin de zone et d'apparitions)
+exports('AdminArenas', function() return Maps.AdminView() end)
+exports('AdminArena', function(src, action, data)
+    src = tonumber(src) or 0
+    if src ~= 0 and not Bridge.IsAdmin(src) then return false, 'Permission refusée.' end
+    local ok, msg, view = Admin.Arena(src, tostring(action or ''), data)
+    return ok, msg, view
 end)

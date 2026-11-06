@@ -1,9 +1,9 @@
 /* =====================================================================
    ELYZEA LASERGAME · INTERFACE (NUI)
-   Menu (accueil, PVP, Zombie, classements, profil, historique, paramètres, staff),
+   Menu (accueil, PVP, classements, profil, historique, paramètres, staff),
    lobbies, HUD de partie, chargement, résultats, invites, notifications, sons.
    Hors FiveM (navigateur), un mode démo avec des données fictives permet de tester l'interface :
-   index.html?demo=home | pvp | lobby | zombie | zlobby | ranks | profile | history | admin | hud-pvp | hud-zombie | results | loading
+   index.html?demo=home | pvp | create | lobby | ranks | profile | history | admin | arenas | hud-pvp | results | loading
    ===================================================================== */
 'use strict';
 const IN_GAME = typeof GetParentResourceName === 'function';
@@ -16,7 +16,7 @@ const money = (n) => `${fmt(n)} $`;
 const dateFr = (ts) => ts ? new Date(ts * 1000).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
 const S = { init: null, tab: 'home', sub: {}, lobby: null, list: [], settings: { volume: 0.7, effects: true, hudScale: 1 }, admin: null, adminTab: 'games',
-  lb: { group: 'pvp', kind: 'pvp_points', page: 1, data: null }, create: {}, zcreate: {}, hud: null, timer: null, lbTimer: null };
+  lb: { kind: 'pvp_points', page: 1, data: null }, create: {}, hud: null, timer: null, lbTimer: null };
 
 /* ------------------------------------------------------------------ communication */
 async function post(name, data) {
@@ -55,26 +55,25 @@ document.addEventListener('click', (e) => { if (e.target.closest('button, .mapca
 const I = {
   home: '<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   pvp: '<path d="M4 4l7 7-2 2-7-7V4zm16 0v2l-9 9-2-2 9-9h2zM6 14l4 4-2 2-1-1-2 2-2-2 2-2-1-1 2-2zm12 0l2 2-1 1 2 2-2 2-2-2-1 1-2-2 4-4z"/>',
-  zombie: '<path d="M12 2a8 8 0 0 0-8 8v3l-2 3h4v4h3v-2h2v2h2v-2h2v2h3v-4h4l-2-3v-3a8 8 0 0 0-8-8zm-3 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>',
   ranks: '<path d="M7 3h10v3a5 5 0 0 1-4 4.9V14h3v3H8v-3h3v-3.1A5 5 0 0 1 7 6zM3 4h3v3a3 3 0 0 1-3-3zm15 0h3a3 3 0 0 1-3 3zM6 19h12v2H6z"/>',
   profile: '<path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 5.5V22h18v-2.5c0-3-4-5.5-9-5.5z"/>',
   history: '<path d="M13 3a9 9 0 1 0 8.5 12h-2.1A7 7 0 1 1 13 5V2l4 4-4 4V7zm-1 4h2v5l4 2-1 1.7-5-3z"/>',
   settings: '<path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7 7 0 0 0-1.7-1L15 3h-4l-.4 2.9a7 7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 0 0 1.7 1L11 21h4l.4-2.9a7 7 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>',
+  arena: '<path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2zm6 0v14m6-12v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   staff: '<path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5zm-1 13l6-6-1.4-1.4L11 12.2 8.4 9.6 7 11z"/>',
   // atouts
-  juggernaut: '<path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5zm0 4l-4 2v3c0 3 1.7 5.6 4 6.7 2.3-1.1 4-3.7 4-6.7V8z"/>',
-  speed: '<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>',
-  fastreload: '<path d="M12 4V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/>',
-  doubledmg: '<path d="M2 12l6-6v4h8V6l6 6-6 6v-4H8v4z"/>',
-  acidres: '<path d="M12 2s-6 7-6 12a6 6 0 0 0 12 0c0-5-6-12-6-12zm-2 13a2 2 0 0 1-2-2h2z"/>',
-  quickrevive: '<path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/>',
-  regen: '<path d="M12 21l-1.4-1.3C5.4 15 2 12 2 8.5A5.5 5.5 0 0 1 12 5a5.5 5.5 0 0 1 10 3.5c0 3.5-3.4 6.5-8.6 11.2z"/>',
-  armor: '<path d="M5 3h14v8c0 5-3 8.6-7 10-4-1.4-7-5-7-10z"/>',
 };
 const svg = (name, size = 18) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor">${I[name] || ''}</svg>`;
 const rankImg = (id, cls = 'rk') => `<img class="${cls}" src="ranks/${esc(id || 'bronze')}.png" alt="">`;
 const rankOf = (id) => (S.init?.ranks || []).find((r) => r.id === id) || { label: 'ELYZEA BRONZE', color: '#C98A55' };
 const mapOf = (id) => (S.init?.maps || []).find((m) => m.id === id) || { label: id };
+// Silhouette d'une arène (zone vue du dessus + apparitions des deux équipes), coordonnées 0..100
+function shapeSvg(sh) {
+  if (!sh || !sh.poly || sh.poly.length < 3) return '<svg viewBox="0 0 100 100"><text x="50" y="54" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="9" font-family="Manrope">zone à dessiner</text></svg>';
+  const pts = sh.poly.map(([x, y]) => `${x},${y}`).join(' ');
+  const dots = (list, c) => (list || []).map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="${c}" stroke="#fff" stroke-width=".6"/>`).join('');
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><polygon points="${pts}" fill="rgba(155,92,255,.22)" stroke="#B57BFF" stroke-width="1.6" stroke-linejoin="round"/>${dots(sh.A, '#FF2D46')}${dots(sh.B, '#288CFF')}</svg>`;
+}
 const catLabel = (id) => (S.init?.categories || []).find((c) => c.id === id)?.label || id;
 
 /* ------------------------------------------------------------------ notifications */
@@ -89,7 +88,7 @@ function toast(text, kind = 'info') {
 
 /* ------------------------------------------------------------------ menu principal */
 const TABS = [
-  ['home', 'ACCUEIL', 'Bienvenue au complexe'], ['pvp', 'PVP ARENA', 'Laser compétitif 1v1 → 6v6'], ['zombie', 'MODE ZOMBIE', 'Survie de 1 à 4 joueurs'],
+  ['home', 'ACCUEIL', 'Bienvenue au complexe'], ['pvp', 'PVP ARENA', 'Laser compétitif 1v1 → 6v6'],
   ['ranks', 'CLASSEMENTS', 'Les meilleurs d\'ElyzeaFA'], ['profile', 'MON PROFIL', 'Rang et statistiques'], ['history', 'HISTORIQUE', 'Tes dernières parties'],
   ['settings', 'PARAMÈTRES', 'Son, effets, HUD'],
 ];
@@ -127,18 +126,18 @@ function render() {
   const p = $('#page');
   p.style.animation = 'none'; void p.offsetWidth; p.style.animation = '';
   clearInterval(S.lbTimer);
-  const fn = { home: pageHome, pvp: pagePvp, zombie: pageZombie, ranks: pageRanks, profile: pageProfile, history: pageHistory, settings: pageSettings, admin: pageAdmin }[S.tab] || pageHome;
+  const fn = { home: pageHome, pvp: pagePvp, ranks: pageRanks, profile: pageProfile, history: pageHistory, settings: pageSettings, admin: pageAdmin }[S.tab] || pageHome;
   fn(p);
 }
 
 /* ---------------- ACCUEIL */
 function gameRow(g) {
   const run = g.phase !== 'lobby';
-  const mode = g.mode === 'pvp' ? `<span class="chip">${esc(g.format)}</span>` : '<span class="chip ok">ZOMBIE</span>';
-  const score = g.mode === 'pvp' && run ? `<span class="score"><span class="a">${g.score?.A ?? 0}</span> — <span class="b">${g.score?.B ?? 0}</span></span>` : (g.mode === 'zombie' && run ? `<span class="score">MANCHE ${g.round}</span>` : '');
+  const mode = `<span class="chip">${esc(g.format)}</span>`;
+  const score = run ? `<span class="score"><span class="a">${g.score?.A ?? 0}</span> — <span class="b">${g.score?.B ?? 0}</span></span>` : '';
   const action = run
     ? (S.init?.spectator ? `<button class="btn sm ghost" data-spec="${g.uid}">Regarder</button>` : '')
-    : `<button class="btn sm" data-join="${g.uid}" data-mode="${g.mode}" data-pw="${g.hasPassword ? 1 : 0}">Rejoindre</button>`;
+    : `<button class="btn sm" data-join="${g.uid}" data-pw="${g.hasPassword ? 1 : 0}">Rejoindre</button>`;
   return `<div class="gamerow"><span class="dot ${run ? 'run' : ''}"></span>${mode}
     <div class="sp"><div class="nm">${esc(g.name)} ${g.hasPassword ? '🔒' : ''} ${g.ranked ? '<span class="chip warn">CLASSÉE</span>' : ''}</div>
     <div class="meta">${esc(g.mapLabel)} · ${g.players}/${g.max} joueurs${g.stake ? ' · mise ' + money(g.stake) : ''}${run ? ' · en cours' : ' · en attente'}${g.spectators ? ` · ${g.spectators} 👁` : ''}</div></div>
@@ -154,12 +153,12 @@ function pageHome(p) {
   <div class="hero"><i class="laser-line r"></i><i class="laser-line b"></i>
     <div class="t2 muted" style="letter-spacing:.4em;font-weight:800;font-size:11px">COMPLEXE LASERGAME · ELYZEA FA</div>
     <h1>LASER<b>GAME</b><br>ELYZEA</h1>
-    <p>Deux équipes, des lasers, aucune seconde chance. Affronte les meilleurs de la ville en PVP classé, ou survis aux vagues du complexe ELYZEA-7.</p>
-    <div class="row"><button class="btn red" data-tab="pvp">${svg('pvp')}PVP ARENA</button><button class="btn acid" data-tab="zombie">${svg('zombie')}MODE ZOMBIE</button></div>
+    <p>Deux équipes, des lasers, aucune seconde chance. Affronte les meilleurs de la ville en PVP classé, de 1 VS 1 à 6 VS 6, dans les arènes du complexe.</p>
+    <div class="row"><button class="btn red" data-tab="pvp">${svg('pvp')}PVP ARENA</button><button class="btn ghost" data-tab="pvp" data-sub="quick">MATCHMAKING RAPIDE</button></div>
   </div>
   <div class="grid g2" style="margin-top:16px">
-    <div class="mode pvp" data-tab="pvp"><span class="chip">${S.init.pvp.enabled ? 'OUVERT' : 'FERMÉ'}</span><h2><span>PVP</span> <em>ARENA</em></h2><div class="muted">1v1 à 6v6 · 4 arènes · mises · 8 rangs</div></div>
-    <div class="mode zb" data-tab="zombie"><span class="chip ok">${S.init.zombie.enabled ? 'OUVERT' : 'FERMÉ'}</span><h2>MODE ZOMBIE</h2><div class="muted">1 à 4 joueurs · 8 secteurs · atouts · armes murales</div></div>
+    <div class="mode pvp" data-tab="pvp"><span class="chip">${S.init.pvp.enabled ? 'OUVERT' : 'FERMÉ'}</span><h2><span>PVP</span> <em>ARENA</em></h2><div class="muted">1v1 à 6v6 · mises · 8 rangs · parties en instance privée</div></div>
+    <div class="mode arena" data-tab="pvp" data-sub="create"><span class="chip">${S.init.maps.length} ARÈNE${S.init.maps.length > 1 ? 'S' : ''}</span><h2>LES ARÈNES</h2><div class="muted">${S.init.maps.length ? S.init.maps.slice(0, 4).map((m) => esc(m.label)).join(' · ') : 'Aucune arène ouverte pour le moment'}</div></div>
   </div>
   <div class="grid g3" style="margin-top:16px;grid-template-columns:1.2fr 1fr 1fr">
     <div class="card holo"><h3>Matchs en direct</h3><div class="live">${running.length ? running.slice(0, 5).map(gameRow).join('') : '<div class="empty">Aucune partie en cours.</div>'}</div></div>
@@ -168,7 +167,7 @@ function pageHome(p) {
       <div class="rankname" style="font-size:20px;color:${r.color}">${esc(r.label)}</div><div class="muted">${fmt(pr.points)} points${pr.position ? ' · #' + pr.position : ''}</div>
       <div class="bar" style="margin:12px 0 6px"><i style="width:${Math.round((pr.progress || 0) * 100)}%"></i></div>
       <div class="small muted">${pr.next ? `Prochain rang : ${esc(pr.next.label)} (${fmt(pr.next.min)})` : 'Rang maximum atteint'}</div>
-      <div class="grid g3" style="margin-top:12px"><div class="stat"><div class="v">${pr.wins}</div><div class="l">Victoires</div></div><div class="stat"><div class="v">${pr.ratio}</div><div class="l">Ratio</div></div><div class="stat"><div class="v">${pr.zbBestRound}</div><div class="l">Manche Z</div></div></div>
+      <div class="grid g3" style="margin-top:12px"><div class="stat"><div class="v">${pr.wins}</div><div class="l">Victoires</div></div><div class="stat"><div class="v">${pr.ratio}</div><div class="l">Ratio</div></div><div class="stat"><div class="v">${pr.matches}</div><div class="l">Matchs</div></div></div>
     </div>
   </div>`;
 }
@@ -190,20 +189,22 @@ function pagePvp(p) {
       ${S.init.stake.enabled ? `<div class="field" style="margin-top:14px"><label>Mise par joueur</label><input class="input" id="qstake" type="number" min="0" step="${S.init.stake.step}" value="${S.sub.quickStake || 0}" style="max-width:220px"></div>` : ''}
       <div class="row" style="margin-top:18px"><button class="btn" data-act="quick">Lancer la recherche</button></div></div>`;
   } else {
-    const c = Object.assign({ format: '2v2', map: (S.init.maps.find((m) => m.mode === 'pvp' && m.enabled) || {}).id, rounds: S.init.pvp.defaultRounds, roundTime: S.init.pvp.defaultRoundTime,
+    if (!S.init.maps.length) { p.innerHTML = tabs + '<div class="card holo"><div class="empty">Aucune arène ouverte pour le moment : le staff doit en créer une.</div></div>'; return; }
+    const c = Object.assign({ format: '2v2', map: S.init.maps[0].id, rounds: S.init.pvp.defaultRounds, roundTime: S.init.pvp.defaultRoundTime,
       category: 'rifle', stake: 0, private: false, password: '', name: '' }, S.create);
+    if (!S.init.maps.some((m) => m.id === c.map)) c.map = S.init.maps[0].id;
     S.create = c;
     p.innerHTML = tabs + `<div class="card holo"><h3>Nouvelle partie</h3>${createForm(c)}<div class="row" style="margin-top:18px"><button class="btn" data-act="create">Créer le lobby</button></div></div>`;
   }
 }
 
 function createForm(c) {
-  const maps = S.init.maps.filter((m) => m.mode === 'pvp');
+  const maps = S.init.maps;
   return `<div class="grid g2">
     <div class="field"><label>Nom du match</label><input class="input" data-c="name" maxlength="28" value="${esc(c.name)}" placeholder="Partie de ${esc(S.init.me.firstname)}"></div>
     <div class="field"><label>Format</label><div class="seg">${S.init.pvp.formats.map((f) => `<button data-cs="format" data-v="${f.id}" class="${c.format === f.id ? 'on' : ''}">${esc(f.label)}</button>`).join('')}</div></div>
   </div>
-  <div class="field" style="margin-top:14px"><label>Carte</label><div class="mapcards">${maps.map((m) => `<div class="mapcard ${c.map === m.id ? 'on' : ''} ${m.enabled ? '' : 'off'}" data-cs="map" data-v="${m.id}"><img src="images/maps/${m.id}.png"><div>${esc(m.label)} <span class="chip" style="float:right">${m.size}</span></div></div>`).join('')}</div></div>
+  <div class="field" style="margin-top:14px"><label>Arène</label><div class="mapcards">${maps.map((m) => `<div class="mapcard ${c.map === m.id ? 'on' : ''}" data-cs="map" data-v="${esc(m.id)}"><div class="pv">${shapeSvg(m.shape)}</div><div>${esc(m.label)} <span class="chip" style="float:right">${esc(m.size)}</span><small>jusqu'à ${m.maxPerTeam} VS ${m.maxPerTeam}${m.description ? ' · ' + esc(m.description) : ''}</small></div></div>`).join('')}</div></div>
   <div class="grid g3" style="margin-top:14px">
     <div class="field"><label>Manches</label><div class="seg">${S.init.pvp.rounds.map((r) => `<button data-cs="rounds" data-v="${r}" class="${c.rounds == r ? 'on' : ''}">${r}</button>`).join('')}</div></div>
     <div class="field"><label>Durée d'une manche</label><div class="seg">${S.init.pvp.roundTimes.map((r) => `<button data-cs="roundTime" data-v="${r}" class="${c.roundTime == r ? 'on' : ''}">${r >= 60 ? (r / 60) + ' min' : r + ' s'}</button>`).join('')}</div></div>
@@ -247,43 +248,9 @@ function renderPvpLobby(p) {
   </div>`;
 }
 
-/* ---------------- ZOMBIE */
-function pageZombie(p) {
-  if (S.lobby && S.lobby.mode === 'zombie') return renderZombieLobby(p);
-  if (!S.init.zombie.enabled) { p.innerHTML = '<div class="empty">Le mode Zombie est fermé par le staff.</div>'; return; }
-  const games = S.list.filter((g) => g.mode === 'zombie');
-  const zm = mapOf('zombie_map');
-  const z = S.zcreate;
-  p.innerHTML = `<div class="grid g2" style="grid-template-columns:1.3fr 1fr">
-    <div class="card holo"><h3>${esc(zm.label || 'Complexe Elyzea-7')}</h3><img src="images/maps/zombie_map.png" style="width:100%;border-radius:12px;border:1px solid var(--ely-line)">
-      <p class="muted small">${esc(zm.description || '')}</p></div>
-    <div class="grid" style="align-content:start">
-      <div class="card holo"><h3>Survie</h3><p class="muted small">Pistolet laser, munitions illimitées, portes fermées. Gagne de l'argent Zombie en éliminant les vagues (jamais converti en argent RP).</p>
-        <div class="grid g2"><button class="btn acid" data-act="zsolo">Partie solo</button><button class="btn ghost" data-act="zgroup">Créer un groupe</button></div>
-        <div class="grid g2" style="margin-top:10px"><input class="input" id="zname" maxlength="28" placeholder="Nom du groupe" value="${esc(z.name || '')}"><input class="input" id="zpw" maxlength="16" placeholder="Mot de passe (facultatif)" value="${esc(z.password || '')}"></div></div>
-      <div class="card holo"><h3>Groupes ouverts</h3><div class="live">${games.length ? games.map(gameRow).join('') : '<div class="empty">Aucun groupe.</div>'}</div></div>
-      <div class="card holo"><h3>Atouts (max ${S.init.zombie.maxPerks})</h3><div class="row wrap">${S.init.zombie.perks.map((k) => `<span class="chip" style="color:${k.color};border-color:${k.color}55" title="${esc(k.desc)}">${svg(k.icon, 14)} ${esc(k.label)} · ${money(k.price)}</span>`).join('')}</div></div>
-    </div></div>`;
-}
-
-function renderZombieLobby(p) {
-  const L = S.lobby;
-  const me = L.players.find((x) => x.id === S.init.me.id) || {};
-  let slots = L.players.map((x) => `<div class="slot ${x.id === S.init.me.id ? 'me' : ''}"><div class="nm">${esc(x.name)} ${x.host ? '👑' : ''}</div><span class="rdy ${x.ready ? 'on' : ''}">${x.ready ? 'PRÊT' : 'ATTENTE'}</span>
-    ${L.isHost && x.id !== S.init.me.id ? `<button class="btn sm ghost" data-zkick="${x.id}">✕</button>` : ''}</div>`).join('');
-  for (let i = L.players.length; i < L.max; i++) slots += '<div class="slot emptyslot">PLACE LIBRE</div>';
-  p.innerHTML = `<div class="row" style="margin-bottom:14px"><div class="title" style="font-size:26px">${esc(L.name)}</div><div class="sp"></div>
-    ${L.isHost ? '<button class="btn ghost sm" data-act="zinvite">Inviter</button>' : ''}<button class="btn ghost sm" data-act="leave">Quitter</button></div>
-    <div class="grid g2"><div class="card holo"><h3>Escouade (${L.players.length}/${L.max})</h3>${slots}</div>
-    <div class="card holo"><h3>${esc(L.mapLabel)}</h3><img src="images/maps/zombie_map.png" style="width:100%;border-radius:10px"></div></div>
-    <div class="row" style="margin-top:16px"><button class="btn ${me.ready ? 'ghost' : 'ok'}" data-act="zready">${me.ready ? 'Annuler « prêt »' : 'Je suis prêt'}</button><div class="sp"></div>
-    ${L.isHost ? '<button class="btn acid" data-act="zstart">Lancer la survie</button>' : '<span class="muted small">En attente de l\'hôte…</span>'}</div>`;
-}
-
 /* ---------------- CLASSEMENTS */
 const LB = {
   pvp: [['pvp_points', 'Meilleurs joueurs', 'Points'], ['pvp_ratio', 'Meilleurs ratios', 'Ratio'], ['pvp_wins', 'Plus de victoires', 'Victoires'], ['pvp_rank', 'Meilleurs rangs', 'Pic'], ['pvp_streak', 'Plus longues séries', 'Série']],
-  zombie: [['zb_round', 'Plus grandes manches', 'Manche'], ['zb_kills', 'Plus de zombies tués', 'Zombies'], ['zb_solo', 'Meilleurs joueurs solo', 'Manche solo'], ['zb_teams', 'Meilleures équipes', 'Manche'], ['zb_global', 'Meilleures performances', 'Manche']],
 };
 // Une liste vide envoyée par le jeu peut arriver comme un objet {} : toujours la remettre en tableau
 const asList = (x) => (Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.values(x) : []));
@@ -295,9 +262,7 @@ async function loadBoard() {
   else if (!S.lb.data || S.lb.data.kind !== want) { const b = $('#board'); if (b) b.innerHTML = `<div class="empty">Classement indisponible pour le moment.<br><button class="btn sm ghost" data-lbp="0" style="margin-top:10px">Réessayer</button></div>`; }
 }
 function pageRanks(p) {
-  const g = S.lb.group;
-  p.innerHTML = `<div class="tabs">${[['pvp', 'PVP'], ['zombie', 'ZOMBIE']].map(([id, l]) => `<button data-lbg="${id}" class="${g === id ? 'on' : ''}">${l}</button>`).join('')}</div>
-    <div class="seg" style="margin-bottom:14px">${LB[g].map(([k, l]) => `<button data-lbk="${k}" class="${S.lb.kind === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  p.innerHTML = `<div class="seg" style="margin-bottom:14px">${LB.pvp.map(([k, l]) => `<button data-lbk="${k}" class="${S.lb.kind === k ? 'on' : ''}">${l}</button>`).join('')}</div>
     <div class="card holo" id="board"><div class="empty">Chargement…</div></div>`;
   loadBoard();
   S.lbTimer = setInterval(loadBoard, 30000);   // actualisation automatique
@@ -307,14 +272,11 @@ function drawBoard() {
   if (!d || !$('#board')) return;
   d.rows = asList(d.rows);
   d.page = Number(d.page) || 1; d.pages = Math.max(1, Number(d.pages) || 1); d.total = Number(d.total) || 0;
-  const def = [...LB.pvp, ...LB.zombie].find((x) => x[0] === d.kind) || [];
-  const team = d.kind === 'zb_teams' || d.kind === 'zb_global';
-  const zb = d.kind.startsWith('zb');
+  const def = LB.pvp.find((x) => x[0] === d.kind) || [];
   const rows = d.rows.map((r) => `<tr class="${r.pos <= 3 ? 'top' + r.pos : ''}"><td class="pos">#${r.pos}</td>
-    <td>${!zb ? rankImg(r.rank) + ' ' : ''}<b>${esc(team ? r.names : `${r.firstname} ${r.lastname}`)}</b></td>
+    <td>${rankImg(r.rank)} <b>${esc(`${r.firstname} ${r.lastname}`)}</b></td>
     <td class="score">${esc(r.v)}</td>
-    <td class="muted small">${zb ? (team ? `${r.players} joueur(s) · ${fmt(r.kills)} zombies · ${dateFr(r.created_at)}` : `${fmt(r.zb_kills ?? r.v)} zombies · ${money(r.zb_money)} · ${r.zb_games} parties · ${dateFr(r.zb_best_date)}`)
-      : `${r.wins ?? '—'} V · ${r.losses ?? '—'} D · ${fmt(r.points)} pts`}</td></tr>`).join('');
+    <td class="muted small">${r.wins ?? '—'} V · ${r.losses ?? '—'} D · ${fmt(r.points ?? r.v)} pts</td></tr>`).join('');
   $('#board').innerHTML = `<h3>${esc(def[1] || '')}</h3>${d.rows.length ? `<table class="lb"><tr><th>#</th><th>Joueur</th><th>${esc(def[2] || '')}</th><th>Détails</th></tr>${rows}</table>` : '<div class="empty">Personne pour l\'instant.</div>'}
     <div class="row" style="margin-top:12px"><span class="muted small">Actualisé ${new Date((d.t || Date.now() / 1000) * 1000).toLocaleTimeString('fr-FR')} · ${d.total} entrées</span><div class="sp"></div>
     <button class="btn sm ghost" data-lbp="-1" ${d.page <= 1 ? 'disabled' : ''}>‹</button><span class="chip">${d.page} / ${d.pages}</span><button class="btn sm ghost" data-lbp="1" ${d.page >= d.pages ? 'disabled' : ''}>›</button></div>`;
@@ -336,8 +298,7 @@ async function pageProfile(p) {
       <div class="row wrap" style="margin-top:14px">${S.init.ranks.map((k) => `<img src="ranks/${k.id}.png" title="${esc(k.label)} · ${fmt(k.min)}" style="width:42px;opacity:${k.min <= pr.points ? 1 : .25}">`).join('')}</div></div></div></div>
   <div class="grid g4" style="margin-top:16px">${[['Victoires', pr.wins], ['Défaites', pr.losses], ['Égalités', pr.draws], ['Matchs joués', pr.matches], ['Éliminations', pr.kills], ['Morts', pr.deaths], ['Ratio É/M', pr.ratio], ['Meilleure série', pr.bestStreak]]
     .map(([l, v]) => `<div class="stat"><div class="v">${esc(v)}</div><div class="l">${l}</div></div>`).join('')}</div>
-  <div class="card holo" style="margin-top:16px"><h3>Mode Zombie</h3><div class="grid g4">${[['Meilleure manche', pr.zbBestRound], ['Meilleure manche solo', pr.zbBestSolo], ['Zombies tués', fmt(pr.zbKills)], ['Argent Zombie gagné', money(pr.zbMoney)], ['Parties', pr.zbGames], ['Réanimations', pr.zbRevives], ['Date du record', dateFr(pr.zbBestDate)]]
-    .map(([l, v]) => `<div class="stat"><div class="v" style="font-size:20px">${esc(v)}</div><div class="l">${l}</div></div>`).join('')}</div></div>`;
+`;
 }
 
 /* ---------------- HISTORIQUE */
@@ -346,12 +307,12 @@ async function pageHistory(p) {
   const r = await rpc('history:get');
   const rows = r.ok ? asList(r.data) : [];
   const res = { win: ['VICTOIRE', 'ok'], loss: ['DÉFAITE', 'red'], draw: ['ÉGALITÉ', ''], left: ['ABANDON', 'warn'] };
-  p.innerHTML = `<div class="card holo"><h3>Dernières parties</h3>${rows.length ? `<table class="lb"><tr><th>Date</th><th>Mode</th><th>Carte</th><th>Résultat</th><th>Score / manche</th><th>É / M</th><th>Points</th><th>Gain</th></tr>
-    ${rows.map((h) => { const rr = h.mode === 'zombie' ? [`MANCHE ${h.round}`, 'ok'] : (res[h.result] || [h.result, '']);
-      return `<tr><td class="small">${dateFr(h.created_at)}</td><td>${h.mode === 'pvp' ? `<span class="chip">${esc(h.format || 'PVP')}</span>` : '<span class="chip ok">ZOMBIE</span>'}</td>
-      <td>${esc(mapOf(h.map).label || h.map || '')}</td><td><span class="chip ${rr[1]}">${rr[0]}</span></td>
-      <td class="score">${h.mode === 'pvp' ? `<span class="a">${h.score_a ?? 0}</span> — <span class="b">${h.score_b ?? 0}</span>` : h.round}</td>
-      <td>${h.kills} / ${h.deaths}</td><td style="color:${h.points_delta > 0 ? 'var(--ely-ok)' : h.points_delta < 0 ? 'var(--lg-red)' : 'inherit'}">${h.mode === 'pvp' ? (h.points_delta > 0 ? '+' : '') + h.points_delta : '—'}</td>
+  p.innerHTML = `<div class="card holo"><h3>Dernières parties</h3>${rows.length ? `<table class="lb"><tr><th>Date</th><th>Format</th><th>Arène</th><th>Résultat</th><th>Score</th><th>É / M</th><th>Points</th><th>Gain</th></tr>
+    ${rows.map((h) => { const rr = res[h.result] || [h.result, ''];
+      return `<tr><td class="small">${dateFr(h.created_at)}</td><td><span class="chip">${esc(h.format || 'PVP')}</span></td>
+      <td>${esc(h.mapLabel || mapOf(h.map).label || '')}</td><td><span class="chip ${rr[1]}">${rr[0]}</span></td>
+      <td class="score"><span class="a">${h.score_a ?? 0}</span> — <span class="b">${h.score_b ?? 0}</span></td>
+      <td>${h.kills} / ${h.deaths}</td><td style="color:${h.points_delta > 0 ? 'var(--ely-ok)' : h.points_delta < 0 ? 'var(--lg-red)' : 'inherit'}">${(h.points_delta > 0 ? '+' : '') + h.points_delta}</td>
       <td>${h.payout ? money(h.payout) : '—'}</td></tr>`; }).join('')}</table>` : '<div class="empty">Aucune partie jouée.</div>'}</div>`;
 }
 
@@ -363,7 +324,7 @@ function pageSettings(p) {
     <div class="field" style="margin-top:14px"><label>Taille du HUD (${Math.round(s.hudScale * 100)} %)</label><input type="range" min="0.7" max="1.4" step="0.05" value="${s.hudScale}" data-set="hudScale"></div>
     <div class="row" style="margin-top:14px"><div class="toggle ${s.effects ? 'on' : ''}" data-setb="effects"></div><span>Effets visuels (particules, secousses, filtres)</span></div>
     <div class="row" style="margin-top:18px"><button class="btn ghost" data-act="testsound">Tester le son</button></div>
-    <p class="small muted" style="margin-top:16px">Touches : <b>E</b> interagir (modifiable dans Paramètres GTA › Raccourcis › FiveM), <b>F7</b> menu de partie (quitter), <b>R</b> recharger, <b>1 / 2</b> changer d'arme (Zombie), <b>← →</b> changer de joueur observé.</p></div>`;
+    <p class="small muted" style="margin-top:16px">Touches : <b>E</b> interagir (modifiable dans Paramètres GTA › Raccourcis › FiveM), <b>F7</b> menu de partie (quitter), <b>R</b> recharger, <b>← →</b> changer de joueur observé.</p></div>`;
 }
 function saveSettings() { post('settings', S.settings); document.documentElement.style.setProperty('--hud-scale', S.settings.hudScale); }
 
@@ -377,14 +338,14 @@ function pageAdmin(p) {
   if (!S.admin) { p.innerHTML = '<div class="empty">Chargement…</div>'; loadAdmin(); return; }
   const A = S.admin.settings;
   const t = S.adminTab;
-  const tabs = [['games', 'Parties'], ['pvp', 'PVP'], ['weapons', 'Armes'], ['zombie', 'Zombie'], ['zprices', 'Prix Zombie'], ['maps', 'Cartes'], ['npcs', 'PNJ'], ['players', 'Joueurs'], ['logs', 'Journaux']];
+  const tabs = [['games', 'Parties'], ['arenas', 'Arènes'], ['pvp', 'PVP'], ['weapons', 'Armes'], ['npcs', 'PNJ'], ['players', 'Joueurs'], ['logs', 'Journaux']];
   let h = `<div class="tabs">${tabs.map(([id, l]) => `<button data-atab="${id}" class="${t === id ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   if (t === 'games') {
     const games = S.admin.games;
     h += `<div class="card holo"><h3>Parties et lobbies (${games.length})</h3>${games.length ? `<table class="adm-table"><tr><th>Partie</th><th>Mode</th><th>Phase</th><th>Carte</th><th>Joueurs</th><th>Score</th><th></th></tr>
       ${games.map((g) => `<tr><td><b>${esc(g.name)}</b><div class="small muted">${g.uid} · hôte ${esc(g.host)}</div></td><td>${g.mode}${g.format ? ' ' + g.format : ''}</td><td>${g.phase}</td><td>${esc(g.map)}</td>
       <td>${g.players.map((x) => `<div class="small">${esc(x.name)} <button class="btn sm ghost" data-akick="${g.uid}|${x.id}">expulser</button></div>`).join('')}</td>
-      <td>${g.mode === 'pvp' ? `${g.score?.A ?? 0} - ${g.score?.B ?? 0}` : `manche ${g.round || 0}`}</td><td><button class="btn sm red" data-astop="${g.uid}">Arrêter</button></td></tr>`).join('')}</table>` : '<div class="empty">Aucune partie.</div>'}
+      <td>${g.score?.A ?? 0} - ${g.score?.B ?? 0}</td><td><button class="btn sm red" data-astop="${g.uid}">Arrêter</button></td></tr>`).join('')}</table>` : '<div class="empty">Aucune partie.</div>'}
       <div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="arefresh">Actualiser</button><div class="sp"></div><span class="small muted">Framework : ${esc(A.framework)}</span></div></div>`;
   } else if (t === 'pvp') {
     const P = A.pvp, K = A.stake;
@@ -399,33 +360,12 @@ function pageAdmin(p) {
       <h3 style="margin-top:18px">Seuils des rangs</h3><table class="adm-table">${A.ranks.map((r, i) => `<tr><td>${rankImg(r.id)} ${esc(r.label)}</td><td>${i === 0 ? '0' : num('rank.' + r.id, r.min)}</td></tr>`).join('')}</table>
       <button class="btn sm" data-asave="ranks">Enregistrer les seuils</button></div></div>`;
   } else if (t === 'weapons') {
-    h += `<div class="card holo"><h3>Armes laser</h3><table class="adm-table"><tr><th>Arme</th><th>Cat.</th><th>Dégâts PVP</th><th>Dégâts Zombie</th><th>Portée</th><th>Cadence</th><th>Dispersion</th><th>Chargeur</th><th>Recharge ms</th><th>Active</th><th></th></tr>
-      ${A.weapons.map((w) => `<tr><td><b>${esc(w.label)}</b>${w.zombieOnly ? ' <span class="chip ok">Z</span>' : ''}</td><td>${esc(catLabel(w.cat))}</td>
-      ${['damage', 'zDamage', 'range', 'rpm', 'spread', 'mag', 'reload'].map((k) => `<td>${num(`w.${w.id}.${k}`, w[k], 72)}</td>`).join('')}
+    h += `<div class="card holo"><h3>Armes laser</h3><table class="adm-table"><tr><th>Arme</th><th>Cat.</th><th>Dégâts</th><th>Portée</th><th>Cadence</th><th>Dispersion</th><th>Chargeur</th><th>Recharge ms</th><th>Active</th><th></th></tr>
+      ${A.weapons.map((w) => `<tr><td><b>${esc(w.label)}</b></td><td>${esc(catLabel(w.cat))}</td>
+      ${['damage', 'range', 'rpm', 'spread', 'mag', 'reload'].map((k) => `<td>${num(`w.${w.id}.${k}`, w[k], 72)}</td>`).join('')}
       <td><div class="toggle ${w.disabled ? '' : 'on'}" data-awoff="${w.id}"></div></td><td><button class="btn sm" data-awsave="${w.id}">OK</button></td></tr>`).join('')}</table></div>`;
-  } else if (t === 'zombie') {
-    const Z = A.zombie;
-    h += `<div class="grid g2"><div class="card holo"><h3>Manches et difficulté</h3><div class="row" style="margin-bottom:8px"><div class="toggle ${Z.enabled ? 'on' : ''}" data-azon></div><span>Mode Zombie activé</span></div>
-      <table class="adm-table">${[['countBase', 'Zombies manche 1'], ['countPerRound', '+ zombies / manche'], ['countMax', 'Zombies max / manche'], ['maxAlive', 'Présents en même temps'], ['hpBase', 'Résistance de base'], ['hpPerRound', '+ résistance / manche'], ['hpLinearUntil', 'Croissance linéaire jusqu\'à'], ['hpGrowth', 'Puis × par manche'], ['damageBase', 'Dégâts de base'], ['damagePerRound', '+ dégâts / manche'], ['damageMax', 'Dégâts max'], ['runFromRound', 'Course dès la manche'], ['sprintFromRound', 'Sprint dès la manche'], ['speedRamp', 'Accélération'], ['intermission', 'Pause entre manches (s)'], ['spawnInterval', 'Intervalle d\'apparition (ms)']]
-        .map(([k, l]) => `<tr><td>${l}</td><td>${num('zr.' + k, Z.rounds[k])}</td></tr>`).join('')}</table><button class="btn sm" data-asave="zombieRounds">Enregistrer</button></div>
-      <div class="grid" style="align-content:start"><div class="card holo"><h3>Types de zombies</h3><table class="adm-table"><tr><th>Type</th><th>Résist. ×</th><th>Dégâts ×</th><th>Vitesse ×</th><th>Récompense</th><th>Poids</th><th>Dès manche</th><th></th></tr>
-        ${Z.types.map((z) => `<tr><td>${esc(z.label)}</td>${['hp', 'damage', 'speed', 'reward', 'weight', 'minRound'].map((k) => `<td>${num(`zt.${z.id}.${k}`, z[k], 62)}</td>`).join('')}<td><button class="btn sm" data-aztype="${z.id}">OK</button></td></tr>`).join('')}</table></div>
-      <div class="card holo"><h3>Argent Zombie et joueurs</h3><table class="adm-table">${[['hit', 'Par impact'], ['meleeKillBonus', 'Bonus corps à corps'], ['reviveBonus', 'Bonus réanimation'], ['roundBonus', 'Bonus de manche'], ['startMoney', 'Argent de départ']].map(([k, l]) => `<tr><td>${l}</td><td>${num('zm.' + k, Z.money[k])}</td></tr>`).join('')}
-        ${[['health', 'Vie du joueur'], ['regenDelay', 'Délai de régénération (ms)'], ['regenPerSecond', 'Régénération / s'], ['bleedout', 'Temps à terre (s)'], ['reviveTime', 'Durée de réanimation (s)']].map(([k, l]) => `<tr><td>${l}</td><td>${num('zp.' + k, Z.player[k])}</td></tr>`).join('')}</table>
-        <div class="row"><button class="btn sm" data-asave="zombieMoney">Enregistrer l'argent</button><button class="btn sm" data-asave="zombiePlayer">Enregistrer les joueurs</button></div></div></div></div>`;
-  } else if (t === 'zprices') {
-    const Z = A.zombie;
-    const wopts = (sel) => A.weapons.map((w) => `<option value="${w.id}" ${w.id === sel ? 'selected' : ''}>${esc(w.label)}</option>`).join('');
-    h += `<div class="grid g3"><div class="card holo"><h3>Portes</h3><table class="adm-table">${Z.doors.map((d) => `<tr><td>${esc(d.label)}<div class="small muted">${d.id}</div></td><td>${num('door.' + d.id, d.price)}</td><td><button class="btn sm" data-adoor="${d.id}">OK</button></td></tr>`).join('')}</table></div>
-      <div class="card holo"><h3>Armes murales</h3><table class="adm-table">${Z.wallbuys.map((w) => `<tr><td><select class="input" data-wbw="${w.id}">${wopts(w.weapon)}</select><div class="small muted">${esc(w.sector)}</div></td><td>${num('wb.' + w.id, w.price, 80)}</td><td><button class="btn sm" data-awb="${w.id}">OK</button></td></tr>`).join('')}</table></div>
-      <div class="card holo"><h3>Atouts</h3><table class="adm-table">${Z.perks.map((k) => `<tr><td>${esc(k.label)}</td><td>${num('perk.' + k.id, k.price, 80)}</td><td><div class="toggle ${k.disabled ? '' : 'on'}" data-aperkoff="${k.id}"></div></td><td><button class="btn sm" data-aperk="${k.id}">OK</button></td></tr>`).join('')}</table>
-        <div class="row" style="margin-top:10px">Atouts max ${num('maxPerks', Z.maxPerks, 60)}<button class="btn sm" data-asave="maxPerks">OK</button></div></div></div>`;
-  } else if (t === 'maps') {
-    h += `<div class="grid g2">${A.maps.map((m) => `<div class="card holo"><div class="row"><h3 style="margin:0">${esc(m.label)}</h3><span class="chip">${m.mode.toUpperCase()} · ${m.size}</span><div class="sp"></div><div class="toggle ${m.enabled ? 'on' : ''}" data-amapt="${m.id}"></div></div>
-      <img src="images/maps/${m.id}.png" style="width:100%;margin:10px 0;border-radius:10px">
-      <div class="small muted">${m.objects} objets GTA V · ancre ${m.anchor.x.toFixed(1)}, ${m.anchor.y.toFixed(1)}, ${m.anchor.z.toFixed(1)} · cap ${m.anchor.h}°${m.moved ? ' · <b style="color:var(--ely-warn)">déplacée</b>' : ''}</div>
-      <div class="row wrap" style="margin-top:10px"><button class="btn sm" data-amap="${m.id}|here">Placer ici (ma position)</button><button class="btn sm ghost" data-amap="${m.id}|preview">Aperçu en jeu</button>
-      <button class="btn sm ghost" data-amap="${m.id}|tp">Me téléporter</button>${m.moved ? `<button class="btn sm ghost" data-amap="${m.id}|reset">Position d'origine</button>` : ''}</div></div>`).join('')}</div>`;
+  } else if (t === 'arenas') {
+    h += arenasAdmin(A);
   } else if (t === 'npcs') {
     h += `<div class="card holo"><h3>PNJ LaserGame</h3><p class="small muted">Les PNJ peuvent aussi être posés avec l'éditeur de map d'admin_menu (rôle « LaserGame »).</p>
       <table class="adm-table"><tr><th>Nom</th><th>Modèle</th><th>Position</th><th></th></tr>${A.npcs.map((n) => `<tr><td>${esc(n.label)}</td><td>${esc(n.model)}</td><td class="small">${n.x.toFixed(1)}, ${n.y.toFixed(1)}, ${n.z.toFixed(1)}</td><td><button class="btn sm red" data-anpcdel="${esc(n.id)}">Retirer</button></td></tr>`).join('')}</table>
@@ -434,10 +374,54 @@ function pageAdmin(p) {
     h += `<div class="card holo"><h3>Joueurs</h3><div class="row"><input class="input" id="psearch" placeholder="Nom RP ou identifiant…" style="max-width:340px"><button class="btn sm" data-act="psearch">Rechercher</button></div><div id="presults" style="margin-top:12px"></div></div><div id="pdetail" style="margin-top:16px"></div>`;
   } else if (t === 'logs') {
     const cat = S.sub.logcat || '';
-    h += `<div class="card holo"><div class="seg" style="margin-bottom:12px">${[['', 'Tous'], ['admin', 'Staff'], ['money', 'Argent'], ['pvp', 'PVP'], ['zombie', 'Zombie'], ['security', 'Sécurité'], ['error', 'Erreurs']].map(([id, l]) => `<button data-logcat="${id}" class="${cat === id ? 'on' : ''}">${l}</button>`).join('')}</div><div id="logs"><div class="empty">Chargement…</div></div></div>`;
+    h += `<div class="card holo"><div class="seg" style="margin-bottom:12px">${[['', 'Tous'], ['admin', 'Staff'], ['money', 'Argent'], ['pvp', 'PVP'], ['security', 'Sécurité'], ['error', 'Erreurs']].map(([id, l]) => `<button data-logcat="${id}" class="${cat === id ? 'on' : ''}">${l}</button>`).join('')}</div><div id="logs"><div class="empty">Chargement…</div></div></div>`;
     rpc('admin:logs', cat, 1).then((r) => { const el = $('#logs'); if (el) el.innerHTML = r.ok && r.data.length ? r.data.map((l) => `<div class="log ${l.category}"><span class="muted">${dateFr(l.created_at)} [${l.category}]</span> ${esc(l.name ? l.name + ' : ' : '')}${esc(l.message)}</div>`).join('') : '<div class="empty">Aucun journal.</div>'; });
   }
   p.innerHTML = h;
+}
+// Onglet « Arènes » : création à la position du staff, outils « à ma position », réglages, activation.
+// Le dessin en visant (coins, apparitions avec direction) et la décoration se font depuis admin_menu.
+const WEATHERS = ['', 'CLEAR', 'EXTRASUNNY', 'CLOUDS', 'OVERCAST', 'FOGGY', 'RAIN', 'THUNDER', 'SMOG', 'SNOW', 'XMAS', 'HALLOWEEN'];
+function arenasAdmin(A) {
+  const list = A.arenas || [];
+  const open = S.sub.arena && list.find((a) => a.id === S.sub.arena) ? S.sub.arena : (list[0] || {}).id;
+  S.sub.arena = open;
+  const T = A.teams || { A: 'ROUGE', B: 'BLEUE' };
+  const card = (a) => {
+    const st = a.valid ? (a.enabled ? '<span class="chip ok">OUVERTE</span>' : '<span class="chip">FERMÉE</span>') : '<span class="chip warn">INCOMPLÈTE</span>';
+    const use = a.inUse ? `<span class="chip red">${a.inUse === 'running' ? 'PARTIE EN COURS' : 'LOBBY OUVERT'}</span>` : '';
+    if (a.id !== open) return `<div class="card holo arena-row" data-aopen="${esc(a.id)}"><div class="row"><div class="arena-mini">${shapeSvg(a.shape)}</div><div class="sp"><b>${esc(a.label)}</b><div class="small muted">${a.corners} coins · ${a.spawnsA} ${esc(T.A)} · ${a.spawnsB} ${esc(T.B)} · ${esc(a.size)}${a.area ? ' · ' + fmt(a.area) + ' m²' : ''}</div></div>${st}${use}</div></div>`;
+    return `<div class="card holo arena-open"><div class="row"><h3 style="margin:0">${esc(a.label)}</h3>${st}${use}<div class="sp"></div>
+        <div class="toggle ${a.enabled ? 'on' : ''}" data-arena="update" data-k="enabled" title="${a.valid ? 'Ouvrir / fermer aux joueurs' : 'Termine l\'arène d\'abord'}"></div></div>
+      ${a.issues && a.issues.length ? `<div class="issues">À faire : ${a.issues.map(esc).join(' · ')}</div>` : '<div class="issues ok">Arène jouable.</div>'}
+      <div class="arena-grid"><div class="arena-big">${shapeSvg(a.shape)}</div><div>
+        <table class="adm-table">
+          <tr><td>Nom</td><td><input class="input" id="arLabel" maxlength="32" value="${esc(a.label)}"></td></tr>
+          <tr><td>Description</td><td><input class="input" id="arDesc" maxlength="160" value="${esc(a.description || '')}" placeholder="Entrepôt néon, deux étages…"></td></tr>
+          <tr><td>Joueurs max. par équipe</td><td><select class="input" id="arMax">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${n === a.maxPerTeam ? 'selected' : ''}>${n}</option>`).join('')}</select></td></tr>
+          <tr><td>Heure forcée (0-23)</td><td><input class="input" id="arTime" type="number" min="0" max="23" value="${a.time ?? ''}" placeholder="heure du serveur"></td></tr>
+          <tr><td>Météo forcée</td><td><select class="input" id="arWeather">${WEATHERS.map((w) => `<option value="${w}" ${w === (a.weather || '') ? 'selected' : ''}>${w || 'météo du serveur'}</option>`).join('')}</select></td></tr>
+          <tr><td>Sol / plafond (z)</td><td><input class="input" id="arMinZ" type="number" step="0.5" value="${a.zone?.minZ ?? ''}" style="width:110px"> <input class="input" id="arMaxZ" type="number" step="0.5" value="${a.zone?.maxZ ?? ''}" style="width:110px"></td></tr>
+        </table>
+        <div class="row wrap" style="margin-top:10px"><button class="btn sm" data-arena="save">Enregistrer</button><button class="btn sm ghost" data-arena="show">Voir la zone (60 s)</button><button class="btn sm ghost" data-arena="tp">Y aller</button></div>
+      </div></div>
+      <h3 style="margin-top:16px">Construire à ma position</h3>
+      <p class="small muted">Place-toi sur le point, puis appuie. Avec admin_menu, tu peux aussi dessiner en visant : ${A.adminMenu ? '<b>admin_menu › LaserGame › Arènes</b> (coins, sol, plafond, apparitions tournées comme la caméra).' : 'admin_menu n\'est pas démarré sur ce serveur.'}
+        Le décor se pose avec l'<b>éditeur de map</b> d'admin_menu, à l'endroit de l'arène : il est visible dans l'instance de la partie.</p>
+      <div class="row wrap"><button class="btn sm" data-arena="corner_here">+ Coin de la zone (${a.corners})</button><button class="btn sm ghost" data-arena="floor_here">Sol = moi − 2 m</button><button class="btn sm ghost" data-arena="ceiling_here">Plafond = moi + 3 m</button><button class="btn sm ghost" data-arena="center_here">Centre = moi</button></div>
+      <div class="row wrap" style="margin-top:8px"><button class="btn sm red" data-arena="spawn_here" data-team="A">+ Apparition ${esc(T.A)} (${a.spawnsA})</button><button class="btn sm blue" data-arena="spawn_here" data-team="B">+ Apparition ${esc(T.B)} (${a.spawnsB})</button>
+        <span class="small muted">la flèche suit ton orientation</span></div>
+      <div class="row wrap" style="margin-top:8px"><button class="btn sm ghost" data-arena="clear" data-what="A">Effacer ${esc(T.A)}</button><button class="btn sm ghost" data-arena="clear" data-what="B">Effacer ${esc(T.B)}</button><button class="btn sm ghost" data-arena="clear" data-what="zone">Effacer la zone et les apparitions</button><div class="sp"></div><button class="btn sm red" data-arena="delete">Supprimer l'arène</button></div>
+    </div>`;
+  };
+  return `<div class="card holo"><div class="row wrap"><h3 style="margin:0">Arènes (${list.length})</h3><div class="sp"></div><input class="input" id="arNew" maxlength="32" placeholder="Nom de la nouvelle arène" style="max-width:260px"><button class="btn sm" data-arena="create">Créer ici (ma position)</button></div>
+    <p class="small muted" style="margin:8px 0 0">1. Crée l'arène là où tu es · 2. dessine la zone de combat · 3. pose les apparitions des deux équipes · 4. décore avec l'éditeur de map · 5. ouvre-la aux joueurs. Chaque partie se joue dans sa propre instance : plusieurs parties peuvent utiliser la même arène en même temps.</p></div>
+    ${list.length ? list.map(card).join('') : '<div class="card holo"><div class="empty">Aucune arène : crée la première à ta position.</div></div>'}`;
+}
+async function arenaAction(action, data) {
+  const r = await rpc('admin:arena', action, data);
+  if (r.ok && r.data) { if (r.data.arenas) S.admin.settings.arenas = r.data.arenas; if (r.data.message) toast(r.data.message, 'success'); if (S.tab === 'admin') pageAdmin($('#page')); }
+  return r;
 }
 const nv = (id) => { const el = $(`[data-num="${id}"]`); return el ? Number(String(el.value).replace(',', '.')) : undefined; };
 async function adminSet(section, payload, key) {
@@ -449,21 +433,35 @@ async function showPlayer(cid) {
   if (!r.ok) return;
   const pr = r.data.profile;
   $('#pdetail').innerHTML = `<div class="card holo"><div class="row">${rankImg(pr.rank, '')}<style>#pdetail img{width:70px}</style><div><div class="rankname" style="font-size:22px">${esc(pr.firstname)} ${esc(pr.lastname)}</div>
-    <div class="muted small">${esc(pr.citizenid)} · ${fmt(pr.points)} pts · ${pr.wins} V / ${pr.losses} D · manche Z ${pr.zbBestRound}${pr.banned ? ' · <b style="color:var(--lg-red)">EXCLU</b> ' + esc(pr.banReason || '') : ''}${pr.online ? ' · <span style="color:var(--ely-ok)">en ligne</span>' : ''}</div></div></div>
+    <div class="muted small">${esc(pr.citizenid)} · ${fmt(pr.points)} pts · ${pr.wins} V / ${pr.losses} D${pr.banned ? ' · <b style="color:var(--lg-red)">EXCLU</b> ' + esc(pr.banReason || '') : ''}${pr.online ? ' · <span style="color:var(--ely-ok)">en ligne</span>' : ''}</div></div></div>
     <div class="row wrap" style="margin-top:12px"><input class="input" id="ppoints" value="${pr.points}" style="width:110px"><button class="btn sm" data-pset="points">Fixer les points</button>
       <select class="input" id="prank" style="width:200px">${S.init.ranks.map((k) => `<option value="${k.id}" ${k.id === pr.rank ? 'selected' : ''}>${esc(k.label)}</option>`).join('')}</select><button class="btn sm" data-pset="rank">Fixer le rang</button>
-      <button class="btn sm ghost" data-pset="reset:pvp">Reset PVP</button><button class="btn sm ghost" data-pset="reset:zombie">Reset Zombie</button><button class="btn sm ghost" data-pset="reset:all">Reset tout</button></div>
+      <button class="btn sm ghost" data-pset="reset:pvp">Remettre les statistiques à zéro</button></div>
     <div class="row wrap" style="margin-top:10px">${pr.banned ? '<button class="btn sm ok" data-pset="unexclude">Lever l\'exclusion</button>' : '<input class="input" id="pbanr" placeholder="Raison" style="max-width:260px"><input class="input" id="pbanh" placeholder="Heures (0 = définitif)" style="width:170px"><button class="btn sm red" data-pset="exclude">Exclure du LaserGame</button>'}</div>
-    <h3 style="margin-top:16px">Historique</h3>${r.data.history.slice(0, 12).map((h) => `<div class="log ${h.mode}">${dateFr(h.created_at)} · ${h.mode} · ${h.result}${h.mode === 'pvp' ? ` · ${h.kills}/${h.deaths} · ${h.points_delta > 0 ? '+' : ''}${h.points_delta} pts` : ` · manche ${h.round} · ${h.kills} zombies`}</div>`).join('') || '<div class="empty">Aucune partie.</div>'}</div>`;
+    <h3 style="margin-top:16px">Historique</h3>${r.data.history.slice(0, 12).map((h) => `<div class="log pvp">${dateFr(h.created_at)} · ${esc(h.format || 'PVP')} · ${esc(h.mapLabel || '')} · ${h.result} · ${h.kills}/${h.deaths} · ${h.points_delta > 0 ? '+' : ''}${h.points_delta} pts</div>`).join('') || '<div class="empty">Aucune partie.</div>'}</div>`;
   S.sub.pcid = pr.citizenid;
 }
 
 /* ------------------------------------------------------------------ actions du menu */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-tab],[data-sub],[data-act],[data-join],[data-spec],[data-cs],[data-ct],[data-team],[data-weapon],[data-kick],[data-zkick],[data-qf],[data-lbg],[data-lbk],[data-lbp],[data-setb],[data-go],[data-atab],[data-asave],[data-apb],[data-askb],[data-aformat],[data-awsave],[data-awoff],[data-azon],[data-aztype],[data-adoor],[data-awb],[data-aperk],[data-aperkoff],[data-amap],[data-amapt],[data-anpcdel],[data-akick],[data-astop],[data-logcat],[data-pick],[data-pset],[data-invite]');
+  const t = e.target.closest('[data-tab],[data-sub],[data-act],[data-join],[data-spec],[data-cs],[data-ct],[data-team],[data-weapon],[data-kick],[data-qf],[data-lbk],[data-lbp],[data-setb],[data-go],[data-atab],[data-asave],[data-apb],[data-askb],[data-aformat],[data-awsave],[data-awoff],[data-arena],[data-aopen],[data-anpcdel],[data-akick],[data-astop],[data-logcat],[data-pick],[data-pset],[data-invite]');
   if (!t) return;
   const d = t.dataset;
-  if (d.tab) return go(d.tab);
+  if (d.arena) {
+    const id = S.sub.arena;
+    if (d.arena === 'create') return arenaAction('create', { label: $('#arNew')?.value || '' }).then((r) => { if (r.ok && r.data?.arenas) { S.sub.arena = r.data.arenas[r.data.arenas.length - 1]?.id; pageAdmin($('#page')); } });
+    if (d.arena === 'save') {
+      const num = (v) => (v === '' || v == null ? undefined : Number(v));
+      return arenaAction('update', { id, label: $('#arLabel').value, description: $('#arDesc').value, maxPerTeam: Number($('#arMax').value),
+        time: $('#arTime').value, weather: $('#arWeather').value, minZ: num($('#arMinZ').value), maxZ: num($('#arMaxZ').value) });
+    }
+    if (d.arena === 'update' && d.k === 'enabled') { const a = S.admin.settings.arenas.find((x) => x.id === id); return arenaAction('update', { id, enabled: !a.enabled }); }
+    if (d.arena === 'delete' && !confirm('Supprimer définitivement cette arène ? (les objets posés avec l\'éditeur de map restent en place)')) return;
+    if (d.arena === 'clear' && !confirm('Effacer ces points ?')) return;
+    return arenaAction(d.arena, { id, team: d.team, what: d.what });
+  }
+  if (d.aopen) { S.sub.arena = d.aopen; return pageAdmin($('#page')); }
+  if (d.tab) return go(d.tab, d.sub);
   if (d.go) return go(d.go);
   if (d.sub) { S.sub[S.tab] = d.sub; return render(); }
   if (d.qf) { S.sub.quickFormat = d.qf; return render(); }
@@ -472,17 +470,15 @@ document.addEventListener('click', async (e) => {
   if (d.join) {
     let pw = '';
     if (d.pw === '1') { pw = prompt('Mot de passe de la partie :') || ''; }
-    const r = await rpc(d.mode === 'zombie' ? 'zb:join' : 'pvp:join', d.join, pw);
-    if (r.ok) go(d.mode === 'zombie' ? 'zombie' : 'pvp');
+    const r = await rpc('pvp:join', d.join, pw);
+    if (r.ok) go('pvp');
     return;
   }
   if (d.spec) { const r = await rpc('spectate:join', d.spec); if (r.ok) toast('Mode spectateur : ← → pour changer de joueur, F7 pour quitter.', 'info'); return; }
   if (d.team) return rpc('pvp:team', d.team);
   if (d.weapon) return rpc('pvp:weapon', d.weapon);
   if (d.kick) return rpc('pvp:kick', Number(d.kick));
-  if (d.zkick) return rpc('zb:kick', Number(d.zkick));
-  if (d.invite) { const r = await rpc(S.lobby?.mode === 'zombie' ? 'zb:invite' : 'pvp:invite', Number(d.invite)); if (r.ok) toast('Invitation envoyée.', 'success'); return; }
-  if (d.lbg) { S.lb.group = d.lbg; S.lb.kind = LB[d.lbg][0][0]; S.lb.page = 1; return render(); }
+  if (d.invite) { const r = await rpc('pvp:invite', Number(d.invite)); if (r.ok) toast('Invitation envoyée.', 'success'); return; }
   if (d.lbk) { S.lb.kind = d.lbk; S.lb.page = 1; return render(); }
   if (d.lbp !== undefined) { S.lb.page = Math.max(1, Math.min((S.lb.data && S.lb.data.pages) || 999, S.lb.page + Number(d.lbp))); return loadBoard(); }
   if (d.setb) { S.settings[d.setb] = !S.settings[d.setb]; saveSettings(); return render(); }
@@ -491,23 +487,11 @@ document.addEventListener('click', async (e) => {
   if (d.asave === 'pvp') return adminSet('pvp', Object.fromEntries(['shield', 'minRankedDuration', 'lobbyIdleTimeout', 'defaultRoundTime', 'defaultRounds'].map((k) => [k, nv('pvp.' + k)])));
   if (d.asave === 'stake') return adminSet('stake', Object.fromEntries(['min', 'max', 'step', 'houseFeePct'].map((k) => [k, nv('stake.' + k)])));
   if (d.asave === 'ranks') { for (const r of S.admin.settings.ranks.slice(1)) await rpc('admin:set', 'rank', { min: nv('rank.' + r.id) }, r.id); return loadAdmin(); }
-  if (d.asave === 'zombieRounds') return adminSet('zombieRounds', Object.fromEntries(Object.keys(S.admin.settings.zombie.rounds).map((k) => [k, nv('zr.' + k)]).filter((x) => x[1] !== undefined && !isNaN(x[1]))));
-  if (d.asave === 'zombieMoney') return adminSet('zombieMoney', Object.fromEntries(Object.keys(S.admin.settings.zombie.money).map((k) => [k, nv('zm.' + k)])));
-  if (d.asave === 'zombiePlayer') return adminSet('zombiePlayer', Object.fromEntries(['health', 'regenDelay', 'regenPerSecond', 'bleedout', 'reviveTime'].map((k) => [k, nv('zp.' + k)])));
-  if (d.asave === 'maxPerks') return adminSet('maxPerks', { value: nv('maxPerks') });
   if (d.apb) return adminSet('pvp', { [d.apb]: !S.admin.settings.pvp[d.apb] });
   if (d.askb) return adminSet('stake', { enabled: !S.admin.settings.stake.enabled });
   if (d.aformat) { const f = S.admin.settings.formats.find((x) => x.id === d.aformat); return adminSet('format', { enabled: !f.enabled }, d.aformat); }
-  if (d.awsave) return adminSet('weapon', Object.fromEntries(['damage', 'zDamage', 'range', 'rpm', 'spread', 'mag', 'reload'].map((k) => [k, nv(`w.${d.awsave}.${k}`)])), d.awsave);
+  if (d.awsave) return adminSet('weapon', Object.fromEntries(['damage', 'range', 'rpm', 'spread', 'mag', 'reload'].map((k) => [k, nv(`w.${d.awsave}.${k}`)])), d.awsave);
   if (d.awoff) { const w = S.admin.settings.weapons.find((x) => x.id === d.awoff); return adminSet('weapon', { disabled: !w.disabled }, d.awoff); }
-  if (d.azon !== undefined) return adminSet('zombieEnabled', { enabled: !S.admin.settings.zombie.enabled });
-  if (d.aztype) return adminSet('zombieType', Object.fromEntries(['hp', 'damage', 'speed', 'reward', 'weight', 'minRound'].map((k) => [k, nv(`zt.${d.aztype}.${k}`)])), d.aztype);
-  if (d.adoor) return adminSet('door', { price: nv('door.' + d.adoor) }, d.adoor);
-  if (d.awb) return adminSet('wallbuy', { price: nv('wb.' + d.awb), weapon: $(`[data-wbw="${d.awb}"]`).value }, d.awb);
-  if (d.aperk) return adminSet('perk', { price: nv('perk.' + d.aperk) }, d.aperk);
-  if (d.aperkoff) { const k = S.admin.settings.zombie.perks.find((x) => x.id === d.aperkoff); return adminSet('perk', { disabled: !k.disabled }, d.aperkoff); }
-  if (d.amap) { const [id, action] = d.amap.split('|'); const r = await rpc('admin:map', id, action); if (r.ok && r.data && typeof r.data === 'object') { S.admin.settings = r.data; toast('Carte mise à jour.', 'success'); pageAdmin($('#page')); } return; }
-  if (d.amapt) { const m = S.admin.settings.maps.find((x) => x.id === d.amapt); const r = await rpc('admin:map', d.amapt, m.enabled ? 'disable' : 'enable'); if (r.ok) { S.admin.settings = r.data; pageAdmin($('#page')); } return; }
   if (d.anpcdel) { const r = await rpc('admin:npc', 'remove', { id: d.anpcdel }); if (r.ok) { S.admin.settings = r.data; pageAdmin($('#page')); } return; }
   if (d.akick) { const [uid, id] = d.akick.split('|'); const r = await rpc('admin:game', uid, 'kick', Number(id)); if (r.ok) { S.admin.games = r.data; pageAdmin($('#page')); } return; }
   if (d.astop) { if (!confirm('Arrêter cette partie ? Les mises seront remboursées.')) return; const r = await rpc('admin:game', d.astop, 'stop'); if (r.ok) { S.admin.games = r.data; pageAdmin($('#page')); } return; }
@@ -544,18 +528,14 @@ document.addEventListener('click', async (e) => {
     case 'ready': { const me = [...S.lobby.teams.A, ...S.lobby.teams.B].find((x) => x.me); return rpc('pvp:ready', !me?.ready); }
     case 'start': return rpc('pvp:start');
     case 'leave': { await rpc('lobby:leave'); S.lobby = null; return render(); }
-    case 'invite': case 'zinvite': return openInviteList();
-    case 'zsolo': { const r = await rpc('zb:create', { solo: true, name: $('#zname')?.value }); return r; }
-    case 'zgroup': { const r = await rpc('zb:create', { name: $('#zname')?.value, password: $('#zpw')?.value, private: !!$('#zpw')?.value }); return r; }
-    case 'zready': { const me = S.lobby.players.find((x) => x.id === S.init.me.id); return rpc('zb:ready', !me?.ready); }
-    case 'zstart': return rpc('zb:start');
+    case 'invite': return openInviteList();
     case 'testsound': return Snd.play('victory');
     case 'arefresh': return loadAdmin();
     case 'npcadd': { const r = await rpc('admin:npc', 'add', { label: $('#npcLabel').value, model: $('#npcModel').value }); if (r.ok) { S.admin.settings = r.data; pageAdmin($('#page')); } return; }
     case 'npcrestore': { const r = await rpc('admin:npc', 'restore', {}); if (r.ok) { S.admin.settings = r.data; pageAdmin($('#page')); } return; }
     case 'psearch': {
       const r = await rpc('admin:players.search', $('#psearch').value);
-      $('#presults').innerHTML = r.ok ? `<table class="adm-table">${r.data.map((x) => `<tr><td>${rankImg(x.rank)} <b>${esc(x.firstname)} ${esc(x.lastname)}</b></td><td class="small muted">${esc(x.citizenid)}</td><td>${fmt(x.points)} pts</td><td>${x.wins} V</td><td>manche ${x.zb_best_round}</td><td>${x.banned ? '<span class="chip red">EXCLU</span>' : ''}</td><td><button class="btn sm" data-pick="${esc(x.citizenid)}">Ouvrir</button></td></tr>`).join('')}</table>` : '';
+      $('#presults').innerHTML = r.ok ? `<table class="adm-table">${r.data.map((x) => `<tr><td>${rankImg(x.rank)} <b>${esc(x.firstname)} ${esc(x.lastname)}</b></td><td class="small muted">${esc(x.citizenid)}</td><td>${fmt(x.points)} pts</td><td>${x.wins} V · ${x.losses} D</td><td>${x.banned ? '<span class="chip red">EXCLU</span>' : ''}</td><td><button class="btn sm" data-pick="${esc(x.citizenid)}">Ouvrir</button></td></tr>`).join('')}</table>` : '';
       return;
     }
     case 'leaveGame': $('#gameMenu').classList.add('hidden'); post('leaveGame'); post('gameMenuClose'); return;
@@ -598,33 +578,23 @@ function closeUI() {
 }
 
 /* ------------------------------------------------------------------ HUD */
-const H = { mode: null, endsAt: 0, offset: 0, zmoney: 0 };
+const H = { mode: null, endsAt: 0, offset: 0 };
 function hudInit(d) {
   H.mode = d.mode; H.role = d.role; H.team = d.team;
   const teamColor = d.team === 'A' ? 'var(--lg-red)' : d.team === 'B' ? 'var(--lg-blue)' : 'var(--ely-violet)';
   document.documentElement.style.setProperty('--team', teamColor);
   document.documentElement.style.setProperty('--hud-scale', S.settings.hudScale);
   const root = $('#hudScale');
-  if (d.mode === 'pvp') {
-    root.innerHTML = `<div class="hud-top"><div class="hs A" id="hsA">0</div><div class="hmid"><div class="tm mono" id="htime">--:--</div><div class="rd" id="hround">MANCHE 1</div></div><div class="hs B" id="hsB">0</div></div>
-      <div class="alive"><div class="grp A" id="alA"></div><div class="grp B" id="alB"></div></div>
-      <div class="mates" id="mates"></div><div class="killfeed" id="kf"></div>
-      ${d.role === 'player' ? `<div class="shield" id="shield"><div class="lbl">BOUCLIER <b id="shv">${d.shield}</b></div><div class="sb"><b id="shb"></b></div></div><div class="ammo" id="ammo"></div>` : ''}
-      <div class="crosshair hidden" id="cross"><i></i><i></i><i></i><i></i><b></b></div><div class="hitmarker" id="hm"><i></i><i></i><i></i><i></i></div><div class="dmgdir" id="dd"></div>
-      <div class="vignette" id="vig"></div><div class="center-msg" id="cmsg"></div><div class="specbar hidden" id="spec"></div>`;
-  } else {
-    root.innerHTML = `<div class="zb-round" id="zround">I</div><div class="zb-left" id="zleft"></div><div class="mates" id="mates"></div><div class="zbfeed" id="zfeed"></div>
-      ${d.role === 'player' ? `<div class="shield" id="shield"><div class="lbl">VIE <b id="shv">${d.hp}</b></div><div class="sb"><b id="shb"></b></div></div><div class="perks" id="perks"></div>
-      <div class="zb-money" id="zmoney"><div class="v" id="zmv">${fmt(d.money)} $</div></div><div class="ammo" id="ammo"></div>` : ''}
-      <div class="crosshair hidden" id="cross"><i></i><i></i><i></i><i></i><b></b></div><div class="hitmarker" id="hm"><i></i><i></i><i></i><i></i></div>
-      <div class="vignette" id="vig"></div><div class="center-msg" id="cmsg"></div><div class="specbar hidden" id="spec"></div><div id="zdown"></div><div class="progress hidden" id="prog"></div>`;
-    H.zmoney = d.money || 0;
-  }
+  root.innerHTML = `<div class="hud-top"><div class="hs A" id="hsA">0</div><div class="hmid"><div class="tm mono" id="htime">--:--</div><div class="rd" id="hround">MANCHE 1</div></div><div class="hs B" id="hsB">0</div></div>
+    <div class="alive"><div class="grp A" id="alA"></div><div class="grp B" id="alB"></div></div>
+    <div class="mates" id="mates"></div><div class="killfeed" id="kf"></div>
+    ${d.role === 'player' ? `<div class="shield" id="shield"><div class="lbl">BOUCLIER <b id="shv">${d.shield}</b></div><div class="sb"><b id="shb"></b></div></div><div class="ammo" id="ammo"></div>` : ''}
+    <div class="crosshair hidden" id="cross"><i></i><i></i><i></i><i></i><b></b></div><div class="hitmarker" id="hm"><i></i><i></i><i></i><i></i></div><div class="dmgdir" id="dd"></div>
+    <div class="vignette" id="vig"></div><div class="center-msg" id="cmsg"></div><div class="specbar hidden" id="spec"></div><div class="progress hidden" id="prog"></div>`;
   $('#hud').classList.remove('hidden');
   clearInterval(H.tick);
   H.tick = setInterval(hudTick, 250);
 }
-function roman(n) { const m = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]; let s = ''; for (const [v, r] of m) while (n >= v) { s += r; n -= v; } return s || '0'; }
 function hudTick() {
   const el = $('#htime');
   if (el && H.endsAt) {
@@ -646,9 +616,9 @@ function setBar(v, max, hit) {
   t.textContent = Math.max(0, Math.round(v));
   if (hit) { s.classList.remove('hit'); void s.offsetWidth; s.classList.add('hit'); flashVignette(); }
 }
-function flashVignette(acid) {
+function flashVignette() {
   const v = $('#vig'); if (!v) return;
-  v.classList.toggle('acid', !!acid); v.style.opacity = 1;
+  v.style.opacity = 1;
   clearTimeout(H.vg); H.vg = setTimeout(() => { v.style.opacity = 0; }, 350);
 }
 
@@ -659,22 +629,22 @@ const ON = {
     $('#mark').innerHTML = Ely.mark({ anim: true, live: true, size: 64 });
     $('#sky').innerHTML = Ely.skyline({ w: 600, h: 170, seed: 11, lit: 0.22 });
     $('#app').classList.remove('hidden');
-    go(S.lobby ? S.lobby.mode === 'zombie' ? 'zombie' : 'pvp' : (d.tab || 'home'));
+    go(S.lobby ? 'pvp' : (d.tab || 'home'));
     if (d.admin) { S.admin = null; go('admin'); }
   },
   close() { $('#app').classList.add('hidden'); clearInterval(S.lbTimer); },
   tab(t) { go(t); },
-  list(list) { S.list = list || []; if (!$('#app').classList.contains('hidden') && ['home', 'pvp', 'zombie'].includes(S.tab) && !S.lobby) render(); },
-  lobby(v) { const first = !S.lobby; S.lobby = v; if (!$('#app').classList.contains('hidden')) { if (first) go(v.mode === 'zombie' ? 'zombie' : 'pvp'); else if (S.tab === 'pvp' || S.tab === 'zombie') render(); } },
+  list(list) { S.list = list || []; if (!$('#app').classList.contains('hidden') && ['home', 'pvp'].includes(S.tab) && !S.lobby) render(); },
+  lobby(v) { const first = !S.lobby; S.lobby = v; if (!$('#app').classList.contains('hidden')) { if (first) go('pvp'); else if (S.tab === 'pvp') render(); } },
   lobbyClosed(d) { if (S.lobby && S.lobby.uid === d.uid) { S.lobby = null; if (d.reason && d.reason !== 'a quitté') toast(`Lobby fermé : ${d.reason}`, 'warn'); render(); } },
   gameClosed(d) { S.list = S.list.filter((g) => g.uid !== d.uid); },
   invite(inv) {
     const el = document.createElement('div');
     el.className = 'card holo invite';
-    el.innerHTML = `<h3>Invitation ${inv.mode === 'zombie' ? 'Zombie' : 'PVP'}</h3><div><b>${esc(inv.host)}</b> t'invite à « ${esc(inv.name)} ».</div><div class="small muted" style="margin:6px 0 10px">Rends-toi auprès d'un PNJ LaserGame pour accepter (E).</div>
+    el.innerHTML = `<h3>Invitation PVP</h3><div><b>${esc(inv.host)}</b> t'invite à « ${esc(inv.name)} ».</div><div class="small muted" style="margin:6px 0 10px">Rends-toi auprès d'un PNJ LaserGame pour accepter (E).</div>
       <div class="row"><button class="btn sm ok">Accepter</button><button class="btn sm ghost">Ignorer</button></div>`;
     const [ok, no] = el.querySelectorAll('button');
-    ok.onclick = async () => { el.remove(); const r = await rpc(inv.mode === 'zombie' ? 'zb:join' : 'pvp:join', inv.uid, ''); if (r.ok) toast('Tu as rejoint la partie.', 'success'); };
+    ok.onclick = async () => { el.remove(); const r = await rpc('pvp:join', inv.uid, ''); if (r.ok) toast('Tu as rejoint la partie.', 'success'); };
     no.onclick = () => el.remove();
     $('#invites').appendChild(el);
     setTimeout(() => el.remove(), (inv.ttl || 120) * 1000);
@@ -688,10 +658,9 @@ const ON = {
     p.classList.remove('hidden');
   },
   loading(d) {
-    $('#loadingBg').style.backgroundImage = d.map ? `url('images/maps/${d.map}.png')` : '';
-    $('#loadingMode').textContent = d.role === 'spectator' ? 'MODE SPECTATEUR' : (d.mode === 'zombie' ? 'MODE ZOMBIE' : 'PVP ARENA');
-    $('#loadingName').textContent = mapOf(d.map).label || d.name || '';
-    const tips = ['Le laser est arrêté par les couvertures : sers-t\'en.', 'Recharge (R) à l\'abri.', 'Les spectateurs ne voient pas ce que tu prépares.', 'Les atouts sont perdus si tu es éliminé.', 'Mastodonte permet d\'encaisser 5 à 6 coups.', 'Le cracheur d\'acide laisse une flaque : bouge !'];
+    $('#loadingMode').textContent = d.role === 'spectator' ? 'MODE SPECTATEUR' : 'PVP ARENA';
+    $('#loadingName').textContent = d.mapLabel || mapOf(d.map).label || d.name || '';
+    const tips = ['Le laser est arrêté par les couvertures : sers-t\'en.', 'Recharge (R) à l\'abri.', 'Les spectateurs ne voient pas ce que tu prépares.', 'La paroi violette marque la limite de l\'arène.', 'Un éliminé observe ses coéquipiers : guide-les.', 'Change de position après chaque élimination.'];
     $('#loadingTip').textContent = tips[Math.floor(Math.random() * tips.length)];
     $('#loadingBar').style.width = '0%';
     $('#loading').classList.remove('hidden');
@@ -699,7 +668,7 @@ const ON = {
   },
   loadingProgress(k) { $('#loadingBar').style.width = `${Math.round(k * 100)}%`; },
   loadingDone() { setTimeout(() => $('#loading').classList.add('hidden'), 400); },
-  hud(d) { if (!d) { $('#hud').classList.add('hidden'); clearInterval(H.tick); $('#results').classList.add('hidden'); return; } hudInit(d); if (d.mode === 'pvp' && d.shield) setBar(d.shield, d.maxShield || d.shield); if (d.mode === 'zombie' && d.hp) setBar(d.hp, d.maxHp); },
+  hud(d) { if (!d) { $('#hud').classList.add('hidden'); clearInterval(H.tick); $('#results').classList.add('hidden'); return; } hudInit(d); if (d.shield) setBar(d.shield, d.maxShield || d.shield); },
   crosshair(on) { const c = $('#cross'); if (c) c.classList.toggle('hidden', !on); },
   hitmarker(d) { const h = $('#hm'); if (!h) return; h.classList.toggle('kill', !!d.kill); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); },
   damageDir(d) { const e = $('#dd'); if (!e) return; e.style.transform = `rotate(${-d.angle}deg)`; e.classList.remove('go'); void e.offsetWidth; e.classList.add('go'); },
@@ -763,47 +732,6 @@ const ON = {
     const step = (t) => { const b = $('#progBar'); if (!b) return; const k = Math.min(1, (t - start) / dur); b.style.width = `${k * 100}%`; if (k < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   },
-  // ---- Zombie
-  zbState(s) {
-    if (!s) return;
-    const r = $('#zround'); if (r && r.dataset.r != s.round) { r.dataset.r = s.round; r.textContent = roman(s.round || 0); }
-    const l = $('#zleft'); if (l) l.textContent = s.phase === 'intermission' ? 'PAUSE · PRÉPARE-TOI' : `${s.remaining} ZOMBIE(S) RESTANT(S)`;
-    const m = $('#mates');
-    if (m) m.innerHTML = s.players.map((p) => `<div class="mate ${p.state === 'dead' ? 'dead' : ''} ${p.state === 'down' ? 'down' : ''}" style="--c:${p.me ? 'var(--ely-violet-hi)' : 'var(--lg-acid)'}">${esc(p.name)}${p.me ? ' (toi)' : ''}
-      <span class="mb"><b style="width:${Math.max(0, p.hp / Math.max(1, p.maxHp) * 100)}%"></b></span><span class="small">${fmt(p.money)} $</span></div>`).join('');
-  },
-  zbRound(d) { const r = $('#zround'); if (r) { r.textContent = roman(d.round); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } centerMsg(`<div class="banner lose">MANCHE ${d.round}<span class="sub">${d.count} ZOMBIES</span></div>`, 2600); },
-  zbRoundEnd(d) { centerMsg(`<div class="banner win">MANCHE ${d.round} SURVÉCUE<span class="sub">PROCHAINE VAGUE DANS ${d.next} S</span></div>`, 4000); },
-  zbMoney(d) {
-    const v = $('#zmv'); if (!v) return;
-    v.textContent = `${fmt(d.money)} $`;
-    if (d.delta) { const e = document.createElement('div'); e.className = `d ${d.delta < 0 ? 'neg' : ''}`; e.textContent = `${d.delta > 0 ? '+' : ''}${fmt(d.delta)}`; $('#zmoney').appendChild(e); setTimeout(() => e.remove(), 1200); }
-    if (d.hit) ON.hitmarker({ kill: d.kill });
-  },
-  zbHealth(d) { setBar(d.hp, d.maxHp, !d.regen); if (d.kind === 'acid') flashVignette(true); },
-  zbPerks(d) {
-    const p = $('#perks'); if (!p) return;
-    const defs = Object.fromEntries((S.init?.zombie?.perks || []).map((k) => [k.id, k]));
-    p.innerHTML = (d.perks || []).map((id) => `<div class="perk" style="--c:${defs[id]?.color || '#B57BFF'}" title="${esc(defs[id]?.label || id)}"><svg viewBox="0 0 24 24">${I[defs[id]?.icon || id] || ''}</svg></div>`).join('');
-    if (d.maxHp) setBar(d.hp, d.maxHp);
-    if (d.bought) centerMsg(`<div class="banner win" style="font-size:30px">${esc(defs[d.bought]?.label || d.bought)}</div>`, 2000);
-  },
-  zbFeed(d) {
-    const f = $('#zfeed'); if (!f) return;
-    const txt = { down: `${d.name} est à terre !`, revive: `${d.name} a été réanimé${d.by ? ' par ' + d.by : ''}`, dead: `${d.name} a succombé`, left: `${d.name} a quitté la partie`, door: `${d.name} a ouvert une porte` }[d.kind] || '';
-    const e = document.createElement('div'); e.textContent = txt; f.prepend(e); setTimeout(() => e.remove(), 4600);
-  },
-  zbDowned(d) {
-    const z = $('#zdown'); if (!z) return;
-    let left = d.bleedout;
-    z.innerHTML = `<div class="downed"><div><div class="t">À TERRE</div><div class="s">${d.selfRevive ? 'RÉANIMATION RAPIDE : TU TE RELÈVES…' : 'UN COÉQUIPIER PEUT TE RÉANIMER'}</div><div class="s" id="bleed" style="font-size:28px;margin-top:14px">${left}</div></div></div>`;
-    clearInterval(H.bleed);
-    H.bleed = setInterval(() => { left -= 1; const b = $('#bleed'); if (b) b.textContent = Math.max(0, left); if (left <= 0) clearInterval(H.bleed); }, 1000);
-  },
-  zbReviving(d) { if (!d) return ON.progress(false); ON.progress({ label: `${d.by} te réanime…`, duration: d.duration }); },
-  zbRevived(d) { clearInterval(H.bleed); const z = $('#zdown'); if (z) z.innerHTML = ''; ON.progress(false); setBar(d.hp, d.maxHp); if (d.perks) ON.zbPerks({ perks: d.perks }); },
-  zbDead() { clearInterval(H.bleed); const z = $('#zdown'); if (z) z.innerHTML = ''; centerMsg('<div class="banner lose">TU AS SUCCOMBÉ<span class="sub">RETOUR À LA PROCHAINE MANCHE</span></div>', 4000); ON.zbPerks({ perks: [] }); },
-  zbGameOver(d) { clearInterval(H.bleed); const z = $('#zdown'); if (z) z.innerHTML = ''; showZombieResults(d); },
 };
 
 /* ------------------------------------------------------------------ écrans de fin */
@@ -845,18 +773,6 @@ function showResults(d) {
   if (me.rankUp) setTimeout(() => Snd.play('rankup'), 1600);
   setTimeout(() => r.classList.add('hidden'), 12500);
 }
-function showZombieResults(d) {
-  const r = $('#results');
-  r.className = 'lose';
-  r.innerHTML = `<div class="res"><div class="big glitch go" data-text="FIN DE PARTIE" style="font-size:90px">FIN DE PARTIE</div>
-    <div class="final" style="color:#FF1E3C">MANCHE ${d.round}</div><div class="muted">${fmt(d.kills)} zombies éliminés · ${Math.floor(d.duration / 60)} min ${d.duration % 60} s</div>
-    <div class="card holo" style="margin-top:18px"><table class="lb"><tr><th>Joueur</th><th>Zombies</th><th>Argent gagné</th><th>À terre</th><th>Réanimations</th></tr>
-    ${d.players.map((p) => `<tr><td><b>${esc(p.name)}</b>${p.left ? ' <span class="chip warn">parti</span>' : ''}</td><td>${p.kills}</td><td>${money(p.money)}</td><td>${p.downs}</td><td>${p.revives}</td></tr>`).join('')}</table></div>
-    <div class="muted small" style="margin-top:12px">L'argent Zombie n'existe que dans la partie. Retour au RP…</div></div>`;
-  r.classList.remove('hidden');
-  setTimeout(() => r.classList.add('hidden'), 11500);
-}
-
 window.addEventListener('message', (e) => {
   const m = e.data || {};
   const fn = ON[m.action];
@@ -871,65 +787,62 @@ const Demo = {
     const R = {
       'ui:init': Demo.init, 'profile:get': Demo.init.profile, 'history:get': Demo.history, 'lb:get': Demo.board(a0), 'list:get': Demo.init.games,
       'admin:open': Demo.admin, 'admin:logs': Demo.logs, 'lobby:nearby': [{ id: 12, name: 'Lina Morel' }, { id: 31, name: 'Sacha Diallo' }],
-      'admin:players.search': [{ citizenid: 'ELY12345', firstname: 'Nora', lastname: 'Vance', points: 1612, wins: 48, zb_best_round: 27, banned: 0, rank: 'diamond' }],
+      'admin:players.search': [{ citizenid: 'ELY12345', firstname: 'Nora', lastname: 'Vance', points: 1612, wins: 48, losses: 20, banned: 0, rank: 'diamond' }],
+      'admin:arena': { message: 'Arène enregistrée.', arenas: Demo.admin.settings.arenas },
     };
     return Promise.resolve({ ok: true, data: R[data.name] ?? true });
   },
   board(kind) {
     const names = [['Nora', 'Vance'], ['Kenji', 'Mori'], ['Lina', 'Morel'], ['Sacha', 'Diallo'], ['Ivy', 'Stone'], ['Malo', 'Ruiz'], ['Yara', 'Benali'], ['Tom', 'Keller'], ['Ezra', 'Lopez'], ['Mia', 'Hart']];
     const rk = ['legend', 'grandmaster', 'master', 'diamond', 'diamond', 'platinum', 'gold', 'gold', 'silver', 'bronze'];
-    const zb = String(kind || '').startsWith('zb');
-    return { kind: kind || 'pvp_points', page: 1, pages: 3, total: 27, t: Date.now() / 1000, rows: names.map(([f, l], i) => ({ pos: i + 1, firstname: f, lastname: l, names: `${f} ${l}, ${names[(i + 1) % 10][0]} ${names[(i + 1) % 10][1]}`,
-      v: zb ? 42 - i * 3 : 2140 - i * 61, rank: rk[i], wins: 120 - i * 9, losses: 30 + i * 4, points: 2140 - i * 61, zb_kills: 4100 - i * 300, zb_money: 410000 - i * 31000, zb_games: 60 - i * 4, zb_best_date: 1761900000 - i * 86400,
-      kills: 3000 - i * 200, players: 3, created_at: 1761900000 })) };
+    return { kind: kind || 'pvp_points', page: 1, pages: 3, total: 27, t: Date.now() / 1000, rows: names.map(([f, l], i) => ({ pos: i + 1, firstname: f, lastname: l,
+      v: 2140 - i * 61, rank: rk[i], wins: 120 - i * 9, losses: 30 + i * 4, points: 2140 - i * 61, kills: 3000 - i * 200 })) };
   },
 };
 Demo.init = {
   me: { id: 1, name: 'Elyzea Fa', firstname: 'Elyzea', lastname: 'Fa' }, isAdmin: true, spectator: true,
   profile: { firstname: 'Elyzea', lastname: 'Fa', points: 1612, peak: 1688, rank: 'diamond', rankLabel: 'ELYZEA DIAMOND', progress: 0.41, position: 7, next: { id: 'master', label: 'ELYZEA MASTER', min: 1700 },
-    wins: 48, losses: 21, draws: 3, kills: 512, deaths: 233, matches: 72, ratio: 2.2, streak: 3, bestStreak: 9, zbBestRound: 27, zbBestSolo: 19, zbKills: 3120, zbMoney: 284500, zbGames: 41, zbRevives: 37, zbBestDate: 1761900000 },
+    wins: 48, losses: 21, draws: 3, kills: 512, deaths: 233, matches: 72, ratio: 2.2, streak: 3, bestStreak: 9 },
   pvp: { enabled: true, formats: [1, 2, 3, 4, 5, 6].map((n) => ({ id: `${n}v${n}`, label: `${n} VS ${n}`, size: n })), rounds: [1, 3, 5, 7, 9], roundTimes: [60, 90, 120, 180, 240, 300], defaultRounds: 3, defaultRoundTime: 120, ranked: { public: true, private: false } },
   stake: { enabled: true, min: 0, max: 250000, step: 100, fee: 0 },
-  zombie: { enabled: true, maxPlayers: 4, maxPerks: 4, perks: [
-    { id: 'quickrevive', label: 'Réanimation rapide', price: 1500, color: '#5FD3FF', icon: 'quickrevive', desc: '' }, { id: 'speed', label: 'Rapidité', price: 2000, color: '#FFB020', icon: 'speed', desc: '' },
-    { id: 'acidres', label: 'Résistance acide', price: 2000, color: '#9BFF3E', icon: 'acidres', desc: '' }, { id: 'juggernaut', label: 'Mastodonte', price: 2500, color: '#FF3355', icon: 'juggernaut', desc: '' },
-    { id: 'regen', label: 'Régénération', price: 2500, color: '#FF77D0', icon: 'regen', desc: '' }, { id: 'fastreload', label: 'Rechargement rapide', price: 3000, color: '#3EE6B0', icon: 'fastreload', desc: '' },
-    { id: 'armor', label: 'Protection', price: 3000, color: '#C9D3E0', icon: 'armor', desc: '' }, { id: 'doubledmg', label: 'Double dégâts', price: 5000, color: '#B57BFF', icon: 'doubledmg', desc: '' }] },
-  maps: [['pvp_small', 'ELYSIUM COMBAT', 'S'], ['pvp_medium', 'NEON DISTRICT', 'M'], ['pvp_large', 'BLACKSITE', 'L'], ['pvp_xlarge', 'LAST STAND', 'XL'], ['zombie_map', 'COMPLEXE ELYZEA-7', 'XL']]
-    .map(([id, label, size]) => ({ id, label, size, mode: id.startsWith('pvp') ? 'pvp' : 'zombie', enabled: true, description: 'Complexe de recherche abandonné : 8 secteurs, portes payantes, armes murales et atouts.' })),
+  maps: [
+    { id: 'arena_1', label: 'ENTREPÔT NÉON', size: 'M', maxPerTeam: 4, description: 'Docks de Elysian Island, deux étages', shape: { poly: [[8, 20], [92, 20], [92, 80], [8, 80]], A: [[16, 30], [16, 50], [16, 70]], B: [[84, 30], [84, 50], [84, 70]] } },
+    { id: 'arena_2', label: 'TOITS DE VINEWOOD', size: 'L', maxPerTeam: 6, description: 'Trois toits reliés', shape: { poly: [[5, 40], [40, 5], [95, 30], [80, 95], [20, 85]], A: [[20, 50], [25, 60]], B: [[75, 40], [70, 70]] } },
+    { id: 'arena_3', label: 'PARKING DU PIER', size: 'S', maxPerTeam: 2, description: '', shape: { poly: [[30, 5], [70, 5], [70, 95], [30, 95]], A: [[50, 12]], B: [[50, 88]] } },
+  ],
   categories: [['melee', 'Mêlée'], ['pistol', 'Pistolet'], ['smg', 'Mitraillette'], ['rifle', 'Fusil d\'assaut'], ['sniper', 'Sniper']].map(([id, label]) => ({ id, label })),
   ranks: [['bronze', 'ELYZEA BRONZE', 0, '#C98A55'], ['silver', 'ELYZEA SILVER', 1100, '#C9D3E0'], ['gold', 'ELYZEA GOLD', 1250, '#FFC94A'], ['platinum', 'ELYZEA PLATINUM', 1400, '#7FE3D8'],
     ['diamond', 'ELYZEA DIAMOND', 1550, '#6FB6FF'], ['master', 'ELYZEA MASTER', 1700, '#B57BFF'], ['grandmaster', 'ELYZEA GRANDMASTER', 1850, '#FF4D8D'], ['legend', 'ELYZEA LEGEND', 2000, '#FFE7A3']]
     .map(([id, label, min, color], i) => ({ id, label, min, color, tier: i + 1 })),
   teams: { A: { name: 'ROUGE', hex: '#FF2D46' }, B: { name: 'BLEUE', hex: '#288CFF' } },
   games: [
-    { uid: 'PVP1', mode: 'pvp', name: 'Finale du jeudi', host: 'Nora Vance', format: '5v5', mapLabel: 'BLACKSITE', players: 10, max: 10, phase: 'round', score: { A: 2, B: 1 }, round: 4, stake: 5000, spectators: 3, ranked: true },
-    { uid: 'PVP2', mode: 'pvp', name: 'Duel au néon', host: 'Kenji Mori', format: '1v1', mapLabel: 'NEON DISTRICT', players: 1, max: 2, phase: 'lobby', stake: 0, ranked: true },
-    { uid: 'PVP3', mode: 'pvp', name: 'Entraînement', host: 'Lina Morel', format: '3v3', mapLabel: 'ELYSIUM COMBAT', players: 4, max: 6, phase: 'lobby', stake: 1000, hasPassword: true },
-    { uid: 'ZB1', mode: 'zombie', name: 'Escouade Omega', host: 'Sacha Diallo', mapLabel: 'COMPLEXE ELYZEA-7', players: 3, max: 4, phase: 'round', round: 14 },
+    { uid: 'PVP1', mode: 'pvp', name: 'Finale du jeudi', host: 'Nora Vance', format: '5v5', mapLabel: 'TOITS DE VINEWOOD', players: 10, max: 10, phase: 'round', score: { A: 2, B: 1 }, round: 4, stake: 5000, spectators: 3, ranked: true },
+    { uid: 'PVP2', mode: 'pvp', name: 'Duel au néon', host: 'Kenji Mori', format: '1v1', mapLabel: 'ENTREPÔT NÉON', players: 1, max: 2, phase: 'lobby', stake: 0, ranked: true },
+    { uid: 'PVP3', mode: 'pvp', name: 'Entraînement', host: 'Lina Morel', format: '3v3', mapLabel: 'PARKING DU PIER', players: 4, max: 6, phase: 'lobby', stake: 1000, hasPassword: true },
   ],
 };
 Demo.history = [
-  { mode: 'pvp', format: '5v5', map: 'pvp_large', result: 'win', score_a: 3, score_b: 1, kills: 9, deaths: 3, points_delta: 24, payout: 10000, created_at: 1761990000 },
-  { mode: 'zombie', map: 'zombie_map', result: 'loss', round: 27, kills: 412, deaths: 4, points_delta: 0, payout: 0, created_at: 1761900000 },
-  { mode: 'pvp', format: '1v1', map: 'pvp_small', result: 'loss', score_a: 1, score_b: 2, kills: 3, deaths: 4, points_delta: -15, payout: 0, created_at: 1761800000 },
+  { mode: 'pvp', format: '5v5', map: 'arena_2', mapLabel: 'TOITS DE VINEWOOD', result: 'win', score_a: 3, score_b: 1, kills: 9, deaths: 3, points_delta: 24, payout: 10000, created_at: 1761990000 },
+  { mode: 'pvp', format: '1v1', map: 'arena_3', mapLabel: 'PARKING DU PIER', result: 'loss', score_a: 1, score_b: 2, kills: 3, deaths: 4, points_delta: -15, payout: 0, created_at: 1761800000 },
 ];
 Demo.logs = [{ category: 'money', name: 'Nora Vance', message: 'gain de 25 000 $ (partie PVP1761990000001)', created_at: 1761990000 },
   { category: 'security', name: 'Inconnu', message: 'événement suspect : cadence de tir dépassée (n°1)', created_at: 1761980000 },
   { category: 'admin', name: 'Staff Elyzea', message: 'réglage modifié : stake', created_at: 1761970000 }];
 Demo.admin = {
-  games: [{ uid: 'PVP1761990000001', mode: 'pvp', name: 'Finale du jeudi', host: 'Nora Vance', phase: 'round', map: 'pvp_large', format: '5v5', score: { A: 2, B: 1 }, round: 4, players: [{ id: 3, name: 'Nora Vance' }, { id: 7, name: 'Kenji Mori' }] }],
+  games: [{ uid: 'PVP1761990000001', mode: 'pvp', name: 'Finale du jeudi', host: 'Nora Vance', phase: 'round', map: 'TOITS DE VINEWOOD', format: '5v5', score: { A: 2, B: 1 }, round: 4, players: [{ id: 3, name: 'Nora Vance' }, { id: 7, name: 'Kenji Mori' }] }],
   settings: {
     framework: 'elyzea',
     pvp: { enabled: true, requireEqualTeams: true, requireFullTeams: false, oneHitElimination: false, friendlyFire: false, shield: 100, minRankedDuration: 45, lobbyIdleTimeout: 1200, defaultRoundTime: 120, defaultRounds: 3 },
     stake: { enabled: true, min: 0, max: 250000, step: 100, houseFeePct: 0 },
     formats: Demo.init.pvp.formats.map((f) => ({ ...f, enabled: true })), ranks: Demo.init.ranks,
-    weapons: [{ id: 'photon_p9', label: 'Photon P9', cat: 'pistol', damage: 25, zDamage: 45, range: 60, rpm: 240, spread: 1.2, mag: 12, reload: 1400 }, { id: 'helios', label: 'Hélios Railgun', cat: 'sniper', damage: 90, zDamage: 600, range: 250, rpm: 45, spread: 0.05, mag: 5, reload: 3000 }],
-    maps: Demo.init.maps.map((m) => ({ ...m, objects: 300, anchor: { x: -1336, y: -3044, z: 13.94, h: 150 }, moved: m.id === 'pvp_small' })),
-    zombie: { enabled: true, maxPerks: 4, rounds: { countBase: 6, countPerRound: 3, countMax: 120, maxAlive: 22, hpBase: 110, hpPerRound: 40, hpLinearUntil: 9, hpGrowth: 1.1, damageBase: 34, damagePerRound: 1.5, damageMax: 60, runFromRound: 3, sprintFromRound: 7, speedRamp: 0.12, intermission: 10, spawnInterval: 1500 },
-      money: { hit: 10, meleeKillBonus: 30, reviveBonus: 100, roundBonus: 0, startMoney: 500 }, player: { health: 100, regenDelay: 4000, regenPerSecond: 35, bleedout: 30, reviveTime: 4 },
-      types: [{ id: 'classic', label: 'Zombie', hp: 1, damage: 1, speed: 1, reward: 100, weight: 100, minRound: 1 }, { id: 'spitter', label: 'Cracheur d\'acide', hp: 1.4, damage: 0.6, speed: 0.9, reward: 300, weight: 10, minRound: 4 }],
-      perks: Demo.init.zombie.perks, doors: [{ id: 'd_corridor', label: 'Couloir industriel', price: 750 }], wallbuys: [{ id: 'wb_vector', sector: 'corridor', price: 500, weapon: 'photon_p9' }] },
+    weapons: [{ id: 'photon_p9', label: 'Photon P9', cat: 'pistol', damage: 25, range: 60, rpm: 240, spread: 1.2, mag: 12, reload: 1400 }, { id: 'helios', label: 'Hélios Railgun', cat: 'sniper', damage: 90, range: 250, rpm: 45, spread: 0.05, mag: 5, reload: 3000 }],
+    teams: { A: 'ROUGE', B: 'BLEUE' }, adminMenu: true,
+    arenas: [
+      { ...Demo.init.maps[0], enabled: true, valid: true, issues: [], area: 3120, corners: 4, spawnsA: 3, spawnsB: 3, time: 22, weather: 'CLEAR', zone: { minZ: 4.5, maxZ: 38 }, inUse: 'running' },
+      { ...Demo.init.maps[1], enabled: true, valid: true, issues: [], area: 5400, corners: 5, spawnsA: 2, spawnsB: 2, zone: { minZ: 140, maxZ: 170 } },
+      { id: 'arena_4', label: 'CHANTIER (en construction)', size: '—', maxPerTeam: 6, enabled: false, valid: false, issues: ['aucune apparition pour l\'équipe BLEUE'], area: 900, corners: 4, spawnsA: 2, spawnsB: 0,
+        zone: { minZ: 20, maxZ: 50 }, shape: { poly: [[10, 10], [90, 10], [90, 90], [10, 90]], A: [[20, 20], [20, 30]], B: [] } },
+    ],
     npcs: [{ id: 'lg_accueil', label: 'LaserGame ElyzeaFA', model: 's_m_y_ammucity_01', x: -1256.66, y: -1440.81, z: 4.37 }],
   },
 };
@@ -940,17 +853,17 @@ Demo.admin = {
   const q = new URLSearchParams(location.search).get('demo') || 'home';
   const send = (action, data) => window.postMessage({ action, data }, '*');
   const open = (tab, admin) => send('open', { init: Demo.init, tab, admin });
-  const lobbyPvp = { uid: 'PVP2', mode: 'pvp', name: 'Duel au néon', host: 'Elyzea Fa', isHost: true, format: '3v3', size: 3, map: 'pvp_medium', mapLabel: 'NEON DISTRICT', rounds: 5, roundTime: 120, category: 'rifle', stake: 5000, pot: 25000, ranked: true,
+  const lobbyPvp = { uid: 'PVP2', mode: 'pvp', name: 'Duel au néon', host: 'Elyzea Fa', isHost: true, format: '3v3', size: 3, map: 'arena_1', mapLabel: 'ENTREPÔT NÉON', rounds: 5, roundTime: 120, category: 'rifle', stake: 5000, pot: 25000, ranked: true,
     teamNames: { A: 'ROUGE', B: 'BLEUE' }, teams: { A: [{ id: 1, name: 'Elyzea Fa', ready: true, weapon: 'nova_ar', host: true, rank: 'diamond', me: true }, { id: 4, name: 'Malo Ruiz', ready: false, weapon: 'spectre', rank: 'gold' }],
       B: [{ id: 5, name: 'Kenji Mori', ready: true, weapon: 'quasar', rank: 'grandmaster' }, { id: 6, name: 'Ivy Stone', ready: true, weapon: 'nova_ar', rank: 'platinum' }, { id: 8, name: 'Tom Keller', ready: false, weapon: 'nova_ar', rank: 'silver' }] },
     weapons: [{ id: 'nova_ar', label: 'Nova AR', damage: 20, range: 90, rpm: 560 }, { id: 'spectre', label: 'Spectre-7', damage: 22, range: 95, rpm: 520 }, { id: 'quasar', label: 'Quasar Bullpup', damage: 26, range: 100, rpm: 480 }] };
   setTimeout(() => {
-    if (q === 'home' || q === 'pvp' || q === 'zombie' || q === 'ranks' || q === 'profile' || q === 'history' || q === 'settings') open(q);
+    if (q === 'home' || q === 'pvp' || q === 'ranks' || q === 'profile' || q === 'history' || q === 'settings') open(q);
     else if (q === 'admin') open('admin', true);
+    else if (q === 'arenas') { open('admin', true); setTimeout(() => { S.adminTab = 'arenas'; pageAdmin($('#page')); }, 150); }
     else if (q === 'lobby') { open('pvp'); setTimeout(() => send('lobby', lobbyPvp), 100); }
-    else if (q === 'zlobby') { open('zombie'); setTimeout(() => send('lobby', { uid: 'ZB2', mode: 'zombie', name: 'Escouade Elyzea', host: 'Elyzea Fa', isHost: true, mapLabel: 'COMPLEXE ELYZEA-7', max: 4, players: [{ id: 1, name: 'Elyzea Fa', ready: true, host: true }, { id: 9, name: 'Yara Benali', ready: false }] }), 100); }
     else if (q === 'create') { open('pvp'); setTimeout(() => { S.sub.pvp = 'create'; render(); }, 100); }
-    else if (q === 'loading') { send('loading', { map: 'pvp_large', mode: 'pvp', name: 'Finale' }); send('loadingProgress', 0.64); }
+    else if (q === 'loading') { send('loading', { map: 'arena_2', mapLabel: 'TOITS DE VINEWOOD', mode: 'pvp', name: 'Finale' }); send('loadingProgress', 0.64); }
     else if (q === 'hud-pvp') {
       S.init = Demo.init;
       send('hud', { mode: 'pvp', role: 'player', team: 'A', rounds: 5, shield: 100, maxShield: 100 });
@@ -962,23 +875,11 @@ Demo.admin = {
       send('killfeed', { killer: 'Elyzea Fa', killerTeam: 'A', victim: 'Ivy Stone', victimTeam: 'B', weapon: 'Nova AR', mine: true });
       send('killfeed', { killer: 'Kenji Mori', killerTeam: 'B', victim: 'Lina Morel', victimTeam: 'A', weapon: 'Quasar Bullpup' });
       send('prompt', { key: 'E', title: 'LaserGame', label: 'Ouvrir le LaserGame' });
-    } else if (q === 'hud-zombie') {
-      S.init = Demo.init;
-      send('hud', { mode: 'zombie', role: 'player', hp: 100, maxHp: 200, money: 4350 });
-      send('zbState', { round: 14, phase: 'round', remaining: 37, players: [{ id: 1, name: 'Elyzea Fa', state: 'alive', hp: 140, maxHp: 200, money: 4350, me: true }, { id: 9, name: 'Yara Benali', state: 'down', hp: 0, maxHp: 100, money: 2210 }, { id: 3, name: 'Nora Vance', state: 'alive', hp: 100, maxHp: 100, money: 6800 }] });
-      send('zbPerks', { perks: ['juggernaut', 'speed', 'doubledmg'], hp: 140, maxHp: 200 });
-      send('ammo', { label: 'Hellbringer', ammo: 38, mag: 50, slots: ['photon_p9', 'hellbringer'], current: 'hellbringer' });
-      send('crosshair', true);
-      send('zbFeed', { kind: 'down', name: 'Yara Benali' });
-      send('prompt', { key: 'E', title: 'Zone de haute sécurité', label: 'Ouvrir', price: 3500, money: true });
     } else if (q === 'results') {
       S.init = Demo.init;
       send('matchEnd', { winner: 'A', score: { A: 3, B: 1 }, ranked: true, mvp: 'Elyzea Fa', teamNames: { A: 'ROUGE', B: 'BLEUE' },
         players: [{ name: 'Elyzea Fa', team: 'A', kills: 11, deaths: 3 }, { name: 'Malo Ruiz', team: 'A', kills: 6, deaths: 5 }, { name: 'Kenji Mori', team: 'B', kills: 7, deaths: 6 }, { name: 'Ivy Stone', team: 'B', kills: 2, deaths: 7 }],
         me: { result: 'win', team: 'A', kills: 11, deaths: 3, payout: 10000, delta: 28, points: 1712, rank: 'master', rankLabel: 'ELYZEA MASTER', rankUp: true } });
-    } else if (q === 'zresults') {
-      S.init = Demo.init;
-      send('zbGameOver', { round: 27, kills: 1104, duration: 3125, players: [{ name: 'Elyzea Fa', kills: 412, money: 61500, downs: 3, revives: 9 }, { name: 'Nora Vance', kills: 380, money: 55000, downs: 4, revives: 6 }] });
     }
   }, 50);
 })();

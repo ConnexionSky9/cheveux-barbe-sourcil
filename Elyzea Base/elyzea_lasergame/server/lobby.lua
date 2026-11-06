@@ -1,5 +1,5 @@
 -- =====================================================================
---  ELYZEA LASERGAME - LOBBIES (communs PVP + Zombie)
+--  ELYZEA LASERGAME - LOBBIES PVP
 --  Rejoindre, quitter, mot de passe, invitations, expulsion, transfert d'hôte,
 --  liste des parties diffusée aux joueurs qui ont l'interface ouverte (limitée à 2 envois / s).
 -- =====================================================================
@@ -9,7 +9,7 @@ local INVITE_TTL = 120
 
 function Lobby.New(mode, src, id, opts)
     local g = {
-        uid = Games.NewUid(mode == LG.Mode.PVP and 'PVP' or 'ZB'),
+        uid = Games.NewUid('PVP'),
         mode = mode,
         name = opts.name,
         host = src, hostCid = id.cid, hostName = id.name,
@@ -150,7 +150,7 @@ CreateThread(function()
         local now = os.time()
         for _, g in pairs(Games.list) do
             if g.phase == LG.Phase.LOBBY and not g.closed then
-                local limit = g.mode == LG.Mode.PVP and Config.PvP.lobbyIdleTimeout or LG.Zombie.lobbyIdleTimeout
+                local limit = Config.PvP.lobbyIdleTimeout
                 if now - g.lastActivity > limit or Lobby.Count(g) == 0 then
                     local h = Games.handlers[g.mode]
                     if h and h.cancel then h.cancel(g, 'lobby inactif') end

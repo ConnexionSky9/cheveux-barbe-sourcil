@@ -4,7 +4,6 @@
 --  * Une ligne passe de « held » à paid / refunded / lost UNE SEULE FOIS (UPDATE ... WHERE status='held'),
 --    le crédit n'a lieu qu'après ce passage : rejouer un paiement ne verse jamais deux fois.
 --  * Aucun argent n'est créé : les gains sont le pot réellement débité (moins la commission éventuelle).
---  * L'argent du mode Zombie n'existe que dans la partie : il n'est JAMAIS converti en argent RP.
 -- =====================================================================
 Economy = {}
 

@@ -2,7 +2,7 @@
 --  ELYZEA LASERGAME - RÉGLAGES MODIFIÉS EN JEU
 --  Le staff modifie les réglages depuis /lgadmin. Ils sont enregistrés dans lg_settings
 --  (clé « overrides ») et appliqués par-dessus les fichiers de configuration, sans redémarrage.
---  La partie utile aux clients (armes, cartes, PNJ, prix) est publiée dans GlobalState.lgPublic.
+--  La partie utile aux clients (armes, rangs, PNJ) est publiée dans GlobalState.lgPublic.
 -- =====================================================================
 Settings = { data = {} }
 
@@ -13,7 +13,6 @@ function Settings.CaptureDefaults()
     Defaults.pvp = LGU.Copy(Config.PvP)
     Defaults.stake = LGU.Copy(Config.Stake)
     Defaults.weapons = LGU.Copy(LG.Weapons)
-    Defaults.zombie = LGU.Copy(LG.Zombie)
     Defaults.ranks = LGU.Copy(LG.Ranks)
 end
 
@@ -27,16 +26,8 @@ local SCHEMA = {
         defaultRoundTime = { 30, 900 }, defaultRounds = { 1, 15 },
     },
     stake = { enabled = 'bool', min = { 0, 10000000 }, max = { 0, 10000000 }, step = { 1, 100000 }, houseFeePct = { 0, 50 } },
-    weapon = { damage = { 1, 1000 }, zDamage = { 1, 100000 }, range = { 1, 400 }, rpm = { 10, 1500 }, spread = { 0, 15 },
+    weapon = { damage = { 1, 1000 }, range = { 1, 400 }, rpm = { 10, 1500 }, spread = { 0, 15 },
                mag = { 0, 500 }, reload = { 0, 10000 }, disabled = 'bool' },
-    zombieRounds = { countBase = { 1, 100 }, countPerRound = { 0, 50 }, countMax = { 1, 500 }, maxAlive = { 1, 40 },
-                     hpBase = { 10, 10000 }, hpPerRound = { 0, 5000 }, hpLinearUntil = { 1, 100 }, hpGrowth = { 1, 2 }, hpMax = { 100, 1000000 },
-                     damageBase = { 1, 500 }, damagePerRound = { 0, 50 }, damageMax = { 1, 1000 },
-                     runFromRound = { 1, 100 }, sprintFromRound = { 1, 100 }, speedRamp = { 0, 1 },
-                     intermission = { 3, 120 }, spawnInterval = { 200, 10000 } },
-    zombieType = { hp = { 0.1, 50 }, damage = { 0.1, 20 }, speed = { 0.3, 3 }, reward = { 0, 100000 }, weight = { 0, 1000 }, minRound = { 1, 200 } },
-    zombieMoney = { hit = { 0, 10000 }, meleeKillBonus = { 0, 10000 }, reviveBonus = { 0, 100000 }, roundBonus = { 0, 100000 }, startMoney = { 0, 1000000 } },
-    zombiePlayer = { health = { 10, 5000 }, regenDelay = { 0, 60000 }, regenPerSecond = { 0, 1000 }, bleedout = { 5, 300 }, reviveTime = { 0.5, 30 } },
 }
 
 local function cleanBy(schema, input)
@@ -71,17 +62,6 @@ function Settings.Apply()
         LG.Weapons[i] = nw
     end
     LGU.ResetWeaponIndex()
-    -- Zombie
-    local z = LGU.Copy(Defaults.zombie)
-    local dz = d.zombie or {}
-    if dz.enabled ~= nil then z.enabled = dz.enabled end
-    for k, v in pairs(dz.rounds or {}) do z.rounds[k] = v end
-    for k, v in pairs(dz.money or {}) do z.money[k] = v end
-    for k, v in pairs(dz.player or {}) do z.player[k] = v end
-    for id, t in pairs(dz.types or {}) do if z.types[id] then for k, v in pairs(t) do z.types[id][k] = v end end end
-    for id, p in pairs(dz.perks or {}) do if z.perks[id] then for k, v in pairs(p) do z.perks[id][k] = v end end end
-    if dz.maxPerks then z.maxPerks = dz.maxPerks end
-    for k, v in pairs(z) do LG.Zombie[k] = v end
     -- rangs (seuils)
     for i, r in ipairs(Defaults.ranks) do
         LG.Ranks[i] = LGU.Copy(r)
@@ -92,28 +72,20 @@ function Settings.Apply()
     Settings.Publish()
 end
 
--- Données publiques pour les clients (armes, cartes, PNJ, prix, modes)
+-- Données publiques pour les clients (armes, PNJ, rangs, mode)
 function Settings.Publish()
     local weapons = {}
     for _, w in ipairs(LG.Weapons) do
-        weapons[w.id] = { damage = w.damage, zDamage = w.zDamage, range = w.range, rpm = w.rpm, spread = w.spread,
+        weapons[w.id] = { damage = w.damage, range = w.range, rpm = w.rpm, spread = w.spread,
             mag = w.mag, reload = w.reload, disabled = w.disabled }
     end
-    local maps = {}
-    for id, m in pairs(Maps.list) do maps[id] = { anchor = m.anchor, enabled = m.enabled } end
-    local perks = {}
-    for id, p in pairs(LG.Zombie.perks) do perks[id] = { price = p.price, disabled = p.disabled } end
     local ranks = {}
     for _, r in ipairs(LG.Ranks) do ranks[#ranks + 1] = r.min end
     GlobalState.lgPublic = {
         v = os.time(),
         pvpEnabled = Config.PvP.enabled ~= false,
-        zombieEnabled = LG.Zombie.enabled ~= false,
-        weapons = weapons, maps = maps, perks = perks, ranks = ranks,
-        doors = (Settings.data.zombie or {}).doors or {},
-        wallbuys = (Settings.data.zombie or {}).wallbuys or {},
+        weapons = weapons, ranks = ranks,
         npcs = Settings.Npcs(),
-        player = { health = LG.Zombie.player.health, reviveTime = LG.Zombie.player.reviveTime },
     }
 end
 
@@ -139,12 +111,4 @@ end
 function Settings.Save()
     DB.SetSetting('overrides', Settings.data)
     Settings.Apply()
-end
-
--- Prix effectif d'une porte / arme murale de la carte Zombie (réglage staff sinon valeur de la carte)
-function Settings.DoorPrice(door) return tonumber(((Settings.data.zombie or {}).doors or {})[door.id]) or door.price end
-function Settings.WallbuyPrice(wb) return tonumber((((Settings.data.zombie or {}).wallbuys or {})[wb.id] or {}).price) or wb.price end
-function Settings.WallbuyWeapon(wb)
-    local w = (((Settings.data.zombie or {}).wallbuys or {})[wb.id] or {}).weapon
-    return (w and LGU.Weapon(w)) and w or wb.weapon
 end

@@ -1,13 +1,13 @@
 -- =====================================================================
 --  ELYZEA LASERGAME - ENTRÉE / SORTIE DE PARTIE ET RESTAURATION RP (client)
---  Entrée : inventaire RP fermé, arme RP rangée, carte construite, tenue LaserGame.
---  Sortie : armes LaserGame retirées, carte détruite, puis le serveur envoie l'état RP
+--  Entrée : inventaire RP fermé, arme RP rangée, arène chargée, tenue LaserGame.
+--  Sortie : armes LaserGame retirées, arène quittée, puis le serveur envoie l'état RP
 --           sauvegardé (position, vie, gilet, vêtements) qui est appliqué ici, et le client
 --           confirme : le serveur ne supprime la sauvegarde qu'après cette confirmation.
 -- =====================================================================
 local savedWanted
 
--- Entrée commune aux deux modes (appelée par client/pvp.lua et client/zombie.lua)
+-- Entrée dans une partie (appelée par client/pvp.lua)
 function C.EnterGame(d, onBuilt)
     C.CloseUI()
     C.inGame = true
@@ -17,12 +17,12 @@ function C.EnterGame(d, onBuilt)
     savedWanted = GetMaxWantedLevel()
     C.PrepareEnter()
     C.Fade(true, 400)
-    C.UI('loading', { map = d.map and d.map.id, name = d.name, mode = d.mode, role = d.role })
+    C.UI('loading', { map = d.map and d.map.id, mapLabel = d.map and d.map.label, name = d.name, mode = d.mode, role = d.role })
     local ped = PlayerPedId()
     SetEntityInvincible(ped, true)
-    -- position provisoire au-dessus de la carte pendant la construction (collisions chargées)
-    local a = d.map.anchor
-    SetEntityCoordsNoOffset(ped, a.x, a.y, a.z + 2.0, false, false, false)
+    -- position provisoire au centre de l'arène pendant le chargement (collisions et décor de l'éditeur de map)
+    local a = (d.map and (d.map.center or (d.map.spawns and d.map.spawns[d.team or 'A'] and d.map.spawns[d.team or 'A'][1]))) or GetEntityCoords(ped)
+    SetEntityCoordsNoOffset(ped, a.x + 0.0, a.y + 0.0, a.z + 1.0, false, false, false)
     FreezeEntityPosition(ped, true)
     Map.Build(d.map, function(k) C.UI('loadingProgress', k) end)
     if d.role == 'player' then C.ApplyOutfit(d.team) end
@@ -37,7 +37,6 @@ function C.LeaveGame()
     C.inGame = false
     C.alive, C.frozen = false, false
     if C.StopSpectate then C.StopSpectate() end
-    if C.ZombieCleanup then C.ZombieCleanup() end
     Weapons.Strip()
     Laser.Clear()
     Map.Unload()

@@ -75,31 +75,6 @@ function Ranking.ApplyPvP(game, players, ranked)
     return out
 end
 
--- Mise à jour après une partie Zombie
---   players : liste { cid, name, kills, money, downs, revives }
-function Ranking.ApplyZombie(game, players, round, duration)
-    local solo = #players == 1
-    local names, cids, kills, money = {}, {}, 0, 0
-    for _, p in ipairs(players) do
-        names[#names + 1] = p.name
-        cids[#cids + 1] = p.cid
-        kills, money = kills + (p.kills or 0), money + (p.money or 0)
-        DB.ProfileByCid(p.cid)
-        MySQL.update.await(([[UPDATE `lg_players` SET
-            `zb_best_date` = IF(? > `zb_best_round`, NOW(), `zb_best_date`),
-            `zb_best_round` = GREATEST(`zb_best_round`, ?),
-            `zb_best_round_solo` = IF(?, GREATEST(`zb_best_round_solo`, ?), `zb_best_round_solo`),
-            `zb_kills` = `zb_kills` + ?, `zb_money` = `zb_money` + ?, `zb_games` = `zb_games` + 1,
-            `zb_downs` = `zb_downs` + ?, `zb_revives` = `zb_revives` + ? WHERE `citizenid` = ?]]),
-            { round, round, solo and 1 or 0, round, p.kills or 0, p.money or 0, p.downs or 0, p.revives or 0, p.cid })
-        MySQL.insert.await('INSERT INTO `lg_match_players` (`match_uid`, `citizenid`, `mode`, `team`, `result`, `kills`, `deaths`, `round`) VALUES (?, ?, \'zombie\', NULL, ?, ?, ?, ?)',
-            { game.uid, p.cid, p.left and 'left' or 'loss', p.kills or 0, p.downs or 0, round })
-    end
-    MySQL.insert.await('INSERT INTO `lg_zombie_runs` (`match_uid`, `round`, `kills`, `money`, `players`, `names`, `cids`, `duration`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        { game.uid, round, kills, money, #players, table.concat(names, ', '):sub(1, 255), table.concat(cids, ','):sub(1, 400), duration or 0 })
-    cache = {}
-end
-
 -- ---------------------------------------------------------------- classements
 local BOARDS = {
     pvp_points = { sql = 'SELECT `citizenid`, `firstname`, `lastname`, `points` AS v, `wins`, `losses`, `kills`, `deaths`, `matches` FROM `lg_players` WHERE `matches` > 0 AND `banned` = 0 ORDER BY `points` DESC, `wins` DESC',
@@ -112,16 +87,6 @@ local BOARDS = {
                    count = 'SELECT COUNT(*) FROM `lg_players` WHERE `best_streak` > 0 AND `banned` = 0' },
     pvp_rank   = { sql = 'SELECT `citizenid`, `firstname`, `lastname`, `peak_points` AS v, `points`, `wins` FROM `lg_players` WHERE `matches` > 0 AND `banned` = 0 ORDER BY `peak_points` DESC',
                    count = 'SELECT COUNT(*) FROM `lg_players` WHERE `matches` > 0 AND `banned` = 0' },
-    zb_round   = { sql = 'SELECT `citizenid`, `firstname`, `lastname`, `zb_best_round` AS v, `zb_kills`, `zb_money`, `zb_games`, `zb_best_date` FROM `lg_players` WHERE `zb_games` > 0 AND `banned` = 0 ORDER BY `zb_best_round` DESC, `zb_kills` DESC',
-                   count = 'SELECT COUNT(*) FROM `lg_players` WHERE `zb_games` > 0 AND `banned` = 0' },
-    zb_kills   = { sql = 'SELECT `citizenid`, `firstname`, `lastname`, `zb_kills` AS v, `zb_best_round`, `zb_money`, `zb_games`, `zb_best_date` FROM `lg_players` WHERE `zb_kills` > 0 AND `banned` = 0 ORDER BY `zb_kills` DESC',
-                   count = 'SELECT COUNT(*) FROM `lg_players` WHERE `zb_kills` > 0 AND `banned` = 0' },
-    zb_solo    = { sql = 'SELECT `citizenid`, `firstname`, `lastname`, `zb_best_round_solo` AS v, `zb_kills`, `zb_money`, `zb_games`, `zb_best_date` FROM `lg_players` WHERE `zb_best_round_solo` > 0 AND `banned` = 0 ORDER BY `zb_best_round_solo` DESC, `zb_kills` DESC',
-                   count = 'SELECT COUNT(*) FROM `lg_players` WHERE `zb_best_round_solo` > 0 AND `banned` = 0' },
-    zb_teams   = { sql = 'SELECT `match_uid` AS citizenid, `names`, `round` AS v, `kills`, `money`, `players`, `duration`, `created_at` FROM `lg_zombie_runs` WHERE `players` > 1 ORDER BY `round` DESC, `kills` DESC',
-                   count = 'SELECT COUNT(*) FROM `lg_zombie_runs` WHERE `players` > 1' },
-    zb_global  = { sql = 'SELECT `match_uid` AS citizenid, `names`, `round` AS v, `kills`, `money`, `players`, `duration`, `created_at` FROM `lg_zombie_runs` ORDER BY `round` DESC, `kills` DESC, `duration` ASC',
-                   count = 'SELECT COUNT(*) FROM `lg_zombie_runs`' },
 }
 Ranking.Boards = BOARDS
 
@@ -143,9 +108,8 @@ function Ranking.Board(kind, page)
             local rk = LGU.RankFor(r.points or r.v)
             r.rank = rk.id
         end
-        if r.zb_best_date and type(r.zb_best_date) == 'number' then r.zb_best_date = math.floor(r.zb_best_date / 1000) end
         if r.created_at and type(r.created_at) == 'number' then r.created_at = math.floor(r.created_at / 1000) end
-        if kind ~= 'zb_teams' and kind ~= 'zb_global' then r.citizenid = nil end   -- l'identifiant n'est pas envoyé aux joueurs
+        r.citizenid = nil   -- l'identifiant n'est jamais envoyé aux joueurs
     end
     local data = { kind = kind, page = page, pages = math.max(1, math.ceil(total / size)), total = total, rows = rows, t = os.time() }
     cache[key] = { t = os.time(), data = data }
@@ -157,8 +121,12 @@ function Ranking.History(cid, limit)
     local rows = MySQL.query.await([[SELECT mp.`match_uid`, mp.`mode`, mp.`team`, mp.`result`, mp.`kills`, mp.`deaths`, mp.`points_delta`,
         mp.`payout`, mp.`round`, mp.`created_at`, m.`map`, m.`format`, m.`score_a`, m.`score_b`, m.`name`
         FROM `lg_match_players` mp LEFT JOIN `lg_matches` m ON m.`uid` = mp.`match_uid`
-        WHERE mp.`citizenid` = ? ORDER BY mp.`id` DESC LIMIT ?]], { cid, limit or 20 }) or {}
-    for _, r in ipairs(rows) do if type(r.created_at) == 'number' then r.created_at = math.floor(r.created_at / 1000) end end
+        WHERE mp.`citizenid` = ? AND mp.`mode` = 'pvp' ORDER BY mp.`id` DESC LIMIT ?]], { cid, limit or 20 }) or {}
+    for _, r in ipairs(rows) do
+        if type(r.created_at) == 'number' then r.created_at = math.floor(r.created_at / 1000) end
+        local m = r.map and Maps.Get(r.map)
+        r.mapLabel = m and m.label or 'Arène supprimée'
+    end
     return rows
 end
 
@@ -174,9 +142,6 @@ function Ranking.ProfileView(id)
         wins = p.wins, losses = p.losses, draws = p.draws, kills = p.kills, deaths = p.deaths, matches = p.matches,
         ratio = p.deaths > 0 and math.floor(p.kills / p.deaths * 100 + 0.5) / 100 or p.kills,
         streak = p.streak, bestStreak = p.best_streak,
-        zbBestRound = p.zb_best_round, zbBestSolo = p.zb_best_round_solo, zbKills = p.zb_kills, zbMoney = p.zb_money,
-        zbGames = p.zb_games, zbRevives = p.zb_revives,
-        zbBestDate = type(p.zb_best_date) == 'number' and math.floor(p.zb_best_date / 1000) or p.zb_best_date,
         banned = p.banned == 1 or p.banned == true, banReason = p.ban_reason,
     }
 end

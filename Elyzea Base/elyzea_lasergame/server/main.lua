@@ -21,9 +21,6 @@ RPC.Register('ui:init', function(src)
     for _, f in ipairs(Config.PvP.formats) do
         if not (Config.PvP.disabledFormats or {})[f.id] then formats[#formats + 1] = f end
     end
-    local perks = {}
-    for pid, p in pairs(LG.Zombie.perks) do perks[#perks + 1] = { id = pid, label = p.label, price = p.price, desc = p.desc, color = p.color, icon = p.icon } end
-    table.sort(perks, function(a, b) return a.price < b.price end)
     local ranks = {}
     for _, r in ipairs(LG.Ranks) do ranks[#ranks + 1] = { id = r.id, label = r.label, min = r.min, color = r.color, tier = r.tier } end
     local g, role = Games.ByPlayer(src)
@@ -34,7 +31,6 @@ RPC.Register('ui:init', function(src)
         pvp = { enabled = Config.PvP.enabled, formats = formats, rounds = Config.PvP.roundsOptions, roundTimes = Config.PvP.roundTimeOptions,
             defaultRounds = Config.PvP.defaultRounds, defaultRoundTime = Config.PvP.defaultRoundTime, ranked = Config.PvP.ranked },
         stake = { enabled = Config.Stake.enabled, min = Config.Stake.min, max = Config.Stake.max, step = Config.Stake.step, fee = Config.Stake.houseFeePct },
-        zombie = { enabled = LG.Zombie.enabled, maxPlayers = LG.Zombie.maxPlayers, perks = perks, maxPerks = LG.Zombie.maxPerks },
         maps = Maps.Public(), categories = categoriesView(), ranks = ranks,
         teams = { A = { name = Config.Teams.A.name, hex = Config.Teams.A.hex }, B = { name = Config.Teams.B.name, hex = Config.Teams.B.hex } },
         games = Lobby.PublicList(src),
@@ -103,14 +99,13 @@ CreateThread(function()
         end
         Restore.FromDb(s)
     end
-    Logs.Add('admin', ('ressource démarrée (v%s, framework %s, %d carte(s))'):format(LG.Version, Bridge.Name(), #Maps.order))
+    Logs.Add('admin', ('ressource démarrée (v%s, framework %s, %d arène(s))'):format(LG.Version, Bridge.Name(), #Maps.order))
 end)
 
 -- Arrêt de la ressource : chacun est rendu au RP tout de suite (la sauvegarde en base reste jusqu'à confirmation)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for _, g in pairs(Games.list) do
-        if g.zombies then for _, z in pairs(g.zombies) do if z.ent and DoesEntityExist(z.ent) then DeleteEntity(z.ent) end end end
         if g.phase ~= LG.Phase.LOBBY then
             for _, s in ipairs(Games.Members(g)) do
                 local snap = (g.players[s] or {}).snap or ((g.spectators or {})[s] or {}).snap

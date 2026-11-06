@@ -38,7 +38,7 @@ local function lobbyView(g, viewer)
         teams[p.team][#teams[p.team] + 1] = { id = s, name = p.name, ready = p.ready, weapon = p.weapon, paid = p.paid ~= nil,
             host = s == g.host, rank = prof.rank, points = prof.points, me = s == viewer }
     end
-    local m = Maps.Get(g.map)
+    local m = g.arena or Maps.Get(g.map)
     local weapons = {}
     for _, w in ipairs(LGU.WeaponsOfCategory(g.category)) do
         if not w.disabled then weapons[#weapons + 1] = { id = w.id, label = w.label, damage = w.damage, range = w.range, rpm = w.rpm, mag = w.mag } end
@@ -52,7 +52,7 @@ local function lobbyView(g, viewer)
 end
 
 local function publicView(g)
-    local m = Maps.Get(g.map)
+    local m = g.arena or Maps.Get(g.map)
     local names = {}
     for _, s in ipairs(Games.PlayerList(g)) do names[#names + 1] = { name = g.players[s].name, team = g.players[s].team, alive = g.players[s].alive } end
     local spectators = 0
@@ -198,17 +198,18 @@ RPC.Register('pvp:quick', function(src, formatId, stake)
     local mapId
     local f = formatOf(formatId)
     if not f then return false, 'Format indisponible.' end
+    -- arène au hasard parmi celles qui ont assez d'apparitions pour le format (sinon, celles qui l'acceptent)
+    local best, ok = {}, {}
     for _, mid in ipairs(Maps.order) do
         local m = Maps.Get(mid)
-        if m.mode == 'pvp' and m.enabled and (m.maxPerTeam or 6) >= f.size and (m.recommended or {})[f.id] then mapId = mid break end
-    end
-    if not mapId then
-        for _, mid in ipairs(Maps.order) do
-            local m = Maps.Get(mid)
-            if m.mode == 'pvp' and m.enabled and (m.maxPerTeam or 6) >= f.size then mapId = mid break end
+        if m.valid and m.enabled and (m.maxPerTeam or 6) >= f.size then
+            ok[#ok + 1] = mid
+            if #m.spawns.A >= f.size and #m.spawns.B >= f.size then best[#best + 1] = mid end
         end
     end
-    if not mapId then return false, 'Aucune carte disponible.' end
+    local pool = #best > 0 and best or ok
+    if #pool == 0 then return false, 'Aucune arène disponible pour ce format : le staff doit en créer une.' end
+    mapId = pool[math.random(1, #pool)]
     local o, err = cleanOptions({ format = formatId, map = mapId, rounds = Config.PvP.defaultRounds, roundTime = Config.PvP.defaultRoundTime,
         category = 'rifle', stake = stake, name = ('Matchmaking %s'):format(f.label) }, src, id)
     if not o then return false, err end
@@ -237,7 +238,7 @@ RPC.Register('pvp:weapon', function(src, weaponId)
     local g = Games.ByPlayer(src)
     if not g or g.mode ~= 'pvp' or g.phase ~= LG.Phase.LOBBY then return false, 'Aucun lobby.' end
     local w = LGU.Weapon(tostring(weaponId or ''))
-    if not w or w.zombieOnly or w.disabled or w.cat ~= g.category then return false, 'Arme indisponible.' end
+    if not w or w.disabled or w.cat ~= g.category then return false, 'Arme indisponible.' end
     g.players[src].weapon = w.id
     Lobby.Push(g)
     return true
@@ -332,8 +333,13 @@ RPC.Register('pvp:start', function(src)
         if not p.ready then return false, ('%s n\'est pas prêt.'):format(p.name) end
         if g.stake > 0 and not p.paid then return false, ('%s n\'a pas payé sa mise.'):format(p.name) end
     end
+    local okm, m = Maps.Usable(g.map, 'pvp')
+    if not okm then return false, m end
+    if (m.maxPerTeam or 6) < g.size then return false, ('%s est limitée à %d joueurs par équipe.'):format(m.label, m.maxPerTeam) end
     local slot = Games.AllocSlot()
-    if not slot then return false, 'Toutes les arènes sont occupées, réessaie dans un instant.' end
+    if not slot then return false, 'Trop de parties en cours, réessaie dans un instant.' end
+    -- copie figée de l'arène : une modification du staff pendant la partie ne la change pas
+    g.arena = Maps.Snapshot(m)
     g.slot, g.bucket = slot, Games.Bucket(slot)
     g.phase = LG.Phase.LOADING
     Lobby.PushList()
@@ -374,7 +380,7 @@ end
 Pvp.SendState = sendState
 
 function Pvp.Run(g)
-    local m = Maps.Get(g.map)
+    local m = g.arena
     SetRoutingBucketPopulationEnabled(g.bucket, false)
     SetRoutingBucketEntityLockdownMode(g.bucket, 'strict')
     g.startedAt = os.time()
@@ -644,10 +650,10 @@ RPC.Register('spectate:join', function(src, uid)
     local ok, snap = Games.EnterInstance(g, src, 'spectator')
     if not ok then g.spectators[src] = nil Games.Detach(src) return false, 'Entrée impossible.' end
     g.spectators[src].snap = snap
-    local m = Maps.Get(g.map)
+    local m = g.arena or Maps.Get(g.map)
     TriggerClientEvent('elyzea_lasergame:enterGame', src, { uid = g.uid, mode = g.mode, role = 'spectator', map = Maps.ClientInfo(m), name = g.name,
         teamNames = { A = T.A.name, B = T.B.name }, teamColors = { A = T.A.color, B = T.B.color }, rounds = g.rounds })
-    if g.mode == 'pvp' then sendState(g) elseif Zombie and Zombie.SendState then Zombie.SendState(g) end
+    sendState(g)
     Logs.Add(g.mode, ('regarde la partie %s'):format(g.uid), nil, src)
     return true
 end)

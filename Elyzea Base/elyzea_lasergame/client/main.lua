@@ -4,7 +4,7 @@
 C = {
     inGame = false,     -- dans une partie lancée (instance)
     uid = nil, mode = nil, role = nil, team = nil,
-    alive = false,      -- PVP : vivant dans la manche · Zombie : debout (ni à terre ni mort)
+    alive = false,      -- vivant dans la manche
     uiOpen = false,
     settings = { volume = 0.7, effects = true, hudScale = 1.0 },
     serverId = GetPlayerServerId(PlayerId()),
@@ -219,9 +219,6 @@ function C.ApplyPublic(pub)
         LG.Weapons[i] = nw
     end
     LGU.ResetWeaponIndex()
-    for id, p in pairs(pub.perks or {}) do
-        if LG.Zombie.perks[id] then LG.Zombie.perks[id].price = p.price LG.Zombie.perks[id].disabled = p.disabled end
-    end
     if C.OnPublicChanged then C.OnPublicChanged(pub) end
 end
 
@@ -241,7 +238,7 @@ end
 function C.TeamColor(team)
     local t = Config.Teams[team or '']
     if t then return t.color[1], t.color[2], t.color[3] end
-    return 170, 90, 255   -- violet ElyzeaFA (Zombie / neutre)
+    return 170, 90, 255   -- violet ElyzeaFA (neutre)
 end
 
 -- ---------------------------------------------------------------- nettoyage

@@ -338,8 +338,8 @@ function ZoneDrawKey(id)
         end
         if tg and tg.pvpSpawns then
             if #drawing.points < 1 then return true, Notify('Pose au moins une apparition.', 'error') end
-            -- remplace les apparitions de l'équipe ; pvp_arena revérifie tout (zone, nombre, permission)
-            TriggerServerEvent('adminmenu:action', 'pvp', { name = 'arena_spawns', data = { id = tg.pvpSpawns, team = tg.team, points = drawing.points } })
+            -- remplace les apparitions de l'équipe ; pvp_arena (ou elyzea_lasergame, tg.action) revérifie tout (zone, nombre, permission)
+            TriggerServerEvent('adminmenu:action', tg.action or 'pvp', { name = 'arena_spawns', data = { id = tg.pvpSpawns, team = tg.team, points = drawing.points } })
             drawing = nil
             return true
         end
@@ -354,7 +354,7 @@ function ZoneDrawKey(id)
             local st = drawing.settings or {}
             local lo, hi = math.huge, -math.huge
             for _, q in ipairs(drawing.points) do lo, hi = math.min(lo, q.z), math.max(hi, q.z) end
-            TriggerServerEvent('adminmenu:action', 'pvp', { name = 'arena_zone', data = { id = tg.pvpZone, points = drawing.points,
+            TriggerServerEvent('adminmenu:action', tg.action or 'pvp', { name = 'arena_zone', data = { id = tg.pvpZone, points = drawing.points,
                 minZ = lo - (tonumber(st.depth) or 3.0), maxZ = hi + (tonumber(st.height) or 30.0) } })
             drawing = nil
             return true
@@ -379,8 +379,9 @@ end
 local TEAMCOL = { A = { 34, 211, 238 }, B = { 249, 115, 98 } }
 local function drawPvpSpawns(d, aim)
     local tg = d.target
-    local col = TEAMCOL[tg.team] or TEAMCOL.A
-    local other = TEAMCOL[tg.team == 'A' and 'B' or 'A']
+    local cols = tg.colors or TEAMCOL   -- couleurs d'équipe propres à la ressource (LaserGame : rouge / bleu)
+    local col = cols[tg.team] or TEAMCOL.A
+    local other = cols[tg.team == 'A' and 'B' or 'A'] or TEAMCOL.B
     local z = tg.zone or {}
     local zp = z.points or {}
     local inside = #zp < 3 or (inPoly(zp, aim.x, aim.y) and not (z.minZ and aim.z + 1.0 < z.minZ) and not (z.maxZ and aim.z + 1.0 > z.maxZ))

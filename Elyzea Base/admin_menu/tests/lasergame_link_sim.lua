@@ -37,6 +37,11 @@ EXP = {}
 local LG_EXP = {
     AdminSummary = function() return { games = { { uid = 'g1', mode = 'pvp', name = 'Finale', phase = 'playing', players = {} } }, stats = { players = 3 }, command = 'lgadmin' } end,
     AdminStopGame = function(src, uid) LG_STOPPED = { src = src, uid = uid } return true, 'Partie arrêtée.' end,
+    AdminArena = function(src, action, data)
+        LG_ARENA = { src = src, action = action, data = data }
+        if action == 'delete' and data.id == 'busy' then return false, 'Une partie utilise cette arène.' end
+        return true, 'Arène enregistrée.'
+    end,
 }
 exports = setmetatable({}, {
     __call = function(_, name, fn) EXP[name] = fn end,
@@ -107,6 +112,27 @@ LG.fn(1, { name = 'open' })
 check('« Ouvrir le panneau » : ouvre /lgadmin chez le staff', sent[1] and sent[1].name == 'elyzea_lasergame:openAdmin' and sent[1].target == 1)
 LG.fn(1, { name = 'stop', data = { uid = 'g1' } })
 check('« Arrêter » : transmis à elyzea_lasergame (qui revérifie) et journalisé', LG_STOPPED and LG_STOPPED.uid == 'g1' and logs[#logs].a == 'LaserGame')
+
+print('— Arènes LaserGame (création, zone et apparitions dessinées en jeu)')
+notes, logs = {}, {}
+LG.fn(1, { name = 'arena_create', data = { label = 'Entrepôt' } })
+check('« Créer ici » : transmis à elyzea_lasergame (action create)', LG_ARENA and LG_ARENA.action == 'create' and LG_ARENA.data.label == 'Entrepôt' and LG_ARENA.src == 1)
+local pts = { { x = 1, y = 2, z = 3 }, { x = 4, y = 5, z = 6 }, { x = 7, y = 8, z = 9 } }
+LG.fn(1, { name = 'arena_zone', data = { id = 'a1', points = pts, minZ = 0, maxZ = 40 } })
+check('fin du dessin de la zone (client/zones.lua) : action zone avec les coins', LG_ARENA.action == 'zone' and #LG_ARENA.data.points == 3 and LG_ARENA.data.maxZ == 40)
+LG.fn(1, { name = 'arena_spawns', data = { id = 'a1', team = 'B', points = { { x = 1, y = 2, z = 3, h = 90 } } } })
+check('fin de la pose des apparitions : action spawns (équipe, direction)', LG_ARENA.action == 'spawns' and LG_ARENA.data.team == 'B' and LG_ARENA.data.points[1].h == 90)
+check('actions réussies : message au staff et journal', notes[#notes] and notes[#notes].kind == 'success' and logs[#logs].a == 'LaserGame')
+local nlogs = #logs
+LG.fn(1, { name = 'arena_tp', data = { id = 'a1', what = 'A', i = 1 } })
+LG.fn(1, { name = 'arena_show', data = { id = 'a1' } })
+check('« Y aller » / « Voir la zone » : transmis sans remplir le journal', LG_ARENA.action == 'show' and #logs == nlogs)
+LG.fn(1, { name = 'arena_delete', data = { id = 'busy' } })
+check('refus d\'elyzea_lasergame (arène utilisée) : message d\'erreur, rien au journal', notes[#notes].kind == 'error' and #logs == nlogs)
+LG_ARENA = nil
+LG.fn(1, { name = 'arena_hack', data = { id = 'a1' } })
+check('action d\'arène inconnue : refusée sans appel à elyzea_lasergame', LG_ARENA == nil and notes[#notes].kind == 'error')
+
 STARTED.elyzea_lasergame = nil
 local d3 = {}
 for _, h in ipairs(AdminMenu.DataHooks) do h(1, d3) end

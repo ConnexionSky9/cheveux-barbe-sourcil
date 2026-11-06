@@ -7,7 +7,7 @@ const fs = require('fs');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = process.argv[2] || path.join(ROOT, 'tests', 'screens');
-const SCREENS = ['home', 'pvp', 'create', 'lobby', 'zombie', 'zlobby', 'ranks', 'profile', 'history', 'settings', 'admin', 'hud-pvp', 'hud-zombie', 'results', 'zresults', 'loading'];
+const SCREENS = ['home', 'pvp', 'create', 'lobby', 'ranks', 'profile', 'history', 'settings', 'admin', 'arenas', 'hud-pvp', 'results', 'loading'];
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -22,15 +22,20 @@ const SCREENS = ['home', 'pvp', 'create', 'lobby', 'zombie', 'zlobby', 'ranks', 
     await page.waitForTimeout(900);
     // interactions de base sur certains écrans
     if (s === 'admin') {
-      for (const tab of ['pvp', 'weapons', 'zombie', 'zprices', 'maps', 'npcs', 'players', 'logs', 'games']) {
+      for (const tab of ['pvp', 'weapons', 'arenas', 'npcs', 'players', 'logs', 'games']) {
         await page.click(`[data-atab="${tab}"]`);
         await page.waitForTimeout(120);
       }
-      await page.click('[data-atab="zombie"]');
-      await page.waitForTimeout(200);
     }
-    if (s === 'ranks') { await page.click('[data-lbg="zombie"]'); await page.waitForTimeout(250); await page.click('[data-lbg="pvp"]'); await page.waitForTimeout(250); }
-    if (s === 'create') { await page.click('[data-cs="format"][data-v="5v5"]'); await page.click('[data-cs="map"][data-v="pvp_large"]'); await page.click('[data-ct="private"]'); await page.waitForTimeout(150); }
+    if (s === 'ranks') { await page.click('[data-lbk="pvp_wins"]'); await page.waitForTimeout(250); }
+    if (s === 'create') { await page.click('[data-cs="format"][data-v="5v5"]'); await page.click('[data-cs="map"][data-v="arena_2"]'); await page.click('[data-ct="private"]'); await page.waitForTimeout(150); }
+    if (s === 'arenas') {
+      // ouvrir une autre arène, puis une action (réponse simulée) : aucune erreur, liste redessinée
+      await page.click('[data-aopen="arena_4"]'); await page.waitForTimeout(150);
+      if (!(await page.$('.arena-open .issues'))) errors.push('fiche de l\'arène non affichée');
+      await page.click('[data-arena="corner_here"]'); await page.waitForTimeout(250);
+      await page.click('[data-aopen="arena_1"]'); await page.waitForTimeout(150);
+    }
     const file = path.join(OUT, `${s}.png`);
     await page.screenshot({ path: file });
     const ok = errors.length === 0;

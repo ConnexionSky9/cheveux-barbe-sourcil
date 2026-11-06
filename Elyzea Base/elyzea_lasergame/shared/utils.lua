@@ -46,10 +46,10 @@ function LGU.Weapon(id)
 end
 function LGU.ResetWeaponIndex() weaponIndex = nil end
 
-function LGU.WeaponsOfCategory(cat, includeZombieOnly)
+function LGU.WeaponsOfCategory(cat)
     local out = {}
     for _, w in ipairs(LG.Weapons) do
-        if w.cat == cat and (includeZombieOnly or not w.zombieOnly) then out[#out + 1] = w end
+        if w.cat == cat then out[#out + 1] = w end
     end
     return out
 end
@@ -194,58 +194,3 @@ function LGU.Normalize(v)
     return { x = v.x / l, y = v.y / l, z = v.z / l }, l
 end
 
--- ---------------------------------------------------------------- formules Zombie
-function LGU.ZombieCount(round, players, R)
-    R = R or LG.Zombie.rounds
-    local base = R.countBase + R.countPerRound * (round - 1)
-    -- au-delà de la manche 10, croissance un peu plus rapide (style survie)
-    if round > 10 then base = base + floor((round - 10) ^ 1.35) end
-    local mult = R.playerMultiplier[LGU.Clamp(players, 1, #R.playerMultiplier)] or 1
-    return min(R.countMax, floor(base * mult + 0.5))
-end
-
-function LGU.ZombieHealth(round, R)
-    R = R or LG.Zombie.rounds
-    local hp
-    if round <= R.hpLinearUntil then
-        hp = R.hpBase + R.hpPerRound * (round - 1)
-    else
-        hp = (R.hpBase + R.hpPerRound * (R.hpLinearUntil - 1)) * (R.hpGrowth ^ (round - R.hpLinearUntil))
-    end
-    return min(R.hpMax, floor(hp))
-end
-
-function LGU.ZombieDamage(round, R)
-    R = R or LG.Zombie.rounds
-    return min(R.damageMax, R.damageBase + R.damagePerRound * (round - 1))
-end
-
--- Allure d'un zombie : 'walk' | 'run' | 'sprint' (r = nombre aléatoire 0..1 fourni par l'appelant)
-function LGU.ZombieGait(round, r, R)
-    R = R or LG.Zombie.rounds
-    local pRun = round >= R.runFromRound and min(0.9, (round - R.runFromRound + 1) * R.speedRamp * 2) or 0
-    local pSprint = round >= R.sprintFromRound and min(0.75, (round - R.sprintFromRound + 1) * R.speedRamp) or 0
-    if r < pSprint then return 'sprint' end
-    if r < pSprint + pRun then return 'run' end
-    return 'walk'
-end
-
--- Choix pondéré du type de zombie (alive[type] = nombre déjà présents, pour respecter maxAlive)
-function LGU.PickZombieType(round, r, alive, types)
-    types = types or LG.Zombie.types
-    local order, total = {}, 0
-    for id, t in pairs(types) do
-        if round >= (t.minRound or 1) and (not t.maxAlive or (alive and (alive[id] or 0) or 0) < t.maxAlive) then
-            order[#order + 1] = id
-        end
-    end
-    table.sort(order)
-    for _, id in ipairs(order) do total = total + types[id].weight end
-    if total <= 0 then return 'classic' end
-    local pick, acc = r * total, 0
-    for _, id in ipairs(order) do
-        acc = acc + types[id].weight
-        if pick <= acc then return id end
-    end
-    return order[#order]
-end

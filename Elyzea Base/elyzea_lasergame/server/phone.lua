@@ -1,10 +1,10 @@
 -- =====================================================================
 --  ELYZEA LASERGAME - APPLICATION DU TÉLÉPHONE (elyzea_aura › appli « LaserGame »)
---  · profil : points, rang, position, statistiques PVP / Zombie, dernières parties
+--  · profil : points, rang, position, statistiques PVP, dernières parties
 --  · classements (les mêmes que la borne du LaserGame)
 --  · demandes de match PVP Arena (« je cherche des adversaires ») : les autres joueurs écrivent
 --    à l'auteur ou rejoignent
---  · annonces programmées (« 21 h 30 : carte Zombie ») avec un bouton Rejoindre et des rappels
+--  · annonces programmées (« 21 h 30 : tournoi 3v3 ») avec un bouton Rejoindre et des rappels
 --  · messagerie entre joueurs de l'appli
 --  « Rejoindre » ne téléporte JAMAIS : le téléphone pose seulement un point GPS sur le PNJ LaserGame
 --  le plus proche. Tout est vérifié ici : le téléphone n'envoie que des choix, jamais d'identité.
@@ -54,6 +54,8 @@ Phone.Schema = {
 local ready = false
 function Phone.Init()
     for _, q in ipairs(Phone.Schema) do MySQL.query.await(q) end
+    -- le mode Zombie a été retiré : ses anciennes annonces encore ouvertes sont closes
+    MySQL.update.await('UPDATE `lg_phone_posts` SET `status` = \'cancelled\' WHERE `status` = \'open\' AND `mode` <> \'pvp\'')
     ready = true
 end
 
@@ -87,7 +89,7 @@ end
 
 local function mapLabel(id)
     local m = Maps.Get(id)
-    return m and m.label or (id ~= '' and id or 'Carte au choix')
+    return m and m.label or (id ~= '' and 'Arène supprimée' or 'Arène au choix')
 end
 
 local function formatOf(id)
@@ -149,7 +151,7 @@ function Phone.Tick()
         WHERE `status` = 'open' AND `starts_at` > 0 AND `notified` < 2 AND `starts_at` <= ?]], { t + REMIND_MIN * 60 }) or {}
     for _, r in ipairs(rows) do
         local starting = int(r.starts_at) <= t
-        local what = r.mode == 'zombie' and 'Zombie' or ('PVP ' .. (r.format ~= '' and r.format or ''))
+        local what = 'PVP ' .. (r.format ~= '' and r.format or '')
         local text = starting
             and ('C\'est l\'heure : %s sur %s. Rends-toi au LaserGame (Rejoindre = point GPS).'):format(what, mapLabel(r.map))
             or ('Dans %d min : %s sur %s, à %s.'):format(math.max(1, math.ceil((int(r.starts_at) - t) / 60)), what, mapLabel(r.map), hhmm(int(r.starts_at)))
@@ -199,11 +201,7 @@ function A.home(src, id)
     end
     local maps = {}
     for _, m in ipairs(Maps.Public()) do
-        if m.enabled ~= false then
-            local full = Maps.Get(m.id)
-            maps[#maps + 1] = { id = m.id, label = m.label, mode = full and full.mode or (m.id:find('zombie') and 'zombie' or 'pvp'),
-                size = m.size, maxPlayers = m.maxPlayers }
-        end
+        maps[#maps + 1] = { id = m.id, label = m.label, mode = 'pvp', size = m.size, maxPerTeam = m.maxPerTeam }
     end
     local hist = Ranking.History(id.cid, 8)
     for _, h in ipairs(hist) do h.mapLabel = mapLabel(h.map or '') end
@@ -211,7 +209,7 @@ function A.home(src, id)
     return {
         ok = true, me = { name = id.name, token = tokenOf(id.cid) }, profile = Ranking.ProfileView(id), ranks = ranks,
         formats = formats, maps = maps, history = hist, unread = unread(id.cid), inGame = g ~= nil,
-        excluded = Players.IsExcluded(id.cid), pvp = Config.PvP.enabled ~= false, zombie = LG.Zombie.enabled ~= false,
+        excluded = Players.IsExcluded(id.cid), pvp = Config.PvP.enabled ~= false,
         stake = { enabled = Config.Stake.enabled, min = Config.Stake.min, max = Config.Stake.max, step = Config.Stake.step },
         limits = { text = TEXT_LEN, message = MSG_LEN, maxDays = MAX_DAYS, maxOpen = MAX_OPEN },
     }
@@ -250,29 +248,21 @@ function A.create(src, id, args)
     if open >= MAX_OPEN then return { ok = false, error = ('Tu as déjà %d annonce(s) en cours : retires-en une.'):format(open) } end
 
     local kind = args.kind == 'event' and 'event' or 'match'
-    local mode = kind == 'match' and 'pvp' or (args.mode == 'pvp' and 'pvp' or 'zombie')
-    if mode == 'pvp' and Config.PvP.enabled == false then return { ok = false, error = 'Le PVP est fermé.' } end
-    if mode == 'zombie' and LG.Zombie.enabled == false then return { ok = false, error = 'Le mode Zombie est fermé.' } end
+    local mode = 'pvp'
+    if Config.PvP.enabled == false then return { ok = false, error = 'Le PVP est fermé.' } end
 
     local map = tostring(args.map or '')
     if map ~= '' then
-        local m = Maps.Get(map)
-        if not m or m.enabled == false then return { ok = false, error = 'Carte indisponible.' } end
-        local mm = m.mode or (map:find('zombie') and 'zombie' or 'pvp')
-        if mm ~= mode then return { ok = false, error = 'Cette carte n\'est pas pour ce mode.' } end
+        local okm = Maps.Usable(map, 'pvp')
+        if not okm then return { ok = false, error = 'Arène indisponible.' } end
     end
     local format, slots = '', 0
-    if mode == 'pvp' then
-        local f = formatOf(tostring(args.format or ''))
-        if not f then return { ok = false, error = 'Choisis un format (1 VS 1 à 6 VS 6).' } end
-        format, slots = f.id, f.size * 2 - 1   -- l'auteur + les places restantes
-    else
-        slots = math.max(0, math.min(LG.Zombie.maxPlayers or 4, int(args.slots))) - 1
-        if slots < 0 then slots = (LG.Zombie.maxPlayers or 4) - 1 end
-    end
+    local f = formatOf(tostring(args.format or ''))
+    if not f then return { ok = false, error = 'Choisis un format (1 VS 1 à 6 VS 6).' } end
+    format, slots = f.id, f.size * 2 - 1   -- l'auteur + les places restantes
     slots = math.min(slots, MAX_SLOTS)
     local stake = 0
-    if mode == 'pvp' and Config.Stake.enabled then
+    if Config.Stake.enabled then
         stake = math.max(0, math.min(Config.Stake.max or 0, int(args.stake)))
         if stake > 0 and stake < (Config.Stake.min or 0) then stake = Config.Stake.min end
     end
@@ -293,7 +283,7 @@ function A.create(src, id, args)
     if not pid then return { ok = false, error = 'Publication impossible, réessaie.' } end
     lastPost[id.cid] = t
     Logs.Add('pvp', ('appli : %s %s publiée (%s)'):format(kind == 'event' and 'annonce' or 'demande de match', mode, starts > 0 and Phone.When(starts) or 'dès que possible'), { cid = id.cid, name = id.name })
-    local what = mode == 'zombie' and 'Zombie' or ('PVP ' .. format)
+    local what = 'PVP ' .. format
     return {
         ok = true, id = pid, message = kind == 'event' and 'Annonce publiée.' or 'Demande de match publiée.',
         -- annoncé aux autres joueurs qui ont l'appli (par elyzea_aura)
@@ -315,7 +305,7 @@ function A.cancel(src, id, args)
     local admin = Bridge.IsAdmin(src)
     if r.citizenid ~= id.cid and not admin then return { ok = false, error = 'Ce n\'est pas ton annonce.' } end
     MySQL.update.await('UPDATE `lg_phone_posts` SET `status` = \'cancelled\' WHERE `id` = ?', { r.id })
-    local text = ('Annulée : %s sur %s (%s).'):format(r.mode == 'zombie' and 'Zombie' or ('PVP ' .. r.format), mapLabel(r.map),
+    local text = ('Annulée : PVP %s sur %s (%s).'):format(r.format, mapLabel(r.map),
         int(r.starts_at) > 0 and Phone.When(int(r.starts_at)) or 'dès que possible')
     for _, m in ipairs(members(r.id)) do if m.citizenid ~= id.cid then notify(m.citizenid, 'LaserGame', text) end end
     if r.citizenid ~= id.cid then

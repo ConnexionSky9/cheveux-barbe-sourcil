@@ -1174,6 +1174,18 @@ RegisterNUICallback('editor', function(body, cb)
         local spawns = type(d.spawns) == 'table' and d.spawns or {}
         StartZoneDraw(nil, { color = 'blue', name = d.name }, { pvpSpawns = tostring(d.id or ''), team = d.team, teamName = d.teamName,
             name = d.name, zone = type(d.zone) == 'table' and d.zone or nil, others = spawns[d.team == 'A' and 'B' or 'A'] or {} })
+    elseif n == 'lg_zone_draw' and HasPerm('lasergame_manage') then
+        -- Arène LaserGame : mêmes outils que les arènes PvP, envoyés à l'action « lasergame » (elyzea_lasergame revérifie tout)
+        CloseMenu()
+        local spawns = type(d.spawns) == 'table' and d.spawns or {}
+        StartZoneDraw(nil, { color = 'blue', name = d.name, height = tonumber(d.height) or 30.0, depth = tonumber(d.depth) or 3.0 },
+            { pvpZone = tostring(d.id or ''), action = 'lasergame', name = d.name, spawns = spawns })
+    elseif n == 'lg_spawns_draw' and HasPerm('lasergame_manage') and (d.team == 'A' or d.team == 'B') then
+        CloseMenu()
+        local spawns = type(d.spawns) == 'table' and d.spawns or {}
+        StartZoneDraw(nil, { color = 'blue', name = d.name }, { pvpSpawns = tostring(d.id or ''), action = 'lasergame', team = d.team, teamName = d.teamName,
+            name = d.name, zone = type(d.zone) == 'table' and d.zone or nil, others = spawns[d.team == 'A' and 'B' or 'A'] or {},
+            colors = { A = { 255, 45, 70 }, B = { 40, 140, 255 } } })
     elseif n == 'sharks_zone_draw' and HasPerm('sharks_manage') then
         -- Requins : dessiner (ou redessiner, avec id) la zone ; le serveur revérifie la permission et la forme
         CloseMenu()

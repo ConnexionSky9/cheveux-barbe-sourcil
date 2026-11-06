@@ -73,7 +73,7 @@ def schema_to_sqlite(sql):
     return s
 
 
-PK = {'lg_restore': 'citizenid', 'lg_settings': 'k', 'lg_players': 'citizenid', 'lg_matches': 'uid'}
+PK = {'lg_restore': 'citizenid', 'lg_settings': 'k', 'lg_players': 'citizenid', 'lg_matches': 'uid', 'lg_arenas': 'id'}
 
 
 def translate(sql):

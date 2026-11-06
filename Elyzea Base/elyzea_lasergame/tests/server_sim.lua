@@ -40,14 +40,6 @@ do
     check(dec and w == 'A', '3-0 sur 5 : victoire A')
     dec, w = LGU.MatchDecided(1, 1, 2, 2)
     check(dec and w == nil, 'égalité après toutes les manches')
-    check(LGU.ZombieCount(2, 1) > LGU.ZombieCount(1, 1), 'plus de zombies à chaque manche')
-    check(LGU.ZombieCount(5, 4) > LGU.ZombieCount(5, 1), 'plus de zombies avec plus de joueurs')
-    check(LGU.ZombieHealth(10) > LGU.ZombieHealth(5) and LGU.ZombieHealth(5) > LGU.ZombieHealth(1), 'résistance progressive')
-    check(LGU.ZombieDamage(1) == 34 and LGU.ZombieDamage(100) == 60, 'dégâts : 34 à la manche 1, plafonnés à 60')
-    check(math.ceil(100 / LGU.ZombieDamage(1)) == 3, '3 coups pour être à terre sans atout')
-    local j = LG.Zombie.perks.juggernaut.health
-    check(math.ceil(j / LGU.ZombieDamage(1)) == 6 and math.ceil(j / LGU.ZombieDamage(10)) == 5, 'Mastodonte : 5 à 6 coups')
-    check(LGU.ZombieGait(1, 0.0) == 'walk' and LGU.ZombieGait(12, 0.0) == 'sprint', 'vitesse : marche au début, sprint plus tard')
     local x, y = LGU.ToWorld({ x = 10, y = 20, z = 0, h = 90 }, 0, 5, 0)
     check(math.abs(x - 5) < 1e-6 and math.abs(y - 20) < 1e-6, 'repère local → monde (cap 90°)')
     local lx, ly = LGU.ToLocal({ x = 10, y = 20, z = 0, h = 90 }, x, y, 0)
@@ -57,11 +49,10 @@ end
 -- ================================================================ démarrage
 section('Démarrage')
 check(DB.ready, 'base de données initialisée (9 tables)')
-check(#Maps.order == 5, '5 cartes chargées : ' .. table.concat(Maps.order, ', '))
+check(#Maps.order == 0, 'aucune arène générée : elles sont créées en jeu par le staff')
+check(LG.Zombie == nil and LG.Mode.ZOMBIE == nil and Zombie == nil, 'mode Zombie retiré (configuration, constantes, serveur)')
 check(GlobalState.lgPublic and GlobalState.lgPublic.weapons.photon_p9 ~= nil, 'réglages publics publiés (GlobalState.lgPublic)')
 check(Bridge.Name() == 'elyzea', 'framework détecté : elyzea')
-local mz = Maps.Get('zombie_map')
-check(#mz.sectors == 8 and #mz.doors == 9 and #mz.wallbuys == 13 and #mz.perks == 8, 'carte Zombie : 8 secteurs, 9 portes, 13 armes murales, 8 atouts')
 
 -- comportement du client à la restauration : téléportation à la position RP puis confirmation
 local function back(i)
@@ -82,25 +73,105 @@ SIM.run(5000)
 section('Interface et profil')
 local ok, init = SIM.rpc(1, 'ui:init')
 check(ok and init.profile.points == 1000 and init.profile.rank == 'bronze', 'profil créé : 1000 points, ELYZEA BRONZE')
-check(#init.maps == 5 and #init.categories == 5 and #init.ranks == 8, 'interface : 5 cartes, 5 catégories d\'armes, 8 rangs')
+check(#init.maps == 0 and #init.categories == 5 and #init.ranks == 8 and init.zombie == nil, 'interface : aucune arène ouverte, 5 catégories d\'armes, 8 rangs, pas de Zombie')
 check(init.isAdmin == false, 'joueur normal : pas d\'accès staff')
+check(SIM.rpc(1, 'pvp:create', { format = '1v1', map = 'x', rounds = 1, roundTime = 60, category = 'pistol' }) == false, 'aucune arène : création de partie refusée')
+
+-- ================================================================ ARÈNES (créées par le staff)
+section('Arènes : création en jeu par le staff')
+-- un vrai staff n'envoie pas 10 actions dans la même milliseconde : 150 ms entre deux actions (limite anti-spam de 10 / s)
+local function arena(src, action, data) SIM.now = SIM.now + 150 return SIM.rpc(src, 'admin:arena', action, data) end
+check(arena(1, 'create', { label = 'Pirate' }) == false, 'joueur normal : création d\'arène refusée')
+local okA, resA = arena(10, 'create', { label = '<b>Entrepôt</b> néon' })
+check(okA and #resA.arenas == 1, 'arène créée à la position du staff')
+local A1 = resA.arenas[1].id
+local a1 = Maps.Get(A1)
+check(a1.label == 'bEntrepôt/b néon' and a1.center.x == 800.0 and a1.valid == false and a1.enabled == false, 'nom nettoyé, centre = position du staff, arène incomplète et fermée')
+check(#Maps.Public() == 0, 'une arène incomplète n\'est pas proposée aux joueurs')
+check(arena(10, 'update', { id = A1, enabled = true }) == false, 'ouverture refusée tant que la zone et les apparitions manquent')
+check(arena(10, 'spawns', { id = A1, team = 'A', points = { { x = 780, y = 800, z = 30, h = 90 } } }) == false, 'apparitions refusées avant la zone')
+check(arena(10, 'zone', { id = A1, points = { { x = 770, y = 780, z = 29 }, { x = 830, y = 780, z = 29 } } }) == false, 'zone de 2 coins refusée')
+check(arena(10, 'zone', { id = A1, points = { { x = 0, y = 0, z = 29 }, { x = 900, y = 0, z = 29 }, { x = 900, y = 900, z = 29 } } }) == false, 'zone trop grande refusée (450 m maximum)')
+check(arena(10, 'zone', { id = A1, points = { { x = 'nan', y = 780, z = 29 }, { x = 830, y = 780, z = 29 }, { x = 830, y = 820, z = 29 } } }) == false, 'coin invalide refusé')
+local okz1 = arena(10, 'zone', { id = A1, points = { { x = 770, y = 780, z = 29 }, { x = 830, y = 780, z = 29 }, { x = 830, y = 820, z = 29.5 }, { x = 770, y = 820, z = 29 } }, minZ = 26, maxZ = 60 })
+a1 = Maps.Get(A1)
+check(okz1 and #a1.zone.points == 4 and a1.zone.minZ == 26 and a1.zone.maxZ == 60 and a1.area == 2400 and a1.size == 'M', 'zone dessinée : 4 coins, sol 26, plafond 60, 2 400 m² (taille M)')
+check(arena(10, 'spawns', { id = A1, team = 'A', points = { { x = 700, y = 800, z = 30, h = 90 } } }) == false, 'apparition hors de la zone refusée')
+check(arena(10, 'spawns', { id = A1, team = 'C', points = { { x = 780, y = 800, z = 30 } } }) == false, 'équipe inconnue refusée')
+arena(10, 'spawns', { id = A1, team = 'A', points = { { x = 775, y = 795, z = 30, h = 270 }, { x = 775, y = 805, z = 30, h = 270 } } })
+arena(10, 'spawns', { id = A1, team = 'B', points = { { x = 825, y = 795, z = 30, h = 90 }, { x = 825, y = 805, z = 30, h = 90 } } })
+a1 = Maps.Get(A1)
+check(a1.valid and #a1.spawns.A == 2 and #a1.spawns.B == 2 and a1.spawns.A[1].h == 270, 'apparitions posées (direction conservée) : arène jouable')
+check(#Maps.Public() == 0, 'jouable mais encore fermée : toujours invisible pour les joueurs')
+arena(10, 'update', { id = A1, enabled = true, maxPerTeam = 4, time = 22, weather = 'clear', description = 'Docks, deux étages' })
+a1 = Maps.Get(A1)
+check(a1.enabled and a1.maxPerTeam == 4 and a1.time == 22 and a1.weather == 'CLEAR', 'arène ouverte : 4 VS 4 max, 22 h, météo CLEAR')
+arena(10, 'update', { id = A1, weather = 'NUCLEAR' })
+check(Maps.Get(A1).weather == nil, 'météo inconnue ignorée')
+local pub = Maps.Public()
+check(#pub == 1 and pub[1].shape and #pub[1].shape.poly == 4 and #pub[1].shape.A == 2 and pub[1].center == nil and pub[1].zone == nil, 'liste des joueurs : 1 arène, silhouette sans coordonnées du monde')
+local row = sql('single', 'SELECT * FROM `lg_arenas` WHERE `id` = ?', { A1 })
+check(row and row.enabled == 1 and py_json_decode(row.data).zone.points[1].x == 770, 'arène enregistrée en base (lg_arenas)')
+-- rechargement depuis la base (redémarrage)
+Maps.Load()
+check(Maps.Get(A1) and Maps.Get(A1).valid and Maps.Get(A1).enabled and #Maps.Get(A1).spawns.B == 2, 'arène relue depuis la base après redémarrage')
+
+section('Arènes : outils « à ma position » et admin_menu')
+SIM.move(10, 1500.0, 1500.0, 21.0)
+local okA2, resA2 = arena(10, 'create', { label = 'Toits' })
+local A2 = resA2.arenas[2].id
+check(okA2 and A2 ~= A1, 'deuxième arène (plusieurs arènes possibles)')
+check(arena(10, 'spawn_here', { id = A2, team = 'A' }) == false, 'apparition « ici » refusée avant la zone')
+for _, c in ipairs({ { 1470, 1480 }, { 1530, 1480 }, { 1530, 1520 }, { 1470, 1520 } }) do
+    SIM.move(10, c[1], c[2], 21.0)
+    arena(10, 'corner_here', { id = A2 })
+end
+local a2 = Maps.Get(A2)
+check(#a2.zone.points == 4 and a2.zone.points[1].z == 20.0 and a2.zone.minZ == 17.0 and a2.zone.maxZ == 50.0, 'zone posée coin par coin à la position du staff (pieds au sol)')
+SIM.move(10, 1500.0, 1500.0, 21.0)
+arena(10, 'ceiling_here', { id = A2 })
+check(Maps.Get(A2).zone.maxZ == 23.0, 'plafond = staff + 3 m')
+SIM.move(10, 1500.0, 1500.0, 40.0)
+arena(10, 'ceiling_here', { id = A2 })
+SIM.move(10, 1480.0, 1500.0, 21.0)
+SIM.players[10].heading = 270.0
+arena(10, 'spawn_here', { id = A2, team = 'A' })
+SIM.move(10, 1520.0, 1500.0, 21.0)
+SIM.players[10].heading = 90.0
+arena(10, 'spawn_here', { id = A2, team = 'B' })
+SIM.move(10, 1600.0, 1500.0, 21.0)
+check(arena(10, 'spawn_here', { id = A2, team = 'B' }) == false, 'apparition « ici » hors de la zone refusée')
+a2 = Maps.Get(A2)
+check(a2.valid and a2.spawns.A[1].h == 270.0 and a2.spawns.A[1].z == 21.0, 'apparitions « ici » : orientation du staff, hauteur du corps')
+-- admin_menu : export revérifié (permission) et mêmes actions
+local okx, msgx = SIM.exports.AdminArena(1, 'update', { id = A2, enabled = true })
+check(okx == false and tostring(msgx):find('Permission'), 'admin_menu : export refusé à un joueur sans permission')
+local oky = SIM.exports.AdminArena(10, 'update', { id = A2, enabled = true, maxPerTeam = 1 })
+check(oky == true and Maps.Get(A2).enabled and Maps.Get(A2).maxPerTeam == 1, 'admin_menu : arène ouverte depuis l\'onglet LaserGame')
+local view = SIM.exports.AdminArenas()
+check(#view == 2 and view[1].spawns and view[1].zone and view[2].corners == 4, 'admin_menu : liste des arènes (zone et apparitions pour les outils de dessin)')
+local sum = SIM.exports.AdminSummary()
+check(#sum.arenas == 2 and sum.teams.A == 'ROUGE', 'admin_menu : résumé avec les arènes')
+SIM.run(1000)
+local ok2, init2 = SIM.rpc(1, 'ui:init')
+check(ok2 and #init2.maps == 2, 'les joueurs voient les 2 arènes ouvertes')
 
 -- ================================================================ PVP : lobby
 section('PVP : création, validation, lobby')
-local okc, err = SIM.rpc(9, 'pvp:create', { format = '2v2', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle', stake = 5000 })
+local okc, err = SIM.rpc(9, 'pvp:create', { format = '2v2', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 5000 })
 check(okc == false and tostring(err):find('PNJ'), 'refusé loin d\'un PNJ LaserGame (anti-téléportation)')
-okc, err = SIM.rpc(1, 'pvp:create', { format = '9v9', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle' })
+okc, err = SIM.rpc(1, 'pvp:create', { format = '9v9', map = A1, rounds = 3, roundTime = 120, category = 'rifle' })
 check(okc == false, 'format inexistant refusé')
-okc, err = SIM.rpc(1, 'pvp:create', { format = '2v2', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle', stake = 999999999 })
+okc, err = SIM.rpc(1, 'pvp:create', { format = '2v2', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 999999999 })
 check(okc == false and tostring(err):find('Mise'), 'mise hors limites refusée')
-okc, err = SIM.rpc(1, 'pvp:create', { format = '6v6', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle' })
-check(okc == false and tostring(err):find('petite'), 'carte trop petite pour le format refusée')
+okc, err = SIM.rpc(1, 'pvp:create', { format = '6v6', map = A1, rounds = 3, roundTime = 120, category = 'rifle' })
+check(okc == false and tostring(err):find('petite'), 'arène trop petite pour le format refusée (4 VS 4 maximum)')
 local uid
-okc, uid = SIM.rpc(1, 'pvp:create', { format = '2v2', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle', stake = 5000, name = '<b>Finale</b>' })
+okc, uid = SIM.rpc(1, 'pvp:create', { format = '2v2', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 5000, name = '<b>Finale</b>' })
 check(okc and type(uid) == 'string', 'lobby créé : ' .. tostring(uid))
 local g = Games.list[uid]
 check(g and g.name == 'bFinale/b', 'nom nettoyé (pas de balises) : ' .. tostring(g and g.name))
-local okj = SIM.rpc(1, 'pvp:create', { format = '1v1', map = 'pvp_small', rounds = 1, roundTime = 60, category = 'pistol' })
+local okj = SIM.rpc(1, 'pvp:create', { format = '1v1', map = A1, rounds = 1, roundTime = 60, category = 'pistol' })
 check(okj == false, 'impossible d\'ouvrir deux lobbies')
 for i = 2, 4 do SIM.rpc(i, 'pvp:join', uid, '') end
 check(g.players[2].team == 'B' and g.players[3].team == 'A' and g.players[4].team == 'B', 'équilibrage automatique des équipes à l\'arrivée')
@@ -242,7 +313,7 @@ check(okl and board.rows[1].v == p1.points and board.rows[1].citizenid == nil, '
 -- ================================================================ anti-farm
 section('Anti-farm')
 local function quickMatch(winners, losers)
-    local o, id = SIM.rpc(winners[1], 'pvp:create', { format = '1v1', map = 'pvp_small', rounds = 1, roundTime = 60, category = 'pistol', stake = 0 })
+    local o, id = SIM.rpc(winners[1], 'pvp:create', { format = '1v1', map = A1, rounds = 1, roundTime = 60, category = 'pistol', stake = 0 })
     SIM.rpc(losers[1], 'pvp:join', id, '')
     SIM.rpc(winners[1], 'pvp:ready', true)
     SIM.rpc(losers[1], 'pvp:ready', true)
@@ -267,7 +338,7 @@ check(pts[1] > 0 and pts[2] < pts[1] and pts[5] == 0, ('gains décroissants cont
 
 -- ================================================================ déconnexion et abandon
 section('Déconnexion pendant une partie')
-local _, uid2 = SIM.rpc(1, 'pvp:create', { format = '1v1', map = 'pvp_medium', rounds = 3, roundTime = 120, category = 'smg', stake = 2000 })
+local _, uid2 = SIM.rpc(1, 'pvp:create', { format = '1v1', map = A2, rounds = 3, roundTime = 120, category = 'smg', stake = 2000 })
 SIM.rpc(2, 'pvp:join', uid2, '')
 SIM.rpc(1, 'pvp:ready', true)
 SIM.rpc(2, 'pvp:ready', true)
@@ -293,7 +364,7 @@ check(DB.ProfileByCid('CID2').losses >= 2, 'abandon compté comme défaite')
 
 -- ================================================================ redémarrage pendant une partie
 section('Redémarrage de la ressource pendant une partie')
-local _, uid3 = SIM.rpc(3, 'pvp:create', { format = '1v1', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle', stake = 3000 })
+local _, uid3 = SIM.rpc(3, 'pvp:create', { format = '1v1', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 3000 })
 SIM.rpc(4, 'pvp:join', uid3, '')
 SIM.rpc(3, 'pvp:ready', true)
 SIM.rpc(4, 'pvp:ready', true)
@@ -315,7 +386,7 @@ SIM.run(5000)
 
 -- ================================================================ spectateur
 section('Spectateur')
-local _, uid4 = SIM.rpc(1, 'pvp:create', { format = '1v1', map = 'pvp_small', rounds = 3, roundTime = 120, category = 'rifle', stake = 0 })
+local _, uid4 = SIM.rpc(1, 'pvp:create', { format = '1v1', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 0 })
 SIM.rpc(2, 'pvp:join', uid4, '')
 SIM.rpc(1, 'pvp:ready', true) SIM.rpc(2, 'pvp:ready', true)
 SIM.rpc(1, 'pvp:start')
@@ -335,149 +406,6 @@ SIM.run(20000)
 back(1) back(2)
 SIM.run(5000)
 
--- ================================================================ ZOMBIE
-section('Zombie : partie en duo')
-local okz, zuid = SIM.rpc(1, 'zb:create', { name = 'Escouade' })
-check(okz, 'groupe Zombie créé')
-SIM.rpc(2, 'zb:join', zuid, '')
-SIM.rpc(1, 'zb:ready', true) SIM.rpc(2, 'zb:ready', true)
-local zg = Games.list[zuid]
-check(SIM.rpc(1, 'zb:start') == true, 'survie lancée')
-SIM.run(500)
-local zm2 = Maps.Get('zombie_map')
-local function zplace(i, lp) local w = Maps.World(zm2, lp) SIM.move(i, w.x, w.y, w.z + 1) end
-zplace(1, { x = -2, y = -44 }) zplace(2, { x = 2, y = -44 })
-check(zg.players[1].money == 500 and zg.players[1].weapons[1] == 'photon_p9', 'départ : 500 $ Zombie et pistolet laser')
-check(zg.sectorsOpen.start and not zg.sectorsOpen.corridor, 'seule la salle de départ est ouverte')
-SIM.run(9000)
-check(zg.phase == 'round' and zg.round == 1, 'manche 1')
-SIM.run(15000)
-local zs = SIM.zombies()
-check(#zs > 0 and zg.alive > 0, ('zombies créés par le serveur dans l\'instance (%d)'):format(#zs))
-check(SIM.entities[zs[1].ent].bucket == zg.bucket, 'zombie placé dans le bon bucket')
-local zst = SIM.entities[zs[1].ent].state.lgZombie
-check(zst and zst.uid == zuid, 'state bag du zombie (type, allure)')
-local bankBefore = SIM.money[1].bank
-
-local zshots = 0
-local function zshoot(from, z, weapon)
-    -- le client recharge son chargeur de 12 (le serveur refuse les tirs au-delà)
-    zshots = zshots + 1
-    if zshots % 10 == 0 then
-        SIM.emit(from, 'elyzea_lasergame:shots', { { w = weapon or 'photon_p9', r = true } })
-        SIM.run(1300)
-    end
-    local o = SIM.players[from].pos + vector3(0, 0, 0.6)
-    local t = SIM.entities[z.ent] and SIM.entities[z.ent].pos
-    if not t then return end
-    local d = t - o
-    local l = #d
-    SIM.now = SIM.now + 300
-    SIM.emit(from, 'elyzea_lasergame:shots', { { w = weapon or 'photon_p9', o = { x = o.x, y = o.y, z = o.z }, d = { x = d.x / l, y = d.y / l, z = d.z / l }, hit = { k = 'z', id = z.net }, hp = { x = t.x, y = t.y, z = t.z } } })
-end
--- tuer tous les zombies de la manche 1 (les rapprocher à 12 m pour la portée)
-local guard = 0
-while (zg.toSpawn > 0 or zg.alive > 0) and guard < 400 do
-    guard = guard + 1
-    for _, z in ipairs(SIM.zombies()) do
-        local e = SIM.entities[z.ent]
-        if e then e.pos = SIM.players[1].pos + vector3(0, 12, 0) zshoot(1, z) end
-    end
-    SIM.run(300)
-end
-check(zg.players[1].kills > 0 and zg.players[1].money > 500, ('argent Zombie gagné : %d $ (%d éliminations)'):format(zg.players[1].money, zg.players[1].kills))
-check(SIM.money[1].bank == bankBefore, 'l\'argent Zombie n\'entre JAMAIS dans l\'argent RP')
-SIM.run(800)
-check(zg.phase == 'intermission', 'fin de manche → pause')
-local c1 = LGU.ZombieCount(1, 2)
-SIM.run(11000)
-check(zg.round == 2 and zg.toSpawn + zg.alive >= LGU.ZombieCount(2, 2) - 1 and LGU.ZombieCount(2, 2) > c1, 'manche 2 : plus de zombies')
-
-section('Zombie : portes, armes murales, atouts')
-local door = zm2.doors[1]
-zplace(1, { x = 0, y = -30 })
-local okd, ed = SIM.rpc(1, 'zb:door', door.id)
-check(okd == false, 'achat de porte refusé à distance')
-zplace(1, { x = 0, y = -39.5 })
-zg.players[1].money = 100
-okd, ed = SIM.rpc(1, 'zb:door', door.id)
-check(okd == false and tostring(ed):find('750'), 'argent insuffisant : refusé (prix 750 $)')
-zg.players[1].money = 5000
-okd = SIM.rpc(1, 'zb:door', door.id)
-check(okd == true and zg.players[1].money == 4250 and zg.sectorsOpen.corridor, 'porte achetée : 750 $, couloir ouvert')
-check(SIM.rpc(1, 'zb:door', door.id) == false, 'une porte ne s\'achète qu\'une fois')
-local wb = zm2.wallbuys[1]
-zplace(1, { x = wb.x, y = wb.y })
-local okw = SIM.rpc(1, 'zb:wallbuy', wb.id)
-check(okw == true and zg.players[1].weapons[2] == 'vector_x' and zg.players[1].money == 3750, 'arme murale achetée (Vector-X, 500 $)')
-check(SIM.rpc(1, 'zb:wallbuy', wb.id) == false, 'arme déjà possédée : refusé')
-local pk = zm2.perks[1]
-zplace(1, { x = pk.x, y = pk.y })
-local okp = SIM.rpc(1, 'zb:perk', pk.id)
-check(okp == true and zg.players[1].perks.quickrevive, 'atout Réanimation rapide acheté')
--- Mastodonte : tricher la position n'est pas possible (salle fermée)
-local jug
-for _, p in ipairs(zm2.perks) do if p.perk == 'juggernaut' then jug = p end end
-zplace(1, { x = jug.x, y = jug.y })
-check(SIM.rpc(1, 'zb:perk', jug.id) == false, 'atout d\'une salle fermée : refusé')
-SIM.run(1200)
-check(SIM.count(1, 'elyzea_lasergame:pushBack') >= 1, 'joueur dans une salle fermée : renvoyé par le serveur')
-zg.sectorsOpen.research = true
-zplace(1, { x = jug.x, y = jug.y })
-zg.players[1].money = 9000
-check(SIM.rpc(1, 'zb:perk', jug.id) == true and zg.players[1].maxHp == 200, 'Mastodonte : vie max 200')
-
-section('Zombie : dégâts, mise à terre, réanimation')
--- un zombie au contact du joueur 2
-for _, z in ipairs(SIM.zombies()) do local e = SIM.entities[z.ent] if e then e.pos = SIM.players[2].pos + vector3(0, 0.8, 0) end end
-local hpBefore = zg.players[2].hp
-SIM.run(400)
-check(zg.players[2].hp < hpBefore, 'attaque au corps à corps calculée par le serveur (distance)')
-local g2 = 0
-while zg.players[2].state == 'alive' and g2 < 100 do g2 = g2 + 1 SIM.run(400) end
-check(zg.players[2].state == 'down' and zg.players[2].downs == 1, 'joueur 2 à terre')
-check(SIM.last(2, 'elyzea_lasergame:zbDowned') ~= nil, 'le joueur à terre est prévenu')
--- éloigner les zombies et réanimer
-for _, z in ipairs(SIM.zombies()) do local e = SIM.entities[z.ent] if e then e.pos = SIM.players[1].pos + vector3(30, 30, 0) end end
-SIM.move(1, SIM.players[2].pos.x + 1.0, SIM.players[2].pos.y, SIM.players[2].pos.z)
-local okrv, dur = SIM.rpc(1, 'zb:reviveStart', 2)
-check(okrv and math.abs(dur - 2.0) < 0.01, 'réanimation lancée (2 s grâce à Réanimation rapide)')
-SIM.run(2500)
-check(zg.players[2].state == 'alive' and zg.players[1].revives == 1, 'joueur 2 réanimé, réanimation comptée')
-
-section('Zombie : acide')
-local acidBefore = zg.players[1].hp
-zg.puddles[#zg.puddles + 1] = { x = SIM.players[1].pos.x, y = SIM.players[1].pos.y, z = SIM.players[1].pos.z, r = 2.6, from = SIM.now, to = SIM.now + 3000, dmg = 9, tick = 500, next = SIM.now }
-SIM.run(1100)
-check(zg.players[1].hp < acidBefore, 'flaque d\'acide : dégâts de zone')
-
-section('Zombie : fin de partie')
--- tout le monde à terre → fin
-for _, z in ipairs(SIM.zombies()) do local e = SIM.entities[z.ent] if e then e.pos = SIM.players[1].pos + vector3(0.5, 0, 0) end end
-for s, p in pairs(zg.players) do p.hp = 1 p.perks.quickrevive = nil end
-SIM.move(2, SIM.players[1].pos.x - 0.5, SIM.players[1].pos.y, SIM.players[1].pos.z)
-SIM.run(4000)
-check(zg.finished, 'tous à terre : fin de partie')
-local run = sql('single', 'SELECT * FROM `lg_zombie_runs` WHERE `match_uid` = ?', { zuid })
-check(run and run.round == zg.round and run.players == 2, ('partie enregistrée : manche %s, %s joueurs'):format(run and run.round, run and run.players))
-local zp = DB.ProfileByCid('CID1')
-check(zp.zb_best_round == zg.round and zp.zb_kills > 0 and zp.zb_games == 1, 'profil Zombie mis à jour (meilleure manche, zombies tués)')
-SIM.run(13000)
-check(#SIM.zombies() == 0, 'tous les zombies supprimés')
-check(Games.list[zuid] == nil and SIM.players[1].bucket == 0, 'partie fermée, retour RP')
-back(1) back(2)
-local okzb, zb = SIM.rpc(3, 'lb:get', 'zb_teams', 1)
-check(okzb and #zb.rows == 1 and zb.rows[1].names:find('Joueur'), 'classement des équipes Zombie')
-
-section('Zombie : solo')
-local okso = SIM.rpc(3, 'zb:create', { solo = true })
-check(okso == true, 'partie solo lancée directement')
-SIM.run(2000)
-SIM.rpc(3, 'lobby:leave')
-SIM.run(14000)
-check(SIM.last(3, 'elyzea_lasergame:restore') ~= nil, 'abandon solo : retour au RP')
-back(3)
-
 -- ================================================================ STAFF
 section('Staff')
 local okad = SIM.rpc(1, 'admin:open')
@@ -490,28 +418,43 @@ SIM.rpc(10, 'admin:set', 'weapon', { damage = 999999 }, 'nova_ar')
 check(LGU.Weapon('nova_ar').damage == 1000, 'valeur bornée par le serveur (max 1000)')
 SIM.rpc(10, 'admin:set', 'stake', { min = 100, max = 50000 })
 check(Config.Stake.min == 100 and Config.Stake.max == 50000, 'mises min / max modifiées')
-SIM.rpc(10, 'admin:set', 'door', { price = 999 }, 'd_corridor')
-check(Settings.DoorPrice(Maps.Get('zombie_map').doors[1]) == 999, 'prix d\'une porte modifié')
-SIM.rpc(10, 'admin:set', 'zombieRounds', { maxAlive = 12, hpBase = 200 })
-check(LG.Zombie.rounds.maxAlive == 12 and LG.Zombie.rounds.hpBase == 200, 'difficulté Zombie modifiée')
+check(SIM.rpc(10, 'admin:set', 'zombieRounds', { maxAlive = 12 }) == false, 'réglages Zombie : section inconnue (mode retiré)')
 SIM.rpc(10, 'admin:set', 'format', { enabled = false }, '6v6')
-check(SIM.rpc(1, 'pvp:create', { format = '6v6', map = 'pvp_xlarge', rounds = 3, roundTime = 120, category = 'rifle', stake = 100 }) == false, 'format désactivé refusé')
+check(SIM.rpc(1, 'pvp:create', { format = '6v6', map = A1, rounds = 3, roundTime = 120, category = 'rifle', stake = 100 }) == false, 'format désactivé refusé')
 SIM.rpc(10, 'admin:set', 'reset', {}, 'weapons')
 check(LGU.Weapon('nova_ar').damage == 20, 'réinitialisation des armes')
-SIM.rpc(10, 'admin:map', 'pvp_small', 'here')
-check(Maps.Get('pvp_small').anchor.x == 800.0, 'carte déplacée sur la position du staff')
-local staffZ = GetEntityCoords(GetPlayerPed(10)).z
-check(math.abs(Maps.Get('pvp_small').anchor.z - (staffZ - 1.0 - Maps.Get('pvp_small').depth)) < 0.02, 'complexe souterrain : recréé à la même profondeur sous le staff')
-SIM.rpc(10, 'admin:map', 'pvp_small', 'reset')
-check(Maps.Get('pvp_small').anchor.x == 1900.0 and Maps.Get('pvp_small').anchor.z == -45.0, 'carte remise à sa position d\'origine (complexe souterrain)')
-for _, id in ipairs(Maps.order) do
-    local mm = Maps.Get(id)
-    check(mm.underground == true and mm.slabs and #mm.slabs == 2 and mm.ceiling > 3.2, ('%s : complexe souterrain (sol + plafond à %s m)'):format(id, tostring(mm.ceiling)))
-end
+-- arène modifiée pendant une partie : la partie garde sa copie figée, la suppression est refusée
+SIM.move(1, -1256.0, -1440.0, 4.4) SIM.move(2, -1256.0, -1440.0, 4.4)
+local _, uid5 = SIM.rpc(1, 'pvp:create', { format = '1v1', map = A1, rounds = 1, roundTime = 60, category = 'rifle', stake = 100 })   -- mise minimale fixée à 100 $ plus haut
+SIM.rpc(2, 'pvp:join', uid5, '')
+check(arena(10, 'delete', { id = A1 }) == false, 'suppression refusée : un lobby utilise l\'arène')
+SIM.rpc(1, 'pvp:ready', true) SIM.rpc(2, 'pvp:ready', true)
+SIM.rpc(1, 'pvp:start')
+SIM.run(1000)
+local g5 = Games.list[uid5]
+check(g5 and g5.arena and g5.arena ~= Maps.Get(A1) and g5.bucket >= 63001, 'partie lancée dans sa propre instance avec une copie de l\'arène')
+arena(10, 'spawns', { id = A1, team = 'A', points = { { x = 790, y = 800, z = 30, h = 0 } } })
+check(#g5.arena.spawns.A == 2 and #Maps.Get(A1).spawns.A == 1, 'modification du staff pendant la partie : la partie en cours n\'est pas touchée')
+check(arena(10, 'delete', { id = A1 }) == false, 'suppression refusée pendant une partie')
+SIM.rpc(10, 'admin:game', uid5, 'stop')
+SIM.run(15000)
+back(1) back(2)
+SIM.run(5000)
+check(Games.list[uid5] == nil, 'partie arrêtée par le staff, instance libérée')
+local _, uid6 = SIM.rpc(3, 'pvp:create', { format = '1v1', map = A2, rounds = 1, roundTime = 60, category = 'rifle', stake = 500 })
+local bank3 = SIM.money[3].bank
+SIM.rpc(3, 'pvp:ready', true)
+check(SIM.money[3].bank == bank3 - 500, 'mise payée dans un lobby')
+arena(10, 'update', { id = A2, enabled = false })
+check(Games.list[uid6] == nil and SIM.money[3].bank == bank3, 'arène fermée par le staff : lobbies fermés et mises remboursées')
+arena(10, 'clear', { id = A2, what = 'B' })
+check(Maps.Get(A2).valid == false and arena(10, 'update', { id = A2, enabled = true }) == false, 'apparitions effacées : arène de nouveau incomplète')
+local okd = arena(10, 'delete', { id = A2 })
+check(okd and Maps.Get(A2) == nil and sql('scalar', 'SELECT COUNT(*) FROM `lg_arenas`') == 1, 'arène supprimée (base et mémoire)')
 SIM.rpc(10, 'admin:npc', 'add', { label = 'Accueil 2' })
 check(#GlobalState.lgPublic.npcs == 2, 'PNJ ajouté en jeu et publié')
 SIM.rpc(10, 'admin:players.set', 'CID6', 'exclude', nil, { reason = 'triche', hours = 0 })
-check(SIM.rpc(6, 'pvp:create', { format = '1v1', map = 'pvp_small', rounds = 1, roundTime = 60, category = 'pistol', stake = 100 }) == false, 'joueur exclu du LaserGame : refusé')
+check(SIM.rpc(6, 'pvp:create', { format = '1v1', map = A1, rounds = 1, roundTime = 60, category = 'pistol', stake = 100 }) == false, 'joueur exclu du LaserGame : refusé')
 SIM.rpc(10, 'admin:players.set', 'CID6', 'unexclude')
 SIM.rpc(10, 'admin:players.set', 'CID5', 'rank', 'legend')
 check(DB.ProfileByCid('CID5').points == 2000, 'rang fixé par le staff (LEGEND = 2000 points)')
@@ -541,32 +484,32 @@ do
 
     local h = call(1, 'home')
     check(h.ok and h.profile and h.profile.points and h.profile.rankLabel and #h.ranks == 8, 'accueil : points, rang et liste des rangs')
-    check(#h.formats >= 1 and #h.maps == 5 and h.me.token and not h.me.cid, 'accueil : formats, 5 cartes, jeton (jamais l\'identifiant du personnage)')
+    check(#h.formats >= 1 and #h.maps == 1 and h.maps[1].id == A1 and h.me.token and not h.me.cid and h.zombie == nil, 'accueil : formats, arènes ouvertes, jeton (jamais l\'identifiant du personnage)')
     local b = call(1, 'board', { kind = 'pvp_points', page = 1 })
     local leak = false
     for _, r in ipairs(b.rows or {}) do if r.citizenid or r.cids then leak = true end end
     check(b.ok and #b.rows > 0 and not leak, ('classement PVP (%d joueurs), sans identifiant de personnage'):format(b.total or 0))
-    check(call(1, 'board', { kind = 'zb_round' }).ok and not call(1, 'board', { kind = 'nope' }).ok, 'classement Zombie, classement inconnu refusé')
+    check(not call(1, 'board', { kind = 'zb_round' }).ok and not call(1, 'board', { kind = 'nope' }).ok, 'classements Zombie retirés, classement inconnu refusé')
 
     -- demande de match PVP « dès que possible »
-    local c = call(1, 'create', { kind = 'match', format = '2v2', map = 'pvp_small', stake = 500, message = '<b>Qui</b> pour un 2v2 ?' })
+    local c = call(1, 'create', { kind = 'match', format = '2v2', map = A1, stake = 500, message = '<b>Qui</b> pour un 2v2 ?' })
     check(c.ok and c.broadcast and c.broadcast.text:find('2v2'), 'demande de match PVP publiée (texte d\'annonce aux autres)')
     local row = sql('single', 'SELECT * FROM `lg_phone_posts` WHERE `id` = ?', { c.id })
     check(row.message == 'bQui/b pour un 2v2 ?' and row.slots == 3 and row.starts_at == 0, 'texte nettoyé, 3 places restantes en 2v2')
     check(not call(1, 'create', { kind = 'match', format = '1v1' }).ok, 'anti-spam : 2e publication trop rapide refusée')
     check(not call(2, 'create', { kind = 'match', format = '9v9' }).ok, 'format inconnu refusé')
-    check(not call(2, 'create', { kind = 'match', format = '1v1', map = 'zombie_map' }).ok, 'carte Zombie refusée pour un match PVP')
+    check(not call(2, 'create', { kind = 'match', format = '1v1', map = 'zombie_map' }).ok, 'arène inconnue refusée')
 
-    -- annonce programmée Zombie
-    check(not call(2, 'create', { kind = 'event', mode = 'zombie', map = 'zombie_map' }).ok, 'annonce sans heure refusée')
-    check(not call(2, 'create', { kind = 'event', mode = 'zombie', startsAt = os.time() - 3600 }).ok, 'heure passée refusée')
-    check(not call(2, 'create', { kind = 'event', mode = 'zombie', startsAt = os.time() + 30 * 86400 }).ok, 'plus de 7 jours à l\'avance refusé')
-    local e = call(2, 'create', { kind = 'event', mode = 'zombie', map = 'zombie_map', startsAt = os.time() + 20 * 60, message = 'Survie à 4' })
-    check(e.ok and e.broadcast.text:find('Zombie'), 'annonce « dans 20 min : carte Zombie » publiée')
+    -- annonce programmée (tournoi PVP)
+    check(not call(2, 'create', { kind = 'event', format = '3v3', map = A1 }).ok, 'annonce sans heure refusée')
+    check(not call(2, 'create', { kind = 'event', format = '3v3', startsAt = os.time() - 3600 }).ok, 'heure passée refusée')
+    check(not call(2, 'create', { kind = 'event', format = '3v3', startsAt = os.time() + 30 * 86400 }).ok, 'plus de 7 jours à l\'avance refusé')
+    local e = call(2, 'create', { kind = 'event', mode = 'zombie', format = '3v3', map = A1, startsAt = os.time() + 20 * 60, message = 'Tournoi 3v3' })
+    check(e.ok and e.broadcast.text:find('PVP 3v3') and sql('scalar', 'SELECT `mode` FROM `lg_phone_posts` WHERE `id` = ?', { e.id }) == 'pvp', 'annonce « dans 20 min : PVP 3v3 » publiée (mode Zombie demandé ignoré)')
 
     local ev = call(3, 'posts', { kind = 'event' })
     local post = ev.posts and ev.posts[1]
-    check(ev.ok and #ev.posts == 1 and post.mapLabel == 'COMPLEXE ELYZEA-7' and post.when:find('à') and not post.mine, 'liste des annonces (carte, heure)')
+    check(ev.ok and #ev.posts == 1 and post.mapLabel == Maps.Get(A1).label and post.when:find('à') and not post.mine, 'liste des annonces (carte, heure)')
     -- Rejoindre : point GPS, jamais de téléportation
     SIM.move(3, 100.0, 100.0, 30.0)
     local before = GetEntityCoords(GetPlayerPed(3))

@@ -1,15 +1,18 @@
 'use strict';
 /* =========================================================
    LASERGAME — appli du LaserGame ElyzeaFA (thème néon du jeu)
-   · Profil : points, rang, position, statistiques PVP / Zombie
-   · Classement : PVP et Zombie (les mêmes que la borne)
+   · Profil : points, rang, position, statistiques PVP
+   · Classement : PVP (les mêmes que la borne)
    · Matchs : demandes de match PVP Arena, écrire à l'auteur, rejoindre
-   · Annonces : « 21:30 · carte Zombie » avec bouton Rejoindre
+   · Annonces : « 21:30 · tournoi 3v3 » avec bouton Rejoindre
    · Messages : discussions entre joueurs de l'appli
    « Rejoindre » ne téléporte JAMAIS : seul un point GPS est posé
    sur le PNJ LaserGame le plus proche. elyzea_lasergame vérifie tout.
    ========================================================= */
-const LG = { tab: 'me', home: null, board: { mode: 'pvp', kind: 'pvp_points', page: 1 }, thread: null, sending: false };
+const LG = { tab: 'me', home: null, board: { kind: 'pvp_points', page: 1 }, thread: null, sending: false };
+// fond des cartes d'arène (les arènes sont créées en jeu par le staff : pas d'image, une grille laser rouge / bleu)
+const LG_ARENA_BG = 'background:radial-gradient(120px 80px at 80% 25%,rgba(40,140,255,.45),transparent 70%),radial-gradient(120px 80px at 18% 80%,rgba(255,45,70,.42),transparent 70%),'
+  + 'repeating-linear-gradient(90deg,rgba(181,123,255,.16) 0 1px,transparent 1px 18px),repeating-linear-gradient(0deg,rgba(181,123,255,.16) 0 1px,transparent 1px 18px),#0a0518';
 const LG_ASSETS = IS_BROWSER ? '../../elyzea_lasergame/html/' : 'nui://elyzea_lasergame/html/';
 const lgCall = (action, data = {}) => api('lgCall', { action, data });
 
@@ -22,7 +25,6 @@ const LG_TABS = [
 ];
 const LG_BOARDS = {
   pvp: [['pvp_points', 'Points'], ['pvp_ratio', 'Ratio'], ['pvp_wins', 'Victoires'], ['pvp_streak', 'Séries']],
-  zombie: [['zb_round', 'Manche'], ['zb_kills', 'Éliminations'], ['zb_solo', 'Solo'], ['zb_teams', 'Équipes']],
 };
 const LG_RES = { win: ['V', 'Victoire', 'win'], loss: ['D', 'Défaite', 'loss'], draw: ['N', 'Nul', 'draw'], left: ['A', 'Abandon', 'loss'] };
 const lgSvg = (p, cls = 'lgi') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -125,20 +127,14 @@ function lgMe() {
       <div><b>${lgNum(p.kills)}</b><span>${t('Éliminations')}</span></div>
       <div class="y"><b>${lgNum(p.bestStreak)}</b><span>${t('Meilleure série')}</span></div>
     </div>
-    <h3 class="lgp-h z"><span>ZOMBIE</span></h3>
-    <div class="lgp-stats z">
-      <div><b>${lgNum(p.zbBestRound)}</b><span>${t('Meilleure manche')}</span></div>
-      <div><b>${lgNum(p.zbBestSolo)}</b><span>${t('Record solo')}</span></div>
-      <div><b>${lgNum(p.zbKills)}</b><span>${t('Zombies tués')}</span></div>
-    </div>
     <h3 class="lgp-h"><span>${t('DERNIÈRES PARTIES')}</span></h3>
     ${(h.history || []).length ? `<div class="lgp-hist">${h.history.map(x => {
-      const zb = x.mode === 'zombie', rr = res(x.result);
-      return `<div class="row ${zb ? 'zb' : rr[2]}">
-        <span class="tag">${zb ? lgSvg(LGI.skull) : rr[0]}</span>
-        <div class="tx"><b>${zb ? t('Zombie · manche {n}', { n: x.round || 0 }) : `${esc(x.format || 'PVP')} · ${esc(rr[1])}`}</b>
-          <small>${esc(x.mapLabel || '')}${!zb && x.score_a != null ? ` · ${x.score_a}-${x.score_b}` : ''} · ${timeAgo(x.created_at)}</small></div>
-        <span class="val">${zb ? `${lgNum(x.kills)} ${lgSvg(LGI.skull, 'lgi s')}` : `<em class="${(x.points_delta || 0) >= 0 ? 'up' : 'down'}">${(x.points_delta || 0) >= 0 ? '+' : ''}${x.points_delta || 0}</em>`}</span>
+      const rr = res(x.result);
+      return `<div class="row ${rr[2]}">
+        <span class="tag">${rr[0]}</span>
+        <div class="tx"><b>${esc(x.format || 'PVP')} · ${esc(rr[1])}</b>
+          <small>${esc(x.mapLabel || '')}${x.score_a != null ? ` · ${x.score_a}-${x.score_b}` : ''} · ${timeAgo(x.created_at)}</small></div>
+        <span class="val"><em class="${(x.points_delta || 0) >= 0 ? 'up' : 'down'}">${(x.points_delta || 0) >= 0 ? '+' : ''}${x.points_delta || 0}</em></span>
       </div>`; }).join('')}</div>` : lgEmpty(t('Aucune partie'), t('Ton historique apparaîtra ici après ta première partie.'))}
     <button class="lgp-btn ghost block" data-lg-go>${lgSvg(LGI.gps)}${t('Aller au LaserGame (GPS)')}</button>
   `);
@@ -151,10 +147,8 @@ function lgMe() {
 async function lgBoard() {
   const b = LG.board;
   const main = lgShell(`
-    <div class="lgp-seg">${['pvp', 'zombie'].map(m => `<button class="${b.mode === m ? 'on' : ''} ${m}" data-lg-mode="${m}">${m === 'pvp' ? 'PVP ARENA' : 'ZOMBIE'}</button>`).join('')}</div>
-    <div class="lgp-chips">${LG_BOARDS[b.mode].map(([k, l]) => `<button class="${b.kind === k ? 'on' : ''}" data-lg-kind="${k}">${t(l)}</button>`).join('')}</div>
+    <div class="lgp-chips">${LG_BOARDS.pvp.map(([k, l]) => `<button class="${b.kind === k ? 'on' : ''}" data-lg-kind="${k}">${t(l)}</button>`).join('')}</div>
     <div class="lgp-board">${lgLoading()}</div>`);
-  $$('[data-lg-mode]', main).forEach(x => x.onclick = () => { b.mode = x.dataset.lgMode; b.kind = LG_BOARDS[b.mode][0][0]; b.page = 1; lgBoard(); });
   $$('[data-lg-kind]', main).forEach(x => x.onclick = () => { b.kind = x.dataset.lgKind; b.page = 1; lgBoard(); });
   const r = await lgCall('board', { kind: b.kind, page: b.page });
   if (S.currentApp !== 'lasergame' || LG.tab !== 'board') return;
@@ -162,17 +156,14 @@ async function lgBoard() {
   if (!r || !r.ok) { box.innerHTML = lgEmpty(t('Classement indisponible'), esc((r && r.error) || '')); return; }
   if (!r.rows.length) { box.innerHTML = lgEmpty(t('Personne pour l\'instant'), t('Joue une partie pour entrer dans ce classement.')); return; }
   const me = LG.home.me.name;
-  const unit = { pvp_points: 'pts', pvp_ratio: 'K/D', pvp_wins: t('vict.'), pvp_streak: t('série'), zb_round: t('manche'), zb_kills: t('tués'), zb_solo: t('manche'), zb_teams: t('manche') }[b.kind];
-  const team = b.kind === 'zb_teams';
+  const unit = { pvp_points: 'pts', pvp_ratio: 'K/D', pvp_wins: t('vict.'), pvp_streak: t('série') }[b.kind];
   box.innerHTML = `${r.rows.map(x => {
-    const nm = team ? (x.names || '') : `${x.firstname || ''} ${x.lastname || ''}`.trim();
+    const nm = `${x.firstname || ''} ${x.lastname || ''}`.trim();
     const pos = x.pos;
-    const sub = team ? t('{n} joueurs · {k} tués', { n: x.players, k: lgNum(x.kills) })
-      : b.mode === 'pvp' ? t('{w} V · {l} D · {p} pts', { w: lgNum(x.wins), l: lgNum(x.losses ?? 0), p: lgNum(x.points ?? x.v) })
-      : t('{k} tués · {g} parties', { k: lgNum(x.zb_kills ?? x.v), g: lgNum(x.zb_games ?? 0) });
+    const sub = t('{w} V · {l} D · {p} pts', { w: lgNum(x.wins), l: lgNum(x.losses ?? 0), p: lgNum(x.points ?? x.v) });
     return `<div class="lgp-lb ${pos <= 3 ? 'p' + pos : ''} ${nm === me ? 'me' : ''}">
       <span class="pos">${pos <= 3 ? `<i>${pos}</i>` : pos}</span>
-      ${b.mode === 'pvp' && x.rank ? lgRankImg(x.rank, 'rk') : `<span class="zb">${lgSvg(team ? LGI.users : LGI.skull)}</span>`}
+      ${x.rank ? lgRankImg(x.rank, 'rk') : `<span class="zb">${lgSvg(LGI.users)}</span>`}
       <div class="tx"><b>${esc(nm || '?')}</b><small>${sub}</small></div>
       <span class="v">${typeof x.v === 'number' ? (b.kind === 'pvp_ratio' ? x.v.toFixed(2) : lgNum(x.v)) : esc(x.v)}<small>${unit}</small></span>
     </div>`; }).join('')}
@@ -198,7 +189,7 @@ async function lgPosts(kind) {
   const box = $('.lgp-list', main);
   if (!r || !r.ok) { box.innerHTML = lgEmpty(t('Indisponible'), esc((r && r.error) || '')); return; }
   if (!r.posts.length) {
-    box.innerHTML = lgEmpty(ev ? t('Aucune annonce') : t('Aucune demande'), ev ? t('Programme la prochaine soirée Zombie ou PVP.') : t('Lance la première demande de match.'),
+    box.innerHTML = lgEmpty(ev ? t('Aucune annonce') : t('Aucune demande'), ev ? t('Programme le prochain tournoi PVP.') : t('Lance la première demande de match.'),
       `<button class="lgp-btn" data-lg-new2>${lgSvg(LGI.plus)}${ev ? t('Créer une annonce') : t('Demander un match')}</button>`);
     $('[data-lg-new2]', box).onclick = () => lgForm(kind);
     return;
@@ -208,12 +199,12 @@ async function lgPosts(kind) {
 }
 
 function lgCard(p) {
-  const zb = p.mode === 'zombie', ev = p.kind === 'event';
+  const ev = p.kind === 'event';
   const slots = p.slots > 0 ? `${p.count}/${p.slots}` : `${p.count}`;
   const time = p.startsAt > 0;
-  return `<article class="lgp-card ${zb ? 'zb' : 'pvp'} ${p.joined ? 'joined' : ''} ${p.mine ? 'mine' : ''}" data-id="${p.id}">
-    <div class="lgp-card__map" style="background-image:url('${LG_ASSETS}images/maps/${esc(p.map || (zb ? 'zombie_map' : 'pvp_medium'))}.png')"><i></i>
-      <span class="mode">${zb ? `${lgSvg(LGI.skull)}ZOMBIE` : `PVP ${esc(p.formatLabel || p.format || '')}`}</span>
+  return `<article class="lgp-card pvp ${p.joined ? 'joined' : ''} ${p.mine ? 'mine' : ''}" data-id="${p.id}">
+    <div class="lgp-card__map" style="${LG_ARENA_BG}"><i></i>
+      <span class="mode">PVP ${esc(p.formatLabel || p.format || '')}</span>
       ${time ? `<span class="hour"><b>${lgHM(p.startsAt)}</b><small>${esc(lgIn(p.startsAt))}</small></span>` : `<span class="hour now"><b>${t('MAINTENANT')}</b><small>${t('dès que possible')}</small></span>`}
     </div>
     <div class="lgp-card__body">
@@ -262,12 +253,12 @@ function wirePosts(box, posts, kind) {
 function lgCompose(p) {
   const max = LG.home.limits?.message || 300;
   openSheet(t('Message à {n}', { n: esc(p.author) }), `
-    <p class="lgp-sheet-p">${p.mode === 'zombie' ? 'Zombie' : 'PVP ' + esc(p.format)} · ${esc(p.mapLabel)} · ${esc(p.when)}</p>
+    <p class="lgp-sheet-p">PVP ${esc(p.format)} · ${esc(p.mapLabel)} · ${esc(p.when)}</p>
     <textarea class="lgp-in" rows="3" maxlength="${max}" placeholder="${t('Ex. : Partant, on se rejoint au LaserGame ?')}"></textarea>
     <div class="lgp-sheet-act"><button class="lgp-btn ghost" data-no>${t('Annuler')}</button><button class="lgp-btn" data-yes>${lgSvg(LGI.send)}${t('Envoyer')}</button></div>`, (sh) => {
     sh.classList.add('lgp-sheet');
     const ta = $('textarea', sh);
-    ta.value = p.mode === 'zombie' ? t('Je suis partant pour la Zombie, on se rejoint au LaserGame ?') : t('Partant pour ton match, on se rejoint au LaserGame ?');
+    ta.value = t('Partant pour ton match, on se rejoint au LaserGame ?');
     $('[data-no]', sh).onclick = () => closeSheet();
     $('[data-yes]', sh).onclick = async () => {
       const r = await lgCall('send', { token: p.authorToken, post: p.id, body: ta.value });
@@ -279,31 +270,27 @@ function lgCompose(p) {
   });
 }
 
-// Formulaire : demande de match (PVP) ou annonce programmée (Zombie / PVP)
+// Formulaire : demande de match ou annonce programmée (PVP)
 function lgForm(kind) {
   const h = LG.home, ev = kind === 'event';
-  const st = { mode: ev ? 'zombie' : 'pvp', format: (h.formats[1] || h.formats[0] || {}).id, map: '', when: ev ? 'at' : 'now', day: 0, time: '', slots: 4, stake: 0, message: '' };
+  const st = { mode: 'pvp', format: (h.formats[1] || h.formats[0] || {}).id, map: '', when: ev ? 'at' : 'now', day: 0, time: '', slots: 4, stake: 0, message: '' };
   const d = new Date(Date.now() + 30 * 60000); d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15);
   st.time = `${pad(d.getHours() % 24)}:${pad(d.getMinutes() % 60)}`;
   const render = (sh) => {
-    const maps = h.maps.filter(m => m.mode === st.mode);
+    const maps = h.maps || [];
     sh.innerHTML = `<h2 class="sheet__title">${ev ? t('Nouvelle annonce') : t('Demande de match PVP')}</h2>
-      ${ev ? `<label class="lgp-lab">${t('Mode')}</label><div class="lgp-chips big">
-        ${h.zombie ? `<button class="${st.mode === 'zombie' ? 'on' : ''}" data-f-mode="zombie">${lgSvg(LGI.skull)}Zombie</button>` : ''}
-        ${h.pvp ? `<button class="${st.mode === 'pvp' ? 'on' : ''}" data-f-mode="pvp">PVP Arena</button>` : ''}</div>` : ''}
-      ${st.mode === 'pvp' ? `<label class="lgp-lab">${t('Format')}</label><div class="lgp-chips">${h.formats.map(f => `<button class="${st.format === f.id ? 'on' : ''}" data-f-format="${f.id}">${esc(f.label)}</button>`).join('')}</div>`
-        : `<label class="lgp-lab">${t('Joueurs (toi compris)')}</label><div class="lgp-chips">${[1, 2, 3, 4].map(n => `<button class="${st.slots === n ? 'on' : ''}" data-f-slots="${n}">${n}</button>`).join('')}</div>`}
-      <label class="lgp-lab">${t('Carte')}</label>
-      <div class="lgp-maps">${(st.mode === 'pvp' ? [{ id: '', label: t('Au choix') }] : []).concat(maps).map(m => `<button class="${st.map === m.id ? 'on' : ''}" data-f-map="${esc(m.id)}"
-        style="background-image:url('${LG_ASSETS}images/maps/${esc(m.id || 'pvp_medium')}.png')"><span>${esc(m.label)}</span></button>`).join('')}</div>
+      <label class="lgp-lab">${t('Format')}</label><div class="lgp-chips">${h.formats.map(f => `<button class="${st.format === f.id ? 'on' : ''}" data-f-format="${f.id}">${esc(f.label)}</button>`).join('')}</div>
+      <label class="lgp-lab">${t('Arène')}</label>
+      <div class="lgp-maps">${[{ id: '', label: t('Au choix') }].concat(maps).map(m => `<button class="${st.map === m.id ? 'on' : ''}" data-f-map="${esc(m.id)}"
+        style="${LG_ARENA_BG}"><span>${esc(m.label)}</span></button>`).join('')}</div>
       <label class="lgp-lab">${t('Quand')}</label>
       ${ev ? '' : `<div class="lgp-chips"><button class="${st.when === 'now' ? 'on' : ''}" data-f-when="now">${t('Dès que possible')}</button><button class="${st.when === 'at' ? 'on' : ''}" data-f-when="at">${t('À une heure')}</button></div>`}
       ${st.when === 'at' ? `<div class="lgp-when"><div class="lgp-chips">${[[0, t('Aujourd\'hui')], [1, t('Demain')], [2, t('Après-demain')]].map(([k, l]) => `<button class="${st.day === k ? 'on' : ''}" data-f-day="${k}">${l}</button>`).join('')}</div>
         <input class="lgp-in time" type="time" value="${st.time}" data-f-time></div>` : ''}
-      ${st.mode === 'pvp' && h.stake?.enabled ? `<label class="lgp-lab">${t('Mise proposée (facultatif)')}</label>
+      ${h.stake?.enabled ? `<label class="lgp-lab">${t('Mise proposée (facultatif)')}</label>
         <input class="lgp-in" type="number" min="0" max="${h.stake.max}" step="${h.stake.step || 100}" value="${st.stake || ''}" placeholder="0" data-f-stake>` : ''}
       <label class="lgp-lab">${t('Message')}</label>
-      <textarea class="lgp-in" rows="2" maxlength="${h.limits?.text || 160}" placeholder="${ev ? t('Ex. : Soirée survie, on vise la manche 20 !') : t('Ex. : Équipe de 2 cherche adversaires')}" data-f-msg>${esc(st.message)}</textarea>
+      <textarea class="lgp-in" rows="2" maxlength="${h.limits?.text || 160}" placeholder="${ev ? t('Ex. : Tournoi 3v3, inscris ton équipe !') : t('Ex. : Équipe de 2 cherche adversaires')}" data-f-msg>${esc(st.message)}</textarea>
       <p class="lgp-note">${lgSvg(LGI.gps)}${t('Rejoindre pose un point GPS vers le LaserGame : personne n\'est téléporté.')}</p>
       <div class="lgp-sheet-act"><button class="lgp-btn ghost" data-no>${t('Annuler')}</button><button class="lgp-btn" data-yes>${ev ? t('Publier l\'annonce') : t('Publier la demande')}</button></div>`;
     const keep = () => {
@@ -312,9 +299,7 @@ function lgForm(kind) {
       st.message = $('[data-f-msg]', sh).value;
     };
     const set = (k, v) => { keep(); st[k] = v; if (k === 'mode') st.map = ''; render(sh); };
-    $$('[data-f-mode]', sh).forEach(b => b.onclick = () => set('mode', b.dataset.fMode));
     $$('[data-f-format]', sh).forEach(b => b.onclick = () => set('format', b.dataset.fFormat));
-    $$('[data-f-slots]', sh).forEach(b => b.onclick = () => set('slots', +b.dataset.fSlots));
     $$('[data-f-map]', sh).forEach(b => b.onclick = () => set('map', b.dataset.fMap));
     $$('[data-f-when]', sh).forEach(b => b.onclick = () => set('when', b.dataset.fWhen));
     $$('[data-f-day]', sh).forEach(b => b.onclick = () => set('day', +b.dataset.fDay));

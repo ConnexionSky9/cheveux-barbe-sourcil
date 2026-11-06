@@ -154,7 +154,7 @@ function SetRoutingBucketEntityLockdownMode() end
 function GetPlayerIdentifierByType(id) return 'license:' .. id end
 function SIM.move(id, x, y, z) SIM.players[id].pos = vector3(x, y, z) end
 
--- ---------------------------------------------------------------- entités (peds des joueurs + zombies)
+-- ---------------------------------------------------------------- entités (peds des joueurs)
 function GetEntityCoords(ent)
     if ent > 1000 and ent < 50000 then local p = SIM.players[ent - 1000] return p and p.pos or vector3(0, 0, 0) end
     local e = SIM.entities[ent]
@@ -174,12 +174,6 @@ function SetEntityRoutingBucket(ent, b) if SIM.entities[ent] then SIM.entities[e
 function SetEntityOrphanMode() end
 function NetworkGetNetworkIdFromEntity(ent) return SIM.entities[ent] and SIM.entities[ent].net or 0 end
 function Entity(ent) return { state = SIM.entities[ent] and SIM.entities[ent].state or stateBag() } end
-function SIM.zombies()
-    local out = {}
-    for ent, e in pairs(SIM.entities) do out[#out + 1] = { ent = ent, net = e.net, pos = e.pos } end
-    table.sort(out, function(a, b) return a.ent < b.ent end)
-    return out
-end
 
 -- ---------------------------------------------------------------- base de données (SQLite via Python)
 local function method(kind)
@@ -223,4 +217,6 @@ exports = {
         GetLaserGameNpcs = function() return {} end,
     },
 }
-setmetatable(exports, { __call = function() end })
+-- exports(nom, fn) de la ressource testée : gardés pour appeler les vrais exports (ceux qu'admin_menu utilise)
+SIM.exports = {}
+setmetatable(exports, { __call = function(_, name, fn) SIM.exports[name] = fn end })

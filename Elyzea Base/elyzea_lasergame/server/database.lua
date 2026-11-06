@@ -6,7 +6,7 @@
 DB = { ready = false }
 
 DB.Schema = {
-    -- Profil LaserGame d'un personnage (statistiques PVP + Zombie, rang, exclusion)
+    -- Profil LaserGame d'un personnage (statistiques PVP, rang, exclusion)
     [[CREATE TABLE IF NOT EXISTS `lg_players` (
         `citizenid` VARCHAR(64) NOT NULL PRIMARY KEY,
         `firstname` VARCHAR(40) NOT NULL DEFAULT '', `lastname` VARCHAR(40) NOT NULL DEFAULT '',
@@ -14,15 +14,12 @@ DB.Schema = {
         `wins` INT NOT NULL DEFAULT 0, `losses` INT NOT NULL DEFAULT 0, `draws` INT NOT NULL DEFAULT 0,
         `kills` INT NOT NULL DEFAULT 0, `deaths` INT NOT NULL DEFAULT 0, `matches` INT NOT NULL DEFAULT 0,
         `streak` INT NOT NULL DEFAULT 0, `best_streak` INT NOT NULL DEFAULT 0,
-        `zb_best_round` INT NOT NULL DEFAULT 0, `zb_best_round_solo` INT NOT NULL DEFAULT 0, `zb_best_date` TIMESTAMP NULL DEFAULT NULL,
-        `zb_kills` INT NOT NULL DEFAULT 0, `zb_money` BIGINT NOT NULL DEFAULT 0, `zb_games` INT NOT NULL DEFAULT 0,
-        `zb_downs` INT NOT NULL DEFAULT 0, `zb_revives` INT NOT NULL DEFAULT 0,
         `banned` TINYINT(1) NOT NULL DEFAULT 0, `ban_reason` VARCHAR(160) NULL, `ban_until` TIMESTAMP NULL DEFAULT NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX `pts` (`points`), INDEX `wins` (`wins`), INDEX `zbr` (`zb_best_round`), INDEX `zbk` (`zb_kills`)
+        INDEX `pts` (`points`), INDEX `wins` (`wins`)
     ) DEFAULT CHARSET=utf8mb4]],
-    -- Parties (PVP et Zombie) : historique et statistiques
+    -- Parties PVP : historique et statistiques
     [[CREATE TABLE IF NOT EXISTS `lg_matches` (
         `uid` VARCHAR(24) NOT NULL PRIMARY KEY, `mode` VARCHAR(8) NOT NULL, `name` VARCHAR(40) NOT NULL DEFAULT '',
         `map` VARCHAR(32) NOT NULL, `format` VARCHAR(8) NULL, `status` VARCHAR(12) NOT NULL DEFAULT 'running',
@@ -39,13 +36,6 @@ DB.Schema = {
         `payout` BIGINT NOT NULL DEFAULT 0, `round` INT NOT NULL DEFAULT 0, `opp_sig` VARCHAR(64) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX `cid_created` (`citizenid`, `created_at`), INDEX `match_uid` (`match_uid`), INDEX `opp` (`citizenid`, `opp_sig`, `created_at`)
-    ) DEFAULT CHARSET=utf8mb4]],
-    -- Classement des équipes Zombie (une ligne par partie terminée)
-    [[CREATE TABLE IF NOT EXISTS `lg_zombie_runs` (
-        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, `match_uid` VARCHAR(24) NOT NULL, `round` INT NOT NULL,
-        `kills` INT NOT NULL DEFAULT 0, `money` BIGINT NOT NULL DEFAULT 0, `players` INT NOT NULL DEFAULT 1,
-        `names` VARCHAR(255) NOT NULL DEFAULT '', `cids` VARCHAR(400) NOT NULL DEFAULT '', `duration` INT NOT NULL DEFAULT 0,
-        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX `round` (`round`), INDEX `players_round` (`players`, `round`)
     ) DEFAULT CHARSET=utf8mb4]],
     -- Mises PVP : chaque ligne est un montant réellement débité, réglé UNE SEULE FOIS (held -> paid/refunded/lost)
     [[CREATE TABLE IF NOT EXISTS `lg_ledger` (
@@ -72,6 +62,12 @@ DB.Schema = {
         `name` VARCHAR(80) NULL, `message` VARCHAR(255) NOT NULL, `data` TEXT NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX `cat_created` (`category`, `created_at`)
     ) DEFAULT CHARSET=utf8mb4]],
+    -- Arènes créées en jeu par le staff (zone, apparitions, ambiance), en coordonnées du monde
+    [[CREATE TABLE IF NOT EXISTS `lg_arenas` (
+        `id` VARCHAR(32) NOT NULL PRIMARY KEY, `label` VARCHAR(40) NOT NULL DEFAULT '', `enabled` TINYINT(1) NOT NULL DEFAULT 0,
+        `data` LONGTEXT NOT NULL, `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) DEFAULT CHARSET=utf8mb4]],
     -- Réglages modifiés en jeu par le staff (remplacent ceux des fichiers de configuration)
     [[CREATE TABLE IF NOT EXISTS `lg_settings` (
         `k` VARCHAR(40) NOT NULL PRIMARY KEY, `v` LONGTEXT NOT NULL,
@@ -90,7 +86,7 @@ end
 
 -- ---------------------------------------------------------------- profils
 local PROFILE_COLS = '`citizenid`, `firstname`, `lastname`, `points`, `peak_points`, `wins`, `losses`, `draws`, `kills`, `deaths`, `matches`, '
-    .. '`streak`, `best_streak`, `zb_best_round`, `zb_best_round_solo`, `zb_best_date`, `zb_kills`, `zb_money`, `zb_games`, `zb_downs`, `zb_revives`, '
+    .. '`streak`, `best_streak`, '
     .. '`banned`, `ban_reason`, `ban_until`'
 
 -- Profil (créé s'il n'existe pas ; le nom RP est mis à jour à chaque lecture)

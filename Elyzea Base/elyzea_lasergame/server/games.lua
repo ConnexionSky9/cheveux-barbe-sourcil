@@ -1,5 +1,5 @@
 -- =====================================================================
---  ELYZEA LASERGAME - REGISTRE DES PARTIES (PVP + Zombie)
+--  ELYZEA LASERGAME - REGISTRE DES PARTIES PVP
 --  Lobbies, instances (routing buckets), entrée / sortie des joueurs, spectateurs,
 --  diffusion ciblée des événements (seulement aux membres d'une partie).
 -- =====================================================================

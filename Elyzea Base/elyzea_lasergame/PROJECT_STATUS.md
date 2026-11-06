@@ -1,50 +1,39 @@
 # PROJECT_STATUS — elyzea_lasergame
 
-Fichier de reprise : état réel du projet. Dernière mise à jour : livraison v1.0.0.
+Fichier de reprise : état réel du projet. Dernière mise à jour : v2.0.0 (arènes créées en jeu, mode Zombie retiré).
 
-## État global : v1.0.0 livrée, tous les tests hors jeu passent, validation en jeu à faire
-| Phase | Contenu | État |
-|---|---|---|
-| 1 | Analyse technique et architecture | ✅ base Elyzea (elyzea_core), contrat `pvpArena` réutilisé |
-| 2 | Outils | ✅ Python 3, Node 22, Chromium/Playwright, lupa (Lua 5.4), numpy, Pillow, ffmpeg · ❌ CodeWalker, Blender/Sollumz, GTA V Map Agent (Windows / fichiers GTA requis) → générateur de cartes Python |
-| 3 | Interface NUI | ✅ 16 écrans testés dans Chromium |
-| 4 | PNJ, interactions, instances | ✅ config + en jeu + éditeur admin_menu (rôle « LaserGame ») |
-| 5 | 4 cartes PVP | ✅ construites, validées (0 erreur), aperçus |
-| 6 | PVP, armes laser, spectateur | ✅ simulé (serveur) · client vérifié statiquement |
-| 7 | Rangs et classements | ✅ 8 emblèmes SVG + PNG, Elo + anti-farm, 10 classements |
-| 8 | Carte Zombie | ✅ 8 secteurs, 9 portes, 13 armes murales, 8 atouts, validée |
-| 9 | Mode Zombie | ✅ simulé (serveur) · client vérifié statiquement |
-| 10 | Interface staff | ✅ 9 onglets, toutes actions simulées côté serveur |
-| 11 | Sécurité, restauration RP | ✅ simulé (crash, déconnexion, reconnexion, redémarrage) |
-| 12 | Tests, corrections, optimisation | ✅ hors jeu · ⏳ validation en jeu (docs/limitations.md §1) |
+## État global : v2.0.0, tous les tests hors jeu passent, validation en jeu à faire
+| Sujet | État |
+|---|---|
+| Mode Zombie | ❌ retiré (serveur, client, interface, configuration, classements, téléphone, admin) |
+| Cartes générées (5 complexes) | ❌ retirées (`maps/`, `tools/mapgen`, aperçus) |
+| Arènes créées en jeu (table `lg_arenas`) | ✅ création à la position du staff, zone, apparitions, réglages, ouverture, suppression — simulé |
+| Dessin en visant (admin_menu) | ✅ outils de zone / apparitions d'admin_menu branchés sur « lasergame » — liaison testée, rendu à valider en jeu |
+| Décor | ✅ éditeur de map d'admin_menu (objets locaux, visibles dans l'instance) — à valider en jeu |
+| Parties en instance séparée | ✅ bucket 63001+ par partie, copie figée de l'arène — simulé |
+| PVP, armes laser, spectateur, rangs, classements | ✅ inchangés, simulés |
+| Interface NUI | ✅ 13 écrans testés dans Chromium |
+| Appli téléphone (elyzea_aura) | ✅ Zombie retiré, arènes |
 
 ## Tests (dernière exécution : `bash tests/run_all.sh`)
-- Syntaxe Lua : 38 fichiers, 0 erreur · JS : OK
-- Cartes : 5/5 valides, 0 avertissement
-- Contrats serveur/client/interface : 10/10
-- Simulation serveur : 157/157 (420 requêtes SQL)
-- Interface : 16/16 écrans sans erreur
-- admin_menu (tests existants) : 0 échec après intégration
-
-## Bogues trouvés et corrigés grâce aux tests
-- Paramètres SQL `nil` (journaux sans citizenid, égalité sans gagnant) : la requête aurait échoué en production → `NULLIF(?, '')`.
-- `brand.js` et logos non déclarés dans le fxmanifest → ajoutés.
-- Spectateur resté sur écran noir → fondu ajouté.
-- Mot réservé Lua `until` utilisé comme champ → renommé.
-- Fentes de 0,4 à 0,7 m entre objets (risque de se coincer) et 2 apparitions de zombies dans des caisses → corrigées.
-- Glitch du titre resté affiché → n'apparaît plus que pendant l'animation.
+- Syntaxe Lua : 35 fichiers, 0 erreur · JS : OK
+- Contrats serveur / client / interface / admin_menu : 19/19
+- Simulation serveur : 187/187 (1 200 requêtes SQL)
+- Interface : 13/13 écrans sans erreur
+- admin_menu : liaison 27/27, onglet LaserGame 20/20, autres tests existants 0 échec
 
 ## Fichiers modifiés hors de la ressource
-- `admin_menu/` : rôle de PNJ « LaserGame » (html/script.js, server/editor.lua, client/editor.lua), export `GetLaserGameNpcs`,
-  permission `lasergame_manage` (config.lua).
-- `Serveur cfg/server.cfg` : `ensure elyzea_lasergame`.
+- `admin_menu/` : `server/lasergame.lua` (actions d'arène), `html/lasergame.js` (onglet Arènes), `client/editor.lua`
+  (`lg_zone_draw`, `lg_spawns_draw`), `client/zones.lua` (fin du dessin envoyée à `tg.action`, couleurs d'équipe facultatives),
+  tests `lasergame_ui.cjs` et `lasergame_link_sim.lua`.
+- `elyzea_aura/` : appli LaserGame du téléphone (Zombie retiré, arènes sans image).
 
 ## Prochaines tâches (après retour en jeu)
-1. Validation en jeu (docs/limitations.md §1) et ajustement des emplacements de cartes (`/lgadmin › Cartes › Placer ici`).
+1. Créer la première arène et jouer un 1v1 (docs/limitations.md §1).
 2. Ajuster `Config.Outfits` selon les packs de vêtements du serveur.
 3. Corriger ce que la validation en jeu révélera (journaux : `/lgadmin › Journaux › Erreurs`, console F8).
 
 ## Reprise
-- Régénérer les cartes : `python3 tools/mapgen/build_all.py` · emblèmes : `python3 tools/assets/make_ranks.py` · sons : `python3 tools/assets/make_sounds.py`
+- Emblèmes : `python3 tools/assets/make_ranks.py` · sons : `python3 tools/assets/make_sounds.py`
 - Tous les tests : `bash tests/run_all.sh`
 - Archive : `elyzea_lasergame.zip` à la racine du dépôt (régénérer après modification).

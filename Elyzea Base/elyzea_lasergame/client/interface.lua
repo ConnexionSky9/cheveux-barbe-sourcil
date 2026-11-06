@@ -7,13 +7,12 @@ local ALLOWED = {
     ['ui:init'] = true, ['profile:get'] = true, ['history:get'] = true, ['lb:get'] = true, ['list:get'] = true,
     ['pvp:create'] = true, ['pvp:update'] = true, ['pvp:join'] = true, ['pvp:quick'] = true, ['pvp:team'] = true, ['pvp:weapon'] = true,
     ['pvp:ready'] = true, ['pvp:invite'] = true, ['pvp:kick'] = true, ['pvp:start'] = true, ['lobby:leave'] = true, ['lobby:nearby'] = true,
-    ['zb:create'] = true, ['zb:join'] = true, ['zb:ready'] = true, ['zb:start'] = true, ['zb:kick'] = true, ['zb:invite'] = true,
     ['spectate:join'] = true,
-    ['admin:open'] = true, ['admin:games'] = true, ['admin:set'] = true, ['admin:map'] = true, ['admin:npc'] = true, ['admin:game'] = true,
+    ['admin:open'] = true, ['admin:games'] = true, ['admin:set'] = true, ['admin:arena'] = true, ['admin:npc'] = true, ['admin:game'] = true,
     ['admin:players.search'] = true, ['admin:players.get'] = true, ['admin:players.set'] = true, ['admin:logs'] = true, ['admin:stats'] = true,
 }
 -- Actions avant lesquelles l'apparence RP est envoyée au serveur (sauvegarde des vêtements)
-local SEND_LOOK = { ['pvp:ready'] = true, ['zb:ready'] = true, ['zb:create'] = true, ['spectate:join'] = true, ['pvp:start'] = true, ['zb:start'] = true }
+local SEND_LOOK = { ['pvp:ready'] = true, ['spectate:join'] = true, ['pvp:start'] = true }
 
 function C.OpenUI(tab, admin)
     if C.inGame and not admin then return end

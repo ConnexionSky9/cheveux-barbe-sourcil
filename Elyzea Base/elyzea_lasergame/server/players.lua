@@ -1,6 +1,6 @@
 -- =====================================================================
 --  ELYZEA LASERGAME - JOUEURS : exclusions du LaserGame, proximité des PNJ
---  Chargé AVANT pvp.lua / zombie.lua : les actions qui font entrer dans une partie
+--  Chargé AVANT pvp.lua : les actions qui font entrer dans une partie
 --  exigent d'être auprès d'un PNJ LaserGame (anti-téléportation, anti-menu de triche).
 -- =====================================================================
 Players = { excluded = {} }
@@ -69,7 +69,7 @@ function Players.NearNpc(src)
 end
 
 -- Les actions qui font entrer dans une partie exigent d'être auprès d'un PNJ (anti-téléportation)
-local NEED_NPC = { ['pvp:create'] = true, ['pvp:join'] = true, ['pvp:quick'] = true, ['zb:create'] = true, ['zb:join'] = true, ['spectate:join'] = true }
+local NEED_NPC = { ['pvp:create'] = true, ['pvp:join'] = true, ['pvp:quick'] = true, ['spectate:join'] = true }
 local origRegister = RPC.Register
 RPC.Register = function(name, fn)
     if NEED_NPC[name] then

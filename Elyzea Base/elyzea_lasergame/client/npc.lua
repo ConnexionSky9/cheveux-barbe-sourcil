@@ -3,7 +3,7 @@
 --  * PNJ : configuration (config.lua) + PNJ posés en jeu (/lgadmin › PNJ), créés localement
 --    seulement à moins de Config.NpcLoadDistance m, supprimés au-delà (aucun coût au loin).
 --  * Touche d'interaction unique (E par défaut, modifiable dans Paramètres › Raccourcis › FiveM) :
---    PNJ hors partie ; portes, armes murales, atouts et réanimation en partie Zombie.
+--    PNJ hors partie.
 --  * Aucune boucle par image au repos : vérification de distance toutes les 250 à 1500 ms.
 -- =====================================================================
 local npcs = {}        -- [id] = { def, ped, blip }

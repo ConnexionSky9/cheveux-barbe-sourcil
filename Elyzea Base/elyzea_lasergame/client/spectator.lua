@@ -68,9 +68,9 @@ function C.StartSpectate(scope)
                     lastMove = now
                     SetEntityCoordsNoOffset(PlayerPedId(), tp.x, tp.y, tp.z + 20.0, false, false, false)
                 end
-            elseif Map.built and Map.anchor then
-                local a = Map.anchor
-                local hz = Map.underground and math.max(3.0, ((Map.data and Map.data.ceiling) or 8.0) - 1.5) or 22.0
+            elseif Map.built and Map.center then
+                local a = Map.center
+                local hz = math.max(3.0, math.min(22.0, ((Map.zone and Map.zone.maxZ) or (a.z + 22.0)) - a.z - 1.0))
                 SetCamCoord(S.cam, a.x, a.y - 25.0, a.z + hz)
                 PointCamAtCoord(S.cam, a.x, a.y, a.z)
             end

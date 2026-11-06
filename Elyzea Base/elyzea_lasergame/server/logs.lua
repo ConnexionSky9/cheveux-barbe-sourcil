@@ -1,12 +1,12 @@
 -- =====================================================================
 --  ELYZEA LASERGAME - JOURNAUX
---  Catégories : admin, money, pvp, zombie, security, error.
+--  Catégories : admin, money, pvp, security, error.
 --  Sorties : console, table lg_logs, webhook Discord facultatif (convar elyzea_lasergame_webhook).
 -- =====================================================================
 Logs = {}
 
-local COLORS = { admin = 0x9B5CFF, money = 0x3EE6B0, pvp = 0xFF2D46, zombie = 0x9BFF3E, security = 0xFFB547, error = 0xFF4D6D }
-local LABELS = { admin = 'Staff', money = 'Argent', pvp = 'PVP', zombie = 'Zombie', security = 'Sécurité', error = 'Erreur' }
+local COLORS = { admin = 0x9B5CFF, money = 0x3EE6B0, pvp = 0xFF2D46, security = 0xFFB547, error = 0xFF4D6D }
+local LABELS = { admin = 'Staff', money = 'Argent', pvp = 'PVP', security = 'Sécurité', error = 'Erreur' }
 local queue, sending = {}, false
 
 local function webhook() return GetConvar('elyzea_lasergame_webhook', '') end

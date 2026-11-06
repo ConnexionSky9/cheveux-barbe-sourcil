@@ -1,5 +1,5 @@
 -- =====================================================================
---  ELYZEA LASERGAME - TIRS LASER (validation serveur commune PVP + Zombie)
+--  ELYZEA LASERGAME - TIRS LASER (validation serveur)
 --  Le client envoie des LOTS de tirs (~10 / s) : origine, direction, cible touchée, point d'impact.
 --  Le serveur vérifie TOUT avant d'appliquer quoi que ce soit :
 --    partie et phase, joueur vivant, arme réellement attribuée, cadence (seau à jetons),

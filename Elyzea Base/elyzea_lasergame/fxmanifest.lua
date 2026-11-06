@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'elyzea_lasergame'
 author 'Elyzea FA'
-description 'LaserGame ElyzeaFA : PVP Arena (1v1 à 6v6, mises, rangs) et mode Zombie (1 à 4 joueurs), armes laser, 5 cartes, classements, staff.'
-version '1.0.0'
+description 'LaserGame ElyzeaFA : PVP Arena (1v1 à 6v6, mises, rangs), armes laser, arènes créées en jeu par le staff (zone, apparitions, éditeur de map), parties en instance, classements, staff.'
+version '2.0.0'
 
 shared_scripts {
     'shared/constants.lua',
@@ -32,7 +32,6 @@ server_scripts {
     'server/combat.lua',
     'server/ranking.lua',
     'server/pvp.lua',
-    'server/zombie.lua',
     'server/admin.lua',
     'server/phone.lua',
     'server/main.lua',
@@ -48,9 +47,6 @@ client_scripts {
     'client/restoration.lua',
     'client/pvp.lua',
     'client/spectator.lua',
-    'client/zombie.lua',
-    'client/doors.lua',
-    'client/perks.lua',
     'client/admin.lua',
 }
 
@@ -63,16 +59,11 @@ files {
     'html/brand.css',
     'html/brand.js',
     'html/assets/*.svg',
-    'html/assets/*.png',
     'html/assets/*.jpg',
     'html/assets/*.webp',
-    'html/images/*.png',
-    'html/images/*.svg',
-    'html/images/maps/*.png',
     'html/sounds/*.ogg',
     'html/ranks/*.svg',
     'html/ranks/*.png',
-    'maps/*/map.json',
 }
 
 dependencies {
