@@ -17,7 +17,7 @@ Config.CustomMap = {
     enabled = true,
     -- Image de la carte : une seule image, ou des tuiles (cols × rows) nommées avec {x} et {y} (à partir de 0).
     -- Pour une carte plus nette : remplacez par une image haute définition (ex. 8192 px découpée en tuiles 4096).
-    image = { path = 'img/map.jpg', cols = 1, rows = 1 },
+    image = { path = 'img/map_{x}_{y}.jpg', cols = 2, rows = 2 },   -- carte 4096 px (4 tuiles)
     -- Coordonnées du jeu aux bords de l'image (gauche, droite, bas, haut)
     bounds = { minX = -5661.2, maxX = 6694.0, minY = -4058.5, maxY = 8429.3 },
     zoom = { foot = 480, vehicle = 720, fast = 1200 },   -- mètres visibles en largeur (à pied, en véhicule, à grande vitesse)
