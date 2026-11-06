@@ -162,7 +162,8 @@
 
   window.addEventListener('message', (e) => {
     const m = e.data || {};
-    if (m.action === 'mapcfg') setCfg(m.cfg);
+    if (m.action === 'mapmode') box.style.display = m.gta ? 'none' : '';
+    else if (m.action === 'mapcfg') setCfg(m.cfg);
     else if (m.action === 'map') tgt = { x: m.x, y: m.y, cam: m.cam, ped: m.ped, zoom: m.zoom };
     else if (m.action === 'blips') { blips = Array.isArray(m.list) ? m.list : []; wp = m.wp || null; }
   });

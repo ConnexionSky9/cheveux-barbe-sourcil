@@ -6,15 +6,17 @@ Config.UpdateRate = 200
 -- Commande pour afficher / masquer le HUD
 Config.ToggleCommand = 'hud'
 
--- Mini-carte de GTA supprimée pour tout le monde, quoi que fassent les autres scripts
--- (la grande carte du menu Échap et le GPS restent). Elle est remplacée par la carte Elyzea ci-dessous,
--- dessinée exactement dans le cadre du HUD.
-Config.HideMinimap = true
-Config.MinimapNative = true   -- position du cadre : celle de la mini-carte d'origine (même disposition qu'avant)
+-- Mini-carte :
+--   'gta'    (par défaut) : la vraie carte 2D de GTA (routes nettes, vraies icônes, GPS tracé), découpée
+--            au millimètre dans le cadre du HUD : masque net, plus de flou ni de halo autour.
+--   'elyzea' : carte satellite dessinée par le HUD (Config.CustomMap ci-dessous).
+Config.MapMode = 'gta'
+Config.HideMinimap = Config.MapMode == 'elyzea'
+Config.MinimapNative = false  -- la carte est placée par le HUD exactement dans son cadre
 
 -- Carte Elyzea (dessinée par le HUD, dans le cadre)
 Config.CustomMap = {
-    enabled = true,
+    enabled = Config.MapMode == 'elyzea',
     -- Image de la carte : une seule image, ou des tuiles (cols × rows) nommées avec {x} et {y} (à partir de 0).
     -- Pour une carte plus nette : remplacez par une image haute définition (ex. 8192 px découpée en tuiles 4096).
     image = { path = 'img/map_{x}_{y}.jpg', cols = 2, rows = 2 },   -- carte 4096 px (4 tuiles)
@@ -48,3 +50,20 @@ Config.VoiceRanges = { [1] = 3.0, [2] = 8.0, [3] = 15.0 }
 -- Si un bout de carte dépasse encore chez toi, augmente « outer » ; si le cadre mange trop la carte, baisse « inner ».
 -- Décalage fin du cadre si besoin : dx, dy (px), dw, dh (px en plus / en moins).
 Config.Frame = { inner = 8, outer = 12, dx = 0, dy = 0, dw = 0, dh = 0 }
+
+-- ---------------------------------------------------------
+--  Menu Échap Elyzea FA (remplace l'écran pause de GTA)
+--  Carte : la carte de GTA aux couleurs d'Elyzea (titre et teintes violettes).
+-- ---------------------------------------------------------
+Config.Pause = {
+    enabled = true,
+    serverName = 'ELYZEA FA',
+    maxPlayers = 128,                       -- affiché « joueurs / max »
+    discord = 'discord.gg/elyzea',          -- lien affiché (copiable), '' = caché
+    tips = {
+        'Appuyez sur F1 pour sortir votre téléphone.',
+        'Le menu ALT permet d\'interagir avec les joueurs et les objets.',
+        'Respectez le RP : la vie de votre personnage compte.',
+        'Les vendeurs de téléphones proposent toute la gamme ElyAura.',
+    },
+}

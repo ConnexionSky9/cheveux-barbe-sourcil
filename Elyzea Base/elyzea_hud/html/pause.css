@@ -1,0 +1,113 @@
+/* =========================================================
+   MENU ÉCHAP ELYZEA FA
+   Fond nuit violette animé (aurores, particules, skyline), emblème vivant,
+   menu à gauche, cartes joueur / serveur / position à droite.
+   ========================================================= */
+#pause { position: fixed; inset: 0; z-index: 50; display: none; pointer-events: auto; color: #F6F2FF; font-family: "Rajdhani", "Segoe UI", sans-serif; overflow: hidden; }
+#pause.on { display: block; }
+body.paused #hud { opacity: 0 !important; }
+.pz-bg { position: absolute; inset: 0; background: radial-gradient(120% 90% at 15% 20%, rgba(123,47,247,.45), transparent 60%),
+  radial-gradient(90% 80% at 90% 90%, rgba(181,123,255,.28), transparent 65%), linear-gradient(160deg, rgba(10,5,24,.94), rgba(4,2,12,.97)); }
+.pz-aurora { position: absolute; inset: -20%; background: conic-gradient(from 0deg at 50% 50%, transparent, rgba(155,92,255,.18), transparent 30%, rgba(111,231,242,.1), transparent 55%, rgba(233,213,255,.12), transparent 80%);
+  filter: blur(60px); animation: pzSpin 40s linear infinite; }
+@keyframes pzSpin { to { transform: rotate(360deg); } }
+.pz-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(181,123,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(181,123,255,.06) 1px, transparent 1px);
+  background-size: calc(100vh/1080*60) calc(100vh/1080*60); mask-image: radial-gradient(70% 70% at 50% 60%, #000, transparent 80%); -webkit-mask-image: radial-gradient(70% 70% at 50% 60%, #000, transparent 80%);
+  animation: pzGrid 18s linear infinite; }
+@keyframes pzGrid { to { background-position: 0 calc(100vh/1080*60), calc(100vh/1080*60) 0; } }
+.pz-dots i { position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%; background: #E9D5FF; box-shadow: 0 0 8px #B57BFF; opacity: 0; animation: pzRise linear infinite; }
+@keyframes pzRise { 10% { opacity: .9; } 90% { opacity: .6; } to { transform: translateY(-105vh); opacity: 0; } }
+.pz-sky { position: absolute; left: 0; right: 0; bottom: 0; height: 26vh; opacity: .55; filter: drop-shadow(0 0 12px rgba(155,92,255,.35)); }
+.pz-sky svg { width: 100%; height: 100%; }
+.pz-scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); pointer-events: none; }
+
+.pz { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) calc(100vh/1080*520); gap: calc(100vh/1080*60); padding: 7vh 6vw 9vh; }
+.pz-left { display: flex; flex-direction: column; min-height: 0; }
+.pz-brand { display: flex; align-items: center; gap: calc(100vh/1080*22); }
+.pz-logo { position: relative; width: calc(100vh/1080*150); height: calc(100vh/1080*110); display: grid; place-items: center; }
+.pz-logo .ely-mark { width: 100%; height: auto; filter: drop-shadow(0 0 calc(100vh/1080*18) rgba(155,92,255,.9)); animation: pzFloat 5s ease-in-out infinite; }
+.pz-logo::before { content: ''; position: absolute; inset: -18%; border-radius: 50%; border: 2px solid rgba(181,123,255,.35); border-top-color: #E9D5FF;
+  animation: pzSpin 6s linear infinite; box-shadow: 0 0 30px rgba(155,92,255,.35); }
+.pz-logo::after { content: ''; position: absolute; inset: -30%; border-radius: 50%; border: 1px dashed rgba(181,123,255,.25); animation: pzSpin 16s linear infinite reverse; }
+@keyframes pzFloat { 50% { transform: translateY(calc(100vh/1080*-6)) scale(1.03); } }
+.pz-title small { display: block; font-size: calc(100vh/1080*14); letter-spacing: .5em; color: #B57BFF; font-weight: 700; }
+.pz-title h1 { font: 900 italic calc(100vh/1080*74)/0.95 "Exo 2", sans-serif; letter-spacing: .04em; margin: calc(100vh/1080*4) 0;
+  background: linear-gradient(100deg, #fff 0%, #E9D5FF 30%, #B57BFF 50%, #fff 70%, #E9D5FF 100%); background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: pzShine 6s linear infinite; text-shadow: 0 0 40px rgba(155,92,255,.35); }
+.pz-title h1 b { font-weight: 900; }
+@keyframes pzShine { to { background-position: -250% 0; } }
+.pz-title p { font-size: calc(100vh/1080*16); color: #A99BC9; letter-spacing: .12em; }
+
+.pz-menu { margin-top: 6vh; display: flex; flex-direction: column; gap: calc(100vh/1080*10); width: calc(100vh/1080*460); }
+.pz-btn { position: relative; display: flex; align-items: center; gap: calc(100vh/1080*16); padding: calc(100vh/1080*15) calc(100vh/1080*22); border: 0; cursor: pointer; text-align: left;
+  font: 700 calc(100vh/1080*22) "Rajdhani", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #E8E0FF;
+  background: linear-gradient(90deg, rgba(155,92,255,.10), rgba(155,92,255,.02)); border-left: 3px solid rgba(181,123,255,.35);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); transition: transform .25s cubic-bezier(.2,.9,.25,1), background .25s, color .25s, border-color .25s;
+  opacity: 0; transform: translateX(-30px); }
+#pause.on .pz-btn { animation: pzIn .55s cubic-bezier(.2,.9,.25,1) forwards; }
+@keyframes pzIn { to { opacity: 1; transform: none; } }
+.pz-btn .n { font: 600 calc(100vh/1080*13) "Chakra Petch", sans-serif; color: #B57BFF; letter-spacing: .1em; width: calc(100vh/1080*24); }
+.pz-btn .i { width: calc(100vh/1080*30); height: calc(100vh/1080*30); display: grid; place-items: center; border-radius: 8px; background: rgba(155,92,255,.18); box-shadow: inset 0 0 0 1px rgba(181,123,255,.35); }
+.pz-btn .i svg { width: 62%; height: 62%; }
+.pz-btn small { margin-left: auto; font-size: calc(100vh/1080*12); letter-spacing: .1em; color: #8E7DB5; text-transform: none; font-weight: 600; }
+.pz-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(233,213,255,.25), transparent); transform: translateX(-100%); }
+.pz-btn:hover, .pz-btn.sel { transform: translateX(14px); color: #fff; background: linear-gradient(90deg, rgba(155,92,255,.42), rgba(155,92,255,.06)); border-left-color: #E9D5FF;
+  box-shadow: 0 0 30px rgba(155,92,255,.25); }
+.pz-btn:hover::after, .pz-btn.sel::after { transform: translateX(100%); transition: transform .7s; }
+.pz-btn.danger { border-left-color: rgba(255,90,110,.5); }
+.pz-btn.danger:hover, .pz-btn.danger.sel { background: linear-gradient(90deg, rgba(255,70,100,.35), rgba(255,70,100,.04)); border-left-color: #ff8fa3; }
+
+.pz-tip { margin-top: auto; display: flex; align-items: center; gap: calc(100vh/1080*12); font-size: calc(100vh/1080*16); color: #CFC6EA; max-width: calc(100vh/1080*620); }
+.pz-tip b { padding: 3px 10px; border-radius: 6px; background: rgba(155,92,255,.25); color: #fff; font: 700 calc(100vh/1080*12) "Chakra Petch", sans-serif; letter-spacing: .15em; }
+.pz-tip span { transition: opacity .4s; }
+
+.pz-right { display: flex; flex-direction: column; gap: calc(100vh/1080*16); justify-content: center; }
+.pz-card { position: relative; padding: calc(100vh/1080*20) calc(100vh/1080*24); background: linear-gradient(135deg, rgba(30,16,60,.85), rgba(12,7,26,.85));
+  border: 1px solid rgba(190,150,255,.22); clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  opacity: 0; transform: translateX(40px); }
+#pause.on .pz-card { animation: pzIn .6s cubic-bezier(.2,.9,.25,1) forwards; }
+.pz-card::before { content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: linear-gradient(#E9D5FF, #B57BFF, #7B2FF7); box-shadow: 0 0 10px #B57BFF; }
+.pz-card h3 { font-size: calc(100vh/1080*12); letter-spacing: .4em; color: #B57BFF; font-weight: 700; margin-bottom: calc(100vh/1080*12); }
+.pz-me { display: flex; align-items: center; gap: calc(100vh/1080*16); }
+.pz-av { width: calc(100vh/1080*64); height: calc(100vh/1080*64); flex: none; display: grid; place-items: center; border-radius: 50%;
+  font: 800 italic calc(100vh/1080*24) "Exo 2", sans-serif; background: radial-gradient(circle at 30% 30%, #B57BFF, #4a1fa0); box-shadow: 0 0 0 2px rgba(233,213,255,.5), 0 0 24px rgba(155,92,255,.6); }
+.pz-me b { display: block; font: 800 italic calc(100vh/1080*26) "Exo 2", sans-serif; }
+.pz-me span { color: #A99BC9; font-size: calc(100vh/1080*15); letter-spacing: .06em; }
+.pz-kv { display: grid; grid-template-columns: 1fr 1fr; gap: calc(100vh/1080*10); margin-top: calc(100vh/1080*16); }
+.pz-kv div { padding: calc(100vh/1080*10) calc(100vh/1080*12); background: rgba(155,92,255,.08); border: 1px solid rgba(181,123,255,.15); }
+.pz-kv small { display: block; font-size: calc(100vh/1080*11); letter-spacing: .25em; color: #8E7DB5; font-weight: 700; }
+.pz-kv b { font: 700 calc(100vh/1080*20) "Chakra Petch", sans-serif; }
+.pz-big { display: flex; align-items: baseline; gap: calc(100vh/1080*10); }
+.pz-big b { font: 700 calc(100vh/1080*46)/1 "Chakra Petch", sans-serif; color: #fff; text-shadow: 0 0 20px rgba(155,92,255,.6); }
+.pz-big span { color: #A99BC9; font-size: calc(100vh/1080*16); }
+.pz-bar { height: 6px; margin-top: calc(100vh/1080*10); background: rgba(255,255,255,.07); overflow: hidden; }
+.pz-bar i { display: block; height: 100%; background: linear-gradient(90deg, #7B2FF7, #E9D5FF); box-shadow: 0 0 12px #B57BFF; transition: width 1s; }
+.pz-pos { display: flex; align-items: center; gap: calc(100vh/1080*16); }
+.pz-comp { position: relative; width: calc(100vh/1080*78); height: calc(100vh/1080*78); flex: none; border-radius: 50%; border: 2px solid rgba(181,123,255,.45);
+  background: radial-gradient(circle, rgba(155,92,255,.2), transparent 70%); }
+.pz-comp b { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); font: 700 calc(100vh/1080*11) "Chakra Petch", sans-serif; color: #E9D5FF; }
+.pz-comp i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 26px solid #E9D5FF;
+  margin: -20px 0 0 -8px; transform-origin: 50% 20px; filter: drop-shadow(0 0 6px #B57BFF); transition: transform .6s; }
+.pz-pos b { display: block; font: 800 italic calc(100vh/1080*22) "Exo 2", sans-serif; }
+.pz-pos span { color: #A99BC9; font-size: calc(100vh/1080*15); }
+.pz-pos .pz-mapbtn { margin-left: auto; }
+.pz-mini { padding: 8px 14px; border: 0; cursor: pointer; font: 700 calc(100vh/1080*14) "Rajdhani", sans-serif; letter-spacing: .12em; color: #fff; text-transform: uppercase;
+  background: linear-gradient(135deg, #7B2FF7, #B57BFF); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); box-shadow: 0 0 16px rgba(155,92,255,.5); }
+.pz-disc { display: flex; align-items: center; justify-content: space-between; font-size: calc(100vh/1080*15); color: #CFC6EA; }
+.pz-disc b { color: #fff; letter-spacing: .05em; }
+
+.pz-foot { position: absolute; left: 6vw; right: 6vw; bottom: 3.5vh; display: flex; gap: calc(100vh/1080*24); font-size: calc(100vh/1080*14); color: #8E7DB5; letter-spacing: .1em; }
+.pz-foot kbd { font: 700 calc(100vh/1080*12) "Chakra Petch", sans-serif; color: #fff; padding: 2px 8px; margin-right: 6px; border: 1px solid rgba(181,123,255,.5); background: rgba(155,92,255,.15); }
+
+.pz-modal { position: absolute; inset: 0; display: none; place-items: center; background: rgba(4,2,12,.6); }
+.pz-modal.on { display: grid; animation: pzFade .25s; }
+@keyframes pzFade { from { opacity: 0; } }
+.pz-modal > div { width: calc(100vh/1080*520); padding: calc(100vh/1080*30); text-align: center; background: linear-gradient(135deg, rgba(40,18,72,.97), rgba(14,7,30,.97));
+  border: 1px solid rgba(255,120,150,.35); clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); animation: pzPop .35s cubic-bezier(.3,1.4,.5,1); }
+@keyframes pzPop { from { transform: scale(.9); opacity: 0; } }
+.pz-modal h2 { font: 800 italic calc(100vh/1080*30) "Exo 2", sans-serif; margin-bottom: 10px; }
+.pz-modal p { color: #CFC6EA; font-size: calc(100vh/1080*17); margin-bottom: 22px; }
+.pz-modal .row { display: flex; gap: 12px; justify-content: center; }
+.pz-modal button { padding: 12px 26px; border: 0; cursor: pointer; font: 700 calc(100vh/1080*17) "Rajdhani", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #fff;
+  background: rgba(255,255,255,.1); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.pz-modal button.q { background: linear-gradient(135deg, #e5484d, #ff8fa3); box-shadow: 0 0 18px rgba(255,90,110,.5); }

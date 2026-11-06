@@ -16,11 +16,13 @@ end)
 exports('IsHidden', function() return not HudShown() end)
 local rect = nil              -- { x, y, w, h } en fractions d'écran, coin haut gauche
 local ownsMinimap = false     -- true si admin_menu n'est pas là
+local GTA_MAP = (Config.MapMode or 'gta') == 'gta'   -- vraie carte de GTA, placée par le HUD dans son cadre
 
 ------------------------------------------------------------
 -- Mini-carte
 ------------------------------------------------------------
-local function adminMap() return GetResourceState('admin_menu') == 'started' end
+-- Carte de GTA : c'est toujours le HUD qui la place (admin_menu n'y touche plus quand elyzea_hud tourne)
+local function adminMap() return not GTA_MAP and GetResourceState('admin_menu') == 'started' end
 
 -- Masque de la mini-carte : celui de GTA a des bords flous et laisse des bandes noires sur les côtés.
 -- On le remplace par un masque net (minimap/radarmask.png) : la carte remplit exactement son rectangle.
@@ -53,7 +55,7 @@ end
 local GEO = {
     map  = { dx = 0.0,   dy = 0.0,   w = 0.1638, h = 0.183 },
     mask = { dx = 0.0,   dy = 0.047, w = 0.128,  h = 0.20 },
-    blur = { dx = -0.01, dy = 0.072, w = 0.262,  h = 0.300 },
+    blur = { dx = 0.0,   dy = 0.0,   w = 0.1638, h = 0.183 },   -- flou ramené sur la carte : aucun halo autour du cadre
 }
 -- Mode « carte d'origine » (Config.MinimapNative, par défaut) : la carte de GTA n'est pas déplacée ;
 -- le cadre se cale exactement sur l'endroit où GTA la dessine (formule standard).
@@ -127,7 +129,7 @@ end
 
 -- admin_menu prévient à chaque placement
 AddEventHandler('elyzea:minimapRect', function(r)
-    if type(r) ~= 'table' then return end
+    if type(r) ~= 'table' or GTA_MAP then return end
     rect = r
     sendRect()
 end)
@@ -370,11 +372,13 @@ end)
 RegisterCommand(Config.ToggleCommand, function() hudVisible = not hudVisible end, false)
 
 AddEventHandler('onClientResourceStart', function(res)
-    if res == 'admin_menu' then ownsMinimap = false end
+    if res == 'admin_menu' and not GTA_MAP then ownsMinimap = false end
 end)
+-- Carte de GTA : le cadre HTML ne dessine pas de carte par-dessus (fond transparent)
+CreateThread(function() Wait(500) SendNUIMessage({ action = 'mapmode', gta = GTA_MAP }) end)
 AddEventHandler('onClientResourceStop', function(res)
     for k, owner in pairs(hiddenBy) do if owner == res then hiddenBy[k] = nil end end
-    if res == 'admin_menu' then ownsMinimap = true SetTimeout(500, setupMinimap) end
+    if res == 'admin_menu' and not GTA_MAP then ownsMinimap = true SetTimeout(500, setupMinimap) end
 end)
 
 -- Ressource arrêtée : on rend à GTA son masque d'origine

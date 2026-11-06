@@ -11,7 +11,13 @@ ui_page 'html/index.html'
 
 client_scripts {
     'config.lua',
-    'client.lua'
+    'client.lua',
+    'pause.lua'
+}
+
+server_scripts {
+    'config.lua',
+    'server.lua'
 }
 
 files {
@@ -20,6 +26,8 @@ files {
     'html/brand.js',
     'minimap/radarmask.png',
     'html/minimap.js',
+    'html/pause.js',
+    'html/pause.css',
     'html/img/*.jpg',
     'html/img/*.png',
     'html/img/*.webp',
