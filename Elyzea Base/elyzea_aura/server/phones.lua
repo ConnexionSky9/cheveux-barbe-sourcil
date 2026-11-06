@@ -11,7 +11,7 @@ local CFG = Config.Phones
 local A = AuraCore
 
 -- Réglages de personnalisation ajoutés avec les ElyAura : valeurs par défaut si config.lua est plus ancien
-for k, v in pairs({ effect = 'none', case = 'none', widgets = {}, ringtoneUrl = '', lockStyle = 'classic', edgeColor = '',
+for k, v in pairs({ effect = 'none', case = 'none', widgets = {}, ringtoneUrl = '', ringtoneStart = 0, ringtoneLen = 20, lockStyle = 'classic', edgeColor = '',
     edgeMode = 'auto', iconShape = 'squircle', font = 'manrope' }) do
     if Config.DefaultSettings[k] == nil then Config.DefaultSettings[k] = v end
 end
@@ -117,7 +117,7 @@ local function Clamp(me)
     if tier < 5 then
         if T5_EFFECTS[s.effect] then s.effect = 'none' end
         if CASES_T5[s.case] then s.case = 'none' end
-        s.widgets, s.ringtoneUrl, s.lockStyle = {}, '', 'classic'
+        s.widgets, s.ringtoneUrl, s.ringtoneStart, s.ringtoneLen, s.lockStyle = {}, '', 0, 20, 'classic'
     end
     if tier < 6 then
         if T6_EFFECTS[s.effect] then s.effect = 'none' end
@@ -127,6 +127,8 @@ local function Clamp(me)
     end
     if m and m.faceId == false then s.faceid = false end
     -- Valeurs libres : contrôle du format
+    s.ringtoneStart = math.max(0, math.min(3600, math.floor(tonumber(s.ringtoneStart) or 0)))
+    s.ringtoneLen = math.max(5, math.min(60, math.floor(tonumber(s.ringtoneLen) or 20)))
     if type(s.ringtoneUrl) ~= 'string' or #s.ringtoneUrl > 300 or (s.ringtoneUrl ~= '' and not s.ringtoneUrl:match('^https://')) then s.ringtoneUrl = '' end
     if type(s.edgeColor) ~= 'string' or (s.edgeColor ~= '' and not s.edgeColor:match('^#%x%x%x%x%x%x$')) then s.edgeColor = '' end
     for _, k in ipairs({ 'effect', 'case', 'lockStyle', 'edgeMode', 'iconShape', 'font' }) do

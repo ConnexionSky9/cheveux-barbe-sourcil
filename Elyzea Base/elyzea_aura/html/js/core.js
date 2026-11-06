@@ -113,7 +113,7 @@ function effSettings() {
   if (t < 5) {
     if (['feux', 'matrice'].includes(s.effect)) s.effect = 'none';
     if (['cuir', 'neon'].includes(s.case)) s.case = 'none';
-    s.widgets = []; s.ringtoneUrl = ''; s.lockStyle = 'classic';
+    s.widgets = []; s.ringtoneUrl = ''; s.ringtoneStart = 0; s.ringtoneLen = 20; s.lockStyle = 'classic';
   }
   if (t < 6) {
     if (s.effect === 'holo') s.effect = 'none';
@@ -225,9 +225,11 @@ const Sound = (() => {
     ring(name, force) {
       this.stop(); if (S.settings.silent && !force) return;
       // Sonnerie personnalisée (ElyAura 5 et 6) : lien https vers un fichier audio
-      const url = typeof effSettings === 'function' ? effSettings().ringtoneUrl : '';
+      const es = typeof effSettings === 'function' ? effSettings() : {};
+      const url = es.ringtoneUrl || '';
       if (url && /^https:\/\//.test(url)) {
-        try { custom = new Audio(url); custom.loop = true; custom.volume = .6; custom.play().catch(() => { custom = null; (patterns[name] || patterns.cristal)(); }); return; } catch (e) { custom = null; }
+        // Extrait choisi : de ringtoneStart (s) pendant ringtoneLen (s), en boucle
+        if (this.playClip(url, Number(es.ringtoneStart) || 0, Number(es.ringtoneLen) || 20, true, () => { (patterns[name] || patterns.cristal)(); })) return;
       }
       const p = patterns[name] || patterns.cristal; p();
       loop = setInterval(p, 1900);
@@ -235,7 +237,26 @@ const Sound = (() => {
     preview(name) { this.stop(); (patterns[name] || patterns.cristal)(); },
     ringback() { this.stop(); const p = () => note(425, 0, 1.2, 'sine', .07); p(); loop = setInterval(p, 4000); },
     stop() { clearInterval(loop); loop = null; if (custom) { try { custom.pause(); } catch (e) { /* rien */ } custom = null; } },
-    previewUrl(url) { this.stop(); try { custom = new Audio(url); custom.volume = .6; custom.play().catch(() => {}); setTimeout(() => this.stop(), 6000); } catch (e) { /* rien */ } },
+    // Joue un extrait d'un fichier audio : à partir de start (s), pendant len (s) ; en boucle ou une seule fois
+    playClip(url, start = 0, len = 20, repeat = false, onFail) {
+      this.stop();
+      try {
+        const a = new Audio(url);
+        custom = a; a.volume = .6; a.preload = 'auto';
+        const from = Math.max(0, start), to = from + Math.max(3, len);
+        const go = () => { try { a.currentTime = from; } catch (e) { /* rien */ } a.play().catch(() => { if (custom === a) custom = null; onFail?.(); }); };
+        a.addEventListener('loadedmetadata', go, { once: true });
+        a.addEventListener('timeupdate', () => {
+          if (custom !== a) return;
+          if (a.currentTime >= to || a.ended) { if (repeat) { a.currentTime = from; a.play().catch(() => {}); } else this.stop(); }
+        });
+        a.addEventListener('ended', () => { if (custom === a && repeat) { a.currentTime = from; a.play().catch(() => {}); } });
+        a.addEventListener('error', () => { if (custom === a) custom = null; onFail?.(); }, { once: true });
+        a.src = url;
+        return true;
+      } catch (e) { custom = null; return false; }
+    },
+    previewUrl(url, start = 0, len = 8) { this.playClip(url, start, Math.min(len, 12), false); },
     ping() { if (S.settings.silent) return; note(1568, 0, .25, 'triangle', .12); note(2093, .09, .35, 'triangle', .1); },
     unlock() { if (S.settings.silent) return; note(880, 0, .12, 'sine', .08); note(1318, .07, .2, 'sine', .08); },
     error() { if (S.settings.silent) return; note(220, 0, .18, 'square', .05); note(196, .12, .22, 'square', .05); },

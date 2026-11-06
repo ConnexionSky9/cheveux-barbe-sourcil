@@ -27,6 +27,7 @@ const WIDGETS = { analog: 'Horloge analogique', calendar: 'Calendrier', favs: 'C
 const LOCKS = { classic: 'Classique', grand: 'Grande horloge', minimal: 'Minimaliste' };
 const EDGE_MODES = { auto: 'Couleur d\'accent', rainbow: 'Arc-en-ciel', pulse: 'Pulsation' };
 const SHAPES = { squircle: 'Arrondies', cercle: 'Rondes', carre: 'Carrées', goutte: 'Gouttes' };
+const fmtSec = (v) => { v = Math.max(0, Math.floor(Number(v) || 0)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
 const FONTS = { manrope: ['Manrope', "'Manrope', sans-serif"], exo: ['Exo 2', "'Exo 2', sans-serif"], unbounded: ['Unbounded', "'Unbounded', sans-serif"], mono: ['Mono', "'JetBrains Mono', Consolas, monospace"] };
 
 // ---------- Boîtier : éléments matériels (haut-parleur, bouton, marque, coque, effets) ----------
@@ -148,7 +149,15 @@ Views.settings = (params = {}) => {
       <p class="section-label">${t('Sonnerie personnalisée')}</p>
       <div class="list"><div class="row row--stack"><div class="form" style="width:100%">
         <input class="field" id="ring-url" placeholder="https://…/sonnerie.mp3" value="${esc(s.ringtoneUrl || '')}">
-        <div class="grid-2"><button class="btn btn--ghost" id="ring-test">${t('Écouter')}</button><button class="btn" id="ring-save">${t('Enregistrer')}</button></div>
+        <div class="ring-cut">
+          <label>${t('Début de la sonnerie')} <b id="ring-start-v">${fmtSec(s.ringtoneStart || 0)}</b></label>
+          <input type="range" id="ring-start" min="0" max="${Math.max(60, Math.ceil(Number(s.ringtoneStart || 0) + 30))}" step="1" value="${Number(s.ringtoneStart) || 0}">
+          <div class="ring-wave" id="ring-wave"><i id="ring-sel"></i></div>
+          <label>${t('Durée de l\'extrait')} <b id="ring-len-v">${Number(s.ringtoneLen) || 20} s</b></label>
+          <input type="range" id="ring-len" min="5" max="60" step="1" value="${Number(s.ringtoneLen) || 20}">
+          <p class="row__sub" id="ring-dur"></p>
+        </div>
+        <div class="grid-2"><button class="btn btn--ghost" id="ring-test">${t('Écouter l\'extrait')}</button><button class="btn" id="ring-save">${t('Enregistrer')}</button></div>
         <p class="row__sub row__sub--wrap">${t('Lien https vers un fichier audio (.mp3, .ogg). Vide = sonnerie choisie dans Sons.')}</p></div></div></div>` : ''}
     ${tier >= 6 ? `${pick(t('Liseré lumineux'), 'edgeMode', Object.entries(EDGE_MODES), 6)}
       <div class="list" style="margin-top:8px"><div class="row"><span class="row__main row__title row__title--light">${t('Couleur du liseré')}</span>
@@ -162,11 +171,36 @@ Views.settings = (params = {}) => {
     if (i >= 0) cur.splice(i, 1); else if (cur.length < 4) cur.push(k);
     saveSettings({ widgets: cur }); Views.settings(params);
   });
-  $('#ring-test')?.addEventListener('click', () => { const v = $('#ring-url').value.trim(); if (/^https:\/\//.test(v)) Sound.previewUrl(v); });
+  // Choix du moment de la musique : durée lue sur le fichier, curseur de début, longueur de l'extrait
+  const rs = $('#ring-start'), rl = $('#ring-len');
+  const drawCut = () => {
+    if (!rs) return;
+    const max = Number(rs.max) || 60, st = Number(rs.value), ln = Number(rl.value);
+    $('#ring-start-v').textContent = fmtSec(st); $('#ring-len-v').textContent = `${ln} s`;
+    const sel = $('#ring-sel'); sel.style.left = `${(st / max) * 100}%`; sel.style.width = `${Math.min(100 - (st / max) * 100, (ln / max) * 100)}%`;
+  };
+  const probe = () => {
+    const v = $('#ring-url')?.value.trim();
+    if (!/^https:\/\//.test(v || '')) { if ($('#ring-dur')) $('#ring-dur').textContent = ''; return; }
+    const a = new Audio(); a.preload = 'metadata';
+    a.addEventListener('loadedmetadata', () => {
+      const d = Math.floor(a.duration || 0);
+      if (d > 0 && rs) { rs.max = String(d); if (Number(rs.value) > d - 3) rs.value = String(Math.max(0, d - 3)); }
+      if ($('#ring-dur')) $('#ring-dur').textContent = d > 0 ? t('Morceau de {d}', { d: fmtSec(d) }) : '';
+      drawCut();
+    }, { once: true });
+    a.addEventListener('error', () => { if ($('#ring-dur')) $('#ring-dur').textContent = t('Fichier audio introuvable ou illisible.'); }, { once: true });
+    a.src = v;
+  };
+  rs?.addEventListener('input', drawCut); rl?.addEventListener('input', drawCut);
+  $('#ring-url')?.addEventListener('change', probe);
+  drawCut(); probe();
+  $('#ring-test')?.addEventListener('click', () => { const v = $('#ring-url').value.trim(); if (/^https:\/\//.test(v)) Sound.previewUrl(v, Number(rs.value), Number(rl.value)); });
   $('#ring-save')?.addEventListener('click', () => {
     const v = $('#ring-url').value.trim();
     if (v && !/^https:\/\//.test(v)) return notify({ app: 'settings', title: t('Sonnerie'), text: t('Le lien doit commencer par https://') });
-    saveSettings({ ringtoneUrl: v }); notify({ app: 'settings', title: t('Sonnerie'), text: v ? t('Sonnerie personnalisée enregistrée.') : t('Sonnerie par défaut.') });
+    saveSettings({ ringtoneUrl: v, ringtoneStart: Number(rs.value) || 0, ringtoneLen: Number(rl.value) || 20 });
+    notify({ app: 'settings', title: t('Sonnerie'), text: v ? t('Sonnerie enregistrée : à partir de {s}, {l} s.', { s: fmtSec(Number(rs.value) || 0), l: Number(rl.value) || 20 }) : t('Sonnerie par défaut.') });
   });
   $('#edge-c')?.addEventListener('change', (e) => { saveSettings({ edgeColor: e.target.value }); Views.settings(params); });
   $('#edge-reset')?.addEventListener('click', () => { saveSettings({ edgeColor: '' }); Views.settings(params); });

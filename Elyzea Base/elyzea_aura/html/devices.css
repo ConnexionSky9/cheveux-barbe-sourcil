@@ -186,3 +186,12 @@
 #phone[data-model="1"] .widget, #phone[data-model="1"] .dock { backdrop-filter: none; border-radius: 8px; }
 #phone[data-model="1"] .tile { border-radius: 9px !important; box-shadow: none !important; }
 #phone[data-model="1"] #wp { background: linear-gradient(#18203d, #0b0e1c) !important; }
+
+/* Sonnerie personnalisée : choix du moment de la musique */
+.ring-cut { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.ring-cut label { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--text-dim); }
+.ring-cut label b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.ring-cut input[type=range] { width: 100%; accent-color: var(--accent); }
+.ring-wave { position: relative; height: 26px; border-radius: 8px; overflow: hidden;
+  background: repeating-linear-gradient(90deg, var(--surface-2) 0 2px, transparent 2px 5px), var(--surface); }
+.ring-wave i { position: absolute; top: 0; bottom: 0; border-radius: 6px; background: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: inset 0 0 0 1.5px var(--accent); }
