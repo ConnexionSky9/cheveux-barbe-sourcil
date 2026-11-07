@@ -179,6 +179,22 @@ Config.Defaults = {
     security = { rateLimit = 10, logRetentionDays = 30 },
 }
 
+-- Sac de billets (propre à la banque) : porté sur le dos, posé avec E, ramassé avec ALT
+Config.Bag = {
+    model = 'prop_cs_heist_bag_02',
+    bone = 24818,                                    -- haut du dos
+    offset = { x = -0.05, y = -0.22, z = 0.0 },
+    rotation = { x = 0.0, y = 90.0, z = 180.0 },
+    pickupDistance = 2.0,
+    dropKey = 38,                                    -- E
+    dropAnim = { dict = 'random@domestic', name = 'pickup_low', time = 900 },
+    pickupAnim = { dict = 'random@domestic', name = 'pickup_low', time = 900 },
+    onDeath = 'drop',                                -- 'drop' : le sac tombe si le porteur est à terre · 'keep'
+    onDisconnect = 'keep',                           -- 'keep' : rendu à la reconnexion · 'drop' : laissé au sol
+    cleanupMinutes = 60,                             -- sac abandonné au sol supprimé après X min (0 = jamais)
+    maxGroundBags = 30,
+}
+
 -- Types de butin proposés au staff (modèle plein / vide, animation, outil exigé)
 Config.LootTypes = {
     trolley_cash    = { label = 'Chariot de billets', model = 'hei_prop_hei_cash_trolly_01', empty = 'hei_prop_hei_cash_trolly_03', anim = 'trolley', pile = 'hei_prop_heist_cash_pile' },

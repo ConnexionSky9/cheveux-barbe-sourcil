@@ -1,8 +1,8 @@
 -- =====================================================================
 --  BANK HEIST - client : menu ALT
 --  Fournisseur du menu ALT d'elyzea_police :
---    AltTarget(entité) -> titre si c'est un de nos PNJ (banquier, marchand, indic)
---    AltNearby()       -> entité, titre si le joueur est à un point (porte, butin, boîtier d'alarme)
+--    AltTarget(entité) -> titre si c'est un de nos PNJ (banquier, marchand, indic) ou un sac de billets au sol
+--    AltNearby()       -> entité, titre si le joueur est à un point (porte, butin, boîtier d'alarme, sac au sol)
 --    AltOptions(ctx) / AltSelect(id, ctx)
 --  Banquier : « Accéder à mon compte » ; arme en main : « BRAQUER LA BANQUE ».
 --  Sans elyzea_police : menu autonome sur ALT.
@@ -10,6 +10,8 @@
 local C = BHC
 
 local function pedTarget(ent)
+    local bagId = ent and C.BankBagByEntity and C.BankBagByEntity[ent]
+    if bagId then return { kind = 'groundBag', bag = bagId, title = 'Sac de billets' } end
     local p = ent and C.PedByEntity[ent]
     if not p then return nil end
     local cfg = C.Cfg() or {}
@@ -43,6 +45,10 @@ local function nearest()
     end
     for _, m in ipairs(cfg.merchants) do if m.enabled then consider({ kind = 'merchant', id = m.id, title = m.name }, m.ped, math.max(m.interactDistance, 2.5)) end end
     for _, n in ipairs(cfg.informants or {}) do if n.enabled then consider({ kind = 'informant', id = n.id, title = n.name }, n.ped, math.max(n.interactDistance, 2.5)) end end
+    if not best and C.NearestBankBag then
+        local id = C.NearestBankBag()
+        if id then best = { kind = 'groundBag', bag = id, title = 'Sac de billets (au sol)' } end
+    end
     if not best then
         local carried = C.CarriedBankBag and C.CarriedBankBag()
         if carried and (carried.money or 0) > 0 then best = { kind = 'carried', title = 'Sac de billets', noE = true } end
@@ -56,7 +62,11 @@ local function options(t)
     local cfg = C.Cfg() or {}
     local st = t.bank and C.Bank(t.bank) or {}
     local active = st.phase == 'active'
-    if t.kind == 'carried' then
+    if t.kind == 'groundBag' then
+        local carrying = LocalPlayer.state.bhBag ~= nil
+        out[#out + 1] = { id = 'pickupBag', label = 'Ramasser le sac', icon = 'cash', disabled = carrying, desc = carrying and 'Vous portez déjà un sac' or nil }
+        out[#out + 1] = { id = 'takeGroundMoney', label = 'Prendre l\'argent du sac', icon = 'cash' }
+    elseif t.kind == 'carried' then
         local carried = C.CarriedBankBag and C.CarriedBankBag()
         out[#out + 1] = { id = 'takeMoney', label = ('Prendre l\'argent du sac (%s)'):format(BH.Money(carried and carried.money or 0)), icon = 'cash' }
     elseif t.kind == 'merchant' then
@@ -128,6 +138,8 @@ local function select(id, t)
     elseif id == 'drill' then C.Drill(t.bank, t.point)
     elseif id == 'collect' then C.Collect(t.bank, t.point)
     elseif id == 'takeMoney' then C.TakeBagMoney(nil)
+    elseif id == 'pickupBag' then C.PickupBankBag(t.bag)
+    elseif id == 'takeGroundMoney' then C.TakeBagMoney(t.bag)
     end
 end
 

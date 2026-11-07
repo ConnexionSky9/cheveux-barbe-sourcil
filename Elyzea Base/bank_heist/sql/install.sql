@@ -1,6 +1,6 @@
 -- =====================================================================
 --  BANK HEIST - tables (créées automatiquement au démarrage ; ce fichier sert à une installation manuelle)
---  Les sacs de billets utilisent la table jh_bags de jewelry_heist (colonnes kind et capacity ajoutées automatiquement).
+--  Les sacs de billets ont leur propre table bh_bags (aucune autre ressource nécessaire).
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS `bh_settings` (`k` VARCHAR(32) NOT NULL PRIMARY KEY, `v` LONGTEXT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS `bh_logs` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (`kind`), INDEX (`created_at`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- jewelry_heist (si la table existe déjà sans ces colonnes ; une erreur « colonne déjà présente » peut être ignorée)
-ALTER TABLE `jh_bags` ADD COLUMN `kind` VARCHAR(12) NOT NULL DEFAULT 'jewel';
-ALTER TABLE `jh_bags` ADD COLUMN `capacity` INT NULL;
+CREATE TABLE IF NOT EXISTS `bh_bags` (
+    `id` VARCHAR(32) NOT NULL PRIMARY KEY,
+    `owner_cid` VARCHAR(64) NULL, `owner_name` VARCHAR(100) NULL, `holder_cid` VARCHAR(64) NULL,
+    `state` VARCHAR(12) NOT NULL,
+    `x` DOUBLE NOT NULL DEFAULT 0, `y` DOUBLE NOT NULL DEFAULT 0, `z` DOUBLE NOT NULL DEFAULT 0,
+    `money` INT NOT NULL DEFAULT 0, `capacity` INT NOT NULL DEFAULT 0, `ref` VARCHAR(64) NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

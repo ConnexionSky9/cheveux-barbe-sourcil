@@ -1,7 +1,7 @@
 -- =====================================================================
 --  BANK HEIST - client : ramassage du butin, perceuse, HUD du butin, encaissement (E)
 --  La collecte est comptée par le serveur (une tranche par seconde) : le client joue la scène
---  (billets glissés dans le sac) et affiche le montant. Le sac est celui de jewelry_heist.
+--  (billets glissés dans le sac) et affiche le montant. Le sac est propre à la banque (client/bags.lua).
 -- =====================================================================
 local C = BHC
 local collecting = nil     -- { scene }
@@ -19,7 +19,7 @@ RegisterNetEvent('bh:client:hud', function(d)
     heist = type(d) == 'table' and d or nil
     hud()
 end)
-RegisterNetEvent('jh:client:bagInfo', function(info)
+RegisterNetEvent('bh:client:bagInfo', function(info)
     if type(info) == 'table' and info.kind == 'bank' then bag = { money = info.money or 0, capacity = info.capacity or ((C.Cfg() or {}).capacity) } else bag = nil end
     hud()
 end)
@@ -175,7 +175,7 @@ end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
-    LocalPlayer.state:set('jhNoDrop', false, false)
+    LocalPlayer.state:set('bhNoDrop', false, false)
     if collecting then C.Scenes.GrabEnd(collecting.scene) end
     if drilling then C.Scenes.DrillEnd(drilling.scene) end
 end)

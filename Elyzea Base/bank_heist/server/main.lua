@@ -93,7 +93,6 @@ CreateThread(function()
     P.LoadSettings()
     P.LoadState()
     MySQL.query('DELETE FROM `bh_logs` WHERE `created_at` < (NOW() - INTERVAL ? DAY)', { P.S.security.logRetentionDays })
-    if not Adapters.Bag.Ready() then print('^1[BANK] jewelry_heist n\'est pas démarré : la collecte des billets (sac) est impossible.^0') end
     print('^2[BANK] Braquage de banque prêt.^0')
 end)
 

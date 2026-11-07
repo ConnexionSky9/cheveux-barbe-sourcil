@@ -3,7 +3,7 @@
 --  · Collecte progressive comptée PAR LE SERVEUR (une tranche par seconde) : le client ne fait que
 --    jouer l'animation. Réserve partagée entre braqueurs, jamais dépassée ; capacité du sac respectée ;
 --    une seule collecte à la fois par joueur.
---  · Le sac est celui de jewelry_heist (sac de billets) : visible sur le dos, se pose avec E, se ramasse
+--  · Le sac de billets est propre à la banque (adapters/bag.lua) : visible sur le dos, se pose avec E, se ramasse
 --    avec ALT, garde son contenu exact. Il ne s'ouvre pas : il s'encaisse seulement à un point de dépôt.
 -- =====================================================================
 local P = BHS
@@ -76,7 +76,7 @@ P.Req.collectStart = function(src, d)
     local res
     if (x.sp.itemLeft or 0) > 0 then res = takeItems(src, x)
     elseif x.sp.left <= 0 then res = { error = 'Il n\'y a plus rien à prendre.' }
-    elseif not Adapters.Bag.Ready() then res = { error = 'Système de sac indisponible (jewelry_heist).' }
+    elseif not Adapters.Bag.Ready() then res = { error = 'Système de sac indisponible.' }
     else
         local bag, err = ensureBag(src, x.s)
         if not bag then res = { error = err }

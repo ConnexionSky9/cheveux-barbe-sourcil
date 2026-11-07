@@ -37,7 +37,7 @@ G. Marchands · H. Indics · I. Objets et prix · J. Butin et encaissement · K.
 
 ## Dépendances
 
-elyzea_core, elyzea_inventory (objets `bank_laptop`, `bank_bag`, `bank_c4`, `bank_drill`), jewelry_heist (sac porté),
+elyzea_core, elyzea_inventory (objets `bank_laptop`, `bank_bag`, `bank_c4`, `bank_drill`),
 elyzea_police (menu ALT, alerte, effectifs ; sinon menu ALT autonome et alerte interne), elyzea_aura (virements, historique).
 
 ## Tests à faire en jeu

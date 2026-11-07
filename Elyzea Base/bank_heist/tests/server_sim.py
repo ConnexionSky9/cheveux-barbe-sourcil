@@ -58,7 +58,7 @@ function GetPlayerPing(src) local p = SIM.players[tonumber(src)] return p and p.
 function Player(src) local p = SIM.players[tonumber(src)] return { state = p and p.state or {} } end
 function SetEntityCoords() end
 function GetCurrentResourceName() return 'bank_heist' end
-SIM.started = { jewelry_heist = true, elyzea_police = true, elyzea_inventory = true, elyzea_aura = true }
+SIM.started = { elyzea_police = true, elyzea_inventory = true, elyzea_aura = true }
 function GetResourceState(r) return SIM.started[r] and 'started' or 'missing' end
 function TriggerClientEvent(name, target, ...) SIM.events[#SIM.events + 1] = { name = name, target = target, args = { ... } } end
 function RegisterNetEvent(name, fn) if fn then AddEventHandler(name, fn) end end
