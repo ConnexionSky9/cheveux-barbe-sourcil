@@ -1,5 +1,5 @@
 -- =====================================================================
---  BANK HEIST - serveur : piratage du coffre (5 mini-jeux)
+--  BANK HEIST - serveur : décryptage de la porte du coffre (5 mini-jeux)
 --  · L'énigme est générée ICI et la réponse est vérifiée ICI (jamais un « réussi » envoyé par le client).
 --  · Le mini-jeu est tiré au sort au lancement ; la tentative est consommée au lancement :
 --    fermer l'interface, se déconnecter ou laisser filer le temps compte comme un échec.
@@ -127,32 +127,34 @@ P.Req.hackStart = function(src, d)
     local b = P.BankById(tostring(d.bank or ''))
     local s = b and P.sessions[b.id]
     if not s then return { error = 'Aucun braquage en cours ici.' } end
-    if s.state == 'open' or s.opened then return { error = 'Le coffre est déjà ouvert.' } end
-    if s.state == 'exhausted' or s.state == 'c4' then return { error = 'Piratage impossible : l\'ordinateur a grillé. Il faut une charge C4.' } end
-    if s.state == 'hacking' then return { error = 'Quelqu\'un pirate déjà le coffre.' } end
-    if P.S.hack.requireThreat and not s.threatened then return { error = 'Menacez d\'abord l\'employé.' } end
-    if s.threatUntil and os.time() < s.threatUntil then return { error = 'L\'employé n\'est pas encore à terre.' } end
+    if not P.S.door.hack then return { error = 'Le décryptage n\'est pas possible sur cette porte.' } end
+    if s.door == 'open' then return { error = 'La porte est déjà ouverte.' } end
+    if s.door == 'c4' then return { error = 'Une charge C4 est posée : éloignez-vous !' } end
+    if s.door == 'hacking' then return { error = 'Quelqu\'un décrypte déjà la porte.' } end
+    if P.S.hack.requireThreat and s.threatUntil and os.time() < s.threatUntil then return { error = 'Le banquier n\'est pas encore à terre.' } end
     if not P.Robber(src, s) then return { error = 'Vous ne participez pas à ce braquage.' } end
-    if not P.Near(src, b.vault, 2.5) then return { error = 'Approchez-vous du coffre.' } end
+    if not P.Near(src, b.doorPoint, 2.5) then return { error = 'Approchez-vous de la porte du coffre.' } end
     if P.InVehicle(src) or P.IsDown(src) then return { error = 'Impossible maintenant.' } end
     if (s.nextHackAt or 0) > os.time() then return { error = ('Le système redémarre : patientez %d s.'):format(s.nextHackAt - os.time()) } end
-    if P.hacks[src] then return { error = 'Piratage déjà en cours.' } end
-    if not P.Lock('open:' .. b.id) then return { error = 'Une autre action est en cours sur le coffre.' } end
+    if P.hacks[src] then return { error = 'Décryptage déjà en cours.' } end
+    if not P.Lock('open:' .. b.id) then return { error = 'Une autre action est en cours sur la porte.' } end
     local lp, why = P.FindLaptop(src)
     if not lp then
         P.Unlock('open:' .. b.id)
-        return { error = why == 'burned' and 'Votre ordinateur est grillé : plus aucune tentative.' or 'Il vous faut un ordinateur de piratage.' }
+        if why == 'burned' then s.hackBurned = true end
+        return { error = why == 'burned' and 'Votre ordinateur est grillé : plus aucune tentative.' or 'Il vous faut un ordinateur de décryptage.' }
     end
     local left = P.UseLaptopAttempt(src, lp, b.id)
     local gid = pickGame()
     local g = P.S.hack.games[gid]
     local pub, secret = GEN[gid](g.difficulty)
-    s.state, s.hackBy = 'hacking', src
-    local time = math.floor(g.time * (tonumber(Config.HackTimeFactor) or 1.5))   -- temps rallongé (version facilitée)
+    s.door, s.hackBy = 'hacking', src
+    local time = math.floor(g.time * (tonumber(Config.HackTimeFactor) or 1.5))
     P.hacks[src] = { bank = b.id, game = gid, secret = secret, startedAt = now(), deadline = now() + time * 1000, serial = lp.serial, left = left }
     P.Unlock('open:' .. b.id)
-    P.Log('hack', s.id, src, ('Piratage lancé : %s · ordinateur %s · tentatives restantes après celle-ci : %d'):format(Config.GameLabels[gid], lp.serial, left))
+    P.Log('hack', s.id, src, ('Décryptage lancé : %s · ordinateur %s · tentatives restantes après celle-ci : %d'):format(Config.GameLabels[gid], lp.serial, left))
     P.PublishBanks()
+    P.PushHud(s)
     return { ok = true, game = gid, label = Config.GameLabels[gid], data = pub, time = time, difficulty = g.difficulty, attemptsLeft = left, attemptsMax = P.S.hack.attempts }
 end
 
@@ -163,22 +165,23 @@ local function finish(src, success, reason)
     local s = P.sessions[h.bank]
     if not s or s.hackBy ~= src then return end
     if success then
-        P.Log('hack', s.id, src, ('Piratage réussi (%s)'):format(Config.GameLabels[h.game]))
-        P.OpenVault(s, 'piratage', src)
+        P.Log('hack', s.id, src, ('Décryptage réussi (%s)'):format(Config.GameLabels[h.game]))
+        P.OpenDoor(s, 'décryptage', src)
         return
     end
     s.hackBy = nil
+    s.door = 'locked'
     s.nextHackAt = os.time() + P.S.hack.retryDelay
     if (P.LaptopAttempts(h.serial) or 0) <= 0 then
-        s.state = 'exhausted'
-        P.Log('hack', s.id, src, ('Piratage échoué (%s) · ordinateur %s grillé : C4 autorisée'):format(reason, h.serial))
-        for id in pairs(s.participants) do P.Notify(id, 'Ordinateur grillé : seule une charge C4 peut encore ouvrir le coffre.', 'error') end
+        s.hackBurned = true
+        P.Log('hack', s.id, src, ('Décryptage échoué (%s) · ordinateur %s grillé'):format(reason, h.serial))
+        for id in pairs(s.participants) do P.Notify(id, P.S.door.c4 and 'Ordinateur grillé : il reste la C4 pour faire sauter la porte.' or 'Ordinateur grillé : il faut un autre ordinateur.', 'error') end
     else
-        s.state = 'started'
-        P.Log('hack', s.id, src, ('Piratage échoué (%s) · %d tentative(s) restante(s) sur l\'ordinateur %s'):format(reason, P.LaptopAttempts(h.serial), h.serial))
-        if GetPlayerPing(src) > 0 then P.Notify(src, ('Échec du piratage : %d tentative(s) restante(s) sur cet ordinateur.'):format(P.LaptopAttempts(h.serial)), 'error') end
+        P.Log('hack', s.id, src, ('Décryptage échoué (%s) · %d tentative(s) restante(s) sur l\'ordinateur %s'):format(reason, P.LaptopAttempts(h.serial), h.serial))
+        if GetPlayerPing(src) > 0 then P.Notify(src, ('Décryptage échoué : %d tentative(s) restante(s) sur cet ordinateur.'):format(P.LaptopAttempts(h.serial)), 'error') end
     end
     P.PublishBanks()
+    P.PushHud(s)
 end
 
 -- Mini-jeu « code » : chaque essai est vérifié par le serveur (bien placés / mal placés)
@@ -207,7 +210,7 @@ P.Req.hackSubmit = function(src, d)
     if h.game == 'code' then return { error = 'Utilisez les essais.' } end
     if now() > h.deadline + 2000 then finish(src, false, 'temps écoulé') return { done = true, success = false } end
     local b = P.BankById(h.bank)
-    if not b or not P.Near(src, b.vault, 4.0) then finish(src, false, 'braqueur éloigné') return { done = true, success = false } end
+    if not b or not P.Near(src, b.doorPoint, 4.0) then finish(src, false, 'braqueur éloigné') return { done = true, success = false } end
     local ok = CHECK[h.game](h.secret, type(d.answer) == 'table' and d.answer or {}, h)
     finish(src, ok, ok and nil or 'mauvaise réponse')
     return { done = true, success = ok }

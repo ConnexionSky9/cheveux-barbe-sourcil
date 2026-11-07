@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'bank_heist'
 author 'Elyzea FA'
-description 'Braquage de banque : marchand de matériel, menace de l\'employé, piratage (5 mini-jeux, 3 tentatives par ordinateur), C4, collecte des billets dans le sac de la bijouterie, dépôt, alerte police, onglet admin_menu'
-version '1.0.0'
+description 'Braquage de banque 2.0 : indic, marchand, banquier (guichet et braquage), alarme, décryptage ou C4 de la porte, butin au choix (chariots, liasses, lingots, coffres à la perceuse), sac, HUD, alerte police, onglet admin_menu'
+version '2.0.0'
 
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
@@ -28,6 +28,9 @@ server_scripts {
     'server/heist.lua',
     'server/hack.lua',
     'server/loot.lua',
+    'server/alarm.lua',
+    'server/informant.lua',
+    'server/banking.lua',
     'server/admin.lua',
 }
 
@@ -35,8 +38,11 @@ client_scripts {
     'client/main.lua',
     'client/peds.lua',
     'client/bank.lua',
+    'client/scenes.lua',
     'client/hack.lua',
     'client/loot.lua',
+    'client/alarm.lua',
+    'client/banking.lua',
     'client/alt.lua',
 }
 
@@ -48,6 +54,8 @@ files {
     'html/style.css',
     'html/app.js',
     'html/games.js',
+    'html/brand.js',
+    'html/sounds.js',
     'html/img/*.png',
 }
 

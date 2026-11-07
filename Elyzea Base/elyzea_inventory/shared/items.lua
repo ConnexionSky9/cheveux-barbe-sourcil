@@ -201,7 +201,7 @@ Items.pont_roulant = { label = 'Pont roulant', weight = 5000, stack = false, clo
     description = 'Pont élévateur à deux colonnes (5 kg). Utilisez-le à côté d\'un véhicule garé sur un point d\'atelier ; H à côté du pont pour le reprendre.' }
 
 -- ───────── Braquage de banque (ressource bank_heist) ─────────
--- Images : html/img/bank_laptop.png, bank_bag.png, bank_c4.png (256 × 256, fond transparent)
+-- Images : html/img/bank_laptop.png, bank_bag.png, bank_c4.png, bank_drill.png (fond transparent)
 -- L'ordinateur n'est pas empilable : chacun a un numéro de série (métadonnée « serial »)
 -- et ses tentatives de piratage sont enregistrées sur le serveur (table bh_laptops).
 Items.bank_laptop = { label = 'Ordinateur de piratage', weight = 2500, stack = false, image = 'bank_laptop.png', icon = '💻',
@@ -209,7 +209,9 @@ Items.bank_laptop = { label = 'Ordinateur de piratage', weight = 2500, stack = f
 Items.bank_bag    = { label = 'Sac de braqueur', weight = 800, stack = true, max = 5, image = 'bank_bag.png', icon = '🎒',
     description = 'Sac vide pour ramasser les billets d\'un coffre de banque.' }
 Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5, image = 'bank_c4.png', icon = '🧨',
-    description = 'Charge explosive pour forcer un coffre quand le piratage a échoué.' }
+    description = 'Charge explosive pour faire sauter la porte d\'un coffre de banque.' }
+Items.bank_drill  = { label = 'Perceuse de coffre', weight = 3500, stack = false, image = 'bank_drill.png', icon = '🛠️',
+    description = 'Perceuse thermique pour ouvrir les coffres individuels d\'une banque.' }
 
 -- ───────── Téléphones ElyAura 1 à 6 (elyzea_aura/config_phones.lua) ─────────
 -- « Utiliser » : ce téléphone devient celui du joueur (numéro, contacts et messages suivent le personnage).

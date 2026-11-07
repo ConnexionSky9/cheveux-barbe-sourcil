@@ -46,7 +46,7 @@
     const draw = () => {
       svg.innerHTML = order.slice(1).map((id, i) => {
         const a = pos(d.nodes[order[i] - 1]); const b = pos(d.nodes[id - 1]);
-        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#39ff8c" stroke-width="3" stroke-dasharray="6 4"/>`;
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#C9A6FF" stroke-width="3" stroke-dasharray="6 4"/>`;
       }).join('');
     };
     board.addEventListener('click', (e) => {
@@ -85,7 +85,7 @@
 
   // 4. Synchronisation : arrêter chaque curseur dans la zone (ESPACE ou bouton)
   function sync(el, d, api) {
-    el.innerHTML = `<h2>Synchronisation</h2><p class="rule">Arrêtez chaque curseur dans la zone verte (ESPACE ou STOP).</p>
+    el.innerHTML = `<h2>Synchronisation</h2><p class="rule">Arrêtez chaque curseur dans la zone lumineuse (ESPACE ou STOP).</p>
       <div class="sync">${d.bars.map((b, i) => `<div class="track ${i ? 'off' : ''}" data-i="${i}"><div class="zone" style="left:${b.from * 100}%;width:${(b.to - b.from) * 100}%"></div><div class="cur"></div></div>`).join('')}</div>
       <button class="tbtn" id="stop">STOP</button>`;
     const tracks = [...el.querySelectorAll('.track')]; const times = [];

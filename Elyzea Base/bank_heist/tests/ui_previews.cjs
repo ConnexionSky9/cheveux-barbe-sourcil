@@ -1,0 +1,35 @@
+const { chromium } = require('playwright');
+const path = require('path');
+const base = 'file://' + path.resolve(process.argv[2], 'index.html');
+const out = process.argv[3];
+(async () => {
+  const b = await chromium.launch();
+  const errs = [];
+  const shot = async (mode, fn, name, scale = 1) => {
+    const p = await b.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: scale });
+    p.on('pageerror', (e) => errs.push(mode + ': ' + e.message));
+    p.on('console', (m) => { if (m.type() === 'error' && !/fonts|ERR_|net::/.test(m.text())) errs.push(mode + ' console: ' + m.text()); });
+    await p.goto(base + '?demo=' + mode);
+    await p.waitForTimeout(1300);
+    if (fn) await fn(p);
+    await p.screenshot({ path: `${out}/${name || mode}.png` });
+    await p.close();
+  };
+  const S = Number(process.env.SCALE || 1);
+  await shot('bank', null, 'bank', S);
+  await shot('bank', async (p) => { await p.click('[data-tab=deposit]'); await p.fill('#amt', '5000'); await p.dispatchEvent('#amt', 'input'); await p.waitForTimeout(400); }, 'bank_depot', S);
+  await shot('bank', async (p) => { await p.click('[data-tab=deposit]'); await p.fill('#amt', '5000'); await p.click('#go'); await p.waitForTimeout(1200); }, 'bank_apres_depot', S);
+  await shot('talk', async (p) => { await p.waitForTimeout(2500); }, 'indic', S);
+  await shot('talk', async (p) => { await p.waitForTimeout(2600); await p.click('#pay'); await p.waitForTimeout(5000); }, 'indic_paye', S);
+  await shot('shop', null, 'boutique', S);
+  await shot('menu', null, 'menu', S);
+  await shot('hack', async (p) => { await p.waitForTimeout(600); await p.click('.node[data-id="2"]'); await p.click('.node[data-id="4"]'); await p.waitForTimeout(200); }, 'piratage', S);
+  await shot('wires', async (p) => { await p.click('[data-w="1"]'); await p.waitForTimeout(400); }, 'alarme_fils', S);
+  await shot('wires', async (p) => { for (const w of [1, 5, 2, 4]) { await p.click(`[data-w="${w}"]`); await p.waitForTimeout(100); } await p.waitForTimeout(900); }, 'alarme_fils_ok', S);
+  await shot('drill', async (p) => { const h = await p.$('#hold'); const bx = await h.boundingBox(); await p.mouse.move(bx.x + 20, bx.y + 10); await p.mouse.down(); await p.waitForTimeout(2600); }, 'perceuse', S);
+  await shot('drill&hot=1', async (p) => { const h = await p.$('#hold'); const bx = await h.boundingBox(); await p.mouse.move(bx.x + 20, bx.y + 10); await p.mouse.down(); await p.waitForTimeout(8300); }, 'perceuse_surchauffe', S);
+  await shot('hud', async (p) => { await p.waitForTimeout(1500); }, 'hud', S);
+  await shot('banner', async (p) => { await p.waitForTimeout(300); }, 'bandeau', S);
+  console.log(errs.length ? errs.join('\n') : 'AUCUNE ERREUR JS');
+  await b.close();
+})();

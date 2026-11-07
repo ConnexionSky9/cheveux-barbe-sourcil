@@ -11,8 +11,10 @@ exports('AdminData', function()
         local s = P.sessions[b.id]
         local robbers = {}
         if s then for id in pairs(s.participants) do robbers[#robbers + 1] = Adapters.Perms.Name(id) end end
+        local pool = 0
+        if s then for _, sp in ipairs(s.points or {}) do pool = pool + (sp.left or 0) end end
         banks[b.id] = { phase = P.Phase(b.id), cooldown = math.max(0, math.ceil(((P.cooldown[b.id] or 0) - os.time()) / 60)),
-            session = s and { id = s.id, state = s.state, robbers = robbers, threatened = s.threatened, pool = s.pool, initial = s.initialPool or 0, distributed = s.distributed,
+            session = s and { id = s.id, door = s.door, alarm = s.alarm, robbers = robbers, pool = pool, initial = s.initialPool or 0, distributed = s.distributed,
                 hacker = s.hackBy and Adapters.Perms.Name(s.hackBy) or nil, startedAt = s.startedAt, openLeft = s.openUntil and math.max(0, s.openUntil - os.time()) or nil } or nil }
     end
     local items = {}
@@ -21,7 +23,7 @@ exports('AdminData', function()
         available = true, settings = P.S, defaults = P.Sanitize(nil), banks = banks, items = items, globalCooldown = math.max(0, math.ceil((P.globalUntil - os.time()) / 60)),
         police = Adapters.Police.Count(), policeRes = GetResourceState('elyzea_police') == 'started', bagRes = Adapters.Bag.Ready(),
         inventoryRes = GetResourceState('elyzea_inventory') == 'started', imagePath = Config.ImagePath, pedModels = Config.PedModels,
-        gameList = Config.GameList, gameLabels = Config.GameLabels,
+        gameList = Config.GameList, gameLabels = Config.GameLabels, lootTypes = Config.LootTypes, lootTypeList = Config.LootTypeList,
         logs = MySQL.query.await('SELECT `kind`, `ref`, `name`, `details`, UNIX_TIMESTAMP(`created_at`) AS t FROM `bh_logs` ORDER BY `id` DESC LIMIT 120') or {},
     }
 end)
@@ -36,16 +38,26 @@ A.place = function(src, d)
     local pos, h = P.PedPos(src)
     if not pos then return false, 'Position introuvable.' end
     local p = { x = pos.x, y = pos.y, z = pos.z, h = h }
-    local list = ({ bank = draft.banks, merchant = draft.merchants, deposit = draft.deposits })[d.target]
+    local list = ({ bank = draft.banks, merchant = draft.merchants, informant = draft.informants, deposit = draft.deposits })[d.target]
     local e = type(list) == 'table' and list[tonumber(d.index) or 0]
     if not e then return false, 'Élément introuvable.' end
     local what = tostring(d.what or '')
-    if d.target == 'merchant' then e.ped = e.ped or {} e.ped.x, e.ped.y, e.ped.z, e.ped.h = p.x, p.y, p.z, p.h
+    if d.target == 'merchant' or d.target == 'informant' then e.ped = e.ped or {} e.ped.x, e.ped.y, e.ped.z, e.ped.h = p.x, p.y, p.z, p.h
     elseif d.target == 'deposit' then e.x, e.y, e.z = p.x, p.y, p.z
-    elseif what == 'start' then e.start = { x = p.x, y = p.y, z = p.z }
-    elseif what == 'clerk' then e.clerk = e.clerk or {} e.clerk.x, e.clerk.y, e.clerk.z, e.clerk.h = p.x, p.y, p.z, p.h
-    elseif what == 'vault' then e.vault = p
-    elseif what == 'cash' then e.cash = type(e.cash) == 'table' and e.cash or {} e.cash[#e.cash + 1] = p
+    elseif what == 'banker' then e.banker = e.banker or {} e.banker.x, e.banker.y, e.banker.z, e.banker.h = p.x, p.y, p.z, p.h
+    elseif what == 'doorPoint' then e.doorPoint = p
+    elseif what == 'alarm' then e.alarm = { x = p.x, y = p.y, z = p.z }
+    elseif what == 'loot' then
+        -- nouveau point de butin du type choisi, ou déplacement d'un point existant (lootIndex)
+        e.loot = type(e.loot) == 'table' and e.loot or {}
+        local li = tonumber(d.lootIndex)
+        if li and e.loot[li] then
+            e.loot[li].x, e.loot[li].y, e.loot[li].z, e.loot[li].h = p.x, p.y, p.z, p.h
+        else
+            if #e.loot >= 20 then return false, '20 points de butin maximum par banque.' end
+            local t = Config.LootTypes[tostring(d.lootType or '')] and tostring(d.lootType) or 'trolley_cash'
+            e.loot[#e.loot + 1] = { type = t, model = '', x = p.x, y = p.y, z = p.z, h = p.h, min = 20000, max = 40000, item = '', itemMin = 1, itemMax = 3 }
+        end
     elseif what == 'door' then
         -- la porte est cherchée par chaque joueur autour de ce point (objet de la carte, non synchronisé)
         e.door = e.door or {}

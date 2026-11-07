@@ -1,7 +1,7 @@
 -- =====================================================================
---  BANK HEIST - client : PNJ (employés de banque, marchands) et blips
---  PNJ locaux, invincibles et figés. L'employé réagit selon l'état publié par le serveur :
---  braquage lancé -> mains levées ; menacé -> mains levées puis à genoux ; fin -> reprend sa place.
+--  BANK HEIST - client : PNJ (banquiers, marchands, indics) et blips
+--  PNJ locaux, invincibles et figés, créés seulement à moins de 70 m (supprimés au-delà de 85 m).
+--  Banquier : au guichet hors braquage ; braqué → mains en l'air (threatTime) puis à genoux.
 -- =====================================================================
 local C = BHC
 local peds = {}          -- [clé] = { ped, kind, id, def, mode }
@@ -25,6 +25,7 @@ local function spawn(kind, id, def)
     SetBlockingOfNonTemporaryEvents(ped, true)
     SetPedFleeAttributes(ped, 0, false)
     SetPedCanRagdoll(ped, false)
+    SetPedDiesWhenInjured(ped, false)
     FreezeEntityPosition(ped, true)
     C.PedByEntity[ped] = { kind = kind, id = id }
     return ped
@@ -33,8 +34,9 @@ end
 local function wanted()
     local cfg, out = C.Cfg(), {}
     if not cfg or not cfg.general.enabled then return out end
-    for _, b in ipairs(cfg.banks) do if b.enabled then out['bank:' .. b.id] = { kind = 'clerk', id = b.id, def = b.clerk } end end
+    for _, b in ipairs(cfg.banks) do if b.enabled then out['bank:' .. b.id] = { kind = 'banker', id = b.id, def = b.banker, scenario = 'WORLD_HUMAN_STAND_IMPATIENT_UPRIGHT' } end end
     for _, m in ipairs(cfg.merchants) do if m.enabled then out['merchant:' .. m.id] = { kind = 'merchant', id = m.id, def = m.ped, scenario = m.scenario } end end
+    for _, n in ipairs(cfg.informants or {}) do if n.enabled and C.HoursOk(n.hours) then out['informant:' .. n.id] = { kind = 'informant', id = n.id, def = n.ped, scenario = n.scenario } end end
     return out
 end
 
@@ -50,7 +52,7 @@ local function refreshBlips()
         BeginTextCommandSetBlipName('STRING') AddTextComponentSubstringPlayerName(name) EndTextCommandSetBlipName(b)
         blips[#blips + 1] = b
     end
-    for _, b in ipairs(cfg.banks) do if b.enabled then add(b.start, b.blip, b.name) end end
+    for _, b in ipairs(cfg.banks) do if b.enabled then add(b.banker, b.blip, b.name) end end
     for _, m in ipairs(cfg.merchants) do if m.enabled then add(m.ped, m.blip, m.name) end end
 end
 
@@ -71,7 +73,7 @@ CreateThread(function()
             if d < 70.0 and (not peds[k] or not DoesEntityExist(peds[k].ped)) then
                 local ped = spawn(w.kind, w.id, w.def)
                 if ped then
-                    peds[k] = { ped = ped, kind = w.kind, id = w.id, def = w.def }
+                    peds[k] = { ped = ped, kind = w.kind, id = w.id, def = w.def, scenario = w.scenario }
                     if w.scenario and w.scenario ~= '' then TaskStartScenarioInPlace(ped, w.scenario, 0, true) end
                 end
             elseif d > 85.0 and peds[k] then remove(k) end
@@ -81,29 +83,35 @@ CreateThread(function()
     end
 end)
 
--- Réactions de l'employé
+-- Réactions du banquier : mains en l'air puis à genoux pendant un braquage, retour au guichet ensuite
 CreateThread(function()
     while true do
         local cfg = C.Cfg()
+        local sleep = 1500
         for _, e in pairs(peds) do
-            if e.kind == 'clerk' and cfg and DoesEntityExist(e.ped) then
+            if e.kind == 'banker' and cfg and DoesEntityExist(e.ped) then
+                sleep = 600
                 local st = C.Bank(e.id)
-                local active = st.phase and st.phase ~= 'available' and st.phase ~= 'cooldown'
-                local mode = not active and 'idle' or (st.threatened and (st.threatLeft > 0 and 'panic' or 'kneel') or 'panic')
-                if st.threatened and st.threatLeft > 0 and e.mode ~= 'panic' then mode = 'panic' end
+                local mode = st.phase ~= 'active' and 'idle' or (st.handsUp and 'panic' or 'kneel')
                 if mode ~= e.mode then
                     e.mode = mode
                     ClearPedTasksImmediately(e.ped)
-                    if mode == 'panic' then C.PlayAnim(e.ped, cfg.visuals.threatPanic)
-                    elseif mode == 'kneel' then if not C.PlayAnim(e.ped, cfg.visuals.threatKneel) then TaskStartScenarioInPlace(e.ped, 'CODE_HUMAN_COWER', 0, true) end
-                    else SetEntityHeading(e.ped, (e.def.h or 0.0) + 0.0) end
+                    if mode == 'panic' then
+                        C.PlayAnim(e.ped, cfg.visuals.bankerHandsUp)
+                        PlayPain(e.ped, 6, 0.0)
+                    elseif mode == 'kneel' then
+                        if not C.PlayAnim(e.ped, cfg.visuals.bankerKneel) then TaskStartScenarioInPlace(e.ped, 'CODE_HUMAN_COWER', 0, true) end
+                    else
+                        SetEntityHeading(e.ped, (e.def.h or 0.0) + 0.0)
+                        if e.scenario then TaskStartScenarioInPlace(e.ped, e.scenario, 0, true) end
+                    end
                 elseif mode ~= 'idle' then
-                    local a = mode == 'panic' and cfg.visuals.threatPanic or cfg.visuals.threatKneel
+                    local a = mode == 'panic' and cfg.visuals.bankerHandsUp or cfg.visuals.bankerKneel
                     if not IsEntityPlayingAnim(e.ped, a.dict, a.name, 3) and not IsPedUsingAnyScenario(e.ped) then C.PlayAnim(e.ped, a) end
                 end
             end
         end
-        Wait(800)
+        Wait(sleep)
     end
 end)
 

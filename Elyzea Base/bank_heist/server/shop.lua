@@ -4,7 +4,7 @@
 --  si l'objet ne peut pas être donné, l'argent est rendu. Un verrou par joueur.
 -- =====================================================================
 local P = BHS
-local KINDS = { 'laptop', 'bag', 'c4' }
+local KINDS = { 'laptop', 'bag', 'c4', 'drill' }
 
 local function usable(src, m)
     if not P.S.general.enabled then return 'Les braquages de banque sont désactivés.' end
@@ -19,7 +19,7 @@ local function usable(src, m)
     end
 end
 
-local function sells(m, k) return m.sells[k] and (k ~= 'c4' or P.S.items.c4.sell) end
+local function sells(m, k) return m.sells[k] and (P.S.items[k].sell ~= false) end
 
 P.Req.shopData = function(src, d)
     local m = P.MerchantById(tostring(d.merchant or ''))
@@ -29,9 +29,10 @@ P.Req.shopData = function(src, d)
     for _, k in ipairs(KINDS) do
         if sells(m, k) then
             local it = P.S.items[k]
-            local desc = ({ laptop = ('Pirate le coffre. %d tentatives par ordinateur.'):format(P.S.hack.attempts),
-                bag = ('Pour ramasser les billets (jusqu\'à %s).'):format(BH.Money(P.S.loot.bagCapacity)),
-                c4 = 'Force le coffre quand le piratage a échoué.' })[k]
+            local desc = ({ laptop = ('Décrypte la porte du coffre. %d tentatives par ordinateur.'):format(P.S.hack.attempts),
+                bag = ('Pour ramasser le butin (jusqu\'à %s).'):format(BH.Money(P.S.loot.bagCapacity)),
+                c4 = P.S.door.c4OnlyAfterHack and 'Fait sauter la porte quand le décryptage a échoué.' or 'Fait sauter la porte du coffre.',
+                drill = 'Perce les coffres individuels de la salle des coffres.' })[k]
             list[#list + 1] = { id = k, item = it.name, label = it.label, price = it.price, description = desc, owned = Adapters.Inv.Count(src, it.name), max = it.maxOwned }
         end
     end

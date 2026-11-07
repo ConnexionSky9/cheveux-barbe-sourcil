@@ -62,6 +62,19 @@ function C.NoDrop(reason, on)
 end
 function C.Armed() local w = GetSelectedPedWeapon(PlayerPedId()) return w ~= 0 and w ~= joaat('WEAPON_UNARMED') end
 
+-- Heures réelles du serveur (GlobalState.bhHour, mise à jour chaque minute) : présence des indics
+function C.HoursOk(h)
+    if type(h) ~= 'table' or h.from == h.to then return true end
+    local hour = GlobalState.bhHour
+    if not hour then return true end
+    if h.from < h.to then return hour >= h.from and hour < h.to end
+    return hour >= h.from or hour < h.to
+end
+
+-- Effets d'interface : son (sounds.js), bandeau plein écran, secousse
+function C.Sfx(name, volume) SendNUIMessage({ action = 'sfx', name = name, volume = volume }) end
+function C.Banner(title, sub, kind) SendNUIMessage({ action = 'banner', title = title, sub = sub, kind = kind or 'info' }) end
+
 -- Objet tenu en main (ordinateur, C4)
 function C.HoldProp(model, bone, off, rot)
     local hash = C.LoadModel(model)
@@ -91,9 +104,25 @@ RegisterNUICallback('close', function(body, cb)
     cb({})
     local was = C.ui
     C.CloseUI()
-    if was == 'hack' and C.OnHackClosed then C.OnHackClosed(type(body) == 'table' and body.done == true) end
+    local done = type(body) == 'table' and body.done == true
+    if was == 'hack' and C.OnHackClosed then C.OnHackClosed(done) end
+    if was == 'drill' and C.OnDrillClosed then C.OnDrillClosed(done) end
+    if was == 'wires' and C.OnWiresClosed then C.OnWiresClosed(done) end
 end)
 RegisterNUICallback('req', function(body, cb) cb(C.Req(body.action, body.data)) end)
+-- Position du vendeur donnée par l'indic : point GPS + repère temporaire
+local gpsBlip = nil
+RegisterNUICallback('gps', function(body, cb)
+    cb({})
+    if type(body) ~= 'table' or not tonumber(body.x) or not tonumber(body.y) then return end
+    if gpsBlip and DoesBlipExist(gpsBlip) then RemoveBlip(gpsBlip) end
+    local b = AddBlipForCoord(tonumber(body.x) + 0.0, tonumber(body.y) + 0.0, (tonumber(body.z) or 0.0) + 0.0)
+    SetBlipSprite(b, 110) SetBlipColour(b, 27) SetBlipScale(b, 0.95) SetBlipFlashes(b, true) SetBlipRoute(b, true) SetBlipRouteColour(b, 27)
+    BeginTextCommandSetBlipName('STRING') AddTextComponentSubstringPlayerName(tostring(body.name or 'Vendeur'):sub(1, 40)) EndTextCommandSetBlipName(b)
+    gpsBlip = b
+    local minutes = math.max(1, math.min(60, tonumber(body.minutes) or 10))
+    SetTimeout(minutes * 60000, function() if gpsBlip == b and DoesBlipExist(b) then RemoveBlip(b) gpsBlip = nil end end)
+end)
 RegisterNUICallback('notify', function(body, cb) cb({}) if body and body.text then C.Notify(body.text, body.kind) end end)
 
 -- Alerte interne (si elyzea_police n'est pas démarré)

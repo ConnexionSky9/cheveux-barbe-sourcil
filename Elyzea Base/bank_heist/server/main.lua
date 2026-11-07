@@ -96,3 +96,11 @@ CreateThread(function()
     if not Adapters.Bag.Ready() then print('^1[BANK] jewelry_heist n\'est pas démarré : la collecte des billets (sac) est impossible.^0') end
     print('^2[BANK] Braquage de banque prêt.^0')
 end)
+
+-- Heure réelle du serveur pour les clients (présence des indics selon leurs horaires)
+CreateThread(function()
+    while true do
+        GlobalState.bhHour = tonumber(os.date('%H'))
+        Wait(60000)
+    end
+end)
