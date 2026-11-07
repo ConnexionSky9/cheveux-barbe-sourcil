@@ -5,7 +5,7 @@ lua54 'yes'
 name 'elyzea_dynasty'
 author 'Elyzea FA'
 description 'Métier Dynasty 8 Elyzea : biens immobiliers (appartements, maisons, villas, garages), intérieurs, vente et location, accès, sonnette, visites, coffre, décoration, garages persistants, tablette (carte, finance, personnel)'
-version '1.1.0'
+version '1.2.0'
 
 shared_scripts {
     '@elyzea_core/lib/ely.lua',
@@ -26,6 +26,7 @@ server_scripts {
     'server/garage.lua',
     'server/deco.lua',
     'server/upgrades.lua',
+    'server/buildings.lua',
     'server/direction.lua',
     'server/phone.lua',
     'server/api.lua',
@@ -37,6 +38,7 @@ client_scripts {
     'client/interior.lua',
     'client/deco.lua',
     'client/upgrades.lua',
+    'client/buildings.lua',
     'client/editor.lua',
     'client/f6.lua',
     'client/tablet.lua',
@@ -53,6 +55,9 @@ files {
     'html/app.js',
     'html/tablet.js',
     'html/admin.js',
+    'html/brand.js',
+    'html/building.js',
+    'html/building.css',
     'html/editor.js',
     'html/editor.css',
     'html/allprops.txt',

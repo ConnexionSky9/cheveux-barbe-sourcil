@@ -1,0 +1,100 @@
+/* =====================================================================
+   IMMEUBLE : liste des appartements (DA Elyzea : nuit, violet néon, E blanc, skyline)
+   Animations en transform / opacity seulement.
+   ===================================================================== */
+#building { position: fixed; inset: 0; display: grid; place-items: center; z-index: 60; background: radial-gradient(ellipse at center, rgba(7, 4, 15, .35), rgba(7, 4, 15, .7)); animation: bdFade .3s ease; }
+#building.hidden { display: none; }
+@keyframes bdFade { from { opacity: 0; } }
+.bd { position: relative; width: min(760px, 94vw); height: min(640px, 90vh); display: flex; flex-direction: column; overflow: hidden; border-radius: 26px;
+  background: linear-gradient(165deg, rgba(31, 18, 64, .98), rgba(9, 5, 22, .98)); border: 1px solid var(--ely-line, rgba(190,150,255,.16));
+  box-shadow: 0 34px 90px rgba(0, 0, 0, .65), 0 0 0 1px rgba(155, 92, 255, .08), inset 0 1px 0 rgba(255, 255, 255, .06);
+  font-family: var(--ely-font, 'Manrope', sans-serif); color: var(--ely-white, #F6F2FF); animation: bdPop .5s var(--ely-ease, cubic-bezier(.2,.9,.25,1)); }
+.bd.out { animation: bdOut .22s ease-in forwards; }
+@keyframes bdPop { from { opacity: 0; transform: translateY(18px) scale(.96); } }
+@keyframes bdOut { to { opacity: 0; transform: translateY(10px) scale(.97); } }
+
+/* En-tête : skyline + emblème */
+.bd-head { position: relative; height: 150px; flex: none; padding: 22px 24px; display: flex; align-items: flex-end; gap: 16px; overflow: hidden;
+  background: linear-gradient(180deg, #2a1660 0%, #160b33 70%, transparent 100%); }
+.bd-head .sky { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; opacity: .85; }
+.bd-head .sky .ely-skyline .b { fill: #120a29; }
+.bd-head .moon { position: absolute; right: 70px; top: 18px; width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #d9c4ff 60%, transparent 62%);
+  box-shadow: 0 0 40px rgba(201, 166, 255, .6); opacity: .8; }
+.bd-head .arc { position: absolute; width: 420px; height: 420px; left: -160px; top: -250px; border-radius: 50%; border: 2px solid transparent;
+  border-bottom-color: rgba(181, 123, 255, .5); filter: drop-shadow(0 0 10px rgba(155, 92, 255, .6)); animation: ely-spin 26s linear infinite; }
+.bd-head .mk { position: relative; width: 64px; flex: none; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .5)); }
+.bd-head .tt { position: relative; min-width: 0; }
+.bd-head .tt small { display: block; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--ely-violet-hi, #C9A6FF); font-weight: 800; }
+.bd-head h1 { font: 900 italic 30px var(--ely-font-display, 'Exo 2', sans-serif); letter-spacing: .03em; text-transform: uppercase; line-height: 1.05; margin: 2px 0 0;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd-head p { margin: 4px 0 0; font-size: 13px; color: var(--ely-muted, #A99BC9); }
+.bd-x { position: absolute; right: 16px; top: 16px; width: 38px; height: 38px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(10, 5, 25, .5);
+  color: #fff; font-size: 16px; cursor: pointer; transition: .15s; z-index: 2; }
+.bd-x:hover { background: rgba(155, 92, 255, .3); border-color: var(--ely-line-hi, rgba(200,160,255,.42)); }
+
+/* Barre : recherche + compteurs */
+.bd-bar { display: flex; gap: 10px; align-items: center; padding: 12px 22px; border-bottom: 1px solid var(--ely-line, rgba(190,150,255,.16)); }
+.bd-search { flex: 1; position: relative; }
+.bd-search input { width: 100%; height: 42px; border-radius: 13px; border: 1px solid var(--ely-line, rgba(190,150,255,.16)); background: rgba(0, 0, 0, .28); color: #fff;
+  padding: 0 14px 0 38px; font: 600 14px var(--ely-font, sans-serif); outline: none; transition: .15s; }
+.bd-search input:focus { border-color: var(--ely-violet, #9B5CFF); box-shadow: 0 0 0 4px rgba(155, 92, 255, .16); }
+.bd-search span { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); opacity: .6; }
+.bd-count { display: flex; gap: 8px; }
+.bd-count b { display: flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 30px; font-size: 12px; font-weight: 800; background: rgba(255, 255, 255, .05); border: 1px solid var(--ely-line, rgba(190,150,255,.16)); white-space: nowrap; }
+.bd-count i { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Liste des appartements */
+.bd-list { flex: 1; overflow-y: auto; padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 10px; }
+.bd-list::-webkit-scrollbar { width: 6px; } .bd-list::-webkit-scrollbar-thumb { background: rgba(155, 92, 255, .35); border-radius: 6px; }
+.apt { position: relative; display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 18px;
+  border: 1px solid var(--ely-line, rgba(190,150,255,.16)); background: linear-gradient(110deg, rgba(155, 92, 255, .08), rgba(255, 255, 255, .02));
+  animation: aptIn .45s var(--ely-ease, ease) both; transition: border-color .15s, transform .15s, background .15s; }
+.apt:hover { border-color: var(--ely-line-hi, rgba(200,160,255,.42)); transform: translateX(2px); }
+@keyframes aptIn { from { opacity: 0; transform: translateY(10px); } }
+.apt.mine { border-color: rgba(62, 230, 176, .45); background: linear-gradient(110deg, rgba(62, 230, 176, .13), rgba(155, 92, 255, .05)); }
+.apt .door { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; font: 900 italic 17px var(--ely-font-display, sans-serif);
+  background: radial-gradient(circle at 50% 30%, rgba(181, 123, 255, .4), rgba(20, 10, 40, .9)); border: 1px solid var(--ely-line-hi, rgba(200,160,255,.42)); color: #fff; }
+.apt.mine .door { background: radial-gradient(circle at 50% 30%, rgba(62, 230, 176, .45), rgba(10, 30, 26, .9)); border-color: rgba(62, 230, 176, .55); }
+.apt .nm { font-weight: 800; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apt .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 700; border: 1px solid rgba(255, 255, 255, .12); color: var(--ely-muted, #A99BC9); }
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip.free { color: #8ff0c6; border-color: rgba(62, 230, 176, .35); } .chip.busy { color: #ffb3c1; border-color: rgba(255, 77, 109, .35); }
+.chip.me { color: #0c2b22; background: var(--ely-ok, #3EE6B0); border-color: transparent; } .chip.ten { color: #fff; background: rgba(155, 92, 255, .55); border-color: transparent; }
+.chip.key { color: #ffe3a3; border-color: rgba(255, 181, 71, .4); }
+.apt .acts { display: flex; gap: 8px; }
+.bbtn { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--ely-line-hi, rgba(200,160,255,.42)); background: rgba(155, 92, 255, .12); color: #fff;
+  font: 800 13px var(--ely-font, sans-serif); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: .15s; white-space: nowrap; }
+.bbtn:hover { background: rgba(155, 92, 255, .3); transform: translateY(-1px); }
+.bbtn:active { transform: translateY(1px) scale(.98); }
+.bbtn.go { border-color: transparent; background: linear-gradient(120deg, #B57BFF, #7B2FF7); box-shadow: 0 8px 22px rgba(123, 47, 247, .35); }
+.bbtn.ok { border-color: transparent; background: linear-gradient(120deg, #5FF0C2, #14A57A); color: #04150f; box-shadow: 0 8px 22px rgba(20, 165, 122, .3); }
+.bbtn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.bbtn.wait { pointer-events: none; opacity: .65; }
+.bbtn.ring i { display: inline-block; animation: ring .6s ease-in-out 3; transform-origin: 50% 0; }
+@keyframes ring { 25% { transform: rotate(18deg); } 75% { transform: rotate(-18deg); } }
+.bd-empty { text-align: center; color: var(--ely-muted, #A99BC9); padding: 50px 0; }
+.bd-foot { padding: 10px 22px 14px; font-size: 12px; color: var(--ely-muted, #A99BC9); text-align: center; border-top: 1px solid var(--ely-line, rgba(190,150,255,.16)); }
+
+/* Pavé numérique (code) */
+.pad-wrap { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(7, 4, 15, .72); z-index: 5; animation: bdFade .2s ease; }
+.pad { width: 320px; padding: 22px; border-radius: 24px; background: linear-gradient(170deg, #241446, #0d0720); border: 1px solid var(--ely-line-hi, rgba(200,160,255,.42));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(123, 47, 247, .25); animation: bdPop .35s var(--ely-ease, ease); text-align: center; }
+.pad.shake { animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.pad small { font-size: 11px; letter-spacing: .2em; color: var(--ely-violet-hi, #C9A6FF); font-weight: 800; text-transform: uppercase; }
+.pad h3 { font: 900 italic 22px var(--ely-font-display, sans-serif); margin: 4px 0 14px; text-transform: uppercase; }
+.dots { display: flex; justify-content: center; gap: 10px; height: 18px; margin-bottom: 16px; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(201, 166, 255, .5); transition: .12s; }
+.dots i.on { background: var(--ely-violet-hi, #C9A6FF); border-color: transparent; box-shadow: 0 0 12px rgba(201, 166, 255, .9); transform: scale(1.1); }
+.dots.ok i { background: var(--ely-ok, #3EE6B0); box-shadow: 0 0 12px rgba(62, 230, 176, .9); border-color: transparent; }
+.dots.ko i { background: var(--ely-danger, #FF4D6D); border-color: transparent; }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.keys button { height: 56px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .05); color: #fff;
+  font: 800 20px var(--ely-font, sans-serif); cursor: pointer; transition: .1s; }
+.keys button:hover { background: rgba(155, 92, 255, .25); }
+.keys button:active { transform: scale(.94); background: rgba(155, 92, 255, .45); }
+.keys .val { background: linear-gradient(120deg, #B57BFF, #7B2FF7); border-color: transparent; font-size: 16px; }
+.keys .del { font-size: 16px; color: var(--ely-muted, #A99BC9); }
+.pad .err { min-height: 18px; margin-top: 10px; font-size: 12.5px; color: #ff9cad; font-weight: 700; }
+.pad .cancel { margin-top: 6px; background: none; border: none; color: var(--ely-muted, #A99BC9); cursor: pointer; font: 700 13px var(--ely-font, sans-serif); }

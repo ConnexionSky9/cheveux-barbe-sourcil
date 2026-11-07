@@ -36,6 +36,7 @@ local function RowToProp(r)
         decoLimit = tonumber(r.deco_limit) or Config.Deco.defaultLimit, contractId = tonumber(r.contract_id),
         reservedBy = r.reserved_by, notes = r.notes,
         job = r.job or P.MainJob(),   -- agence qui gère le bien (seuls ses employés le voient et le vendent)
+        buildingId = tonumber(r.building_id),   -- immeuble (server/buildings.lua) : l'entrée est celle de l'immeuble
     }
 end
 
@@ -77,10 +78,10 @@ end
 function P.SaveProp(pr)
     MySQL.update.await([[UPDATE `d8_properties` SET `name` = ?, `address` = ?, `category` = ?, `interior_id` = ?, `status` = ?, `enabled` = ?, `sale_price` = ?,
         `rent_price` = ?, `extend_price` = ?, `rent_min_days` = ?, `rent_max_days` = ?, `for_sale` = ?, `for_rent` = ?, `code` = ?, `points` = ?, `garage` = ?,
-        `stash_slots` = ?, `stash_weight` = ?, `deco_limit` = ?, `contract_id` = ?, `reserved_by` = ?, `notes` = ?, `job` = ? WHERE `id` = ?]], {
+        `stash_slots` = ?, `stash_weight` = ?, `deco_limit` = ?, `contract_id` = ?, `reserved_by` = ?, `notes` = ?, `job` = ?, `building_id` = ? WHERE `id` = ?]], {
         pr.name, pr.address, pr.category, pr.interiorId, pr.status, pr.enabled and 1 or 0, pr.salePrice, pr.rentPrice, pr.extendPrice, pr.rentMin, pr.rentMax,
         pr.forSale and 1 or 0, pr.forRent and 1 or 0, pr.code, json.encode(pr.points or {}), pr.garage and json.encode(pr.garage) or nil,
-        pr.stashSlots, pr.stashWeight, pr.decoLimit, pr.contractId, pr.reservedBy, pr.notes, pr.job or P.MainJob(), pr.id })
+        pr.stashSlots, pr.stashWeight, pr.decoLimit, pr.contractId, pr.reservedBy, pr.notes, pr.job or P.MainJob(), pr.buildingId, pr.id })
 end
 -- Bien de l'agence de cet employé (nil sinon : un autre Dynasty 8 ne peut ni le voir ni le vendre)
 function P.MyProp(src, pid)
@@ -116,14 +117,15 @@ local function PublicProp(pr)
     return { id = pr.id, name = pr.name, address = pr.address, category = pr.category, status = pr.enabled and pr.status or 'disabled',
         enter = pr.points.enter, bell = pr.points.bell, hasGarage = g ~= nil,
         garage = g and { enter = g.points and g.points.enter, size = g.size, capacity = P.GarageCapacity(pr) } or nil,
-        salePrice = pr.forSale and pr.salePrice or nil, rentPrice = pr.forRent and pr.rentPrice or nil, hasHome = pr.category ~= 'garage' }
+        salePrice = pr.forSale and pr.salePrice or nil, rentPrice = pr.forRent and pr.rentPrice or nil, hasHome = pr.category ~= 'garage',
+        building = pr.buildingId }
 end
 P.PublicProp = PublicProp
 
 P.Pub.props = { fn = function()
     local list = {}
     for _, pr in pairs(P.props) do list[#list + 1] = PublicProp(pr) end
-    return { list = list, version = P.version }
+    return { list = list, version = P.version, buildings = P.PublicBuildings and P.PublicBuildings() or {} }
 end }
 
 -- ---------------------------------------------------------------------
@@ -356,6 +358,7 @@ P.Admin.point = { fn = function(src, d)
         return { error = 'Entrez d\'abord dans le garage de ce bien (bouton « Aller dans le garage »).' }
     end
     if OUTSIDE[key] and ins then return { error = 'Sortez de l\'intérieur pour placer un point extérieur.' } end
+    if pr.buildingId and (key == 'enter' or key == 'bell') then return { error = 'Ce logement est dans un immeuble : son entrée est le point de l\'immeuble (onglet Immeubles).' } end
     local isGarage = key:sub(1, 7) == 'garage.'
     if isGarage and not (pr.garage and pr.garage.enabled) then return { error = 'Activez d\'abord le garage de ce bien.' } end
     local holder = isGarage and pr.garage.points or pr.points

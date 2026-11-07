@@ -6,6 +6,8 @@
     · Liste des logements : assistant, aller devant, activer / désactiver, supprimer ;
     · Gestion des améliorations immobilières : activer, prix, maximums, animations,
       emplacements des caméras (placés en jeu, avec aperçu), améliorations par logement.
+    · Immeubles : un point devant le bâtiment (E → liste des appartements), appartements créés
+      ou rattachés (pas de caméras ni de culture dans un appartement d'immeuble).
    Le panneau détaillé (intérieurs, garages, décoration, contrats) reste disponible : /d8admin.
    ========================================================= */
 (() => {
@@ -15,7 +17,7 @@
         show: () => has('property_manage'),
         count: () => { const d = D && D.d8; return d && d.available ? d.props.length : 0; },
     });
-    const st = { sel: null, q: '', armed: null, form: { name: '', address: '', category: 'house', interiorId: '', salePrice: 250000, rentPrice: 1500, garage: false, garageSize: 'medium', garageInterior: '' } };
+    const st = { bsel: null, bform: { name: '', address: '' }, apt: { name: '', interiorId: '', salePrice: 180000, rentPrice: 900 }, sel: null, q: '', armed: null, form: { name: '', address: '', category: 'house', interiorId: '', salePrice: 250000, rentPrice: 1500, garage: false, garageSize: 'medium', garageInterior: '' } };
     const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
     const send = (name, data = {}, refresh = true) => { action('d8', { name, data }); if (refresh) setTimeout(() => post('refresh'), 500); };
     const CAT_ICO = { apartment: '🏢', house: '🏠', villa: '🏡', garage: '🚗' };
@@ -52,7 +54,7 @@
         return `<div class="section"><h2>🏘️ Logements (${d.props.length})</h2>
             <input class="input" data-d8q placeholder="Rechercher : nom, adresse, occupant, numéro" value="${esc(st.q)}" style="margin-bottom:10px">
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${list.map((p) => `<div class="card ${st.sel === p.id ? 'sel' : ''}">
-                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${CAT_ICO[p.category] || ''} #${p.id} ${esc(p.name)}</b>
+                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${p.building ? '🏢' : (CAT_ICO[p.category] || '')} #${p.id} ${esc(p.name)}</b>
                     <span class="zbadge">${p.enabled ? (p.holder ? (p.kind === 'rent' ? 'Loué' : 'Vendu') : 'Disponible') : 'Désactivé'}</span></div>
                 <p class="hint" style="margin:6px 0">${esc(p.address || '')}${p.holder ? ` · ${esc(p.holder)}` : ''} · ${fmt(p.salePrice)} $ / ${fmt(p.rentPrice)} $ j</p>
                 <p class="hint" style="margin:0 0 8px">${(p.upgrades || []).map((u) => (UP[u] || ['✨'])[0]).join(' ') || '—'}${p.cams ? ` · ${p.cams} caméra(s)` : ''}${p.pots ? ` · ${p.pots} pot(s)` : ''}${p.dancer ? ' · 💃 en cours' : ''}</p>
@@ -76,7 +78,8 @@
             <p class="hint">Chaque bouton « Ici » enregistre ta position actuelle (et ton orientation). Les points intérieurs se placent une fois dans le logement.</p>
             <h3 class="sub-h">Extérieur</h3>
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">
-                ${p.category !== 'garage' ? pointRow(p, 'enter', 'Entrée', pt.enter, 'Devant la porte') + pointRow(p, 'bell', 'Sonnette (facultative)', pt.bell, 'Si elle est ailleurs que la porte') : ''}
+                ${p.building ? `<div class="tile"><div><strong>🏢 Entrée : immeuble « ${esc(((d.buildings || []).find((b) => b.id === p.building) || {}).name || '?')} »</strong><span>L'entrée et la sonnette sont celles de l'immeuble (onglet Immeubles).</span></div></div>`
+                    : (p.category !== 'garage' ? pointRow(p, 'enter', 'Entrée', pt.enter, 'Devant la porte') + pointRow(p, 'bell', 'Sonnette (facultative)', pt.bell, 'Si elle est ailleurs que la porte') : '')}
                 ${pt.garage ? pointRow(p, 'garage.enter', 'Entrée du garage', pt.gEnter, 'Rangement des véhicules') + pointRow(p, 'garage.spawn', 'Sortie des véhicules', pt.gSpawn, 'Au volant, dans le sens de sortie') : ''}</div>
             ${p.category !== 'garage' ? `<h3 class="sub-h">Intérieur ${inHome ? '<span class="zbadge">tu es dedans</span>' : ''}</h3>
                 <div class="btn-row"><button class="btn" data-d8go="${p.id}" data-area="home">🚪 Aller à l'intérieur</button></div>
@@ -97,7 +100,7 @@
                 ${p.holder ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-d8ownreplace> remplacer le titulaire</label>${armBtn('free:' + p.id, '🚪 Libérer le logement')}` : ''}</div>
             ${p.enabled ? '' : '<p class="hint">Activez d\'abord le logement.</p>'}
 
-            <h3 class="sub-h">📹 Emplacements des caméras (${spots.length})</h3>
+            ${p.building ? '<p class="hint">📵 Appartement d\'immeuble : pas de caméras ni de culture. Danseuse et décoration disponibles.</p>' : `<h3 class="sub-h">📹 Emplacements des caméras (${spots.length})</h3>
             <p class="hint">Facultatif : sans emplacement, le joueur pose ses caméras librement autour de l'entrée. Avec des emplacements, il choisit parmi eux et oriente la caméra dans la plage permise. Place-toi à l'endroit voulu, tourné vers ce qu'elle doit filmer.</p>
             ${spots.map((s) => `<div class="form-grid" data-spot="${s.id}" style="grid-template-columns:1.4fr repeat(5,minmax(70px,1fr)) auto;align-items:end">
                 <div><label>Nom</label><input class="input" data-sf="label" value="${esc(s.label)}"></div>
@@ -107,11 +110,59 @@
                 <div><label>± horizontal</label><input class="input" type="number" data-sf="yaw" value="${Math.round(s.yaw)}"></div>
                 <div><label>± vertical</label><input class="input" type="number" data-sf="pitch" value="${Math.round(s.pitch)}"></div>
                 <div class="btn-row" style="margin:0"><button class="btn primary" data-spotsave>💾</button><button class="btn" data-spottest>👁️</button><button class="btn" data-spothere title="Replacer à ma position">📍</button><button class="btn danger" data-spotdel>✕</button></div></div>`).join('')}
-            <div class="btn-row"><input class="input" data-d8spotlabel placeholder="Nom de l'emplacement (ex. Portail)" style="max-width:260px"><button class="btn primary" data-d8spot>➕ Emplacement ici</button></div>
+            <div class="btn-row"><input class="input" data-d8spotlabel placeholder="Nom de l'emplacement (ex. Portail)" style="max-width:260px"><button class="btn primary" data-d8spot>➕ Emplacement ici</button></div>`}
 
             <h3 class="sub-h">✨ Améliorations de ce logement</h3>
             ${p.holder ? `<div class="btn-row">${(p.upgrades || []).map((u) => armBtn(`reset:${p.id}:${u}`, `🔄 Réinitialiser ${(UP[u] || ['', u])[1]}`)).join('') || '<span class="hint">Aucune amélioration achetée.</span>'}
                 ${p.dancer ? '<button class="btn" data-d8dancerstop>■ Renvoyer la danseuse</button>' : ''}</div>` : '<p class="hint">Aucun contrat en cours sur ce logement.</p>'}</div>`;
+    }
+
+    // ---------------------------------------------------------------
+    // 🏢 Immeubles : un point devant le bâtiment, ses appartements derrière
+    // ---------------------------------------------------------------
+    function buildingsView(d) {
+        const list = d.buildings || [];
+        if (st.bsel && !list.find((b) => b.id === st.bsel)) st.bsel = null;
+        const b = list.find((x) => x.id === st.bsel);
+        const ints = d.interiors.filter((i) => i.kind === 'apartment');
+        const free = d.props.filter((p) => p.category === 'apartment' && !p.building);
+        const a = st.apt, f = st.bform;
+        const pill = (x) => (x.holder ? `<span class="zbadge">🔑 ${esc(x.holder)}</span>` : `<span class="zbadge">${x.enabled ? 'Disponible' : 'À valider'}</span>`);
+        return `<div class="section"><h2>🏢 Immeubles (${list.length})</h2>
+            <p class="hint">Un immeuble = <b>un point devant le bâtiment</b>. En appuyant sur <span class="keycap">E</span>, le joueur voit tous les appartements (nom, libre / occupé), entre directement dans le sien, ou saisit le code / sonne chez les autres.
+            Chaque appartement est un logement normal (vente / location Dynasty 8, coffre, gestion, locataires, code, décoration, danseuse) <b>sans caméras ni culture</b>.</p>
+            <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:end">
+                <div><label>Nom de l'immeuble</label><input class="input" data-d8bf="name" maxlength="80" value="${esc(f.name)}" placeholder="Résidence Alta"></div>
+                <div><label>Adresse <a href="#" data-d8bstreet style="font-size:12px">(ma rue)</a></label><input class="input" data-d8bf="address" maxlength="120" value="${esc(f.address)}"></div>
+                <div class="btn-row" style="margin:0"><button class="btn primary" data-d8b="create">📍 Créer l'immeuble ici</button></div></div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-top:10px">${list.map((x) => `<div class="card ${st.bsel === x.id ? 'sel' : ''}">
+                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>🏢 #${x.id} ${esc(x.name)}</b><span class="zbadge">${x.enabled ? `${x.apts.length} appart.` : 'Désactivé'}</span></div>
+                <p class="hint" style="margin:6px 0">${esc(x.address || '—')} · ${x.apts.filter((y) => y.holder).length} occupé(s)</p>
+                <div class="btn-row"><button class="btn primary" data-d8bsel="${x.id}">Gérer</button><button class="btn" data-d8b="goto" data-id="${x.id}">Y aller</button></div></div>`).join('') || '<p class="hint">Aucun immeuble : place-toi devant la porte d\'un bâtiment et crée-le.</p>'}</div>
+            ${b ? `<div class="section" style="margin-top:12px;background:rgba(155,92,255,.06)"><h2>🏢 ${esc(b.name)}</h2>
+                <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));align-items:end">
+                    <div><label>Nom</label><input class="input" data-d8be="name" maxlength="80" value="${esc(b.name)}"></div>
+                    <div><label>Adresse</label><input class="input" data-d8be="address" maxlength="120" value="${esc(b.address || '')}"></div>
+                    <div><label>Rayon de la porte (m)</label><input class="input" type="number" min="0.8" max="6" step="0.1" data-d8be="r" value="${b.r}"></div>
+                    <div class="btn-row" style="margin:0"><button class="btn primary" data-d8b="save">💾 Enregistrer</button></div></div>
+                <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin:10px 0">
+                    <div class="tile toggle-tile ${b.enabled ? 'on' : ''}" data-d8b="toggle" data-k="enabled"><div><strong>${b.enabled ? 'Immeuble actif' : 'Immeuble désactivé'}</strong><span>Désactivé : plus d'invite ni de liste</span></div><div class="switch"></div></div>
+                    <div class="tile toggle-tile ${b.blip ? 'on' : ''}" data-d8b="toggle" data-k="blip"><div><strong>Blip sur la carte</strong><span>Visible par tous les joueurs</span></div><div class="switch"></div></div></div>
+                <div class="btn-row"><button class="btn" data-d8b="move">📍 Déplacer la porte à ma position</button><button class="btn" data-d8b="goto" data-id="${b.id}">🧭 Y aller</button>
+                    ${b.apts.length ? '' : armBtn('bdel:' + b.id, '🗑️ Supprimer l\'immeuble')}</div>
+                <h3 class="sub-h">Appartements (${b.apts.length})</h3>
+                ${b.apts.map((x) => `<div class="list-row" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div style="flex:1"><b>#${x.id} ${esc(x.name)}</b> ${pill(x)} ${x.ready ? '' : '<span class="zbadge">⚠️ points intérieurs à placer</span>'}</div>
+                    <button class="btn primary" data-d8sel="${x.id}">🧭 Assistant</button>${armBtn('bdetach:' + x.id, 'Détacher', '')}</div>`).join('') || '<p class="hint">Aucun appartement.</p>'}
+                <h3 class="sub-h">➕ Créer un appartement dans cet immeuble</h3>
+                <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));align-items:end">
+                    <div><label>Nom (ex. Apt 12)</label><input class="input" data-d8ba="name" maxlength="80" value="${esc(a.name)}" placeholder="Apt ${b.apts.length + 1}"></div>
+                    <div><label>Intérieur</label><select class="input" data-d8ba="interiorId"><option value="">— choisir —</option>${ints.map((i) => `<option value="${i.id}" ${String(a.interiorId) === String(i.id) ? 'selected' : ''}>${esc(i.label)}</option>`).join('')}</select></div>
+                    <div><label>Prix de vente ($)</label><input class="input" type="number" min="0" data-d8ba="salePrice" value="${a.salePrice}"></div>
+                    <div><label>Loyer par jour ($)</label><input class="input" type="number" min="0" data-d8ba="rentPrice" value="${a.rentPrice}"></div>
+                    <div class="btn-row" style="margin:0"><button class="btn primary" data-d8b="apt">➕ Créer</button></div></div>
+                ${free.length ? `<div class="btn-row" style="margin-top:8px"><select class="input" data-d8battach style="max-width:320px">${free.map((p) => `<option value="${p.id}">#${p.id} ${esc(p.name)}</option>`).join('')}</select><button class="btn" data-d8b="attach">🔗 Rattacher cet appartement existant</button></div>` : ''}
+                <p class="hint">Après la création : « Assistant » → « Aller à l'intérieur » → place la sortie, la gestion et le coffre → « Valider et activer ».</p></div>` : ''}</div>`;
     }
 
     function upgradesSettings(d) {
@@ -156,8 +207,30 @@
             <div class="stat"><b>${d.props.filter((p) => p.holder).length}</b><span>Occupés</span></div>
             <div class="stat"><b>${d.props.filter((p) => (p.upgrades || []).length).length}</b><span>Avec améliorations</span></div>
             <div class="stat"><b>${d.spots.length}</b><span>Emplacements caméra</span></div></div>`;
-        return stats + top + createForm(d) + wizard(d) + listView(d) + upgradesSettings(d);
+        return stats + top + buildingsView(d) + createForm(d) + wizard(d) + listView(d) + upgradesSettings(d);
     };
+
+    async function buildingClick(t) {
+        const d = D.d8 || {};
+        if (t.dataset.d8bstreet !== undefined) { const r = await post('d8_street'); if (r && r.street) { st.bform.address = r.street; render(); } return; }
+        if (!d.available) return;
+        if (t.dataset.d8bsel) { st.bsel = Number(t.dataset.d8bsel); return render(); }
+        const a = t.dataset.d8b;
+        const val = (sel) => (document.querySelector(sel) || {}).value;
+        if (a === 'create') { if (!st.bform.name.trim()) return; send('bCreate', { name: st.bform.name, address: st.bform.address }); st.bform = { name: '', address: '' }; return; }
+        if (a === 'goto') { send('bGoto', { id: Number(t.dataset.id) }, false); return post('close'); }
+        if (!st.bsel) return;
+        if (a === 'save') return send('bSave', { id: st.bsel, name: val('[data-d8be="name"]'), address: val('[data-d8be="address"]'), r: Number(val('[data-d8be="r"]')) });
+        if (a === 'toggle') { const b = (d.buildings || []).find((x) => x.id === st.bsel); if (!b) return; return send('bSave', { id: st.bsel, [t.dataset.k]: !b[t.dataset.k] }); }
+        if (a === 'move') return send('bMove', { id: st.bsel });
+        if (a === 'attach') return send('bAttach', { id: st.bsel, pid: Number(val('[data-d8battach]')) });
+        if (a === 'apt') {
+            const x = st.apt;
+            if (!x.interiorId) return;
+            send('bCreateApt', { id: st.bsel, name: x.name || `Apt ${((d.buildings || []).find((b) => b.id === st.bsel) || { apts: [] }).apts.length + 1}`, interiorId: Number(x.interiorId), salePrice: Number(x.salePrice), rentPrice: Number(x.rentPrice) });
+            st.apt.name = '';
+        }
+    }
 
     const arm = (key) => {
         if (st.armed === key) { st.armed = null; return true; }
@@ -168,12 +241,18 @@
     window.addEventListener('message', (e) => { if (e.data && e.data.action === 'd8Select') { st.sel = Number(e.data.id); if (tab === 'dynasty') render(); } });
     document.addEventListener('input', (ev) => {
         if (tab !== 'dynasty') return;
+        const bf = ev.target.closest('[data-d8bf]');
+        if (bf) { st.bform[bf.dataset.d8bf] = bf.value; return; }
+        const ba = ev.target.closest('[data-d8ba]');
+        if (ba) { st.apt[ba.dataset.d8ba] = ba.value; return; }
         const f = ev.target.closest('[data-d8f]');
         if (f) { st.form[f.dataset.d8f] = f.value; if (f.dataset.d8f === 'category') render(); return; }
         if (ev.target.matches('[data-d8q]')) { st.q = ev.target.value; const pos = ev.target.selectionStart; render(); const n = document.querySelector('[data-d8q]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
     });
     document.addEventListener('click', async (ev) => {
         if (!isOpen || tab !== 'dynasty') return;
+        const tb = ev.target.closest('[data-d8b],[data-d8bsel],[data-d8bstreet]');
+        if (tb) { ev.preventDefault(); return buildingClick(tb); }
         const t = ev.target.closest('[data-d8open],[data-d8street],[data-d8create],[data-d8tog],[data-d8sel],[data-d8go],[data-d8pt],[data-d8slot],[data-d8enable],[data-d8arm],[data-d8spot],[data-spotsave],[data-spottest],[data-spothere],[data-spotdel],[data-d8save],[data-d8dancerstop],[data-d8own]');
         if (!t) return;
         ev.preventDefault();
@@ -207,6 +286,8 @@
             const k = t.dataset.d8arm;
             if (!arm(k)) return;
             if (k === 'defaults') return send('upDefaults');
+            if (k.startsWith('bdel:')) { st.bsel = null; return send('bDelete', { id: Number(k.split(':')[1]) }); }
+            if (k.startsWith('bdetach:')) return send('bDetach', { pid: Number(k.split(':')[1]) });
             if (k.startsWith('free:')) return send('clearOwner', { pid: Number(k.split(':')[1]) });
             if (k.startsWith('del:')) { st.sel = null; return send('propDelete', { id: Number(k.split(':')[1]) }); }
             if (k.startsWith('reset:')) { const [, pid, kind] = k.split(':'); return send('upReset', { pid: Number(pid), kind }); }

@@ -149,6 +149,11 @@ local function Resident(src, pid, need)
     return pr, rights, c, role
 end
 local function InsideHome(src, pid) local i = P.inside[src] return i ~= nil and i.pid == pid and i.area == 'home' end
+-- Appartement d'immeuble : certaines améliorations sont interdites (caméras, pots : Config.Buildings.blockedUpgrades)
+local function Blocked(pr, kind)
+    return pr ~= nil and pr.buildingId ~= nil and ((Config.Buildings or {}).blockedUpgrades or {})[kind] == true
+end
+P.UpgradeBlocked = Blocked
 local function InsideList(pid)
     local l = {}
     for s, i in pairs(P.inside) do if i.pid == pid and i.area == 'home' then l[#l + 1] = s end end
@@ -273,11 +278,11 @@ function P.UpgradesView(src, pid)
     local out = { list = {}, rights = rights }
     for _, k in ipairs(KINDS) do
         local kc = cfg[k]
-        if not kc.service then
+        if not kc.service and not Blocked(pr, k) then
             out.list[#out.list + 1] = { kind = k, label = KLABEL[k], enabled = kc.enabled, price = kc.price, owned = u[k] ~= nil, at = u[k] and u[k].at or nil, by = u[k] and u[k].by or nil }
         end
     end
-    if u.cameras then
+    if u.cameras and not Blocked(pr, 'cameras') then
         local cams = CamRows(pid, c.id)
         out.cameras = { list = cams, max = cfg.cameras.max, spots = #SpotRows(pid) }
     end
@@ -288,7 +293,7 @@ function P.UpgradesView(src, pid)
         for i, t in ipairs(cfg.dancer.tariffs) do tariffs[i] = { i = i, minutes = t.minutes, price = t.price } end
         out.dancer = { active = DancerView(pid), styles = styles, tariffs = tariffs, max = cfg.dancer.max }
     end
-    if u.cannabis then
+    if u.cannabis and not Blocked(pr, 'cannabis') then
         local plants = {}
         for _, p in ipairs(PlantRows(pid, c.id)) do plants[#plants + 1] = PlantView(Grow(p)) end
         out.cannabis = { plants = plants, max = cfg.cannabis.maxPots }
@@ -307,6 +312,7 @@ function P.BuyUpgrade(src, pid, kind, method)
     if not kc.enabled then return { error = 'Cette amélioration est désactivée par l\'administration.' } end
     if kc.service then return { error = 'La danseuse se commande directement (sans achat).' } end
     if pr.category == 'garage' then return { error = 'Un garage ne peut pas recevoir d\'amélioration.' } end
+    if Blocked(pr, kind) then return { error = 'Cette amélioration n\'est pas possible dans un appartement d\'immeuble.' } end
     if Ups(pr.id)[kind] then return { error = 'Cette amélioration est déjà installée.' } end
     method = method == 'cash' and 'cash' or 'bank'
     local key = 'buy:' .. pr.id
@@ -350,6 +356,7 @@ local function CamCheck(src, pid)
     local pr, err, c = Resident(src, pid, 'cameras')
     if not pr then return nil, err end
     if not P.UpCfg().cameras.enabled then return nil, 'Les caméras sont désactivées par l\'administration.' end
+    if Blocked(pr, 'cameras') then return nil, 'Pas de caméras dans un appartement d\'immeuble.' end
     if not Ups(pr.id).cameras then return nil, 'Achetez d\'abord l\'amélioration « Caméras de surveillance ».' end
     return pr, c
 end
@@ -499,6 +506,12 @@ function P.DancerStart(src, pid, d)
     local i = P.inside[src]
     if i and i.pid == pr.id and i.area == 'home' then TriggerClientEvent('d8:client:dancerPlace', src, pr.id, n) end
     P.PropLog(pr.id, 'Danseuse arrivée', ('%s · %d min · %d $'):format(style.label, tariff.minutes, price), src)
+    -- Service géré par Dynasty 8 : les agents en service de l'agence du logement sont prévenus
+    if P.CrewOnDuty then
+        for _, s in ipairs(P.CrewOnDuty(nil, pr.job) or {}) do
+            if s ~= src then P.Notify(s, ('💃 Danseuse commandée · %s · %s · %d min · %d $'):format(pr.name, style.label, tariff.minutes, price), 'inform') end
+        end
+    end
     return { ok = true, message = ('La danseuse « %s » est arrivée (%s). %s'):format(style.label, tariff.minutes >= 60 and ('%d h'):format(tariff.minutes // 60) or ('%d min'):format(tariff.minutes),
         (i and i.pid == pr.id) and 'Placez-la où vous voulez.' or 'Placez-la en entrant dans le logement (Gérer mon logement › Danseuse › Déplacer).') }
 end
@@ -559,6 +572,7 @@ local function PlantCheck(src, pid, nearId)
     local pr, err, c = Resident(src, pid, 'upgrades')
     if not pr then return nil, err end
     if not P.UpCfg().cannabis.enabled then return nil, 'La culture est désactivée par l\'administration.' end
+    if Blocked(pr, 'cannabis') then return nil, 'Pas de culture dans un appartement d\'immeuble.' end
     if not Ups(pr.id).cannabis then return nil, 'Achetez d\'abord l\'amélioration « Culture de cannabis ».' end
     if not InsideHome(src, pr.id) then return nil, 'Vous devez être dans le logement.' end
     local p
@@ -852,6 +866,7 @@ local function AdminProps()
                 garage = g.enabled == true, gEnter = g.points and g.points.enter ~= nil, gSpawn = g.points and g.points.spawn ~= nil,
                 gInside = g.points and g.points.inside ~= nil, gExit = g.points and g.points.exit ~= nil, slots = #(g.slots or {}) },
             gSize = g.size, gCapacity = g.capacity, gInterior = g.interiorId,
+            building = pr.buildingId,
         }
     end
     table.sort(list, function(a, b) return a.id < b.id end)
@@ -873,6 +888,7 @@ function P.AdminSummary(src)
     return {
         cfg = { cameras = cfg.cameras, dancer = cfg.dancer, cannabis = { enabled = cfg.cannabis.enabled, price = cfg.cannabis.price, payTo = cfg.cannabis.payTo, maxPots = cfg.cannabis.maxPots, speed = cfg.cannabis.speed } },
         props = AdminProps(), spots = spots, interiors = interiors, categories = Config.Categories, sizes = Config.GarageSizes, agencies = agencies,
+        buildings = P.AdminBuildings and P.AdminBuildings() or {},
         inside = inside and { pid = inside.pid, area = inside.area } or nil,
     }
 end
@@ -923,6 +939,7 @@ local function ResetUpgrade(pid, kind)
 end
 
 local AdminActs = {}
+P.AdminActs = AdminActs   -- complété par server/buildings.lua (immeubles)
 function AdminActs.upSettings(src, d)
     local kind = tostring(d.kind or '')
     if not EDIT[kind] or type(d.patch) ~= 'table' then return false, 'Réglage inconnu.' end
@@ -1046,9 +1063,9 @@ exports('AdminAction', function(src, name, data)
     if not P.IsStaffAdmin(src) then return false, 'Réservé au staff (permission « Gestion immobilière »).' end
     data = type(data) == 'table' and data or {}
     name = tostring(name or '')
-    local ok, a, b
+    local ok, a, b, x
     if AdminActs[name] then
-        ok, a, b = pcall(AdminActs[name], src, data)
+        ok, a, b, x = pcall(AdminActs[name], src, data)
     elseif PASS[name] and P.Admin[name] then
         ok, a = pcall(P.Admin[name].fn, src, data)
         if ok and type(a) == 'table' then
@@ -1059,7 +1076,7 @@ exports('AdminAction', function(src, name, data)
         return false, 'Action inconnue.'
     end
     if not ok then print(('^1[D8] Admin « %s » : %s^0'):format(name, tostring(a))) return false, 'Erreur serveur.' end
-    return a, b
+    return a, b, x
 end)
 
 -- ---------------------------------------------------------------------

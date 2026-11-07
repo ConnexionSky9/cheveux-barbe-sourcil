@@ -13,6 +13,7 @@ local core = exports.elyzea_core
 local ACC = Config.Access or {}
 
 C.props = {}            -- liste publique des biens
+C.buildings = {}        -- immeubles (client/buildings.lua)
 C.mine = {}             -- [pid] = 'holder' | 'tenant' (mes logements, pour l'invite)
 local version = -1
 C.insideData = nil      -- rempli par client/interior.lua
@@ -21,7 +22,9 @@ local function Reload()
     local r = C.Pub('props')
     if r.list then
         C.props = r.list
+        C.buildings = r.buildings or {}
         version = r.version or version
+        if C.RefreshBuildingBlips then C.RefreshBuildingBlips() end
         if C.RefreshBlips then C.RefreshBlips() end
     end
 end
@@ -129,13 +132,26 @@ CreateThread(function()
     while true do
         local sleep = 800
         local text, action, alt
-        if not C.insideData and not door and #C.props > 0 and not C.AnyOpen() and not (C.CamBusy and C.CamBusy()) then
+        if not C.insideData and not door and (#C.props > 0 or #C.buildings > 0) and not C.AnyOpen() and not (C.CamBusy and C.CamBusy()) then
             local ped = PlayerPedId()
             local pc = GetEntityCoords(ped)
             local veh = GetVehiclePedIsIn(ped, false)
             local driver = veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped
+            -- Immeubles : une seule porte pour tous leurs appartements
+            for _, b in ipairs(C.buildings) do
+                local d = #(pc - vector3(b.x + 0.0, b.y + 0.0, b.z + 0.0))
+                if d < 25.0 then sleep = math.min(sleep, 250) end
+                if veh == 0 and d < math.max(markerDist, 8.0) then
+                    sleep = 0
+                    Chevron(b)
+                    if d <= math.max(ACC.promptDistance or 1.6, b.r or 1.6) then
+                        text = ('[E] Immeuble · %s'):format(b.name)
+                        action = function() if C.OpenBuilding then C.OpenBuilding(b) end end
+                    end
+                end
+            end
             for _, pr in ipairs(C.props) do
-                if pr.status ~= 'disabled' then
+                if pr.status ~= 'disabled' and not pr.building then
                     -- Porte de l'habitation (et sonnette séparée si elle existe)
                     for _, which in ipairs({ 'enter', 'bell' }) do
                         local e = pr[which]

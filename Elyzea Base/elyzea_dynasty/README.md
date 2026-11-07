@@ -99,3 +99,20 @@ Intérieurs : onglet **Intérieurs** → « + Nouveau à ma position » (MLO ou 
   Le serveur vérifie chaque modèle contre la même liste. `Config.Deco.blocked` : modèles interdits.
 - Danseuse : une fois payée, elle s'ouvre dans le mode éditeur comme un objet (elle suit la souris, molette = tourner, clic = poser).
   « 📍 La placer / déplacer » ou clic sur elle dans le mode éditeur. Avec le seul droit « Danseuse », l'éditeur sert uniquement à la placer.
+
+## 1.2 — Immeubles (appartements derrière une seule porte)
+- **Staff** (admin_menu › Gestion immobilière › 🏢 Immeubles) : « Créer l'immeuble ici » (ta position devient la porte), nom, adresse, rayon,
+  actif / blip, « Déplacer la porte », « Y aller ». Dans l'immeuble : **Créer un appartement** (nom, intérieur, prix de vente, loyer) ou **rattacher**
+  un appartement existant, **détacher**. Ensuite « Assistant » → « Aller à l'intérieur » → sortie, gestion, coffre → « Valider et activer ».
+- **Joueur** : devant l'immeuble, `[E] Immeuble · <nom>` ouvre l'interface Elyzea (skyline, emblème) avec **tous les appartements** :
+  nom, libre / occupé, prix si libre, recherche. Son appartement (titulaire ou locataire) : **Entrer** sans code. Les autres : **Code** (pavé numérique)
+  et **Sonner** (le résident ouvre, même système que les maisons). Sortie : devant la porte de l'immeuble.
+- Dans l'appartement : tout comme une maison (coffre, gestion, locataires et leurs droits, code, prolongation, décoration, **danseuse**),
+  **sans caméras ni culture** (`Config.Buildings.blockedUpgrades`, refusé aussi par le serveur et l'appli MAISON).
+- **Danseuse** : réglée dans l'admin (Gestion des améliorations), payée au compte de l'agence Dynasty 8 qui gère l'appartement ;
+  les agents en service de cette agence reçoivent une notification à chaque commande.
+- Base : table `d8_buildings` + colonne `d8_properties.building_id`, créées automatiquement.
+- Tests hors jeu : `tests/run_server_sim.py <socket MariaDB>` (parties 5 et 6 : 61 vérifications immeubles, 201 au total),
+  `tests/run_client_sim.py` (14 vérifications immeubles, 45 au total), `tests/ui_building.cjs` (interface, 10),
+  `admin_menu/tests/dynasty_buildings_ui.cjs` (menu staff, 9).
+- **Non testé en jeu** : invite et blips en jeu, rendu NUI dans FiveM, téléportations réelles.

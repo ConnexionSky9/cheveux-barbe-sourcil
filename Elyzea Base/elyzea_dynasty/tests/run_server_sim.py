@@ -9,7 +9,7 @@ DBN = sys.argv[2] if len(sys.argv) > 2 else 'd8test'
 db = pymysql.connect(unix_socket=SOCK, user='root', database=DBN, autocommit=True, charset='utf8mb4')
 
 FILES = ['config.lua', 'shared/perms.lua', 'server/main.lua', 'server/agencies.lua', 'server/service.lua', 'server/finance.lua', 'server/commission.lua',
-         'server/properties.lua', 'server/access.lua', 'server/contracts.lua', 'server/garage.lua', 'server/deco.lua', 'server/upgrades.lua',
+         'server/properties.lua', 'server/access.lua', 'server/contracts.lua', 'server/garage.lua', 'server/deco.lua', 'server/upgrades.lua', 'server/buildings.lua',
          'server/direction.lua', 'server/phone.lua', 'server/api.lua']
 
 def runtime():
@@ -71,7 +71,7 @@ def runtime():
 
 part = sys.argv[3] if len(sys.argv) > 3 else 'all'
 if part in ('all', '1'):
-    for t in ['d8_upgrades', 'd8_cameras', 'd8_cam_spots', 'd8_plants', 'd8_access', 'd8_contracts', 'd8_properties', 'd8_settings', 'd8_property_log', 'd8_payments', 'd8_transactions', 'd8_interiors']:
+    for t in ['d8_buildings', 'd8_upgrades', 'd8_cameras', 'd8_cam_spots', 'd8_plants', 'd8_access', 'd8_contracts', 'd8_properties', 'd8_settings', 'd8_property_log', 'd8_payments', 'd8_transactions', 'd8_interiors']:
         db.cursor().execute(f'DROP TABLE IF EXISTS `{t}`')
     # Ancienne table d8_access (avant la refonte) : la migration doit ajouter les nouveaux droits
     db.cursor().execute("""CREATE TABLE d8_access (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, contract_id INT NOT NULL, property_id INT NOT NULL, cid VARCHAR(50) NOT NULL, name VARCHAR(100) NULL,
@@ -92,4 +92,9 @@ if part in ('all', '4'):
     lua = runtime()
     lua.execute(open(os.path.join(HERE, 'server_sim.lua'), encoding='utf-8').read())
     lua.execute('Part4()')
+for part_n in ('5', '6'):
+    if part in ('all', part_n, 'b'):
+        lua = runtime()
+        lua.execute(open(os.path.join(HERE, 'building_sim.lua'), encoding='utf-8').read())
+        lua.execute('Part' + part_n + '()')
 print('TOUS LES TESTS SERVEUR SONT PASSÉS')

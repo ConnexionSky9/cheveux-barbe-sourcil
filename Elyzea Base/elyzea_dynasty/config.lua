@@ -237,6 +237,17 @@ Config.Interiors = {
     { code = 'garage_10',        label = 'Garage 10 places',               kind = 'garage',    x = 229.9559, y = -981.7928, z = -99.66071, h = 0.0 },
 }
 
+-- ---------------------------------------------------------------------
+-- Immeubles (admin_menu › Gestion immobilière › Immeubles)
+--  Un point devant le bâtiment ; E ouvre la liste de ses appartements (entrer, code, sonner).
+--  Les appartements d'un immeuble sont des biens normaux, sauf ces améliorations interdites :
+-- ---------------------------------------------------------------------
+Config.Buildings = {
+    blockedUpgrades = { cameras = true, cannabis = true },
+    blip = { sprite = 475, color = 27, scale = 0.75 },   -- blip des immeubles (désactivable par immeuble)
+    markerDistance = 8.0,
+}
+
 Config.Categories = { apartment = 'Appartement', house = 'Maison', villa = 'Villa', garage = 'Garage' }
 Config.PropertyStatuses = {
     available = { label = 'Disponible', color = '#22c55e' },
