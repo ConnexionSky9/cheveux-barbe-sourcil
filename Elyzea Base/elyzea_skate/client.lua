@@ -71,7 +71,7 @@ end
 -- Mesure les deux pieds (os des orteils) et recale le joueur :
 --  · la ligne entre les deux pieds est tournée dans la longueur de la planche (les deux pieds dessus)
 --  · les pieds sont centrés sur la planche et les semelles posées sur le plateau
-local TOES = { 20781, 35502 }
+local FEET = { { 14201, 20781 }, { 52301, 35502 } }   -- pied gauche (cheville, orteils), pied droit
 local function fitFeet(ped)
     if not board.prop or not DoesEntityExist(board.prop) then return false end
     local m = GetEntityModel(ped)
@@ -79,10 +79,15 @@ local function fitFeet(ped)
     local _, pmx = GetModelDimensions(GetEntityModel(board.prop))
     local deck = GetEntityCoords(board.prop).z + pmx.z
     local low, pts = 1e9, {}
-    for i, b in ipairs(TOES) do
-        local p = GetPedBoneCoords(ped, b, 0.0, 0.0, 0.0)
-        if p.z < low then low = p.z end
-        pts[i] = GetOffsetFromEntityGivenWorldCoords(board.veh, p.x, p.y, p.z)   -- repère de la planche (y = longueur)
+    for i, foot in ipairs(FEET) do
+        local mx, my = 0.0, 0.0
+        for _, b in ipairs(foot) do
+            local p = GetPedBoneCoords(ped, b, 0.0, 0.0, 0.0)
+            if p.z < low then low = p.z end
+            local l = GetOffsetFromEntityGivenWorldCoords(board.veh, p.x, p.y, p.z)   -- repère de la planche (y = longueur)
+            mx, my = mx + l.x / #foot, my + l.y / #foot
+        end
+        pts[i] = { x = mx, y = my }   -- milieu du pied (talon et orteils sur la planche, pas seulement les orteils)
     end
     local sx, sy = (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2
     local dx, dy = pts[2].x - pts[1].x, pts[2].y - pts[1].y
@@ -121,17 +126,24 @@ local function dismount(fall)
     if not riding then return end
     riding = false
     local ped = PlayerPedId()
-    DetachEntity(ped, true, false)
-    ClearPedTasks(ped)
+    -- le joueur est rendu entièrement libre : détaché, collisions remises, plus aucune animation en boucle
+    DetachEntity(ped, true, true)
+    SetEntityCollision(ped, true, true)
+    FreezeEntityPosition(ped, false)
+    ClearPedTasksImmediately(ped)
     if board and DoesEntityExist(board.veh) then
         if board.prop and DoesEntityExist(board.prop) then attachProp(0.0) end
-        local side = GetOffsetFromEntityInWorldCoords(board.veh, 0.7, 0.0, 0.0)
         local v = GetEntityVelocity(board.veh)
         SetEntityVelocity(board.veh, v.x * 0.3, v.y * 0.3, v.z)
-        if not fall then SetEntityCoordsNoOffset(ped, side.x, side.y, side.z + 0.3, false, false, false) end
+        if not fall then
+            -- reposé debout au sol, à côté de la planche
+            local side = GetOffsetFromEntityInWorldCoords(board.veh, 0.7, 0.0, 0.0)
+            local ok, gz = GetGroundZFor_3dCoord(side.x, side.y, side.z + 1.5, false)
+            SetEntityCoords(ped, side.x, side.y, ok and gz or side.z, false, false, false, false)
+            SetEntityHeading(ped, GetEntityHeading(board.veh))
+        end
     end
-    if fall then SetPedToRagdoll(ped, 1600, 1600, 0, false, false, false)
-    elseif loadDict('pickup_object') then TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 700, 48, 0.0, false, false, false) end
+    if fall then SetPedToRagdoll(ped, 1600, 1600, 0, false, false, false) end
     speed, steer = 0.0, 0.0
     -- en descendant (ou en tombant), le skate retourne directement dans l'inventaire
     if Config.StowOnDismount ~= false then TriggerServerEvent('elyzea_skate:pickup', true) end
@@ -269,10 +281,10 @@ CreateThread(function()
                     if fitFeet(ped) then attachPed(ped, lean) end
                 end
                 -- descendre
-                if IsDisabledControlJustPressed(0, K.mount) and GetGameTimer() - mountedAt > 400 then dismount(false) end
+                if IsDisabledControlJustPressed(0, K.mount) and GetGameTimer() - mountedAt > 400 then dismount(false) goto continue end
                 -- l'animation de glisse reste jouée
                 local a = rideAnim()
-                if a and not IsEntityPlayingAnim(ped, a.dict, a.name, 3) then playRide(ped) end
+                if riding and a and not IsEntityPlayingAnim(ped, a.dict, a.name, 3) then playRide(ped) end
             end
             ::continue::
             Wait(0)

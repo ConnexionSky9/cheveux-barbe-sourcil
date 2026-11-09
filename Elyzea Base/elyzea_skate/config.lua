@@ -29,10 +29,10 @@ Config.DeckHeight = 0.13            -- hauteur du plateau au-dessus du sol (m)
 Config.Stance = 30.0                -- angle de départ du corps ; corrigé ensuite pour que les DEUX pieds soient sur la planche
 Config.SoleOffset = 0.04            -- épaisseur sous l'os des orteils (m) : les pieds sont recalés pile sur le plateau
 
--- Posture de glisse : la première animation qui existe dans le jeu est utilisée
--- (genoux fléchis et bras d'équilibre d'abord, posture debout en dernier recours)
+-- Posture sur la planche : DEBOUT (pieds posés, sans accroupissement). La première animation qui existe dans le jeu
+-- est utilisée ; le corps est ensuite tourné et recalé pour que les deux pieds soient sur la planche.
 Config.RideAnims = {
-    { dict = 'move_strafe@stealth', name = 'idle' },
-    { dict = 'move_crouch_proto', name = 'idle' },
+    { dict = 'anim@heists@heist_corona@team_idles@male_a', name = 'idle' },
     { dict = 'amb@world_human_stand_impatient@male@no_sign@base', name = 'base' },
+    { dict = 'anim@heists@heist_corona@single_team', name = 'single_team_loop_boss' },
 }

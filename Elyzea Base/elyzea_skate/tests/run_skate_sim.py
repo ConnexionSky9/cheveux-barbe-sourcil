@@ -24,16 +24,18 @@ V.__sub = function(a, b) return vector3(a.x - b.x, a.y - b.y, a.z - b.z) end
 V.__len = function(a) return math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) end
 function joaat(s) return #s end
 function IsModelInCdimage() return true end function RequestModel() end function HasModelLoaded() return true end function SetModelAsNoLongerNeeded() end
-DICTS = { ['pickup_object'] = true, ['move_crouch_proto'] = true }   -- la 1re posture de la liste « n'existe pas » : repli testé
+DICTS = { ['pickup_object'] = true, ['amb@world_human_stand_impatient@male@no_sign@base'] = true }   -- la 1re posture « n'existe pas » : repli testé
 function DoesAnimDictExist(d) return DICTS[d] == true end
 function RequestAnimDict() end function HasAnimDictLoaded(d) return DICTS[d] == true end
 PLAYED = {}
 function TaskPlayAnim(_, d, n) PLAYED[#PLAYED + 1] = d PLAYING = d end
 function IsEntityPlayingAnim(_, d) return PLAYING == d end
 function ClearPedTasks() PLAYING = nil end
+function ClearPedTasksImmediately() PLAYING = nil end
 PITCH = 0
 function GetEntityPitch() return PITCH end
 function IsPedRagdoll() return false end
+function GetGroundZFor_3dCoord(x, y, z) return true, 0.0 end
 function PlayerPedId() return 1 end
 ENT = { [1] = { pos = vector3(0, 0, 1), h = 0 } }
 local nextE = 10
@@ -60,7 +62,7 @@ function worldOf(e) if ATT[e] then local p = worldOf(ATT[e].to) return vector3(p
 function GetPedBoneCoords(ped, b)
     local p, a = worldOf(ped), ATT[ped]
     local r = math.rad(a and a.rz or 0)
-    local k = (b == 20781 and -0.17 or 0.17)
+    local k = ((b == 20781 or b == 14201) and -0.17 or 0.17)
     return vector3(p.x + 0.10 - math.sin(r) * k, p.y + math.cos(r) * k, p.z - 1.10)
 end
 function GetOffsetFromEntityGivenWorldCoords(e, x, y, z) local p = ENT[e].pos return vector3(x - p.x, y - p.y, z - p.z) end
@@ -68,7 +70,7 @@ function IsEntityAttachedToEntity(a, b) return ATT[a] and ATT[a].to == b end
 function DetachEntity(a) ATT[a] = nil end
 function IsPedInAnyVehicle() return false end function IsEntityDead() return false end
 for _, n in ipairs({ 'SetVehicleOnGroundProperly', 'SetEntityVisible', 'SetVehicleDoorsLocked', 'SetVehicleEngineOn', 'SetVehicleRadioEnabled', 'SetEntityProofs',
-  'SetEntityAsMissionEntity', 'SetEntityCollision', 'SetEntityCoordsNoOffset', 'SetVehicleHandbrake', 'BeginTextCommandDisplayHelp',
+  'SetEntityAsMissionEntity', 'SetEntityCollision', 'SetEntityCoordsNoOffset', 'SetEntityCoords', 'FreezeEntityPosition', 'SetVehicleHandbrake', 'BeginTextCommandDisplayHelp',
   'AddTextComponentSubstringPlayerName', 'DisableControlAction', 'AddEventHandler' }) do _G[n] = function() end end
 RAG = false
 HELPN = 0
@@ -114,7 +116,7 @@ check(abs((toe.z - 0.04) - deckz) < 0.02, f'pieds recalés pile sur le plateau (
 feet = [L.eval(f"GetPedBoneCoords(1, {b})") for b in (20781, 35502)]
 check(all(abs(f.x - g.ENT[VEH].pos.x) < 0.04 for f in feet), 'les DEUX pieds sur la planche : ligne des pieds tournée dans sa longueur, centrée (' + ', '.join(f'{(f.x - g.ENT[VEH].pos.x) * 100:+.1f} cm' for f in feet) + ' de l\'axe)')
 check(all(abs(f.y - g.ENT[VEH].pos.y) < 0.35 for f in feet), 'pieds dans la longueur de la planche (ni devant, ni derrière)')
-check(g.PLAYING == 'move_crouch_proto', 'posture de glisse jouée (repli automatique si une animation manque)')
+check(g.PLAYING == 'amb@world_human_stand_impatient@male@no_sign@base', 'posture DEBOUT jouée (repli automatique si une animation manque)')
 # pousser : accélération forte au départ puis plus douce, jamais plus de 25 km/h
 L.execute("KEYS[32] = true")
 sp = []
@@ -188,6 +190,9 @@ check(g.ATT[1] is not None, 'objet réutilisé : skate reposé, on remonte direc
 L.execute("JUST[23] = true")
 g.step(2)
 check(g.ATT[1] is None and not g.RAG, 'F : on descend, sans tomber')
+check(g.PLAYING is None, 'après la descente : aucune animation en boucle, le joueur peut bouger')
+g.step(30)
+check(g.PLAYING is None, 'toujours libre quelques instants plus tard (plus de blocage)')
 check(any(e[1] == 'elyzea_skate:pickup' and e[2] is True for e in g.SERVER.values()), 'F : le skate retourne directement dans l\'inventaire')
 
 # ------------------------------------------------------------------ serveur
