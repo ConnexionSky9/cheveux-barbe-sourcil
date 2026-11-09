@@ -56,7 +56,13 @@ function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz) ATT[a] = { to = b
 -- position réelle d'une entité attachée (véhicule au cap 0 pendant le recalage)
 function worldOf(e) if ATT[e] then local p = worldOf(ATT[e].to) return vector3(p.x + ATT[e].x, p.y + ATT[e].y, p.z + ATT[e].z) end return ENT[e].pos end
 -- personnage simulé : orteils 1,10 m sous le bassin, posés 10 cm trop à droite
-function GetPedBoneCoords(ped, b) local p = worldOf(ped) return vector3(p.x + 0.10, p.y + (b == 20781 and -0.17 or 0.17), p.z - 1.10) end
+-- pieds l'un devant l'autre selon le sens du corps (rz), 17 cm de part et d'autre, décalés de 10 cm à droite
+function GetPedBoneCoords(ped, b)
+    local p, a = worldOf(ped), ATT[ped]
+    local r = math.rad(a and a.rz or 0)
+    local k = (b == 20781 and -0.17 or 0.17)
+    return vector3(p.x + 0.10 - math.sin(r) * k, p.y + math.cos(r) * k, p.z - 1.10)
+end
 function GetOffsetFromEntityGivenWorldCoords(e, x, y, z) local p = ENT[e].pos return vector3(x - p.x, y - p.y, z - p.z) end
 function IsEntityAttachedToEntity(a, b) return ATT[a] and ATT[a].to == b end
 function DetachEntity(a) ATT[a] = nil end
@@ -100,12 +106,14 @@ check(len(placed) == 1, 'objet utilisé : skate posé au sol, signalé au serveu
 L.execute("for e, x in pairs(ENT) do if x.veh then VEH = e end end")
 VEH = g.VEH
 check(g.ENT[VEH].pos.y > 0.3, 'posé devant le joueur')
-check(g.ATT[1] is not None and g.ATT[1].to == VEH and abs(g.ATT[1].rz - 30) < 0.1, 'facile : le joueur monte directement dessus, corps à 30° (pieds dans l\'axe de la planche)')
+check(g.ATT[1] is not None and g.ATT[1].to == VEH, 'facile : le joueur monte directement dessus')
 g.step(60)
 toe = L.eval("GetPedBoneCoords(1, 20781)")
 deckz = L.eval("(function() for e, a in pairs(ATT) do if e ~= 1 then return worldOf(e).z + 0.05 end end end)()")
 check(abs((toe.z - 0.04) - deckz) < 0.02, f'pieds recalés pile sur le plateau (écart {abs((toe.z - 0.04) - deckz) * 100:.1f} cm)')
-check(abs(g.ATT[1].x + 0.10) < 0.02, 'pieds recentrés sur la planche (ils étaient 10 cm à côté)')
+feet = [L.eval(f"GetPedBoneCoords(1, {b})") for b in (20781, 35502)]
+check(all(abs(f.x - g.ENT[VEH].pos.x) < 0.04 for f in feet), 'les DEUX pieds sur la planche : ligne des pieds tournée dans sa longueur, centrée (' + ', '.join(f'{(f.x - g.ENT[VEH].pos.x) * 100:+.1f} cm' for f in feet) + ' de l\'axe)')
+check(all(abs(f.y - g.ENT[VEH].pos.y) < 0.35 for f in feet), 'pieds dans la longueur de la planche (ni devant, ni derrière)')
 check(g.PLAYING == 'move_crouch_proto', 'posture de glisse jouée (repli automatique si une animation manque)')
 # pousser : accélération forte au départ puis plus douce, jamais plus de 25 km/h
 L.execute("KEYS[32] = true")
@@ -169,17 +177,18 @@ g.step(500)
 L.execute("ENT[VEH].vel = vector3(0, 0, 0)")
 g.step(2)
 check(g.ATT[1] is None and g.RAG, 'choc contre un obstacle à pleine vitesse : le joueur tombe')
-# remonter puis descendre avec F
-L.execute("KEYS[32] = false ENT[VEH].vel = vector3(0,0,0) RAG = false JUST[23] = true")
-g.step(2)
-check(g.ATT[1] is not None, 'F à côté : on remonte')
-g.step(40)
+check(any(e[1] == 'elyzea_skate:pickup' and e[2] is True for e in g.SERVER.values()), 'chute : le skate retourne dans l\'inventaire')
+# le serveur range le skate, on le ressort (objet utilisé) : on remonte directement
+L.execute("KEYS[32] = false RAG = false SERVER = {}")
+g.fire('elyzea_skate:stowed')
+g.fire('elyzea_skate:place')
+g.step(80)
+check(g.ATT[1] is not None, 'objet réutilisé : skate reposé, on remonte directement')
+# descendre avec F : le skate part directement dans l'inventaire
 L.execute("JUST[23] = true")
 g.step(2)
-check(g.ATT[1] is None and not g.RAG, 'F sur le skate : on descend à côté, sans tomber')
-L.execute("JUST[38] = true")
-g.step(2)
-check(any(e[1] == 'elyzea_skate:pickup' for e in g.SERVER.values()), 'E à côté : demande au serveur de le ranger')
+check(g.ATT[1] is None and not g.RAG, 'F : on descend, sans tomber')
+check(any(e[1] == 'elyzea_skate:pickup' and e[2] is True for e in g.SERVER.values()), 'F : le skate retourne directement dans l\'inventaire')
 
 # ------------------------------------------------------------------ serveur
 S = LuaRuntime()
@@ -251,5 +260,9 @@ check(sg.ENT[41] is None and sg.ENT[42] is None, 'déconnexion : le skate dispar
 S.execute("ITEMS[5] = 0 ENT[51] = { pos = vector3(0, 1, 0), owner = 5, model = #Config.BaseVehicle } ENT[52] = { pos = vector3(0, 1, 0), owner = 5, model = #Config.BoardProp }")
 sg.placed(5, 51, 52)
 check(sg.ENT[51] is None, 'sans l\'objet dans l\'inventaire : aucun skate')
+S.execute("ITEMS[5] = 1 POS[5] = vector3(0, 0, 0) ENT[61] = { pos = vector3(6, 0, 0), owner = 5, model = #Config.BaseVehicle } ENT[62] = { pos = vector3(6, 0, 0), owner = 5, model = #Config.BoardProp }")
+sg.placed(5, 61, 62)
+S.execute("source = 5 events['elyzea_skate:pickup'](true)")
+check(sg.ENT[61] is None and sg.lastSent('elyzea_skate:stowed') is not None, 'descente : skate rangé même s\'il a roulé quelques mètres')
 print('\nÉCHECS :', fails)
 sys.exit(1 if fails else 0)

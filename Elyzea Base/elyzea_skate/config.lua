@@ -5,6 +5,7 @@ Config = {}
 
 Config.Item = 'skateboard'          -- objet (elyzea_inventory/shared/items.lua), donné dans le kit de départ
 Config.AutoMount = true             -- utiliser l'objet : le skate est posé ET le joueur monte dessus directement
+Config.StowOnDismount = true        -- descendre (ou tomber) : le skate retourne directement dans l'inventaire
 
 -- Conduite
 Config.MaxSpeed = 25.0              -- km/h maximum (jamais dépassé, même en descente)
@@ -25,7 +26,7 @@ Config.Keys = { mount = 23, pickup = 38 }   -- F, E
 Config.BoardProp = 'v_res_skateboard'
 Config.BaseVehicle = 'rcbandito'
 Config.DeckHeight = 0.13            -- hauteur du plateau au-dessus du sol (m)
-Config.Stance = 30.0                -- angle du corps sur la planche (degrés) : pieds l'un derrière l'autre, sur le plateau
+Config.Stance = 30.0                -- angle de départ du corps ; corrigé ensuite pour que les DEUX pieds soient sur la planche
 Config.SoleOffset = 0.04            -- épaisseur sous l'os des orteils (m) : les pieds sont recalés pile sur le plateau
 
 -- Posture de glisse : la première animation qui existe dans le jeu est utilisée

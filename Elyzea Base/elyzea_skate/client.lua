@@ -4,7 +4,7 @@
 --  qui donne les roues, les pentes et les collisions. Le joueur est attaché debout dessus.
 --  Utiliser l'objet : le skate est posé ET on monte dessus directement.
 --  W : pousser · S : freiner · A / D : tourner (le corps et la planche penchent dans le virage)
---  F : descendre / remonter · E (à côté, à pied) : ramasser. 25 km/h maximum, même en descente.
+--  F : descendre (le skate retourne directement dans l'inventaire). 25 km/h maximum, même en descente.
 -- =====================================================================
 local board = nil        -- { veh, prop, h (hauteur du véhicule au-dessus du sol), rotZ, propZ } : MON skate posé
 local riding = false
@@ -61,32 +61,37 @@ local function attachProp(lean)
 end
 -- Joueur : bassin à ~1 m au-dessus des pieds (corrigé ensuite d'après la position réelle des pieds) ;
 -- lean = inclinaison dans le virage (roulis autour de l'axe de la planche)
-local fit = {}   -- [modèle du personnage] = { x, y, z } : correction mesurée (pieds pile sur le plateau)
+local fit = {}   -- [modèle du personnage] = { x, y, z, r } : correction mesurée (les deux pieds pile sur le plateau)
 local function attachPed(ped, lean)
-    local c = fit[GetEntityModel(ped)] or { x = 0.0, y = 0.0, z = 0.0 }
+    local c = fit[GetEntityModel(ped)] or { x = 0.0, y = 0.0, z = 0.0, r = 0.0 }
     AttachEntityToEntity(ped, board.veh, 0, c.x, c.y, 1.0 + (Config.DeckHeight or 0.13) - board.h + c.z,
-        0.0, lean or 0.0, Config.Stance or 30.0, false, false, false, true, 2, true)
+        0.0, lean or 0.0, (Config.Stance or 30.0) + c.r, false, false, false, true, 2, true)
 end
 
--- Mesure les pieds (os des orteils) et recale le joueur : semelles sur le plateau, pieds centrés sur la planche
+-- Mesure les deux pieds (os des orteils) et recale le joueur :
+--  · la ligne entre les deux pieds est tournée dans la longueur de la planche (les deux pieds dessus)
+--  · les pieds sont centrés sur la planche et les semelles posées sur le plateau
 local TOES = { 20781, 35502 }
 local function fitFeet(ped)
     if not board.prop or not DoesEntityExist(board.prop) then return false end
     local m = GetEntityModel(ped)
-    local c = fit[m] or { x = 0.0, y = 0.0, z = 0.0 }
+    local c = fit[m] or { x = 0.0, y = 0.0, z = 0.0, r = 0.0 }
     local _, pmx = GetModelDimensions(GetEntityModel(board.prop))
     local deck = GetEntityCoords(board.prop).z + pmx.z
-    local low, sx, sy = 1e9, 0.0, 0.0
-    for _, b in ipairs(TOES) do
+    local low, pts = 1e9, {}
+    for i, b in ipairs(TOES) do
         local p = GetPedBoneCoords(ped, b, 0.0, 0.0, 0.0)
         if p.z < low then low = p.z end
-        local l = GetOffsetFromEntityGivenWorldCoords(board.veh, p.x, p.y, p.z)
-        sx, sy = sx + l.x / #TOES, sy + l.y / #TOES
+        pts[i] = GetOffsetFromEntityGivenWorldCoords(board.veh, p.x, p.y, p.z)   -- repère de la planche (y = longueur)
     end
+    local sx, sy = (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2
+    local dx, dy = pts[2].x - pts[1].x, pts[2].y - pts[1].y
+    if dy < 0 then dx, dy = -dx, -dy end
+    local turn = (dx * dx + dy * dy) > 0.01 and math.deg(math.atan(dx, dy)) or 0.0   -- écart entre la ligne des pieds et la planche
     local dz = deck - (low - (Config.SoleOffset or 0.04))
-    local changed = math.abs(dz) > 0.015 or math.abs(sx) > 0.03 or math.abs(sy) > 0.05
+    local changed = math.abs(turn) > 2.0 or math.abs(dz) > 0.015 or math.abs(sx) > 0.02 or math.abs(sy) > 0.04
     if changed then
-        fit[m] = { x = clamp(c.x - sx, -0.4, 0.4), y = clamp(c.y - sy, -0.4, 0.4), z = clamp(c.z + dz, -0.5, 0.5) }
+        fit[m] = { x = clamp(c.x - sx, -0.4, 0.4), y = clamp(c.y - sy, -0.4, 0.4), z = clamp(c.z + dz, -0.5, 0.5), r = (c.r + turn + 180.0) % 360.0 - 180.0 }
     end
     return changed
 end
@@ -125,8 +130,11 @@ local function dismount(fall)
         SetEntityVelocity(board.veh, v.x * 0.3, v.y * 0.3, v.z)
         if not fall then SetEntityCoordsNoOffset(ped, side.x, side.y, side.z + 0.3, false, false, false) end
     end
-    if fall then SetPedToRagdoll(ped, 1600, 1600, 0, false, false, false) end
+    if fall then SetPedToRagdoll(ped, 1600, 1600, 0, false, false, false)
+    elseif loadDict('pickup_object') then TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 700, 48, 0.0, false, false, false) end
     speed, steer = 0.0, 0.0
+    -- en descendant (ou en tombant), le skate retourne directement dans l'inventaire
+    if Config.StowOnDismount ~= false then TriggerServerEvent('elyzea_skate:pickup', true) end
 end
 
 -- ---------------------------------------------------------------------
@@ -256,7 +264,7 @@ CreateThread(function()
                     if board.prop and DoesEntityExist(board.prop) then attachProp(lean * 0.5) end
                 end
                 -- recalage des pieds juste après être monté (l'animation a pris sa pose)
-                if board.fitted < 3 and GetGameTimer() - mountedAt > 300 + board.fitted * 250 then
+                if board.fitted < 5 and GetGameTimer() - mountedAt > 300 + board.fitted * 200 then
                     board.fitted = board.fitted + 1
                     if fitFeet(ped) then attachPed(ped, lean) end
                 end

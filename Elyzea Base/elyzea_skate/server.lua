@@ -72,14 +72,15 @@ RegisterNetEvent('elyzea_skate:placed', function(vehNet, propNet)
     Entity(veh).state:set('elySkate', src, true)
 end)
 
--- E à côté de son skate : ramassé
-RegisterNetEvent('elyzea_skate:pickup', function()
+-- Descente du skate (ou E à côté) : rangé dans l'inventaire
+-- dismount = true : le joueur vient de descendre (ou de tomber) : le skate peut avoir roulé un peu plus loin
+RegisterNetEvent('elyzea_skate:pickup', function(dismount)
     local src = source
-    local near = nearBoard(src, (Config.MountDistance or 2.0) + 1.5)
+    local near = nearBoard(src, dismount == true and 10.0 or (Config.MountDistance or 2.0) + 1.5)
     if not near then return end
     removeBoard(src)
     TriggerClientEvent('elyzea_skate:stowed', src)
-    notify(src, 'Skate rangé.', 'success')
+    notify(src, 'Skate rangé dans votre inventaire.', 'success')
 end)
 
 -- Ménage : joueur parti, objet donné / vendu, ressource arrêtée
