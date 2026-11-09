@@ -318,7 +318,7 @@ table.loot.wide td select.input { min-width: 125px; }
 #warn small { display: block; margin-top: 12px; color: var(--muted); }
 
 /* ---------- Atelier (joueur) ---------- */
-#station, #npc, #door, #doorpanel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 80; background: rgba(9, 5, 14, .4); }
+#station, #npc, #door, #doorpanel, #tpchoose { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 80; background: rgba(9, 5, 14, .4); }
 .st-box { width: min(640px, 92vw); max-height: 80vh; display: flex; flex-direction: column; background: var(--asphalt); border: 1px solid rgba(158, 106, 217, .35); border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.55); overflow: hidden; }
 .st-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); position: relative; }
 .st-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, var(--info), var(--signal), var(--danger)); }
@@ -896,3 +896,27 @@ body.quick-open #reporthud, #app:not(.hidden) ~ #reporthud { display: none; }
 .pp-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid rgba(255,255,255,.15); border-top-color: var(--accent, #9B5CFF); animation: ppSpin .8s linear infinite; }
 @keyframes ppSpin { to { transform: rotate(360deg); } }
 .cat-img img { object-fit: contain; }
+
+/* ---------- Téléporteurs (éditeur + choix de destination) ---------- */
+.tp-pt { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; max-width: 720px; }
+.tp-pt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tp-pt-head .tp-name { flex: 1; min-width: 0; }
+.tp-pt-head .btn { white-space: nowrap; flex-shrink: 0; }
+.tp-badge { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; font-family: var(--display); font-weight: 700; font-size: 16px;
+    color: #fff; background: linear-gradient(135deg, #B57BFF, #6D28D9); box-shadow: 0 0 12px rgba(155, 92, 255, .45); }
+.tp-badge.b { background: linear-gradient(135deg, #2d1c40, #3B0F86); border: 1px solid var(--signal); }
+.tp-xyz { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 110px; gap: 8px; }
+.tp-xyz label { display: flex; align-items: center; gap: 6px; }
+.tp-xyz label span { font-family: var(--display); font-weight: 700; font-size: 13px; color: var(--muted); letter-spacing: .06em; min-width: 26px; }
+.tp-xyz .input { min-width: 0; }
+.tp-box { width: min(460px, 94vw); }
+.tp-dest { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font: inherit;
+    transition: border-color .15s, transform .15s, background .15s; animation: tpIn .25s ease-out both; }
+.tp-dest strong { font-family: var(--display); font-size: 19px; font-weight: 600; }
+.tp-dest:hover, .tp-dest:focus-visible { outline: none; border-color: var(--signal); background: var(--panel-2); transform: translateX(3px); box-shadow: 0 0 16px rgba(155, 92, 255, .25); }
+.tp-num { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: rgba(155, 92, 255, .18); border: 1px solid rgba(155, 92, 255, .5);
+    font-family: var(--display); font-weight: 700; color: #E9D5FF; }
+.tp-go { color: var(--signal); font-size: 18px; opacity: .6; transition: opacity .15s; }
+.tp-dest:hover .tp-go { opacity: 1; }
+@keyframes tpIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

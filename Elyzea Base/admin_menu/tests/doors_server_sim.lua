@@ -64,6 +64,7 @@ local function fire(name, src, ...) source = src return events[name](...) end
 local function lastSent(name, target)
     for i = #sent, 1, -1 do if sent[i].name == name and sent[i].target == target then return sent[i] end end
 end
+local function lastFx(src) local e = lastSent('adminmenu:door:lockfx', src) return e and e.args[2] end
 local function lastNote(src) for i = #notes, 1, -1 do if notes[i].src == src then return notes[i] end end end
 
 -- Joueurs : 1 staff, 2 policier LSPD, 3 civil, 4 BCSO, 5 policier loin du pupitre
@@ -91,17 +92,31 @@ check('doublon de métier refusé', lastNote(1).kind == 'info')
 
 -- E sur la porte 1
 sent = {}
-fire('adminmenu:door:interact', 3, 1)
-check('civil : porte métier refusée', lastNote(3) and lastNote(3).kind == 'error')
-fire('adminmenu:door:interact', 2, 1)
-check('LSPD : porte police déverrouillée avec E', lastNote(2) and lastNote(2).msg:find('déverrouillée') ~= nil)
-fire('adminmenu:door:interact', 4, 1)
-check('BCSO : porte « police » (catégorie) reverrouillée', lastNote(4) and lastNote(4).msg:find('verrouillée') ~= nil and lastNote(4).kind == 'success')
 notes = {}
+local function doorLocked(id) for _, d in ipairs(lastSync('doors') or {}) do if d.id == id then return d.locked end end end
+fire('adminmenu:door:interact', 3, 1)
+check('civil : porte métier refusée (cadenas fermé, aucun texte)', lastFx(3) == 'deny' and lastNote(3) == nil and doorLocked(1) ~= false)
+fire('adminmenu:door:interact', 2, 1)
+check('LSPD : cadenas ouvert puis porte déverrouillée avec E, aucun texte', lastFx(2) == 'unlock' and doorLocked(1) == false and lastNote(2) == nil)
+fire('adminmenu:door:interact', 4, 1)
+check('BCSO : porte « police » (catégorie) reverrouillée', lastFx(4) == 'lock' and doorLocked(1) == true and lastNote(4) == nil)
 fire('adminmenu:door:interact', 4, 3)
-check('BCSO : porte réservée « lspd » refusée', lastNote(4) and lastNote(4).kind == 'error')
+check('BCSO : porte réservée « lspd » refusée', lastFx(4) == 'deny' and doorLocked(3) == true)
 fire('adminmenu:door:interact', 2, 3)
-check('LSPD : porte « lspd » ouverte', lastNote(2) and lastNote(2).msg:find('déverrouillée') ~= nil)
+check('LSPD : porte « lspd » ouverte', lastFx(2) == 'unlock' and doorLocked(3) == false)
+-- pendant l'animation du cadenas, un 2e appui est ignoré (pas de double bascule)
+do
+    local queued = {}
+    local oldT = SetTimeout
+    SetTimeout = function(_, fn) queued[#queued + 1] = fn end
+    fire('adminmenu:door:interact', 2, 3)
+    fire('adminmenu:door:interact', 2, 3)
+    check('double appui pendant l\'animation : une seule bascule programmée', #queued == 1)
+    SetTimeout = oldT
+    for _, f in ipairs(queued) do f() end
+    check('porte reverrouillée une fois l\'animation finie', doorLocked(3) == true)
+    fire('adminmenu:door:interact', 2, 3)
+end
 notes = {}
 fire('adminmenu:door:managecode', 2, 1)
 check('métier : ne peut pas gérer le code invité', lastNote(2) and lastNote(2).kind == 'error')
@@ -110,9 +125,8 @@ check('métier : ne peut pas créer de code', lastNote(2) and lastNote(2).kind =
 
 -- Retrait du métier
 act('editor_door_remove_job', 1, { id = 3, job = 'lspd' })
-notes = {}
 fire('adminmenu:door:interact', 2, 3)
-check('métier retiré : LSPD refusé', lastNote(2) and lastNote(2).kind == 'error')
+check('métier retiré : LSPD refusé', lastFx(2) == 'deny')
 
 -- Pupitre : posé par le staff à x=0 ; on le déplace ensuite près des joueurs
 act('editor_add_doorpanel', 1, { name = 'PC cellules', radius = 2, jobs = { 'lspd' }, doors = { 1, 2, 99, 2 } })
@@ -185,6 +199,58 @@ L = lastSync('doors')
 check('export SetDoorLocked : porte déverrouillée', L and L[1].locked == false)
 act('editor_door_business', 1, { id = 3, business = '' })
 check('porte principale retirée', #EXP.GetBusinessDoors('elyzea_restaurant:1') == 1)
+
+-- ---------- Téléporteurs ----------
+GetVehiclePedIsIn = function(ped) return players[ped].veh or 0 end
+GetPlayerPing = function() return 50 end
+local tick = 100000
+GetGameTimer = function() tick = tick + 3000 return tick end
+local function tpGo(src) local e = lastSent('adminmenu:tp:go', src) return e and e.args[1] end
+notes, sent = {}, {}
+act('editor_tp_save', 1, { name = 'Passage', mode = 'ab', from = { x = 'abc', y = 0, z = 0 }, dests = { { x = 1, y = 1, z = 1 } } })
+check('téléporteur : coordonnées invalides refusées', lastNote(1).kind == 'error' and #(lastSync('teleports') or {}) == 0)
+act('editor_tp_save', 1, { name = 'Passage', mode = 'ab', twoWay = true, radius = 99,
+    from = { name = 'Cave', x = 10, y = 0, z = 0, h = 450 }, dests = { { name = 'Toit', x = 500, y = 500, z = 80, h = 90 }, { x = 1, y = 1, z = 1 } } })
+local T = lastSync('teleports')
+check('A → B créé, sauvegardé, 1 seule arrivée, zone plafonnée à 5 m, cap ramené à 0-360', T and #T == 1 and #T[1].dests == 1 and T[1].radius == 5 and T[1].from.h == 90 and saved.teleports)
+act('editor_tp_save', 1, { name = '<b>Métro</b>', mode = 'multi', twoWay = true,
+    from = { x = 300, y = 0, z = 0 }, dests = { { name = 'Sud', x = 1000, y = 0, z = 0 }, { name = 'Nord', x = 2000, y = 0, z = 0 } } })
+T = lastSync('teleports')
+check('multi créé : nom nettoyé, retour ignoré en mode multi', T and #T == 2 and T[2].name == 'bMétro/b' and T[2].twoWay == nil and #T[2].dests == 2)
+-- joueur 3 (civil) au départ A (x=10)
+sent = {}
+fire('adminmenu:tp:use', 3, 1, 1)
+local g = tpGo(3)
+check('E au départ : arrivée B envoyée par le serveur', g and g.x == 500 and g.y == 500 and g.h == 90)
+fire('adminmenu:tp:use', 3, 1, 1)
+players[3].pos = vector3(500, 500, 80)
+sent = {}
+GetGameTimer = function() tick = tick + 100 return tick end
+fire('adminmenu:tp:use', 3, 1, 1)
+check('anti-spam : pas de 2e téléportation immédiate', tpGo(3) == nil)
+GetGameTimer = function() tick = tick + 3000 return tick end
+fire('adminmenu:tp:use', 3, 1, 1)
+g = tpGo(3)
+check('retour B → A depuis l\'arrivée', g and g.x == 10)
+sent = {}
+players[3].pos = vector3(50, 50, 0)
+fire('adminmenu:tp:use', 3, 1, 1)
+check('loin du point : rien', tpGo(3) == nil)
+players[3].pos = vector3(300, 0, 0)
+fire('adminmenu:tp:use', 3, 2, 2)
+g = tpGo(3)
+check('multi : la destination choisie (n° 2)', g and g.x == 2000)
+sent = {}
+fire('adminmenu:tp:use', 3, 2, 7)
+check('multi : n° de destination inexistant refusé', tpGo(3) == nil)
+players[3].veh = 55
+fire('adminmenu:tp:use', 3, 2, 1)
+check('en véhicule non autorisé : refusé', tpGo(3) == nil and lastNote(3).kind == 'error')
+act('editor_tp_save', 1, { id = 2, name = 'Métro', mode = 'multi', vehicle = true, from = { x = 300, y = 0, z = 0 }, dests = { { name = 'Sud', x = 1000, y = 0, z = 0 } } })
+fire('adminmenu:tp:use', 3, 2, 1)
+check('modification enregistrée : véhicules autorisés, 1 destination', tpGo(3) and tpGo(3).x == 1000 and #lastSync('teleports')[2].dests == 1)
+A.editor_delete.fn(1, { kind = 'teleport', id = 1 })
+check('suppression du téléporteur', #lastSync('teleports') == 1)
 
 print(('\n%d/%d'):format(n - fails, n))
 return fails

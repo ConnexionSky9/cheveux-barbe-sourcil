@@ -2,6 +2,9 @@
 --  PORTES ET PORTAILS VERROUILLABLES
 --  Les portes de la map sont verrouillées avec le système de portes
 --  du jeu (DoorSystem) : aucun objet n'est supprimé ni recréé.
+--  À l'approche : petit cadenas Elyzea FA posé sur la porte (aucun texte).
+--  E : le serveur vérifie les clés. Clés : le cadenas s'ouvre, puis la porte
+--  se déverrouille et s'entrouvre. Sans clés : le cadenas reste fermé (il tremble).
 -- =========================================================
 local DC = Config.Doors
 local registered = {}   -- [hashPorte] = true
@@ -11,6 +14,22 @@ local nearPanel = nil    -- pupitre à portée (prioritaire sur les portes pour 
 if type(LastInteract) ~= 'number' then LastInteract = 0 end
 
 local function leafHash(id, i) return GetHashKey(('am_door_%d_%d'):format(id, i)) end
+local openFor = {}       -- [idPorte] = GetGameTimer() : déverrouillée par moi, à entrouvrir
+local OPEN_RATIO = 0.55  -- entrouverture après déverrouillage (sens choisi selon le côté du joueur)
+
+-- Entrouvre une porte que je viens de déverrouiller (côté opposé au joueur)
+local function pushOpen(d)
+    local p = GetEntityCoords(PlayerPedId())
+    for i, l in ipairs(d.leaves) do
+        local ent = GetClosestObjectOfType(l.x, l.y, l.z, 1.5, l.model, false, false, false)
+        local side = 1.0
+        if ent ~= 0 then
+            local f = GetEntityForwardVector(ent)
+            if (p.x - l.x) * f.x + (p.y - l.y) * f.y > 0 then side = -1.0 end
+        end
+        DoorSystemSetOpenRatio(leafHash(d.id, i), OPEN_RATIO * side * (i == 2 and -1.0 or 1.0), false, false)
+    end
+end
 
 -- Applique l'état de toutes les portes (appelé à chaque synchro)
 function RefreshDoors()
@@ -25,6 +44,10 @@ function RefreshDoors()
             end
             DoorSystemSetDoorState(h, d.locked and 1 or 0, false, false)
             if d.locked then DoorSystemSetOpenRatio(h, 0.0, false, false) end
+        end
+        if not d.locked and openFor[d.id] then
+            if GetGameTimer() - openFor[d.id] < 4000 then pushOpen(d) end
+            openFor[d.id] = nil
         end
     end
     for h in pairs(registered) do
@@ -55,15 +78,109 @@ end)
 
 -- ---------------------------------------------------------
 --  Interaction des joueurs (touche E, la même que la récolte)
+--  Cadenas Elyzea FA dessiné sur la porte (textures html/img/lock_*.png), aucun texte.
 -- ---------------------------------------------------------
 local nearDoor = nil
+local TXD = 'am_elylock'
 CreateThread(function()
-    local KEY = ('~INPUT_%X~'):format((GetHashKey('+harvest_plant') | 0x80000000) & 0xFFFFFFFF)   -- calculé une seule fois
+    local txd = CreateRuntimeTxd(TXD)
+    for _, n in ipairs({ 'lock_body', 'lock_shackle', 'lock_shackle_open', 'lock_halo' }) do
+        CreateRuntimeTextureFromImage(txd, n, ('html/img/%s.png'):format(n))
+    end
+end)
+
+-- Animation en cours par porte : { kind = 'unlock' | 'lock' | 'deny', t0 }
+local lockFx = {}
+RegisterNetEvent('adminmenu:door:lockfx', function(id, kind)
+    id = tonumber(id)
+    if not id or (kind ~= 'unlock' and kind ~= 'lock' and kind ~= 'deny') then return end
+    lockFx[id] = { kind = kind, t0 = GetGameTimer() }
+    if kind == 'unlock' then
+        openFor[id] = GetGameTimer() + 800
+        PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+    elseif kind == 'lock' then
+        PlaySoundFrontend(-1, 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+    else
+        PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
+    end
+end)
+
+-- Centre visuel de la porte (milieu du ou des battants, d'après la forme du modèle)
+local centerCache = {}   -- [idPorte] = { at, pos }
+local function doorCenter(d)
+    local c = centerCache[d.id]
+    if c and GetGameTimer() - c.at < 1500 then return c.pos end
+    local sx, sy, sz, n = 0.0, 0.0, 0.0, 0
+    for _, l in ipairs(d.leaves) do
+        local ent = GetClosestObjectOfType(l.x, l.y, l.z, 1.5, l.model, false, false, false)
+        local w
+        if ent ~= 0 and DoesEntityExist(ent) then
+            local mn, mx = GetModelDimensions(l.model)
+            w = GetOffsetFromEntityInWorldCoords(ent, (mn.x + mx.x) / 2, (mn.y + mx.y) / 2, (mn.z + mx.z) / 2)
+        else
+            w = vector3(l.x, l.y, l.z + 1.0)
+        end
+        sx, sy, sz, n = sx + w.x, sy + w.y, sz + w.z, n + 1
+    end
+    local pos = vector3(sx / n, sy / n, sz / n)
+    centerCache[d.id] = { at = GetGameTimer(), pos = pos }
+    return pos
+end
+
+local function easeOut(t) t = math.min(1.0, math.max(0.0, t)) return 1 - (1 - t) ^ 3 end
+
+-- Dessine le cadenas. fade : 0..1 (apparition selon la distance)
+local function drawLock(d, fade)
+    local w = doorCenter(d)
+    local on, sx, sy = GetScreenCoordFromWorldCoord(w.x, w.y, w.z)
+    if not on then return end
+    local dist = #(GetGameplayCamCoord() - w)
+    local h = math.min(0.07, math.max(0.032, 0.11 / math.max(dist, 0.5)))   -- taille à l'écran
+    local ar = GetAspectRatio(false)
+    local wd = h / ar
+    local fx = lockFx[d.id]
+    local now = GetGameTimer()
+    local t = fx and (now - fx.t0) or 1e9
+    local locked = d.locked
+    local open = not locked                       -- anse ouverte ?
+    local lift = 0.0                              -- montée de l'anse (fraction de la hauteur)
+    local shake = 0.0
+    local halo = { 155, 92, 255 }                 -- violet Elyzea
+    local haloA = 70
+    local pop = 1.0
+    if fx and fx.kind == 'unlock' and t < 1200 then
+        if t < 260 then lift = 0.12 * easeOut(t / 260) open = false              -- l'anse monte
+        else open = true end                                                    -- puis bascule ouverte
+        halo, haloA = { 62, 230, 176 }, math.floor(150 * (1 - math.min(1, t / 1200)) + 60)
+        pop = 1.0 + 0.12 * math.sin(math.min(1, t / 400) * math.pi)
+    elseif fx and fx.kind == 'lock' and t < 900 then
+        if t < 220 then open = true else open = false lift = 0.12 * (1 - easeOut((t - 220) / 200)) end
+        haloA = math.floor(150 * (1 - math.min(1, t / 900)) + 60)
+        pop = 1.0 + 0.08 * math.sin(math.min(1, t / 360) * math.pi)
+    elseif fx and fx.kind == 'deny' and t < 650 then
+        open = false
+        shake = math.sin(t / 22) * 0.006 * (1 - t / 650)
+        halo, haloA = { 255, 77, 109 }, math.floor(170 * (1 - t / 650) + 50)
+    elseif fx then
+        lockFx[d.id] = nil
+        fx = nil
+    end
+    local a = math.floor(255 * fade * (open and not fx and 0.55 or 1.0))   -- porte ouverte : cadenas plus discret
+    if a <= 0 then return end
+    h, wd = h * pop, wd * pop
+    local x = sx + shake
+    DrawSprite(TXD, 'lock_halo', x, sy + h * 0.08, wd * 1.9, h * 1.9, 0.0, halo[1], halo[2], halo[3], math.floor(haloA * fade))
+    DrawSprite(TXD, open and 'lock_shackle_open' or 'lock_shackle', x, sy - h * lift, wd, h, 0.0, 255, 255, 255, a)
+    DrawSprite(TXD, 'lock_body', x, sy, wd, h, 0.0, 255, 255, 255, a)
+end
+
+CreateThread(function()
+    local seen = {}   -- [idPorte] = GetGameTimer() d'apparition (fondu)
     while true do
         -- Chaque porte a sa propre distance d'ouverture (sinon celle de la config)
         local found, bestRatio = nil, 1.0
         local doors = Editor.doors or {}
-        if #doors > 0 and not doorOpen and not panelOpen and not nearPanel and not IsNoclipActive() then
+        if #doors > 0 and not doorOpen and not panelOpen and not nearPanel and not IsNoclipActive() and not (NearTeleport and NearTeleport()) then
             local p = GetEntityCoords(PlayerPedId())
             for _, d in ipairs(doors) do
                 local reach = d.distance or DC.interactDistance
@@ -75,13 +192,16 @@ CreateThread(function()
             end
         end
         nearDoor = found
-        Wait(found and 0 or 400)
-        if found then
-            BeginTextCommandDisplayHelp('STRING')
-            AddTextComponentSubstringPlayerName(('%s %s : %s'):format(
-                KEY,
-                found.name, found.locked and '~r~verrouillée' or '~g~ouverte'))
-            EndTextCommandDisplayHelp(0, false, false, -1)
+        -- l'animation se termine même si le joueur s'éloigne un peu
+        local anim = nil
+        if not found then for id in pairs(lockFx) do for _, d in ipairs(doors) do if d.id == id then anim = d end end end end
+        local show = found or anim
+        Wait(show and 0 or 400)
+        if show and not IsPauseMenuActive() then
+            if not seen[show.id] then seen = { [show.id] = GetGameTimer() } end
+            drawLock(show, math.min(1.0, (GetGameTimer() - seen[show.id]) / 180))
+        elseif not show then
+            seen = {}
         end
     end
 end)

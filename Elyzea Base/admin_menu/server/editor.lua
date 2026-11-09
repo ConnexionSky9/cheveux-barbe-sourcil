@@ -19,6 +19,7 @@ local Data = {
     doorPanels = Storage.load('door_panels', {}), -- pupitres de commande des portes (ex. PC des cellules)
     propFolders = Storage.load('prop_folders', {}), -- dossiers pour ranger les props
     stashes = Storage.load('stashes', {}),   -- coffres (inventaires) posés sur la map
+    teleports = Storage.load('teleports', {}), -- points de téléportation (A → B ou plusieurs destinations)
 }
 local Jails = Storage.load('jails', {})     -- [licence] = { remaining, ret, reason, by, name }
 local Looted = {}      -- ["idZone:idxPoint"] = GetGameTimer() de réapprovisionnement
@@ -1053,6 +1054,55 @@ def('editor_doorpanel_move', 'editor_doors', function(src, d)
     AM.notify(src, ('Pupitre « %s » déplacé ici.'):format(p.name), 'success')
 end)
 
+-- Téléporteurs ----------------------------------------------
+-- mode 'ab' : un départ → une arrivée (retour possible depuis l'arrivée)
+-- mode 'multi' : un départ → le joueur choisit sa destination dans la liste
+-- Le client n'envoie jamais de coordonnées pour se téléporter : seulement l'id et le n° de destination.
+local TP_MAX_DESTS, TP_MAX = 20, 300
+local function tpPoint(v, def)
+    if type(v) ~= 'table' then return nil end
+    local x, y, z, h = coords(v)
+    if not x or math.abs(x) > 20000 or math.abs(y) > 20000 or z < -300 or z > 3000 then return nil end
+    local name = cleanName(v.name, 40):match('^%s*(.-)%s*$')
+    return { name = name ~= '' and name or def, x = x, y = y, z = z, h = h }
+end
+local function tpFields(src, t, d)
+    local name = cleanName(d.name, 40):match('^%s*(.-)%s*$')
+    if name == '' then return false, 'Donne un nom au téléporteur.' end
+    local mode = d.mode == 'multi' and 'multi' or 'ab'
+    local from = tpPoint(d.from, 'Départ')
+    if not from then return false, 'Coordonnées du départ invalides.' end
+    local dests = {}
+    for i, v in ipairs(type(d.dests) == 'table' and d.dests or {}) do
+        if #dests >= (mode == 'ab' and 1 or TP_MAX_DESTS) then break end
+        local q = tpPoint(v, ('Destination %d'):format(i))
+        if not q then return false, ('Coordonnées de la destination %d invalides.'):format(i) end
+        dests[#dests + 1] = q
+    end
+    if #dests == 0 then return false, mode == 'ab' and 'Indique le point d\'arrivée.' or 'Ajoute au moins une destination.' end
+    t.name, t.mode, t.from, t.dests = name, mode, from, dests
+    t.radius = math.floor(num(d.radius, 0.8, 5.0, 1.5) * 10 + 0.5) / 10
+    t.twoWay = mode == 'ab' and bool(d.twoWay, false) or nil
+    t.vehicle = bool(d.vehicle, false)
+    t.marker = bool(d.marker, true)
+    return true
+end
+def('editor_tp_save', 'editor_spawns', function(src, d)
+    local _, t = findIndex(Data.teleports, d.id)
+    local isNew = t == nil
+    if isNew and #Data.teleports >= TP_MAX then return AM.notify(src, ('Limite de %d téléporteurs atteinte.'):format(TP_MAX), 'error') end
+    local tmp = {}
+    local ok, err = tpFields(src, tmp, d)
+    if not ok then return AM.notify(src, err, 'error') end
+    if isNew then t = { id = nextId(Data.teleports) } table.insert(Data.teleports, t) end
+    for k in pairs(tmp) do t[k] = tmp[k] end
+    t.twoWay = tmp.twoWay
+    save('teleports') broadcast('teleports')
+    AM.notify(src, ('Téléporteur « %s » %s.'):format(t.name, isNew and 'créé' or 'enregistré'), 'success')
+    AM.addLog(src, isNew and 'Téléporteur créé' or 'Téléporteur modifié', ('#%d %s (%s, %d destination(s))'):format(t.id, t.name, t.mode, #t.dests))
+    TriggerClientEvent('adminmenu:editor:tpSaved', src, t.id)
+end)
+
 -- Suppression générique ------------------------------------
 local KIND = {
     spawn = { list = 'spawns', perm = 'editor_spawns', label = 'Point de spawn' },
@@ -1066,6 +1116,7 @@ local KIND = {
     door = { list = 'doors', perm = 'editor_doors', label = 'Porte' },
     doorpanel = { list = 'doorPanels', perm = 'editor_doors', label = 'Pupitre de portes' },
     stash = { list = 'stashes', perm = 'editor_stashes', label = 'Coffre' },
+    teleport = { list = 'teleports', perm = 'editor_spawns', label = 'Téléporteur' },
 }
 
 -- Accessible avec n'importe quel droit éditeur, puis vérifié selon le type supprimé
@@ -2199,10 +2250,15 @@ local function sendDoorPanel(src, door)
     })
 end
 
-local function toggleDoorFor(src, door, code)
+-- Bascule la porte. Le cadenas du joueur s'anime d'abord (adminmenu:door:lockfx),
+-- puis la porte change d'état ~0,3 s plus tard. after(src, door) : appelé une fois l'état appliqué.
+local DoorPending = {}   -- [idPorte] = true pendant l'animation du cadenas (jamais sauvegardé)
+local function toggleDoorFor(src, door, code, quiet, after)
+    if DoorPending[door.id] then return end
     local role = doorRole(src, door)
     if role == 'visitor' then
         if not door.codeHash then
+            if quiet then return TriggerClientEvent('adminmenu:door:lockfx', src, door.id, 'deny') end
             return AM.notify(src, 'Cette porte est verrouillée. Il faut un code invité ou les clés.', 'error')
         end
         local key = src .. ':' .. door.id
@@ -2219,10 +2275,18 @@ local function toggleDoorFor(src, door, code)
         end
         CodeTries[key] = nil
     end
-    door.locked = not door.locked
-    save('doors')
-    broadcast('doors')
-    AM.notify(src, door.locked and '🔒 Porte verrouillée.' or '🔓 Porte déverrouillée.', 'success')
+    local kind = door.locked and 'unlock' or 'lock'
+    TriggerClientEvent('adminmenu:door:lockfx', src, door.id, kind)
+    DoorPending[door.id] = true
+    SetTimeout(kind == 'unlock' and 300 or 250, function()
+        DoorPending[door.id] = nil
+        if not doorOf(door.id) then return end   -- supprimée entre-temps
+        door.locked = kind == 'lock'
+        save('doors')
+        broadcast('doors')
+        if not quiet then AM.notify(src, door.locked and '🔒 Porte verrouillée.' or '🔓 Porte déverrouillée.', 'success') end
+        if after then after(src, door) end
+    end)
 end
 
 -- Appui sur E : pas de panneau pour le propriétaire ou le staff.
@@ -2233,10 +2297,11 @@ RegisterNetEvent('adminmenu:door:interact', function(id)
     if not door or not nearDoor(src, door) then return end
     local role = doorRole(src, door)
     if DoorAccess.CanToggle(role) then
-        return toggleDoorFor(src, door)
+        return toggleDoorFor(src, door, nil, true)      -- cadenas animé, aucun texte
     end
     if not door.codeHash then
-        return AM.notify(src, 'Cette porte est verrouillée. Il faut un code invité ou les clés.', 'error')
+        -- pas de clés : le cadenas reste fermé (il tremble), aucun texte
+        return TriggerClientEvent('adminmenu:door:lockfx', src, door.id, 'deny')
     end
     sendDoorPanel(src, door)
 end)
@@ -2267,8 +2332,9 @@ RegisterNetEvent('adminmenu:door:toggle', function(id, code)
     if not AM.rateLimit(src, 'door', 5, 1000) then return end
     local door = doorOf(tonumber(id))
     if not door or not nearDoor(src, door) then return end
-    toggleDoorFor(src, door, code)
-    if doorRole(src, door) ~= 'visitor' then sendDoorPanel(src, door) end
+    toggleDoorFor(src, door, code, false, function(s, dd)
+        if GetPlayerPing(s) > 0 and doorRole(s, dd) ~= 'visitor' then sendDoorPanel(s, dd) end
+    end)
 end)
 
 RegisterNetEvent('adminmenu:door:setcode', function(id, code)
@@ -2592,3 +2658,37 @@ table.insert(AM.DataHooks, function(src, data)
     local ok, list = pcall(function() return exports.elyzea_jobphone:GetBusinesses() end)
     data.businesses = ok and list or {}
 end)
+
+
+-- ---------------------------------------------------------
+--  TÉLÉPORTEURS : utilisation par les joueurs (E au point de départ)
+--  Le serveur vérifie la distance, le véhicule et l'anti-spam, puis envoie
+--  lui-même les coordonnées d'arrivée : le client ne peut pas en choisir d'autres.
+-- ---------------------------------------------------------
+local TpLast = {}
+local function tpNear(src, p, radius)
+    local c = GetEntityCoords(GetPlayerPed(src))
+    return #(c - vector3(p.x, p.y, p.z)) <= radius + 2.0
+end
+RegisterNetEvent('adminmenu:tp:use', function(id, idx)
+    local src = source
+    if not AM.rateLimit(src, 'adminmenu:tp:use', 4, 2000) then return end
+    local _, t = findIndex(Data.teleports, id)
+    if not t then return end
+    local now = GetGameTimer()
+    if TpLast[src] and now - TpLast[src] < 2500 then return end
+    local dest
+    if tpNear(src, t.from, t.radius or 1.5) then
+        dest = t.dests[t.mode == 'multi' and math.floor(tonumber(idx) or 0) or 1]
+    elseif t.mode == 'ab' and t.twoWay and t.dests[1] and tpNear(src, t.dests[1], t.radius or 1.5) then
+        dest = t.from                                                 -- retour B → A
+    end
+    if not dest then return end
+    local ped = GetPlayerPed(src)
+    if GetVehiclePedIsIn(ped, false) ~= 0 and not t.vehicle then
+        return AM.notify(src, 'Descends du véhicule pour utiliser ce passage.', 'error')
+    end
+    TpLast[src] = now
+    TriggerClientEvent('adminmenu:tp:go', src, { x = dest.x, y = dest.y, z = dest.z, h = dest.h })
+end)
+AddEventHandler('playerDropped', function() TpLast[source] = nil end)

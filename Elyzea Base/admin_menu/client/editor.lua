@@ -6,7 +6,7 @@
 --  - Récolte pour tous les joueurs
 -- =========================================================
 local E = Config.Editor
-Editor = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, down = {}, looted = {}, propFolders = {}, stashes = {} }
+Editor = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, teleports = {}, down = {}, looted = {}, propFolders = {}, stashes = {} }
 
 local spawned = {}   -- [clé] = { ent, sig }
 local lookup = {}    -- [entité] = { kind, id, fieldId, idx }
@@ -183,6 +183,7 @@ RegisterNetEvent('adminmenu:editor:sync', function(kind, list)
     if kind == 'zones' then if RefreshZones then RefreshZones() end return end
     if kind == 'doors' then if RefreshDoors then RefreshDoors() end return end
     if kind == 'doorPanels' then return end
+    if kind == 'teleports' then return end
     if kind ~= 'spawns' then RebuildEditorIndex() end
     if kind == 'peds' and RefreshBarberBlips then RefreshBarberBlips() end
     if kind == 'peds' and RefreshShopBlips then RefreshShopBlips() end
@@ -885,7 +886,11 @@ end
 function EditorMenuData()
     local pos = GetEntityCoords(PlayerPedId())
     local function dist(r) return math.floor(#(pos - vector3(r.x, r.y, r.z))) end
-    local out = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, stashes = {} }
+    local out = { spawns = {}, props = {}, peds = {}, fields = {}, stations = {}, searches = {}, hidden = {}, zones = {}, doors = {}, doorPanels = {}, stashes = {}, teleports = {} }
+    for _, t in ipairs(Editor.teleports or {}) do
+        out.teleports[#out.teleports + 1] = { id = t.id, name = t.name, mode = t.mode, from = t.from, dests = t.dests, radius = t.radius,
+            twoWay = t.twoWay == true, vehicle = t.vehicle == true, marker = t.marker ~= false, dist = dist(t.from) }
+    end
     for _, r in ipairs(Editor.stashes or {}) do
         out.stashes[#out.stashes + 1] = { id = r.id, name = r.name, model = r.model, weight = r.weight, slots = r.slots,
             jobs = r.jobs or {}, gangs = r.gangs or {}, dist = dist(r) }
@@ -962,6 +967,19 @@ local function teleportTo(kind, id)
             if dd.id == id and dd.leaves[1] then
                 local l = dd.leaves[1]
                 return CreateThread(function() TeleportTo(vector3(l.x + 1.2, l.y + 1.2, l.z), true) end)
+            end
+        end
+        return
+    end
+    if kind == 'teleport' or kind == 'teleport_dest' then
+        for _, t in ipairs(Editor.teleports or {}) do
+            if t.id == id then
+                local p = kind == 'teleport' and t.from or t.dests[1]
+                if not p then return end
+                return CreateThread(function()
+                    TeleportTo(vector3(p.x, p.y, p.z), false)
+                    SetEntityHeading(PlayerPedId(), (p.h or 0.0) + 0.0)
+                end)
             end
         end
         return

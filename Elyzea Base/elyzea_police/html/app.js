@@ -92,7 +92,7 @@ function showAlt(m) {
   alt.innerHTML = `<div class="glow"></div><div class="head"><span class="badge"><i>${KIND_ICON[m.kind] || '◎'}</i></span><div class="tt"><b>${esc(m.title)}</b>
       <small>${esc(KIND_LABEL[m.kind] || 'Actions')}<em>${n} action${n > 1 ? 's' : ''}</em></small></div></div>` +
     '<div class="list">' + (m.options.length ? m.options.map((o, i) => `<button role="menuitem" data-key="${o.key}" ${o.disabled ? 'disabled' : ''} style="animation-delay:${Math.min(i, 10) * 26}ms">
-      <span class="ico">${ICONS[o.icon] || '•'}</span><span class="lbl">${esc(o.label)}${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span>${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('') : '<div class="empty">Aucune action</div>') + '</div>' +
+      <span class="ico">${ICONS[o.icon] || '•'}</span><span class="lbl">${esc(o.label)}</span>${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('') : '<div class="empty">Aucune action</div>') + '</div>' +
     '<div class="foot"><span><kbd>↑↓</kbd>choisir</span><span><kbd>Entrée</kbd>valider</span><span><kbd>1-9</kbd>direct</span><span><kbd>Échap</kbd>fermer</span></div>';
   alt.classList.remove('hidden');
   altOpenedAt = Date.now();

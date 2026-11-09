@@ -3,6 +3,8 @@
 --  ALT maintenu : curseur ; la cible survolée qui a des actions s'allume aux couleurs Elyzea (violet néon) :
 --  contour natif pour les véhicules et objets, cadre de visée lumineux pour les personnes et les animaux
 --  (le contour natif fait planter le jeu sur les personnages) ; ALT + clic gauche : actions possibles.
+--  Survol : UNIQUEMENT la surbrillance (aucun texte, aucune étiquette, aucune infobulle). Elle disparaît
+--  dès qu'on quitte la cible, qu'on relâche ALT ou que le menu d'actions s'ouvre.
 --  Optimisé : la cible est recherchée ~11 fois par seconde (rayons + ressources), pas à chaque image ;
 --  les réponses des ressources sont mises en cache ; le dessin par image ne coûte que quelques appels.
 --  Tout le monde : porter, coffre (ouvrir, se cacher, sortir quelqu'un).
@@ -245,7 +247,7 @@ end
 --   · personnes et animaux : JAMAIS le contour natif (plantage du jeu sur les personnages :
 --     https://github.com/citizenfx/fivem/issues/1425) ; un cadre de visée lumineux (4 coins) les entoure,
 --     calculé avec 7 os (tête, mains, bassin, pieds) : quelques appels par image, aucun calcul lourd.
---   · étiquette : nom de la cible et nombre d'actions, panneau sombre souligné de violet.
+--   · aucun texte : la surbrillance seule indique que la cible est sélectionnable.
 -- ---------------------------------------------------------------------
 local KIND_COLOR = {   -- teinte d'accent par type (le violet Elyzea reste la couleur principale)
     player = { 155, 92, 255 }, carry = { 155, 92, 255 }, npc = { 255, 77, 109 },
@@ -261,18 +263,6 @@ local function dims(ent)
         boxCache[m] = b
     end
     return b[1], b[2]
-end
-
--- Étiquette au-dessus de la cible (coordonnées écran)
-local function label2D(sx, sy, text, r, g, b)
-    local w = math.min(0.3, 0.0052 * #text + 0.02)
-    DrawRect(sx, sy + 0.0135, w + 0.004, 0.034, 155, 92, 255, 40)        -- halo
-    DrawRect(sx, sy + 0.0135, w, 0.03, 13, 8, 32, 225)                  -- panneau nuit
-    DrawRect(sx, sy + 0.0295, w, 0.0024, r, g, b, 255)                  -- trait néon
-    DrawRect(sx - w / 2 + 0.0012, sy + 0.0135, 0.0024, 0.03, r, g, b, 255)
-    SetTextFont(4) SetTextScale(0.0, 0.35) SetTextCentre(true) SetTextOutline()
-    SetTextColour(246, 242, 255, 240)
-    BeginTextCommandDisplayText('STRING') AddTextComponentSubstringPlayerName(text) EndTextCommandDisplayText(sx, sy)
 end
 
 -- Contour natif : une seule entité à la fois, jamais un personnage, toujours retiré proprement
@@ -340,26 +330,16 @@ local function reticle(x0, y0, x1, y1, r, g, b, pulse)
     return (x0 + x1) / 2, y0
 end
 
-local function Highlight(ent, kind, text)
+local function Highlight(ent, kind)
     if not ent or ent == 0 or not DoesEntityExist(ent) then Outline(nil) return end
     local c = KIND_COLOR[kind] or KIND_COLOR.player
-    local r, g, b = c[1], c[2], c[3]
-    local pulse = 0.72 + 0.28 * math.abs(math.sin(GetGameTimer() / 320))
-    local lx, ly
     if IsEntityAPed(ent) then
         Outline(nil)
         local x0, y0, x1, y1 = screenBox(ent)
-        if x0 then lx, ly = reticle(x0, y0, x1, y1, r, g, b, pulse) end
+        if x0 then reticle(x0, y0, x1, y1, c[1], c[2], c[3], 0.72 + 0.28 * math.abs(math.sin(GetGameTimer() / 320))) end
     else
         Outline(ent, c)
-        if text then
-            local _, mx = dims(ent)
-            local p = GetOffsetFromEntityInWorldCoords(ent, 0.0, 0.0, mx.z + 0.25)
-            local on, sx, sy = GetScreenCoordFromWorldCoord(p.x, p.y, p.z)
-            if on then lx, ly = sx, sy + 0.04 end
-        end
     end
-    if lx and text then label2D(lx, math.max(0.01, ly - 0.045), text, r, g, b) end
 end
 
 local function CloseMenu()
@@ -434,7 +414,7 @@ local function Start()
                 end
             end
             if #opts > 0 and ctx.entity and DoesEntityExist(ctx.entity) then
-                Highlight(ctx.entity, ctx.kind, ('%s  ·  %d action%s'):format(Title(ctx), #opts, #opts > 1 and 's' or ''))
+                Highlight(ctx.entity, ctx.kind)
             else
                 Outline(nil)
             end
@@ -442,6 +422,7 @@ local function Start()
                 -- le clic vise ce qui est sous le curseur à cet instant
                 ctx = Context()
                 if OpenMenu(ctx, GetControlNormal(0, 239), GetControlNormal(0, 240)) then
+                    Outline(nil)
                     active = false
                     return
                 end

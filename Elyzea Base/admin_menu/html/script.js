@@ -1001,6 +1001,7 @@ const EDITOR_SUBS = [
     { id: 'zones',   label: '🗺️ Zones',        perm: 'editor_zones' },
     { id: 'doors',   label: '🚪 Portes',       perm: 'editor_doors' },
     { id: 'stashes', label: '🗄️ Coffres',      perm: 'editor_stashes' },
+    { id: 'teleports', label: '🌀 Téléporteurs', perm: 'editor_spawns' },
 ];
 const distTxt = (d) => (d === undefined || d === null ? '' : d < 1000 ? `${d} m` : `${(d / 1000).toFixed(1)} km`);
 const byDist = (a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9);
@@ -1011,7 +1012,7 @@ VIEWS.editor = () => {
     const nav = `<div class="protect">🔒 <span>Tout ce que tu crées ici est <b>sauvegardé et protégé</b> : seuls les SuperAdmin et Fondateurs peuvent le modifier ou le supprimer.
         Pour les déplacer ou les supprimer, utilise les boutons des listes ci-dessous.</span></div>
         <div class="segmented">${subs.map((x) => `<button class="seg ${x.id === editorSub ? 'active' : ''}" data-esub="${x.id}">${x.label}</button>`).join('')}</div>`;
-    return nav + ({ spawns: edSpawns, props: edProps, peds: edPeds, harvest: edHarvest, search: edSearch, crafting: edCrafting, catalog: edCatalog, zones: edZones, doors: edDoors, stashes: () => (typeof edStashes === 'function' ? edStashes() : '') })[editorSub]();
+    return nav + ({ spawns: edSpawns, props: edProps, peds: edPeds, harvest: edHarvest, search: edSearch, crafting: edCrafting, catalog: edCatalog, zones: edZones, doors: edDoors, stashes: () => (typeof edStashes === 'function' ? edStashes() : ''), teleports: () => (typeof edTeleports === 'function' ? edTeleports() : '') })[editorSub]();
 };
 
 function edList(items, render, empty) {
@@ -2917,7 +2918,8 @@ async function handleEditor(n) {
             if (kind === 'zone' && zoneEditId === id) { zoneEditId = null; drafts.zone = null; }
             if (kind === 'door' && doorEditId === id) doorEditId = null;
             if (kind === 'doorpanel' && dpEdit && dpEdit.id === id) dpEdit = null;
-            const labels = { doorpanel: 'ce pupitre de commande (les portes restent)', door: 'cette porte (elle sera déverrouillée)', zone: 'cette zone', spawn: 'ce point de spawn', prop: 'ce prop', ped: 'ce PNJ', field: 'cette zone et tous ses plants', stash: 'ce coffre (son contenu reste enregistré)' };
+            if (kind === 'teleport' && typeof tpEdit !== 'undefined' && tpEdit && tpEdit.id === id) tpEdit = null;
+            const labels = { teleport: 'ce téléporteur', doorpanel: 'ce pupitre de commande (les portes restent)', door: 'cette porte (elle sera déverrouillée)', zone: 'cette zone', spawn: 'ce point de spawn', prop: 'ce prop', ped: 'ce PNJ', field: 'cette zone et tous ses plants', stash: 'ce coffre (son contenu reste enregistré)' };
             if (await confirmBox('Supprimer définitivement ?', `Tu vas supprimer ${labels[kind]}. Cette action est sauvegardée.`)) {
                 action('editor_delete', { kind, id });
                 setTimeout(() => post('refresh'), 300);

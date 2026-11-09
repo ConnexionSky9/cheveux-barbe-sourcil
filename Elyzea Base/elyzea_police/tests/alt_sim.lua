@@ -47,8 +47,10 @@ LINES = {}
 function DrawLine(x1, y1, z1, x2, y2, z2, r, g, b, a) LINES[#LINES + 1] = { x1, y1, z1, x2, y2, z2, a } end
 RECTS = {}
 function DrawRect(x, y, w, h, r, g, b, a) RECTS[#RECTS + 1] = { x, y, w, h, r, g, b, a } end
+TEXTS = {}
+function EndTextCommandDisplayText(x, y) TEXTS[#TEXTS + 1] = { x, y } end
 function SetTextFont() end function SetTextScale() end function SetTextCentre() end function SetTextOutline() end function SetTextColour() end
-function BeginTextCommandDisplayText() end function AddTextComponentSubstringPlayerName() end function EndTextCommandDisplayText() end
+function BeginTextCommandDisplayText() end function AddTextComponentSubstringPlayerName() end
 function DrawPoly() error('DrawPoly ne doit plus être utilisé (faces)') end
 function DrawMarker() error('DrawMarker ne doit plus être utilisé (cercle au sol)') end
 OUTLINED = {}
@@ -100,7 +102,10 @@ check(#LINES == 0 and count(OUTLINED) == 0, 'personne : aucun contour natif (pla
 check(x0 < lhx and y0 < hy and y1 > fy and y1 - fy < 0.05 and hy - y0 < 0.05, 'le cadre entoure la personne de la tête aux pieds, au plus près')
 local violet, label = 0, false
 for _, r in ipairs(RECTS) do if r[5] == 155 and r[6] == 92 and r[7] == 255 then violet = violet + 1 end if r[5] == 13 and r[6] == 8 and r[7] == 32 then label = true end end
-check(violet >= 8 and label, ('couleurs du logo : coins violet néon (%d éléments) et étiquette nuit'):format(violet))
+check(violet >= 8 and not label, ('couleurs du logo : coins violet néon (%d éléments), aucune étiquette'):format(violet))
+local TXT = 0
+for _ in pairs(TEXTS or {}) do TXT = TXT + 1 end
+check(TXT == 0, 'survol : aucun texte dessiné')
 check(#RECTS <= 24, ('dessin léger : %d rectangles par image (avant : ~6 000 calculs et des centaines de traits)'):format(#RECTS))
 -- véhicule et objet : contour natif exact, violet
 RECTS, LINES = {}, {}
