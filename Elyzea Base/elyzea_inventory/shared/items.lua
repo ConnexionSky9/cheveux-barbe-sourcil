@@ -229,6 +229,11 @@ Items.elyaura_5 = { label = 'ElyAura 5 Fold', weight = 240, stack = false, image
 Items.elyaura_6 = { label = 'ElyAura 6 Ultra Fold', weight = 230, stack = false, image = 'elyaura_6.png', icon = '📱',
     description = 'Le haut de gamme pliable : deux écrans, CarPlay, Garage et personnalisation totale. Abonnés Royale.' }
 
+-- Skateboard (elyzea_skate) : « Utiliser » le pose au sol devant soi (ou le range s'il est à côté).
+-- F pour monter, Espace pour un petit saut, 25 km/h max. Donné dans le kit de départ.
+Items.skateboard = { label = 'Skateboard', weight = 2500, stack = false, image = 'skateboard.png', icon = '🛹', close = true,
+    description = 'Posez-le au sol, montez dessus avec F et roulez en ville (25 km/h max). Espace : petit saut.' }
+
 -- Téléphone clandestin NOIR X (ressource noirx) · image : html/img/noirphone.png
 -- noirx l'enregistre lui-même comme utilisable ; il n'est jamais consommé.
 Items.noirphone = { label = 'NOIR X', weight = 180, stack = false, image = 'noirphone.png', icon = '📱',

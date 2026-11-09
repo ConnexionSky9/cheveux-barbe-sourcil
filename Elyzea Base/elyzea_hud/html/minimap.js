@@ -1,5 +1,7 @@
 /* =========================================================
    CARTE ELYZEA — remplace la mini-carte de GTA, dessinée dans le cadre du HUD.
+   Style 2D : fond aplat (terre / mer), routes vectorielles nettes relevées dans le jeu
+   (roads.lua), logos des commerces (vêtements, coiffeur, superette, essence…) en pastilles.
    Le jeu envoie ~30 fois / s : position, cap de la caméra et du personnage, zoom ;
    toutes les 2,5 s : les points de la carte (blips) et le point GPS.
    Image : une seule ou des tuiles (config.lua › Config.CustomMap.image).
@@ -48,21 +50,36 @@
   for (const [k, ids] of Object.entries(ICON_OF)) for (const id of ids) SPRITE_ICON[id] = k;
   const PATHS = {};
   for (const [k, d] of Object.entries(ICON_PATHS)) PATHS[k] = new Path2D(d);
+  // Couleur de la pastille selon le type de lieu (logos des commerces et services)
+  const ICON_BG = { shirt: '#D946EF', scissors: '#F472B6', needle: '#A855F7', cart: '#22C55E', gun: '#EF4444', fuel: '#F59E0B',
+    shield: '#3B82F6', cross: '#F43F5E', wrench: '#F97316', car: '#06B6D4', garage: '#0EA5E9', home: '#8B5CF6', dollar: '#16A34A',
+    glass: '#EC4899', plane: '#64748B', boat: '#0284C7', heli: '#475569', truck: '#CA8A04', pill: '#10B981', leaf: '#65A30D',
+    flag: '#9B5CFF', chip: '#E11D48', star: '#7C3AED' };
   function drawIcon(x, y, k, sprite, color) {
-    const r = 9.5 * k;
+    const key = SPRITE_ICON[sprite] || 'star';
+    const r = 8.5 * k;
     ctx.save(); ctx.translate(x, y);
+    ctx.beginPath(); ctx.arc(0, 0, r + 1.6 * k, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(8,4,18,.9)'; ctx.fill();                                 // contour sombre
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(10,6,22,.88)'; ctx.fill();
-    ctx.lineWidth = 1.6 * k; ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 5 * k; ctx.stroke(); ctx.shadowBlur = 0;
-    const s = (r * 1.25) / 24;
+    const g = ctx.createLinearGradient(0, -r, 0, r);
+    const bg = ICON_BG[key] || color;
+    g.addColorStop(0, bg); g.addColorStop(1, shade(bg, -0.28));
+    ctx.fillStyle = g; ctx.shadowColor = bg; ctx.shadowBlur = 6 * k; ctx.fill(); ctx.shadowBlur = 0;
+    const s = (r * 1.3) / 24;
     ctx.translate(-12 * s, -12 * s); ctx.scale(s, s);
-    ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color;
-    ctx.stroke(PATHS[SPRITE_ICON[sprite] || 'star']);
+    ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff';
+    ctx.stroke(PATHS[key]);
     ctx.restore();
+  }
+  function shade(hex, f) {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f));
+    return `rgb(${c.join(',')})`;
   }
 
   let cfg = null, tiles = [], tileW = 0, tileH = 0;
-  let cur = null, tgt = null, blips = [], wp = null;
+  let cur = null, tgt = null, blips = [], wp = null, roads = [];
   const lerp = (a, b, k) => a + (b - a) * k;
   const lerpAng = (a, b, k) => { let d = ((b - a + 540) % 360) - 180; return a + d * k; };
 
@@ -101,19 +118,32 @@
       return [cx + dx * Math.cos(rot) - dy * Math.sin(rot), cy + dx * Math.sin(rot) + dy * Math.cos(rot)];
     };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#0b1c2c'; ctx.fillRect(0, 0, w, h);                      // mer
+    ctx.fillStyle = '#0B1026'; ctx.fillRect(0, 0, w, h);                      // mer
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(rot);
     ctx.scale(scale / ppmX, scale / ppmY);
     const u = (cur.x - b.minX) * ppmX, v = (b.maxY - cur.y) * ppmY;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    ctx.filter = 'contrast(1.12) saturate(1.08)';
     for (const t of tiles) if (t.img.complete && t.img.naturalWidth) ctx.drawImage(t.img, t.x * tileW - u, t.y * tileH - v);
-    ctx.filter = 'none';
     ctx.restore();
-    // teinte du HUD (violet nuit) pour que la carte se fonde dans le cadre
-    ctx.fillStyle = 'rgba(16,8,34,.28)'; ctx.fillRect(0, 0, w, h);
     const d = window.devicePixelRatio || 1, k = h / 200;
+    // routes : traits nets (contour sombre + trait clair), largeur selon le zoom
+    if (roads.length) {
+      const rw = Math.max(2.2 * k, Math.min(6.5 * k, 8 * scale));
+      const span = cur.zoom * 1.1;
+      const path = new Path2D();
+      for (let i = 0; i < roads.length; i += 4) {
+        const x1 = roads[i], y1 = roads[i + 1], x2 = roads[i + 2], y2 = roads[i + 3];
+        if (Math.abs(x1 - cur.x) > span && Math.abs(x2 - cur.x) > span) continue;
+        if (Math.abs(y1 - cur.y) > span && Math.abs(y2 - cur.y) > span) continue;
+        const [ax, ay] = toScreen(x1, y1), [bx, by] = toScreen(x2, y2);
+        path.moveTo(ax, ay); path.lineTo(bx, by);
+      }
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.lineWidth = rw + 2.4 * k; ctx.strokeStyle = 'rgba(7,4,16,.92)'; ctx.stroke(path);
+      ctx.lineWidth = rw; ctx.strokeStyle = '#9C8BC9'; ctx.stroke(path);
+      ctx.lineWidth = Math.max(1, rw * 0.35); ctx.strokeStyle = 'rgba(233,220,255,.55)'; ctx.stroke(path);
+    }
     // points de la carte
     const reach = cur.zoom * 0.9;
     for (const p of blips) {
@@ -166,6 +196,7 @@
     else if (m.action === 'mapcfg') setCfg(m.cfg);
     else if (m.action === 'map') tgt = { x: m.x, y: m.y, cam: m.cam, ped: m.ped, zoom: m.zoom };
     else if (m.action === 'blips') { blips = Array.isArray(m.list) ? m.list : []; wp = m.wp || null; }
+    else if (m.action === 'roads') roads = Array.isArray(m.segs) ? m.segs : [];
   });
   requestAnimationFrame(draw);
 })();

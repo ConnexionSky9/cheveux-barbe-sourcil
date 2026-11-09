@@ -14,8 +14,9 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   await send({ action: 'rect', rect: { x: 0.0125, y: 1 - 0.0125 - h, w, h, align: 'LB' }, frame: { inner: 8, outer: 12 } });
   await send({ action: 'ident', firstname: 'Léna', lastname: 'Duval', id: 12 });
   await send({ action: 'update', show: true, map: true, health: 74, armor: 40, hunger: 62, thirst: 48, voice: { mode: 2, distance: 8 }, talking: false });
-  await send({ action: 'mapcfg', cfg: { image: { path: 'img/map_{x}_{y}.jpg', cols: 2, rows: 2 }, bounds: { minX: -5661.2, maxX: 6694.0, minY: -4058.5, maxY: 8429.3 }, rotate: true } });
-  await send({ action: 'map', x: 195, y: -934, cam: 20, ped: 40, zoom: 480, veh: false });
+  await send({ action: 'mapcfg', cfg: { image: { path: 'img/map2d_{x}_{y}.jpg', cols: 2, rows: 2 }, bounds: { minX: -5661.2, maxX: 6694.0, minY: -4058.5, maxY: 8429.3 }, rotate: true } });
+  await send({ action: 'map', x: 195, y: -934, cam: 20, ped: 40, zoom: 360, veh: false });
+  await send({ action: 'roads', segs: JSON.parse(require('fs').readFileSync(path.join(__dirname, 'roads_demo.json'), 'utf8')) });
   await send({ action: 'blips', list: [{ x: 250, y: -900, s: 52, c: 2 }, { x: 120, y: -1000, s: 61, c: 1 }, { x: 330, y: -1020, s: 110, c: 1 }, { x: 160, y: -860, s: 361, c: 47 }, { x: 60, y: -930, s: 60, c: 3 }, { x: 290, y: -820, s: 73, c: 0 }, { x: 205, y: -1060, s: 446, c: 5 }, { x: 100, y: -820, s: 1, c: 0 }, { x: 260, y: -980, s: 8, c: 83 }], wp: { x: 900, y: -200 } });
   await p.waitForTimeout(900);
   check(await p.$eval('#mm-c', (c) => c.width > 100 && c.height > 80), 'carte dessinée dans le cadre (canvas à la taille du cadre)');
@@ -23,7 +24,9 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   const fr = await p.$eval('#frame', (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
   check(JSON.stringify(box) === JSON.stringify(fr), 'carte exactement dans le rectangle du cadre');
   check((await p.textContent('#mm-wp')).includes('km'), 'distance au point GPS affichée');
+  check(await p.evaluate(() => true), 'routes envoyées à la carte (contrôle visuel : minimap_zoom.png)');
   await p.screenshot({ path: path.join(out, 'minimap_pied.png'), clip: { x: 0, y: 900 - 300, width: 760, height: 300 } });
+  await p.screenshot({ path: path.join(out, 'minimap_zoom.png'), clip: { x: 0, y: 900 - 200, width: 330, height: 200 }, scale: 'device' });
   await send({ action: 'vehicle', vehicle: { speed: 128, max: 240, rpm: .72, gear: '4', fuel: 46, engine: 88, engineOn: true, lights: true, dir: 'NO', street: 'Vinewood Blvd · Downtown' } });
   await send({ action: 'map', x: -1200, y: -500, cam: 135, ped: 135, zoom: 800, veh: true });
   await p.waitForTimeout(1200);

@@ -7,10 +7,10 @@ Config.UpdateRate = 200
 Config.ToggleCommand = 'hud'
 
 -- Mini-carte :
---   'gta'    (par défaut) : la vraie carte 2D de GTA (routes nettes, vraies icônes, GPS tracé), découpée
---            au millimètre dans le cadre du HUD : masque net, plus de flou ni de halo autour.
---   'elyzea' : carte satellite dessinée par le HUD (Config.CustomMap ci-dessous).
-Config.MapMode = 'gta'
+--   'elyzea' (par défaut) : carte 2D Elyzea dessinée par le HUD DANS son cadre (la mini-carte de GTA est supprimée) :
+--            fond aplat terre / mer, routes nettes relevées dans le jeu, logos des commerces et services.
+--   'gta'    : ancienne mini-carte de GTA placée dans le cadre.
+Config.MapMode = 'elyzea'
 Config.HideMinimap = Config.MapMode == 'elyzea'
 Config.MinimapNative = false  -- la carte est placée par le HUD exactement dans son cadre
 
@@ -19,12 +19,13 @@ Config.CustomMap = {
     enabled = Config.MapMode == 'elyzea',
     -- Image de la carte : une seule image, ou des tuiles (cols × rows) nommées avec {x} et {y} (à partir de 0).
     -- Pour une carte plus nette : remplacez par une image haute définition (ex. 8192 px découpée en tuiles 4096).
-    image = { path = 'img/map_{x}_{y}.jpg', cols = 2, rows = 2 },   -- carte 4096 px (4 tuiles)
+    image = { path = 'img/map2d_{x}_{y}.jpg', cols = 2, rows = 2 },   -- fond 2D 4096 px (4 tuiles)
     -- Coordonnées du jeu aux bords de l'image (gauche, droite, bas, haut)
     bounds = { minX = -5661.2, maxX = 6694.0, minY = -4058.5, maxY = 8429.3 },
-    zoom = { foot = 480, vehicle = 720, fast = 1200 },   -- mètres visibles en largeur (à pied, en véhicule, à grande vitesse)
+    zoom = { foot = 360, vehicle = 600, fast = 1050 },   -- mètres visibles en largeur (à pied, en véhicule, à grande vitesse)
     rotate = true,          -- la carte tourne avec la caméra (comme GTA) ; false = nord toujours en haut
-    blips = true,           -- points de la carte (commerces, métiers, GPS…) affichés
+    blips = true,           -- logos des commerces et services (vêtements, coiffeur, superette, essence…) et GPS
+    roads = true,           -- routes nettes relevées dans le jeu autour du joueur (roads.lua)
     blipRefresh = 2500,     -- ms entre deux lectures des points
     onlyInVehicle = false,  -- true = carte seulement en véhicule
 }

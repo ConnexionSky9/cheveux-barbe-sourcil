@@ -28,6 +28,7 @@ Config.StarterItems = {
     { name = 'water', count = 5 },
     { name = 'burger', count = 5 },
     { name = 'carte_identite', count = 1 },
+    { name = 'skateboard', count = 1 },       -- skateboard (elyzea_skate) : posé au sol, F pour monter
 }
 
 -- 🎥 Caméra du personnage

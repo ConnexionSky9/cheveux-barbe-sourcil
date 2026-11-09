@@ -349,6 +349,7 @@ CreateThread(function()
         if now >= nextForcedSend or l.show ~= show or l.map ~= map or l.health ~= health or l.armor ~= armor
             or l.hunger ~= hunger or l.thirst ~= thirst or l.mode ~= mode or l.dist ~= dist
             or l.talking ~= talking or l.radio ~= radioActive then
+            if l.map ~= map then TriggerEvent('elyzea_hud:mapShown', map == true) end
             l.show, l.map, l.health, l.armor, l.hunger, l.thirst = show, map, health, armor, hunger, thirst
             l.mode, l.dist, l.talking, l.radio = mode, dist, talking, radioActive
             nextForcedSend = now + 2000
