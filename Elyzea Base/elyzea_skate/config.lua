@@ -9,14 +9,14 @@ Config.StowOnDismount = true        -- descendre (ou tomber) : le skate retourne
 
 -- Conduite
 Config.MaxSpeed = 25.0              -- km/h maximum (jamais dépassé, même en descente)
-Config.Accel = 3.2                  -- m/s² de poussée au départ (W) ; plus doux près de la vitesse max
-Config.Brake = 5.5                  -- m/s² en freinant (S)
-Config.Friction = 0.6               -- m/s² de ralentissement en roue libre
+Config.Accel = 4.0                  -- m/s² de poussée au départ (W) ; plus doux près de la vitesse max
+Config.Brake = 7.0                  -- m/s² en freinant (S)
+Config.Friction = 0.5               -- m/s² de ralentissement en roue libre
 Config.Slope = 0.45                 -- effet des pentes (0 = aucun, 1 = gravité réelle)
-Config.TurnRate = 140.0             -- degrés / s (virage un peu plus large à pleine vitesse)
-Config.PivotRate = 70.0             -- degrés / s minimum : on tourne facilement, même à l'arrêt
-Config.SteerResponse = 10.0         -- réactivité de la direction (plus haut = plus vif)
-Config.Lean = 14.0                  -- inclinaison du corps dans les virages (degrés) ; la planche penche de moitié
+Config.TurnRate = 150.0             -- degrés / s en roulant (presque autant à pleine vitesse)
+Config.PivotRate = 90.0             -- degrés / s à l'arrêt : on se tourne facilement sur place
+Config.SteerResponse = 14.0         -- réactivité de la direction (plus haut = plus vif)
+Config.Lean = 5.0                   -- légère inclinaison du corps dans les virages (degrés) ; la planche reste à plat
 Config.CrashSpeed = 5.0             -- choc (m/s perdus d'un coup) qui fait tomber du skate
 
 Config.MountDistance = 2.0          -- distance pour remonter (F) ou ramasser (E)

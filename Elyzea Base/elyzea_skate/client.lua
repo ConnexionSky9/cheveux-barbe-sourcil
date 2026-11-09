@@ -131,6 +131,7 @@ local function dismount(fall)
     SetEntityCollision(ped, true, true)
     FreezeEntityPosition(ped, false)
     ClearPedTasksImmediately(ped)
+    TaskClearLookAt(ped)
     if board and DoesEntityExist(board.veh) then
         if board.prop and DoesEntityExist(board.prop) then attachProp(0.0) end
         local v = GetEntityVelocity(board.veh)
@@ -246,8 +247,7 @@ CreateThread(function()
                         speed = math.max(0.0, speed - (Config.Friction or 0.6) * dt)
                     end
                     -- pente : nez vers le bas = on accélère, vers le haut = on ralentit
-                    local pitch = math.rad(GetEntityPitch(veh))
-                    speed = speed - math.sin(pitch) * 9.81 * (Config.Slope or 0.45) * dt
+                    speed = speed - math.sin(math.rad(GetEntityPitch(veh))) * 9.81 * (Config.Slope or 0.45) * dt
                 end
                 speed = clamp(speed, 0.0, MAX)
                 -- choc (mur, voiture) : la vitesse réelle chute d'un coup → on tombe
@@ -257,23 +257,36 @@ CreateThread(function()
                 if lastReal > 4.0 and lastReal - real > (Config.CrashSpeed or 5.0) then dismount(true) goto continue end
                 if real + 0.6 < speed and speed > 1.0 then speed = math.max(0.0, real) end   -- retenu par un obstacle
                 lastReal = real
-                -- direction lissée ; virage plus serré à basse vitesse, rien à l'arrêt
+                -- direction lissée et vive, presque la même à toutes les vitesses ; pivot possible à l'arrêt
                 local want = (left and 1.0 or 0.0) - (right and 1.0 or 0.0)
-                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 10.0), 0.0, 1.0)
+                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 14.0), 0.0, 1.0)
+                local heading = GetEntityHeading(veh)
                 if math.abs(steer) > 0.01 then
-                    -- vif à basse vitesse (on peut même pivoter à l'arrêt), un peu plus large à pleine vitesse
-                    local pivot, turn = Config.PivotRate or 70.0, Config.TurnRate or 140.0
-                    local rate = (pivot + (turn - pivot) * clamp(speed / 2.0, 0.0, 1.0)) * (1.0 - 0.3 * speed / MAX)
-                    SetEntityHeading(veh, (GetEntityHeading(veh) + steer * rate * dt) % 360.0)
-                    f = GetEntityForwardVector(veh)
+                    local pivot, turn = Config.PivotRate or 90.0, Config.TurnRate or 150.0
+                    local rate = (pivot + (turn - pivot) * clamp(speed / 2.0, 0.0, 1.0)) * (1.0 - 0.15 * speed / MAX)
+                    heading = (heading + steer * rate * dt) % 360.0
                 end
+                -- skate FIXE : toujours à plat (aucun roulis, pas de balancement sur les bosses) ; seule la pente est suivie
+                if onGround then
+                    SetEntityRotation(veh, clamp(GetEntityPitch(veh), -25.0, 25.0), 0.0, heading, 2, true)
+                    SetEntityAngularVelocity(veh, 0.0, 0.0, 0.0)
+                else
+                    SetEntityHeading(veh, heading)
+                end
+                f = GetEntityForwardVector(veh)
                 SetEntityVelocity(veh, f.x * speed, f.y * speed, math.min(v.z, 2.0))
-                -- penché dans le virage (corps et planche), selon la vitesse
-                local lean = -steer * (Config.Lean or 14.0) * clamp(speed / MAX + 0.2, 0.0, 1.0)
+                -- posture naturelle : le corps penche à peine dans le virage (la planche reste à plat)
+                local lean = -steer * (Config.Lean or 5.0) * clamp(speed / MAX + 0.2, 0.0, 1.0)
                 if math.abs(lean - lastLean) > 0.25 then
                     lastLean = lean
                     attachPed(ped, lean)
-                    if board.prop and DoesEntityExist(board.prop) then attachProp(lean * 0.5) end
+                end
+                -- le regard suit la route (tête tournée vers là où va le skate)
+                if GetGameTimer() >= (board.lookAt or 0) then
+                    board.lookAt = GetGameTimer() + 400
+                    local c = GetEntityCoords(veh)
+                    local hr = math.rad(heading + steer * 25.0)
+                    TaskLookAtCoord(ped, c.x - math.sin(hr) * 12.0, c.y + math.cos(hr) * 12.0, c.z + 1.2, 1000, 2048, 2)
                 end
                 -- recalage des pieds juste après être monté (l'animation a pris sa pose)
                 if board.fitted < 5 and GetGameTimer() - mountedAt > 300 + board.fitted * 200 then

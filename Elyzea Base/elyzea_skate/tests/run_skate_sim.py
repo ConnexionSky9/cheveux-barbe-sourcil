@@ -36,6 +36,12 @@ PITCH = 0
 function GetEntityPitch() return PITCH end
 function IsPedRagdoll() return false end
 function GetGroundZFor_3dCoord(x, y, z) return true, 0.0 end
+ROLL = {}
+function SetEntityRotation(e, x, y, z) ENT[e].h = z % 360 ROLL[#ROLL + 1] = y end
+function SetEntityAngularVelocity() end
+LOOK = 0
+function TaskLookAtCoord() LOOK = LOOK + 1 end
+function TaskClearLookAt() end
 function PlayerPedId() return 1 end
 ENT = { [1] = { pos = vector3(0, 0, 1), h = 0 } }
 local nextE = 10
@@ -150,8 +156,12 @@ g.step(2)
 d2 = (g.ENT[VEH].h - h0) % 360
 g.step(60)
 check(d2 < 1.5, f'direction progressive : pas de coup de volant ({d2:.2f}° au premier instant)')
-check(70 < (g.ENT[VEH].h - h0) % 360 < 150, f'A : tourne facilement à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
-check(g.ATT[1].ry < -8 and abs(g.ATT[1].rx) < 0.01, f'le joueur penche dans le virage, autour de l\'axe de la planche ({g.ATT[1].ry:.1f}°)')
+check(90 < (g.ENT[VEH].h - h0) % 360 < 160, f'A : tourne facilement à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
+check(-6.0 < g.ATT[1].ry < -2.0 and abs(g.ATT[1].rx) < 0.01, f'posture naturelle : le corps penche à peine dans le virage ({g.ATT[1].ry:.1f}°)')
+prop = L.eval("(function() for e, a in pairs(ATT) do if e ~= 1 then return a end end end)()")
+check(abs(prop.rx) < 1e-6 and abs(prop.ry) < 1e-6, 'skate fixe : la planche reste à plat dans le virage')
+check(all(abs(r) < 1e-6 for r in g.ROLL.values()), 'skate fixe : aucun roulis, pas de balancement')
+check(g.LOOK > 0, 'le regard du joueur suit la route')
 L.execute("KEYS[34] = false")
 g.step(90)
 check(abs(g.ATT[1].ry) < 1.0, 'redressé en sortie de virage')
@@ -162,7 +172,7 @@ L.execute("KEYS[33] = false KEYS[35] = true")
 h1 = g.ENT[VEH].h
 g.step(60)
 L.execute("KEYS[35] = false KEYS[32] = true")
-check(40 < (h1 - g.ENT[VEH].h) % 360 < 100, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
+check(60 < (h1 - g.ENT[VEH].h) % 360 < 110, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
 g.step(300)
 # plus de saut : Espace ne fait rien
 L.execute("JUST[22] = true")
