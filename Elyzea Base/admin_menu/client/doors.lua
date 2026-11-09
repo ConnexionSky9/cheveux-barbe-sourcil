@@ -4,7 +4,8 @@
 --  du jeu (DoorSystem) : aucun objet n'est supprimé ni recréé.
 --  À l'approche : petit cadenas Elyzea FA posé sur la porte (aucun texte).
 --  E : le serveur vérifie les clés. Clés : le cadenas s'ouvre, puis la porte
---  se déverrouille et s'entrouvre. Sans clés : le cadenas reste fermé (il tremble).
+--  se déverrouille et s'ouvre (chez tout le monde). Fermeture : la porte se referme
+--  en douceur, puis se verrouille. Sans clés : le cadenas reste fermé (il tremble).
 -- =========================================================
 local DC = Config.Doors
 local registered = {}   -- [hashPorte] = true
@@ -14,20 +15,52 @@ local nearPanel = nil    -- pupitre à portée (prioritaire sur les portes pour 
 if type(LastInteract) ~= 'number' then LastInteract = 0 end
 
 local function leafHash(id, i) return GetHashKey(('am_door_%d_%d'):format(id, i)) end
-local openFor = {}       -- [idPorte] = GetGameTimer() : déverrouillée par moi, à entrouvrir
-local OPEN_RATIO = 0.55  -- entrouverture après déverrouillage (sens choisi selon le côté du joueur)
+local OPEN_RATIO = 0.6    -- ouverture après déverrouillage (sens : à l'opposé de celui qui ouvre)
+local OPEN_MS, CLOSE_MS = 650, 600
+local prevLocked = {}    -- [idPorte] = dernier état connu (détecte ouverture / fermeture)
+local moving = {}        -- [hashBattant] = jeton de l'animation en cours
+local swingQueue = {}    -- [idPorte] = { x, y, at } : ouverture demandée par le serveur
 
--- Entrouvre une porte que je viens de déverrouiller (côté opposé au joueur)
-local function pushOpen(d)
-    local p = GetEntityCoords(PlayerPedId())
+local function ease(t) t = math.min(1.0, math.max(0.0, t)) return t * t * (3 - 2 * t) end
+
+-- Fait pivoter un battant en douceur d'une ouverture à une autre ; lockAtEnd : verrouille une fois fermé
+local function animateLeaf(h, from, to, ms, lockAtEnd, doorId)
+    local token = {}
+    moving[h] = token
+    CreateThread(function()
+        DoorSystemSetDoorState(h, 0, false, false)
+        local t0 = GetGameTimer()
+        while moving[h] == token do
+            local k = ease((GetGameTimer() - t0) / ms)
+            DoorSystemSetOpenRatio(h, from + (to - from) * k, false, false)
+            if k >= 1.0 then break end
+            Wait(0)
+        end
+        if moving[h] ~= token then return end   -- une autre animation a pris la main
+        moving[h] = nil
+        if lockAtEnd then
+            -- toujours verrouillée ? (rien n'a changé pendant la fermeture)
+            for _, d in ipairs(Editor.doors or {}) do
+                if d.id == doorId and d.locked then
+                    DoorSystemSetOpenRatio(h, 0.0, false, false)
+                    DoorSystemSetDoorState(h, 1, false, false)
+                end
+            end
+        end
+    end)
+end
+
+-- Ouverture : chaque battant s'écarte du côté opposé à la personne qui a ouvert
+local function swingOpen(d, ox, oy)
     for i, l in ipairs(d.leaves) do
-        local ent = GetClosestObjectOfType(l.x, l.y, l.z, 1.5, l.model, false, false, false)
+        local h = leafHash(d.id, i)
         local side = 1.0
+        local ent = GetClosestObjectOfType(l.x, l.y, l.z, 1.5, l.model, false, false, false)
         if ent ~= 0 then
             local f = GetEntityForwardVector(ent)
-            if (p.x - l.x) * f.x + (p.y - l.y) * f.y > 0 then side = -1.0 end
+            if (ox - l.x) * f.x + (oy - l.y) * f.y > 0 then side = -1.0 end
         end
-        DoorSystemSetOpenRatio(leafHash(d.id, i), OPEN_RATIO * side * (i == 2 and -1.0 or 1.0), false, false)
+        animateLeaf(h, DoorSystemGetOpenRatio(h), OPEN_RATIO * side * (i == 2 and -1.0 or 1.0), OPEN_MS, false, d.id)
     end
 end
 
@@ -35,6 +68,7 @@ end
 function RefreshDoors()
     local alive = {}
     for _, d in ipairs(Editor.doors or {}) do
+        local was = prevLocked[d.id]
         for i, l in ipairs(d.leaves) do
             local h = leafHash(d.id, i)
             alive[h] = true
@@ -42,21 +76,47 @@ function RefreshDoors()
                 AddDoorToSystem(h, l.model, l.x, l.y, l.z, false, false, false)
                 registered[h] = true
             end
-            DoorSystemSetDoorState(h, d.locked and 1 or 0, false, false)
-            if d.locked then DoorSystemSetOpenRatio(h, 0.0, false, false) end
+            if d.locked then
+                local r = DoorSystemGetOpenRatio(h)
+                if was == false and math.abs(r) > 0.02 then
+                    -- on vient de fermer une porte ouverte : elle se referme d'abord, puis se verrouille
+                    animateLeaf(h, r, 0.0, CLOSE_MS, true, d.id)
+                elseif not moving[h] then
+                    DoorSystemSetDoorState(h, 1, false, false)
+                    DoorSystemSetOpenRatio(h, 0.0, false, false)
+                end
+            elseif not moving[h] then
+                DoorSystemSetDoorState(h, 0, false, false)
+            end
         end
-        if not d.locked and openFor[d.id] then
-            if GetGameTimer() - openFor[d.id] < 4000 then pushOpen(d) end
-            openFor[d.id] = nil
+        prevLocked[d.id] = d.locked == true
+        local q = swingQueue[d.id]
+        if q and not d.locked then
+            swingQueue[d.id] = nil
+            if GetGameTimer() - q.at < 4000 then swingOpen(d, q.x, q.y) end
         end
     end
     for h in pairs(registered) do
         if not alive[h] then
+            moving[h] = nil
             if IsDoorRegisteredWithSystem(h) then RemoveDoorFromSystem(h) end
             registered[h] = nil
         end
     end
 end
+
+-- Le serveur annonce l'ouverture à tous : la porte s'ouvre pareil chez tout le monde
+RegisterNetEvent('adminmenu:door:swing', function(id, ox, oy)
+    id, ox, oy = tonumber(id), tonumber(ox), tonumber(oy)
+    if not id or not ox or not oy then return end
+    for _, d in ipairs(Editor.doors or {}) do
+        if d.id == id then
+            if not d.locked then return swingOpen(d, ox, oy) end
+            swingQueue[id] = { x = ox, y = oy, at = GetGameTimer() }   -- l'état « ouverte » arrive juste après
+            return
+        end
+    end
+end)
 
 -- Ré-application régulière (certaines portes se réinitialisent quand la zone recharge)
 CreateThread(function()
@@ -69,6 +129,7 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for h in pairs(registered) do
+        moving[h] = nil
         if IsDoorRegisteredWithSystem(h) then
             DoorSystemSetDoorState(h, 0, false, false)
             RemoveDoorFromSystem(h)
@@ -96,7 +157,6 @@ RegisterNetEvent('adminmenu:door:lockfx', function(id, kind)
     if not id or (kind ~= 'unlock' and kind ~= 'lock' and kind ~= 'deny') then return end
     lockFx[id] = { kind = kind, t0 = GetGameTimer() }
     if kind == 'unlock' then
-        openFor[id] = GetGameTimer() + 800
         PlaySoundFrontend(-1, 'SELECT', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
     elseif kind == 'lock' then
         PlaySoundFrontend(-1, 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)

@@ -40,9 +40,11 @@ function AddTextComponentSubstringPlayerName() end
 function EndTextCommandDisplayHelp() end
 function IsDoorRegisteredWithSystem() return true end
 function AddDoorToSystem() end
-function DoorSystemSetDoorState() end
 OPEN = {}
-function DoorSystemSetOpenRatio(h, r) OPEN[#OPEN+1] = r end
+RATIO, STATE = {}, {}
+function DoorSystemSetOpenRatio(h, r) OPEN[#OPEN+1] = r RATIO[h] = r end
+function DoorSystemGetOpenRatio(h) return RATIO[h] or 0.0 end
+function DoorSystemSetDoorState(h, st) STATE[h] = st end
 function GetEntityForwardVector() return vector3(0,1,0) end
 function SetNuiFocus() end function SendNUIMessage() end
 function Notify() end
@@ -64,12 +66,25 @@ local liftY = s.lock_shackle and s.lock_shackle.y
 out[#out+1] = tostring(s.lock_shackle ~= nil and liftY < s.lock_body.y) .. ' anse qui monte (début d\'ouverture)'
 s = frame(300)
 out[#out+1] = tostring(s.lock_shackle_open ~= nil and s.lock_halo.cg == 230) .. ' anse ouverte + halo vert'
+RefreshDoors()                                  -- état initial : verrouillée
+local H = GetHashKey('am_door_7_1')
+events['adminmenu:door:swing'](7, 0, 0)         -- annoncé avant la synchro « ouverte »
 Editor.doors[1].locked = false
 RefreshDoors()
-out[#out+1] = tostring(#OPEN >= 1 and OPEN[#OPEN] ~= 0) .. ' porte entrouverte après déverrouillage'
+frame(0) frame(200) local mid = RATIO[H]
+frame(700)
+out[#out+1] = tostring(STATE[H] == 0 and mid and math.abs(mid) > 0.05 and math.abs(mid) < 0.6 and math.abs(RATIO[H]) > 0.59) .. ' ouverture : la porte pivote en douceur jusqu\'à ouverte'
 s = frame(1500)
 out[#out+1] = tostring(s.lock_shackle_open ~= nil and s.lock_body.a < 255) .. ' porte ouverte : cadenas ouvert discret'
 Editor.doors[1].locked = true
+RefreshDoors()
+out[#out+1] = tostring(STATE[H] == 0 and math.abs(RATIO[H]) > 0.3) .. ' fermeture : pas verrouillée d\'un coup pendant qu\'elle est ouverte'
+frame(0) frame(300) local midc = RATIO[H]
+frame(500)
+out[#out+1] = tostring(math.abs(midc) > 0.01 and math.abs(midc) < 0.59 and RATIO[H] == 0.0 and STATE[H] == 1) .. ' fermeture : se referme en douceur, puis se verrouille'
+Editor.doors[1].locked = false RefreshDoors()
+Editor.doors[1].locked = true RATIO[H] = 0.0 RefreshDoors()
+out[#out+1] = tostring(STATE[H] == 1) .. ' porte déjà fermée : verrouillée aussitôt'
 events['adminmenu:door:lockfx'](7, 'deny')
 s = frame(50) local x1 = s.lock_body.x
 s = frame(17) local x2 = s.lock_body.x

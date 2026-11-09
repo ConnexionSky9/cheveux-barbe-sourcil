@@ -2284,6 +2284,11 @@ local function toggleDoorFor(src, door, code, quiet, after)
         door.locked = kind == 'lock'
         save('doors')
         broadcast('doors')
+        if kind == 'unlock' then
+            -- ouverture visible par tous, à l'opposé de la personne qui ouvre
+            local c = GetEntityCoords(GetPlayerPed(src))
+            if c then TriggerClientEvent('adminmenu:door:swing', -1, door.id, c.x, c.y) end
+        end
         if not quiet then AM.notify(src, door.locked and '🔒 Porte verrouillée.' or '🔓 Porte déverrouillée.', 'success') end
         if after then after(src, door) end
     end)
