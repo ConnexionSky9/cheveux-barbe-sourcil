@@ -9,7 +9,7 @@ Skateboard du kit de départ (objet `skateboard`, elyzea_inventory).
 - Vitesse imposée à chaque image : **25 km/h maximum**, même en descente (`Config.MaxSpeed`).
 - Choc contre un obstacle à pleine vitesse : chute.
 - La planche (`v_res_skateboard`) est posée sur un petit véhicule RC invisible (`rcbandito`, build 2060+) qui donne
-  les roues, les pentes et les collisions. Le joueur est attaché debout, de profil.
+  les roues, les pentes et les collisions. Le joueur est attaché debout, corps à 30°, et ses pieds sont recalés automatiquement sur le plateau (mesure des os des orteils) juste après être monté.
 - Un skate par joueur ; l'objet reste dans l'inventaire (rien ne se perd à la déconnexion).
 
 Test hors jeu : `python3 tests/run_skate_sim.py`

@@ -12,8 +12,9 @@ Config.Accel = 3.2                  -- m/s² de poussée au départ (W) ; plus d
 Config.Brake = 5.5                  -- m/s² en freinant (S)
 Config.Friction = 0.6               -- m/s² de ralentissement en roue libre
 Config.Slope = 0.45                 -- effet des pentes (0 = aucun, 1 = gravité réelle)
-Config.TurnRate = 85.0              -- degrés / s au maximum (virage plus large quand on va vite)
-Config.SteerResponse = 6.0          -- douceur de la direction (plus haut = plus vif)
+Config.TurnRate = 140.0             -- degrés / s (virage un peu plus large à pleine vitesse)
+Config.PivotRate = 70.0             -- degrés / s minimum : on tourne facilement, même à l'arrêt
+Config.SteerResponse = 10.0         -- réactivité de la direction (plus haut = plus vif)
 Config.Lean = 14.0                  -- inclinaison du corps dans les virages (degrés) ; la planche penche de moitié
 Config.CrashSpeed = 5.0             -- choc (m/s perdus d'un coup) qui fait tomber du skate
 
@@ -24,7 +25,8 @@ Config.Keys = { mount = 23, pickup = 38 }   -- F, E
 Config.BoardProp = 'v_res_skateboard'
 Config.BaseVehicle = 'rcbandito'
 Config.DeckHeight = 0.13            -- hauteur du plateau au-dessus du sol (m)
-Config.Stance = 90.0                -- le joueur se tient de profil sur la planche (degrés)
+Config.Stance = 30.0                -- angle du corps sur la planche (degrés) : pieds l'un derrière l'autre, sur le plateau
+Config.SoleOffset = 0.04            -- épaisseur sous l'os des orteils (m) : les pieds sont recalés pile sur le plateau
 
 -- Posture de glisse : la première animation qui existe dans le jeu est utilisée
 -- (genoux fléchis et bras d'équilibre d'abord, posture debout en dernier recours)

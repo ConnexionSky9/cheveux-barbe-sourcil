@@ -59,10 +59,36 @@ local function attachProp(lean)
     if board.rotZ == 90.0 then rx = lean or 0.0 else ry = lean or 0.0 end
     AttachEntityToEntity(board.prop, board.veh, 0, 0.0, 0.0, board.propZ, rx, ry, board.rotZ, false, false, false, false, 2, true)
 end
--- Joueur : bassin à ~1 m au-dessus des pieds, pieds sur le plateau, de profil ; lean = inclinaison dans le virage
+-- Joueur : bassin à ~1 m au-dessus des pieds (corrigé ensuite d'après la position réelle des pieds) ;
+-- lean = inclinaison dans le virage (roulis autour de l'axe de la planche)
+local fit = {}   -- [modèle du personnage] = { x, y, z } : correction mesurée (pieds pile sur le plateau)
 local function attachPed(ped, lean)
-    AttachEntityToEntity(ped, board.veh, 0, 0.0, 0.0, 1.0 + (Config.DeckHeight or 0.13) - board.h,
-        0.0, lean or 0.0, Config.Stance or 90.0, false, false, false, true, 2, true)   -- roulis autour de l'axe de la planche
+    local c = fit[GetEntityModel(ped)] or { x = 0.0, y = 0.0, z = 0.0 }
+    AttachEntityToEntity(ped, board.veh, 0, c.x, c.y, 1.0 + (Config.DeckHeight or 0.13) - board.h + c.z,
+        0.0, lean or 0.0, Config.Stance or 30.0, false, false, false, true, 2, true)
+end
+
+-- Mesure les pieds (os des orteils) et recale le joueur : semelles sur le plateau, pieds centrés sur la planche
+local TOES = { 20781, 35502 }
+local function fitFeet(ped)
+    if not board.prop or not DoesEntityExist(board.prop) then return false end
+    local m = GetEntityModel(ped)
+    local c = fit[m] or { x = 0.0, y = 0.0, z = 0.0 }
+    local _, pmx = GetModelDimensions(GetEntityModel(board.prop))
+    local deck = GetEntityCoords(board.prop).z + pmx.z
+    local low, sx, sy = 1e9, 0.0, 0.0
+    for _, b in ipairs(TOES) do
+        local p = GetPedBoneCoords(ped, b, 0.0, 0.0, 0.0)
+        if p.z < low then low = p.z end
+        local l = GetOffsetFromEntityGivenWorldCoords(board.veh, p.x, p.y, p.z)
+        sx, sy = sx + l.x / #TOES, sy + l.y / #TOES
+    end
+    local dz = deck - (low - (Config.SoleOffset or 0.04))
+    local changed = math.abs(dz) > 0.015 or math.abs(sx) > 0.03 or math.abs(sy) > 0.05
+    if changed then
+        fit[m] = { x = clamp(c.x - sx, -0.4, 0.4), y = clamp(c.y - sy, -0.4, 0.4), z = clamp(c.z + dz, -0.5, 0.5) }
+    end
+    return changed
 end
 
 -- ---------------------------------------------------------------------
@@ -78,6 +104,7 @@ local function mount()
     SetVehicleHandbrake(board.veh, false)
     speed, steer = 0.0, 0.0
     mountedAt = GetGameTimer()
+    board.fitted = 0
     riding = true
     if not board.told then
         board.told = true
@@ -212,9 +239,11 @@ CreateThread(function()
                 lastReal = real
                 -- direction lissée ; virage plus serré à basse vitesse, rien à l'arrêt
                 local want = (left and 1.0 or 0.0) - (right and 1.0 or 0.0)
-                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 6.0), 0.0, 1.0)
-                if math.abs(steer) > 0.01 and speed > 0.15 then
-                    local rate = (Config.TurnRate or 85.0) * (1.0 - 0.45 * speed / MAX) * clamp(speed / 1.5, 0.0, 1.0)
+                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 10.0), 0.0, 1.0)
+                if math.abs(steer) > 0.01 then
+                    -- vif à basse vitesse (on peut même pivoter à l'arrêt), un peu plus large à pleine vitesse
+                    local pivot, turn = Config.PivotRate or 70.0, Config.TurnRate or 140.0
+                    local rate = (pivot + (turn - pivot) * clamp(speed / 2.0, 0.0, 1.0)) * (1.0 - 0.3 * speed / MAX)
                     SetEntityHeading(veh, (GetEntityHeading(veh) + steer * rate * dt) % 360.0)
                     f = GetEntityForwardVector(veh)
                 end
@@ -225,6 +254,11 @@ CreateThread(function()
                     lastLean = lean
                     attachPed(ped, lean)
                     if board.prop and DoesEntityExist(board.prop) then attachProp(lean * 0.5) end
+                end
+                -- recalage des pieds juste après être monté (l'animation a pris sa pose)
+                if board.fitted < 3 and GetGameTimer() - mountedAt > 300 + board.fitted * 250 then
+                    board.fitted = board.fitted + 1
+                    if fitFeet(ped) then attachPed(ped, lean) end
                 end
                 -- descendre
                 if IsDisabledControlJustPressed(0, K.mount) and GetGameTimer() - mountedAt > 400 then dismount(false) end

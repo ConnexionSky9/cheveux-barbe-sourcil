@@ -40,7 +40,7 @@ local nextE = 10
 function CreateVehicle(_, x, y, z, h) nextE = nextE + 1 ENT[nextE] = { pos = vector3(x, y, z), h = h, vel = vector3(0, 0, 0), veh = true } return nextE end
 function CreateObject(_, x, y, z) nextE = nextE + 1 ENT[nextE] = { pos = vector3(x, y, z), h = 0 } return nextE end
 function DoesEntityExist(e) return ENT[e] ~= nil end
-function GetEntityCoords(e) return ENT[e].pos end
+function GetEntityCoords(e) if ATT[e] then return worldOf(e) end return ENT[e].pos end
 function GetEntityHeading(e) return ENT[e].h end
 function SetEntityHeading(e, h) ENT[e].h = h end
 function GetEntityForwardVector(e) local r = math.rad(ENT[e].h) return vector3(-math.sin(r), math.cos(r), 0) end
@@ -52,7 +52,12 @@ function GetEntityHeightAboveGround() return HAG end
 function GetEntityModel() return 1 end
 function GetModelDimensions() return vector3(-0.1, -0.4, -0.05), vector3(0.1, 0.4, 0.05) end
 ATT = {}
-function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz) ATT[a] = { to = b, z = z, rx = rx, ry = ry, rz = rz } end
+function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz) ATT[a] = { to = b, x = x, y = y, z = z, rx = rx, ry = ry, rz = rz } end
+-- position réelle d'une entité attachée (véhicule au cap 0 pendant le recalage)
+function worldOf(e) if ATT[e] then local p = worldOf(ATT[e].to) return vector3(p.x + ATT[e].x, p.y + ATT[e].y, p.z + ATT[e].z) end return ENT[e].pos end
+-- personnage simulé : orteils 1,10 m sous le bassin, posés 10 cm trop à droite
+function GetPedBoneCoords(ped, b) local p = worldOf(ped) return vector3(p.x + 0.10, p.y + (b == 20781 and -0.17 or 0.17), p.z - 1.10) end
+function GetOffsetFromEntityGivenWorldCoords(e, x, y, z) local p = ENT[e].pos return vector3(x - p.x, y - p.y, z - p.z) end
 function IsEntityAttachedToEntity(a, b) return ATT[a] and ATT[a].to == b end
 function DetachEntity(a) ATT[a] = nil end
 function IsPedInAnyVehicle() return false end function IsEntityDead() return false end
@@ -95,8 +100,12 @@ check(len(placed) == 1, 'objet utilisé : skate posé au sol, signalé au serveu
 L.execute("for e, x in pairs(ENT) do if x.veh then VEH = e end end")
 VEH = g.VEH
 check(g.ENT[VEH].pos.y > 0.3, 'posé devant le joueur')
-check(g.ATT[1] is not None and g.ATT[1].to == VEH and abs(g.ATT[1].rz - 90) < 0.1, 'facile : le joueur monte directement dessus, de profil')
-check(abs(g.ATT[1].z - (1.0 + 0.13 - 0.18)) < 0.01, 'pieds posés sur le plateau (hauteur calculée)')
+check(g.ATT[1] is not None and g.ATT[1].to == VEH and abs(g.ATT[1].rz - 30) < 0.1, 'facile : le joueur monte directement dessus, corps à 30° (pieds dans l\'axe de la planche)')
+g.step(60)
+toe = L.eval("GetPedBoneCoords(1, 20781)")
+deckz = L.eval("(function() for e, a in pairs(ATT) do if e ~= 1 then return worldOf(e).z + 0.05 end end end)()")
+check(abs((toe.z - 0.04) - deckz) < 0.02, f'pieds recalés pile sur le plateau (écart {abs((toe.z - 0.04) - deckz) * 100:.1f} cm)')
+check(abs(g.ATT[1].x + 0.10) < 0.02, 'pieds recentrés sur la planche (ils étaient 10 cm à côté)')
 check(g.PLAYING == 'move_crouch_proto', 'posture de glisse jouée (repli automatique si une animation manque)')
 # pousser : accélération forte au départ puis plus douce, jamais plus de 25 km/h
 L.execute("KEYS[32] = true")
@@ -130,12 +139,21 @@ L.execute("KEYS[34] = true")
 g.step(2)
 d2 = (g.ENT[VEH].h - h0) % 360
 g.step(60)
-check(d2 < 1.0, f'direction douce : pas de coup de volant ({d2:.2f}° au premier instant)')
-check(30 < (g.ENT[VEH].h - h0) % 360 < 120, f'A : tourne à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
+check(d2 < 1.5, f'direction progressive : pas de coup de volant ({d2:.2f}° au premier instant)')
+check(70 < (g.ENT[VEH].h - h0) % 360 < 150, f'A : tourne facilement à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
 check(g.ATT[1].ry < -8 and abs(g.ATT[1].rx) < 0.01, f'le joueur penche dans le virage, autour de l\'axe de la planche ({g.ATT[1].ry:.1f}°)')
 L.execute("KEYS[34] = false")
 g.step(90)
 check(abs(g.ATT[1].ry) < 1.0, 'redressé en sortie de virage')
+# à l'arrêt : on peut pivoter sur place
+L.execute("KEYS[32] = false KEYS[33] = true")
+g.step(200)
+L.execute("KEYS[33] = false KEYS[35] = true")
+h1 = g.ENT[VEH].h
+g.step(60)
+L.execute("KEYS[35] = false KEYS[32] = true")
+check(40 < (h1 - g.ENT[VEH].h) % 360 < 100, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
+g.step(300)
 # plus de saut : Espace ne fait rien
 L.execute("JUST[22] = true")
 g.step(1)
