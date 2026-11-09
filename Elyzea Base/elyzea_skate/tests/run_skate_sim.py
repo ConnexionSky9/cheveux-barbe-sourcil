@@ -24,7 +24,16 @@ V.__sub = function(a, b) return vector3(a.x - b.x, a.y - b.y, a.z - b.z) end
 V.__len = function(a) return math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) end
 function joaat(s) return #s end
 function IsModelInCdimage() return true end function RequestModel() end function HasModelLoaded() return true end function SetModelAsNoLongerNeeded() end
-function RequestAnimDict() end function HasAnimDictLoaded() return true end function TaskPlayAnim() end function IsEntityPlayingAnim() return true end
+DICTS = { ['pickup_object'] = true, ['move_crouch_proto'] = true }   -- la 1re posture de la liste « n'existe pas » : repli testé
+function DoesAnimDictExist(d) return DICTS[d] == true end
+function RequestAnimDict() end function HasAnimDictLoaded(d) return DICTS[d] == true end
+PLAYED = {}
+function TaskPlayAnim(_, d, n) PLAYED[#PLAYED + 1] = d PLAYING = d end
+function IsEntityPlayingAnim(_, d) return PLAYING == d end
+function ClearPedTasks() PLAYING = nil end
+PITCH = 0
+function GetEntityPitch() return PITCH end
+function IsPedRagdoll() return false end
 function PlayerPedId() return 1 end
 ENT = { [1] = { pos = vector3(0, 0, 1), h = 0 } }
 local nextE = 10
@@ -43,12 +52,12 @@ function GetEntityHeightAboveGround() return HAG end
 function GetEntityModel() return 1 end
 function GetModelDimensions() return vector3(-0.1, -0.4, -0.05), vector3(0.1, 0.4, 0.05) end
 ATT = {}
-function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz) ATT[a] = { to = b, z = z, rz = rz } end
+function AttachEntityToEntity(a, b, bone, x, y, z, rx, ry, rz) ATT[a] = { to = b, z = z, rx = rx, ry = ry, rz = rz } end
 function IsEntityAttachedToEntity(a, b) return ATT[a] and ATT[a].to == b end
 function DetachEntity(a) ATT[a] = nil end
 function IsPedInAnyVehicle() return false end function IsEntityDead() return false end
 for _, n in ipairs({ 'SetVehicleOnGroundProperly', 'SetEntityVisible', 'SetVehicleDoorsLocked', 'SetVehicleEngineOn', 'SetVehicleRadioEnabled', 'SetEntityProofs',
-  'SetEntityAsMissionEntity', 'SetEntityCollision', 'ClearPedTasks', 'SetEntityCoordsNoOffset', 'SetVehicleHandbrake', 'BeginTextCommandDisplayHelp',
+  'SetEntityAsMissionEntity', 'SetEntityCollision', 'SetEntityCoordsNoOffset', 'SetVehicleHandbrake', 'BeginTextCommandDisplayHelp',
   'AddTextComponentSubstringPlayerName', 'DisableControlAction', 'AddEventHandler' }) do _G[n] = function() end end
 RAG = false
 HELPN = 0
@@ -80,59 +89,72 @@ function fire(n, ...) local co = coroutine.create(events[n]) threads[#threads + 
 ''')
 g = L.globals()
 g.fire('elyzea_skate:place')
-g.step(40)
+g.step(80)
 placed = [e for e in g.SERVER.values() if e[1] == 'elyzea_skate:placed']
 check(len(placed) == 1, 'objet utilisé : skate posé au sol, signalé au serveur')
 L.execute("for e, x in pairs(ENT) do if x.veh then VEH = e end end")
 VEH = g.VEH
-check(g.ENT[VEH].pos.y > 0.5, 'posé devant le joueur')
-# monter avec F
-L.execute("JUST[23] = true")
-g.step(2)
-check(g.ATT[1] is not None and g.ATT[1].to == VEH and abs(g.ATT[1].rz - 90) < 0.1, 'F : le joueur monte, debout et de profil sur la planche')
+check(g.ENT[VEH].pos.y > 0.3, 'posé devant le joueur')
+check(g.ATT[1] is not None and g.ATT[1].to == VEH and abs(g.ATT[1].rz - 90) < 0.1, 'facile : le joueur monte directement dessus, de profil')
 check(abs(g.ATT[1].z - (1.0 + 0.13 - 0.18)) < 0.01, 'pieds posés sur le plateau (hauteur calculée)')
-# pousser 15 s : jamais plus de 25 km/h
+check(g.PLAYING == 'move_crouch_proto', 'posture de glisse jouée (repli automatique si une animation manque)')
+# pousser : accélération forte au départ puis plus douce, jamais plus de 25 km/h
 L.execute("KEYS[32] = true")
-mx = 0
+sp = []
 for _ in range(900):
     g.step(1)
     v = g.ENT[VEH].vel
-    mx = max(mx, (v.x ** 2 + v.y ** 2) ** 0.5)
+    sp.append((v.x ** 2 + v.y ** 2) ** 0.5)
+mx = max(sp)
 check(mx <= 25 / 3.6 + 1e-6 and mx > 25 / 3.6 - 0.05, f'W : accélère jusqu\'à {mx * 3.6:.1f} km/h, jamais plus de 25 km/h')
+check(sp[60] - sp[0] > sp[300] - sp[240], 'poussée forte au départ, plus douce près de la vitesse max')
 check(abs(g.exportsT['GetSpeed']() - 25) < 0.1, 'vitesse lisible par le HUD (export GetSpeed)')
-# descente : la gravité ajoute de la vitesse, elle est ramenée à 25 km/h
-L.execute("local f = GetEntityForwardVector(VEH) ENT[VEH].vel = vector3(f.x * 7.3, f.y * 7.3, -1)")
-g.step(1)
+# pente descendante : pas plus de 25 km/h
+L.execute("PITCH = -12")
+g.step(60)
 v = g.ENT[VEH].vel
 check((v.x ** 2 + v.y ** 2) ** 0.5 <= 25 / 3.6 + 1e-6, 'descente : toujours 25 km/h max')
-# virage à gauche
+# roue libre en descente : on garde de la vitesse ; en montée : on en perd
+L.execute("KEYS[32] = false PITCH = -8")
+g.step(120)
+v1 = (g.ENT[VEH].vel.x ** 2 + g.ENT[VEH].vel.y ** 2) ** 0.5
+L.execute("PITCH = 10")
+g.step(60)
+v2 = (g.ENT[VEH].vel.x ** 2 + g.ENT[VEH].vel.y ** 2) ** 0.5
+check(v1 > 25 / 3.6 - 0.3 and v2 < v1 - 1.0, f'pentes : la descente porte ({v1 * 3.6:.0f} km/h), la montée freine ({v2 * 3.6:.0f} km/h)')
+L.execute("PITCH = 0 KEYS[32] = true")
+g.step(200)
+# virage à gauche : direction progressive, corps penché dans le virage
 h0 = g.ENT[VEH].h
 L.execute("KEYS[34] = true")
+g.step(2)
+d2 = (g.ENT[VEH].h - h0) % 360
 g.step(60)
-L.execute("KEYS[34] = false")
+check(d2 < 1.0, f'direction douce : pas de coup de volant ({d2:.2f}° au premier instant)')
 check(30 < (g.ENT[VEH].h - h0) % 360 < 120, f'A : tourne à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
-# saut
+check(g.ATT[1].ry < -8 and abs(g.ATT[1].rx) < 0.01, f'le joueur penche dans le virage, autour de l\'axe de la planche ({g.ATT[1].ry:.1f}°)')
+L.execute("KEYS[34] = false")
+g.step(90)
+check(abs(g.ATT[1].ry) < 1.0, 'redressé en sortie de virage')
+# plus de saut : Espace ne fait rien
 L.execute("JUST[22] = true")
 g.step(1)
-check(abs(g.ENT[VEH].vel.z - 4.2) < 1e-6, 'Espace : petit saut')
-L.execute("HAG = 1.0 local v = ENT[VEH].vel ENT[VEH].vel = vector3(v.x, v.y, 1.5) JUST[22] = true")
-g.step(1)
-check(abs(g.ENT[VEH].vel.z - 1.5) < 1e-6, 'en l\'air : pas de double saut')
-L.execute("HAG = 0.18")
-# frein
+check(g.ENT[VEH].vel.z <= 0.01, 'Espace : aucun saut (sauts retirés)')
+# frein : jusqu'à l'arrêt, sans recul
 L.execute("KEYS[32] = false KEYS[33] = true")
-g.step(120)
+g.step(160)
 v = g.ENT[VEH].vel
-check((v.x ** 2 + v.y ** 2) ** 0.5 < 1.6, 'S : freine, puis petit recul lent')
+check((v.x ** 2 + v.y ** 2) ** 0.5 < 0.01, 'S : freine jusqu\'à l\'arrêt, sans recul')
 L.execute("KEYS[33] = false KEYS[32] = true")
-g.step(400)
+g.step(500)
 # choc contre un mur : vitesse réelle à zéro d'un coup → chute
-L.execute("local f = ENT[VEH].vel ENT[VEH].vel = vector3(0, 0, 0)")
+L.execute("ENT[VEH].vel = vector3(0, 0, 0)")
 g.step(2)
 check(g.ATT[1] is None and g.RAG, 'choc contre un obstacle à pleine vitesse : le joueur tombe')
 # remonter puis descendre avec F
 L.execute("KEYS[32] = false ENT[VEH].vel = vector3(0,0,0) RAG = false JUST[23] = true")
 g.step(2)
+check(g.ATT[1] is not None, 'F à côté : on remonte')
 g.step(40)
 L.execute("JUST[23] = true")
 g.step(2)

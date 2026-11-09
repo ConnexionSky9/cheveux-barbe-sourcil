@@ -2,9 +2,10 @@
 
 Skateboard du kit de départ (objet `skateboard`, elyzea_inventory).
 
-- **Utiliser l'objet** : la planche est posée au sol devant le joueur (l'utiliser à nouveau à côté la range).
-- **F** : monter / descendre · **W** : pousser · **S** : freiner (petit recul à l'arrêt) · **A / D** : tourner
-- **Espace** : petit saut · **E** à côté : ramasser.
+- **Utiliser l'objet** : la planche est posée au sol et le joueur monte directement dessus (l'utiliser à nouveau la range).
+- **F** : descendre / remonter · **W** : pousser · **S** : freiner · **A / D** : tourner (corps et planche penchés dans le virage)
+- **E** à côté, à pied : ramasser. Pas de saut.
+- Posture de glisse genoux fléchis (première animation disponible de `Config.RideAnims`), direction progressive, pentes prises en compte.
 - Vitesse imposée à chaque image : **25 km/h maximum**, même en descente (`Config.MaxSpeed`).
 - Choc contre un obstacle à pleine vitesse : chute.
 - La planche (`v_res_skateboard`) est posée sur un petit véhicule RC invisible (`rcbandito`, build 2060+) qui donne
