@@ -133,6 +133,9 @@ for _ in range(900):
 mx = max(sp)
 check(mx <= 25 / 3.6 + 1e-6 and mx > 25 / 3.6 - 0.05, f'W : accélère jusqu\'à {mx * 3.6:.1f} km/h, jamais plus de 25 km/h')
 check(sp[60] - sp[0] > sp[300] - sp[240], 'poussée forte au départ, plus douce près de la vitesse max')
+acc = sorted(sp[i + 1] - sp[i] for i in range(0, 120))
+flat = sum(1 for x in acc if x <= 0.002)
+check(acc[-1] > 0.05 and flat > 20, f'W : la vitesse monte par coups de pied (élans, puis {flat} images de glisse entre deux poussées)')
 check(abs(g.exportsT['GetSpeed']() - 25) < 0.1, 'vitesse lisible par le HUD (export GetSpeed)')
 # pente descendante : pas plus de 25 km/h
 L.execute("PITCH = -12")
@@ -156,7 +159,8 @@ g.step(2)
 d2 = (g.ENT[VEH].h - h0) % 360
 g.step(60)
 check(d2 < 1.5, f'direction progressive : pas de coup de volant ({d2:.2f}° au premier instant)')
-check(90 < (g.ENT[VEH].h - h0) % 360 < 160, f'A : tourne facilement à gauche ({(g.ENT[VEH].h - h0) % 360:.0f}° en 1 s)')
+yaw_full = (g.ENT[VEH].h - h0) % 360
+check(55 < yaw_full < 110, f'A à pleine vitesse : virage en courbe large et réaliste ({yaw_full:.0f}° en 1 s)')
 check(-6.0 < g.ATT[1].ry < -2.0 and abs(g.ATT[1].rx) < 0.01, f'posture naturelle : le corps penche à peine dans le virage ({g.ATT[1].ry:.1f}°)')
 prop = L.eval("(function() for e, a in pairs(ATT) do if e ~= 1 then return a end end end)()")
 check(abs(prop.rx) < 1e-6 and abs(prop.ry) < 1e-6, 'skate fixe : la planche reste à plat dans le virage')
@@ -165,6 +169,24 @@ check(g.LOOK > 0, 'le regard du joueur suit la route')
 L.execute("KEYS[34] = false")
 g.step(90)
 check(abs(g.ATT[1].ry) < 1.0, 'redressé en sortie de virage')
+# roue libre : le skate garde son élan
+L.execute("KEYS[32] = true")
+g.step(400)
+L.execute("KEYS[32] = false")
+s0 = g.exportsT['GetSpeed']()
+g.step(125)
+s2 = g.exportsT['GetSpeed']()
+check(s0 - 8 < s2 < s0 - 0.5, f'roue libre : le skate garde son élan et ralentit doucement ({s0:.0f} → {s2:.0f} km/h en 2 s)')
+# vitesse moyenne (~10 km/h) : virage plus serré qu'à pleine vitesse
+L.execute("KEYS[33] = true")
+while g.exportsT['GetSpeed']() > 10: g.step(1)
+L.execute("KEYS[33] = false KEYS[34] = true")
+g.step(10)
+hm = g.ENT[VEH].h
+g.step(60)
+L.execute("KEYS[34] = false")
+yaw_mid = (g.ENT[VEH].h - hm) % 360
+check(yaw_mid > yaw_full, f'plus lent = virage plus serré ({yaw_mid:.0f}°/s à ~10 km/h contre {yaw_full:.0f}°/s à 25 km/h)')
 # à l'arrêt : on peut pivoter sur place
 L.execute("KEYS[32] = false KEYS[33] = true")
 g.step(200)
@@ -172,7 +194,7 @@ L.execute("KEYS[33] = false KEYS[35] = true")
 h1 = g.ENT[VEH].h
 g.step(60)
 L.execute("KEYS[35] = false KEYS[32] = true")
-check(60 < (h1 - g.ENT[VEH].h) % 360 < 110, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
+check(50 < (h1 - g.ENT[VEH].h) % 360 < 100, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
 g.step(300)
 # plus de saut : Espace ne fait rien
 L.execute("JUST[22] = true")

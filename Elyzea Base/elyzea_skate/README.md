@@ -3,7 +3,8 @@
 Skateboard du kit de départ (objet `skateboard`, elyzea_inventory).
 
 - **Utiliser l'objet** : la planche est posée au sol et le joueur monte directement dessus (l'utiliser à nouveau la range).
-- **F** : descendre : le skate retourne directement dans l'inventaire (aussi en cas de chute) · **W** : pousser · **S** : freiner · **A / D** : tourner (vif, pivot possible à l'arrêt)
+- **F** : descendre : le skate retourne directement dans l'inventaire (aussi en cas de chute) · **W** : coups de pied · **S** : frein au pied · **A / D** : virage en courbe (pivot à l'arrêt)
+- Physique simple mais réaliste : élan conservé en roue libre, rayon de virage qui s'élargit avec la vitesse, légère glisse si on tourne fort, pentes.
 - Skate fixe : la planche reste à plat (aucun roulis ni balancement), seule la pente est suivie. Le joueur regarde la route et penche à peine dans les virages.
 - Pas de saut.
 - Posture debout (première animation disponible de `Config.RideAnims`), direction progressive, pentes prises en compte.

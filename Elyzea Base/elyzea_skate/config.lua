@@ -7,15 +7,19 @@ Config.Item = 'skateboard'          -- objet (elyzea_inventory/shared/items.lua)
 Config.AutoMount = true             -- utiliser l'objet : le skate est posé ET le joueur monte dessus directement
 Config.StowOnDismount = true        -- descendre (ou tomber) : le skate retourne directement dans l'inventaire
 
--- Conduite
+-- Conduite (physique simple mais réaliste)
 Config.MaxSpeed = 25.0              -- km/h maximum (jamais dépassé, même en descente)
-Config.Accel = 4.0                  -- m/s² de poussée au départ (W) ; plus doux près de la vitesse max
-Config.Brake = 7.0                  -- m/s² en freinant (S)
-Config.Friction = 0.5               -- m/s² de ralentissement en roue libre
-Config.Slope = 0.45                 -- effet des pentes (0 = aucun, 1 = gravité réelle)
-Config.TurnRate = 150.0             -- degrés / s en roulant (presque autant à pleine vitesse)
-Config.PivotRate = 90.0             -- degrés / s à l'arrêt : on se tourne facilement sur place
-Config.SteerResponse = 14.0         -- réactivité de la direction (plus haut = plus vif)
+Config.PushBoost = 1.9              -- élan donné par un coup de pied (m/s), plus faible près de la vitesse max
+Config.PushInterval = 0.75          -- secondes entre deux coups de pied en tenant W
+Config.Rolling = 0.22               -- ralentissement des roues (m/s²) : le skate garde son élan
+Config.Air = 0.012                  -- résistance de l'air (× vitesse²)
+Config.Brake = 3.8                  -- frein au pied (S), en m/s²
+Config.Slope = 0.6                  -- effet des pentes (0 = aucun, 1 = gravité réelle)
+Config.MinRadius = 1.0              -- rayon de virage le plus serré (m), à basse vitesse
+Config.Grip = 11.0                  -- adhérence latérale (m/s²) : plus haut = virages plus serrés à grande vitesse
+Config.PivotRate = 80.0             -- degrés / s pour pivoter à l'arrêt (kick turn)
+Config.SteerResponse = 12.0         -- réactivité de la direction (plus haut = plus vif)
+Config.Traction = 14.0              -- accroche des roues (plus bas = glisse davantage dans les virages)
 Config.Lean = 5.0                   -- légère inclinaison du corps dans les virages (degrés) ; la planche reste à plat
 Config.CrashSpeed = 5.0             -- choc (m/s perdus d'un coup) qui fait tomber du skate
 

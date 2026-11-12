@@ -215,18 +215,22 @@ CreateThread(function()
 end)
 
 -- ---------------------------------------------------------------------
--- Conduite : vitesse et cap imposés à chaque image (25 km/h max, même en descente)
---  · poussée forte au départ, plus douce près de la vitesse max ; roue libre qui ralentit doucement
---  · direction lissée (pas de coup de volant), virage plus large quand on va vite
---  · pentes : la descente fait prendre de la vitesse (sans dépasser le max), la montée en fait perdre
---  · le joueur et la planche penchent dans le virage
+-- Conduite (physique simple mais réaliste, gérée par le skate seul ; 25 km/h max, même en descente)
+--  · W : coups de pied réguliers (chaque poussée donne un élan, plus faible près de la vitesse max)
+--  · roue libre : le skate garde son élan et ralentit doucement (roulement + air)
+--  · S : frein au pied, progressif
+--  · A / D : virage en courbe ; le rayon s'élargit avec la vitesse ; pivot (kick turn) à l'arrêt
+--  · adhérence : la trajectoire suit la planche, avec un très léger glissement si on tourne fort
+--  · pentes : la descente fait prendre de la vitesse, la montée en fait perdre
 -- ---------------------------------------------------------------------
 local BLOCK = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 44, 140, 141, 142, 143, 257, 263 }
 CreateThread(function()
     local K = Config.Keys
     local lastReal, lastLean = 0.0, 0.0
+    local pushWait, pushLeft = 0.0, 0.0     -- temps avant le prochain coup de pied, élan restant à donner
+    local vx, vy = 0.0, 0.0                 -- vitesse réelle du skate au sol (m/s, repère du monde)
     while true do
-        if not riding then lastReal, lastLean = 0.0, 0.0 Wait(250) else
+        if not riding then lastReal, lastLean, pushWait, pushLeft, vx, vy = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 Wait(250) else
             local ped, veh = PlayerPedId(), board and board.veh
             if not veh or not DoesEntityExist(veh) or IsEntityDead(ped) or not IsEntityAttachedToEntity(ped, veh) then
                 dismount(false)
@@ -236,35 +240,48 @@ CreateThread(function()
                 local fwd, back = IsDisabledControlPressed(0, 32), IsDisabledControlPressed(0, 33)
                 local left, right = IsDisabledControlPressed(0, 34), IsDisabledControlPressed(0, 35)
                 local onGround = GetEntityHeightAboveGround(veh) < (board.h or 0.2) + 0.35
-                -- vitesse
+                -- vitesse (le long de la planche)
                 if onGround then
-                    if fwd then
-                        local k = 1.0 - (speed / MAX) * 0.75                       -- pousse fort au départ, moins près du max
-                        speed = speed + (Config.Accel or 3.2) * k * dt
-                    elseif back then
-                        speed = math.max(0.0, speed - (Config.Brake or 5.5) * dt)
+                    if fwd and not back then
+                        -- coups de pied : un élan tous les PushInterval, donné en douceur sur 0,3 s
+                        pushWait = pushWait - dt
+                        if pushWait <= 0.0 then
+                            pushWait = Config.PushInterval or 0.75
+                            pushLeft = (Config.PushBoost or 1.9) * math.max(0.45, (1.0 - speed / MAX) ^ 0.6)
+                        end
                     else
-                        speed = math.max(0.0, speed - (Config.Friction or 0.6) * dt)
+                        pushWait = 0.0          -- prochain appui sur W : poussée immédiate
                     end
+                    if pushLeft > 0.0 then
+                        local give = math.min(pushLeft, pushLeft * clamp(dt / 0.3, 0.0, 1.0) + 0.02)
+                        speed, pushLeft = speed + give, pushLeft - give
+                    end
+                    -- roulement + air : le skate garde son élan et ralentit doucement
+                    local drag = (Config.Rolling or 0.22) + (Config.Air or 0.012) * speed * speed
+                    if back then drag = drag + (Config.Brake or 3.8) ; pushLeft = 0.0 end   -- frein au pied
+                    speed = math.max(0.0, speed - drag * dt)
                     -- pente : nez vers le bas = on accélère, vers le haut = on ralentit
-                    speed = speed - math.sin(math.rad(GetEntityPitch(veh))) * 9.81 * (Config.Slope or 0.45) * dt
+                    speed = speed - math.sin(math.rad(GetEntityPitch(veh))) * 9.81 * (Config.Slope or 0.6) * dt
                 end
                 speed = clamp(speed, 0.0, MAX)
                 -- choc (mur, voiture) : la vitesse réelle chute d'un coup → on tombe
                 local v = GetEntityVelocity(veh)
                 local f = GetEntityForwardVector(veh)
-                local real = v.x * f.x + v.y * f.y
+                local real = math.sqrt(v.x * v.x + v.y * v.y)                -- vitesse réelle au sol
                 if lastReal > 4.0 and lastReal - real > (Config.CrashSpeed or 5.0) then dismount(true) goto continue end
-                if real + 0.6 < speed and speed > 1.0 then speed = math.max(0.0, real) end   -- retenu par un obstacle
+                -- retenu par un obstacle (trottoir, poteau) : on repart de la vitesse réelle
+                if real + 0.6 < math.sqrt(vx * vx + vy * vy) and speed > 1.0 then speed, vx, vy = math.min(speed, real), v.x, v.y end
                 lastReal = real
-                -- direction lissée et vive, presque la même à toutes les vitesses ; pivot possible à l'arrêt
+                -- direction lissée ; virage en courbe : rayon = rayon mini + v² / adhérence latérale
                 local want = (left and 1.0 or 0.0) - (right and 1.0 or 0.0)
-                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 14.0), 0.0, 1.0)
+                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 12.0), 0.0, 1.0)
                 local heading = GetEntityHeading(veh)
                 if math.abs(steer) > 0.01 then
-                    local pivot, turn = Config.PivotRate or 90.0, Config.TurnRate or 150.0
-                    local rate = (pivot + (turn - pivot) * clamp(speed / 2.0, 0.0, 1.0)) * (1.0 - 0.15 * speed / MAX)
-                    heading = (heading + steer * rate * dt) % 360.0
+                    local radius = (Config.MinRadius or 1.0) + speed * speed / (Config.Grip or 11.0)
+                    local carve = math.deg(speed / radius)                          -- °/s en roulant
+                    local pivot = Config.PivotRate or 80.0                          -- kick turn à l'arrêt
+                    local k = clamp(speed / 1.2, 0.0, 1.0)
+                    heading = (heading + steer * (pivot * (1.0 - k) + carve * k) * dt) % 360.0
                 end
                 -- skate FIXE : toujours à plat (aucun roulis, pas de balancement sur les bosses) ; seule la pente est suivie
                 if onGround then
@@ -274,7 +291,11 @@ CreateThread(function()
                     SetEntityHeading(veh, heading)
                 end
                 f = GetEntityForwardVector(veh)
-                SetEntityVelocity(veh, f.x * speed, f.y * speed, math.min(v.z, 2.0))
+                -- adhérence : la vitesse réelle rejoint l'axe de la planche (léger glissement si on tourne fort)
+                local tx, ty = f.x * speed, f.y * speed
+                local g = clamp(dt * (Config.Traction or 14.0), 0.0, 1.0)
+                vx, vy = vx + (tx - vx) * g, vy + (ty - vy) * g
+                SetEntityVelocity(veh, vx, vy, math.min(v.z, 2.0))
                 -- posture naturelle : le corps penche à peine dans le virage (la planche reste à plat)
                 local lean = -steer * (Config.Lean or 5.0) * clamp(speed / MAX + 0.2, 0.0, 1.0)
                 if math.abs(lean - lastLean) > 0.25 then
