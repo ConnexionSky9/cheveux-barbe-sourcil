@@ -55,6 +55,8 @@ Config.Keys = {
     lockDistance = 15.0,
     -- Objet d'inventaire « clé » (metadata.plate) : le détenteur peut ouvrir / fermer le véhicule (clés de la concession)
     item = 'concess_key',
+    -- Clé provisoire des véhicules de service des métiers (metadata.plate) : retirée quand le véhicule est rangé
+    serviceItem = 'service_key',
 }
 
 -- ─────────────────────────── Divers ───────────────────────────

@@ -137,7 +137,9 @@ P.Actions.garageSpawn = { perm = 'garage', duty = true, fn = function(src, d)
     local plate = ('SAMS%04d'):format(math.random(0, 9999))
     SetVehicleNumberPlateText(veh, plate)
     Entity(veh).state:set('mecaVehicle', true, true)
-    pcall(function() core:GiveKeys(src, veh) end)
+    -- clé provisoire du véhicule de service (disparaît quand il est rangé) ; ancienne base : clés classiques
+    local okKey, gave = pcall(function() return core:GiveServiceKey(src, veh, v.label) end)
+    if not okKey or not gave then pcall(function() core:GiveKeys(src, veh) end) end
     local net = NetworkGetNetworkIdFromEntity(veh)
     P.vehicles[net] = { src = src, cid = P.Cid(src), model = v.model }
     SetTimeout(300, function() if DoesEntityExist(veh) then SetPedIntoVehicle(GetPlayerPed(src), veh, -1) end end)

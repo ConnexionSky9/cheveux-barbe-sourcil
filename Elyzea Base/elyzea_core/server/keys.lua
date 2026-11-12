@@ -3,9 +3,13 @@
     Le serveur garde la liste des plaques dont chaque personnage a les clés (pour la session).
     Les véhicules possédés (player_vehicles) donnent toujours les clés à leur propriétaire.
     Touche U (modifiable) : verrouiller / déverrouiller le véhicule le plus proche.
+    Véhicules de service des métiers : GiveServiceKey donne une CLÉ PROVISOIRE (objet service_key,
+    plaque en métadonnée). Elle ouvre / ferme le véhicule et disparaît de tous les inventaires
+    dès que le véhicule est rangé (ou n'existe plus).
 ]]
 
 local Keys = {}   -- [citizenid] = { [PLATE] = true }
+local Service = {} -- [PLATE] = { ent = véhicule, cids = { [citizenid] = true } } : clés provisoires en cours
 
 local function cleanPlate(plate)
     return (tostring(plate or ''):gsub('^%s+', ''):gsub('%s+$', '')):upper()
@@ -62,6 +66,11 @@ function HasKeys(src, vehicle)
         local ok, n = pcall(function() return exports.elyzea_inventory:Search(src, 'count', Config.Keys.item, { plate = plate }) end)
         if ok and (tonumber(n) or 0) > 0 then return true end
     end
+    -- Clé provisoire d'un véhicule de service (valable seulement tant que le véhicule est sorti)
+    if Service[plate] and Config.Keys.serviceItem and GetResourceState('elyzea_inventory') == 'started' then
+        local ok, n = pcall(function() return exports.elyzea_inventory:Search(src, 'count', Config.Keys.serviceItem, { plate = plate }) end)
+        if ok and (tonumber(n) or 0) > 0 then return true end
+    end
     local owner = MySQL.scalar.await('SELECT `citizenid` FROM `player_vehicles` WHERE `plate` = ? OR `plate` = ? LIMIT 1', { plate, ' ' .. plate })
     if owner == cid then
         Keys[cid] = Keys[cid] or {}
@@ -72,7 +81,80 @@ function HasKeys(src, vehicle)
     return false
 end
 
-AddEventHandler('elyzea:server:playerLoaded', function(src) sync(src) end)
+-- ---------------------------------------------------------------------
+-- Clés provisoires des véhicules de service (métiers)
+-- GiveServiceKey(src, véhicule (entité serveur), libellé?) -> true | false
+-- RevokeServiceKeys(plaque) : retire la clé de tous les inventaires (appelé tout seul quand le véhicule disparaît)
+-- ---------------------------------------------------------------------
+local function invOk() return Config.Keys.serviceItem and GetResourceState('elyzea_inventory') == 'started' end
+
+-- Retire de l'inventaire du joueur les clés provisoires d'une plaque (toutes si plate = nil et pas en service)
+local function stripItems(src, plate)
+    if not invOk() then return end
+    local ok, list = pcall(function() return exports.elyzea_inventory:Search(src, 'slots', Config.Keys.serviceItem) end)
+    if not ok or type(list) ~= 'table' then return end
+    for _, it in ipairs(list) do
+        local p = cleanPlate(it.metadata and it.metadata.plate)
+        if (plate and p == plate) or (not plate and not Service[p]) then
+            pcall(function() exports.elyzea_inventory:RemoveItem(src, Config.Keys.serviceItem, it.count or 1, nil, it.slot) end)
+        end
+    end
+end
+
+function RevokeServiceKeys(plate)
+    plate = cleanPlate(plate)
+    local s = Service[plate]
+    if not s then return false end
+    Service[plate] = nil
+    for _, id in ipairs(GetPlayers()) do
+        local src = tonumber(id)
+        local cid = cidOf(src)
+        if cid and s.cids[cid] and Keys[cid] then Keys[cid][plate] = nil sync(src) end
+        stripItems(src, plate)
+    end
+    return true
+end
+
+function GiveServiceKey(src, vehicle, label)
+    src = tonumber(src)
+    local cid = src and cidOf(src)
+    local plate = plateOf(vehicle)
+    if not cid or not plate or plate == '' then return false end
+    local ent = tonumber(vehicle)
+    Service[plate] = Service[plate] or { ent = (ent and DoesEntityExist(ent)) and ent or nil, cids = {} }
+    Service[plate].cids[cid] = true
+    GiveKeys(src, plate)   -- clé de session (touche U tout de suite)
+    if invOk() then
+        local name = label and tostring(label) ~= '' and tostring(label):sub(1, 40) or nil
+        pcall(function()
+            exports.elyzea_inventory:AddItem(src, Config.Keys.serviceItem, 1, { plate = plate,
+                description = ('Clé provisoire%s · plaque %s. Elle disparaît quand le véhicule est rangé.'):format(name and (' · ' .. name) or '', plate) })
+        end)
+    end
+    return true
+end
+
+-- Véhicule rangé / supprimé : les clés provisoires disparaissent aussitôt
+AddEventHandler('entityRemoved', function(ent)
+    for plate, s in pairs(Service) do
+        if s.ent == ent then RevokeServiceKeys(plate) return end
+    end
+end)
+-- Sécurité : contrôle régulier (véhicule disparu sans événement, plaque changée…)
+CreateThread(function()
+    while true do
+        Wait(30000)
+        for plate, s in pairs(Service) do
+            if s.ent and (not DoesEntityExist(s.ent) or cleanPlate(GetVehicleNumberPlateText(s.ent)) ~= plate) then RevokeServiceKeys(plate) end
+        end
+    end
+end)
+
+AddEventHandler('elyzea:server:playerLoaded', function(src)
+    sync(src)
+    -- clés provisoires restées dans l'inventaire (déconnexion, redémarrage) : retirées si le véhicule n'est plus sorti
+    SetTimeout(4000, function() stripItems(src, nil) end)
+end)
 
 -- ---------------------------------------------------------------------
 -- Changement de plaque d'un véhicule (mécano : plaque personnalisée, staff)

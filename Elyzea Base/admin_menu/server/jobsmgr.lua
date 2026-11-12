@@ -299,7 +299,9 @@ RegisterNetEvent('adminmenu:jp:spawn', function(id, index)
     if not DoesEntityExist(veh) then return AM.notify(src, ('Le modèle « %s » n\'existe pas sur ce serveur.'):format(v.model), 'error') end
     SetVehicleNumberPlateText(veh, plateFor(p.job))
     Entity(veh).state:set('elyJob', p.job, true)
-    pcall(function() core:GiveKeys(src, veh) end)
+    -- clé provisoire du véhicule de service (disparaît quand il est rangé) ; ancienne base : clés classiques
+    local okKey, gave = pcall(function() return core:GiveServiceKey(src, veh, v.label) end)
+    if not okKey or not gave then pcall(function() core:GiveKeys(src, veh) end) end
     TriggerClientEvent('adminmenu:jp:spawned', src, NetworkGetNetworkIdFromEntity(veh))
 end)
 

@@ -102,6 +102,8 @@ local api = {
     GiveKeys = GiveKeys,
     RemoveKeys = RemoveKeys,
     HasKeys = HasKeys,
+    GiveServiceKey = GiveServiceKey,         -- clé provisoire d'un véhicule de service (disparaît quand il est rangé)
+    RevokeServiceKeys = RevokeServiceKeys,
     ChangePlate = ChangePlate,
     CleanNewPlate = CleanNewPlate,
     -- divers

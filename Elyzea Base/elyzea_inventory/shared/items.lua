@@ -51,6 +51,9 @@ Items = {
         client = { export = 'elyzea_papiers.useDocument' } },
     concess_key = { label = 'Clé de véhicule', weight = 50, stack = false, icon = '🔑',
         description = 'Clé d\'un véhicule acheté en concession. U près du véhicule pour l\'ouvrir ou le fermer.' },
+    -- Clé provisoire d'un véhicule de service (elyzea_core : GiveServiceKey) : retirée quand le véhicule est rangé
+    service_key = { label = 'Clé provisoire', weight = 30, stack = false, image = 'service_key.png', icon = '🔑',
+        description = 'Clé provisoire d\'un véhicule de service. U près du véhicule pour l\'ouvrir ou le fermer. Elle disparaît quand le véhicule est rangé.' },
     permis = { label = 'Permis de conduire', weight = 10, stack = false, image = 'permis.png', icon = '🪪',
         description = 'Permis de conduire Elyzea. Utilise-le pour le regarder ou le montrer.',
         client = { export = 'elyzea_permis.useLicense' } },

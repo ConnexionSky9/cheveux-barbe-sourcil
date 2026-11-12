@@ -1752,13 +1752,19 @@ local function makePlate(prefix)
     return plate
 end
 
-local function giveKeys(src, veh, plate)
+local function giveKeys(src, veh, plate, n, label)
     local ev = G.keysEvent
     if type(ev) == 'table' and ev.name then
         if ev.type == 'server' then TriggerEvent(ev.name, src, plate, veh) else TriggerClientEvent(ev.name, src, plate) end
         return
     end
     if G.keys == false or G.keys == 'none' then return end
+    -- garage réservé à des métiers : véhicule de service → clé provisoire (disparaît quand il est rangé)
+    local jobs = n and npcJobs(n)
+    if jobs and #jobs > 0 then
+        local okKey, gave = pcall(function() return exports.elyzea_core:GiveServiceKey(src, veh, label) end)
+        if okKey and gave then return end
+    end
     pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
 end
 
@@ -1810,7 +1816,7 @@ RegisterNetEvent('adminmenu:garage:take', function(pedId, idx, vtype, method)
     Entity(veh).state:set('fuel', g.fuel + 0.0, true)
     local netId = NetworkGetNetworkIdFromEntity(veh)
     GarageOut[netId] = { src = src, ped = r.id, plate = plate, label = v.label }
-    giveKeys(src, veh, plate)
+    giveKeys(src, veh, plate, n, v.label)
     TriggerClientEvent('adminmenu:garage:spawned', src, netId, plate, g.fuel, g.warp, r.id)
     AM.notify(src, ('%s sorti (plaque %s)%s.'):format(v.label, plate, v.price > 0 and (' pour %d $'):format(v.price) or ''), 'success')
 end)

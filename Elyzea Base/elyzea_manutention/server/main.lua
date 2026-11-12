@@ -289,7 +289,9 @@ local function spawnForklift(src, m)
     SetVehicleNumberPlateText(veh, plate)
     Entity(veh).state:set('manutForklift', src, true)
     m.veh, m.vehNet, m.plate = veh, NetworkGetNetworkIdFromEntity(veh), plate
-    pcall(function() exports.elyzea_core:GiveKeys(src, veh) end)
+    -- clé provisoire du véhicule de service (disparaît quand il est rangé) ; ancienne base : clés classiques
+    local okKey, gave = pcall(function() return exports.elyzea_core:GiveServiceKey(src, veh, 'Fenwick') end)
+    if not okKey or not gave then pcall(function() exports.elyzea_core:GiveKeys(src, veh) end) end
     return true
 end
 
