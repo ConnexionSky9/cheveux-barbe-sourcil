@@ -219,6 +219,7 @@ const YT_ERRORS = {
 
 const Music = {
   queue: [], index: -1, playing: false, started: false,
+  owner: 'itoune', shuffle: false, repeat: 'all',   // appli qui a lancé la lecture (Itoune / ElyFy) ; aléatoire ; répétition 'all' | 'one' | 'off'
   volume: .6, speaker: true, time: 0, dur: 0, poll: null, volTimer: null, playToken: 0,
   get track() { return this.queue[this.index]; },
   broadcast(action, data = {}) { if (this.speaker) post('musicBroadcast', Object.assign({ action }, data)); },
@@ -230,7 +231,7 @@ const Music = {
     this.sync();
     const ok = await AudioEngine.play('me', {
       url: tr.url, time: startAt, volume: this.volume,
-      onEnd: () => { if (token === this.playToken) this.next(); },
+      onEnd: () => { if (token === this.playToken) this.next(true); },
       onError: (code) => {
         if (token !== this.playToken) return;
         this.playing = false; this.started = false; this.sync();
@@ -241,6 +242,7 @@ const Music = {
     if (!ok || token !== this.playToken) return;
     this.broadcast('play', { url: tr.url, time: startAt, volume: this.volume });
     this.startPoll();
+    if (this.owner === 'elyfy' && typeof efOnPlay === 'function') efOnPlay(tr);
   },
   pause() { AudioEngine.pause('me'); this.playing = false; this.broadcast('pause', { time: this.time }); this.sync(); },
   resume() { AudioEngine.resume('me'); this.playing = true; this.broadcast('resume', { time: this.time }); this.sync(); },
@@ -249,7 +251,15 @@ const Music = {
     else if (this.track && this.started && AudioEngine.has('me')) this.resume();
     else if (this.queue.length) this.play(this.index >= 0 ? this.index : 0);
   },
-  next() { if (this.queue.length) this.play((this.index + 1) % this.queue.length); else this.stop(); },
+  // auto = fin du morceau : « répéter le titre » le relance ; sinon suivant (aléatoire possible), fin de file selon la répétition
+  next(auto) {
+    if (!this.queue.length) { this.stop(); return; }
+    if (auto === true && this.repeat === 'one') { this.play(this.index); return; }
+    let i = this.index + 1;
+    if (this.shuffle && this.queue.length > 1) { do { i = Math.floor(Math.random() * this.queue.length); } while (i === this.index); }
+    if (i >= this.queue.length) { if (this.repeat === 'off' && auto === true) { this.pause(); this.seek(0); return; } i = 0; }
+    this.play(i);
+  },
   prev() {
     if (this.time > 4) { this.seek(0); return; }
     if (this.queue.length) this.play((this.index - 1 + this.queue.length) % this.queue.length);
@@ -286,7 +296,11 @@ const Music = {
       updateProgress();
     }, 500);
   },
-  sync() { if (S.currentApp === 'itoune') renderPlayer(); if (this.playing) showMusicIsland(); else hideMusicIsland(); },
+  sync() {
+    if (S.currentApp === 'itoune') renderPlayer();
+    if (typeof efSync === 'function') efSync();
+    if (this.playing) showMusicIsland(); else hideMusicIsland();
+  },
 };
 
 // Musique diffusée par les autres joueurs : le jeu envoie les ordres et le volume selon la distance
@@ -370,16 +384,23 @@ async function loadTracks() {
   const res = await api('getTracks');
   if (S.currentApp !== 'itoune') return;
   const tracks = res.tracks || [];
-  const playingId = Music.track?.id;
-  Music.queue = tracks;
-  Music.index = tracks.findIndex(x => x.id === playingId);
-  if (playingId && Music.index === -1) Music.stop();
+  const fromElyFy = Music.owner === 'elyfy' && Music.started;
+  if (!fromElyFy) {
+    const playingId = Music.track?.id;
+    Music.owner = 'itoune';
+    Music.queue = tracks;
+    Music.index = tracks.findIndex(x => x.id === playingId);
+    if (playingId && Music.index === -1) Music.stop();
+  }
   $('#mu-list').innerHTML = tracks.length ? `<div class="list">${tracks.map((tr, i) => `<div class="row track" data-track="${i}" role="button" tabindex="0">
       ${artwork(tr, 'art--sm')}
       <div class="row__main"><div class="row__title">${esc(tr.title)}</div><div class="row__sub">${esc(tr.artist)}, ${t(SOURCE_LABEL[tr.source] || 'Lien audio')}</div></div>
       <button class="icon-btn icon-btn--ghost" data-deltrack="${tr.id}" aria-label="${t('Retirer')}">${icon('trash')}</button></div>`).join('')}</div>`
     : empty(t('Bibliothèque vide'), t('Collez un lien YouTube ou Spotify ci-dessus pour lancer la musique.'));
-  $$('[data-track]', appView).forEach(r => r.onclick = () => Music.play(+r.dataset.track));
+  $$('[data-track]', appView).forEach(r => r.onclick = () => {
+    if (Music.owner !== 'itoune') { Music.owner = 'itoune'; Music.shuffle = false; Music.repeat = 'all'; Music.queue = tracks; }
+    Music.play(+r.dataset.track);
+  });
   $$('[data-deltrack]', appView).forEach(b => b.onclick = (e) => {
     e.stopPropagation();
     confirmSheet(t('Retirer ce morceau ?'), t('Il sera supprimé de votre bibliothèque.'), t('Retirer'), async () => {
@@ -393,7 +414,7 @@ function showMusicIsland() {
   if (S.call || island.classList.contains('expanded')) return;
   island.classList.add('compact', 'music');
   $('.island__content', island).innerHTML = `<span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="island__music">${esc(Music.track?.title || '')}</span>${Music.speaker ? `<span style="width:15px;color:var(--ok);flex:none">${icon('drop')}</span>` : ''}`;
-  island.onclick = () => openApp('itoune');
+  island.onclick = () => openApp(Music.owner === 'elyfy' ? 'elyfy' : 'itoune');
 }
 function hideMusicIsland() {
   if (!island.classList.contains('music')) return;

@@ -340,6 +340,8 @@ const NOTIFS = {
   epLike:         { title: 'ElyPick', text: '{name} a aimé votre publication.' },
   epStory:        { title: 'ElyPick', text: '{name} a publié une nouvelle story.' },
   epMessage:      { title: '{name}', fallback: 'vous a envoyé une publication' },
+  efReady:        { title: 'ElyFy', text: 'Votre chanson « {title} » est prête !' },
+  efFailed:       { title: 'ElyFy', text: 'La création de « {title} » a échoué : vous êtes remboursé.' },
   etLike:         { title: 'ElyTok', text: '{name} a aimé votre vidéo.' },
   etComment:      { title: '{name} a commenté votre vidéo', fallback: 'Nouveau commentaire' },
   etFollow:       { title: 'ElyTok', text: '{name} s\'est abonné(e) à vous.' },

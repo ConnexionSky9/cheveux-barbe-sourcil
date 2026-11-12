@@ -20,6 +20,7 @@ const APPS = {
   birdy:     { label: 'Birdy', store: true },
   instapick: { label: 'ElyPick', store: true },
   elytok:    { label: 'ElyTok', store: true },
+  elyfy:     { label: 'ElyFy', store: true },
   itoune:    { label: 'Itoune', store: true },
   etincelle: { label: 'Étincelle', store: true },
   livrezy:   { label: 'Livrézy', store: true },

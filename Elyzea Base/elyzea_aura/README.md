@@ -39,7 +39,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), **ElyFy** (musique + studio IA), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
@@ -93,6 +93,24 @@ On ne voit, et on ne peut envoyer sa fiche qu'aux personnes proches qui ont leur
 ### Tests hors jeu
 - `python3 tests/run_identity_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base ; 38 vérifications.
 - `NODE_PATH=$(npm root -g) node tests/ui_identite.cjs` : téléphone dans Chromium ; 18 vérifications.
+
+## ElyFy : streaming musical + studio IA
+Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). Réglages : `config_elyfy.lua`.
+- **Catalogue** : **Audius** (musique libre et légale, titres complets, aucune clé), **YouTube** (recherche de n'importe quel titre avec une clé
+  YouTube Data v3 : `Config.ElyFy.YouTubeApiKey`, ou celle d'Itoune), titres du serveur (`Config.ElyFy.Catalog`), créations de la ville.
+  Un lien YouTube / Spotify / audio collé dans la recherche se lit aussi.
+- **Accueil** (récents, créations de la ville, tendances, nouveautés, mixes), **Rechercher** (genres, titres), **Bibliothèque**
+  (titres likés, téléchargements, playlists), lecteur plein écran (aléatoire, répéter, file d'attente, paroles, haut-parleur) et mini-lecteur.
+- **Téléchargements : à partir de l'ElyAura 4**. Le titre est enregistré dans le téléphone (onglet Téléchargements), avec une place
+  limitée selon le modèle (100 / 300 / 1 000). Ce n'est pas une copie de fichier MP3 : la lecture passe toujours par la source du titre.
+- **Studio IA** (comme Suno) : titre, paroles avec structure ([Couplet], [Refrain], [Pont]…), instru (12 styles), ambiance, voix.
+  L'IA compose et chante la chanson ; elle reste privée jusqu'à ce que le joueur la publie dans « Créations de la ville ».
+  - Fournisseur : **Replicate** (modèle `minimax/music-1.5`). Mets ton jeton dans `Config.ElyFy.AI.Token` (sans jeton : studio désactivé).
+    Le jeton reste sur le serveur. Prix, quotas par joueur et par serveur, remboursement automatique en cas d'échec.
+  - Le fichier du fournisseur expire au bout d'environ 1 h : le téléphone du créateur le copie sur ton hébergeur (Fivemanage, même méthode
+    que l'appareil photo : `Config.Camera.UploadMethod = 'presigned'`). Sinon la création échoue et elle est remboursée.
+- **Artistes de la ville** : un joueur peut publier son propre titre (lien audio Fivemanage…) sous son nom d'artiste.
+- La musique d'ElyFy utilise le lecteur du téléphone (comme Itoune) : haut-parleur pour les joueurs proches, île dynamique.
 
 ## ElyTok : réseau social vidéo (à partir de l'ElyAura 3)
 Directement dans le téléphone (aucune ressource à ajouter, tables `elyzea_et_*` créées au démarrage). Réglages : `config_elytok.lua`.
