@@ -19,6 +19,7 @@ const APPS = {
   settings:  { label: 'Réglages' },
   birdy:     { label: 'Birdy', store: true },
   instapick: { label: 'ElyPick', store: true },
+  elytok:    { label: 'ElyTok', store: true },
   itoune:    { label: 'Itoune', store: true },
   etincelle: { label: 'Étincelle', store: true },
   livrezy:   { label: 'Livrézy', store: true },
@@ -54,6 +55,7 @@ function renderHome() {
     const badge = id === 'messages' && S.unread > 0 ? `<span class="badge">${S.unread}</span>`
       : id === 'bank' && S.bankPending > 0 ? `<span class="badge">${S.bankPending}</span>`
       : id === 'instapick' && S.epBadge > 0 ? `<span class="badge">${S.epBadge > 99 ? '99+' : S.epBadge}</span>`
+      : id === 'elytok' && S.etBadge > 0 ? `<span class="badge">${S.etBadge > 99 ? '99+' : S.etBadge}</span>`
       : id === 'lasergame' && S.lgBadge > 0 ? `<span class="badge">${S.lgBadge > 99 ? '99+' : S.lgBadge}</span>` : '';
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };

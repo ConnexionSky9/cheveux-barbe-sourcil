@@ -216,6 +216,7 @@ const handlers = {
   },
   idCard(d) { idtOnCard(d); },
   elypick(d) { epPush(d); },
+  elytok(d) { etPush(d); },
   auraDrop(d) {
     S.pendingDrops.push(d);
     if (S.open && !S.locked) showDropPrompt(d);

@@ -10,6 +10,7 @@ version '5.2.0'
 shared_scripts {
     'config.lua',
     'config_elypick.lua',
+    'config_elytok.lua',
     'config_phones.lua'
 }
 
@@ -21,6 +22,7 @@ server_scripts {
     '@elyzea_core/lib/MySQL.lua',
     'server/main.lua',
     'server/elypick.lua',
+    'server/elytok.lua',
     'server/lasergame.lua',
     'server/maison.lua',
     'server/phones.lua'
@@ -37,6 +39,7 @@ files {
     'html/cards.js',
     'html/js/*.js',
     'html/elypick.css',
+    'html/elytok.css',
     'html/lasergame.css',
     'html/maison.css',
     'html/fold.css',

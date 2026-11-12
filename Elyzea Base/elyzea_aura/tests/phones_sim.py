@@ -60,6 +60,11 @@ ok(D.ModelOf(1) == 1, 'ElyAura 1 dans l\'inventaire : utilisé')
 info = D.Info(1, G.ME)
 ok(info.tier == 1 and info.faceId is False and len(list(info.apps.values())) == 6, 'ElyAura 1 : 6 applications, pas de Face ID')
 ok(D.Allows(G.ME, 'bank') and not D.Allows(G.ME, 'birdy') and not D.Allows(G.ME, 'camera'), 'ElyAura 1 : banque oui, Birdy et photo non')
+G.ME.model = 2
+ok(D.Allows(G.ME, 'instapick') and not D.Allows(G.ME, 'elytok'), 'ElyAura 2 : ElyPick oui, ElyTok non')
+G.ME.model = 3
+ok(D.Allows(G.ME, 'elytok'), 'ElyAura 3 : ElyTok disponible')
+G.ME.model = 1
 G.ME.settings.faceid = True; G.ME.settings.wallpaper = 'aube'; G.ME.settings.accent = '#ff0000'
 D.Clamp(G.ME)
 ok(G.ME.settings.faceid is False and G.ME.settings.wallpaper == 'uni' and G.ME.settings.accent == 'elyzea', 'ElyAura 1 : personnalisation et Face ID refusées à l\'enregistrement')

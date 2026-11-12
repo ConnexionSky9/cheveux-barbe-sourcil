@@ -42,6 +42,7 @@ local env = permissive({})
 local e = loadResource('elyzea_aura', {})
 env.exports = e.exports
 env.GetCurrentResourceName = function() return 'elyzea_aura' end
+env.Devices = false   -- modèles de téléphone (server/phones.lua) non chargés ici : toutes les applis autorisées
 for _, f in ipairs({ 'elyzea_aura/config.lua', 'elyzea_aura/config_elypick.lua', 'elyzea_aura/server/main.lua', 'elyzea_aura/server/elypick.lua' }) do
     assert(load(py_read(f), '@' .. f, 't', env))()
 end

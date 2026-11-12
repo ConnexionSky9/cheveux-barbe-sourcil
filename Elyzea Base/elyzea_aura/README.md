@@ -39,7 +39,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
@@ -93,6 +93,18 @@ On ne voit, et on ne peut envoyer sa fiche qu'aux personnes proches qui ont leur
 ### Tests hors jeu
 - `python3 tests/run_identity_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base ; 38 vérifications.
 - `NODE_PATH=$(npm root -g) node tests/ui_identite.cjs` : téléphone dans Chromium ; 18 vérifications.
+
+## ElyTok : réseau social vidéo (à partir de l'ElyAura 3)
+Directement dans le téléphone (aucune ressource à ajouter, tables `elyzea_et_*` créées au démarrage). Réglages : `config_elytok.lua`.
+- **Fil plein écran** « Pour toi » (vidéos jamais vues d'abord, puis popularité récente) et « Abonnements », lecture automatique, défilement vertical.
+- **Un appui** : pause / lecture. **Double appui** : j'aime (grand cœur à l'endroit touché).
+- **Barre d'actions** : profil + abonnement, j'aime, commentaires (avec j'aime, badge « Auteur »), favoris, partage en message privé, disque du son (« Utiliser ce son »).
+- **Découvrir** : hashtags tendance, vidéos populaires, recherche (comptes, vidéos, hashtags), page de chaque #hashtag.
+- **Créer** : une vidéo filmée avec l'appareil photo (galerie du joueur uniquement, 60 s max), légende avec #hashtags et @mentions, son (sons du serveur, bibliothèque Itoune ou son d'une autre vidéo), commentaires autorisés ou non.
+- **Boîte de réception** : activité (j'aime, commentaires, mentions, abonnés) et messages privés (vidéos partagées en carte).
+- **Profils** : abonnements, abonnés, j'aime reçus ; vidéos, favoris et j'aime (privés) ; modifier nom, @, bio et photo.
+- Sécurité : tout est vérifié par le serveur (compte = personnage, vidéo de SA galerie, anti-spam, pas de faux compteurs). Vues comptées une fois par personne.
+- Pas de direct (LIVE) ni de duo : une vidéo ElyTok vient toujours de l'appareil photo du téléphone.
 
 ## ElyPick (ex-InstaPick) : réseau social photo
 InstaPick est devenu **ElyPick**, directement dans le téléphone (aucune ressource à ajouter).

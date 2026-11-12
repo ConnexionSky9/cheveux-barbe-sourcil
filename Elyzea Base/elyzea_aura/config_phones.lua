@@ -29,7 +29,7 @@ Config.Phones = {
         [2] = {
             item = 'elyaura_2', label = 'ElyAura 2', price = 2500, tier = 2,
             tagline = 'Toutes les applications du quotidien.',
-            apps = 'all', exclude = { 'livrezy', 'helpmecano', 'lasergame', 'carplay', 'itoune', 'garage' },
+            apps = 'all', exclude = { 'livrezy', 'helpmecano', 'lasergame', 'carplay', 'itoune', 'garage', 'elytok' },   -- ElyTok : à partir de l'ElyAura 3
             faceId = true, store = true,
             prop = { model = 'prop_npc_phone_02', bone = 28422, pos = vec3(0.0, 0.0, 0.0), rot = vec3(0.0, 0.0, 0.0) },
         },
